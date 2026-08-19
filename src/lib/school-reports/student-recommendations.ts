@@ -23,7 +23,8 @@ export function describeSchoolAttendance(
   snapshot: Pick<SchoolReportSnapshot, 'summary'>,
 ): string {
   const rate = snapshot.summary.attendanceRate;
-  if (!rate) {
+  const covered = Number(snapshot.summary.learnersWithAttendance ?? 0);
+  if (covered === 0) {
     return 'School-wide attendance is still being captured for this term.';
   }
   const fromResult = snapshot.summary.attendanceFromResultEntry ?? 0;
@@ -32,7 +33,12 @@ export function describeSchoolAttendance(
   if (fromRoll > 0 && fromResult === 0) source = 'professional sessional class rolls (overrides score entry)';
   else if (fromResult > 0 && fromRoll === 0) source = 'Report Builder Attendance % backfill (participation_score)';
   else if (fromRoll > 0) source = 'session rolls where taken, with score-entry backfill elsewhere';
-  return `School-wide attendance is ${rate}% (average across ${countNoun(snapshot.summary.activeStudents, 'learner')} with evidence, from ${source}).`;
+  const roster = Number(snapshot.summary.activeStudents ?? 0);
+  const coverage =
+    roster > covered
+      ? `${countNoun(covered, 'learner')} of ${roster} with evidence`
+      : `${countNoun(covered, 'learner')} with evidence`;
+  return `School-wide attendance is ${rate}% (average across ${coverage}, from ${source}).`;
 }
 
 /** Student-facing recommendations for Section E — not partnership priorities or per-learner roll lines. */

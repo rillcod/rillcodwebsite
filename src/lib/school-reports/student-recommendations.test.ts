@@ -25,6 +25,7 @@ const baseSnapshot = {
     assignmentsCreated: 4,
     submissionsReceived: 40,
     studentsWithScores: 18,
+    learnersWithAttendance: 20,
     attendanceFromResultEntry: 15,
     attendanceFromManualRoll: 5,
   },
@@ -63,7 +64,35 @@ const baseSnapshot = {
 describe('student recommendations', () => {
   it('uses school-wide attendance in the canonical attendance line', () => {
     expect(describeSchoolAttendance(baseSnapshot)).toContain('69%');
+    expect(describeSchoolAttendance(baseSnapshot)).toContain('20 learners with evidence');
     expect(describeSchoolAttendance(baseSnapshot)).not.toContain('44%');
+  });
+
+  it('still reports 0% when learners have evidence of absence', () => {
+    expect(
+      describeSchoolAttendance({
+        ...baseSnapshot,
+        summary: { ...baseSnapshot.summary, attendanceRate: 0, learnersWithAttendance: 8 },
+      }),
+    ).toContain('0%');
+  });
+
+  it('does not treat a 0% average as coverage when nobody has attendance evidence', () => {
+    expect(
+      describeSchoolAttendance({
+        ...baseSnapshot,
+        summary: { ...baseSnapshot.summary, attendanceRate: 0, learnersWithAttendance: 0 },
+      }),
+    ).toMatch(/still being captured/i);
+  });
+
+  it('reports coverage against the roster when only some learners have evidence', () => {
+    expect(
+      describeSchoolAttendance({
+        ...baseSnapshot,
+        summary: { ...baseSnapshot.summary, learnersWithAttendance: 5 },
+      }),
+    ).toContain('5 learners of 20 with evidence');
   });
 
   it('does not surface per-learner attendance percentages in student recommendations', () => {

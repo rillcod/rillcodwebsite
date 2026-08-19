@@ -34,6 +34,7 @@ import { buildReportTopicsPresentation } from '@/lib/school-reports/delivered-to
 import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
 import { filterNextPhaseItems, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
 import { deduplicateNarrativeContent } from '@/lib/school-reports/narrative';
+import { isDraftSnapshotStale, snapshotAgeLabel } from '@/lib/school-reports/source-query';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
 import { TopicsDeliveryPanel } from '@/components/school-reports/TopicsDeliveryPanel';
@@ -87,6 +88,8 @@ const FIELD_META: Array<{ key: FieldKey; label: string; hint: string; rows: numb
 ];
 
 const pct = (value: number) => `${Number(value || 0).toFixed(value % 1 ? 1 : 0)}%`;
+const attendancePct = (rate: number, covered?: number | null) =>
+  Number(covered || 0) > 0 ? pct(rate) : '—';
 const parseLines = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean);
 const money = (value: number, currency: string) =>
   new Intl.NumberFormat('en-NG', {
@@ -601,6 +604,16 @@ export function SchoolReportBuilderCanvas({
             onArchive={() => void archiveReport()}
           />
         ) : null}
+        {canManage && !published && isDraftSnapshotStale(snapshot.generatedAt) ? (
+          <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-3 md:px-5">
+            <p className="break-words text-sm font-black text-amber-950 dark:text-amber-100">
+              Snapshot is {snapshotAgeLabel(snapshot.generatedAt) || 'out of date'} — attendance and scores may not match the live term.
+            </p>
+            <p className="mt-1 break-words text-xs font-semibold text-amber-950/90 dark:text-amber-100/90">
+              Click Refresh data so class rolls and Report Builder attendance pull through before you publish.
+            </p>
+          </div>
+        ) : null}
         {canManage && !published && missingRequired.length ? (
           <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-3 md:px-5">
             <p className="break-words text-sm font-black text-amber-950 dark:text-amber-100">
@@ -1035,7 +1048,11 @@ export function SchoolReportBuilderCanvas({
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <MiniKpi label="Learners" value={snapshot.summary.activeStudents} />
                 <MiniKpi label="Avg score" value={pct(snapshot.summary.averageScore)} />
-                <MiniKpi label="Attendance" value={pct(snapshot.summary.attendanceRate)} />
+                <MiniKpi
+                  label="Attendance"
+                  value={attendancePct(snapshot.summary.attendanceRate, snapshot.summary.learnersWithAttendance)}
+                  note={`${snapshot.summary.learnersWithAttendance ?? 0} of ${snapshot.summary.activeStudents} with evidence`}
+                />
                 <MiniKpi label="Curriculum" value={pct(snapshot.summary.curriculumCoverage)} />
               </div>
               <section className="rounded-2xl border border-border bg-muted/20 p-4 text-xs text-muted-foreground">
@@ -1340,6 +1357,7 @@ export function SchoolReportBuilderCanvas({
         onClose={() => setDataQualityOpen(false)}
         sources={snapshot.dataSources}
         generatedAt={snapshot.generatedAt}
+        frozen={published}
         dataNotes={snapshot.dataNotes}
         summary={snapshot.summary}
         schoolProgrammes={snapshot.schoolProgrammes}
@@ -1358,11 +1376,12 @@ export function SchoolReportBuilderCanvas({
   );
 }
 
-function MiniKpi({ label, value }: { label: string; value: string | number }) {
+function MiniKpi({ label, value, note }: { label: string; value: string | number; note?: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-black">{value}</p>
+      {note ? <p className="mt-1 text-[11px] text-muted-foreground">{note}</p> : null}
     </div>
   );
 }
@@ -1519,7 +1538,10 @@ function BookPreview({
         <div className="grid grid-cols-2 gap-2">
           <PreviewMetric label="Learners" value={String(s.summary.activeStudents)} />
           <PreviewMetric label="Avg score" value={pct(s.summary.averageScore)} />
-          <PreviewMetric label="Attendance" value={pct(s.summary.attendanceRate)} />
+          <PreviewMetric
+            label="Attendance"
+            value={attendancePct(s.summary.attendanceRate, s.summary.learnersWithAttendance)}
+          />
           <PreviewMetric label="Curriculum" value={pct(s.summary.curriculumCoverage)} />
         </div>
         <div>

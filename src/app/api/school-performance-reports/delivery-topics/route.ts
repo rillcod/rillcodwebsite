@@ -7,6 +7,7 @@ import {
   reportingWeekCount,
   type DeliveryCheckpoint,
 } from '@/lib/school-reports/delivery-declaration';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { DeliveryDeclaration } from '@/lib/school-reports/delivery-declaration';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
@@ -70,13 +71,16 @@ export async function GET(req: NextRequest) {
   const reportId = req.nextUrl.searchParams.get('reportId')?.trim();
   const setupSchoolId = req.nextUrl.searchParams.get('schoolId')?.trim();
 
+  try {
   if (reportId) {
+    if (!isSchoolReportUuid(reportId)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
     const { data: report, error } = await actor.admin
       .from('school_performance_reports')
       .select('*')
       .eq('id', reportId)
       .maybeSingle();
-    if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
     if (!canManageSchoolReport(actor, report.school_id)) {
       return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
     }
@@ -130,12 +134,15 @@ export async function GET(req: NextRequest) {
   if (!setupSchoolId) {
     return NextResponse.json({ error: 'reportId or schoolId is required.' }, { status: 400 });
   }
+  if (!isSchoolReportUuid(setupSchoolId)) {
+    return NextResponse.json({ error: 'Choose a valid school.' }, { status: 400 });
+  }
   if (!canManageSchoolReport(actor, setupSchoolId)) {
     return NextResponse.json({ error: 'You cannot manage reports for this school.' }, { status: 403 });
   }
 
   const academicTermId = req.nextUrl.searchParams.get('academicTermId')?.trim();
-  if (!academicTermId) {
+  if (!academicTermId || !isSchoolReportUuid(academicTermId)) {
     return NextResponse.json({ error: 'academicTermId is required for setup delivery.' }, { status: 400 });
   }
 
@@ -152,7 +159,8 @@ export async function GET(req: NextRequest) {
     .select('term_number, term_label, academic_year')
     .eq('id', academicTermId)
     .maybeSingle();
-  if (termError || !academicTerm) {
+  if (termError) return NextResponse.json({ error: termError.message }, { status: 500 });
+  if (!academicTerm) {
     return NextResponse.json({ error: 'Academic term not found.' }, { status: 404 });
   }
 
@@ -190,4 +198,10 @@ export async function GET(req: NextRequest) {
     academicYear: academicTerm.academic_year,
     missingCurriculumCourses,
   });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unable to load delivery topics.' },
+      { status: 500 },
+    );
+  }
 }

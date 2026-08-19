@@ -36,6 +36,8 @@ const pct = (value: number | null | undefined) =>
   value == null || !Number.isFinite(Number(value))
     ? '—'
     : `${Number(value).toFixed(Number(value) % 1 ? 1 : 0)}%`;
+const attendancePct = (rate: number | null | undefined, covered?: number | null) =>
+  Number(covered || 0) > 0 ? pct(rate) : '—';
 
 const money = (value: number, currency: string) =>
   new Intl.NumberFormat('en-NG', {
@@ -263,15 +265,15 @@ export function SchoolReportLivePreview({
             </div>
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-teal-500/10 via-card to-card p-3.5 text-center shadow-2xs">
               <RadialRing
-                value={Number(snapshot.summary?.attendanceRate || 0)}
+                value={Number(snapshot.summary?.learnersWithAttendance || 0) > 0 ? Number(snapshot.summary?.attendanceRate || 0) : 0}
                 size={layout.ringSize}
                 strokeWidth={6}
                 color={REPORT_SEMANTIC_COLORS.teal}
-                label={pct(snapshot.summary?.attendanceRate)}
+                label={attendancePct(snapshot.summary?.attendanceRate, snapshot.summary?.learnersWithAttendance)}
               />
               <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">Attendance</p>
               <p className="text-[11px] font-semibold text-muted-foreground">
-                {snapshot.summary?.learnersWithAttendance ?? 0} with attendance
+                {snapshot.summary?.learnersWithAttendance ?? 0} of {snapshot.summary?.activeStudents ?? 0} with evidence
               </p>
             </div>
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border/80 bg-gradient-to-b from-primary/10 via-card to-card p-3.5 text-center shadow-2xs">

@@ -168,6 +168,7 @@ export async function loadSchoolReportCurriculum(
       error: curriculaError,
       rows: scopedCurricula,
       checkedAt,
+      required: true,
     }),
     recordSource("delivery_tracking", {
       error: trackingError,

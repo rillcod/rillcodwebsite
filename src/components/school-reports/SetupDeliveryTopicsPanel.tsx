@@ -61,6 +61,8 @@ export function SetupDeliveryTopicsPanel({
   const [resolvedCourses, setResolvedCourses] = useState<CatalogResponse['resolvedCourses']>([]);
   const [missingCurriculumCourses, setMissingCurriculumCourses] = useState<CatalogResponse['missingCurriculumCourses']>([]);
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
+  const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
+  const [genNotice, setGenNotice] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
   const autoSuggestedRef = useRef(false);
   const selectedTopicKeysRef = useRef(selectedTopicKeys);
   selectedTopicKeysRef.current = selectedTopicKeys;
@@ -208,6 +210,55 @@ export function SetupDeliveryTopicsPanel({
     setSelected(next);
   }
 
+  async function generateCurriculumOnSpot() {
+    if (!form.schoolId || !form.academicTermId) return;
+    setGeneratingCurriculum(true);
+    setError('');
+    setGenNotice(null);
+    try {
+      const res = await fetch('/api/school-performance-reports/generate-curriculum-on-spot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolId: form.schoolId,
+          academicTermId: form.academicTermId,
+          curriculumStartTerm: form.curriculumStartTerm,
+          curriculumStartWeek: form.curriculumStartWeek,
+          curriculumEndTerm: form.curriculumEndTerm,
+          curriculumEndWeek: form.curriculumEndWeek,
+        }),
+      });
+      const json = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok) {
+        throw new Error((json.error as string | undefined) || `Failed to generate topics (HTTP ${res.status}).`);
+      }
+      await loadCatalog();
+      const written = Number(json.createdCount ?? 0) + Number(json.updatedCount ?? 0);
+      const ai = Number(json.aiCourseCount ?? 0);
+      const unresolved = Array.isArray(json.unresolvedCourses) ? json.unresolvedCourses.length : 0;
+      if (written === 0 && unresolved === 0) {
+        setGenNotice({
+          tone: 'ok',
+          text: 'Weekly topics are already on file. Tick what was taught — they pull through into the draft.',
+        });
+      } else if (unresolved > 0) {
+        setGenNotice({
+          tone: 'warn',
+          text: `${ai} course${ai === 1 ? '' : 's'} now have tickable topics; ${unresolved} could not be expanded. No placeholder topics were added.`,
+        });
+      } else {
+        setGenNotice({
+          tone: 'ok',
+          text: 'Weekly topics are ready. Tick what was taught — they appear below and pull through into the draft.',
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error generating curriculum.');
+    } finally {
+      setGeneratingCurriculum(false);
+    }
+  }
+
   const presentation = useMemo(() => {
     if (!selectedTopicKeys.length || !catalog.length) return null;
     const declaration = buildDeliveryDeclaration({
@@ -240,21 +291,32 @@ export function SetupDeliveryTopicsPanel({
     <div className="mt-4 space-y-4 rounded-2xl border border-primary/20 bg-primary/[0.03] p-3 sm:mt-6 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="text-sm font-black">What we taught — confirm before draft</h3>
+          <h3 className="text-sm font-black">What we taught — tick now, it pulls through</h3>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            Tick the module topics learners actually covered. This is saved into the draft when you generate — the editor
-            picker is only for later edits.
+            Tick the topics learners actually covered. They are saved into the draft when you create it. You only need the
+            draft editor if you want to change them later.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={disabled || loading || !form.schoolId}
-          onClick={() => void loadCatalog()}
-          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-black disabled:opacity-50 sm:w-auto"
-        >
-          <ArrowPathIcon className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Reload topics
-        </button>
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
+          <button
+            type="button"
+            disabled={disabled || generatingCurriculum || !form.schoolId}
+            onClick={() => void generateCurriculumOnSpot()}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50 sm:w-auto"
+          >
+            <ArrowPathIcon className={`h-3.5 w-3.5 ${generatingCurriculum ? 'animate-spin' : ''}`} />
+            {generatingCurriculum ? 'Generating…' : 'Generate topics'}
+          </button>
+          <button
+            type="button"
+            disabled={disabled || loading || !form.schoolId}
+            onClick={() => void loadCatalog()}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-black disabled:opacity-50 sm:w-auto"
+          >
+            <ArrowPathIcon className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Reload topics
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -265,6 +327,18 @@ export function SetupDeliveryTopicsPanel({
       ) : null}
 
       {error ? <p className="text-[11px] font-semibold text-destructive break-words">{error}</p> : null}
+
+      {genNotice ? (
+        <p
+          className={`rounded-xl border px-3 py-2 text-[11px] ${
+            genNotice.tone === 'warn'
+              ? 'border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100'
+              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
+          }`}
+        >
+          {genNotice.text}
+        </p>
+      ) : null}
 
       {presentation ? (
         <WhatWeTaughtPreview presentation={presentation} enrolledCourses={schoolProgrammes} />
@@ -354,10 +428,21 @@ export function SetupDeliveryTopicsPanel({
       ) : null}
 
       {!loading && !catalog.length && form.schoolId ? (
-        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-950 break-words dark:text-amber-100">
-          No real curriculum topics were found for this window. Adjust the range or complete the curriculum in Academic
-          Office; the report will not invent coverage.
-        </p>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-[11px] leading-relaxed text-amber-950 dark:text-amber-100">
+          <p>
+            No authored syllabus exists for this window. Generate programme topics here, then tick what was taught — they
+            pull through into the draft.
+          </p>
+          <button
+            type="button"
+            disabled={disabled || generatingCurriculum}
+            onClick={() => void generateCurriculumOnSpot()}
+            className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`h-3.5 w-3.5 ${generatingCurriculum ? 'animate-spin' : ''}`} />
+            {generatingCurriculum ? 'Generating programme topics…' : 'Generate programme topics'}
+          </button>
+        </div>
       ) : null}
 
       {missingCurriculumCourses.length ? (
@@ -376,11 +461,11 @@ export function SetupDeliveryTopicsPanel({
           {selectedCount > 0 ? (
             <span className="inline-flex min-h-10 items-center gap-1 text-[11px] font-black text-emerald-700 dark:text-emerald-300">
               <CheckCircleIcon className="h-4 w-4 shrink-0" />
-              Ready to bake into draft
+              Will pull through into the draft
             </span>
           ) : (
             <span className="inline-flex min-h-10 items-center text-[11px] font-black text-amber-700 dark:text-amber-300">
-              Optional now — confirm topics in the draft editor if you skip here
+              Tick topics here so they appear in the draft
             </span>
           )}
         </div>

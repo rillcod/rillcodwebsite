@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canViewSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { loadSchoolReportRoster } from '@/lib/school-reports/loaders/roster';
 import { buildSchoolRosterPdfRows } from '@/lib/rosters/build-school-roster-pdf-rows';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (!actor) return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
 
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report } = await actor.admin
     .from('school_performance_reports')
     .select('id, school_id, title, status')

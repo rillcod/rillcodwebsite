@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { pct } from '@/lib/school-reports/ui/constants';
+import { attendancePct, pct } from '@/lib/school-reports/ui/constants';
 
 type TermMetrics = {
   reportId: string;
@@ -15,6 +15,7 @@ type TermMetrics = {
   studentsWithScores: number;
   averageScore: number;
   attendanceRate: number;
+  learnersWithAttendance?: number;
   curriculumCoverage: number;
   programmeCount: number;
 };
@@ -100,26 +101,36 @@ export function CrossTermComparisonPanel({ reportId }: { reportId: string }) {
               ['Attendance', current.attendanceRate, previous?.attendanceRate ?? null, '%'],
               ['Curriculum coverage', current.curriculumCoverage, previous?.curriculumCoverage ?? null, '%'],
               ['Programme rows', current.programmeCount, previous?.programmeCount ?? null, ''],
-            ].map(([label, now, before, suffix]) => (
+            ].map(([label, now, before, suffix]) => {
+              const isAttendance = String(label) === 'Attendance';
+              const nowDisplay = isAttendance
+                ? attendancePct(Number(now), current.learnersWithAttendance)
+                : String(label).includes('score') || String(label).includes('coverage')
+                  ? pct(Number(now))
+                  : now;
+              const beforeDisplay =
+                before == null
+                  ? '—'
+                  : isAttendance
+                    ? attendancePct(Number(before), previous?.learnersWithAttendance)
+                    : String(label).includes('score') || String(label).includes('coverage')
+                      ? pct(Number(before))
+                      : before;
+              const attendanceComparable =
+                !isAttendance ||
+                (Number(current.learnersWithAttendance || 0) > 0 &&
+                  Number(previous?.learnersWithAttendance || 0) > 0);
+              return (
               <tr key={String(label)} className="border-b border-border/60">
                 <td className="p-3 font-bold">{label}</td>
-                <td className="p-3">
-                  {String(label).includes('score') || String(label).includes('Attendance') || String(label).includes('coverage')
-                    ? pct(Number(now))
-                    : now}
-                </td>
-                <td className="p-3 text-muted-foreground">
-                  {before == null
-                    ? '—'
-                    : String(label).includes('score') || String(label).includes('Attendance') || String(label).includes('coverage')
-                      ? pct(Number(before))
-                      : before}
-                </td>
+                <td className="p-3">{nowDisplay}</td>
+                <td className="p-3 text-muted-foreground">{beforeDisplay}</td>
                 <td className="p-3 font-black text-primary">
-                  {before == null ? '—' : delta(Number(now), Number(before), String(suffix))}
+                  {before == null || !attendanceComparable ? '—' : delta(Number(now), Number(before), String(suffix))}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

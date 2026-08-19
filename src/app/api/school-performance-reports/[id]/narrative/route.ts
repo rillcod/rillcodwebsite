@@ -4,6 +4,7 @@ import {
   rewriteSchoolReportNarrativeFields,
   type NarrativeFieldKey,
 } from '@/lib/school-reports/narrative';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow, SchoolReportNarrative } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const body = await req.json().catch(() => ({}));
   const requested = Array.isArray(body?.fields)
     ? (body.fields as string[]).filter((field): field is NarrativeFieldKey =>

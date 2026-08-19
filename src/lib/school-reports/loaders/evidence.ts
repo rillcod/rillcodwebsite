@@ -1,10 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
-import { recordSource, type DataSourceStatus } from '../source-query';
+import { attendanceSourceMessage, recordSource, type DataSourceStatus } from '../source-query';
 import { attendanceInReportTerm, submissionInReportTerm } from '../term-evidence';
 import type { LoaderResult, SchoolReportRange } from './types';
 import { fetchAllReportRows } from '../paginated-query';
-import { progressReportDedupeKey } from '../progress-report';
+import { extractResultEntryAttendanceScores, progressReportDedupeKey } from '../progress-report';
 import { evidenceBelongsToSchoolTerm } from '@/lib/academic/teaching-period';
 
 type AnyClient = SupabaseClient<any>;
@@ -112,9 +112,18 @@ export async function loadSchoolReportEvidence(
       attendanceInReportTerm(row, range),
     );
     progressReports = dedupeProgressReports(progressResult.data ?? []);
+    const resultEntryAttendance = extractResultEntryAttendanceScores(progressReports);
     dataSources.push(
       recordSource('submissions', { error: submissionResult.error, rows: submissions, checkedAt }),
-      recordSource('attendance', { error: attendanceResult.error, rows: attendance, checkedAt }),
+      recordSource('attendance', {
+        error: attendanceResult.error,
+        rows: [...attendance, ...resultEntryAttendance.map((rate) => ({ rate }))],
+        required: true,
+        checkedAt,
+        message: attendanceResult.error
+          ? undefined
+          : attendanceSourceMessage(attendance.length, resultEntryAttendance.length),
+      }),
       recordSource('progress_reports', { error: progressResult.error, rows: progressReports, checkedAt }),
     );
   } else {

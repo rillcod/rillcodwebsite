@@ -11,12 +11,13 @@ import {
   isAttachableInvoice,
   isSchoolStreamInvoice,
 } from './invoice-match';
-import { recordSource, type DataSourceStatus } from './source-query';
+import { attendanceSourceMessage, recordSource, type DataSourceStatus } from './source-query';
 import { resolveFinanceReportPeriod } from './loaders/finance';
 import { buildSchoolReportBillingHrefFromPeriod, buildSchoolReportInvoiceEditHref } from './finance-links';
 import { academicPeriodFromReportFields } from './academic-period';
 import { attendanceInReportTerm, submissionInReportTerm } from './term-evidence';
 import type { SchoolReportRange } from './loaders/types';
+import { extractResultEntryAttendanceScores } from './progress-report';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -163,6 +164,9 @@ export async function runReportPreflight(
     const termAttendance = ((attendanceResult.data ?? []) as any[]).filter((row) =>
       attendanceInReportTerm(row, reportRange),
     );
+    const resultEntryAttendance = extractResultEntryAttendanceScores(
+      (progressResult.data ?? []) as Array<{ participation_score?: number | null; engagement_metrics?: unknown }>,
+    );
 
     resultsStatus = recordSource('results', {
       error: submissionResult.error || progressResult.error,
@@ -172,9 +176,13 @@ export async function runReportPreflight(
     });
     attendanceStatus = recordSource('attendance', {
       error: attendanceResult.error,
-      rows: termAttendance,
+      rows: [...termAttendance, ...resultEntryAttendance.map((rate) => ({ rate }))],
       cap: 20000,
+      required: true,
       checkedAt,
+      message: attendanceResult.error
+        ? undefined
+        : attendanceSourceMessage(termAttendance.length, resultEntryAttendance.length),
     });
   }
 
@@ -283,7 +291,8 @@ export async function runReportPreflight(
     detail:
       attendanceStatus.status === 'failed'
         ? attendanceStatus.message || 'Attendance query failed'
-        : `${attendanceStatus.rowCount} attendance row${attendanceStatus.rowCount === 1 ? '' : 's'}`,
+        : attendanceStatus.message ||
+          `${attendanceStatus.rowCount} attendance row${attendanceStatus.rowCount === 1 ? '' : 's'}`,
   });
 
   pushCheck({

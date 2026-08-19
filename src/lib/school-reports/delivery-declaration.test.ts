@@ -204,6 +204,32 @@ describe('delivery-declaration', () => {
     expect(catalog[0].topic).toBe('Scratch basics');
   });
 
+  it('omits placeholder weeks from the tickable catalog', () => {
+    const catalog = extractDeliveryTopicCatalog(
+      [
+        {
+          id: 'cur-ph',
+          content: {
+            generated_source: 'placeholder',
+            terms: [
+              {
+                term: 1,
+                weeks: [
+                  { week: 1, topic: 'Week 1: Core concepts & guided practice', source: 'placeholder' },
+                  { week: 2, topic: 'Variables and input', source: 'ai' },
+                ],
+              },
+            ],
+          },
+          courses: { title: 'Python', programs: { name: 'Teen Developers' } },
+        },
+      ],
+      1,
+      { startTerm: 1, startWeek: 1, endTerm: 1, endWeek: 14 },
+    );
+    expect(catalog.map((row) => row.topic)).toEqual(['Variables and input']);
+  });
+
   it('builds a synthetic catalog for resolved courses when syllabi are missing', () => {
     const catalog = buildSyntheticDeliveryCatalog(
       [{ id: 'c1', title: 'Python', programme: 'Teen Developers' }],
@@ -275,6 +301,7 @@ describe('delivery-declaration', () => {
     expect(next.curriculum.courses.map((row) => row.course)).toEqual(
       expect.arrayContaining(['Scratch', 'Python Programming']),
     );
-    expect(next.curriculum.courses.find((row) => row.course === 'Python Programming')?.completed).toBeGreaterThan(0);
+    expect(next.curriculum.courses.find((row) => row.course === 'Python Programming')?.completed).toBe(0);
+    expect(next.curriculum.courses.find((row) => row.course === 'Coding')?.completed).toBeGreaterThan(0);
   });
 });

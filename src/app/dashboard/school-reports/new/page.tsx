@@ -26,7 +26,8 @@ export default function NewSchoolReportPage() {
         <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">New report book</p>
         <h1 className="mt-2 text-3xl font-black text-foreground">Generate school performance report</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Choose the school, term, and delivery range. Preflight checks run automatically before you generate the draft.
+          Choose the school and term, then tick what was taught. Those ticks pull through into the draft — you do not have
+          to open the editor first.
         </p>
       </header>
 

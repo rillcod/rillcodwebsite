@@ -132,32 +132,23 @@ export function SchoolReportSetupWizard({
   const overrideReady = !overrideRequired || form.curriculumOverrideReason.trim().length >= 8;
   const deliveryReady = form.selectedTopicKeys.length > 0;
   const curriculumStepReady = overrideReady;
-  const preflightReady = Boolean(preflight);
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
-  const expressReady =
-    scopeReady && overrideReady && Boolean(preflight?.readyToGenerate) && !preflight?.blocking;
 
   function canEnterStep(target: SetupWorkflowStep): boolean {
     if (target <= 1) return true;
     if (!scopeReady) return false;
     if (target === 2) return true;
-    if (!preflightReady) return false;
-    if (target === 3) return true;
-    if (target === 4) return curriculumStepReady;
-    if (target === 5) return curriculumStepReady;
+    if (!curriculumStepReady) return false;
     return true;
   }
 
   function stepGuardMessage(target: SetupWorkflowStep): string {
     if (target > 1 && !scopeReady) {
-      return 'Complete Step 1 first: school, term/year, and report title.';
+      return 'Choose the school, term, and report title first.';
     }
-    if (target > 2 && !preflightReady) {
-      return 'Run Step 2 preflight first so readiness checks can complete.';
-    }
-    if (target > 3 && !curriculumStepReady) {
+    if (target > 2 && !curriculumStepReady) {
       return 'Provide the curriculum override reason before continuing.';
     }
     return '';
@@ -186,19 +177,17 @@ export function SchoolReportSetupWizard({
           </span>
           <div className="min-w-0">
             <h2 className="text-lg font-black sm:text-xl">Create school report book</h2>
-            <p className="text-sm text-muted-foreground">Start straight through in the report studio, or step through setup.</p>
+            <p className="text-sm text-muted-foreground">Tick what was taught first — those topics pull through into the draft.</p>
           </div>
         </div>
         {scopeReady ? (
           <button
             type="button"
-            disabled={working === 'generate'}
-            onClick={() => void onGenerate()}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-md hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
-            title="Launch straight into the report builder studio without clicking through each step"
+            onClick={() => goToStep(2)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-md hover:from-blue-700 hover:to-purple-700 transition-all"
           >
-            <SparklesIcon className={`h-4 w-4 ${working === 'generate' ? 'animate-spin' : ''}`} />
-            {working === 'generate' ? 'Preparing report book…' : '⚡ Start report studio (Straight-Through)'}
+            <SparklesIcon className="h-4 w-4" />
+            Continue to What we taught
           </button>
         ) : null}
       </div>
@@ -290,38 +279,24 @@ export function SchoolReportSetupWizard({
           {scopeReady ? (
             <div className="md:col-span-2 rounded-2xl border border-primary/30 bg-primary/[0.04] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <p className="text-sm font-black text-foreground">⚡ Straight-Through Mode Ready</p>
+                <p className="text-sm font-black text-foreground">Next: tick what was taught</p>
                 <p className="text-xs text-muted-foreground">
-                  You can jump directly into the report studio to confirm topics, review attendance evidence, and complete the report in one continuous workflow.
+                  Confirm topics now. They are saved into the draft when you create it — you do not have to open the editor first.
                 </p>
               </div>
               <button
                 type="button"
-                disabled={working === 'generate'}
-                onClick={() => void onGenerate()}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-xs font-black text-white shadow-sm hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
+                onClick={() => goToStep(2)}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-xs font-black text-white shadow-sm hover:from-blue-700 hover:to-purple-700 transition-all"
               >
-                <SparklesIcon className="h-4 w-4" />
-                {working === 'generate' ? 'Launching…' : 'Start Report Studio'}
+                What we taught
               </button>
             </div>
           ) : null}
-          <div className="md:col-span-2">
-            <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
-          </div>
         </div>
       ) : null}
 
       {step === 2 ? (
-        <div className="mt-6">
-          <p className="mb-3 rounded-lg border border-border bg-background/50 px-3 py-2 text-[11px] text-muted-foreground">
-            Step 2 validates core data before curriculum delivery decisions. Re-run this whenever school/term changes.
-          </p>
-          <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
-        </div>
-      ) : null}
-
-      {step === 3 ? (
         <>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 md:col-span-2">
@@ -414,7 +389,9 @@ export function SchoolReportSetupWizard({
               })}
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Pick 8, 10, or 14 weeks for this term&apos;s delivery window — topics and manual delivery span across your selection.
+              Pick {REPORT_WINDOW_WEEK_OPTIONS.slice(0, -1).join(', ')}, or{' '}
+              {REPORT_WINDOW_WEEK_OPTIONS[REPORT_WINDOW_WEEK_OPTIONS.length - 1]} weeks for this
+              term&apos;s delivery window — topics and manual delivery span across your selection.
             </p>
           </div>
           <label className="space-y-1">
@@ -476,6 +453,17 @@ export function SchoolReportSetupWizard({
           disabled={working === 'generate'}
         />
         </>
+      ) : null}
+
+      {step === 3 ? (
+        <div className="mt-6">
+          <p className="mb-3 rounded-lg border border-border bg-background/50 px-3 py-2 text-[11px] text-muted-foreground">
+            {deliveryReady
+              ? 'What we taught is already ticked and will pull through into the draft. This check is for scores, attendance, and invoices.'
+              : 'You can still create the draft, then tick topics in the editor. This check is for scores, attendance, and invoices.'}
+          </p>
+          <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
+        </div>
       ) : null}
 
       {step === 4 ? (
@@ -598,6 +586,9 @@ export function SchoolReportSetupWizard({
               {terms.find((t) => t.id === form.academicTermId)?.term_label || 'the selected term'}
             </span>
             .
+            {deliveryReady
+              ? ' Your ticked topics will appear in What we taught on the draft.'
+              : ' You can still tick topics in the draft editor if you skip them here.'}
           </p>
           <PreflightPanel preflight={preflight} preflightLoading={preflightLoading} runPreflight={runPreflight} form={form} />
         </div>
@@ -622,28 +613,14 @@ export function SchoolReportSetupWizard({
             </Link>
           )}
           {step < 5 ? (
-            <>
-              {scopeReady ? (
-                <button
-                  type="button"
-                  disabled={working === 'generate'}
-                  onClick={() => void onGenerate()}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-black text-primary hover:bg-primary/20 transition-all disabled:opacity-50 sm:w-auto"
-                  title="Launch straight into the report builder studio without stepping through all wizard pages"
-                >
-                  <SparklesIcon className="h-4 w-4" />
-                  {working === 'generate' ? 'Launching…' : '⚡ Start studio (Straight-Through)'}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={!canEnterStep(Math.min(5, step + 1) as SetupWorkflowStep)}
-                onClick={handleContinue}
-                className="min-h-11 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
-              >
-                Continue
-              </button>
-            </>
+            <button
+              type="button"
+              disabled={!canEnterStep(Math.min(5, step + 1) as SetupWorkflowStep)}
+              onClick={handleContinue}
+              className="min-h-11 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 sm:w-auto"
+            >
+              {step === 1 ? 'Continue to What we taught' : 'Continue'}
+            </button>
           ) : (
             <button
               onClick={() => void onGenerate()}

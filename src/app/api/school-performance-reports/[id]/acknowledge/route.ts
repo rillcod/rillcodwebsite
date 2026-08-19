@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor } from '@/lib/school-reports/access';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await getSchoolReportActor();
@@ -7,6 +8,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Only the partner school or an administrator can acknowledge this report.' }, { status: 403 });
   }
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Published report not found.' }, { status: 404 });
   const { data: report } = await actor.admin.from('school_performance_reports').select('id,school_id,status').eq('id', id).maybeSingle();
   if (!report || report.status !== 'published') return NextResponse.json({ error: 'Published report not found.' }, { status: 404 });
   if (actor.profile.role === 'school' && actor.profile.school_id !== report.school_id) {

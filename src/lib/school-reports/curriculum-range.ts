@@ -117,7 +117,7 @@ function correctiveActionFor(
     case "no_tracking":
       return "Mark delivery weeks in Course Syllabus, then click Detect from delivery again.";
     case "no_curriculum":
-      return "Build visible syllabi in Course Syllabus for this school, then retry detection.";
+      return "No authored syllabus exists for this term. Generate programme topics from the school report delivery step, or build syllabi in Course Syllabus, then retry detection.";
     case "query_failed":
       return "Check your connection and retry. If this persists, contact support.";
     case "migration_missing":
@@ -165,7 +165,7 @@ export function suggestReportCurriculumRange(input: {
       syllabusCount,
       hint:
         status === "no_curriculum"
-          ? `No syllabus delivery window is configured for this school. The academic-period fallback is Term ${termNum}, Weeks 1-${defaultEnd}; build syllabi in Course Syllabus to replace it.`
+          ? `No authored syllabus exists for this school this term. The academic-period fallback is Term ${termNum}, Weeks 1-${defaultEnd}. Generate programme topics from the report delivery step, or build syllabi in Course Syllabus.`
           : `No marked weeks for Term ${termNum} yet. The detected syllabus window is Weeks 1-${defaultEnd}. Mark delivery in Course Syllabus, then click Detect from delivery.`,
       status,
       checkedAt,

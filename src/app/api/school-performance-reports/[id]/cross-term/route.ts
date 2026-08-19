@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow, SchoolReportSnapshot } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,7 @@ type TermMetrics = {
   studentsWithScores: number;
   averageScore: number;
   attendanceRate: number;
+  learnersWithAttendance: number;
   curriculumCoverage: number;
   programmeCount: number;
 };
@@ -32,6 +34,7 @@ function metricsFromReport(row: SchoolPerformanceReportRow): TermMetrics {
     studentsWithScores: snapshot?.summary?.studentsWithScores ?? 0,
     averageScore: snapshot?.summary?.averageScore ?? 0,
     attendanceRate: snapshot?.summary?.attendanceRate ?? 0,
+    learnersWithAttendance: snapshot?.summary?.learnersWithAttendance ?? 0,
     curriculumCoverage: snapshot?.summary?.curriculumCoverage ?? 0,
     programmeCount: snapshot?.programmeCoursePerformance?.length ?? 0,
   };
@@ -48,6 +51,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
     .select('*')

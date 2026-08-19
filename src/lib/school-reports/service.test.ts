@@ -143,15 +143,13 @@ function mockAdmin(
         return { select: vi.fn(() => chain) };
       }
       if (table === "course_curricula") {
-        return {
-          select: vi.fn(() => ({
-            or: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                limit: vi.fn(async () => ({ data: [], error: null })),
-              })),
-            })),
-          })),
+        const result = { data: [], error: null };
+        const chain: any = {
+          or: vi.fn(() => chain),
+          eq: vi.fn(() => chain),
+          limit: vi.fn(async () => result),
         };
+        return { select: vi.fn(() => chain) };
       }
       if (
         table === "portal_users" ||

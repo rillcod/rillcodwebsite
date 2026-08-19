@@ -7,7 +7,8 @@ import { DocumentArrowDownIcon } from '@/lib/icons';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 import { mergeProgrammeCoursePerformanceWithEnrolment } from '@/lib/school-reports/programme-course-performance';
 import { formatClassDisplay, formatPersonDisplayName, formatProgrammeCourseDisplay } from '@/lib/school-reports/display-labels';
-import { money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
+import { attendancePct, money, pct, plainStatus } from '@/lib/school-reports/ui/constants';
+import { isDraftSnapshotStale, snapshotAgeLabel } from '@/lib/school-reports/source-query';
 import { REPORT_ANALYTICS_COLORS } from '@/lib/school-reports/design';
 import { SchoolReportKpi } from '@/components/school-reports/SchoolReportKpi';
 import { downloadSchoolReportRosterPdf } from '@/lib/rosters/download-school-report-roster';
@@ -49,8 +50,14 @@ export function SchoolReportAnalyticsPanel({
         <div>
           <p className="text-sm font-black text-muted-foreground">Analytics canvas</p>
           <p className="text-[11px] text-muted-foreground">
-            Snapshot {s.generatedAt ? new Date(s.generatedAt).toLocaleString() : 'unknown'} · {sourceSummary}
+            Snapshot {s.generatedAt ? new Date(s.generatedAt).toLocaleString() : 'unknown'}
+            {snapshotAgeLabel(s.generatedAt) ? ` · ${snapshotAgeLabel(s.generatedAt)}` : ''} · {sourceSummary}
           </p>
+          {report.status !== 'published' && isDraftSnapshotStale(s.generatedAt) ? (
+            <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-950 dark:text-amber-100">
+              Draft snapshot is stale. Refresh data on the report so attendance and scores match the live term.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {role !== 'school' ? (
@@ -112,7 +119,12 @@ export function SchoolReportAnalyticsPanel({
         ) : null}
         <SchoolReportKpi label="Assigned staff" value={s.summary.activeStaff} note={`${s.summary.activeTeachers} teachers at this school only`} color={REPORT_ANALYTICS_COLORS.staff} />
         <SchoolReportKpi label="Average score" value={pct(s.summary.averageScore)} note={`${s.summary.submissionsReceived} submissions`} color={REPORT_ANALYTICS_COLORS.score} />
-        <SchoolReportKpi label="Attendance" value={pct(s.summary.attendanceRate)} note="Attendance register prioritised" color={REPORT_ANALYTICS_COLORS.attendance} />
+        <SchoolReportKpi
+          label="Attendance"
+          value={attendancePct(s.summary.attendanceRate, s.summary.learnersWithAttendance)}
+          note={`${s.summary.learnersWithAttendance ?? 0} of ${s.summary.activeStudents} with evidence`}
+          color={REPORT_ANALYTICS_COLORS.attendance}
+        />
         <SchoolReportKpi label="Curriculum coverage" value={pct(s.summary.curriculumCoverage)} note={`${s.curriculum.completedWeeks}/${s.curriculum.plannedWeeks} weeks`} color={REPORT_ANALYTICS_COLORS.curriculum} />
       </div>
 
@@ -131,7 +143,7 @@ export function SchoolReportAnalyticsPanel({
           <DonutChart
             data={s.attendanceBands.map((b) => ({ label: b.label, value: b.count, color: b.color }))}
             centerLabel="Attendance"
-            centerValue={pct(s.summary.attendanceRate)}
+            centerValue={attendancePct(s.summary.attendanceRate, s.summary.learnersWithAttendance)}
             height={250}
           />
         </section>

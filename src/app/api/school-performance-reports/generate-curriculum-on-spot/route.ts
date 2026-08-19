@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
-import { resolveDeliveryCoursesForReport } from '@/lib/school-reports/school-curriculum-scope';
+import { generateReportDeliveryCurriculum } from '@/lib/school-reports/generate-on-spot';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
-import {
-  endWeekForReportWindow,
-  normalizeReportingWeeks,
-  reportWeekNumbers,
-  reportingWeekCount,
-} from '@/lib/school-reports/delivery-declaration';
-import { syntheticWeekTopicLabel } from '@/lib/school-reports/topics-covered-presentation';
-import { expandCourseDeliveryWeeks } from '@/lib/school-reports/week-expansion';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
+
+function boundedInt(value: unknown, min: number, max: number): number | null {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= min && number <= max ? number : null;
+}
 
 export async function POST(req: NextRequest) {
   const actor = await getSchoolReportActor();
@@ -20,178 +18,87 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only authorised staff can generate curricula.' }, { status: 403 });
   }
 
-  const { reportId } = await req.json();
-  if (!reportId) return NextResponse.json({ error: 'reportId is required.' }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const reportId = typeof body.reportId === 'string' ? body.reportId.trim() : '';
+  const setupSchoolId = typeof body.schoolId === 'string' ? body.schoolId.trim() : '';
 
-  const { data: report, error } = await actor.admin
-    .from('school_performance_reports')
-    .select('*')
-    .eq('id', reportId)
-    .maybeSingle();
+  try {
+    if (reportId) {
+      if (!isSchoolReportUuid(reportId)) {
+        return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+      }
+      const { data: report, error } = await actor.admin
+        .from('school_performance_reports')
+        .select('*')
+        .eq('id', reportId)
+        .maybeSingle();
 
-  if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
-  if (!canManageSchoolReport(actor, report.school_id)) {
-    return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
-  }
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+      if (!canManageSchoolReport(actor, report.school_id)) {
+        return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
+      }
 
-  const row = report as SchoolPerformanceReportRow;
-  const schoolId = row.school_id;
-
-  const { data: students } = await actor.admin
-    .from('portal_users')
-    .select('id,class_id,full_name,section_class,grade,class_arm')
-    .eq('role', 'student')
-    .eq('school_id', schoolId)
-    .eq('is_active', true)
-    .or('is_deleted.is.null,is_deleted.eq.false')
-    .limit(5000);
-
-  const deliveryCourses = await resolveDeliveryCoursesForReport(
-    actor.admin,
-    schoolId,
-    (students ?? []) as any[],
-    row.snapshot,
-  );
-
-  if (!deliveryCourses.length) {
-    return NextResponse.json(
-      {
-        error:
-          'No courses could be resolved for this report. Refresh the report snapshot first so programme courses are detected, then try again.',
-      },
-      { status: 409 },
-    );
-  }
-
-  let createdCount = 0;
-  let aiCourseCount = 0;
-  let placeholderCourseCount = 0;
-  const unresolvedCourses: string[] = [];
-  const range = {
-    startTerm: row.curriculum_start_term || row.snapshot?.period?.academicTermNumber || 1,
-    startWeek: row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1,
-    endTerm: row.curriculum_end_term || row.curriculum_start_term || 1,
-    endWeek: row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || 14,
-  };
-  const reportingWeeks = reportingWeekCount(range);
-  const startWeek = range.startWeek;
-  const endWeek = endWeekForReportWindow(startWeek, normalizeReportingWeeks(reportingWeeks));
-  const termNumber = range.startTerm;
-  const reportWeeks = reportWeekNumbers(startWeek, endWeek);
-
-  for (const course of deliveryCourses) {
-    const { data: existing } = await actor.admin
-      .from('course_curricula')
-      .select('id,content')
-      .eq('course_id', course.id)
-      .or(`school_id.eq.${schoolId},school_id.is.null`);
-
-    const existingWeekNumbers = new Set((existing ?? []).flatMap((curriculum: any) =>
-      (Array.isArray(curriculum.content?.terms) ? curriculum.content.terms : [])
-        .filter((term: any) => Number(term.term ?? term.term_number) === termNumber)
-        .flatMap((term: any) => (Array.isArray(term.weeks) ? term.weeks : []).map((item: any) => Number(item.week ?? item.week_number))),
-    ));
-    const existingHasWindow = reportWeeks.every((week) => existingWeekNumbers.has(week));
-    const missingWeeks = reportWeeks.filter((week) => !existingWeekNumbers.has(week));
-    if (!existingHasWindow) {
-      // Expand from the topics this course has genuinely reached, so the checklist
-      // staff tick against is real teaching content rather than a phrase list
-      // cycled by week number and repeated identically for every course.
-      const reachedTopics = (existing ?? []).flatMap((curriculum: any) =>
-        (Array.isArray(curriculum.content?.terms) ? curriculum.content.terms : [])
-          .flatMap((term: any) => (Array.isArray(term.weeks) ? term.weeks : []))
-          .map((item: any) => String(item?.topic ?? '').trim())
-          .filter(Boolean),
-      );
-
-      const expansion = await expandCourseDeliveryWeeks({
-        courseTitle: course.title,
-        programme: course.programme,
+      const row = report as SchoolPerformanceReportRow;
+      const range = {
+        startTerm: row.curriculum_start_term || row.snapshot?.period?.academicTermNumber || 1,
+        startWeek: row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1,
+        endTerm: row.curriculum_end_term || row.curriculum_start_term || 1,
+        endWeek: row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || 14,
+      };
+      const result = await generateReportDeliveryCurriculum(actor.admin, {
+        schoolId: row.school_id,
+        createdBy: actor.user.id,
         schoolName: row.snapshot?.school?.name ?? null,
         termLabel: row.term_label ?? null,
-        termNumber,
-        weekNumbers: missingWeeks,
-        reachedTopics,
+        termNumber: range.startTerm,
+        range,
+        snapshot: row.snapshot,
       });
-
-      if (expansion.source === 'ai') {
-        aiCourseCount++;
-      } else {
-        placeholderCourseCount++;
-      }
-
-      const weekByNumber = new Map(expansion.weeks.map((week) => [week.week, week]));
-
-      const content = {
-        course_title: course.title,
-        overview: `Progressive STEM & Computer Science curriculum tailored for ${row.snapshot?.school?.name || 'partner school'} learners during ${row.term_label || 'Term ' + termNumber}.`,
-        learning_outcomes: [
-          `Master core computational thinking concepts in ${course.title}`,
-          'Build hands-on practical projects and problem-solving exercises',
-          'Develop collaborative technical skills and digital literacy',
-        ],
-        // Recorded so a placeholder plan can never be mistaken for an authored one.
-        generated_source: expansion.source,
-        generated_model: expansion.model,
-        generated_at: new Date().toISOString(),
-        terms: [
-          {
-            term: termNumber,
-            year: 1,
-            title: `${course.programme} — Term ${termNumber} Progressive Delivery`,
-            weeks: missingWeeks.map((week) => {
-              const planned = weekByNumber.get(week);
-              const topic = planned?.topic || syntheticWeekTopicLabel(course.title, week);
-              const objectives = planned?.objectives?.length
-                ? planned.objectives
-                : [`Understand Week ${week} concepts in ${course.title}`, 'Complete guided practical lab exercise'];
-              return {
-                week,
-                type: planned?.weekType ?? (week % 4 === 0 ? 'assessment' : 'lesson'),
-                topic,
-                source: expansion.source,
-                lesson_plan: {
-                  duration_minutes: 40,
-                  objectives,
-                  teacher_activities: ['Introduce weekly concept', 'Demonstrate practical code sample', 'Guide student exercises'],
-                  student_activities: ['Listen to teacher intro', 'Write and test code exercises', 'Submit weekly output'],
-                  classwork: { title: `${topic} — Lab`, instructions: 'Complete the lab exercise.', materials: ['Computer/Tablet'] },
-                  assignment: { title: `${topic} — Practice`, instructions: 'Practice at home.', due: 'Next Session' },
-                },
-              };
-            }),
-          },
-        ],
-      };
-
-      const { error: insertError } = await actor.admin.from('course_curricula').insert({
-        course_id: course.id,
-        school_id: schoolId,
-        content,
-        version: 1,
-        created_by: actor.user.id,
-        is_visible_to_school: true,
-      });
-      if (insertError) {
-        return NextResponse.json(
-          { error: `Could not create the ${course.programme} / ${course.title} delivery checklist: ${insertError.message}` },
-          { status: 500 },
-        );
-      }
-      createdCount++;
+      return NextResponse.json({ success: true, ...result });
     }
-  }
 
-  return NextResponse.json({
-    success: true,
-    createdCount,
-    courseCount: deliveryCourses.length,
-    reportingWeeks: reportWeeks.length,
-    unresolvedCourses,
-    // Courses that could not be expanded reliably are returned as unresolved;
-    // they never receive synthetic week labels.
-    aiCourseCount,
-    placeholderCourseCount,
-    usedPlaceholder: placeholderCourseCount > 0,
-  });
+    if (!isSchoolReportUuid(setupSchoolId)) {
+      return NextResponse.json({ error: 'reportId or schoolId is required.' }, { status: 400 });
+    }
+    if (!canManageSchoolReport(actor, setupSchoolId)) {
+      return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
+    }
+
+    const academicTermId = typeof body.academicTermId === 'string' ? body.academicTermId.trim() : '';
+    if (!isSchoolReportUuid(academicTermId)) {
+      return NextResponse.json({ error: 'academicTermId is required for setup generation.' }, { status: 400 });
+    }
+    const startTerm = boundedInt(body.curriculumStartTerm, 1, 20);
+    const startWeek = boundedInt(body.curriculumStartWeek, 1, 60);
+    const endTerm = boundedInt(body.curriculumEndTerm, 1, 20);
+    const endWeek = boundedInt(body.curriculumEndWeek, 1, 60);
+    if (!startTerm || !startWeek || !endTerm || !endWeek || endTerm * 100 + endWeek < startTerm * 100 + startWeek) {
+      return NextResponse.json({ error: 'Choose a valid curriculum term and week range.' }, { status: 400 });
+    }
+
+    const [{ data: academicTerm, error: termError }, { data: school, error: schoolError }] = await Promise.all([
+      actor.admin.from('academic_terms').select('term_number, term_label').eq('id', academicTermId).maybeSingle(),
+      actor.admin.from('schools').select('name').eq('id', setupSchoolId).maybeSingle(),
+    ]);
+    if (termError) return NextResponse.json({ error: termError.message }, { status: 500 });
+    if (schoolError) return NextResponse.json({ error: schoolError.message }, { status: 500 });
+    if (!academicTerm) return NextResponse.json({ error: 'Academic term not found.' }, { status: 404 });
+
+    const result = await generateReportDeliveryCurriculum(actor.admin, {
+      schoolId: setupSchoolId,
+      createdBy: actor.user.id,
+      schoolName: school?.name ?? null,
+      termLabel: academicTerm.term_label ?? null,
+      termNumber: Number(academicTerm.term_number || startTerm),
+      range: { startTerm, startWeek, endTerm, endWeek },
+    });
+    return NextResponse.json({ success: true, ...result });
+  } catch (error) {
+    const status = Number((error as { status?: number })?.status) || 500;
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unable to generate programme topics.' },
+      { status: status === 409 ? 409 : 500 },
+    );
+  }
 }

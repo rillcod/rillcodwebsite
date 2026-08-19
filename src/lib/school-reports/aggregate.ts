@@ -516,6 +516,12 @@ export async function buildSchoolReportSnapshot(
     }
   }
   if (!plannedWeeks) notes.push('No school curriculum weeks were available in the selected curriculum range.');
+  const unmappedCurriculumCourses = curriculumCourses.filter((row) => (row.planned || 0) === 0);
+  if (unmappedCurriculumCourses.length) {
+    notes.push(
+      `No authored syllabus weeks in this window for ${unmappedCurriculumCourses.map((row) => `${row.programme} · ${row.course}`).join(', ')}. Generate programme topics from What we taught, then tick only what was delivered.`,
+    );
+  }
   notes.push(
     `Teacher counts include only staff assigned via teacher_schools or who own a class at this school (${assignedTeachers.length} teachers). Platform-wide teachers are excluded.`,
   );

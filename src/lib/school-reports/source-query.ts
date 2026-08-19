@@ -26,6 +26,8 @@ export function recordSource<T>(
     cap?: number;
     required?: boolean;
     checkedAt?: string;
+    /** Staff-facing note that should not be replaced by the generic empty/ok copy. */
+    message?: string;
   },
 ): DataSourceStatus {
   const checkedAt = input.checkedAt || nowIso();
@@ -58,11 +60,12 @@ export function recordSource<T>(
     checkedAt,
     required: input.required,
     message:
-      status === 'partial'
+      input.message ||
+      (status === 'partial'
         ? `Results capped at ${cap} rows — figures may be incomplete.`
         : status === 'empty'
           ? 'No records found for this scope.'
-          : undefined,
+          : undefined),
   };
 }
 
@@ -93,4 +96,32 @@ export function sourceFailureMessages(sources: DataSourceStatus[] | null | undef
   return (sources ?? [])
     .filter((row) => row.status === 'failed')
     .map((row) => `${row.source}: ${row.message || 'query failed'}`);
+}
+
+/** Draft snapshots older than this should be refreshed before they are treated as live. */
+export const DRAFT_SNAPSHOT_STALE_AFTER_MS = 12 * 60 * 60 * 1000;
+
+export function isDraftSnapshotStale(generatedAt?: string | null, now = Date.now()): boolean {
+  if (!generatedAt) return true;
+  const at = Date.parse(generatedAt);
+  if (!Number.isFinite(at)) return true;
+  return now - at > DRAFT_SNAPSHOT_STALE_AFTER_MS;
+}
+
+export function attendanceSourceMessage(rollCount: number, resultEntryCount: number): string {
+  if (rollCount || resultEntryCount) {
+    return `${rollCount} class-roll mark${rollCount === 1 ? '' : 's'} and ${resultEntryCount} result-entry attendance score${resultEntryCount === 1 ? '' : 's'}.`;
+  }
+  return 'No class-roll marks or Report Builder attendance scores for this term yet.';
+}
+
+export function snapshotAgeLabel(generatedAt?: string | null, now = Date.now()): string | null {
+  if (!generatedAt) return null;
+  const at = Date.parse(generatedAt);
+  if (!Number.isFinite(at)) return null;
+  const hours = Math.max(0, (now - at) / 3_600_000);
+  if (hours < 1) return 'less than an hour ago';
+  if (hours < 24) return `${Math.round(hours)} hour${Math.round(hours) === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
 }

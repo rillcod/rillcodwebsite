@@ -64,6 +64,10 @@ describe('linked learner attendance', () => {
     });
   });
 
+  it('treats result-entry scores as attendance coverage even with no class roll', () => {
+    expect(extractResultEntryAttendanceScores([{ participation_score: 90 }, { participation_score: 80 }])).toHaveLength(2);
+  });
+
   it('does not invent attendance evidence', () => {
     expect(resolveLinkedLearnerAttendance([], [])).toEqual({ rate: null, source: 'none', recordCount: 0 });
   });

@@ -255,6 +255,15 @@ export function syntheticWeekTopicLabel(courseTitle: string, weekNumber: number)
   return `Week ${weekNumber}: ${focus}`;
 }
 
+/** True when a topic is the canned week phrase, not real teaching content. */
+export function isPlaceholderDeliveryLabel(topic: string, key?: string): boolean {
+  if (key && /^synthetic::/i.test(key)) return true;
+  const label = String(topic || '').trim();
+  if (!label) return false;
+  const stripped = label.replace(/^Week\s+\d+\s*:\s*/i, '').trim();
+  return SYNTHETIC_WEEK_FOCUS.some((focus) => stripped.toLowerCase() === focus.toLowerCase());
+}
+
 /** Strip noisy prefixes and technical slugs so topic lines read cleanly in reports. */
 export function cleanTopicTitle(topic: string, course: string): string {
   let label = String(topic || '').trim();

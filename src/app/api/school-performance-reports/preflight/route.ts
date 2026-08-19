@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { runReportPreflight } from '@/lib/school-reports/preflight';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const schoolId = req.nextUrl.searchParams.get('schoolId') || '';
   const academicTermId = req.nextUrl.searchParams.get('academicTermId') || '';
-  if (!schoolId || !academicTermId) {
+  if (!isSchoolReportUuid(schoolId) || !isSchoolReportUuid(academicTermId)) {
     return NextResponse.json({ error: 'schoolId and academicTermId are required.' }, { status: 400 });
   }
   if (!canManageSchoolReport(actor, schoolId)) {

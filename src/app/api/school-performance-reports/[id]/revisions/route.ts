@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canViewSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { listSchoolReportRevisions } from '@/lib/school-reports/revisions';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   const actor = await getSchoolReportActor();
   if (!actor) return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report } = await actor.admin.from('school_performance_reports').select('*').eq('id', id).maybeSingle();
   if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canViewSchoolReport(actor, report)) {

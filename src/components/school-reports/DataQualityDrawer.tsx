@@ -1,6 +1,7 @@
 'use client';
 
 import type { DataSourceStatus } from '@/lib/school-reports/source-query';
+import { isDraftSnapshotStale, snapshotAgeLabel } from '@/lib/school-reports/source-query';
 import { programmeCourseKey } from '@/lib/school-reports/school-curriculum-scope';
 
 const statusTone = (status: DataSourceStatus['status']) => {
@@ -15,6 +16,7 @@ export function DataQualityDrawer({
   onClose,
   sources,
   generatedAt,
+  frozen,
   dataNotes,
   summary,
   schoolProgrammes,
@@ -25,12 +27,17 @@ export function DataQualityDrawer({
   onClose: () => void;
   sources: DataSourceStatus[] | null | undefined;
   generatedAt?: string | null;
+  frozen?: boolean;
   dataNotes?: string[] | null;
   summary?: {
     activeStudents?: number;
     participantsInClasses?: number;
     unassignedLearners?: number;
     studentsWithScores?: number;
+    learnersWithAttendance?: number;
+    attendanceFromManualRoll?: number;
+    attendanceFromResultEntry?: number;
+    attendanceRate?: number;
   } | null;
   schoolProgrammes?: Array<{ programme: string; course: string; enrolledStudents: number }> | null;
   programmeCoursePerformance?: Array<{
@@ -74,6 +81,13 @@ export function DataQualityDrawer({
           {generatedAt ? (
             <p className="text-xs text-muted-foreground">
               Snapshot checked {new Date(generatedAt).toLocaleString()}
+              {snapshotAgeLabel(generatedAt) ? ` · ${snapshotAgeLabel(generatedAt)}` : ''}
+              {frozen ? ' · frozen at publish' : ''}
+            </p>
+          ) : null}
+          {!frozen && isDraftSnapshotStale(generatedAt) ? (
+            <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-semibold text-amber-950 dark:text-amber-100">
+              This snapshot is stale. Refresh data so attendance, scores, and invoices match the live term.
             </p>
           ) : null}
           {failedRequired.length ? (
@@ -89,6 +103,26 @@ export function DataQualityDrawer({
                 <li>In classes: {summary.participantsInClasses ?? '—'}</li>
                 <li>Unassigned: {summary.unassignedLearners ?? 0}</li>
                 <li>With term scores: {summary.studentsWithScores ?? '—'}</li>
+              </ul>
+            </div>
+          ) : null}
+          {summary ? (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs">
+              <p className="font-black">Attendance coverage</p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                <li>
+                  Learners with attendance: {summary.learnersWithAttendance ?? 0}
+                  {summary.activeStudents != null ? ` of ${summary.activeStudents}` : ''}
+                </li>
+                <li>Class roll: {summary.attendanceFromManualRoll ?? 0}</li>
+                <li>Report Builder attendance %: {summary.attendanceFromResultEntry ?? 0}</li>
+                {summary.attendanceRate != null ? <li>Average among those with evidence: {summary.attendanceRate}%</li> : null}
+                {(summary.studentsWithScores ?? 0) > (summary.learnersWithAttendance ?? 0) ? (
+                  <li className="text-amber-700 dark:text-amber-300">
+                    Some learners have scores without an attendance column — mark class roll or Attendance % in Report
+                    Builder, then refresh.
+                  </li>
+                ) : null}
               </ul>
             </div>
           ) : null}
@@ -165,7 +199,19 @@ export function DataQualityDrawer({
                   {row.capped ? ' · capped' : ''}
                   {row.required ? ' · required' : ''}
                 </p>
-                {row.message ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{row.message}</p> : null}
+                {row.message ? (
+                  <p
+                    className={`mt-2 text-xs ${
+                      row.status === 'failed'
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : row.status === 'empty' || row.status === 'partial'
+                          ? 'text-amber-800 dark:text-amber-200'
+                          : 'text-muted-foreground'
+                    }`}
+                  >
+                    {row.message}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Checked {new Date(row.checkedAt).toLocaleString()}
                 </p>

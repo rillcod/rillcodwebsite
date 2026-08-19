@@ -1,6 +1,8 @@
 import type { SchoolReportSnapshot } from './types';
 import { normalizeSchoolReportDesign, type SchoolReportDesignSettings } from './design';
 import { buildSchoolReportBillingHref } from './finance-links';
+import { normalizeProgrammeLabel, programmeCourseKey } from './school-curriculum-scope';
+import { isPlaceholderDeliveryLabel } from './topics-covered-presentation';
 import { countNoun, nounFor } from './wording';
 
 export type CompletenessItem = {
@@ -33,9 +35,45 @@ export function buildSchoolReportCompleteness(
   const invoiceDiagnostics = snapshot.finance?.matchDiagnostics;
   const learners = Array.isArray(snapshot.learners) ? snapshot.learners : [];
   const hasScores = (snapshot.summary?.studentsWithScores || 0) > 0;
-  const hasAttendance = (snapshot.attendanceBands || []).some((b) => b.count > 0);
-  const hasCurriculum = (snapshot.curriculum?.plannedWeeks || 0) > 0;
-  const hasConfirmedDelivery = Boolean(snapshot.deliveryDeclaration?.updatedAt);
+  const learnersWithAttendance = Number(snapshot.summary?.learnersWithAttendance ?? 0);
+  const bandAttendanceCount = (snapshot.attendanceBands || []).reduce(
+    (sum, band) => sum + Number(band.count || 0),
+    0,
+  );
+  const attendanceHeadcount = learnersWithAttendance || bandAttendanceCount;
+  const hasAttendance = attendanceHeadcount > 0;
+  const scoreOnlyWithoutAttendance = Math.max(
+    0,
+    Number(snapshot.summary?.studentsWithScores || 0) - attendanceHeadcount,
+  );
+  const enrolledCourses = [
+    ...(snapshot.schoolProgrammes || [])
+      .filter((row) => Number(row.enrolledStudents || 0) > 0 && String(row.course || '').trim())
+      .map((row) => ({
+        programme: normalizeProgrammeLabel(row.programme),
+        course: String(row.course).trim(),
+      })),
+    ...(snapshot.curriculum?.courses || [])
+      .filter((row) => Number(row.enrolledStudents || 0) > 0 && String(row.course || '').trim())
+      .map((row) => ({
+        programme: normalizeProgrammeLabel(row.programme),
+        course: String(row.course).trim(),
+      })),
+  ];
+  const enrolledKeys = [...new Map(enrolledCourses.map((row) => [programmeCourseKey(row.programme, row.course), row])).values()];
+  const selectedTopics = snapshot.deliveryDeclaration?.selectedTopics || [];
+  const placeholderTicks = selectedTopics.filter((topic) =>
+    isPlaceholderDeliveryLabel(topic.topic, topic.key),
+  );
+  const realTicks = selectedTopics.filter((topic) => !isPlaceholderDeliveryLabel(topic.topic, topic.key));
+  const coveredByDelivery = new Set(
+    realTicks.map((topic) => programmeCourseKey(normalizeProgrammeLabel(topic.programme), topic.course)),
+  );
+  const missingDeliveryCourses = enrolledKeys.filter(
+    (row) => !coveredByDelivery.has(programmeCourseKey(row.programme, row.course)),
+  );
+  const hasConfirmedDelivery = Boolean(snapshot.deliveryDeclaration?.updatedAt) && realTicks.length > 0;
+  const hasCurriculum = hasConfirmedDelivery && placeholderTicks.length === 0 && missingDeliveryCourses.length === 0;
   const hasClasses = (snapshot.classPerformance || []).length > 0;
   const hasProgrammes = (snapshot.programmeCoursePerformance || []).length > 0;
   const term = snapshot.period?.termLabel || 'this term';
@@ -72,22 +110,17 @@ export function buildSchoolReportCompleteness(
     {
       key: 'curriculum',
       label: 'Confirmed curriculum delivery',
-      ok: hasCurriculum && hasConfirmedDelivery,
+      ok: hasCurriculum,
       required: true,
-      detail: !hasCurriculum
-        ? (() => {
-            const unmappedCourses = (snapshot.curriculum?.courses || []).filter((c) => (c.planned || 0) === 0);
-            if (unmappedCourses.length > 0) {
-              return `No curriculum weeks exist for ${unmappedCourses.map((c) => `${c.programme} · ${c.course}`).join(', ')} in the selected range. Generate or adopt syllabus checklists for these courses.`;
-            }
-            if ((snapshot.schoolProgrammes || []).length > 0) {
-              return `No curriculum weeks exist for mapped programmes (${snapshot.schoolProgrammes!.map((p) => `${p.programme} · ${p.course}`).join(', ')}). Adopt curriculum releases or generate weekly checklists.`;
-            }
-            return 'No curriculum weeks exist for every mapped programme/course in the selected range. Generate the missing checklists.';
-          })()
-        : hasConfirmedDelivery
-          ? `${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} topics confirmed by a teacher or administrator.`
-          : `A teacher or administrator must review the programme-course checklist and confirm the topics delivered (${snapshot.curriculum.completedWeeks}/${snapshot.curriculum.plannedWeeks} topics logged).`,
+      detail: placeholderTicks.length
+        ? `Placeholder topics cannot be published (e.g. "Core concepts & guided practice"). Generate real programme topics for this term, then tick only what was taught.`
+        : missingDeliveryCourses.length
+          ? `Confirm real topics for ${missingDeliveryCourses.map((row) => `${row.programme} · ${row.course}`).join(', ')}. If this term has no authored syllabus, generate programme topics first.`
+          : !hasConfirmedDelivery
+            ? enrolledKeys.length
+              ? `A teacher or administrator must review the programme-course checklist and confirm the topics delivered for ${enrolledKeys.map((row) => `${row.programme} · ${row.course}`).join(', ')}.`
+              : 'No programme/courses are mapped for this school yet. Refresh after classes are linked, or generate programme topics for the report window.'
+            : `${realTicks.length} real ${nounFor(realTicks.length, 'topic')} confirmed${enrolledKeys.length ? ` across ${countNoun(enrolledKeys.length, 'course')}` : ''}.`,
     },
     {
       key: 'learners',
@@ -113,7 +146,7 @@ export function buildSchoolReportCompleteness(
       ok: hasAttendance,
       required: true,
       detail: hasAttendance
-        ? `${countNoun(snapshot.summary.learnersWithAttendance ?? snapshot.summary.activeStudents, 'learner')} have attendance evidence (${snapshot.summary.attendanceFromManualRoll ?? 0} from class roll, ${snapshot.summary.attendanceFromResultEntry ?? 0} from Report Builder).`
+        ? `${countNoun(attendanceHeadcount, 'learner')} have attendance evidence (${snapshot.summary.attendanceFromManualRoll ?? 0} from class roll, ${snapshot.summary.attendanceFromResultEntry ?? 0} from Report Builder)${scoreOnlyWithoutAttendance > 0 ? `. ${countNoun(scoreOnlyWithoutAttendance, 'learner')} still have scores without an attendance column — mark class roll or Attendance % in Report Builder, then refresh.` : '.'}`
         : 'No published attendance score or term attendance roll was found for this period — learners with term scores may still appear without an attendance column.',
     },
     {

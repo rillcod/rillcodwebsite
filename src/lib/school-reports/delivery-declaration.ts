@@ -16,6 +16,7 @@ import {
 import { mergeProgrammeCoursePerformanceWithEnrolment } from "./programme-course-performance";
 import {
   buildTopicsCoveredPresentation,
+  isPlaceholderDeliveryLabel,
   syntheticWeekTopicLabel,
 } from "./topics-covered-presentation";
 import type { SchoolRosterRow } from "./loaders/roster";
@@ -248,6 +249,11 @@ function collectTopicsFromCurricula(
         const topic = String(week.topic || "").trim();
         if (!topic || weekNumber <= 0) continue;
         if (!topicInReportRange(termNumber, weekNumber, range)) continue;
+        const generatedSource = String((content as { generated_source?: unknown }).generated_source || "");
+        const weekSource = String(week.source || generatedSource || "");
+        if (weekSource === "placeholder" || isPlaceholderDeliveryLabel(topic)) {
+          continue;
+        }
         options.push({
           key: `${row.id}::${termNumber}::${weekNumber}`,
           curriculumId: row.id,
@@ -430,17 +436,25 @@ export async function loadSchoolDeliveryCurricula(
       .lte("effective_term_number", opts.academicTermNumber)
       .order("effective_term_number", { ascending: false });
   }
-  const [{ data: adoptions }, { data: curricula }] = await Promise.all([
+  const [{ data: adoptions, error: adoptionError }, { data: curricula, error: curriculaError }] = await Promise.all([
     adoptionQuery,
     admin
       .from("course_curricula")
       .select(
-        "id, content, school_id, course_id, courses(title, is_active, programs(name))"
+        "id, content, school_id, course_id, is_visible_to_school, courses(title, is_active, programs(name))"
       )
       .or(`school_id.eq.${schoolId},school_id.is.null`)
-      .eq("is_visible_to_school", true)
       .limit(1000),
   ]);
+  if (adoptionError) {
+    throw new Error(`Official curriculum lookup failed: ${adoptionError.message}`);
+  }
+  if (curriculaError) {
+    throw new Error(`Syllabus lookup failed: ${curriculaError.message}`);
+  }
+  const visibleCurricula = ((curricula ?? []) as any[]).filter(
+    (row) => row.is_visible_to_school !== false
+  );
   const latestAdoptionByCourse = new Map<string, any>();
   for (const row of adoptions ?? []) {
     const key = String((row as any).course_id);
@@ -463,7 +477,7 @@ export async function loadSchoolDeliveryCurricula(
   const officialCourseIds = new Set(
     officialCurricula.map((row: any) => String(row.course_id))
   );
-  const legacyCurricula = ((curricula ?? []) as any[]).filter(
+  const legacyCurricula = visibleCurricula.filter(
     (row) => !officialCourseIds.has(String(row.course_id))
   );
   return scopeCurriculaForReport(
@@ -833,11 +847,7 @@ export function applyDeliveryDeclarationToSnapshot(
     courseMap.set(key, row);
   }
 
-  const inferCompletedForCourse = (enrolledStudents: number): number => {
-    if (enrolledStudents <= 0) return 0;
-    if (selectedCount > 0) return pacingDepth;
-    return 0;
-  };
+  const inferCompletedForCourse = (_enrolledStudents: number): number => 0;
 
   for (const enrolment of snapshot.schoolProgrammes || []) {
     const programme = normalizeProgrammeLabel(enrolment.programme);

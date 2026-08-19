@@ -171,6 +171,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
         onClose={() => setDataQualityOpen(false)}
         sources={snapshot.dataSources}
         generatedAt={snapshot.generatedAt}
+        frozen={report.status === 'published'}
         dataNotes={snapshot.dataNotes}
         summary={snapshot.summary}
         schoolProgrammes={snapshot.schoolProgrammes}

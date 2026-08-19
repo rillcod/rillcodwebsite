@@ -210,22 +210,24 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       if (!res.ok) throw new Error((json.error as string | undefined) || `Failed to generate curriculum on the spot (HTTP ${res.status}).`);
       await loadCatalog();
 
+      const written = Number(json.createdCount ?? 0) + Number(json.updatedCount ?? 0);
       const ai = Number(json.aiCourseCount ?? 0);
       const unresolved = Array.isArray(json.unresolvedCourses) ? json.unresolvedCourses.length : 0;
-      if (json.createdCount === 0) {
+      if (written === 0 && unresolved === 0) {
         setGenNotice({
-          tone: unresolved ? 'warn' : 'ok',
-          text: unresolved
-            ? `${unresolved} course${unresolved === 1 ? '' : 's'} could not be expanded from reliable teaching evidence. No placeholder topics were added.`
-            : 'Every course already has real weekly topics for this window.',
+          tone: 'ok',
+          text: 'Every course already has real weekly topics for this window. Tick what was taught — they appear in the week span below.',
         });
       } else if (unresolved > 0) {
         setGenNotice({
           tone: 'warn',
-          text: `${ai} course${ai === 1 ? '' : 's'} expanded from real context; ${unresolved} could not be verified and received no invented topics.`,
+          text: `${ai} course${ai === 1 ? '' : 's'} now have tickable topics; ${unresolved} could not be expanded. No placeholder topics were added.`,
         });
       } else {
-        setGenNotice({ tone: 'ok', text: `Real weekly topics expanded for ${ai} course${ai === 1 ? '' : 's'}. Review and tick only what was taught.` });
+        setGenNotice({
+          tone: 'ok',
+          text: `Weekly topics are ready for ${ai} course${ai === 1 ? '' : 's'}. Tick what was taught — they appear in this draft’s week span and What we taught preview.`,
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error generating curriculum.');

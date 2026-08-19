@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRightIcon, TrashIcon } from "@/lib/icons";
 import type { ReportListItem } from "@/lib/school-reports/ui/types";
+import { isDraftSnapshotStale } from "@/lib/school-reports/source-query";
 
 const LIBRARY_PAGE_SIZE = 12;
 
@@ -123,6 +124,11 @@ export function SchoolReportLibrary({
                 ) : report.published_revision_number ? (
                   <p className="mt-2 text-[11px] text-muted-foreground">
                     Published revision {report.published_revision_number}
+                  </p>
+                ) : null}
+                {canManage && report.status !== "published" && isDraftSnapshotStale(report.updated_at) ? (
+                  <p className="mt-3 text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                    Draft may be stale — open and refresh data before publishing.
                   </p>
                 ) : null}
                 {canManage && report.status === "published" ? (

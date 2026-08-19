@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { addSchoolReportComment, listSchoolReportComments } from '@/lib/school-reports/comments';
 import { logAuditEvent } from '@/lib/observability/audit-events';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
     .select('id,school_id')
@@ -41,6 +43,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
     .select('id,school_id,working_revision_number')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { regenerateSchoolReportSnapshot } from '@/lib/school-reports/service';
+import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const { id } = await context.params;
+  if (!isSchoolReportUuid(id)) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   const body = await req.json().catch(() => ({}));
   const refreshNarrative = body?.refreshNarrative === true;
   const refreshAndReady = body?.refreshAndReady === true;
@@ -28,7 +30,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     .eq('id', id)
     .maybeSingle();
 
-  if (error || !report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
   }
