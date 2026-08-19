@@ -142,6 +142,7 @@ export function SchoolReportLivePreview({
   );
   const density = densityClasses(design.density);
   const accent = design.accentColor;
+  const themeAccent = resolveThemeAwareAccent(accent);
   const layout = previewLayout(design.previewDevice);
   const show = (key: SchoolReportSectionKey) => showReportSection(design, key);
   const topicsPresentation = buildReportTopicsPresentation(snapshot);
@@ -187,18 +188,18 @@ export function SchoolReportLivePreview({
   return (
     <div
       className={`relative mx-auto w-full transition-all ${
-        device === 'mobile'
+        design.previewDevice === 'mobile'
           ? 'max-w-md'
-          : device === 'tablet'
+          : design.previewDevice === 'tablet'
             ? 'max-w-2xl'
             : 'max-w-4xl'
       }`}
     >
       <article
-        className={`rounded-2xl border border-border/80 bg-card text-card-foreground shadow-sm ${density.card}`}
+        className="rounded-2xl border border-border/80 bg-card text-card-foreground shadow-sm"
       >
         <header
-          className={`border-b border-border/80 ${density.header} ${
+          className={`border-b border-border/80 px-4 py-4 sm:px-5 sm:py-5 ${
             design.headerStyle === 'minimal' ? 'bg-transparent' : 'bg-muted/30'
           }`}
           style={
