@@ -3,10 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
-import { generateProgressReportVerificationCode, progressReportPublishIssues } from '@/lib/reports/publication';
+import { generateProgressReportVerificationCode } from '@/lib/reports/publication';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import {
   resolveSessionForWrite,
+  sessionsEqual,
   wouldRewriteSessionIdentity,
 } from '@/lib/reports/academic-period';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
@@ -51,7 +52,13 @@ export async function POST(request: NextRequest) {
   if (body.is_published === true) {
     return NextResponse.json({ error: 'Save the report as a draft, then publish it through the validated publish endpoint.' }, { status: 400 });
   }
-  let targetId = body.existing_id;
+  // Draft saves never publish or unpublish. Clients used to send is_published: false
+  // and that withdrew a live family copy.
+  delete body.is_published;
+  let targetId = typeof body.existing_id === 'string' && body.existing_id.trim()
+    ? body.existing_id.trim()
+    : null;
+  const allowBackfill = body.allow_backfill === true;
 
   // Whitelist allowed fields to prevent unintended column injection
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
@@ -71,8 +78,8 @@ export async function POST(request: NextRequest) {
     'projects_grade', 'homework_grade',
     'key_strengths', 'areas_for_growth',
     'proficiency_level',
-    // Publication & certificate
-    'is_published', 'has_certificate', 'certificate_text', 'course_completed',
+    // Certificate (publication is PATCH-only — never unpublish from a draft save)
+    'has_certificate', 'certificate_text', 'course_completed',
     // Photo
     'photo_url',
     // Payment / fee
@@ -119,6 +126,32 @@ export async function POST(request: NextRequest) {
     caller.role !== 'admin'
       ? await getTeacherSchoolIds(caller.id, caller.school_id ?? null)
       : [];
+  let studentClassId: string | null = null;
+
+  let existingRow: {
+    id: string;
+    student_id?: string | null;
+    class_id?: string | null;
+    course_id?: string | null;
+    course_name?: string | null;
+    report_term?: string | null;
+    report_period?: string | null;
+    teacher_id?: string | null;
+    school_id?: string | null;
+    instructor_name?: string | null;
+  } | null = null;
+  if (targetId) {
+    const { data: pointed } = await admin
+      .from('student_progress_reports')
+      .select('id, student_id, class_id, course_id, course_name, report_term, report_period, teacher_id, school_id, instructor_name')
+      .eq('id', targetId)
+      .maybeSingle();
+    if (!pointed) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    if (updatePayload.student_id && pointed.student_id && String(pointed.student_id) !== String(updatePayload.student_id)) {
+      return NextResponse.json({ error: 'This save does not match the report you opened.' }, { status: 409 });
+    }
+    existingRow = pointed as typeof existingRow;
+  }
 
   if (updatePayload.student_id) {
     const { data: student } = await admin
@@ -130,10 +163,13 @@ export async function POST(request: NextRequest) {
     if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
       return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
     }
+    studentClassId = ((student as any)?.class_id as string | null) ?? null;
     if (caller.role === 'teacher') {
       const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
-      const studentClassId = (student as any)?.class_id as string | null;
-      if (!studentClassId || !classScope.classIds.includes(studentClassId)) {
+      const ownsCurrentClass = !!studentClassId && classScope.classIds.includes(studentClassId);
+      const ownsReportClass = !!existingRow?.class_id && classScope.classIds.includes(existingRow.class_id);
+      const authored = existingRow?.teacher_id === caller.id;
+      if (!ownsCurrentClass && !ownsReportClass && !authored) {
         return NextResponse.json({ error: 'You can only create or update reports for students in classes you own.' }, { status: 403 });
       }
     }
@@ -145,22 +181,12 @@ export async function POST(request: NextRequest) {
       updatePayload.school_name = student.school_name;
       insertPayload.school_name = student.school_name;
     }
-    // The report's class is what binds it to an academic offering and delivery
-    // period, which the automatic calculator and certificate checks both need.
-    // It was read for the teacher scope check but never written, so every
-    // report was created without one and the whole automatic pathway stayed
-    // dark.
-    if ((student as any)?.class_id) {
-      updatePayload.class_id = (student as any).class_id;
-      insertPayload.class_id = (student as any).class_id;
-    }
   }
 
   const termLabelRaw = String(updatePayload.report_term ?? insertPayload.report_term ?? '').trim();
   const periodLabelRaw = String(updatePayload.report_period ?? insertPayload.report_period ?? '').trim();
-  // Central session resolve: stale prior sessions roll to LIVE; Second/Third never mix;
-  // next-year First Term stays its own identity until it becomes live.
-  const allowBackfill = body.allow_backfill === true;
+  // Central session resolve: stale prior sessions roll to LIVE unless this save
+  // is an explicit backfill of an opened historical report.
   const { session } = resolveSessionForWrite(termLabelRaw, periodLabelRaw, { allowBackfill });
   const termLabel = session.termLabel;
   const periodLabel = session.periodLabel;
@@ -176,19 +202,43 @@ export async function POST(request: NextRequest) {
     insertPayload.term_id = canonicalTerm.id;
   }
 
-  const reconciledCourse = await reconcileReportCourseFromClassContext(admin as any, {
-    course_id: updatePayload.course_id ?? insertPayload.course_id,
-    course_name: updatePayload.course_name ?? insertPayload.course_name,
-    section_class: updatePayload.section_class ?? insertPayload.section_class,
-    student_id: updatePayload.student_id ?? insertPayload.student_id,
-  });
-  if (reconciledCourse.course_id) {
-    updatePayload.course_id = reconciledCourse.course_id;
-    insertPayload.course_id = reconciledCourse.course_id;
+  const keepHistoricalPlacement = Boolean(
+    allowBackfill
+    && existingRow
+    && sessionsEqual({ termLabel, periodLabel }, existingRow),
+  );
+  if (keepHistoricalPlacement && existingRow?.class_id) {
+    updatePayload.class_id = existingRow.class_id;
+  } else if (studentClassId) {
+    updatePayload.class_id = studentClassId;
+    insertPayload.class_id = studentClassId;
   }
-  if (reconciledCourse.course_name) {
-    updatePayload.course_name = reconciledCourse.course_name;
-    insertPayload.course_name = reconciledCourse.course_name;
+
+  if (keepHistoricalPlacement && (existingRow?.course_id || existingRow?.course_name)) {
+    if (existingRow.course_id) {
+      updatePayload.course_id = existingRow.course_id;
+      insertPayload.course_id = existingRow.course_id;
+    }
+    if (existingRow.course_name) {
+      updatePayload.course_name = existingRow.course_name;
+      insertPayload.course_name = existingRow.course_name;
+    }
+  } else {
+    const reconciledCourse = await reconcileReportCourseFromClassContext(admin as any, {
+      course_id: updatePayload.course_id ?? insertPayload.course_id,
+      course_name: updatePayload.course_name ?? insertPayload.course_name,
+      section_class: updatePayload.section_class ?? insertPayload.section_class,
+      class_id: updatePayload.class_id ?? insertPayload.class_id ?? existingRow?.class_id,
+      student_id: existingRow?.class_id ? null : (updatePayload.student_id ?? insertPayload.student_id),
+    });
+    if (reconciledCourse.course_id) {
+      updatePayload.course_id = reconciledCourse.course_id;
+      insertPayload.course_id = reconciledCourse.course_id;
+    }
+    if (reconciledCourse.course_name) {
+      updatePayload.course_name = reconciledCourse.course_name;
+      insertPayload.course_name = reconciledCourse.course_name;
+    }
   }
 
   // The published Academic Office scheme is the one weighting authority for
@@ -225,16 +275,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (caller.role === 'teacher' && updatePayload.course_id) {
+  if (caller.role === 'teacher' && updatePayload.course_id && !keepHistoricalPlacement) {
     const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
     if (!(await assertTeacherReportCourseScope(admin, caller.id, String(updatePayload.course_id), classScope.classIds))) {
       return NextResponse.json({ error: 'You are not assigned to this course through an owned class or direct course assignment.' }, { status: 403 });
-    }
-  }
-  if (updatePayload.is_published === true || insertPayload.is_published === true) {
-    const issues = progressReportPublishIssues(targetId ? updatePayload : insertPayload);
-    if (issues.length > 0) {
-      return NextResponse.json({ error: 'Report is not ready to publish', issues }, { status: 400 });
     }
   }
 
@@ -298,24 +342,15 @@ export async function POST(request: NextRequest) {
       if (scopeStudent?.school_name) {
         updatePayload.school_name = scopeStudent.school_name;
       }
-      if ((scopeStudent as any)?.class_id) {
+      if (keepHistoricalPlacement && existingRow?.class_id) {
+        updatePayload.class_id = existingRow.class_id;
+      } else if ((scopeStudent as any)?.class_id) {
         updatePayload.class_id = (scopeStudent as any).class_id;
       }
     } else {
       // Never allow orphaned school_id overwrite without a student
       delete (updatePayload as Record<string, unknown>).school_id;
       delete (updatePayload as Record<string, unknown>).school_name;
-    }
-
-    if (updatePayload.is_published === true) {
-      const { data: currentCode } = await admin
-        .from('student_progress_reports')
-        .select('verification_code')
-        .eq('id', targetId)
-        .maybeSingle();
-      if (!(currentCode as any)?.verification_code) {
-        (updatePayload as any).verification_code = await generateProgressReportVerificationCode(admin);
-      }
     }
 
     if (caller.role !== 'admin') {

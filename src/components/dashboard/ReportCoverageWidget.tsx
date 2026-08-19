@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 
-type Pending = { id: string; full_name: string | null; className: string | null; school_name: string | null; drafted: boolean };
+type Pending = { id: string; full_name: string | null; className: string | null; classId?: string | null; school_name: string | null; drafted: boolean };
 type Coverage = { termLabel: string; periodLabel?: string; total: number; withReport: number; pendingCount: number; pending: Pending[] };
 
 /**
@@ -55,7 +56,7 @@ export default function ReportCoverageWidget() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Progress Reports</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Write this term</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-primary">
               {[cov.periodLabel, cov.termLabel].filter(Boolean).join(' · ')}
             </span>
@@ -99,8 +100,13 @@ export default function ReportCoverageWidget() {
                       {p.drafted && <span className="text-[10px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400">Draft — not published</span>}
                     </span>
                     {canBuild && (
-                      <Link href={`/dashboard/reports/builder?student=${p.id}`} className="flex-shrink-0 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-primary hover:bg-primary/20">
-                        Build
+                      <Link href={learnerReportHref('write', {
+                        studentId: p.id,
+                        classId: p.classId,
+                        term: cov.termLabel,
+                        period: cov.periodLabel,
+                      })} className="flex-shrink-0 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-primary hover:bg-primary/20">
+                        Write
                       </Link>
                     )}
                   </div>

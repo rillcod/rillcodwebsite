@@ -63,9 +63,9 @@ export function learnerReportHref(step: LearnerReportStep, context: LearnerRepor
     if (context.reportId) params.set('report', context.reportId);
     if (context.term) params.set('report_term', context.term);
     if (context.period) params.set('report_period', context.period);
-    params.set('from', context.from === 'prepare' ? 'prepare' : 'results');
+    if (context.from) params.set('from', context.from);
   }
-  if (step === 'publish') {
+  if (step === 'publish' || step === 'prepare') {
     if (context.reportId) params.set('report', context.reportId);
     if (context.term) params.set('term', context.term);
     if (context.period) params.set('year', context.period);
@@ -84,7 +84,7 @@ function contextFromSearch(search: URLSearchParams, extra: LearnerReportContext,
     schoolId: extra.schoolId || firstValue(search, 'school_id'),
     term: extra.term || firstValue(search, 'report_term', 'term'),
     period: extra.period || firstValue(search, 'report_period', 'year', 'period'),
-    from: extra.from || firstValue(search, 'from') || (pathname.startsWith('/dashboard/academic/results') ? 'prepare' : 'results'),
+    from: extra.from || firstValue(search, 'from') || (pathname.startsWith('/dashboard/academic/results') ? 'prepare' : pathname.startsWith('/dashboard/results') ? 'results' : ''),
   };
 }
 

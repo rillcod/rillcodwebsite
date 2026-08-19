@@ -16,7 +16,7 @@ import {
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
   CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon
 } from '@/lib/icons';
-import { AddStudentModal } from '@/features/students/components/AddStudentModal';
+import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
@@ -1773,14 +1773,20 @@ export default function ClassDetailPage() {
                                   )}
                                   {reportIndicatorEnabled && (() => {
                                     const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
+                                    const sessionLabel = [student.report_term, student.report_period].filter(Boolean).join(' · ') || 'this term';
                                     const title = student.has_published_report
-                                      ? `Progress report published for ${student.report_term ?? 'this term'}`
+                                      ? `Progress report published for ${sessionLabel}`
                                       : student.has_draft_report
-                                        ? `Report drafted but NOT published for ${student.report_term ?? 'this term'} — needs attention`
-                                        : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
+                                        ? `Report drafted but NOT published for ${sessionLabel} — needs attention`
+                                        : `No ${sessionLabel} progress report yet — needs attention`;
                                     const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}`;
                                     return isStaff ? (
-                                      <Link href={`/dashboard/reports/builder?student=${student.id}&class=${id}`} title={`${title} — click to open the report builder`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
+                                      <Link href={learnerReportHref('write', {
+                                        studentId: student.id,
+                                        classId: id,
+                                        term: student.report_term,
+                                        period: student.report_period,
+                                      })} title={`${title} — click to open Write`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
                                         {label}
                                       </Link>
                                     ) : (
@@ -2530,8 +2536,8 @@ export default function ClassDetailPage() {
                     <Link href={`/dashboard/grading?class_id=${id}${cls?.term_id ? `&term_id=${cls.term_id}` : ''}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
                       Grading Queue →
                     </Link>
-                    <Link href={`/dashboard/reports/builder?class=${id}${cls?.term_id ? `&term=${cls.term_id}` : ''}`} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
-                      Build Report Cards →
+                    <Link href={learnerReportHref('write', { classId: id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
+                      Write scores →
                     </Link>
                     <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-primary hover:text-primary transition-colors whitespace-nowrap">
                       Full Gradebook →

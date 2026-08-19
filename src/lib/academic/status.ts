@@ -417,7 +417,7 @@ export function deliveryStatus(facts: DeliveryFacts): StageStatus[] {
             id: "result",
             state: "ready",
             headline: "Evidence is in — results are not published yet.",
-            actionLabel: "Open results",
+            actionLabel: "Open Auto-fill",
             actionHref: "/dashboard/academic/results",
           }
         : { id: "result", state: "waiting", headline: "Waiting for learner evidence." };

@@ -56,6 +56,7 @@ function CentralResultsPageInner() {
   const linkedClassId = searchParams.get('class_id') ?? '';
   const linkedCourseId = searchParams.get('course_id') ?? '';
   const linkedStudentId = searchParams.get('student') ?? '';
+  const linkedReportId = searchParams.get('report') ?? '';
 
   const [data, setData] = useState<Data>({ classes: [], students: [], plans: [], reports: [] });
   const [classId, setClassId] = useState(linkedClassId);
@@ -63,6 +64,7 @@ function CentralResultsPageInner() {
   const [courseId, setCourseId] = useState(linkedCourseId);
   const [listFilter, setListFilter] = useState<ListFilter>('all');
   const [search, setSearch] = useState('');
+  const [openingTyped, setOpeningTyped] = useState(false);
   const [saving, setSaving] = useState(false);
   const [recalcId, setRecalcId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -101,6 +103,16 @@ function CentralResultsPageInner() {
   useEffect(() => {
     if (linkedStudentId) setStudentId(linkedStudentId);
   }, [linkedStudentId]);
+
+  useEffect(() => {
+    if (!linkedReportId) return;
+    const report = data.reports.find((item) => item.id === linkedReportId);
+    if (!report) return;
+    if (report.class_id) setClassId(report.class_id);
+    if (report.student_id) setStudentId(report.student_id);
+    if (report.course_id) setCourseId(report.course_id);
+    setReportId(linkedReportId);
+  }, [linkedReportId, data.reports]);
 
   const activeClass = data.classes.find((item) => item.id === classId);
   const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
@@ -173,8 +185,9 @@ function CentralResultsPageInner() {
     };
   }, [data.reports, classId, classStudentIds]);
 
-  async function prepare() {
-    setSaving(true);
+  async function prepare(mode: 'automatic' | 'manual' = 'automatic') {
+    if (mode === 'manual') setOpeningTyped(true);
+    else setSaving(true);
     setError('');
     setMessage('');
     setReportId('');
@@ -186,20 +199,23 @@ function CentralResultsPageInner() {
           student_id: studentId,
           class_id: classId,
           course_id: courseId,
-          calculation_mode: 'automatic',
+          calculation_mode: mode,
         }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Could not fill from class work.');
+      if (!response.ok) throw new Error(body.error || (mode === 'manual' ? 'Could not open for typed scores.' : 'Could not fill from class work.'));
       setReportId(body.data.report_id);
       setMessage(
-        body.data.message || 'Draft filled from class work. Review, then Publish.',
+        body.data.message || (mode === 'manual'
+          ? 'Opened in Write. Auto-fill will not change these scores.'
+          : 'Draft filled from class work. Review, then Publish.'),
       );
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not fill from class work.');
+      setError(cause instanceof Error ? cause.message : (mode === 'manual' ? 'Could not open for typed scores.' : 'Could not fill from class work.'));
     } finally {
       setSaving(false);
+      setOpeningTyped(false);
     }
   }
 
@@ -232,6 +248,8 @@ function CentralResultsPageInner() {
         classId={classId}
         studentId={studentId}
         courseId={courseId}
+        reportId={reportId}
+        from="prepare"
       />
       {classId ? (
         <p className="text-xs text-muted-foreground">
@@ -262,7 +280,12 @@ function CentralResultsPageInner() {
                 Review scores
               </Link>
               <Link
-                href={learnerReportHref('publish', { studentId, classId, courseId })}
+                href={learnerReportHref('publish', {
+                  reportId,
+                  studentId,
+                  classId,
+                  courseId,
+                })}
                 className="rounded-xl border border-emerald-700/30 px-4 py-2 text-center font-bold"
               >
                 Publish
@@ -338,14 +361,24 @@ function CentralResultsPageInner() {
             <li>There should be some class work to score from</li>
           </ul>
         </details>
+        <div className="mt-5 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => void prepare()}
-          disabled={saving || !classId || !studentId || !courseId}
-          className="mt-5 min-h-11 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50"
+          onClick={() => void prepare('automatic')}
+          disabled={saving || openingTyped || !classId || !studentId || !courseId}
+          className="min-h-11 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50"
         >
-          {saving ? 'Working…' : 'Fill scores'}
+          {saving ? 'Working…' : 'Fill from class work'}
         </button>
+        <button
+          type="button"
+          onClick={() => void prepare('manual')}
+          disabled={saving || openingTyped || !classId || !studentId || !courseId}
+          className="min-h-11 rounded-xl border border-border bg-background px-6 py-3 font-bold disabled:opacity-50"
+        >
+          {openingTyped ? 'Opening…' : 'Open for typed scores'}
+        </button>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-border bg-card p-6">
@@ -439,6 +472,7 @@ function CentralResultsPageInner() {
                 ) : null}
                 <Link
                   href={learnerReportHref('publish', {
+                    reportId: report.id,
                     studentId: report.student_id,
                     classId: report.class_id || classId,
                     courseId: report.course_id,

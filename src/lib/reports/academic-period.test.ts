@@ -63,6 +63,13 @@ describe('academic session identity isolation', () => {
     ).toBe(false);
   });
 
+  it('keeps a stored prior session when the write is an explicit backfill', () => {
+    const live = { termLabel: 'First Term', periodLabel: '2026/2027' };
+    const kept = resolveSessionForWrite('Third Term', '2025/2026', { allowBackfill: true, live });
+    expect(kept.rolled).toBe(false);
+    expect(kept.session).toEqual({ termLabel: 'Third Term', periodLabel: '2025/2026' });
+  });
+
   it('builds coverage OR filter with both labels so years cannot collide', () => {
     const filter = coverageSessionOrFilter({
       termId: 'term-uuid',

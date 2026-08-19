@@ -3,6 +3,7 @@ import {
   deriveProgressReportResult,
   hasRecordedProgressReportScores,
   isLockedLearnerResult,
+  isUnsetScore,
   progressReportScoreComponents,
   touchesProgressReportScores,
 } from './score';
@@ -39,6 +40,14 @@ describe('progress report score adapter', () => {
     expect(touchesProgressReportScores({ theory_score: 70 })).toBe(true);
     expect(touchesProgressReportScores({ engagement_metrics: {} })).toBe(true);
     expect(touchesProgressReportScores({ key_strengths: 'Clear reasoning' })).toBe(false);
+  });
+
+  it('treats typed zero as a saved score, not a blank to auto-fill', () => {
+    expect(isUnsetScore(null)).toBe(true);
+    expect(isUnsetScore(undefined)).toBe(true);
+    expect(isUnsetScore('')).toBe(true);
+    expect(isUnsetScore(0)).toBe(false);
+    expect(isUnsetScore('0')).toBe(false);
   });
 
   it('treats typed and published rows as locked, but not unpublished automatic drafts', () => {

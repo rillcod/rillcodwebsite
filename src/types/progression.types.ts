@@ -56,7 +56,7 @@ export interface StudentLevelEnrollment {
   created_at: string;
   updated_at: string;
   // joined fields
-  portal_users?: { id: string; full_name: string; email: string };
+  portal_users?: { id: string; full_name: string; email: string; class_id?: string | null };
   courses?: CourseLevel & { programs?: { name: string; delivery_type: DeliveryType } };
   promoted_course?: { id: string; title: string; level_order: number };
 }

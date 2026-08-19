@@ -53,6 +53,7 @@ import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner } from '@/components/reports/ResultStatusBadges';
 import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
+import { isLockedLearnerResult, isUnsetScore } from '@/lib/reports/score';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -1243,10 +1244,10 @@ function ReportBuilderInner() {
                 // learner is no longer on this class roster.
                 if (prefStudentId || prefReportId) {
                     pendingRestoreStudentId.current = null;
-                    let reportRow: { id?: string; student_id?: string | null; report_term?: string | null; report_period?: string | null; class_id?: string | null; course_id?: string | null; course_name?: string | null; section_class?: string | null } | null = null;
+                    let reportRow: { id?: string; student_id?: string | null; report_term?: string | null; report_period?: string | null; class_id?: string | null; course_id?: string | null; course_name?: string | null; section_class?: string | null; term_id?: string | null } | null = null;
                     if (prefReportId) {
                         const { data: byId } = await withTimeout(
-                            db.from('student_progress_reports').select('id, student_id, report_term, report_period, class_id, course_id, course_name, section_class').eq('id', prefReportId).maybeSingle(),
+                            db.from('student_progress_reports').select('id, student_id, report_term, report_period, class_id, course_id, course_name, section_class, term_id').eq('id', prefReportId).maybeSingle(),
                             { data: null, error: null },
                             'open report lookup',
                         );
@@ -1290,7 +1291,17 @@ function ReportBuilderInner() {
                             }));
                         }
                         setTimeout(() => {
-                            void selectStudent(s as PortalUser, 0, { forceHydrate: true, reportId: prefReportId || reportRow?.id });
+                            void selectStudent(s as PortalUser, 0, {
+                                forceHydrate: true,
+                                reportId: prefReportId || reportRow?.id,
+                                session: {
+                                    report_term: term || reportRow?.report_term || null,
+                                    report_period: period || reportRow?.report_period || null,
+                                    class_id: reportRow?.class_id || null,
+                                    course_id: reportRow?.course_id || null,
+                                    term_id: reportRow?.term_id || null,
+                                },
+                            });
                             setStep('edit');
                             setSessionDone(true);
                             setSessionExpanded(false);
@@ -1599,7 +1610,17 @@ function ReportBuilderInner() {
     }
 
     // ── Select student: load existing report, fill form ───────────────────────
-    async function selectStudent(s: PortalUser, idx: number, opts?: { forceHydrate?: boolean; reportId?: string | null }) {
+    async function selectStudent(s: PortalUser, idx: number, opts?: {
+        forceHydrate?: boolean;
+        reportId?: string | null;
+        session?: {
+            report_term?: string | null;
+            report_period?: string | null;
+            class_id?: string | null;
+            course_id?: string | null;
+            term_id?: string | null;
+        };
+    }) {
         setSelectedStudent(s);
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
@@ -1647,8 +1668,10 @@ function ReportBuilderInner() {
 
         // The report THIS grading session edits/creates — scoped to term + academic year only.
         // Do NOT filter by course_id: stored course_name/course_id may be stale while section_class is correct.
-        const lookupTerm = (opts?.forceHydrate && (prefReportTerm || prefReportId)) ? (prefReportTerm || sessionConfig.report_term) : sessionConfig.report_term;
-        const lookupPeriod = (opts?.forceHydrate && (prefReportPeriod || prefReportId)) ? (prefReportPeriod || sessionConfig.report_period) : sessionConfig.report_period;
+        const lookupTerm = opts?.session?.report_term
+            || ((opts?.forceHydrate && (prefReportTerm || prefReportId)) ? (prefReportTerm || sessionConfig.report_term) : sessionConfig.report_term);
+        const lookupPeriod = opts?.session?.report_period
+            || ((opts?.forceHydrate && (prefReportPeriod || prefReportId)) ? (prefReportPeriod || sessionConfig.report_period) : sessionConfig.report_period);
         let scoped = baseSelect();
         if (lookupTerm)   scoped = scoped.eq('report_term', lookupTerm) as typeof scoped;
         if (lookupPeriod) scoped = scoped.eq('report_period', lookupPeriod) as typeof scoped;
@@ -1826,8 +1849,12 @@ function ReportBuilderInner() {
         }
 
         const existingMetrics = (hydratedReport as any)?.engagement_metrics ?? {};
-        // Capture DB values as stable local variables so the async auto-suggest
-        // closure below can check them reliably, regardless of React state batching.
+        const theoryBlank = isUnsetScore(hydratedReport?.theory_score);
+        const practicalBlank = isUnsetScore(hydratedReport?.practical_score);
+        const attendanceBlank = isUnsetScore(hydratedReport?.attendance_score);
+        const participationBlank = isUnsetScore(hydratedReport?.participation_score);
+        const classworkBlank = isUnsetScore(existingMetrics.classwork_score);
+        const assessmentBlank = isUnsetScore(existingMetrics.assessment_score);
         const savedClasswork  = Number(existingMetrics.classwork_score  ?? 0);
         const savedAssessment = Number(existingMetrics.assessment_score ?? 0);
         const savedTheory        = Number(hydratedReport?.theory_score        ?? 0);
@@ -1871,9 +1898,10 @@ function ReportBuilderInner() {
             // 1. Resolve class ID for attendance lookup
             const studentSchoolId = s.school_id;
             const studentClassName = (s as any).section_class;
-            let targetClassId = (s as any).class_id || sessionConfig.class_id || null;
-            // Prefer the session reporting term (unlocked new term), not the class row's stale term_id.
-            let targetTermId: string | null = sessionConfig.term_id || null;
+            let targetClassId = opts?.session?.class_id || hydratedReport?.class_id || (s as any).class_id || sessionConfig.class_id || null;
+            // Prefer the opened report's term, then the session reporting term.
+            let targetTermId: string | null = opts?.session?.term_id || (hydratedReport as any)?.term_id || sessionConfig.term_id || null;
+            const evidenceCourseId = opts?.session?.course_id || hydratedReport?.course_id || sessionConfig.course_id || null;
             if (!targetClassId && studentClassName) {
                 const { data: clsData } = await withTimeout(
                     db.from('classes')
@@ -1883,7 +1911,7 @@ function ReportBuilderInner() {
                 );
                 targetClassId = clsData?.id;
                 if (!targetTermId) targetTermId = (clsData as any)?.term_id ?? null;
-            } else if (targetClassId && !targetTermId) {
+            } else if (targetClassId && !targetTermId && !keepRequestedSession) {
                 const { data: clsData } = await withTimeout(
                     db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle(),
                     { data: null, error: null },
@@ -1900,14 +1928,14 @@ function ReportBuilderInner() {
                 ? await withTimeout(sessionQuery, { data: [], error: null }, 'class sessions for stats')
                 : { data: [] };
             const sessionIds = sessions?.map((x: any) => x.id) || [];
-            const selectedCourse = sessionConfig.course_id ? courses.find((c: any) => c.id === sessionConfig.course_id) : null;
+            const selectedCourse = evidenceCourseId ? courses.find((c: any) => c.id === evidenceCourseId) : null;
             const statsProgramId = (selectedCourse as any)?.program_id || sessionProgramId || null;
-            const submissionsQuery = sessionConfig.course_id
+            const submissionsQuery = evidenceCourseId
                 ? db.from('assignment_submissions')
                     .select('id, grade, status, assignments!inner(course_id, max_points, term_id)')
                     .eq('portal_user_id', s.id)
                     .eq('status', 'graded')
-                    .eq('assignments.course_id', sessionConfig.course_id)
+                    .eq('assignments.course_id', evidenceCourseId)
                 : db.from('assignment_submissions')
                     .select('id, grade, status, assignments(max_points, term_id)')
                     .eq('portal_user_id', s.id)
@@ -1926,9 +1954,9 @@ function ReportBuilderInner() {
                 // Assignment submissions — graded (feeds Assignment + Evaluation)
                 submissionsQuery,
                 // Total active assignments for this course (Assignment denominator)
-                sessionConfig.course_id
+                evidenceCourseId
                     ? (() => {
-                        let q = db.from('assignments').select('id, term_id').eq('course_id', sessionConfig.course_id).eq('is_active', true);
+                        let q = db.from('assignments').select('id, term_id').eq('course_id', evidenceCourseId).eq('is_active', true);
                         if (targetTermId) q = q.or(`term_id.eq.${targetTermId},term_id.is.null`) as any;
                         return q;
                       })()
@@ -1963,9 +1991,9 @@ function ReportBuilderInner() {
               { includeUntagged: true },
             );
             const scopedCbt = allCbt.filter((row: any) =>
-                matchesReportExamScope(row, sessionConfig.course_id || null, statsProgramId),
+                matchesReportExamScope(row, evidenceCourseId, statsProgramId),
             );
-            const cbtScore = topCbtScore(scopedCbt, 'examination', sessionConfig.course_id || null, statsProgramId);
+            const cbtScore = topCbtScore(scopedCbt, 'examination', evidenceCourseId, statsProgramId);
             const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
@@ -1975,7 +2003,7 @@ function ReportBuilderInner() {
             const gradedAsgn = subRes.data?.length || 0;
             const assignmentPct = totalAsgn > 0 ? Math.round((gradedAsgn / totalAsgn) * 100) : 0;
             // Evaluation score = best CBT score where exam_type = 'evaluation'
-            const evalScore = topCbtScore(scopedCbt, 'evaluation', sessionConfig.course_id || null, statsProgramId);
+            const evalScore = topCbtScore(scopedCbt, 'evaluation', evidenceCourseId, statsProgramId);
             const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
             // Project Engagement: every 3 projects = 100% (capped at 100)
             const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
@@ -1993,21 +2021,23 @@ function ReportBuilderInner() {
                 pendingCbt,
             });
 
-            // ── Auto-suggest all 6 WAEC components from real platform data ──────
-            // Only fills a component when the DB had 0 (never saved) — uses the stable
-            // local variables captured before this async block to avoid stale-state bugs.
-            const attPct = sessionIds.length > 0
-                ? Math.min(100, Math.round(((attRes.data?.length || 0) / sessionIds.length) * 100))
-                : 0;
-            setForm(f => ({
-                ...f,
-                ...(cbtScore > 0 && savedTheory === 0           ? { theory_score:        String(cbtScore) }     : {}),
-                ...(assignmentAvg > 0 && savedClasswork === 0   ? { classwork_score:     String(assignmentAvg) } : {}),
-                ...(projectPct > 0 && savedPractical === 0      ? { practical_score:     String(projectPct) }   : {}),
-                ...(assignmentPct > 0 && savedAttendance === 0  ? { attendance_score:    String(assignmentPct) }: {}),
-                ...(attPct > 0 && savedParticipation === 0      ? { participation_score: String(attPct) }       : {}),
-                ...(evalScore > 0 && savedAssessment === 0      ? { assessment_score:    String(evalScore) }    : {}),
-            }));
+            // Never auto-fill a typed, published, or specifically opened prior report.
+            // Typed 0 is a real score — only fill when the field was never stored.
+            const lockedResult = !!(hydratedReport && isLockedLearnerResult(hydratedReport));
+            if (!keepRequestedSession && !lockedResult) {
+                const attPct = sessionIds.length > 0
+                    ? Math.min(100, Math.round(((attRes.data?.length || 0) / sessionIds.length) * 100))
+                    : 0;
+                setForm(f => ({
+                    ...f,
+                    ...(cbtScore > 0 && theoryBlank           ? { theory_score:        String(cbtScore) }     : {}),
+                    ...(assignmentAvg > 0 && classworkBlank   ? { classwork_score:     String(assignmentAvg) } : {}),
+                    ...(projectPct > 0 && practicalBlank      ? { practical_score:     String(projectPct) }   : {}),
+                    ...(assignmentPct > 0 && attendanceBlank  ? { attendance_score:    String(assignmentPct) }: {}),
+                    ...(attPct > 0 && participationBlank      ? { participation_score: String(attPct) }       : {}),
+                    ...(evalScore > 0 && assessmentBlank      ? { assessment_score:    String(evalScore) }    : {}),
+                }));
+            }
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
         }
@@ -2375,7 +2405,6 @@ function ReportBuilderInner() {
                     overall_score: overall,
                     overall_grade: bulkWaecCode,
                     proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
-                    is_published: false,
                     show_payment_notice: sessionConfig.show_payment_notice,
                     updated_at: new Date().toISOString(),
                 };
@@ -2460,7 +2489,6 @@ function ReportBuilderInner() {
                     : null,
                 course_completed: overallScore >= 45 ? `Completed — ${sessionConfig.report_term}` : null,
                 proficiency_level: form.proficiency_level as 'beginner' | 'intermediate' | 'advanced',
-                is_published: false,
                 photo_url: form.photo_url || null,
                 // Payment / school section fields
                 school_section: sessionConfig.school_section || null,
@@ -3135,6 +3163,7 @@ function ReportBuilderInner() {
                     term={sessionConfig.report_term}
                     period={sessionConfig.report_period}
                     reportId={existingReport?.id}
+                    from={fromPrepare ? 'prepare' : fromResults ? 'results' : undefined}
                 />
                 {existingReport ? <ManualProtectionBanner mode={existingReport.calculation_mode} /> : null}
 

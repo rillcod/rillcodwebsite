@@ -17,8 +17,20 @@ import {
     ArrowDownTrayIcon, CommandLineIcon,
 } from '@/lib/icons';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+
+function writeReportHref(student: { id: string; class_id?: string | null }) {
+    const live = liveAcademicSession();
+    return learnerReportHref('write', {
+        studentId: student.id,
+        classId: student.class_id,
+        term: live.termLabel,
+        period: live.periodLabel,
+    });
+}
 
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -1045,7 +1057,7 @@ export default function ProjectsPage() {
                                                                     <ScoreBadge pct={pct} />
                                                                 </div>
                                                                 {role !== 'school' && (
-                                                                    <Link href={`/dashboard/reports/builder?student=${student.id}`} onClick={e => e.stopPropagation()}
+                                                                    <Link href={writeReportHref(student)} onClick={e => e.stopPropagation()}
                                                                         className="hidden md:flex items-center gap-1 text-[9px] font-black text-primary/60 uppercase tracking-widest hover:text-primary transition-colors px-2 py-1 border border-primary/20 hover:border-primary/40 flex-shrink-0">
                                                                         <EyeIcon className="w-3 h-3" /> Report
                                                                     </Link>
@@ -1093,9 +1105,9 @@ export default function ProjectsPage() {
                                                                             <p className="text-xs text-muted-foreground mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-primary font-black">{pct}%</span></p>
                                                                         </div>
                                                                         {role !== 'school' && (
-                                                                            <Link href={`/dashboard/reports/builder?student=${student.id}`}
+                                                                            <Link href={writeReportHref(student)}
                                                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/30 transition-all flex-shrink-0">
-                                                                                <EyeIcon className="w-3.5 h-3.5" /> Build Report
+                                                                                <EyeIcon className="w-3.5 h-3.5" /> Write
                                                                             </Link>
                                                                         )}
                                                                     </div>

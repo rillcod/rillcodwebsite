@@ -207,7 +207,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
           id: "result",
           state: "ready",
           headline: "Prepare results, then share with parents.",
-          actionLabel: "Open results",
+          actionLabel: "Open Auto-fill",
           actionHref: "/dashboard/academic/results",
         };
 

@@ -63,6 +63,11 @@ export function touchesProgressReportScores(value: Record<string, unknown>): boo
   return PROGRESS_REPORT_SCORE_FIELDS.some((field) => field in value);
 }
 
+/** True when a component was never stored. Typed `0` is a real score and must be kept. */
+export function isUnsetScore(value: unknown): boolean {
+  return value === null || value === undefined || value === '';
+}
+
 export function hasRecordedProgressReportScores(
   report: ProgressReportScoreSource & { overall_score?: unknown },
 ): boolean {

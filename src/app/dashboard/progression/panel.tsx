@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
+import { learnerReportHref } from "@/components/reports/LearnerReportFlowStrip";
 import {
   ArrowRightIcon,
   ArrowPathIcon,
@@ -315,7 +315,7 @@ export default function ProgressionPage({
               const { data: reportRows, error } = await db
                 .from("student_progress_reports")
                 .select(
-                  "student_id, overall_grade, overall_score, is_published, report_term, report_period, updated_at"
+                  "id, student_id, overall_grade, overall_score, is_published, report_term, report_period, updated_at"
                 )
                 .in("student_id", chunk);
               if (!error && reportRows) {
@@ -359,6 +359,7 @@ export default function ProgressionPage({
           const rMap: Record<
             string,
             {
+              id?: string;
               overall_grade: string;
               overall_score?: number | null;
               is_published?: boolean | null;
@@ -374,6 +375,7 @@ export default function ProgressionPage({
               reportMatchesSelectedTerm(r)
             ) {
               rMap[r.student_id] = {
+                id: r.id,
                 overall_grade: r.overall_grade,
                 overall_score: r.overall_score,
                 is_published: r.is_published,
@@ -847,7 +849,14 @@ export default function ProgressionPage({
                     <div className="flex items-center gap-2">
                       {canPromote && student?.id && (
                         <Link
-                          href={`/dashboard/reports/builder?student_id=${student.id}`}
+                          href={learnerReportHref('write', {
+                            studentId: student.id,
+                            reportId: report?.id,
+                            classId: student.class_id,
+                            courseId: enrollment.course_id,
+                            term: report?.report_term,
+                            period: report?.report_period,
+                          })}
                           className="p-3 rounded-xl border border-border bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all shadow-sm"
                           title="View report card"
                         >

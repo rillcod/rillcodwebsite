@@ -29,7 +29,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
-import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
+import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
@@ -148,6 +148,7 @@ function ResultsPageInner() {
     const prefTerm = searchParams.get('term') || searchParams.get('report_term');
     const prefYear = searchParams.get('year') || searchParams.get('report_period') || searchParams.get('period');
     const prefReportId = searchParams.get('report') || searchParams.get('report_id');
+    const prefCourseId = searchParams.get('course_id');
     const { profile, loading: authLoading } = useAuth();
     const urlStudentSyncRef = useRef<string | null>(prefStudentId);
 
@@ -569,10 +570,41 @@ function ResultsPageInner() {
 
             setReportsMap(rMap);
 
-            if (prefStudentId) {
-                const s = studs.find(x => x.id === prefStudentId);
-                if (s && !aborted) loadStudentReport(s);
+            let openStudent = prefStudentId
+                ? studsWithGrade.find((x: any) => x.id === prefStudentId)
+                : undefined;
+            if (!openStudent && prefReportId) {
+                const { data: row } = await withTimeout(
+                    db.from('student_progress_reports')
+                        .select('id, student_id, report_term, report_period')
+                        .eq('id', prefReportId)
+                        .maybeSingle(),
+                    { data: null, error: null },
+                    'publish open report',
+                );
+                if (row?.student_id) {
+                    openStudent = studsWithGrade.find((x: any) => x.id === row.student_id);
+                    if (!openStudent) {
+                        const { data: one } = await withTimeout(
+                            db.from('portal_users')
+                                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender')
+                                .eq('id', row.student_id)
+                                .maybeSingle(),
+                            { data: null, error: null },
+                            'publish open report student',
+                        );
+                        if (one) {
+                            openStudent = one as any;
+                            setStudents((prev) => prev.some((p) => p.id === one.id) ? prev : [one as PortalUser, ...prev]);
+                        }
+                    }
+                    if (row.report_term && row.report_period) {
+                        setPeriodDraft({ year: row.report_period, term: row.report_term });
+                        setConfirmedPeriod({ year: row.report_period, term: row.report_term });
+                    }
+                }
             }
+            if (openStudent && !aborted) loadStudentReport(openStudent as PortalUser);
             if (!aborted) setLoading(false);
         }
 
@@ -605,19 +637,14 @@ function ResultsPageInner() {
         }
         syncStudentQuery(s.id);
         // Load ALL of the student's reports (across terms / academic sessions) so staff
-        // can switch between them; default to the most recent published one.
-        let reportQuery = createClient()
+        // can switch between them; default to the requested report, then this period.
+        const reportQuery = createClient()
             .from('student_progress_reports')
             .select('*')
             .eq('student_id', s.id)
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false });
-        if (isStaff && confirmedPeriod) {
-            reportQuery = reportQuery
-                .eq('report_term', confirmedPeriod.term)
-                .eq('report_period', confirmedPeriod.year) as typeof reportQuery;
-        }
-        // Load any report for this student in the period — not only ones authored by
+        // Load any report for this student — not only ones authored by
         // the current teacher (class handoff / takeover).
         const { data } = await withTimeout(
             reportQuery,
@@ -629,7 +656,11 @@ function ResultsPageInner() {
         const history = ((data ?? []) as StudentReport[]).slice().sort(compareReportsByPeriodDesc);
         setReportHistory(history);
         const urlReport = prefReportId ? history.find((r) => r.id === prefReportId) ?? null : null;
-        const data0 = urlReport ?? history[0] ?? null;
+        const inPeriod = confirmedPeriod
+            ? history.filter((r) => r.report_term === confirmedPeriod.term && r.report_period === confirmedPeriod.year)
+            : history;
+        const courseMatch = prefCourseId ? inPeriod.find((r) => r.course_id === prefCourseId) ?? null : null;
+        const data0 = urlReport ?? courseMatch ?? inPeriod[0] ?? history[0] ?? null;
         setSelectedReport(data0);
         setLoadingReport(false);
         if (data0?.id) {
@@ -1226,7 +1257,12 @@ function ResultsPageInner() {
             const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ course_name: editCourseName.trim(), report_term: editTerm.trim() }),
+                body: JSON.stringify({
+                    course_name: editCourseName.trim(),
+                    report_term: editTerm.trim(),
+                    report_period: selectedReport.report_period,
+                    allow_backfill: true,
+                }),
             });
             if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
@@ -1479,8 +1515,9 @@ tbody tr:hover{background:#f3f4f6}
                         schoolId={selectedReport?.school_id}
                         courseId={selectedReport?.course_id}
                         reportId={selectedReport?.id}
-                        term={confirmedPeriod?.term}
-                        period={confirmedPeriod?.year}
+                        term={selectedReport?.report_term || confirmedPeriod?.term}
+                        period={selectedReport?.report_period || confirmedPeriod?.year}
+                        from="results"
                     />
                 ) : !isStaff ? (
                     <h1 className="text-lg font-extrabold tracking-tight">Student progress reports</h1>
@@ -1543,8 +1580,14 @@ tbody tr:hover{background:#f3f4f6}
                         <Link
                             href={
                               confirmedPeriod?.term && confirmedPeriod?.year
-                                ? `/dashboard/reports/builder?report_term=${encodeURIComponent(confirmedPeriod.term)}&report_period=${encodeURIComponent(confirmedPeriod.year)}&from=results${filterClass ? `&class_id=${encodeURIComponent(filterClass)}` : ''}${filterSchool ? `&school_id=${encodeURIComponent(filterSchool)}` : ''}`
-                                : `/dashboard/reports/builder?from=results`
+                                ? learnerReportHref('write', {
+                                    term: confirmedPeriod.term,
+                                    period: confirmedPeriod.year,
+                                    classId: filterClass,
+                                    schoolId: filterSchool,
+                                    from: 'results',
+                                  })
+                                : learnerReportHref('write', { from: 'results' })
                             }
                             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-black text-foreground hover:bg-muted"
                         >
@@ -2441,8 +2484,14 @@ tbody tr:hover{background:#f3f4f6}
                                     <Link
                                         href={
                                           confirmedPeriod?.term && confirmedPeriod?.year
-                                            ? `/dashboard/reports/builder?report_term=${encodeURIComponent(confirmedPeriod.term)}&report_period=${encodeURIComponent(confirmedPeriod.year)}&from=results${filterClass ? `&class_id=${encodeURIComponent(filterClass)}` : ''}${filterSchool ? `&school_id=${encodeURIComponent(filterSchool)}` : ''}`
-                                            : `/dashboard/reports/builder?from=results`
+                                            ? learnerReportHref('write', {
+                                                term: confirmedPeriod.term,
+                                                period: confirmedPeriod.year,
+                                                classId: filterClass,
+                                                schoolId: filterSchool,
+                                                from: 'results',
+                                              })
+                                            : learnerReportHref('write', { from: 'results' })
                                         }
                                         className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
                                     >

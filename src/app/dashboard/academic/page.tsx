@@ -516,9 +516,9 @@ export default function AcademicSpinePage() {
                                 purpose: "Mark work.",
                               },
                               {
-                                label: "Results",
+                                label: "Auto-fill",
                                 href: "/dashboard/academic/results",
-                                purpose: "Share outcomes with parents.",
+                                purpose: "Optional fill from class work.",
                               },
                             ]
                         ).map((item) => (

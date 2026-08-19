@@ -27,8 +27,12 @@ function newest(query: any) {
   return query.order('updated_at', { ascending: false }).limit(1).maybeSingle();
 }
 
+function newestFew(query: any, n: number) {
+  return query.order('updated_at', { ascending: false }).limit(n);
+}
+
 /**
- * One learner report per course and term. Write, Prepare, and Publish all land
+ * One learner report per course and term. Write, Auto-fill, and Publish all land
  * on this row — never a second gradebook line.
  */
 export async function findCanonicalProgressReport(
@@ -62,6 +66,11 @@ export async function findCanonicalProgressReport(
   if (courseName && term && period) {
     const { data } = await newest(byStudent().ilike('course_name', courseName).eq('report_term', term).eq('report_period', period));
     if (data?.id) return data;
+  }
+  if (term && period) {
+    const { data } = await newestFew(byStudent().eq('report_term', term).eq('report_period', period), 2);
+    const rows = Array.isArray(data) ? data : [];
+    if (rows.length === 1 && rows[0]?.id) return rows[0];
   }
   if (courseId && offeringId && offeringPeriodId) {
     const { data } = await newest(

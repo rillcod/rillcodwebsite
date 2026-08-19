@@ -89,6 +89,7 @@ export async function GET() {
         id: s.id,
         full_name: s.full_name,
         className: s.classes?.name ?? s.section_class ?? null,
+        classId: s.class_id ?? null,
         school_name: s.school_name ?? null,
         drafted: drafted.has(s.id),
       }))

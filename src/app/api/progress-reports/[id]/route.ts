@@ -8,6 +8,7 @@ import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-cours
 import { canAccessProgressReport } from '@/lib/reports/access';
 import {
   resolveSessionForWrite,
+  sessionsEqual,
 } from '@/lib/reports/academic-period';
 import { logAudit } from '@/lib/audit/log';
 import { deriveProgressReportResult, touchesProgressReportScores } from '@/lib/reports/score';
@@ -39,7 +40,7 @@ async function canModifyReport(caller: any, reportId: string): Promise<ReportAcc
   if (caller.role === 'admin') return { ok: true };
   const admin = adminClient();
   const { data: report, error: reportError } = await admin.from('student_progress_reports')
-    .select('id, school_id, student_id, teacher_id').eq('id', reportId).maybeSingle();
+    .select('id, school_id, student_id, teacher_id, class_id').eq('id', reportId).maybeSingle();
   if (reportError) {
     console.error('[progress-reports] report access verification failed:', reportError);
     return { ok: false, status: 503, error: 'Report access could not be verified. Please try again.' };
@@ -97,16 +98,28 @@ export async function PATCH(
 
   const admin = adminClient();
 
-  // Central session resolve on PATCH (same rules as POST).
+  const { data: currentReport, error: currentReportError } = await admin
+    .from('student_progress_reports')
+    .select('student_id, student_name, section_class, school_id, class_id, course_id, course_name, term_id, academic_offering_id, report_term, report_period, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
+    .eq('id', id)
+    .maybeSingle();
+  if (currentReportError) {
+    return NextResponse.json({ error: 'The report could not be verified before saving. Please try again.' }, { status: 503 });
+  }
+  if (!currentReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
+  // Central session resolve on PATCH (same rules as POST). Resubmitting the
+  // stored term — e.g. a course rename — must not roll a prior report to live.
   if ('report_term' in allowed || 'report_period' in allowed) {
-    const { data: current } = await admin
-      .from('student_progress_reports')
-      .select('report_term, report_period')
-      .eq('id', id)
-      .maybeSingle();
-    const nextTerm = String(allowed.report_term ?? (current as any)?.report_term ?? '').trim();
-    const nextPeriod = String(allowed.report_period ?? (current as any)?.report_period ?? '').trim();
-    const allowBackfill = body.allow_backfill === true;
+    const storedTerm = String((currentReport as any)?.report_term ?? '').trim();
+    const storedPeriod = String((currentReport as any)?.report_period ?? '').trim();
+    const nextTerm = String(allowed.report_term ?? storedTerm).trim();
+    const nextPeriod = String(allowed.report_period ?? storedPeriod).trim();
+    const sameSession = sessionsEqual(
+      { termLabel: nextTerm, periodLabel: nextPeriod },
+      { termLabel: storedTerm, periodLabel: storedPeriod },
+    );
+    const allowBackfill = body.allow_backfill === true || sameSession;
     const { session } = resolveSessionForWrite(nextTerm, nextPeriod, { allowBackfill });
     allowed.report_term = session.termLabel;
     allowed.report_period = session.periodLabel;
@@ -121,16 +134,6 @@ export async function PATCH(
       if (canonicalTerm?.id) allowed.term_id = canonicalTerm.id;
     }
   }
-
-  const { data: currentReport, error: currentReportError } = await admin
-    .from('student_progress_reports')
-    .select('student_id, student_name, section_class, school_id, course_id, course_name, term_id, academic_offering_id, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
-    .eq('id', id)
-    .maybeSingle();
-  if (currentReportError) {
-    return NextResponse.json({ error: 'The report could not be verified before saving. Please try again.' }, { status: 503 });
-  }
-  if (!currentReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
   if (touchesProgressReportScores(body as Record<string, unknown>)) {
     allowed.calculation_mode = 'manual';
@@ -153,14 +156,22 @@ export async function PATCH(
 
   // Direct overall-score overrides are intentionally ignored; evidence components
   // are the only input to the official calculation.
-  const reconciledCourse = await reconcileReportCourseFromClassContext(admin, {
-    course_id: allowed.course_id ?? (currentReport as any)?.course_id,
-    course_name: allowed.course_name ?? (currentReport as any)?.course_name,
-    section_class: allowed.section_class ?? (currentReport as any)?.section_class,
-    student_id: (currentReport as any)?.student_id,
-  });
-  if (reconciledCourse.course_id) allowed.course_id = reconciledCourse.course_id;
-  if (reconciledCourse.course_name) allowed.course_name = reconciledCourse.course_name;
+  // Never rewrite a stored course from the learner's current class. Only fill
+  // blanks when this PATCH actually touches course/section fields.
+  if ('course_id' in body || 'course_name' in body || 'section_class' in body) {
+    const reconciledCourse = await reconcileReportCourseFromClassContext(admin, {
+      course_id: allowed.course_id ?? (currentReport as any)?.course_id,
+      course_name: allowed.course_name ?? (currentReport as any)?.course_name,
+      section_class: allowed.section_class ?? (currentReport as any)?.section_class,
+      class_id: (currentReport as any)?.class_id,
+    });
+    if (!allowed.course_id && !(currentReport as any)?.course_id && reconciledCourse.course_id) {
+      allowed.course_id = reconciledCourse.course_id;
+    }
+    if (!('course_name' in body) && !(currentReport as any)?.course_name && reconciledCourse.course_name) {
+      allowed.course_name = reconciledCourse.course_name;
+    }
+  }
 
   if (allowed.is_published === true && (currentReport as any)?.academic_trace_status === 'traceable') {
     const { data: qa, error: qaError } = await (admin as any).rpc('evaluate_progress_report_academic_qa', {
