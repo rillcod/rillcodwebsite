@@ -93,8 +93,8 @@ export function SetupDeliveryTopicsPanel({
       const response = await fetch(`/api/school-performance-reports/delivery-topics?${params.toString()}`, {
         signal: controller.signal,
       });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to load delivery topics.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load delivery topics (HTTP ${response.status}).`);
       const data = json as CatalogResponse;
       setMissingCurriculumCourses(data.missingCurriculumCourses || []);
       setCatalog(data.catalog || []);

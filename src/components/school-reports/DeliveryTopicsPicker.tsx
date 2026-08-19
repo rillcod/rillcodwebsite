@@ -72,8 +72,8 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         `/api/school-performance-reports/delivery-topics?reportId=${encodeURIComponent(reportId)}`,
         { signal: controller.signal },
       );
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to load topics.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load topics (HTTP ${response.status}). Check your connection and try again.`);
       const data = json as CatalogResponse;
       const nextReportingWeeks = data.reportingWeeks ?? 1;
       const nextRangeStartWeek = data.rangeStartWeek ?? data.range?.startWeek ?? 1;
@@ -184,8 +184,8 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
           expectedRevision: lockVersion,
         }),
       });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to save delivery.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to save delivery (HTTP ${response.status}).`);
       if (json.lockVersion) onLockVersionChange?.(Number(json.lockVersion));
       await loadCatalog();
       onApplied('');
@@ -206,8 +206,8 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportId }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to generate curriculum on the spot.');
+      const json = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok) throw new Error((json.error as string | undefined) || `Failed to generate curriculum on the spot (HTTP ${res.status}).`);
       await loadCatalog();
 
       const ai = Number(json.aiCourseCount ?? 0);

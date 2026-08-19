@@ -51,8 +51,8 @@ export function useSchoolReportSetup() {
     setError('');
     try {
       const response = await fetch('/api/school-performance-reports', { cache: 'no-store' });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to load reports.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load reports (HTTP ${response.status}).`);
       const loadedTerms: AcademicTerm[] = json.terms || [];
       const defaultTerm = loadedTerms.find((term) => term.is_current) || loadedTerms[0];
       setSchools(json.schools || []);
@@ -112,8 +112,8 @@ export function useSchoolReportSetup() {
         `/api/school-performance-reports/curriculum-range?schoolId=${encodeURIComponent(schoolId)}&academicTermId=${encodeURIComponent(academicTermId)}`,
         { cache: 'no-store' },
       );
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to detect delivery range.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to detect delivery range (HTTP ${response.status}).`);
       const suggestion = json.data as SuggestedCurriculumRange;
       if (suggestion.status === 'query_failed' || suggestion.status === 'migration_missing') {
         setCurriculumRangeHint(suggestion);
@@ -152,8 +152,8 @@ export function useSchoolReportSetup() {
       const response = await fetch(`/api/school-performance-reports/preflight?${params.toString()}`, {
         cache: 'no-store',
       });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Preflight failed.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Preflight failed (HTTP ${response.status}).`);
       setPreflight(json.data as ReportPreflightResult);
     } catch (preflightError) {
       setPreflight(null);
@@ -218,8 +218,8 @@ export function useSchoolReportSetup() {
           },
         }),
       });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to create report.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to create report (HTTP ${response.status}).`);
       if (json.reused && json.message) setInfo(json.message);
       logAuditEvent(json.reused ? 'report.reuse' : 'report.create', { reportId: json.id, schoolId: form.schoolId });
       if (form.curriculumOverrideReason.trim()) {

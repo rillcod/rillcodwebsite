@@ -30,8 +30,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     else setLoading(true);
     try {
       const response = await fetch(`/api/school-performance-reports/${reportId}`, { cache: 'no-store' });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to open report.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to open report (HTTP ${response.status}).`);
       const row = json.data as SchoolPerformanceReportRow;
       setReport(row);
       setRole(json.role || role);
@@ -102,7 +102,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        const json = await response.json();
+        const json = await response.json().catch(() => ({} as Record<string, unknown>));
         if (!response.ok) {
           const missing = Array.isArray(json.missing) ? json.missing.join(', ') : '';
           if (response.status === 409 && json.code === 'REPORT_CONFLICT') {
@@ -143,8 +143,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: trimmed, expectedRevision: report.lock_version ?? 1 }),
         });
-        const json = await response.json();
-        if (!response.ok) throw new Error(json.error || 'Unable to update title.');
+        const json = await response.json().catch(() => ({} as Record<string, unknown>));
+        if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to update title (HTTP ${response.status}).`);
         await loadReport();
       } finally {
         setWorking('');
@@ -164,8 +164,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshNarrative }),
         });
-        const json = await response.json();
-        if (!response.ok) throw new Error(json.error || 'Unable to refresh report data.');
+        const json = await response.json().catch(() => ({} as Record<string, unknown>));
+        if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to refresh report data (HTTP ${response.status}).`);
         await loadReport();
       } catch (regenError) {
         setError(regenError instanceof Error ? regenError.message : 'Unable to refresh report data.');
@@ -186,8 +186,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshAndReady: true }),
       });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to refresh and prepare report.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to refresh and prepare report (HTTP ${response.status}).`);
       await loadReport();
     } catch (regenError) {
       setError(regenError instanceof Error ? regenError.message : 'Unable to refresh and prepare report.');
@@ -207,8 +207,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     setError('');
     try {
       const response = await fetch(`/api/school-performance-reports/${report.id}`, { method: 'DELETE' });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to delete report.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to delete report (HTTP ${response.status}).`);
       router.push('/dashboard/school-reports');
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete report.');

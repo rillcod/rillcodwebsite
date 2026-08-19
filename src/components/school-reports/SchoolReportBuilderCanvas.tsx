@@ -262,8 +262,8 @@ export function SchoolReportBuilderCanvas({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields: fields?.length ? fields : undefined, persist: true }),
       });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Unable to generate wording.');
+      const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to generate wording (HTTP ${response.status}).`);
       const narrative = json.narrative as SchoolReportNarrative;
       startTransition(() => {
         setEditor(editorFromNarrative(narrative));
