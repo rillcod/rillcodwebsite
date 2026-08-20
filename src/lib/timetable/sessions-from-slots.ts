@@ -184,7 +184,7 @@ export function schoolWeekRange(day = schoolCalendarDate()): { start: string; en
  * those meetings are two periods on one day or Monday then Wednesday.
  */
 export function pickTimetableSessionForMeeting<
-  T extends { session_date: string; start_time?: string | null },
+  T extends { id: string; session_date: string; start_time?: string | null },
 >(
   sessions: T[],
   meeting = 1,

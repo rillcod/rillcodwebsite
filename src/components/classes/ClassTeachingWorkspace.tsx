@@ -404,7 +404,11 @@ export function ClassTeachingWorkspace({
       const timetableSession =
         row.recommendedAction === "teach"
           ? pickTimetableSessionForMeeting(
-              data?.timetable_sessions ?? [],
+              (data?.timetable_sessions ?? []) as Array<{
+                id: string;
+                session_date: string;
+                start_time?: string | null;
+              }>,
               session ?? 1
             )
           : null;
