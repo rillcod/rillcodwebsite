@@ -4,6 +4,7 @@ import {
   classifyCalendarWeek,
   defaultCompulsoryTermActivities,
   expandPlanWeeksForMeetings,
+  keepRillcodTeachingWeeks,
   parseProgrammeStanding,
   recommendTeachingAction,
   resolveSchoolProgrammePolicy,
@@ -18,12 +19,22 @@ describe("school programme standing", () => {
     expect(policy.standing).toBe("optional");
     expect(policy.usesRillcodEvaluation).toBe(true);
     expect(policy.usesHostEvaluation).toBe(false);
+    expect(policy.examCapture).toBe("cbt");
+    expect(policy.testCapture).toBe("cbt");
   });
 
   it("gives compulsory schools the host's own tests, not a twice-a-week rule", () => {
     const policy = resolveSchoolProgrammePolicy({ programme_standing: "compulsory" });
     expect(policy.usesRillcodEvaluation).toBe(false);
     expect(policy.usesHostEvaluation).toBe(true);
+    expect(policy.examCapture).toBe("physical");
+    expect(policy.testCapture).toBe("physical");
+    expect(
+      resolveSchoolProgrammePolicy({
+        programme_standing: "compulsory",
+        exam_capture: "cbt",
+      }).examCapture,
+    ).toBe("cbt");
   });
 });
 
@@ -87,7 +98,13 @@ describe("Royhills-shaped compulsory calendars", () => {
       weekNumber: 7,
       activities,
     })).toBe("teach");
-    expect(calendarRoleLabel("examination")).toBe("School exam week");
+    expect(
+      keepRillcodTeachingWeeks([1, 7, 12], {
+        standing: "compulsory",
+        termStart: "2026-09-14",
+        activities,
+      }),
+    ).toEqual([1]);
   });
 
   it("does not ask Rillcod to examine a host-evaluated class", () => {
@@ -95,6 +112,13 @@ describe("Royhills-shaped compulsory calendars", () => {
       recommendTeachingAction({
         base: "assess",
         calendarRole: "teach",
+        usesHostEvaluation: true,
+      }),
+    ).toBe("none");
+    expect(
+      recommendTeachingAction({
+        base: "prepare",
+        calendarRole: "examination",
         usesHostEvaluation: true,
       }),
     ).toBe("none");
@@ -112,6 +136,14 @@ describe("Royhills-shaped compulsory calendars", () => {
         usesHostEvaluation: true,
       }),
     ).toBe("teach");
+    expect(
+      recommendTeachingAction({
+        base: "assess",
+        calendarRole: "examination",
+        usesHostEvaluation: true,
+        examCapture: "cbt",
+      }),
+    ).toBe("assess");
   });
 
   it("expands a curriculum week into two class meetings", () => {

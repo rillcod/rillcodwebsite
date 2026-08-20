@@ -16168,6 +16168,8 @@ export type Database = {
           phone: string | null
           program_interest: string[] | null
           programme_standing: string
+          exam_capture: string
+          test_capture: string
           public_enrollment_open: boolean
           rillcod_quota_percent: number | null
           school_type: string | null
@@ -16195,6 +16197,8 @@ export type Database = {
           phone?: string | null
           program_interest?: string[] | null
           programme_standing?: string
+          exam_capture?: string
+          test_capture?: string
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
           school_type?: string | null
@@ -16222,6 +16226,8 @@ export type Database = {
           phone?: string | null
           program_interest?: string[] | null
           programme_standing?: string
+          exam_capture?: string
+          test_capture?: string
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
           school_type?: string | null

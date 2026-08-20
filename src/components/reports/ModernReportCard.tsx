@@ -15,6 +15,12 @@ import { cn } from '@/lib/utils';
 import { brandContact } from '@/config/brand';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
 import { reportHasDisplayableScores } from '@/lib/reports/score';
+import { parseScoreAuthority, progressReportComplement } from '@/lib/reports/complement';
+import {
+    formatHostMark,
+    hostLearningEvidence,
+    hostSchoolScoreboard,
+} from '@/lib/academic/host-marks';
 
 export interface ReportCardData {
     id?: string | null;
@@ -122,14 +128,17 @@ export default function ModernReportCard({ report, orgSettings }: {
     const assignments = Number(report.attendance_score) || 0;
     const attendance = Number(report.participation_score) || 0;
     const assessment = Number(em.assessment_score) || 0;
+    const copy = progressReportComplement(parseScoreAuthority(report.engagement_metrics));
+    const board = hostSchoolScoreboard(em);
+    const learning = hostLearningEvidence(report);
     const computed = Math.round(
         theory * weights.theory + classwork * weights.classwork + practical * weights.practical +
         assignments * weights.assignments + attendance * weights.attendance + assessment * weights.assessment
     );
-    const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
+    const overall = board ? board.total.percent : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
     const grade = waecGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
-    const showScores = reportHasDisplayableScores(report);
+    const showScores = reportHasDisplayableScores(report) || !!board;
 
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
@@ -150,12 +159,12 @@ export default function ModernReportCard({ report, orgSettings }: {
     const M_EXEC = ['#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E', '#C5A059', '#1A1A2E'];
     const M_FUT = ['#4f46e5', '#06b6d4', '#10b981', '#f97316', '#f59e0b', '#8b5cf6'];
     const metrics = [
-        { label: 'Theory / Written', weight: weight('theory'), value: theory, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
-        { label: 'Classwork', weight: weight('classwork'), value: classwork, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
-        { label: 'Practical / Projects', weight: weight('practical'), value: practical, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
-        { label: 'Assignments', weight: weight('assignments'), value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
-        { label: 'Attendance', weight: weight('attendance'), value: attendance, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
-        { label: 'Mid-term Assessment', weight: weight('assessment'), value: assessment, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
+        { label: copy.theory, weight: weight('theory'), value: theory, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[0] : M_FUT[0] },
+        { label: copy.classwork, weight: weight('classwork'), value: classwork, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[1] : M_FUT[1] },
+        { label: copy.practical, weight: weight('practical'), value: practical, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[2] : M_FUT[2] },
+        { label: copy.assignments, weight: weight('assignments'), value: assignments, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[3] : M_FUT[3] },
+        { label: copy.attendance, weight: weight('attendance'), value: attendance, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[4] : M_FUT[4] },
+        { label: copy.assessment, weight: weight('assessment'), value: assessment, color: isIndustrial ? M_INDUST : isExecutive ? M_EXEC[5] : M_FUT[5] },
     ];
 
     return (
@@ -258,7 +267,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                 {/* Right: badge + ID + date + fee */}
                 <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
                     <div style={{ padding: '4px 14px', background: accentDark, color: '#fff', fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', fontStyle: 'italic', borderRadius: radiusSm }}>
-                        Progress Report
+                        {copy.documentTitle}
                     </div>
                     <p style={{ fontSize: 17, fontWeight: 900, fontStyle: 'italic', letterSpacing: '-0.03em', lineHeight: 1, color: isExecutive ? '#1A1A2E' : '#000' }}>
                         {report.id?.slice(0, 8) || 'PREVIEW'}
@@ -337,6 +346,46 @@ export default function ModernReportCard({ report, orgSettings }: {
                     <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: 12 }}>
                         {/* Metric bars + qualifier grades */}
                         <div style={{ background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18, padding: '12px 14px' }}>
+                            {board ? (
+                                <>
+                                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginBottom: 8 }}>{copy.schoolTestsCaption}</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {board.papers.map((row) => (
+                                            <div key={row.kind} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{row.label}</span>
+                                                <span style={{ fontSize: 16, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : accent }}>{formatHostMark(row.mark)}</span>
+                                            </div>
+                                        ))}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 6, borderTop: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb' }}>
+                                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827' }}>Total</span>
+                                            <span style={{ fontSize: 18, fontWeight: 900, fontStyle: 'italic', color: '#111827' }}>{formatHostMark(board.total)}</span>
+                                        </div>
+                                    </div>
+                                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginTop: 12, marginBottom: 6 }}>{copy.learningCaption}</p>
+                                    {copy.learningNote ? (
+                                        <p style={{ fontSize: 8, lineHeight: 1.4, color: '#6b7280', marginBottom: 8 }}>{copy.learningNote}</p>
+                                    ) : null}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                        {[
+                                            { label: copy.assignments, value: learning.assignments },
+                                            { label: copy.practical, value: learning.practical },
+                                            { label: copy.classwork, value: learning.classwork },
+                                            { label: copy.attendance, value: learning.attendance },
+                                        ].map((row) => (
+                                            <div key={row.label}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                                    <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{row.label}</span>
+                                                    <span style={{ fontSize: 12, fontWeight: 900, color: '#374151' }}>{row.value != null ? `${row.value}%` : '—'}</span>
+                                                </div>
+                                                <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
+                                                    <div style={{ height: '100%', width: `${row.value ?? 0}%`, background: accent, borderRadius: isIndustrial ? 0 : 999 }} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
                             {/* Scoring key */}
                             <div style={{ borderBottom: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb', paddingBottom: 6, marginBottom: 9, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
                                 <span style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
@@ -363,6 +412,8 @@ export default function ModernReportCard({ report, orgSettings }: {
                                     </div>
                                 ))}
                             </div>
+                                </>
+                            )}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
                                 {[
                                     { l: 'Practical / Projects', v: report.projects_grade },
@@ -387,12 +438,12 @@ export default function ModernReportCard({ report, orgSettings }: {
                         }}>
                             {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
                             <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 2 }}><TrophyIcon className="w-5 h-5" /></span>
-                            <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>Grade</p>
+                            <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>{copy.overallCaption}</p>
                             <h3 style={{ fontSize: 64, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 4 }}>{grade.code}</h3>
                             <div style={{ padding: '3px 10px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 4 }}>
                                 <span style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{grade.label}</span>
                             </div>
-                            <p style={{ fontSize: 14, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{overall}%</p>
+                            <p style={{ fontSize: 14, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{board ? formatHostMark(board.total) : `${overall}%`}</p>
                             <p style={{ fontSize: 6, fontWeight: 700, color: isExecutive ? 'rgba(197,160,89,0.5)' : 'rgba(255,255,255,0.35)', marginTop: 2, textAlign: 'center', letterSpacing: '0.05em' }}>{grade.remark}</p>
                         </div>
                     </div>

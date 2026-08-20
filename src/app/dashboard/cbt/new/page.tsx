@@ -18,6 +18,8 @@ import {
   buildCbtPrintHtml,
   openCbtPrintWindow,
 } from '@/lib/cbt/print-utils';
+import { hostAssessmentKindFromExam, parseHostAssessmentKind } from '@/lib/academic/taught-assessment';
+import { paperTotalFromQuestions, SUGGESTED_HOST_PAPER_MAX } from '@/lib/academic/host-marks';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import {
@@ -57,6 +59,10 @@ export default function NewExamPage() {
   const preLessonPlanId = searchParams?.get('lesson_plan_id');
   const preLessonId = searchParams?.get('lesson_id');
   const preExamType = searchParams?.get('exam_type') as 'examination' | 'evaluation' | null;
+  const preSource = searchParams?.get('source') || '';
+  const preSit = searchParams?.get('sit');
+  const preHostAssessment = parseHostAssessmentKind(searchParams?.get('host_assessment'));
+  const preTitle = searchParams?.get('title') || '';
   const isMinimal = searchParams?.get('minimal') === 'true';
   const initialExamType: CbtExamType = preExamType === 'evaluation' ? 'evaluation' : 'examination';
   const initialSuggestion = buildCbtEntrySuggestion(initialExamType);
@@ -69,7 +75,7 @@ export default function NewExamPage() {
   const [classId, setClassId] = useState<string | null>(preClassId || null);
   const [className, setClassName] = useState<string>('');
   const [form, setForm] = useState({
-    title: '',
+    title: preTitle,
     description: '',
     program_id: '',
     course_id: '',
@@ -78,7 +84,7 @@ export default function NewExamPage() {
     start_date: '',
     end_date: '',
     access_window_minutes: initialSuggestion.accessWindowMinutes.toString(),
-    is_active: true,
+    is_active: preSit === 'print' ? false : true,
     exam_type: initialExamType,
     school_id: preSchoolId || '',
   });
@@ -91,8 +97,8 @@ export default function NewExamPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState(preTopic || '');
-  const [sourceText, setSourceText] = useState('');
-  const [sourceName, setSourceName] = useState('');
+  const [sourceText, setSourceText] = useState(preSource);
+  const [sourceName, setSourceName] = useState(preSource ? 'Taught weeks' : '');
   const [extractingPdf, setExtractingPdf] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
   const [aiMcqCount, setAiMcqCount] = useState(initialSuggestion.mcqCount.toString());
@@ -109,6 +115,8 @@ export default function NewExamPage() {
   // Track the paper explicitly: a deselected question is never silently restored on save.
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set([0]));
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
+  const [paperOutOf, setPaperOutOf] = useState('');
+  const [paperOutOfEdited, setPaperOutOfEdited] = useState(false);
   const examSuggestion = buildCbtEntrySuggestion(form.exam_type);
   const examBoundary = {
     label: examSuggestion.label,
@@ -117,6 +125,12 @@ export default function NewExamPage() {
     duration: form.exam_type === 'evaluation' ? '20-45 min' : '45-120 min',
     note: examSuggestion.boundaryNote,
   };
+  const hostKind = preHostAssessment || hostAssessmentKindFromExam({ title: form.title });
+  const questionPoints = paperTotalFromQuestions(
+    questions.filter((question, index) => selectedQuestions.has(index) && question.question_text.trim()),
+  );
+  const suggestedPaperMax = questionPoints || (hostKind ? SUGGESTED_HOST_PAPER_MAX[hostKind] : null);
+  const paperMaxDisplay = paperOutOfEdited ? paperOutOf : String(suggestedPaperMax ?? '');
 
   const suggestAiTopic = useCallback((candidate: string | null | undefined, priority: number) => {
     const clean = candidate?.trim();
@@ -449,7 +463,21 @@ export default function NewExamPage() {
             ...(preCurrId ? { curriculum_id: preCurrId } : {}),
             ...(preLessonPlanId ? { lesson_plan_id: preLessonPlanId } : {}),
             ...(preLessonId ? { lesson_id: preLessonId } : {}),
-            source: preCurrId ? 'curriculum' : (classId ? 'class' : 'standalone'),
+            source: preSource ? 'taught' : (preCurrId ? 'curriculum' : (classId ? 'class' : 'standalone')),
+            ...(preSource ? { generated_from: 'taught_weeks' } : {}),
+            ...(preSit === 'print' || preSit === 'cbt' ? { sit: preSit } : {}),
+            ...((preHostAssessment || hostAssessmentKindFromExam({ title: form.title }))
+              ? (() => {
+                  const kind = preHostAssessment || hostAssessmentKindFromExam({ title: form.title });
+                  const fromQuestions = paperTotalFromQuestions(validQuestions);
+                  const typed = Math.round(Number(paperOutOf));
+                  const hostMax =
+                    (paperOutOfEdited && Number.isFinite(typed) && typed > 0 && typed)
+                    || fromQuestions
+                    || (kind ? SUGGESTED_HOST_PAPER_MAX[kind] : null);
+                  return kind ? { host_assessment: kind, ...(hostMax ? { host_max: hostMax } : {}) } : {};
+                })()
+              : {}),
             ...(classId ? { target_class_id: classId, visibility: 'class' } : {}),
         },
         questions: validQuestions.map((q, i) => ({
@@ -653,7 +681,9 @@ export default function NewExamPage() {
 
                   {/* Optional: base the questions on a PDF */}
                   <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Base on a PDF (optional)</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
+                        {sourceName === 'Taught weeks' ? 'Grounded in weeks already taught' : 'Base on a PDF (optional)'}
+                      </label>
                       {sourceName ? (
                         <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25 rounded-2xl">
                           <span className="text-sm">📄</span>
@@ -856,6 +886,28 @@ export default function NewExamPage() {
                 </div>
               </button>
             </div>
+
+            {hostKind ? (
+              <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 space-y-2">
+                <label className="block text-xs font-semibold text-sky-800 dark:text-sky-300 uppercase tracking-widest">This paper is out of</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    value={paperMaxDisplay}
+                    onChange={(e) => {
+                      setPaperOutOfEdited(true);
+                      setPaperOutOf(e.target.value);
+                    }}
+                    className="w-28 px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500"
+                  />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Set the total for this {hostKind === 'examination' ? 'Examination' : hostKind === 'second_test' ? 'Second Test' : 'First Test'}.
+                    Question points add to {questionPoints ?? '—'}. Hall marks, Write and the parent report all use this same total.
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>

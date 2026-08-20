@@ -41,11 +41,17 @@ export type TermActivity = {
   end: string;
 };
 
+export type AssessmentCapture = "physical" | "cbt";
+
 export type SchoolProgrammePolicy = {
   standing: ProgrammeStanding;
   usesRillcodEvaluation: boolean;
   usesHostEvaluation: boolean;
   sessionsPerWeek: 1 | 2;
+  /** Compulsory default is a printed paper. Advanced labs can sit the exam as CBT. */
+  examCapture: AssessmentCapture;
+  /** Compulsory tests stay physical unless a school is explicitly set to CBT. */
+  testCapture: AssessmentCapture;
 };
 
 export function parseProgrammeStanding(raw: unknown): ProgrammeStanding {
@@ -58,19 +64,28 @@ export function schoolWeeklyCadence(raw: unknown): 1 | 2 {
   return n === 1 ? 1 : 2;
 }
 
+export function parseAssessmentCapture(raw: unknown): AssessmentCapture {
+  return raw === "cbt" ? "cbt" : "physical";
+}
+
 export function resolveSchoolProgrammePolicy(input: {
   programme_standing?: unknown;
   session_frequency_per_week?: unknown;
   sessions_per_week?: unknown;
+  exam_capture?: unknown;
+  test_capture?: unknown;
 } = {}): SchoolProgrammePolicy {
   const standing = parseProgrammeStanding(input.programme_standing);
+  const host = standing === "compulsory";
   return {
     standing,
     usesRillcodEvaluation: standing === "optional",
-    usesHostEvaluation: standing === "compulsory",
+    usesHostEvaluation: host,
     sessionsPerWeek: schoolWeeklyCadence(
       input.sessions_per_week ?? input.session_frequency_per_week
     ),
+    examCapture: host ? parseAssessmentCapture(input.exam_capture) : "cbt",
+    testCapture: host ? parseAssessmentCapture(input.test_capture) : "cbt",
   };
 }
 
@@ -79,13 +94,44 @@ export function policyFromClassSchool(
   sessionsPerWeek?: unknown,
 ): SchoolProgrammePolicy {
   const row = (Array.isArray(school) ? school[0] : school) as
-    | { programme_standing?: unknown; sessions_per_week?: unknown }
+    | {
+        programme_standing?: unknown;
+        sessions_per_week?: unknown;
+        exam_capture?: unknown;
+        test_capture?: unknown;
+      }
     | null
     | undefined;
   return resolveSchoolProgrammePolicy({
     programme_standing: row?.programme_standing,
     sessions_per_week: sessionsPerWeek ?? row?.sessions_per_week,
+    exam_capture: row?.exam_capture,
+    test_capture: row?.test_capture,
   });
+}
+
+export function hostCalendarForClass(klass: {
+  schools?: unknown;
+  academic_terms?:
+    | { start_date?: string | null; end_date?: string | null }
+    | Array<{ start_date?: string | null; end_date?: string | null }>
+    | null;
+} | null | undefined): {
+  policy: SchoolProgrammePolicy;
+  termStart: string | null;
+  activities: TermActivity[];
+} {
+  const policy = policyFromClassSchool(klass?.schools);
+  const term = Array.isArray(klass?.academic_terms)
+    ? klass?.academic_terms[0]
+    : klass?.academic_terms;
+  return {
+    policy,
+    termStart: term?.start_date ?? null,
+    activities: policy.usesHostEvaluation
+      ? defaultCompulsoryTermActivities(term?.start_date, term?.end_date)
+      : [],
+  };
 }
 
 function addCalendarDays(day: string, days: number): string {
@@ -247,6 +293,11 @@ export function calendarRoleLabel(role: WeekCalendarRole): string | null {
   return null;
 }
 
+/** Rillcod only prepares and teaches on host instruction weeks. */
+export function rillcodTeachesThisWeek(role: WeekCalendarRole): boolean {
+  return role === "teach";
+}
+
 export function recommendTeachingAction<
   T extends
     | "prepare"
@@ -260,23 +311,48 @@ export function recommendTeachingAction<
   base: T;
   calendarRole: WeekCalendarRole;
   usesHostEvaluation: boolean;
+  examCapture?: AssessmentCapture;
+  testCapture?: AssessmentCapture;
 }): T | "none" {
-  if (input.calendarRole !== "teach") {
+  const cbtThisWeek =
+    (input.calendarRole === "examination" && input.examCapture === "cbt") ||
+    (input.calendarRole === "school_test" && input.testCapture === "cbt");
+  if (!rillcodTeachesThisWeek(input.calendarRole)) {
     if (
-      input.base === "teach" ||
-      input.base === "assess" ||
-      input.base === "review_assessment"
+      cbtThisWeek &&
+      (input.base === "assess" || input.base === "review_assessment")
     ) {
-      return "none";
+      return input.base;
     }
+    return "none";
   }
   if (
     input.usesHostEvaluation &&
+    !cbtThisWeek &&
     (input.base === "assess" || input.base === "review_assessment")
   ) {
     return "none";
   }
   return input.base;
+}
+
+export function keepRillcodTeachingWeeks(
+  weekNumbers: number[],
+  input: {
+    standing: ProgrammeStanding;
+    termStart?: string | null;
+    activities?: TermActivity[] | null;
+  },
+): number[] {
+  return weekNumbers.filter(
+    (week) =>
+      classifyCalendarWeek({
+        standing: input.standing,
+        termStart: input.termStart,
+        weekNumber: week,
+        activities: input.activities,
+      }) === "teach",
+  );
 }
 
 /** Split one curriculum week into the class meetings that school cadence uses. */

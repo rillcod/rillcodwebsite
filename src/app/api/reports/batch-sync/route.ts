@@ -11,6 +11,7 @@ import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
+import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
 
 function adminClient() {
   return createClient(
@@ -224,13 +225,16 @@ export async function POST(request: NextRequest) {
       const scopedLabProjects = (labRes.data ?? []).filter((project: any) => project.assignment_id && relevantAssignmentIds.has(project.assignment_id));
 
       // CALCULATION LOGIC (Matching the Report Builder's 6-component WAEC pattern)
-      
-      // Theory / Written Tests - 20% - Best CBT examination score
-      const theoryScore = topCbtScore(scopedCbtRows, course_id, 'examination', programId);
-
-      // Classwork - 10% - current proxy: graded homework/classwork average
       const grades = scopedSubmissions.filter((s: any) => s.grade != null).map(assignmentPct) as number[];
       const asgnAvg = grades.length > 0 ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
+      const hostApplied = applyHostAssessmentToReportScores({
+        rows: scopedCbtRows,
+        examinationFallback: topCbtScore(scopedCbtRows, course_id, 'examination', programId),
+        evaluationFallback: topCbtScore(scopedCbtRows, course_id, 'evaluation', programId) || asgnAvg,
+      });
+      const theoryScore = hostApplied.theory;
+
+      // Classwork - 10% - current proxy: graded homework/classwork average
       const classworkScore = asgnAvg;
       
       // Practical / Projects - 25%
@@ -249,8 +253,8 @@ export async function POST(request: NextRequest) {
       const hasAttendanceEvidence = sessionIds.length > 0;
       const attendanceScore = hasAttendanceEvidence ? evidencePercentage(attRes.data?.length || 0, sessionIds.length) : 0;
 
-      // Mid-term Assessment - 15% - best CBT evaluation score
-      const assessmentScore = topCbtScore(scopedCbtRows, course_id, 'evaluation', programId) || asgnAvg;
+      // Mid-term Assessment - 15% - host First/Second Test when present
+      const assessmentScore = hostApplied.assessment;
 
       const policyKey = student.school_id ?? 'global';
       let effectivePolicy = policyBySchool.get(policyKey);
@@ -262,7 +266,9 @@ export async function POST(request: NextRequest) {
         });
         policyBySchool.set(policyKey, effectivePolicy);
       }
-      const overallScore = computeWeightedScore({
+      const overallScore = hostApplied.total
+        ? hostApplied.total.percent
+        : computeWeightedScore({
         theory: theoryScore,
         classwork: classworkScore,
         practical: practicalScore,
@@ -301,6 +307,10 @@ export async function POST(request: NextRequest) {
           assessment_score: assessmentScore,
           assignment_evidence_missing: !hasAssignmentEvidence,
           attendance_evidence_missing: !hasAttendanceEvidence,
+          ...(hostApplied.total
+            ? { score_authority: 'host_school', programme_standing: 'compulsory' }
+            : {}),
+          ...hostAssessmentMetricFields(hostApplied.papers),
           evidence: {
             term_id: termId,
             assignment_ids: [...relevantAssignmentIds],

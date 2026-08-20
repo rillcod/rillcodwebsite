@@ -56,6 +56,12 @@ import {
 import {
   expandPlanWeeksForMeetings,
 } from "@/lib/academic/school-programme-standing";
+import {
+  hostAssessmentSit,
+  isHostAssessmentWeek,
+  taughtAssessmentBrief,
+} from "@/lib/academic/taught-assessment";
+import { hostPaperLabel } from "@/lib/academic/host-marks";
 import { pickTimetableSessionForMeeting, schoolCalendarDate } from "@/lib/timetable/sessions-from-slots";
 import { createClient } from "@/lib/supabase/client";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
@@ -332,6 +338,8 @@ export function ClassTeachingWorkspace({
       deliveries: data?.deliveries,
       standing: data?.programme_policy?.standing,
       usesHostEvaluation: data?.programme_policy?.usesHostEvaluation,
+      examCapture: data?.programme_policy?.examCapture,
+      testCapture: data?.programme_policy?.testCapture,
       termStart: data?.class?.academic_terms?.start_date ?? null,
       activities: data?.term_activities,
     });
@@ -415,6 +423,38 @@ export function ClassTeachingWorkspace({
         sessionId: sessionDate === today ? timetableSessionId : null,
         topic: topic ? `${slotLabel}: ${topic}` : slotLabel,
       });
+      const sit = hostAssessmentSit(
+        row.calendarRole,
+        data?.programme_policy
+      );
+      const taughtBrief = taughtAssessmentBrief({
+        weeks: assembled,
+        calendarRole: row.calendarRole,
+        weekNumber: week,
+        termStart: data?.class?.academic_terms?.start_date ?? null,
+        activities: data?.term_activities,
+        sit,
+        courseName: selectedCourse?.title,
+      });
+      const taughtAssessmentHref =
+        taughtBrief && taughtBrief.topics.length > 0
+          ? buildCbtNewHref({
+              classId,
+              courseId,
+              programId: data?.class?.program_id,
+              schoolId: data?.class?.school_id,
+              lessonPlanId: plan?.id ?? null,
+              lessonId: lesson?.id || null,
+              curriculumId: plan?.curriculum_version_id,
+              week,
+              topic: taughtBrief.topic,
+              title: taughtBrief.title,
+              examType: taughtBrief.examType,
+              source: taughtBrief.sourceMaterial,
+              sit: taughtBrief.sit,
+              hostAssessment: taughtBrief.kind,
+            })
+          : undefined;
       return {
         ...row,
         meetingsInWeek: meetingCountByWeek.get(week) ?? 1,
@@ -423,6 +463,10 @@ export function ClassTeachingWorkspace({
         manualLessonHref,
         liveSessionHref,
         attendanceHref,
+        taughtAssessmentHref,
+        taughtTopicCount: taughtBrief?.topics.length ?? 0,
+        hostSit: sit,
+        hostPaperName: taughtBrief?.kind ? hostPaperLabel(taughtBrief.kind) : null,
       };
     });
   }, [
@@ -439,6 +483,7 @@ export function ClassTeachingWorkspace({
     data?.timetable_sessions,
     data?.programme_policy,
     data?.term_activities,
+    data?.class?.academic_terms?.start_date,
     data?.class?.program_id,
     classId,
     courseId,
@@ -1103,7 +1148,7 @@ export function ClassTeachingWorkspace({
                 </h3>
                 <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
                   {data?.programme_policy?.usesHostEvaluation
-                    ? "This school runs its own tests and exams. Teach on the published timetable; skip Rillcod CBT on school test and exam weeks."
+                    ? "This school made coding a subject, so we follow their First Test, Second Test and Examination weeks. Those papers are generated from weeks already marked taught — print them, or sit the Examination as CBT if this school has labs."
                     : "Rillcod evaluations apply here. Teach on the published timetable — most school classes meet twice a week."}
                 </p>
               </div>
@@ -1348,17 +1393,24 @@ export function ClassTeachingWorkspace({
                   evaluationStatus,
                   recommendedAction,
                   calendarLabel,
+                  calendarRole,
                   manualLessonHref,
                   liveSessionHref,
                   attendanceHref,
                   timetableSessionId,
                   slotLabel,
                   rowKey,
+                  taughtAssessmentHref,
+                  taughtTopicCount,
+                  hostSit,
+                  hostPaperName,
                 } = row;
 
                 const isExpanded = expandedCards.has(rowKey);
 
-                const statusLabel = !packageStatus.complete
+                const statusLabel = calendarLabel
+                  ? calendarLabel
+                  : !packageStatus.complete
                   ? `${packageStatus.missing.length} missing`
                   : visibilitySummary.needsRelease
                   ? "Held"
@@ -1366,7 +1418,9 @@ export function ClassTeachingWorkspace({
                   ? "Taught"
                   : "Live";
 
-                const statusClass = !packageStatus.complete
+                const statusClass = calendarLabel
+                  ? "border-sky-500/30 bg-sky-500/10 text-sky-800 dark:text-sky-300"
+                  : !packageStatus.complete
                   ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
                   : visibilitySummary.needsRelease
                   ? "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300"
@@ -1454,11 +1508,6 @@ export function ClassTeachingWorkspace({
                         </div>
 
                         <div className="flex shrink-0 flex-col items-end gap-1">
-                          {calendarLabel && (
-                            <span className="rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
-                              {calendarLabel}
-                            </span>
-                          )}
                           <span
                             className={`rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusClass}`}
                           >
@@ -1552,6 +1601,7 @@ export function ClassTeachingWorkspace({
                           }
                           actionLabel={project ? "Open" : "Create"}
                         />
+                        {!data?.programme_policy?.usesHostEvaluation ? (
                         <AssetCardTile
                           label="Evaluation"
                           icon={DocumentChartBarIcon}
@@ -1575,6 +1625,40 @@ export function ClassTeachingWorkspace({
                           }
                           actionLabel={evaluation ? "Open" : "Create"}
                         />
+                        ) : isHostAssessmentWeek(calendarRole) ? (
+                        <AssetCardTile
+                          label={hostPaperName || (hostSit === "cbt" ? "CBT exam" : "Paper")}
+                          icon={DocumentChartBarIcon}
+                          state={
+                            evaluation
+                              ? evaluationStatus
+                              : taughtTopicCount > 0
+                              ? "held"
+                              : "missing"
+                          }
+                          href={
+                            evaluation
+                              ? `/dashboard/cbt/${evaluation.id}`
+                              : canEdit
+                              ? taughtAssessmentHref
+                              : undefined
+                          }
+                          actionLabel={
+                            evaluation
+                              ? hostSit === "cbt"
+                                ? "Open"
+                                : "Print"
+                              : taughtTopicCount > 0
+                              ? "Generate"
+                              : "Teach first"
+                          }
+                        />
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-border bg-muted/30 px-3 py-2.5">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">First Test, Second Test and Examination</p>
+                            <p className="mt-1 text-[11px] font-semibold text-foreground">Generated from taught weeks when that paper’s week arrives. No extra typing.</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Streamlined Primary & Secondary Action Toolbar */}
@@ -1853,7 +1937,14 @@ export function ClassTeachingWorkspace({
                             >
                               Open evaluation ↗
                             </Link>
-                          ) : canEdit ? (
+                          ) : canEdit && taughtAssessmentHref ? (
+                            <Link
+                              href={taughtAssessmentHref}
+                              className={toolLinkClass}
+                            >
+                              Generate {hostPaperName || "paper"} +
+                            </Link>
+                          ) : canEdit && !data?.programme_policy?.usesHostEvaluation ? (
                             <Link
                               href={buildCbtNewHref({
                                 classId,

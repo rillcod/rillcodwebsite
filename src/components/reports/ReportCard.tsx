@@ -4,6 +4,8 @@ import React from 'react';
 import { HdQrCode } from '@/components/qr/HdQrCode';
 import { brandContact } from '@/config/brand';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
+import { parseScoreAuthority, progressReportComplement } from '@/lib/reports/complement';
+import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
 
 function SparklesIcon({ className }: { className?: string }) {
     return (
@@ -159,12 +161,14 @@ export default function ReportCard({ report, orgSettings }: {
     const weight = (key: keyof typeof weights) => scoreWeightPercent(weights, key);
     const classwork = Number(em.classwork_score) || 0;
     const assessment = Number(em.assessment_score) || 0;
-    // The report keeps the Academic Office weighting snapshot used for its official score.
+    const copy = progressReportComplement(parseScoreAuthority(em));
+    const board = hostSchoolScoreboard(em);
+    const learning = hostLearningEvidence(report);
     const computed = Math.round(
         theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
         attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
-    const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
+    const overall = board ? board.total.percent : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
     const grade = letterGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
 
@@ -239,9 +243,9 @@ export default function ReportCard({ report, orgSettings }: {
                     </div>
                     <div className="text-right">
                         <div className="inline-block px-3 py-1 bg-amber-50 border border-amber-200 rounded-full mb-2">
-                            <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Official Record</span>
+                            <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Rillcod Record</span>
                         </div>
-                        <h2 className="text-2xl font-black text-foreground uppercase tracking-tighter">Progress Report</h2>
+                        <h2 className="text-2xl font-black text-foreground uppercase tracking-tighter">{copy.documentTitle}</h2>
                     </div>
                 </div>
             </div>
@@ -350,7 +354,28 @@ export default function ReportCard({ report, orgSettings }: {
 
                             {/* Left — scores */}
                             <div className="bg-background border border-border rounded-2xl px-5 py-4 flex flex-col gap-3">
-                                {/* Scoring key — print-safe inline styles */}
+                                {board ? (
+                                    <>
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{copy.schoolTestsCaption}</p>
+                                        {board.papers.map((row) => (
+                                            <div key={row.kind} className="flex justify-between items-end">
+                                                <span className="text-[11px] font-black text-muted-foreground/70 uppercase tracking-widest">{row.label}</span>
+                                                <span className="text-sm font-black text-foreground">{formatHostMark(row.mark)}</span>
+                                            </div>
+                                        ))}
+                                        <div className="flex justify-between items-end pt-1 border-t border-border">
+                                            <span className="text-[11px] font-black uppercase tracking-widest">Total</span>
+                                            <span className="text-base font-black">{formatHostMark(board.total)}</span>
+                                        </div>
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pt-2">{copy.learningCaption}</p>
+                                        {copy.learningNote ? <p className="text-[10px] text-muted-foreground leading-4">{copy.learningNote}</p> : null}
+                                        <MetricBar label={copy.assignments} value={learning.assignments ?? 0} color="#10b981" />
+                                        <MetricBar label={copy.practical} value={learning.practical ?? 0} color="#06b6d4" />
+                                        <MetricBar label={copy.classwork} value={learning.classwork ?? 0} color="#f97316" />
+                                        <MetricBar label={copy.attendance} value={learning.attendance ?? 0} color="#8b5cf6" />
+                                    </>
+                                ) : (
+                                    <>
                                 <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
                                     {[
@@ -370,12 +395,14 @@ export default function ReportCard({ report, orgSettings }: {
                                     ))}
                                     <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100%</span>
                                 </div>
-                                <MetricBar label={`Theory / Written (${weight('theory')}%)`} value={theory} color="#6366f1" />
-                                <MetricBar label={`Practical / Projects (${weight('practical')}%)`} value={practical} color="#06b6d4" />
-                                <MetricBar label={`Assignments (${weight('assignments')}%)`} value={assignments} color="#10b981" />
-                                <MetricBar label={`Attendance (${weight('attendance')}%)`} value={attendance} color="#8b5cf6" />
-                                <MetricBar label={`Classwork (${weight('classwork')}%)`} value={classwork} color="#f97316" />
-                                <MetricBar label={`Mid-term Assessment (${weight('assessment')}%)`} value={assessment} color="#f59e0b" />
+                                <MetricBar label={`${copy.theory} (${weight('theory')}%)`} value={theory} color="#6366f1" />
+                                <MetricBar label={`${copy.practical} (${weight('practical')}%)`} value={practical} color="#06b6d4" />
+                                <MetricBar label={`${copy.assignments} (${weight('assignments')}%)`} value={assignments} color="#10b981" />
+                                <MetricBar label={`${copy.attendance} (${weight('attendance')}%)`} value={attendance} color="#8b5cf6" />
+                                <MetricBar label={`${copy.classwork} (${weight('classwork')}%)`} value={classwork} color="#f97316" />
+                                <MetricBar label={`${copy.assessment} (${weight('assessment')}%)`} value={assessment} color="#f59e0b" />
+                                    </>
+                                )}
                             </div>
 
                             {/* Right — weighted grade display */}
@@ -387,7 +414,7 @@ export default function ReportCard({ report, orgSettings }: {
                                     <div className="mt-4 px-4 py-1.5 bg-card rounded-full border border-border">
                                         <span className="text-xs font-black uppercase tracking-widest text-foreground/80">{grade.label}</span>
                                     </div>
-                                    <p className="text-xl font-black text-muted-foreground mt-3">{overall}%</p>
+                                    <p className="text-xl font-black text-muted-foreground mt-3">{board ? formatHostMark(board.total) : `${overall}%`}</p>
                                 </div>
                             </div>
 

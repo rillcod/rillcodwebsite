@@ -190,7 +190,7 @@ export function autoFillResultMessage(calculation: unknown): string {
   const snapshot = metrics(calculation);
   const appliedWeight = Number(snapshot.applied_weight);
   if (Number.isFinite(appliedWeight) && appliedWeight <= 0) {
-    return 'No class evidence for this term yet. Record CBT, assignments, or attendance — or open Write to type scores.';
+    return 'No class evidence for this term yet. Teach, take attendance, or generate the school test from taught weeks — Write will fill from that.';
   }
   return 'Draft filled from class work. Review in Write, then Publish.';
 }

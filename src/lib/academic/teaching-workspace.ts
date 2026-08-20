@@ -71,6 +71,8 @@ export type TeachingWorkspaceRowsInput = {
   deliveries?: Row[] | null;
   standing?: ProgrammeStanding;
   usesHostEvaluation?: boolean;
+  examCapture?: "physical" | "cbt";
+  testCapture?: "physical" | "cbt";
   termStart?: string | null;
   activities?: Parameters<typeof classifyCalendarWeek>[0]["activities"];
 };
@@ -248,6 +250,8 @@ export function buildTeachingWeekRows(
       base: baseAction,
       calendarRole,
       usesHostEvaluation: Boolean(input.usesHostEvaluation),
+      examCapture: input.examCapture,
+      testCapture: input.testCapture,
     });
 
     return {

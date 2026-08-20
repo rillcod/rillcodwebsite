@@ -136,6 +136,8 @@ export async function POST(request: Request) {
       enrollment_types: body.enrollment_types || ['school'],
       programme_standing: body.programme_standing === 'compulsory' ? 'compulsory' : 'optional',
       sessions_per_week: body.sessions_per_week === 1 ? 1 : 2,
+      exam_capture: body.exam_capture === 'cbt' ? 'cbt' : 'physical',
+      test_capture: body.test_capture === 'cbt' ? 'cbt' : 'physical',
       status,
       is_active: true,
     };

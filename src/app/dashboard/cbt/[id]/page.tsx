@@ -19,6 +19,15 @@ import {
 } from '@/lib/cbt/print-utils';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import { cbtAnswerMatchesOption, isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
+import { isPaperCaptureAnswers } from '@/lib/cbt/paper-capture';
+import {
+  formatHostMark,
+  hostAssessmentKindFromExam,
+  hostMaxFromExam,
+  hostPaperLabel,
+  markFromPercent,
+  parsePaperMarkAnswers,
+} from '@/lib/academic/host-marks';
 
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };
@@ -28,6 +37,11 @@ export default function ExamDetailPage() {
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [roster, setRoster] = useState<Array<{ id: string; full_name: string | null; email?: string | null }>>([]);
+  const [hallDraft, setHallDraft] = useState<Record<string, string>>({});
+  const [paperOutOf, setPaperOutOf] = useState('');
+  const [savingHall, setSavingHall] = useState(false);
+  const [hallError, setHallError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [showReview, setShowReview] = useState(false);
@@ -58,7 +72,7 @@ export default function ExamDetailPage() {
         }),
         fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then(r => r.json()),
         fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
-      ]).then(([examData, sesRes, usersJson]) => {
+      ]).then(async ([examData, sesRes, usersJson]) => {
         const umap: Record<string, any> = {};
         (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
         let rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
@@ -73,6 +87,27 @@ export default function ExamDetailPage() {
         setExam(examData);
         setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
         setSessions(enriched);
+        const classIdForRoster = examData?.class_id || examData?.metadata?.target_class_id;
+        const paperMax = hostMaxFromExam({
+          metadata: examData?.metadata,
+          cbt_questions: examData?.cbt_questions,
+        });
+        if (paperMax) setPaperOutOf(String(paperMax));
+        if (classIdForRoster) {
+          const rosterRes = await fetch(`/api/portal-users?role=student&scoped=true&class_id=${classIdForRoster}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }));
+          const classRoster = (rosterRes.data ?? []) as Array<{ id: string; full_name: string | null; email?: string | null }>;
+          setRoster(classRoster);
+          const draft: Record<string, string> = {};
+          for (const student of classRoster) {
+            const existing = enriched.find((s: any) => s.user_id === student.id);
+            const paper = parsePaperMarkAnswers(existing?.answers) || markFromPercent(existing?.score, paperMax ?? 100);
+            if (paper) draft[student.id] = String(paper.earned);
+          }
+          setHallDraft(draft);
+        } else {
+          setRoster([]);
+          setHallDraft({});
+        }
         setLoading(false);
       }).catch(() => {
         setExam(null);
@@ -115,6 +150,53 @@ export default function ExamDetailPage() {
 
   const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
   const mySession = !isStaff ? sessions[0] : null;
+  const hostMeta = exam.metadata && typeof exam.metadata === 'object' ? exam.metadata : {};
+  const hostKind = hostAssessmentKindFromExam(exam);
+  const paperName = hostKind ? hostPaperLabel(hostKind) : 'paper';
+  const derivedHallMax = hostMaxFromExam({ metadata: hostMeta, cbt_questions: questions }) || totalPoints || 100;
+  const hallMax = Math.max(1, parseInt(paperOutOf, 10) || derivedHallMax);
+  const showHallMarks = isStaff && (
+    hostMeta.generated_from === 'taught_weeks'
+    || !!hostMeta.host_assessment
+    || hostMeta.sit === 'print'
+    || exam.is_active === false
+  );
+
+  const handleSaveHallMarks = async () => {
+    const scores = roster
+      .map((student) => ({ user_id: student.id, earned: hallDraft[student.id] }))
+      .filter((row) => String(row.earned ?? '').trim() !== '')
+      .map((row) => ({ user_id: row.user_id, earned: Number(row.earned), max: hallMax }));
+    if (scores.length === 0) {
+      setHallError('Enter at least one hall mark.');
+      return;
+    }
+    setSavingHall(true);
+    setHallError(null);
+    try {
+      const res = await fetch('/api/cbt/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'record_paper', exam_id: exam.id, scores }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Could not save hall marks');
+      const skipped = Array.isArray(payload.data?.skipped) ? payload.data.skipped : [];
+      if (skipped.length > 0) {
+        setHallError(`${payload.data.saved?.length ?? 0} saved. ${skipped.length} already have a CBT sitting and were left unchanged.`);
+      }
+      const sesRes = await fetch(`/api/cbt/sessions?exam_id=${exam.id}`, { cache: 'no-store' }).then(r => r.json());
+      const rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
+      setSessions(rawSessions.map((s: any) => ({
+        ...s,
+        portal_users: roster.find((student) => student.id === s.user_id) ?? s.portal_users ?? null,
+      })));
+    } catch (err: any) {
+      setHallError(err.message || 'Could not save hall marks');
+    } finally {
+      setSavingHall(false);
+    }
+  };
 
   const handlePrintExam = (mode: 'student' | 'staff' = 'student', filter: 'all' | 'mcq' | 'theory' = 'all') => {
     const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -528,6 +610,71 @@ export default function ExamDetailPage() {
           );
         })()}
 
+        {/* Staff: hall marks stay on this same exam — print or CBT */}
+        {showHallMarks && roster.length > 0 && (
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+            <div className="p-5 border-b border-border space-y-3">
+              <h2 className="font-bold flex items-center gap-2">
+                <UserGroupIcon className="w-5 h-5 text-primary" /> Record {paperName} hall marks
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Enter {paperName} marks out of this paper’s total. Write and the parent report read the same marks — one record.
+              </p>
+              <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                This {paperName} is out of
+                <input
+                  type="number"
+                  min={1}
+                  value={paperOutOf || String(hallMax)}
+                  onChange={(e) => setPaperOutOf(e.target.value)}
+                  disabled={!canManageExam || savingHall}
+                  className="w-20 px-2 py-1.5 bg-muted border border-border text-sm text-right rounded-xl disabled:opacity-60 text-foreground"
+                />
+              </label>
+            </div>
+            <div className="divide-y divide-white/5">
+              {roster.map((student) => {
+                const existing = sessions.find((s: any) => s.user_id === student.id);
+                const locked = existing && !isPaperCaptureAnswers(existing.answers);
+                return (
+                  <div key={student.id} className="px-5 py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">{student.full_name ?? 'Student'}</p>
+                      {locked && <p className="text-[10px] text-muted-foreground">CBT sitting already recorded</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={hallMax}
+                        disabled={locked || !canManageExam || savingHall}
+                        value={hallDraft[student.id] ?? ''}
+                        onChange={(e) => setHallDraft((current) => ({ ...current, [student.id]: e.target.value }))}
+                        placeholder="0"
+                        className="w-16 px-2 py-1.5 bg-muted border border-border text-sm text-right rounded-xl disabled:opacity-60"
+                      />
+                      <span className="text-xs text-muted-foreground">/{hallMax}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {canManageExam && (
+              <div className="p-5 border-t border-border flex items-center justify-between gap-3">
+                {hallError ? <p className="text-xs text-rose-500">{hallError}</p> : <span />}
+                <button
+                  type="button"
+                  onClick={() => void handleSaveHallMarks()}
+                  disabled={savingHall}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-primary text-primary-foreground disabled:opacity-60"
+                >
+                  {savingHall ? 'Saving…' : 'Save hall marks'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Staff: sessions */}
         {isStaff && sessions.length > 0 && (
           <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
@@ -559,10 +706,13 @@ export default function ExamDetailPage() {
                             : s.status === 'failed' ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                             : 'bg-card shadow-sm border-border text-muted-foreground'
                           }`}>
-                            {s.status === 'passed' ? `Passed` : s.status === 'failed' ? 'Failed' : s.status} {s.score != null ? `— ${s.score}%` : ''}
+                            {s.status === 'passed' ? `Passed` : s.status === 'failed' ? 'Failed' : s.status} {s.score != null ? `— ${parsePaperMarkAnswers(s.answers) ? formatHostMark(parsePaperMarkAnswers(s.answers)) : `${s.score}%`}` : ''}
                           </span>
                         )}
                       </div>
+                      {isPaperCaptureAnswers(s.answers) && (
+                        <p className="text-[10px] text-muted-foreground truncate">Hall mark</p>
+                      )}
                       {s.end_time && (
                         <p className="text-[10px] text-muted-foreground truncate">Submitted {new Date(s.end_time).toLocaleDateString()}</p>
                       )}

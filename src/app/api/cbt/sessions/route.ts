@@ -8,6 +8,15 @@ import {
 } from '@/lib/cbt/visibility';
 import { gradeCbtSubmission } from '@/lib/cbt/grading';
 import { logAudit } from '@/lib/audit/log';
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
+import {
+  paperCaptureSessionFields,
+  sessionAllowsPaperOverwrite,
+} from '@/lib/cbt/paper-capture';
+import {
+  hostMaxFromExam,
+  parseHallMarkInput,
+} from '@/lib/academic/host-marks';
 
 function adminClient() {
   return createClient(
@@ -124,6 +133,128 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
   return false;
 }
 
+async function recordPaperScores(
+  admin: ReturnType<typeof adminClient>,
+  caller: Caller,
+  body: any,
+) {
+  const denied = denyIfMissingCapability(caller.role, 'grade');
+  if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
+
+  const examId = typeof body.exam_id === 'string' ? body.exam_id : '';
+  if (!examId) return NextResponse.json({ error: 'exam_id required' }, { status: 400 });
+  const canAccess = await callerCanAccessExam(admin, caller, examId);
+  if (!canAccess) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+
+  const rawScores = Array.isArray(body.scores) ? body.scores : [];
+  if (rawScores.length === 0) {
+    return NextResponse.json({ error: 'scores required' }, { status: 400 });
+  }
+  if (rawScores.length > 80) {
+    return NextResponse.json({ error: 'Record at most 80 hall marks at a time' }, { status: 400 });
+  }
+
+  const { data: examRow } = await admin
+    .from('cbt_exams')
+    .select('id, school_id, class_id, passing_score, metadata, title')
+    .eq('id', examId)
+    .maybeSingle();
+  if (!examRow) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
+
+  const metadata =
+    examRow.metadata && typeof examRow.metadata === 'object' && !Array.isArray(examRow.metadata)
+      ? (examRow.metadata as Record<string, unknown>)
+      : {};
+  const targetClassId =
+    (typeof examRow.class_id === 'string' && examRow.class_id) ||
+    (typeof metadata.target_class_id === 'string' ? metadata.target_class_id : null);
+  const paperMax = hostMaxFromExam({ metadata }) ?? 100;
+
+  const parsed: Array<{ user_id: string; score: number; earned: number; max: number }> = [];
+  for (const row of rawScores) {
+    const userId = typeof row?.user_id === 'string' ? row.user_id : '';
+    const mark = parseHallMarkInput(row, paperMax);
+    if (!userId || !mark) {
+      return NextResponse.json({ error: `Each hall mark needs a student and marks out of ${paperMax}` }, { status: 400 });
+    }
+    parsed.push({ user_id: userId, score: mark.percent, earned: mark.earned, max: mark.max });
+  }
+
+  const { data: students, error: studentErr } = await admin
+    .from('portal_users')
+    .select('id, role, school_id, class_id')
+    .in('id', parsed.map((row) => row.user_id));
+  if (studentErr) return NextResponse.json({ error: studentErr.message }, { status: 500 });
+  const byId = new Map((students ?? []).map((row: any) => [row.id, row]));
+  for (const row of parsed) {
+    const student = byId.get(row.user_id);
+    if (!student || student.role !== 'student') {
+      return NextResponse.json({ error: 'Hall marks can only be recorded for students' }, { status: 400 });
+    }
+    if (targetClassId && student.class_id !== targetClassId) {
+      return NextResponse.json({ error: 'That student is not on this class roster' }, { status: 403 });
+    }
+    if (!targetClassId && examRow.school_id && student.school_id !== examRow.school_id) {
+      return NextResponse.json({ error: 'That student is outside this school' }, { status: 403 });
+    }
+  }
+
+  const { data: existingRows, error: existingErr } = await admin
+    .from('cbt_sessions')
+    .select('id, user_id, answers, status, score')
+    .eq('exam_id', examId)
+    .in('user_id', parsed.map((row) => row.user_id));
+  if (existingErr) return NextResponse.json({ error: existingErr.message }, { status: 500 });
+  const existingByUser = new Map((existingRows ?? []).map((row: any) => [row.user_id, row]));
+
+  const skipped: Array<{ user_id: string; reason: string }> = [];
+  const saved: Array<{ user_id: string; score: number; status: string }> = [];
+  for (const row of parsed) {
+    const existing = existingByUser.get(row.user_id);
+    if (!sessionAllowsPaperOverwrite(existing)) {
+      skipped.push({ user_id: row.user_id, reason: 'A CBT sitting already exists for this paper' });
+      continue;
+    }
+    const fields = paperCaptureSessionFields({
+      examId,
+      userId: row.user_id,
+      score: row.score,
+      passingScore: examRow.passing_score,
+      earned: row.earned,
+      max: row.max,
+    });
+    if (existing) {
+      const { exam_id: _examId, user_id: _userId, start_time: _start, ...updateFields } = fields;
+      const { data, error } = await admin
+        .from('cbt_sessions')
+        .update(updateFields)
+        .eq('id', existing.id)
+        .select('user_id, score, status')
+        .single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      saved.push({ user_id: data.user_id, score: data.score, status: data.status });
+    } else {
+      const { data, error } = await admin
+        .from('cbt_sessions')
+        .insert(fields)
+        .select('user_id, score, status')
+        .single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      saved.push({ user_id: data.user_id, score: data.score, status: data.status });
+    }
+  }
+
+  await logAudit(admin as any, {
+    action: 'record_paper_cbt_scores',
+    actorId: caller.id,
+    resourceType: 'cbt_exam',
+    resourceId: examId,
+    tableName: 'cbt_sessions',
+    newValues: { saved: saved.length, skipped: skipped.length, exam_id: examId },
+  });
+  return NextResponse.json({ data: { saved, skipped } });
+}
+
 // POST /api/cbt/sessions
 // Students call with action=start to begin/resume and action=submit to finish.
 export async function POST(request: NextRequest) {
@@ -140,11 +271,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!caller) return NextResponse.json({ error: 'User not found' }, { status: 403 });
+
+    const body = await request.json();
     if (caller.role !== 'student') {
+      if (body.action === 'record_paper') {
+        return recordPaperScores(admin, caller as Caller, body);
+      }
       return NextResponse.json({ error: 'Only students can submit CBT exams' }, { status: 403 });
     }
 
-    const body = await request.json();
     const { exam_id, answers, auto_submitted } = body;
     const action = body.action === 'start' ? 'start' : 'submit';
 

@@ -18,6 +18,10 @@ import {
 } from '@/lib/academic/auto-generate-settings';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 import { buildTeachingWeekRows } from '@/lib/academic/teaching-workspace';
+import {
+  hostCalendarForClass,
+  keepRillcodTeachingWeeks,
+} from '@/lib/academic/school-programme-standing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
@@ -99,6 +103,18 @@ async function handleRequest(req: NextRequest) {
   };
   enabledPlans.sort((a, b) => lastRunAt(a) - lastRunAt(b)); // oldest first
   const batch = enabledPlans.slice(0, MAX_PLANS_PER_RUN);
+  const classIds = Array.from(
+    new Set(batch.map((plan) => plan.class_id).filter(Boolean)),
+  ) as string[];
+  const { data: classRows } = classIds.length
+    ? await db
+        .from('classes')
+        .select(
+          'id, academic_terms(start_date,end_date), schools(programme_standing,sessions_per_week)',
+        )
+        .in('id', classIds)
+    : { data: [] as any[] };
+  const classById = new Map((classRows ?? []).map((row: any) => [row.id, row]));
 
   const results: Array<{
     planId: string;
@@ -136,12 +152,20 @@ async function handleRequest(req: NextRequest) {
       // Special-programme mid-modules (weeks 4–5) must not be forced to generate
       // calendar week 1. Prep ahead keeps the next in-plan week flowing after
       // the first is ready — still hold-for-approval unless opted in.
-      const eligibleWeeks = weeksToGenerateForPlan({
-        planWeekNumbers,
-        deliveryWeek: currentWeek,
-        prepAheadWeeks: ags.prep_ahead_weeks,
-        maxWeeksPerBatch: ags.maxWeeksPerBatch || Math.max(1, ags.prep_ahead_weeks + 1),
-      });
+      const host = hostCalendarForClass(classById.get(plan.class_id));
+      const eligibleWeeks = keepRillcodTeachingWeeks(
+        weeksToGenerateForPlan({
+          planWeekNumbers,
+          deliveryWeek: currentWeek,
+          prepAheadWeeks: ags.prep_ahead_weeks,
+          maxWeeksPerBatch: ags.maxWeeksPerBatch || Math.max(1, ags.prep_ahead_weeks + 1),
+        }),
+        {
+          standing: host.policy.standing,
+          termStart: host.termStart ?? plan.term_start,
+          activities: host.activities,
+        },
+      );
 
       if (!eligibleWeeks.length) {
         await db.from('lesson_plans').update({
@@ -160,7 +184,7 @@ async function handleRequest(req: NextRequest) {
           weeks: [],
           error: periodStart
             ? 'No in-plan week due for this delivery window'
-            : 'Delivery period has no starts_on — set programme dates so weeks can advance',
+            : 'Host school is on a test, exam or break week — Rillcod will wait',
         });
         continue;
       }
@@ -204,6 +228,10 @@ async function handleRequest(req: NextRequest) {
         ),
         slideDecks: existingSlides ?? [],
         flashcardDecks: existingFlashcards ?? [],
+        standing: host.policy.standing,
+        usesHostEvaluation: host.policy.usesHostEvaluation,
+        termStart: host.termStart ?? plan.term_start,
+        activities: host.activities,
       });
       const completedKeys = new Set(
         weekState

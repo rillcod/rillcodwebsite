@@ -7,6 +7,7 @@ import {
   buildFlashcardsHref,
   buildGradesHref,
   buildAttendanceHref,
+  buildCbtNewHref,
   buildLessonNewHref,
   buildResultsHref,
   mergeAssetLaneHref,
@@ -84,6 +85,19 @@ describe("curriculum href helpers", () => {
     expect(buildResultsHref({ classId: "cl1", courseId: "c1" })).toBe(
       "/dashboard/academic/results?class_id=cl1&course_id=c1"
     );
+    const cbtHref = buildCbtNewHref({
+      classId: "cl1",
+      topic: "First Test covering what this class has already been taught",
+      examType: "evaluation",
+      source: "Week 1: Scratch",
+      sit: "print",
+      hostAssessment: "first_test",
+    });
+    const cbtUrl = new URL(cbtHref, "https://example.com");
+    expect(cbtUrl.searchParams.get("source")).toBe("Week 1: Scratch");
+    expect(cbtUrl.searchParams.get("sit")).toBe("print");
+    expect(cbtUrl.searchParams.get("exam_type")).toBe("evaluation");
+    expect(cbtUrl.searchParams.get("host_assessment")).toBe("first_test");
   });
 
   it("preserves asset lane query across steps", () => {

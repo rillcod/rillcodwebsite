@@ -12,6 +12,8 @@ import {
 import { StudentReport, OrgSettings, parseEngagementMetrics } from '@/types/reports';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
 import { brandContact } from '@/config/brand';
+import { parseScoreAuthority, progressReportComplement } from '@/lib/reports/complement';
+import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
 
 interface PrintableReportProps {
     report: StudentReport;
@@ -67,21 +69,24 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
     const weight = (key: keyof typeof weights) => scoreWeightPercent(weights, key);
     const classwork   = Number(em.classwork_score)               || 0;
     const assessment  = Number(em.assessment_score)              || 0;
+    const copy = progressReportComplement(parseScoreAuthority(em));
+    const board = hostSchoolScoreboard(em);
+    const learning = hostLearningEvidence(report);
 
     const computed = Math.round(
         theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
         attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
-    const overall = Number(report.overall_score) || computed;
+    const overall = board ? board.total.percent : (Number(report.overall_score) || computed);
     const grade = getWAECGrade(overall);
 
     const metrics = [
-        { label: `Theory (${weight('theory')}%)`, value: theory, bar: C.black },
-        { label: `Practical (${weight('practical')}%)`, value: practical, bar: C.accent },
-        { label: `Assignments (${weight('assignments')}%)`, value: assignments, bar: C.black },
-        { label: `Attendance (${weight('attendance')}%)`, value: attendance, bar: C.accent },
-        { label: `Classwork (${weight('classwork')}%)`, value: classwork, bar: C.black },
-        { label: `Mid-Term Assess. (${weight('assessment')}%)`, value: assessment, bar: C.accent },
+        { label: `${copy.theory} (${weight('theory')}%)`, value: theory, bar: C.black },
+        { label: `${copy.practical} (${weight('practical')}%)`, value: practical, bar: C.accent },
+        { label: `${copy.assignments} (${weight('assignments')}%)`, value: assignments, bar: C.black },
+        { label: `${copy.attendance} (${weight('attendance')}%)`, value: attendance, bar: C.accent },
+        { label: `${copy.classwork} (${weight('classwork')}%)`, value: classwork, bar: C.black },
+        { label: `${copy.assessment} (${weight('assessment')}%)`, value: assessment, bar: C.accent },
     ];
 
     const hasPayment = report.fee_status && report.fee_status !== 'none';
@@ -183,7 +188,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 </div>
                 <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '16px' }}>
                     <div style={{ padding: '10px 32px', background: C.black, color: C.white, fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic' }}>
-                        Progress Report
+                        {copy.documentTitle}
                     </div>
                     {hasPayment && feeStyle && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '10px 20px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
@@ -232,7 +237,40 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                         <div style={{ height: '2px', width: '100%', background: C.slate100 }} />
                     </div>
 
-                    {/* ── Scoring Key (matches ModernReportCard) ── */}
+                    {board ? (
+                        <>
+                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{copy.schoolTestsCaption}</p>
+                            {board.papers.map((row) => (
+                                <div key={row.kind} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase' }}>{row.label}</span>
+                                    <span style={{ fontSize: '16px', fontWeight: 900, fontStyle: 'italic' }}>{formatHostMark(row.mark)}</span>
+                                </div>
+                            ))}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${C.slate200}`, paddingTop: 6 }}>
+                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase' }}>Total</span>
+                                <span style={{ fontSize: '18px', fontWeight: 900 }}>{formatHostMark(board.total)}</span>
+                            </div>
+                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 8 }}>{copy.learningCaption}</p>
+                            {copy.learningNote ? <p style={{ fontSize: '8px', color: C.slate400, lineHeight: 1.4 }}>{copy.learningNote}</p> : null}
+                            {[
+                                { label: copy.assignments, value: learning.assignments },
+                                { label: copy.practical, value: learning.practical },
+                                { label: copy.classwork, value: learning.classwork },
+                                { label: copy.attendance, value: learning.attendance },
+                            ].map((row) => (
+                                <div key={row.label}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                        <span style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase' }}>{row.label}</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 900 }}>{row.value != null ? `${row.value}%` : '—'}</span>
+                                    </div>
+                                    <div style={{ height: '7px', width: '100%', background: C.slate50, border: `1px solid ${C.slate100}` }}>
+                                        <div style={{ height: '100%', width: `${row.value ?? 0}%`, background: C.black }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        <>
                     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', paddingBottom: '8px', borderBottom: `1px solid ${C.slate200}` }}>
                         <span style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key:</span>
                         {metrics.map((m, i) => (
@@ -279,6 +317,8 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                             </div>
                         ))}
                     </div>
+                        </>
+                    )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '7px', borderTop: `2px solid ${C.slate100}` }}>
                         <div style={{ padding: '8px 10px', background: C.slate50, borderLeft: `5px solid ${C.black}` }}>
@@ -304,7 +344,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     <div style={{ padding: '5px 16px', background: C.accent, color: C.black, fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em' }}>
                         {grade.label}
                     </div>
-                    <p style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginTop: '8px', fontVariantNumeric: 'tabular-nums' }}>SCORE: {overall}%</p>
+                    <p style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginTop: '8px', fontVariantNumeric: 'tabular-nums' }}>SCORE: {board ? formatHostMark(board.total) : `${overall}%`}</p>
                 </div>
             </div>
 

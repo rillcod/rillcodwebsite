@@ -57,6 +57,9 @@ import { resolveSmartWorkingSession, classSessionFromTerms, sessionFromReport, l
 import { resolveWriteHydrateSession } from '@/lib/reports/session-workflows';
 import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
 import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
+import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
+import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
+import { emptyHostPaperMarks, formatHostMark, type HostMark, type HostPaperMarks } from '@/lib/academic/host-marks';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -658,7 +661,7 @@ function ReportBuilderInner() {
     const [students, setStudents] = useState<PortalUser[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
-    const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+    const [schools, setSchools] = useState<{ id: string; name: string; programme_standing?: string }[]>([]);
     const [gradingSchemes, setGradingSchemes] = useState<PublishedGradingScheme[]>([]);
     const [sessionProgramId, setSessionProgramId] = useState('');
     const [teacherClasses, setTeacherClasses] = useState<Array<{ id: string; name: string; school_id: string | null; term_id: string | null; program_id: string | null; current_course_id: string | null; qa_grade_key?: string | null; academic_terms?: { id: string; academic_year: string; term_label: string } | null }>>([]);
@@ -764,6 +767,12 @@ function ReportBuilderInner() {
         assignmentPct: 0,
         projects: 0,
         pendingCbt: 0,
+        firstTest: null as number | null,
+        secondTest: null as number | null,
+        examination: null as number | null,
+        hostTotal: null as number | null,
+        hostPapers: emptyHostPaperMarks() as HostPaperMarks,
+        hostTotalMark: null as HostMark | null,
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -1203,7 +1212,11 @@ function ReportBuilderInner() {
                 fetchJsonWithTimeout('/api/academic-spine/schemes', { data: [] }, 'result weighting'),
                 withTimeout(db.from('report_settings').select('*').limit(1).maybeSingle(), { data: null, error: null }, 'report settings'),
             ]);
-            const schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
+            const schoolsList = (schJson.data ?? []).map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                programme_standing: s.programme_standing === 'compulsory' ? 'compulsory' : 'optional',
+            }));
             const brandingData = brandingRes.data;
 
             // Grade source: portal_users.grade is now the canonical specific grade. Fall back to
@@ -2022,7 +2035,14 @@ function ReportBuilderInner() {
             const scopedCbt = allCbt.filter((row: any) =>
                 matchesReportExamScope(row, evidenceCourseId, statsProgramId),
             );
-            const cbtScore = topCbtScore(scopedCbt, 'examination', evidenceCourseId, statsProgramId);
+            const examinationFallback = topCbtScore(scopedCbt, 'examination', evidenceCourseId, statsProgramId);
+            const evaluationFallback = topCbtScore(scopedCbt, 'evaluation', evidenceCourseId, statsProgramId);
+            const hostApplied = applyHostAssessmentToReportScores({
+                rows: scopedCbt,
+                examinationFallback,
+                evaluationFallback,
+            });
+            const cbtScore = hostApplied.theory;
             const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
@@ -2032,7 +2052,7 @@ function ReportBuilderInner() {
             const gradedAsgn = subRes.data?.length || 0;
             const assignmentPct = totalAsgn > 0 ? Math.round((gradedAsgn / totalAsgn) * 100) : 0;
             // Evaluation score = best CBT score where exam_type = 'evaluation'
-            const evalScore = topCbtScore(scopedCbt, 'evaluation', evidenceCourseId, statsProgramId);
+            const evalScore = hostApplied.assessment;
             const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
             // Project Engagement: every 3 projects = 100% (capped at 100)
             const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
@@ -2048,6 +2068,12 @@ function ReportBuilderInner() {
                 assignmentPct,
                 projects: projectCount,
                 pendingCbt,
+                firstTest: hostApplied.host.first_test,
+                secondTest: hostApplied.host.second_test,
+                examination: hostApplied.host.examination,
+                hostTotal: hostApplied.total?.percent ?? null,
+                hostPapers: hostApplied.papers,
+                hostTotalMark: hostApplied.total,
             });
 
             // Never auto-fill a typed, published, or specifically opened prior report.
@@ -2078,6 +2104,9 @@ function ReportBuilderInner() {
         termId: sessionConfig.term_id || null,
     });
     const weightPct = (key: keyof typeof effectiveWeighting.weights) => scoreWeightPercent(effectiveWeighting.weights, key);
+    const reportScoreAuthority = scoreAuthorityFromStanding(
+        schools.find((school) => school.id === (sessionConfig.school_id || (selectedStudent as any)?.school_id))?.programme_standing,
+    );
 
     const isAutomaticDraft = existingReport?.calculation_mode === 'automatic' && !existingReport?.is_published;
 
@@ -2123,8 +2152,16 @@ function ReportBuilderInner() {
         attendance: parseScoreForDisplay(form.participation_score),
         assessment: parseScoreForDisplay(form.assessment_score),
     }, effectiveWeighting.weights);
-    // Engagement is coaching evidence only; the official score always uses the canonical weights.
-    const overallScore = rawOverallScore;
+    const overallScore = reportScoreAuthority === 'host_school' && studentStats.hostTotal != null
+        ? studentStats.hostTotal
+        : rawOverallScore;
+    const hostPaperRows = reportScoreAuthority === 'host_school'
+        ? [
+            { label: 'First Test', mark: studentStats.hostPapers.first_test },
+            { label: 'Second Test', mark: studentStats.hostPapers.second_test },
+            { label: 'Examination', mark: studentStats.hostPapers.examination },
+        ]
+        : [];
 
     // ── WAEC grade code (A1–F9) for display and save ─────────────────────────
     const overallGradeObj = reportGrade(overallScore); // kept for Standard report card
@@ -2431,7 +2468,6 @@ function ReportBuilderInner() {
                 ).filter((row: any) =>
                     matchesReportExamScope(row, sessionConfig.course_id || null, programId || null),
                 );
-                const cbtScore = topCbtScore(scopedCbt, 'examination');
                 const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
                 const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
                 const totalAsgn = allAsgn.data?.length || 0;
@@ -2441,8 +2477,13 @@ function ReportBuilderInner() {
                 const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
                 const hasAttendanceEvidence = sessionIds.length > 0;
                 const attPct = hasAttendanceEvidence ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 0;
-                // Assessment: prefer explicit evaluation CBT, then blend project/submission consistency.
-                const evalScore = topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4));
+                const hostApplied = applyHostAssessmentToReportScores({
+                    rows: scopedCbt,
+                    examinationFallback: topCbtScore(scopedCbt, 'examination'),
+                    evaluationFallback: topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4)),
+                });
+                const cbtScore = hostApplied.theory;
+                const evalScore = hostApplied.assessment;
 
                 // 3. Map to 6 weighted components
                 const theory      = cbtScore;     // CBT examination score
@@ -2465,7 +2506,9 @@ function ReportBuilderInner() {
                     return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
                 })(), { data: null, error: null }, 'bulk existing report lookup');
 
-                const overall = computeWeightedScore(
+                const overall = reportScoreAuthority === 'host_school' && hostApplied.total
+                  ? hostApplied.total.percent
+                  : computeWeightedScore(
                   { theory, classwork, practical, assignments, attendance, assessment },
                   effectiveWeighting.weights,
                 );
@@ -2490,7 +2533,7 @@ function ReportBuilderInner() {
                     practical_score:     practical,
                     attendance_score:    assignments,
                     participation_score: attendance,
-                    engagement_metrics:  { classwork_score: classwork, assessment_score: assessment, assignment_evidence_missing: !hasAssignmentEvidence, attendance_evidence_missing: !hasAttendanceEvidence },
+                    engagement_metrics:  { classwork_score: classwork, assessment_score: assessment, assignment_evidence_missing: !hasAssignmentEvidence, attendance_evidence_missing: !hasAttendanceEvidence, score_authority: reportScoreAuthority, programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional', ...hostAssessmentMetricFields(hostApplied.papers) },
                     overall_score: overall,
                     overall_grade: bulkWaecCode,
                     proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
@@ -2587,14 +2630,15 @@ function ReportBuilderInner() {
                 show_payment_notice: form.show_payment_notice,
                 participation_score: parseOptionalScore(form.participation_score),
                 engagement_metrics: {
-                    // WAEC components stored in metrics (not in dedicated DB columns)
                     classwork_score:    parseOptionalScore(form.classwork_score),
                     assessment_score:   parseOptionalScore(form.assessment_score),
-                    // Source data for transparency
+                    score_authority:    reportScoreAuthority,
+                    programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional',
                     examScore:           studentStats.cbtScore,
                     testAvg:             studentStats.assignmentAvg,
                     assignmentCompletion:studentStats.assignmentPct,
                     projectsCompleted:   studentStats.projects,
+                    ...hostAssessmentMetricFields(studentStats.hostPapers),
                 },
             };
 
@@ -2917,9 +2961,12 @@ function ReportBuilderInner() {
         engagement_metrics: {
             classwork_score:  previewShowsScores ? parseScoreForDisplay(form.classwork_score) : null,
             assessment_score: previewShowsScores ? parseScoreForDisplay(form.assessment_score) : null,
+            score_authority: reportScoreAuthority,
+            programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional',
             score_weights: effectiveWeighting.weights,
             grading_scheme_id: effectiveWeighting.scheme?.id ?? null,
             grading_scheme_name: effectiveWeighting.scheme?.name ?? 'Rillcod balanced evidence model',
+            ...hostAssessmentMetricFields(studentStats.hostPapers),
         },
         has_certificate: forceCertificate || overallScore >= 45,
         certificate_text: (forceCertificate || overallScore >= 45)
@@ -4106,15 +4153,41 @@ function ReportBuilderInner() {
                             <div className="space-y-3">
 
                                 {/* Scores — 6 weighted components */}
-                                <EvidenceEditorPanel title="Scores" description="Grade here first. Assignments are not attendance.">
+                                <EvidenceEditorPanel
+                                    title="Scores"
+                                    description={
+                                        reportScoreAuthority === 'host_school'
+                                            ? 'First Test, Second Test and Examination are entered on that paper (Record hall marks). Write reads them. Classwork, assignments and projects sit beside them.'
+                                            : 'Grade here first. Assignments are not attendance.'
+                                    }
+                                >
                                     {fetchingStats ? (
                                         <ScorePanelSkeleton />
                                     ) : (
                                     <div className="space-y-2">
+                                        {reportScoreAuthority === 'host_school' ? (
+                                            <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-2 space-y-2">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-sky-800 dark:text-sky-300">First Test, Second Test and Examination — entered on the paper, not here</p>
+                                                {hostPaperRows.map((row) => (
+                                                    <div key={row.label} className="flex items-center justify-between text-sm">
+                                                        <span className="text-[11px] font-bold text-foreground">{row.label}</span>
+                                                        <span className="font-black tabular-nums">{row.mark ? formatHostMark(row.mark) : '—'}</span>
+                                                    </div>
+                                                ))}
+                                                <div className="flex items-center justify-between border-t border-sky-500/20 pt-1.5">
+                                                    <span className="text-[11px] font-black uppercase tracking-widest">Total</span>
+                                                    <span className="text-base font-black tabular-nums">
+                                                        {formatHostMark(studentStats.hostTotalMark)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground">If a mark is missing, open that First Test, Second Test or Examination paper and record the hall mark there.</p>
+                                            </div>
+                                        ) : (
                                         <div className="rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2 text-[10px] text-muted-foreground">
                                             Score weights: <span className="font-black text-foreground">{effectiveWeighting.scheme?.name || 'Standard weights'}</span>
                                         </div>
-                                        {/* Quick-apply score profiles */}
+                                        )}
+                                        {reportScoreAuthority !== 'host_school' && (
                                         <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-border">
                                             <span className="text-[10px] font-bold text-muted-foreground self-center flex-shrink-0">Quick:</span>
                                             {([
@@ -4146,15 +4219,30 @@ function ReportBuilderInner() {
                                                 </button>
                                             ))}
                                         </div>
+                                        )}
+                                        {reportScoreAuthority === 'host_school' && (
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-1">Classwork, assignments and projects</p>
+                                        )}
                                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                                        {([
-                                            { key: 'theory_score',       label: 'Theory / Written',      weight: `${weightPct('theory')}%`, color: '#6366f1', hint: `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
+                                        {(
+                                            (
+                                                reportScoreAuthority === 'host_school'
+                                                    ? [
+                                                        { key: 'classwork_score',    label: 'Classwork',             weight: '', color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
+                                                        { key: 'practical_score',    label: 'Projects',              weight: '', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
+                                                        { key: 'attendance_score',   label: 'Assignments',           weight: '', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
+                                                        { key: 'participation_score',label: 'Attendance',            weight: '', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
+                                                    ]
+                                                    : [
+                                            { key: 'theory_score',       label: 'Theory / Written',      weight: `${weightPct('theory')}%`, color: '#6366f1', hint: studentStats.examination != null ? `Exam: ${studentStats.examination}%` : `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
                                             { key: 'classwork_score',    label: 'Classwork',             weight: `${weightPct('classwork')}%`, color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
                                             { key: 'practical_score',    label: 'Practical / Projects',  weight: `${weightPct('practical')}%`, color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
                                             { key: 'attendance_score',   label: 'Assignments',           weight: `${weightPct('assignments')}%`, color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
                                             { key: 'participation_score',label: 'Attendance',            weight: `${weightPct('attendance')}%`, color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
-                                            { key: 'assessment_score',   label: 'Mid-term',              weight: `${weightPct('assessment')}%`, color: '#f43f5e', hint: `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}` },
-                                        ] as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]).map(({ key, label, weight, color, hint }) => {
+                                            { key: 'assessment_score',   label: 'Mid-term',              weight: `${weightPct('assessment')}%`, color: '#f43f5e', hint: studentStats.firstTest != null || studentStats.secondTest != null ? `1st ${studentStats.firstTest ?? '—'} · 2nd ${studentStats.secondTest ?? '—'}` : `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}` },
+                                                    ]
+                                            ) as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]
+                                        ).map(({ key, label, weight, color, hint }) => {
                                             const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
                                             return (
                                                 <div key={key} className="rounded-lg border border-border/50 bg-muted/10 px-2 py-1.5">
@@ -4198,10 +4286,14 @@ function ReportBuilderInner() {
                                         {/* Overall — weighted score display */}
                                         <div className="mt-1 flex items-center justify-between border-t border-border pt-2">
                                             <div>
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Overall</p>
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">{reportScoreAuthority === 'host_school' ? 'First Test + Second Test + Examination' : 'Overall'}</p>
                                                 <p className="text-xl font-black tabular-nums text-foreground leading-none">
                                                     {previewShowsScores ? (
+                                                        reportScoreAuthority === 'host_school' && studentStats.hostTotalMark ? (
+                                                            <>{formatHostMark(studentStats.hostTotalMark)}</>
+                                                        ) : (
                                                         <>{overallScore}<span className="ml-0.5 text-xs text-muted-foreground/50">%</span></>
+                                                        )
                                                     ) : (
                                                         <span className="text-muted-foreground">—</span>
                                                     )}

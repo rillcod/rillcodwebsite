@@ -235,7 +235,7 @@ export async function GET(req: Request) {
     if (section === 'children') {
       let childQuery = admin
         .from('students')
-        .select('id, full_name, school_name, grade_level, section, current_class, status, user_id')
+        .select('id, full_name, school_name, school_id, grade_level, section, current_class, status, user_id')
         .order('full_name');
       if (linkedIds.length > 0) {
         childQuery = childQuery.in('id', linkedIds) as typeof childQuery;
@@ -246,12 +246,21 @@ export async function GET(req: Request) {
 
       if (error) throw error;
       const rosterFields = await loadParentLearnerRosterContext(admin, children ?? []);
+      const schoolIds = [...new Set((children ?? []).map((child: any) => child.school_id).filter(Boolean))];
+      const { data: standingRows } = schoolIds.length
+        ? await admin.from('schools').select('id, programme_standing').in('id', schoolIds)
+        : { data: [] as Array<{ id: string; programme_standing: string }> };
+      const standingBySchool = new Map((standingRows ?? []).map((row: any) => [row.id, row.programme_standing]));
       const enriched = (children ?? []).map((child: any) => {
         const fields = rosterFields.get(child.id) ?? parentLearnerEnrollmentFields({
           studentStatus: child.status,
           rosterInactive: false,
         });
-        return { ...child, ...fields };
+        return {
+          ...child,
+          ...fields,
+          programme_standing: standingBySchool.get(child.school_id) === 'compulsory' ? 'compulsory' : 'optional',
+        };
       });
       return NextResponse.json({ success: true, children: enriched });
     }
@@ -370,7 +379,7 @@ export async function GET(req: Request) {
 
       const { data: reports, error } = await withTimeoutOrThrow(fetchAllReportRows<any>((from, to) => admin
         .from('student_progress_reports')
-        .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
+        .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score, engagement_metrics')
         .eq('student_id', child.user_id)
         .eq('is_published', true)
         .order('report_date', { ascending: false })
@@ -382,7 +391,7 @@ export async function GET(req: Request) {
       if (finalReports.length === 0) {
         let fallbackQuery = admin
           .from('student_progress_reports')
-          .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
+          .select('id, course_name, report_term, report_period, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score, engagement_metrics')
           .is('student_id', null)
           .eq('student_name', child.full_name)
           .eq('is_published', true)
@@ -395,9 +404,19 @@ export async function GET(req: Request) {
         if (fallbackError) throw fallbackError;
         finalReports = fallbackReports ?? [];
       }
+      let programmeStanding: 'optional' | 'compulsory' = 'optional';
+      if ((child as any).school_id) {
+        const { data: schoolRow } = await admin
+          .from('schools')
+          .select('programme_standing')
+          .eq('id', (child as any).school_id)
+          .maybeSingle();
+        programmeStanding = schoolRow?.programme_standing === 'compulsory' ? 'compulsory' : 'optional';
+      }
       return NextResponse.json({
         success: true,
         reports: finalReports,
+        programme_standing: programmeStanding,
         message: finalReports.length === 0 ? 'No published reports are available for this child yet.' : undefined,
         child_status: (child as any).status ?? null,
         ...childEnrollmentFields,

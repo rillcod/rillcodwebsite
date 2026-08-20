@@ -63,6 +63,7 @@ export default function SchoolsPage() {
     rillcodQuotaPercent: '0',
     programmeStanding: 'optional',
     sessionsPerWeek: '2',
+    examCapture: 'physical',
   });
 
   const isAdmin = profile?.role === 'admin';
@@ -217,6 +218,7 @@ export default function SchoolsPage() {
         rillcod_quota_percent: parseFloat(createForm.rillcodQuotaPercent) || 0,
         programme_standing: createForm.programmeStanding === 'compulsory' ? 'compulsory' : 'optional',
         sessions_per_week: createForm.sessionsPerWeek === '1' ? 1 : 2,
+        exam_capture: createForm.examCapture === 'cbt' ? 'cbt' : 'physical',
         is_active: true,
       };
 
@@ -289,6 +291,7 @@ export default function SchoolsPage() {
         rillcodQuotaPercent: '0',
         programmeStanding: 'optional',
         sessionsPerWeek: '2',
+        examCapture: 'physical',
       });
     } catch (e: any) {
       setError(e.message ?? 'Failed to save school');
@@ -355,6 +358,7 @@ export default function SchoolsPage() {
       rillcodQuotaPercent: (school as any).rillcod_quota_percent?.toString() || '0',
       programmeStanding: school.programme_standing === 'compulsory' ? 'compulsory' : 'optional',
       sessionsPerWeek: school.sessions_per_week === 1 ? '1' : '2',
+      examCapture: school.exam_capture === 'cbt' ? 'cbt' : 'physical',
     });
     setShowCreate(true);
   };
@@ -838,8 +842,9 @@ export default function SchoolsPage() {
                   <div className="p-6 space-y-4 text-sm">
                     {[
                       { label: 'School Type', value: detail.school_type },
-                      { label: 'Programme', value: detail.programme_standing === 'compulsory' ? 'Compulsory — school tests & exams' : 'Optional — Rillcod evaluations' },
+                      { label: 'Programme', value: detail.programme_standing === 'compulsory' ? 'Compulsory — First Test, Second Test and Examination' : 'Optional — Rillcod evaluations' },
                       { label: 'Classes / week', value: detail.sessions_per_week === 1 ? 'Once' : 'Twice' },
+                      { label: 'Exam sitting', value: detail.programme_standing === 'compulsory' ? (detail.exam_capture === 'cbt' ? 'CBT (advanced labs)' : 'Printed paper') : null },
                       { label: 'Contact Person', value: detail.contact_person },
                       { label: 'Email', value: detail.email },
                       { label: 'Phone', value: detail.phone },
@@ -1056,7 +1061,7 @@ export default function SchoolsPage() {
                       className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
                     >
                       <option value="optional">Optional — Rillcod evaluations</option>
-                      <option value="compulsory">Compulsory — school tests &amp; exams</option>
+                      <option value="compulsory">Compulsory — First Test, Second Test and Examination</option>
                     </select>
                   </div>
                   <div>
@@ -1070,6 +1075,19 @@ export default function SchoolsPage() {
                       <option value="1">Once</option>
                     </select>
                   </div>
+                  {createForm.programmeStanding === 'compulsory' ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Examination</label>
+                    <select
+                      value={createForm.examCapture}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, examCapture: e.target.value }))}
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
+                    >
+                      <option value="physical">Printed paper from taught weeks</option>
+                      <option value="cbt">CBT — advanced labs sit the exam here</option>
+                    </select>
+                  </div>
+                  ) : null}
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Contact Person</label>
                     <input

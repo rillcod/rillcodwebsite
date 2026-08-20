@@ -93,7 +93,7 @@ export async function PATCH(
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
   const allowed = ['name', 'status', 'school_type', 'contact_person', 'address', 'lga', 'city',
     'state', 'phone', 'email', 'student_count', 'program_interest', 'enrollment_types', 'is_active',
-    'programme_standing', 'sessions_per_week'];
+    'programme_standing', 'sessions_per_week', 'exam_capture', 'test_capture'];
   for (const key of allowed) {
     if (rest[key] !== undefined) update[key] = rest[key];
   }
@@ -102,6 +102,12 @@ export async function PATCH(
   }
   if (update.sessions_per_week !== undefined) {
     update.sessions_per_week = Number(update.sessions_per_week) === 1 ? 1 : 2;
+  }
+  if (update.exam_capture !== undefined) {
+    update.exam_capture = update.exam_capture === 'cbt' ? 'cbt' : 'physical';
+  }
+  if (update.test_capture !== undefined) {
+    update.test_capture = update.test_capture === 'cbt' ? 'cbt' : 'physical';
   }
 
   const { data, error } = await adminClient()

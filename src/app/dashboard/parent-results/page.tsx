@@ -12,6 +12,8 @@ import {
 import { toast } from 'sonner';
 import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 import { ParentPortalSessionBanner, ParentChildEnrollmentBanner } from '@/components/reports/ReportSessionContextBanner';
+import { parseScoreAuthority, progressReportComplement, scoreAuthorityFromStanding } from '@/lib/reports/complement';
+import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
 
 interface Child {
   id: string;
@@ -20,6 +22,7 @@ interface Child {
   user_id: string | null;
   enrollment_label?: string;
   is_enrollment_active?: boolean;
+  programme_standing?: string | null;
 }
 interface Report {
   id: string;
@@ -38,6 +41,7 @@ interface Report {
   key_strengths: string | null;
   areas_for_growth: string | null;
   participation_score: number | null;
+  engagement_metrics?: { classwork_score?: unknown; assessment_score?: unknown; score_authority?: unknown } | null;
 }
 
 function gradeColor(grade: string | null) {
@@ -82,26 +86,38 @@ function fmtWaPhone(phone: string | null | undefined): string {
   return digits;
 }
 
-function buildReportShareText(child: { full_name: string }, report: Report): string {
+function buildReportShareText(child: { full_name: string }, report: Report, copy = progressReportComplement('rillcod')): string {
+  const board = hostSchoolScoreboard(report.engagement_metrics);
+  const learning = hostLearningEvidence(report);
+  const schoolLines = board
+    ? [
+        ...board.papers.map((row) => `${row.label}: ${formatHostMark(row.mark)}`),
+        `${copy.overallCaption}: ${formatHostMark(board.total)}`,
+        copy.learningCaption,
+        learning.assignments != null ? `${copy.assignments}: ${learning.assignments}%` : null,
+        learning.practical != null ? `${copy.practical}: ${learning.practical}%` : null,
+      ]
+    : [
+        report.theory_score != null     ? `${copy.theory}: ${report.theory_score}%`      : null,
+        report.practical_score != null  ? `${copy.practical}: ${report.practical_score}%`   : null,
+        report.attendance_score != null ? `${copy.assignments}: ${report.attendance_score}%` : null,
+        report.participation_score != null ? `${copy.attendance}: ${report.participation_score}%` : null,
+        report.overall_score != null    ? `${copy.overallCaption}: ${report.overall_score}%`     : null,
+      ];
   const lines = [
-    `📊 *Progress Report — ${child.full_name}*`,
+    `📊 *${copy.documentTitle} — ${child.full_name}*`,
     `📚 Course: ${report.course_name}`,
     `📅 Session: ${[report.report_period, report.report_term].filter(Boolean).join(' · ')}${report.report_date ? ` (${new Date(report.report_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })})` : ''}`,
     ``,
-    report.theory_score != null     ? `🔬 Theory:      ${report.theory_score}%`      : null,
-    report.practical_score != null  ? `🛠️ Practical:   ${report.practical_score}%`   : null,
-    // attendance_score holds the assignments average and participation_score the
-    // attendance percentage; the column names predate the WAEC components and the
-    // rest of the system already reads them this way.
-    report.attendance_score != null ? `📝 Assignments: ${report.attendance_score}%` : null,
-    report.participation_score != null ? `✅ Attendance:  ${report.participation_score}%` : null,
-    report.overall_score != null    ? `📈 Overall:     ${report.overall_score}%`     : null,
+    ...schoolLines,
     report.overall_grade            ? `🏆 Grade:       ${report.overall_grade}`      : null,
     ``,
     report.instructor_name ? `👨‍🏫 Instructor: ${report.instructor_name}` : null,
+    copy.parentNotice ? `` : null,
+    copy.parentNotice,
     ``,
     `_Shared from Rillcod Technologies Portal_`,
-  ].filter(Boolean).join('\n');
+  ].filter((line) => line !== null).join('\n');
   return lines;
 }
 
@@ -122,6 +138,7 @@ function ParentResultsContent() {
   const [reportsRevision, setReportsRevision] = useState(0);
   const [enrollmentLabel, setEnrollmentLabel] = useState<string | null>(null);
   const [isEnrollmentActive, setIsEnrollmentActive] = useState<boolean | undefined>(undefined);
+  const [programmeStanding, setProgrammeStanding] = useState<string>('optional');
 
   useEffect(() => {
     if (!profile) return;
@@ -174,6 +191,7 @@ function ParentResultsContent() {
         setReports((data.reports ?? []) as Report[]);
         setEnrollmentLabel(data.enrollment_label ?? null);
         setIsEnrollmentActive(data.is_enrollment_active);
+        setProgrammeStanding(data.programme_standing === 'compulsory' ? 'compulsory' : 'optional');
         setLoadingReports(false);
       })
       .catch(err => {
@@ -196,6 +214,9 @@ function ParentResultsContent() {
   }
 
   const selectedChild = children.find(c => c.id === selectedId);
+  const pageCopy = progressReportComplement(
+    scoreAuthorityFromStanding(selectedChild?.programme_standing ?? programmeStanding),
+  );
   const scoredReports = reports.filter(report =>
     report.overall_score != null && Number.isFinite(Number(report.overall_score)),
   );
@@ -206,8 +227,11 @@ function ParentResultsContent() {
   return (
     <div className="space-y-6 mobile-page-root">
       <div>
-        <h1 className="text-2xl font-black text-foreground tracking-tight">Report Cards</h1>
-        <p className="text-sm text-muted-foreground mt-1">Published progress reports for your children.</p>
+        <h1 className="text-2xl font-black text-foreground tracking-tight">{pageCopy.parentPageTitle}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{pageCopy.parentPageSubtitle}</p>
+        {pageCopy.parentNotice ? (
+          <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">{pageCopy.parentNotice}</p>
+        ) : null}
       </div>
 
       {/* Child Selector */}
@@ -303,6 +327,12 @@ function ParentResultsContent() {
             <div className="space-y-3 mobile-page-root">
               {reports.map(report => {
                 const isOpen = expandedId === report.id;
+                const copy = progressReportComplement(
+                  parseScoreAuthority(report.engagement_metrics) === 'host_school'
+                    || (selectedChild?.programme_standing ?? programmeStanding) === 'compulsory'
+                    ? 'host_school'
+                    : 'rillcod',
+                );
                 return (
                   <div key={report.id} className="bg-card border border-border overflow-hidden">
                     {/* Summary row — always visible */}
@@ -321,10 +351,10 @@ function ParentResultsContent() {
                         {/* Mini score bars */}
                         <div className="hidden sm:flex items-center gap-3">
                           {[
-                            { label: 'T', value: report.theory_score, title: 'Theory' },
-                            { label: 'P', value: report.practical_score, title: 'Practical' },
-                            { label: 'As', value: report.attendance_score, title: 'Assignments' },
-                            { label: 'At', value: report.participation_score, title: 'Attendance' },
+                            { label: 'T', value: report.theory_score, title: copy.theory },
+                            { label: 'P', value: report.practical_score, title: copy.practical },
+                            { label: 'As', value: report.attendance_score, title: copy.assignments },
+                            { label: 'At', value: report.participation_score, title: copy.attendance },
                           ].map(({ label, value, title }) => (
                             <div key={label} title={title} className="flex flex-col items-center gap-1">
                               <div className="w-8 h-8 relative">
@@ -359,15 +389,47 @@ function ParentResultsContent() {
                     {/* Expanded detail */}
                     {isOpen && (
                       <div className="border-t border-border px-6 py-5 space-y-5 bg-background/50">
-                        {/* Score bars */}
+                        {copy.parentNotice ? (
+                          <p className="text-xs leading-5 text-muted-foreground">{copy.parentNotice}</p>
+                        ) : null}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-3 mobile-page-root">
-                            <ScoreBar label="Theory" value={report.theory_score} />
-                            <ScoreBar label="Practical" value={report.practical_score} />
-                            <ScoreBar label="Assignments" value={report.attendance_score} />
+                            {(() => {
+                              const board = hostSchoolScoreboard(report.engagement_metrics);
+                              const learning = hostLearningEvidence(report);
+                              if (board) {
+                                return (
+                                  <>
+                                    {board.papers.map((row) => (
+                                      <div key={row.kind} className="flex justify-between text-sm">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{row.label}</span>
+                                        <span className="font-black">{formatHostMark(row.mark)}</span>
+                                      </div>
+                                    ))}
+                                    <div className="flex justify-between text-sm border-t border-border pt-2">
+                                      <span className="text-[10px] font-black uppercase tracking-widest">{copy.overallCaption}</span>
+                                      <span className="font-black">{formatHostMark(board.total)}</span>
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-2">{copy.learningCaption}</p>
+                                    {copy.learningNote ? <p className="text-xs text-muted-foreground">{copy.learningNote}</p> : null}
+                                    <ScoreBar label={copy.assignments} value={learning.assignments} />
+                                    <ScoreBar label={copy.practical} value={learning.practical} />
+                                    <ScoreBar label={copy.classwork} value={learning.classwork} />
+                                    <ScoreBar label={copy.attendance} value={learning.attendance} />
+                                  </>
+                                );
+                              }
+                              return (
+                                <>
+                            <ScoreBar label={copy.theory} value={report.theory_score} />
+                            <ScoreBar label={copy.practical} value={report.practical_score} />
+                            <ScoreBar label={copy.assignments} value={report.attendance_score} />
                             {report.participation_score != null && (
-                              <ScoreBar label="Attendance" value={report.participation_score} />
+                              <ScoreBar label={copy.attendance} value={report.participation_score} />
                             )}
+                                </>
+                              );
+                            })()}
                           </div>
 
                           {/* Milestones + strengths */}
@@ -419,7 +481,7 @@ function ParentResultsContent() {
                             {/* WhatsApp share */}
                             {selectedChild && (
                               <a
-                                href={`https://wa.me/?text=${encodeURIComponent(buildReportShareText(selectedChild, report))}`}
+                                href={`https://wa.me/?text=${encodeURIComponent(buildReportShareText(selectedChild, report, copy))}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-all"

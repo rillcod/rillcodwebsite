@@ -25,6 +25,11 @@ import {
 import { parseAutoGenerateSettings } from '@/lib/academic/auto-generate-settings';
 import { parseRequestSession } from '@/lib/academic/session-identity';
 import { extractCronSecret } from '@/lib/server/cron-auth';
+import {
+  classifyCalendarWeek,
+  hostCalendarForClass,
+  rillcodTeachesThisWeek,
+} from '@/lib/academic/school-programme-standing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -54,7 +59,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!plan) return NextResponse.json({ error: 'Teaching plan not found.' }, { status: 404 });
 
   const { data: klass } = plan.class_id
-    ? await db.from('classes').select('id, name, teacher_id').eq('id', plan.class_id).maybeSingle()
+    ? await db
+        .from('classes')
+        .select(
+          'id, name, teacher_id, academic_terms(start_date,end_date), schools(programme_standing,sessions_per_week)',
+        )
+        .eq('id', plan.class_id)
+        .maybeSingle()
     : { data: null };
 
   if (!canGenerateForClass({ id: user.id, role: profile.role }, klass)) {
@@ -78,6 +89,22 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       });
 
   const session = parseRequestSession(body as Record<string, unknown>) ?? 1;
+  const host = hostCalendarForClass(klass);
+  const calendarRole = classifyCalendarWeek({
+    standing: host.policy.standing,
+    termStart: host.termStart ?? plan.term_start,
+    weekNumber: week,
+    activities: host.activities,
+  });
+  if (!rillcodTeachesThisWeek(calendarRole)) {
+    return NextResponse.json(
+      {
+        error:
+          'This week is a school test, exam, revision or break. Rillcod does not prepare a teaching package for it.',
+      },
+      { status: 409 },
+    );
+  }
 
   const settings = parseAutoGenerateSettings(
     (plan.metadata as Record<string, unknown> | null)?.auto_generate_settings

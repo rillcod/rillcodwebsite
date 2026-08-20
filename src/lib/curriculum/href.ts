@@ -215,6 +215,10 @@ export function buildCbtNewHref(args: {
   week?: number | string | null;
   topic?: string | null;
   examType?: string | null;
+  source?: string | null;
+  title?: string | null;
+  sit?: string | null;
+  hostAssessment?: string | null;
 }): string {
   return withQuery("/dashboard/cbt/new", {
     class_id: args.classId,
@@ -227,6 +231,10 @@ export function buildCbtNewHref(args: {
     week: args.week,
     topic: args.topic,
     exam_type: args.examType ?? "evaluation",
+    source: args.source,
+    title: args.title,
+    sit: args.sit,
+    host_assessment: args.hostAssessment,
   });
 }
 

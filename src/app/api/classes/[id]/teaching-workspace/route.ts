@@ -53,7 +53,7 @@ async function scope(db: any, id: string, user: Actor) {
   const { data: klass } = await db
     .from("classes")
     .select(
-      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offerings(id,title,enrollment_type,pathway,programme_id),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name,programme_standing,sessions_per_week)"
+      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offerings(id,title,enrollment_type,pathway,programme_id),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name,programme_standing,sessions_per_week,exam_capture,test_capture)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -326,6 +326,8 @@ export async function GET(
         deliveries,
         standing: schoolPolicy.standing,
         usesHostEvaluation: schoolPolicy.usesHostEvaluation,
+        examCapture: schoolPolicy.examCapture,
+        testCapture: schoolPolicy.testCapture,
         termStart: klass.academic_terms?.start_date ?? null,
         activities: termActivities,
       })
