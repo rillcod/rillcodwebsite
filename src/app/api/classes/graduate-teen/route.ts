@@ -3,7 +3,6 @@ import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { summarisePromotionPlan } from '@/lib/classes/class-promotion';
 import {
-  SESSION_PROMOTION_TRACKS,
   SESSION_BULK_SMART_DEFAULTS,
   type SessionPromotionTrackId,
 } from '@/lib/classes/promotion-due-intelligence';
@@ -57,8 +56,10 @@ async function callerHasSchoolAccess(admin: ReturnType<typeof adminClient>, call
   return allowed.includes(schoolId);
 }
 
-function parseTrack(raw: string | null): SessionPromotionTrackId {
-  return raw === 'jss_to_ss' ? 'jss_to_ss' : 'young_to_teen';
+function parseTrack(raw: string | null): SessionPromotionTrackId | null {
+  if (raw === null) return 'young_to_teen';
+  if (raw === 'basic5_to_6' || raw === 'young_to_teen' || raw === 'jss_to_ss') return raw;
+  return null;
 }
 
 function sessionSmartOpts(input: {
@@ -106,12 +107,13 @@ export async function GET(req: NextRequest) {
   if (!schoolId) {
     return NextResponse.json({ error: 'school_id is required' }, { status: 400 });
   }
+  if (!trackId) return NextResponse.json({ error: 'Invalid promotion track' }, { status: 400 });
 
   if (!(await callerHasSchoolAccess(admin, caller, schoolId))) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
-  const smartOpts = sessionSmartOpts({ searchParams: url });
+  const smartOpts = sessionSmartOpts({ searchParams: url.searchParams });
   const plan = await buildSchoolSessionPromotionPlan(admin, schoolId, trackId, smartOpts);
   if ('error' in plan) return NextResponse.json({ error: plan.error }, { status: 404 });
 
@@ -119,7 +121,7 @@ export async function GET(req: NextRequest) {
     success: true,
     plan: serialisePlan(plan),
     summary: summariseSessionPromotionPlan(plan),
-    track: SESSION_PROMOTION_TRACKS[trackId],
+    track: plan.track,
     smart_options: smartOpts,
   });
 }
@@ -143,6 +145,7 @@ export async function POST(req: NextRequest) {
   if (!schoolId) {
     return NextResponse.json({ error: 'school_id is required' }, { status: 400 });
   }
+  if (!trackId) return NextResponse.json({ error: 'Invalid promotion track' }, { status: 400 });
 
   if (!(await callerHasSchoolAccess(admin, caller, schoolId))) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
@@ -162,15 +165,15 @@ export async function POST(req: NextRequest) {
   const allResults = await applySchoolSessionPromotionPlan(admin, plan, caller);
   const promoted = allResults.reduce((n, r) => n + r.promoted, 0);
   const failedCount = allResults.reduce((n, r) => n + r.failed.length, 0);
-  const track = SESSION_PROMOTION_TRACKS[trackId];
+  const track = plan.track;
 
-  await logAudit({
+  await logAudit(admin, {
     actorId: caller.id,
     action: 'school_session_promotion',
     resourceType: 'school',
     resourceId: schoolId,
     tableName: 'schools',
-    details: {
+    newValues: {
       track: trackId,
       promoted,
       failed: failedCount,

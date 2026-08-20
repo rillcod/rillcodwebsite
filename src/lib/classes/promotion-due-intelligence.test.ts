@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeSessionTrackIds,
   classEligibleForSessionTrack,
   classEligibleForTeenGraduation,
   isBasic56SectionBand,
   isJssExitSectionBand,
   mergeTrackDue,
+  resolveSessionTrack,
   SESSION_BULK_SMART_DEFAULTS,
   SESSION_PROMOTION_TRACKS,
   studentDueForSessionTrack,
@@ -39,6 +41,15 @@ describe('promotion due intelligence', () => {
     expect(studentDueForTeenGraduation({ grade: 'Basic 5' }, 'Basic 5-6')).toBe(false);
   });
 
+  it('uses the school policy when Young exits at Basic 5', () => {
+    const policy = { young_to_teen_exit_grade: 'Basic 5' as const };
+    expect(studentDueForSessionTrack('young_to_teen', { grade: 'Basic 5' }, null, policy)).toBe(true);
+    expect(studentDueForSessionTrack('young_to_teen', { grade: 'Basic 6' }, null, policy)).toBe(false);
+    expect(studentDueForSessionTrack('basic5_to_6', { grade: 'Basic 5' }, null, policy)).toBe(false);
+    expect(activeSessionTrackIds(policy)).not.toContain('basic5_to_6');
+    expect(resolveSessionTrack('young_to_teen', policy).short_label).toBe('Basic 5 → JSS 1');
+  });
+
   it('JSS 3 learners due for jss_to_ss even if class name says SS 2', () => {
     expect(
       classEligibleForSessionTrack('jss_to_ss', {
@@ -64,8 +75,23 @@ describe('promotion due intelligence', () => {
 
   it('mergeTrackDue hides menu when no learners due', () => {
     const snap = mergeTrackDue([
-      { school_id: 's1', school_name: 'Hilltop', tracks: [] },
-      { school_id: 's2', school_name: 'Other', tracks: [{ track_id: 'young_to_teen', due_count: 2, class_count: 1 }] },
+      {
+        school_id: 's1',
+        school_name: 'Hilltop',
+        young_to_teen_exit_grade: 'Basic 6',
+        tracks: [],
+      },
+      {
+        school_id: 's2',
+        school_name: 'Other',
+        young_to_teen_exit_grade: 'Basic 6',
+        tracks: [{
+          track_id: 'young_to_teen',
+          short_label: 'Basic 6 → JSS 1',
+          due_count: 2,
+          class_count: 1,
+        }],
+      },
     ]);
     expect(snap.show_menu).toBe(true);
     expect(snap.total_due).toBe(2);

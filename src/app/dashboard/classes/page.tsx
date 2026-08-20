@@ -38,7 +38,17 @@ export default function ClassesPage() {
   const [promotionDue, setPromotionDue] = useState<{
     show_menu: boolean;
     total_due: number;
-    schools: Array<{ school_id: string; school_name: string | null; tracks: Array<{ track_id: string; due_count: number }> }>;
+    schools: Array<{
+      school_id: string;
+      school_name: string | null;
+      young_to_teen_exit_grade: 'Basic 5' | 'Basic 6';
+      tracks: Array<{
+        track_id: 'basic5_to_6' | 'young_to_teen' | 'jss_to_ss';
+        short_label: string;
+        due_count: number;
+        class_count: number;
+      }>;
+    }>;
   } | null>(null);
 
   const handleDelete = async () => {

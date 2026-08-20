@@ -62,7 +62,7 @@ export function ClassPromotionPanel({
   );
 
   const loadPreview = useCallback(
-    async (destOverride?: string, force = false) => {
+    async (destOverride?: string) => {
       setLoading(true);
       setError('');
       try {
@@ -75,7 +75,6 @@ export function ClassPromotionPanel({
         const def = destOverride ?? data.plan?.default_destination_class_id ?? '';
         setDestinationId(def);
         setProgrammeBridgeConfirmed(false);
-        if (force) setPlan(data.plan);
       } catch (e) {
         setPlan(null);
         setError(e instanceof Error ? e.message : 'Preview failed');
@@ -104,8 +103,9 @@ export function ClassPromotionPanel({
     const intel = plan.intelligence;
     const sample = plan.moves.find((m) => !m.skipped);
     const destLabel = sample?.destination_class_name ?? 'the next class';
+    const bridgeRoute = sample ? `${sample.from_grade} → ${sample.to_grade}` : 'programme transition';
     const bridgeNote = plan.has_programme_bridge
-      ? `\n\n${plan.programme_transition_count} learner${plan.programme_transition_count === 1 ? '' : 's'} will graduate from Young Innovators to Teen Developers (Basic 6 → JSS 1).`
+      ? `\n\n${plan.programme_transition_count} learner${plan.programme_transition_count === 1 ? '' : 's'} will graduate from Young Innovators to Teen Developers (${bridgeRoute}).`
       : '';
     if (
       !confirm(
@@ -142,7 +142,7 @@ export function ClassPromotionPanel({
         setError(data.failed.map((f: { error?: string }) => f.error).filter(Boolean).join(' · '));
       }
       onComplete?.();
-      void loadPreview(destinationId || undefined, true);
+      void loadPreview(destinationId || undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Promotion failed');
     } finally {
@@ -300,7 +300,7 @@ export function ClassPromotionPanel({
                   <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto pl-4 list-disc">
                     {plan.moves.filter((m) => m.skipped).map((m) => (
                       <li key={m.student_id}>
-                        {m.student_name}: {m.skip_reason ?? m.intel?.reason}
+                        {m.student_name}: {m.skip_reason ?? 'Not eligible'}
                       </li>
                     ))}
                   </ul>
@@ -338,7 +338,7 @@ export function ClassPromotionPanel({
                 <button
                   type="button"
                   disabled={loading}
-                  onClick={() => void loadPreview(destinationId || undefined, true)}
+                  onClick={() => void loadPreview(destinationId || undefined)}
                   className="inline-flex min-h-11 items-center rounded-xl border border-border px-3 py-2.5 text-xs font-black uppercase tracking-wider"
                 >
                   Rescan

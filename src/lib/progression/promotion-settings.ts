@@ -1,11 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { YoungToTeenExitGrade } from '@/lib/classes/programme-transition';
 import {
   DEFAULT_PROMOTION_RULES,
   type PromotionEvidence,
   type PromotionRules,
 } from '@/lib/progression/promotion-intelligence';
 
-export async function loadPromotionRules(db: SupabaseClient): Promise<PromotionRules> {
+export type PromotionSettings = PromotionRules & {
+  young_to_teen_exit_grade?: YoungToTeenExitGrade;
+  /** Per-school override keyed by schools.id. */
+  school_young_to_teen_exit_grade?: Record<string, YoungToTeenExitGrade>;
+};
+
+export async function loadPromotionRules(db: SupabaseClient): Promise<PromotionSettings> {
   const { data, error } = await db
     .from('app_settings')
     .select('value')
@@ -13,7 +20,7 @@ export async function loadPromotionRules(db: SupabaseClient): Promise<PromotionR
     .maybeSingle();
   if (error || !data?.value) return DEFAULT_PROMOTION_RULES;
   try {
-    return { ...DEFAULT_PROMOTION_RULES, ...(JSON.parse(data.value) as PromotionRules) };
+    return { ...DEFAULT_PROMOTION_RULES, ...(JSON.parse(data.value) as PromotionSettings) };
   } catch {
     return DEFAULT_PROMOTION_RULES;
   }

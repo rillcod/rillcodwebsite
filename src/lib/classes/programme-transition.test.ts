@@ -99,4 +99,19 @@ describe('Basic 6 → JSS 1 class promotion', () => {
     expect(plan.moves[0].programme_transition).toBe(true);
     expect(plan.moves[0].to_programme).toBe(TEEN_PROGRAMME);
   });
+
+  it('uses a school policy that exits Young at Basic 5', () => {
+    const plan = buildClassPromotionPlan({
+      sourceClass: schoolClasses[1],
+      students: [{ id: 'u2', full_name: 'Tobi', grade: 'Basic 5' }],
+      schoolClasses,
+      programName: YOUNG_PROGRAMME,
+      programs,
+      youngToTeenExitGrade: 'Basic 5',
+    });
+    expect(plan.promotable_count).toBe(1);
+    expect(plan.moves[0].to_grade).toBe('JSS 1');
+    expect(plan.moves[0].programme_transition).toBe(true);
+    expect(plan.moves[0].destination_class_id).toBe('teen-jss1');
+  });
 });

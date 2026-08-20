@@ -1,13 +1,13 @@
-/**
- * Young Innovators → Teen Developers bridge at Basic 6 → JSS 1 (and similar).
- */
+/** Young Innovators → Teen Developers programme bridge. */
 
 import { canonicalGrade, canonicalTier, parseBandLabel } from '@/lib/classes/naming';
 
 export const YOUNG_PROGRAMME = 'Young Innovators';
 export const TEEN_PROGRAMME = 'Teen Developers';
+export const DEFAULT_YOUNG_TO_TEEN_EXIT_GRADE = 'Basic 6' as const;
 
 export type ProgrammeTier = 'young' | 'teen' | 'other';
+export type YoungToTeenExitGrade = 'Basic 5' | 'Basic 6';
 
 export type ProgrammeCatalogRow = { id: string; name: string | null };
 

@@ -21,6 +21,8 @@ import {
   ensureTeenProgrammeEnrollment,
   suspendProgrammeEnrollment,
 } from '@/lib/progression/enroll-teen-entry';
+import { resolveSchoolSessionPromotionPolicy } from '@/lib/classes/session-promotion-policy';
+import type { PromotionSettings } from '@/lib/progression/promotion-settings';
 
 export type PromotionContext = {
   sourceClass: PromotionClassRow;
@@ -28,6 +30,8 @@ export type PromotionContext = {
   students: PromotionStudentRow[];
   schoolClasses: PromotionClassRow[];
   programs: ProgrammeCatalogRow[];
+  promotionSettings: PromotionSettings;
+  sessionPolicy: ReturnType<typeof resolveSchoolSessionPromotionPolicy>;
 };
 
 export type PromotionApplyResult = {
@@ -80,6 +84,7 @@ export async function loadPromotionContext(
   admin: SupabaseClient,
   classId: string,
   studentIds?: string[],
+  preloadedSettings?: PromotionSettings,
 ): Promise<PromotionContext | { error: string }> {
   const { data: sourceClass, error: clsErr } = await admin
     .from('classes')
@@ -140,6 +145,11 @@ export async function loadPromotionContext(
     admin,
     [sourceClass.program_id, ...(schoolClasses ?? []).map((c: { program_id?: string | null }) => c.program_id)],
   );
+  const promotionSettings = preloadedSettings ?? await loadPromotionRules(admin);
+  const sessionPolicy = resolveSchoolSessionPromotionPolicy(
+    promotionSettings,
+    sourceClass.school_id ?? '',
+  );
 
   return {
     sourceClass: sourceClass as PromotionClassRow,
@@ -147,6 +157,8 @@ export async function loadPromotionContext(
     students,
     schoolClasses: (schoolClasses ?? []) as PromotionClassRow[],
     programs,
+    promotionSettings,
+    sessionPolicy,
   };
 }
 
@@ -163,13 +175,15 @@ export async function buildSmartPromotionPlan(
     destinationClassId,
     programName: ctx.programName,
     programs: ctx.programs,
+    youngToTeenExitGrade: ctx.sessionPolicy.young_to_teen_exit_grade,
   });
   const ids = ctx.students.map((s) => s.id);
-  const [rules, evidence] = await Promise.all([
-    loadPromotionRules(admin),
-    loadPromotionEvidenceByStudent(admin, ids, ctx.sourceClass.term_id ?? null),
-  ]);
-  return enrichPromotionPlanWithIntelligence(base, evidence, rules, smartOpts);
+  const evidence = await loadPromotionEvidenceByStudent(
+    admin,
+    ids,
+    ctx.sourceClass.term_id ?? null,
+  );
+  return enrichPromotionPlanWithIntelligence(base, evidence, ctx.promotionSettings, smartOpts);
 }
 
 export async function applyIntelligentPromotionPlan(

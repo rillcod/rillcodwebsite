@@ -8,9 +8,10 @@ import {
   resyncSourceClassCount,
 } from '@/lib/classes/promotion-server';
 import {
+  activeSessionTrackIds,
   classEligibleForSessionTrack,
   mergeTrackDue,
-  SESSION_PROMOTION_TRACKS,
+  resolveSessionTrack,
   studentDueForSessionTrack,
   type PromotionDueSnapshot,
   type SchoolPromotionDueRow,
@@ -20,6 +21,14 @@ import {
 import { inferClassGradeAnchor } from '@/lib/classes/class-promotion';
 import type { IntelligentClassPromotionPlan, SmartPromotionOptions } from '@/lib/progression/enrich-class-promotion';
 import type { PromotionContext } from '@/lib/classes/promotion-server';
+import {
+  resolveSchoolSessionPromotionPolicy,
+  type SchoolSessionPromotionPolicy,
+} from '@/lib/classes/session-promotion-policy';
+import {
+  loadPromotionRules,
+  type PromotionSettings,
+} from '@/lib/progression/promotion-settings';
 
 export type SessionPromotionSlice = {
   class_id: string;
@@ -32,6 +41,8 @@ export type SessionPromotionSlice = {
 export type SchoolSessionPromotionPlan = {
   track_id: SessionPromotionTrackId;
   track_label: string;
+  track: ReturnType<typeof resolveSessionTrack>;
+  policy: SchoolSessionPromotionPolicy;
   school_id: string;
   school_name: string | null;
   source_classes: Array<{ id: string; name: string | null; due_students: number }>;
@@ -97,20 +108,24 @@ export async function scanSchoolPromotionDue(
   admin: SupabaseClient,
   schoolId: string,
   schoolName: string | null,
+  preloadedSettings?: PromotionSettings,
 ): Promise<SchoolPromotionDueRow> {
   const classes = await loadSchoolClasses(admin, schoolId);
+  const settings = preloadedSettings ?? await loadPromotionRules(admin);
+  const policy = resolveSchoolSessionPromotionPolicy(settings, schoolId);
   const tracks: SchoolTrackDue[] = [];
 
-  for (const trackId of Object.keys(SESSION_PROMOTION_TRACKS) as SessionPromotionTrackId[]) {
+  for (const trackId of activeSessionTrackIds(policy)) {
+    const track = resolveSessionTrack(trackId, policy);
     const candidates = classes.filter((c) => classEligibleForSessionTrack(trackId, mapClassRow(c)));
     let due_count = 0;
     let class_count = 0;
 
     for (const candidate of candidates) {
-      const ctx = await loadPromotionContext(admin, candidate.id);
+      const ctx = await loadPromotionContext(admin, candidate.id, undefined, settings);
       if ('error' in ctx) continue;
       const anchor = inferClassGradeAnchor(ctx.sourceClass);
-      const due = ctx.students.filter((s) => studentDueForSessionTrack(trackId, s, anchor));
+      const due = ctx.students.filter((s) => studentDueForSessionTrack(trackId, s, anchor, policy));
       if (due.length > 0) {
         due_count += due.length;
         class_count += 1;
@@ -118,11 +133,16 @@ export async function scanSchoolPromotionDue(
     }
 
     if (due_count > 0) {
-      tracks.push({ track_id: trackId, due_count, class_count });
+      tracks.push({ track_id: trackId, short_label: track.short_label, due_count, class_count });
     }
   }
 
-  return { school_id: schoolId, school_name: schoolName, tracks };
+  return {
+    school_id: schoolId,
+    school_name: schoolName,
+    young_to_teen_exit_grade: policy.young_to_teen_exit_grade,
+    tracks,
+  };
 }
 
 export async function scanPromotionDueForSchools(
@@ -130,9 +150,10 @@ export async function scanPromotionDueForSchools(
   schoolIds: string[],
 ): Promise<PromotionDueSnapshot> {
   const rows: SchoolPromotionDueRow[] = [];
+  const settings = await loadPromotionRules(admin);
   for (const schoolId of schoolIds) {
     const { data: school } = await admin.from('schools').select('id, name').eq('id', schoolId).maybeSingle();
-    rows.push(await scanSchoolPromotionDue(admin, schoolId, school?.name ?? null));
+    rows.push(await scanSchoolPromotionDue(admin, schoolId, school?.name ?? null, settings));
   }
   return mergeTrackDue(rows);
 }
@@ -143,7 +164,12 @@ export async function buildSchoolSessionPromotionPlan(
   trackId: SessionPromotionTrackId,
   smartOpts: SmartPromotionOptions,
 ): Promise<SchoolSessionPromotionPlan | { error: string }> {
-  const track = SESSION_PROMOTION_TRACKS[trackId];
+  const settings = await loadPromotionRules(admin);
+  const policy = resolveSchoolSessionPromotionPolicy(settings, schoolId);
+  if (!activeSessionTrackIds(policy).includes(trackId)) {
+    return { error: 'This promotion track is not used by this school.' };
+  }
+  const track = resolveSessionTrack(trackId, policy);
   const { data: school } = await admin.from('schools').select('id, name').eq('id', schoolId).maybeSingle();
   if (!school) return { error: 'School not found' };
 
@@ -154,6 +180,8 @@ export async function buildSchoolSessionPromotionPlan(
     return {
       track_id: trackId,
       track_label: track.label,
+      track,
+      policy,
       school_id: schoolId,
       school_name: school.name ?? null,
       source_classes: [],
@@ -170,11 +198,13 @@ export async function buildSchoolSessionPromotionPlan(
   const blocked = new Set<string>();
 
   for (const candidate of candidates) {
-    const ctx = await loadPromotionContext(admin, candidate.id);
+    const ctx = await loadPromotionContext(admin, candidate.id, undefined, settings);
     if ('error' in ctx) continue;
 
     const classAnchor = inferClassGradeAnchor(ctx.sourceClass);
-    const dueStudents = ctx.students.filter((s) => studentDueForSessionTrack(trackId, s, classAnchor));
+    const dueStudents = ctx.students.filter((s) =>
+      studentDueForSessionTrack(trackId, s, classAnchor, policy),
+    );
     if (!dueStudents.length) continue;
 
     const filteredCtx = { ...ctx, students: dueStudents };
@@ -203,6 +233,8 @@ export async function buildSchoolSessionPromotionPlan(
   return {
     track_id: trackId,
     track_label: track.label,
+    track,
+    policy,
     school_id: schoolId,
     school_name: school.name ?? null,
     source_classes: slices.map((s) => ({

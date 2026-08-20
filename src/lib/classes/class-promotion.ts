@@ -18,10 +18,12 @@ import {
   type BulkPlacementClass,
 } from '@/lib/students/bulk-placement';
 import {
+  DEFAULT_YOUNG_TO_TEEN_EXIT_GRADE,
   isYoungToTeenBridge,
   resolveDestinationProgrammeForPromotion,
   TEEN_PROGRAMME,
   type ProgrammeCatalogRow,
+  type YoungToTeenExitGrade,
 } from '@/lib/classes/programme-transition';
 
 export type PromotionClassRow = BulkPlacementClass & {
@@ -79,12 +81,18 @@ export function nextSingleGrade(grade: string | null | undefined): string | null
   if (idx >= 0 && idx < SINGLE_GRADES.length - 1) {
     return SINGLE_GRADES[idx + 1];
   }
-  const g = parseBandLabel(canon);
-  if (g && g.low === g.high) {
-    const synthetic = `${g.lvl} ${g.n + 1}`;
-    return canonicalGrade(synthetic);
-  }
   return null;
+}
+
+/** Next placement grade, including the school's Young → Teen exit point. */
+export function nextPromotionGrade(
+  grade: string | null | undefined,
+  youngToTeenExitGrade: YoungToTeenExitGrade = DEFAULT_YOUNG_TO_TEEN_EXIT_GRADE,
+): string | null {
+  const canon = canonicalGrade(grade);
+  if (!canon) return null;
+  if (canon === youngToTeenExitGrade) return 'JSS 1';
+  return nextSingleGrade(canon);
 }
 
 /** Grade this class primarily represents (for whole-class promotion). */
@@ -102,7 +110,7 @@ export function inferClassGradeAnchor(cls: {
 }
 
 export function resolveStudentPromotionGrade(
-  student: PromotionStudentRow,
+  student: { grade?: string | null },
   classAnchor: string | null,
 ): string | null {
   return canonicalGrade(student.grade) ?? classAnchor;
@@ -184,6 +192,7 @@ export function buildClassPromotionPlan(input: {
   destinationClassId?: string | null;
   programName?: string | null;
   programs?: ProgrammeCatalogRow[];
+  youngToTeenExitGrade?: YoungToTeenExitGrade;
 }): ClassPromotionPlan {
   const blocked: string[] = [];
   const anchor = inferClassGradeAnchor(input.sourceClass);
@@ -191,7 +200,9 @@ export function buildClassPromotionPlan(input: {
     blocked.push('Could not read a grade level for this class. Set the class grade band first.');
   }
 
-  const defaultNext = anchor ? nextSingleGrade(anchor) : null;
+  const defaultNext = anchor
+    ? nextPromotionGrade(anchor, input.youngToTeenExitGrade)
+    : null;
   let defaultDest: PromotionClassRow | null = null;
 
   if (defaultNext && input.sourceClass.school_id) {
@@ -229,7 +240,9 @@ export function buildClassPromotionPlan(input: {
 
   for (const student of input.students) {
     const fromGrade = resolveStudentPromotionGrade(student, anchor);
-    const toGrade = fromGrade ? nextSingleGrade(fromGrade) : null;
+    const toGrade = fromGrade
+      ? nextPromotionGrade(fromGrade, input.youngToTeenExitGrade)
+      : null;
     const name = student.full_name ?? student.email ?? student.id;
 
     if (!fromGrade) {

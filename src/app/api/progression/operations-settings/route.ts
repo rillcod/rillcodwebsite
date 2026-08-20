@@ -56,6 +56,7 @@ const DEFAULTS: Record<SettingsKey, Record<string, unknown>> = {
     min_assessment_avg_pct: 50,
     allow_conditional_promotion: true,
     conditional_promotion_min_pct: 45,
+    young_to_teen_exit_grade: 'Basic 6',
   },
   'lms.ops.alerts': {
     inactive_student_days: 7,

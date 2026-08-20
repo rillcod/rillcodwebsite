@@ -18,13 +18,21 @@ import {
   parseGrades,
   type CanonicalBand,
 } from '@/lib/classes/naming';
-import { inferClassGradeAnchor, nextSingleGrade, resolveStudentPromotionGrade } from '@/lib/classes/class-promotion';
+import {
+  inferClassGradeAnchor,
+  nextPromotionGrade,
+  resolveStudentPromotionGrade,
+} from '@/lib/classes/class-promotion';
 import { isYoungToTeenBridge, TEEN_PROGRAMME, YOUNG_PROGRAMME } from '@/lib/classes/programme-transition';
+import {
+  DEFAULT_SCHOOL_SESSION_PROMOTION_POLICY,
+  type SchoolSessionPromotionPolicy,
+} from '@/lib/classes/session-promotion-policy';
 
-export type SessionPromotionTrackId = 'young_to_teen' | 'jss_to_ss';
+export type SessionPromotionTrackId = 'basic5_to_6' | 'young_to_teen' | 'jss_to_ss';
 
-/** Category cross vs grade step inside Teen category. */
-export type SessionPromotionKind = 'category_change' | 'teen_grade_step';
+/** Category cross vs grade step inside a programme category. */
+export type SessionPromotionKind = 'young_grade_step' | 'category_change' | 'teen_grade_step';
 
 export type SessionPromotionTrack = {
   id: SessionPromotionTrackId;
@@ -39,6 +47,16 @@ export type SessionPromotionTrack = {
 };
 
 export const SESSION_PROMOTION_TRACKS: Record<SessionPromotionTrackId, SessionPromotionTrack> = {
+  basic5_to_6: {
+    id: 'basic5_to_6',
+    kind: 'young_grade_step',
+    label: 'Young Innovators · Basic 5 → Basic 6',
+    short_label: 'Basic 5 → Basic 6',
+    exit_grade: 'Basic 5',
+    destination_grade: 'Basic 6',
+    menu_hint: 'Basic 5 moving up within Young',
+    placement_only: true,
+  },
   young_to_teen: {
     id: 'young_to_teen',
     kind: 'category_change',
@@ -46,7 +64,7 @@ export const SESSION_PROMOTION_TRACKS: Record<SessionPromotionTrackId, SessionPr
     short_label: 'Basic 6 → JSS 1',
     exit_grade: 'Basic 6',
     destination_grade: 'JSS 1',
-    menu_hint: 'Young → Teen category',
+    menu_hint: 'Basic 6 → Teen category',
     placement_only: true,
   },
   jss_to_ss: {
@@ -60,6 +78,31 @@ export const SESSION_PROMOTION_TRACKS: Record<SessionPromotionTrackId, SessionPr
     placement_only: true,
   },
 };
+
+export function activeSessionTrackIds(
+  policy: SchoolSessionPromotionPolicy,
+): SessionPromotionTrackId[] {
+  return policy.young_to_teen_exit_grade === 'Basic 6'
+    ? ['basic5_to_6', 'young_to_teen', 'jss_to_ss']
+    : ['young_to_teen', 'jss_to_ss'];
+}
+
+/** Resolve dynamic labels and grades from the school's policy. */
+export function resolveSessionTrack(
+  trackId: SessionPromotionTrackId,
+  policy: SchoolSessionPromotionPolicy = DEFAULT_SCHOOL_SESSION_PROMOTION_POLICY,
+): SessionPromotionTrack {
+  const base = SESSION_PROMOTION_TRACKS[trackId];
+  if (trackId !== 'young_to_teen') return base;
+  const exit = policy.young_to_teen_exit_grade;
+  return {
+    ...base,
+    exit_grade: exit,
+    short_label: `${exit} → JSS 1`,
+    label: `Young Innovators · ${exit} → JSS 1 (Teen Developers)`,
+    menu_hint: `${exit} → Teen category`,
+  };
+}
 
 /** Default smart options for the periodic session tool — class placement only. */
 export const SESSION_BULK_SMART_DEFAULTS = {
@@ -79,9 +122,32 @@ export function sessionTrackForBridge(
   return null;
 }
 
-export function isBasic56SectionBand(band: CanonicalBand | null): boolean {
+/** Basic 5, Basic 6, or Basic 5–6 — not wider bands like Basic 4–6. */
+export function isBasic5Or6SectionBand(band: CanonicalBand | null): boolean {
   if (!band || band.lvl !== 'Basic') return false;
-  return (band.low === 6 && band.high === 6) || (band.low === 5 && band.high === 6);
+  if (band.low === 5 && band.high === 5) return true;
+  if (band.low === 6 && band.high === 6) return true;
+  if (band.low === 5 && band.high === 6) return true;
+  return false;
+}
+
+/** @deprecated use isBasic5Or6SectionBand */
+export const isBasic56SectionBand = isBasic5Or6SectionBand;
+
+function isYoungBasic56Class(cls: {
+  qa_grade_key?: string | null;
+  qa_grade_band?: string | null;
+  name?: string | null;
+  program_name?: string | null;
+}): boolean {
+  if (classProgramme(cls) !== YOUNG_PROGRAMME) return false;
+  const anchor = canonicalGrade(inferClassGradeAnchor(cls));
+  if (anchor === 'Basic 5' || anchor === 'Basic 6') return true;
+  const band =
+    parseBandLabel(cls.qa_grade_band)
+    ?? parseBandLabel(cls.qa_grade_key)
+    ?? parseBandLabel(cls.name);
+  return isBasic5Or6SectionBand(band);
 }
 
 /** JSS 3 or JSS 1–3 / JSS 2–3 — top of junior secondary. */
@@ -116,10 +182,8 @@ export function classEligibleForSessionTrack(
     ?? parseBandLabel(cls.qa_grade_key)
     ?? parseBandLabel(cls.name);
 
-  if (trackId === 'young_to_teen') {
-    if (programme !== YOUNG_PROGRAMME) return false;
-    if (anchor === 'Basic 6') return true;
-    return isBasic56SectionBand(band);
+  if (trackId === 'basic5_to_6' || trackId === 'young_to_teen') {
+    return isYoungBasic56Class(cls);
   }
 
   if (trackId === 'jss_to_ss') {
@@ -136,16 +200,19 @@ export function studentDueForSessionTrack(
   trackId: SessionPromotionTrackId,
   student: { grade?: string | null },
   classAnchor: string | null,
+  policy: SchoolSessionPromotionPolicy = DEFAULT_SCHOOL_SESSION_PROMOTION_POLICY,
 ): boolean {
-  const track = SESSION_PROMOTION_TRACKS[trackId];
+  if (trackId === 'basic5_to_6' && policy.young_to_teen_exit_grade !== 'Basic 6') return false;
+  const track = resolveSessionTrack(trackId, policy);
   const grade = resolveStudentPromotionGrade(student, classAnchor);
   if (grade !== track.exit_grade) return false;
-  const next = nextSingleGrade(grade);
+  const next = nextPromotionGrade(grade, policy.young_to_teen_exit_grade);
   return next === track.destination_grade;
 }
 
 export type SchoolTrackDue = {
   track_id: SessionPromotionTrackId;
+  short_label: string;
   due_count: number;
   class_count: number;
 };
@@ -153,6 +220,7 @@ export type SchoolTrackDue = {
 export type SchoolPromotionDueRow = {
   school_id: string;
   school_name: string | null;
+  young_to_teen_exit_grade: SchoolSessionPromotionPolicy['young_to_teen_exit_grade'];
   tracks: SchoolTrackDue[];
 };
 
@@ -175,7 +243,7 @@ export function mergeTrackDue(rows: SchoolPromotionDueRow[]): PromotionDueSnapsh
 }
 
 export function classEligibleForTeenGraduation(cls: Parameters<typeof classEligibleForSessionTrack>[1]): boolean {
-  return classEligibleForSessionTrack('young_to_teen', cls);
+  return isYoungBasic56Class(cls);
 }
 
 export function studentDueForTeenGraduation(

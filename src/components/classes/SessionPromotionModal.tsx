@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AcademicCapIcon, ArrowPathIcon, XMarkIcon } from '@/lib/icons';
 
+type TrackId = 'basic5_to_6' | 'young_to_teen' | 'jss_to_ss';
+
 type TrackDue = {
-  track_id: 'young_to_teen' | 'jss_to_ss';
+  track_id: TrackId;
+  short_label: string;
   due_count: number;
   class_count: number;
 };
@@ -12,6 +15,7 @@ type TrackDue = {
 type DueSchool = {
   school_id: string;
   school_name: string | null;
+  young_to_teen_exit_grade: 'Basic 5' | 'Basic 6';
   tracks: TrackDue[];
 };
 
@@ -29,7 +33,7 @@ type GraduationSlice = {
 };
 
 type GraduationPlan = {
-  track_id: 'young_to_teen' | 'jss_to_ss';
+  track_id: TrackId;
   track_label: string;
   school_id: string;
   school_name: string | null;
@@ -37,11 +41,6 @@ type GraduationPlan = {
   total_promotable: number;
   total_held: number;
   blocked: string[];
-};
-
-const TRACK_LABELS: Record<string, string> = {
-  young_to_teen: 'Basic 6 → JSS 1 (into Teen category)',
-  jss_to_ss: 'JSS 3 → SS 1 (Teen · junior → senior)',
 };
 
 type Props = {
@@ -54,7 +53,7 @@ type Props = {
 /** Periodic session tool — only opened from More when learners are actually due. */
 export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }: Props) {
   const [schoolId, setSchoolId] = useState('');
-  const [trackId, setTrackId] = useState<'young_to_teen' | 'jss_to_ss'>('young_to_teen');
+  const [trackId, setTrackId] = useState<TrackId>('young_to_teen');
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [plan, setPlan] = useState<GraduationPlan | null>(null);
@@ -68,6 +67,10 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
     const row = schools.find((s) => s.school_id === schoolId);
     return row?.tracks ?? [];
   }, [schools, schoolId]);
+  const trackLabel =
+    tracksForSchool.find((track) => track.track_id === trackId)?.short_label
+    ?? plan?.track_label
+    ?? trackId;
 
   useEffect(() => {
     if (!open) {
@@ -115,10 +118,9 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
 
   const applyPromotion = async () => {
     if (!plan || plan.total_promotable === 0 || !schoolId || !confirmed) return;
-    const label = TRACK_LABELS[trackId] ?? trackId;
     if (
       !confirm(
-        `Move ${plan.total_promotable} learner${plan.total_promotable === 1 ? '' : 's'} (${label})?\n\nReports stay on their saved terms.`,
+        `Move ${plan.total_promotable} learner${plan.total_promotable === 1 ? '' : 's'} (${trackLabel})?\n\nReports stay on their saved terms.`,
       )
     ) {
       return;
@@ -191,12 +193,12 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
           {tracksForSchool.length > 1 && (
             <select
               value={trackId}
-              onChange={(e) => setTrackId(e.target.value as 'young_to_teen' | 'jss_to_ss')}
+              onChange={(e) => setTrackId(e.target.value as TrackId)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold"
             >
               {tracksForSchool.map((t) => (
                 <option key={t.track_id} value={t.track_id}>
-                  {TRACK_LABELS[t.track_id]} ({t.due_count} due)
+                  {t.short_label} ({t.due_count} due)
                 </option>
               ))}
             </select>
@@ -218,7 +220,7 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
                 <p className="text-xs font-bold text-foreground">
                   {plan.total_promotable} ready
                   {plan.total_held > 0 ? ` · ${plan.total_held} held` : ''}
-                  {' · '}{TRACK_LABELS[trackId]}
+                  {' · '}{trackLabel}
                 </p>
                 <ul className="max-h-24 space-y-1 overflow-y-auto text-[11px]">
                   {plan.slices.map((slice) => (

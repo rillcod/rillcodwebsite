@@ -32,6 +32,7 @@ import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
 import { ClassPromotionPanel } from '@/components/classes/ClassPromotionPanel';
+import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 // Turn an enroll PUT response into a human message about students that were NOT added,
 // so a silent school-boundary / other-teacher drop never looks like a successful add.
