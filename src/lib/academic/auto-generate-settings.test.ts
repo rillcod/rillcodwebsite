@@ -178,7 +178,7 @@ describe('nextMeetingsToGenerate', () => {
     ).toEqual([{ week: 2, session: 1 }]);
   });
 
-  it('treats an untagged legacy lesson as Class 1 complete', () => {
+  it('only treats a session-tagged completion key as done', () => {
     expect(
       nextMeetingsToGenerate({
         meetings: listPlanMeetings([
@@ -189,7 +189,7 @@ describe('nextMeetingsToGenerate', () => {
         eligibleWeeks: [1],
         maxMeetingsPerBatch: 1,
       }),
-    ).toEqual([{ week: 1, session: 2 }]);
+    ).toEqual([{ week: 1, session: 1 }]);
   });
 });
 

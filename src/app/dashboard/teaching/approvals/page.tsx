@@ -35,6 +35,7 @@ import {
   type PendingApprovalItem,
   type PendingWeek,
 } from "@/lib/academic/pending-approval";
+import { teachingMeetingLabel } from "@/lib/academic/session-identity";
 
 function pendingKey(row: { planId: string; week: number; session?: number | null }) {
   return pendingWeekKey(row);
@@ -133,7 +134,7 @@ export default function ContentApprovalsPage() {
         body: JSON.stringify({
           planId: row.planId,
           week: row.week,
-          ...(row.session != null && row.session > 0 ? { session: row.session } : {}),
+          session: row.session,
         }),
       });
       const json = await res.json();
@@ -143,10 +144,7 @@ export default function ContentApprovalsPage() {
         (result?.lessons_released ?? 0) +
         (result?.assignments_released ?? 0) +
         (result?.flashcards_released ?? 0);
-      const meeting =
-        row.session != null && row.session > 0
-          ? `Week ${row.week} · Class ${row.session}`
-          : `Week ${row.week}`;
+      const meeting = teachingMeetingLabel(row.week, row.session);
       toast.success(`${meeting} released — ${n} item${n === 1 ? "" : "s"} now live`);
       setWeeks((prev) => prev.filter((w) => pendingKey(w) !== key));
       if (previewWeek && pendingKey(previewWeek) === key) {
@@ -170,7 +168,7 @@ export default function ContentApprovalsPage() {
           releases: picks.map((w) => ({
             planId: w.planId,
             week: w.week,
-            ...(w.session != null && w.session > 0 ? { session: w.session } : {}),
+            session: w.session,
           })),
         }),
       });
@@ -398,10 +396,7 @@ export default function ContentApprovalsPage() {
                         )}
 
                         <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
-                          Week {row.week}
-                          {row.session != null && row.session > 0
-                            ? ` · Class ${row.session}`
-                            : ""}
+                          {teachingMeetingLabel(row.week, row.session)}
                         </span>
                         {row.className && (
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -444,9 +439,6 @@ export default function ContentApprovalsPage() {
                         <>
                           <CheckCircleIcon className="h-3.5 w-3.5" />
                           Release
-                          {row.session != null && row.session > 0
-                            ? " class"
-                            : " week"}
                         </>
                       )}
                     </button>

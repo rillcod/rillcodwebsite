@@ -15,8 +15,8 @@ export type PendingWeek = {
   className: string | null;
   courseTitle: string | null;
   week: number;
-  /** Class meeting within the week (1-based); null for unscoped school weeks. */
-  session: number | null;
+  /** Class meeting within the week (1-based). School weeks are Class 1. */
+  session: number;
   enrollmentType?: string | null;
   isSpecial?: boolean;
   topic: string;
@@ -32,8 +32,8 @@ export function pendingWeekKey(row: {
   week: number;
   session?: number | null;
 }): string {
-  const s = Number(row.session);
-  return Number.isFinite(s) && s > 0
-    ? `${row.planId}:${row.week}:s${Math.floor(s)}`
-    : `${row.planId}:${row.week}`;
+  const session = Number(row.session);
+  const meeting =
+    Number.isFinite(session) && session > 0 ? Math.floor(session) : 1;
+  return `${row.planId}:${row.week}:s${meeting}`;
 }

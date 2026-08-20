@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { triggerWeeklyMilestoneDigest } from '@/lib/curriculum/milestone-digest';
+import { parseRequestSession } from '@/lib/academic/session-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +71,8 @@ export async function POST(
     actual_date?: string;
     class_id?: string | null;
     lesson_plan_id?: string | null;
+    session?: unknown;
+    session_number?: unknown;
   }> = body.weeks ?? [];
 
   if (!Array.isArray(weeks) || weeks.length === 0) {
@@ -146,6 +148,7 @@ export async function POST(
       p_actor_id: auth.user.id,
       p_notes: w.teacher_notes || null,
       p_class_session_id: null,
+      p_session_number: parseRequestSession(w as Record<string, unknown>) ?? 1,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     results.push(data);

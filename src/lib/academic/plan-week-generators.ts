@@ -33,20 +33,20 @@ export async function invokePlanWeekGenerator(input: {
   const autoPublish = input.autoPublish === true;
   const sessionRaw = Number(input.session);
   const session =
-    Number.isFinite(sessionRaw) && sessionRaw > 0 ? Math.floor(sessionRaw) : null;
+    Number.isFinite(sessionRaw) && sessionRaw > 0 ? Math.floor(sessionRaw) : 1;
   const isJsonEndpoint = input.type === 'slides' || input.type === 'flashcards';
 
   const body = isJsonEndpoint
     ? {
         week: input.week,
+        session,
         auto_publish: autoPublish,
-        ...(session != null ? { session } : {}),
       }
     : {
         only_weeks: [input.week],
         max_weeks: 1,
+        session,
         auto_publish: autoPublish,
-        ...(session != null ? { only_session: session } : {}),
       };
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

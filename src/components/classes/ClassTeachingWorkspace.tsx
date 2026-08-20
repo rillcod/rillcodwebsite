@@ -23,11 +23,13 @@ import {
   XMarkIcon,
   BoltIcon,
   ClipboardDocumentListIcon,
+  ClipboardDocumentCheckIcon,
 } from "@/lib/icons";
 import type { StageStatus } from "@/lib/academic/status";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   buildAssignmentNewHref,
+  buildAttendanceHref,
   buildClassAssessmentHref,
   buildCbtNewHref,
   buildCurriculumHref,
@@ -47,6 +49,14 @@ import {
   buildTeachingWeekRows,
   teachingSlotNeedsAttention,
 } from "@/lib/academic/teaching-workspace";
+import {
+  teachingMeetingLabel,
+  teachingMeetingShortLabel,
+} from "@/lib/academic/session-identity";
+import {
+  expandPlanWeeksForMeetings,
+} from "@/lib/academic/school-programme-standing";
+import { pickTimetableSessionForMeeting, schoolCalendarDate } from "@/lib/timetable/sessions-from-slots";
 import { createClient } from "@/lib/supabase/client";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import PipelineStepper from "@/components/pipeline/PipelineStepper";
@@ -170,16 +180,6 @@ export function ClassTeachingWorkspace({
           event: "*",
           schema: "public",
           table: "class_lesson_delivery",
-          filter: `lesson_plan_id=eq.${planId}`,
-        },
-        refresh
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "curriculum_week_tracking",
           filter: `lesson_plan_id=eq.${planId}`,
         },
         refresh
@@ -319,9 +319,10 @@ export function ClassTeachingWorkspace({
   // evaluation — the same week+session lookup the workspace has always used.
   const weekRows = useMemo(() => {
     const assembled = buildTeachingWeekRows({
-      planWeeks: Array.isArray(plan?.plan_data?.weeks)
-        ? plan.plan_data.weeks
-        : [],
+      planWeeks: expandPlanWeeksForMeetings(
+        Array.isArray(plan?.plan_data?.weeks) ? plan.plan_data.weeks : [],
+        data?.programme_policy?.sessionsPerWeek ?? 2
+      ),
       lessons: data?.lessons,
       assignments: data?.assignments,
       projects: data?.projects,
@@ -329,7 +330,18 @@ export function ClassTeachingWorkspace({
       flashcardDecks: data?.flashcard_decks,
       exams: data?.exams,
       deliveries: data?.deliveries,
+      standing: data?.programme_policy?.standing,
+      usesHostEvaluation: data?.programme_policy?.usesHostEvaluation,
+      termStart: data?.class?.academic_terms?.start_date ?? null,
+      activities: data?.term_activities,
     });
+    const meetingCountByWeek = new Map<number, number>();
+    for (const row of assembled) {
+      meetingCountByWeek.set(
+        row.week,
+        (meetingCountByWeek.get(row.week) ?? 0) + 1
+      );
+    }
     return assembled.map((row) => {
       const {
         weekMeta,
@@ -376,10 +388,41 @@ export function ClassTeachingWorkspace({
           lesson_id: lesson?.id ?? null,
         })
       )}`;
+      const slotLabel = teachingMeetingLabel(
+        week,
+        session,
+        meetingCountByWeek.get(week) ?? 1
+      );
+      const timetableSession =
+        row.recommendedAction === "teach"
+          ? pickTimetableSessionForMeeting(
+              data?.timetable_sessions ?? [],
+              session ?? 1
+            )
+          : null;
+      const today = schoolCalendarDate();
+      const sessionDate = timetableSession
+        ? String(timetableSession.session_date).slice(0, 10)
+        : "";
+      const timetableSessionId =
+        timetableSession && sessionDate && sessionDate <= today
+          ? timetableSession.id
+          : null;
+      const attendanceHref = buildAttendanceHref({
+        classId,
+        week,
+        session,
+        sessionId: sessionDate === today ? timetableSessionId : null,
+        topic: topic ? `${slotLabel}: ${topic}` : slotLabel,
+      });
       return {
         ...row,
+        meetingsInWeek: meetingCountByWeek.get(week) ?? 1,
+        slotLabel,
+        timetableSessionId,
         manualLessonHref,
         liveSessionHref,
+        attendanceHref,
       };
     });
   }, [
@@ -393,6 +436,9 @@ export function ClassTeachingWorkspace({
     data?.flashcard_decks,
     data?.exams,
     data?.deliveries,
+    data?.timetable_sessions,
+    data?.programme_policy,
+    data?.term_activities,
     data?.class?.program_id,
     classId,
     courseId,
@@ -767,8 +813,11 @@ export function ClassTeachingWorkspace({
                       Active Teaching Focus
                     </span>
                     <span className="rounded-full border border-border bg-background/80 px-2 py-0.5 text-[9px] font-bold text-muted-foreground">
-                      Week {resumeWeek.week}
-                      {resumeWeek.session != null ? ` · Class ${resumeWeek.session}` : ""}
+                      {teachingMeetingLabel(
+                        resumeWeek.week,
+                        resumeWeek.session,
+                        resumeWeek.meetingsInWeek
+                      )}
                     </span>
                     {resumeWeek.weekMeta?.official_position && (
                       <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[9px] font-bold text-muted-foreground">
@@ -806,36 +855,49 @@ export function ClassTeachingWorkspace({
                       disabled={busy}
                       onClick={() =>
                         setPendingRelease({
-                          label: `Week ${resumeWeek.week}${
-                            resumeWeek.session != null
-                              ? ` · Class ${resumeWeek.session}`
-                              : ""
-                          } will become visible to this class.`,
+                          label: `${teachingMeetingLabel(
+                            resumeWeek.week,
+                            resumeWeek.session,
+                            resumeWeek.meetingsInWeek
+                          )} will become visible to this class.`,
                           body: {
                             action: "release_week",
                             lesson_plan_id: plan.id,
                             week_number: resumeWeek.week,
-                            ...(resumeWeek.session != null
-                              ? { session: resumeWeek.session }
-                              : {}),
+                            session: resumeWeek.session,
                           },
                         })
                       }
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       <RocketLaunchIcon className="h-4 w-4" />
-                      Release Week {resumeWeek.week}
+                      Release {teachingMeetingLabel(
+                        resumeWeek.week,
+                        resumeWeek.session,
+                        resumeWeek.meetingsInWeek
+                      )}
                     </button>
                   )}
 
                   {resumeWeek.lesson && resumeWeek.recommendedAction === "teach" && (
-                    <Link
-                      href={resumeWeek.liveSessionHref}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-black text-primary-foreground shadow-md transition-all active:scale-[0.98]"
-                    >
-                      <VideoCameraIcon className="h-4 w-4" />
-                      Start Live Class
-                    </Link>
+                    <>
+                      <Link
+                        href={`/dashboard/lessons/${resumeWeek.lesson.id}`}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-black text-primary-foreground shadow-md transition-all active:scale-[0.98]"
+                      >
+                        <BookOpenIcon className="h-4 w-4" />
+                        Open class materials
+                      </Link>
+                      {canEdit && (
+                        <Link
+                          href={resumeWeek.attendanceHref}
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary shadow-sm transition-all active:scale-[0.98]"
+                        >
+                          <ClipboardDocumentCheckIcon className="h-4 w-4" />
+                          Take attendance
+                        </Link>
+                      )}
+                    </>
                   )}
 
                   {canEdit &&
@@ -1040,7 +1102,9 @@ export function ClassTeachingWorkspace({
                   Weekly Teaching Packages
                 </h3>
                 <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
-                  Complete 5-asset package: Lesson, Slides, Flashcards, Assignment, and Project.
+                  {data?.programme_policy?.usesHostEvaluation
+                    ? "This school runs its own tests and exams. Teach on the published timetable; skip Rillcod CBT on school test and exam weeks."
+                    : "Rillcod evaluations apply here. Teach on the published timetable — most school classes meet twice a week."}
                 </p>
               </div>
               <span className="w-fit rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
@@ -1091,7 +1155,11 @@ export function ClassTeachingWorkspace({
                         className="group snap-start shrink-0 flex items-center gap-1.5 rounded-xl border border-border bg-card/80 px-2.5 py-1.5 text-xs font-bold transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
                       >
                         <span className="text-foreground">
-                          W{row.week}{row.session != null ? ` · C${row.session}` : ""}
+                          {teachingMeetingShortLabel(
+                            row.week,
+                            row.session,
+                            row.meetingsInWeek
+                          )}
                         </span>
                         <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
                       </button>
@@ -1279,8 +1347,12 @@ export function ClassTeachingWorkspace({
                   provenance,
                   evaluationStatus,
                   recommendedAction,
+                  calendarLabel,
                   manualLessonHref,
                   liveSessionHref,
+                  attendanceHref,
+                  timetableSessionId,
+                  slotLabel,
                   rowKey,
                 } = row;
 
@@ -1319,9 +1391,7 @@ export function ClassTeachingWorkspace({
                           <label className="flex shrink-0 items-center pt-0.5 cursor-pointer">
                             <input
                               type="checkbox"
-                              aria-label={`Select week ${week}${
-                                session ? ` class ${session}` : ""
-                              }`}
+                              aria-label={`Select ${slotLabel}`}
                               checked={picked.has(rowKey)}
                               onChange={(event) =>
                                 setPicked((previous) => {
@@ -1339,10 +1409,7 @@ export function ClassTeachingWorkspace({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                              Week {week}
-                              {session != null && session > 0
-                                ? ` · Class ${session}`
-                                : ""}
+                              {slotLabel}
                             </span>
                             {weekMeta.official_position && (
                               <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
@@ -1386,11 +1453,18 @@ export function ClassTeachingWorkspace({
                           </p>
                         </div>
 
-                        <span
-                          className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusClass}`}
-                        >
-                          {statusLabel}
-                        </span>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {calendarLabel && (
+                            <span className="rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                              {calendarLabel}
+                            </span>
+                          )}
+                          <span
+                            className={`rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusClass}`}
+                          >
+                            {statusLabel}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Interactive 5-Asset Segment Hub */}
@@ -1513,14 +1587,12 @@ export function ClassTeachingWorkspace({
                               disabled={busy}
                               onClick={() =>
                                 setPendingRelease({
-                                  label: `Week ${week}${
-                                    session != null ? ` · Class ${session}` : ""
-                                  } will become visible to this class.`,
+                                  label: `${slotLabel} will become visible to this class.`,
                                   body: {
                                     action: "release_week",
                                     lesson_plan_id: plan.id,
                                     week_number: week,
-                                    ...(session != null ? { session } : {}),
+                                    session,
                                   },
                                 })
                               }
@@ -1538,6 +1610,16 @@ export function ClassTeachingWorkspace({
                             >
                               <BookOpenIcon className="h-4 w-4" />
                               Open class materials
+                            </Link>
+                          )}
+
+                          {canEdit && recommendedAction === "teach" && (
+                            <Link
+                              href={attendanceHref}
+                              className="inline-flex min-h-10 flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-black text-primary shadow-sm transition-transform active:scale-[0.98]"
+                            >
+                              <ClipboardDocumentCheckIcon className="h-4 w-4" />
+                              Take attendance
                             </Link>
                           )}
 
@@ -1608,7 +1690,7 @@ export function ClassTeachingWorkspace({
                           {canEdit && recommendedAction === "teach" && (
                             <Link
                               href={liveSessionHref}
-                              title="Start Live Class"
+                              title="Start a live online class if this meeting is remote"
                               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 text-[11px] font-bold text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
                             >
                               <VideoCameraIcon className="h-3.5 w-3.5 text-primary" />
@@ -1635,9 +1717,10 @@ export function ClassTeachingWorkspace({
                                   action: "record_delivery",
                                   lesson_plan_id: plan.id,
                                   week_number: week,
-                                  ...(session != null ? { session } : {}),
+                                  session,
                                   lesson_id: lesson?.id || null,
                                   status: "delivered",
+                                  class_session_id: timetableSessionId,
                                 })
                               }
                               title="Mark as taught"

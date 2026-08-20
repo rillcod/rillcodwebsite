@@ -216,11 +216,7 @@ export function nextMeetingsToGenerate(input: {
   for (const meeting of input.meetings) {
     if (!eligible.has(meeting.week)) continue;
     const key = planMeetingKey(meeting);
-    // Legacy single-meeting weeks may be stored without a session tag.
-    const legacyKey = `${meeting.week}`;
-    if (done.has(key) || (meeting.session === 1 && done.has(legacyKey))) {
-      continue;
-    }
+    if (done.has(key)) continue;
     next.push(meeting);
     if (next.length >= cap) break;
   }

@@ -242,6 +242,24 @@ export function buildGradesHref(
   });
 }
 
+export function buildAttendanceHref(
+  args: {
+    classId?: string | null;
+    week?: number | null;
+    session?: number | null;
+    sessionId?: string | null;
+    topic?: string | null;
+  } = {}
+): string {
+  return withQuery("/dashboard/attendance", {
+    class_id: args.classId,
+    week: args.week,
+    session: args.session,
+    session_id: args.sessionId,
+    topic: args.topic,
+  });
+}
+
 export function buildResultsHref(
   args: {
     classId?: string | null;

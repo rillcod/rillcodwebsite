@@ -134,6 +134,8 @@ export async function POST(request: Request) {
       student_count: body.student_count ?? (body.studentCount ? parseInt(body.studentCount, 10) : null),
       program_interest: body.program_interest || (body.programInterest ? [body.programInterest] : []),
       enrollment_types: body.enrollment_types || ['school'],
+      programme_standing: body.programme_standing === 'compulsory' ? 'compulsory' : 'optional',
+      sessions_per_week: body.sessions_per_week === 1 ? 1 : 2,
       status,
       is_active: true,
     };

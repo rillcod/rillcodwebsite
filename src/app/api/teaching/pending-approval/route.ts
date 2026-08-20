@@ -17,7 +17,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaffUser } from "@/app/api/lesson-plans/authz";
 import { releasePreparedWeek } from "@/lib/academic/release-week-content";
-import { assetMeetingSession, normalizeMeetingSession, parseRequestSession } from "@/lib/academic/session-identity";
+import { assetMeetingSession, parseRequestSession, teachingMeetingLabel } from "@/lib/academic/session-identity";
 import { logAudit } from "@/lib/audit/log";
 import {
   pendingWeekKey,
@@ -80,8 +80,8 @@ export async function GET() {
   const byWeek = new Map<string, PendingWeek>();
   const planById = new Map(plans.map((p: any) => [p.id, p]));
 
-  const bucket = (planId: string, week: number, session?: number | null): PendingWeek => {
-    const sessionNum = normalizeMeetingSession(session);
+  const bucket = (planId: string, week: number, session: number): PendingWeek => {
+    const sessionNum = assetMeetingSession({ session_number: session });
     const key = pendingWeekKey({ planId, week, session: sessionNum });
     let row = byWeek.get(key);
     if (!row) {
@@ -89,8 +89,7 @@ export async function GET() {
       const weeks: any[] = Array.isArray(plan?.plan_data?.weeks) ? plan.plan_data.weeks : [];
       const meta = weeks.find((w) => {
         if (Number(w.week) !== week) return false;
-        if (sessionNum == null) return true;
-        return Number(w.session ?? w.session_number ?? 0) === sessionNum;
+        return assetMeetingSession(w) === sessionNum;
       }) ?? weeks.find((w) => Number(w.week) === week);
       const klass = Array.isArray(plan?.classes) ? plan.classes[0] : plan?.classes;
       const offering = klass?.academic_offerings || null;
@@ -100,8 +99,7 @@ export async function GET() {
         offering?.special_program_page_id ||
         (!klass?.term_id && (klass?.academic_offering_id || plan?.academic_offering_id))
       );
-      const sessionLabel =
-        sessionNum != null ? ` · Class ${sessionNum}` : "";
+      const meetingsInWeek = weeks.filter((w) => Number(w.week) === week).length || 1;
       row = {
         planId,
         classId: klass?.id ?? null,
@@ -113,7 +111,7 @@ export async function GET() {
         isSpecial,
         topic: meta?.topic
           ? String(meta.topic)
-          : `Week ${week}${sessionLabel}`,
+          : teachingMeetingLabel(week, sessionNum, meetingsInWeek),
         objectives: meta?.objectives || meta?.learning_objectives || null,
         activities: meta?.student_activities || meta?.activities || null,
         classwork: meta?.classwork?.title || (typeof meta?.classwork === 'string' ? meta.classwork : null) || meta?.guided_practice || null,
@@ -132,7 +130,7 @@ export async function GET() {
     const row = bucket(
       (l as any).lesson_plan_id,
       week,
-      session > 0 ? session : null,
+      session,
     );
     row.items.push({ kind: "lesson", id: (l as any).id, title: (l as any).title });
     const deck = slidesByLesson.get((l as any).id);
@@ -145,7 +143,7 @@ export async function GET() {
     const row = bucket(
       (a as any).lesson_plan_id,
       week,
-      session > 0 ? session : null,
+      session,
     );
     row.items.push({
       kind: (a as any).assignment_type === "project" ? "project" : "assignment",
@@ -160,7 +158,7 @@ export async function GET() {
     const row = bucket(
       (d as any).lesson_plan_id,
       week,
-      session > 0 ? session : null,
+      session,
     );
     row.items.push({
       kind: "flashcards",
@@ -173,7 +171,7 @@ export async function GET() {
     (a, b) =>
       (a.className ?? "").localeCompare(b.className ?? "") ||
       a.week - b.week ||
-      (a.session ?? 0) - (b.session ?? 0) ||
+      (a.session ?? 1) - (b.session ?? 1) ||
       a.topic.localeCompare(b.topic)
   );
   return NextResponse.json({ data });

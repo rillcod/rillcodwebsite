@@ -6,6 +6,7 @@ import {
   buildDistributeHref,
   buildFlashcardsHref,
   buildGradesHref,
+  buildAttendanceHref,
   buildLessonNewHref,
   buildResultsHref,
   mergeAssetLaneHref,
@@ -58,6 +59,27 @@ describe("curriculum href helpers", () => {
     ).toContain("return_class_id=cl1");
     expect(buildGradesHref({ classId: "cl1", courseId: "c1" })).toBe(
       "/dashboard/grades?class_id=cl1&course_id=c1"
+    );
+    expect(
+      buildAttendanceHref({
+        classId: "cl1",
+        week: 3,
+        session: 1,
+        topic: "Week 3: Loops",
+      })
+    ).toBe(
+      "/dashboard/attendance?class_id=cl1&week=3&session=1&topic=Week+3%3A+Loops"
+    );
+    expect(
+      buildAttendanceHref({
+        classId: "cl1",
+        week: 3,
+        session: 2,
+        sessionId: "sess-1",
+        topic: "Week 3 · Class 2: Loops",
+      })
+    ).toBe(
+      "/dashboard/attendance?class_id=cl1&week=3&session=2&session_id=sess-1&topic=Week+3+%C2%B7+Class+2%3A+Loops"
     );
     expect(buildResultsHref({ classId: "cl1", courseId: "c1" })).toBe(
       "/dashboard/academic/results?class_id=cl1&course_id=c1"

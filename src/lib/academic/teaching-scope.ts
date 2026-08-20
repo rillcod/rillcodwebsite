@@ -14,8 +14,7 @@ export type TeachingWeekAssetScope = {
 
 /**
  * The canonical identity shared by the class workspace and the rich lesson
- * workspace. Keep metadata only as a legacy read fallback; new writes use these
- * real columns so every surface sees the same asset.
+ * workspace. Writes use real columns so every surface sees the same asset.
  */
 export function teachingWeekAssetScope(
   input: TeachingWeekScopeInput
@@ -66,26 +65,14 @@ export async function relinkTeachingWeekAssets(
   ] as const;
   const results = await Promise.all(
     tables.map(async (table) => {
-      let query = db
+      return db
         .from(table)
         .update({ lesson_id: scope.lesson_id })
         .eq("lesson_plan_id", scope.lesson_plan_id)
         .eq("curriculum_week_number", scope.curriculum_week_number)
-        .is("lesson_id", null);
-      if (session != null) {
-        // Prefer explicit session metadata; also allow untagged legacy orphans
-        // only when this is session 1 (the historical single-meeting case).
-        if (session === 1) {
-          query = query.or(
-            `metadata->>session.eq.${session},metadata->>session_number.eq.${session},metadata->>session.is.null,metadata.is.null`,
-          );
-        } else {
-          query = query.or(
-            `metadata->>session.eq.${session},metadata->>session_number.eq.${session}`,
-          );
-        }
-      }
-      return query.select("id");
+        .eq("session_number", session ?? 1)
+        .is("lesson_id", null)
+        .select("id");
     }),
   );
 

@@ -61,6 +61,8 @@ export default function SchoolsPage() {
     status: 'approved',
     enrollmentTypes: ['school'] as string[],
     rillcodQuotaPercent: '0',
+    programmeStanding: 'optional',
+    sessionsPerWeek: '2',
   });
 
   const isAdmin = profile?.role === 'admin';
@@ -213,6 +215,8 @@ export default function SchoolsPage() {
         status: createForm.status || 'approved',
         enrollment_types: createForm.enrollmentTypes.length ? createForm.enrollmentTypes : ['school'],
         rillcod_quota_percent: parseFloat(createForm.rillcodQuotaPercent) || 0,
+        programme_standing: createForm.programmeStanding === 'compulsory' ? 'compulsory' : 'optional',
+        sessions_per_week: createForm.sessionsPerWeek === '1' ? 1 : 2,
         is_active: true,
       };
 
@@ -283,6 +287,8 @@ export default function SchoolsPage() {
         status: 'approved',
         enrollmentTypes: ['school'],
         rillcodQuotaPercent: '0',
+        programmeStanding: 'optional',
+        sessionsPerWeek: '2',
       });
     } catch (e: any) {
       setError(e.message ?? 'Failed to save school');
@@ -347,6 +353,8 @@ export default function SchoolsPage() {
       status: school.status || 'approved',
       enrollmentTypes: school.enrollment_types || ['school'],
       rillcodQuotaPercent: (school as any).rillcod_quota_percent?.toString() || '0',
+      programmeStanding: school.programme_standing === 'compulsory' ? 'compulsory' : 'optional',
+      sessionsPerWeek: school.sessions_per_week === 1 ? '1' : '2',
     });
     setShowCreate(true);
   };
@@ -830,6 +838,8 @@ export default function SchoolsPage() {
                   <div className="p-6 space-y-4 text-sm">
                     {[
                       { label: 'School Type', value: detail.school_type },
+                      { label: 'Programme', value: detail.programme_standing === 'compulsory' ? 'Compulsory — school tests & exams' : 'Optional — Rillcod evaluations' },
+                      { label: 'Classes / week', value: detail.sessions_per_week === 1 ? 'Once' : 'Twice' },
                       { label: 'Contact Person', value: detail.contact_person },
                       { label: 'Email', value: detail.email },
                       { label: 'Phone', value: detail.phone },
@@ -1037,6 +1047,28 @@ export default function SchoolsPage() {
                       className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                       placeholder="Basic / Secondary / Unified"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Programme</label>
+                    <select
+                      value={createForm.programmeStanding}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, programmeStanding: e.target.value }))}
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
+                    >
+                      <option value="optional">Optional — Rillcod evaluations</option>
+                      <option value="compulsory">Compulsory — school tests &amp; exams</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Classes per week</label>
+                    <select
+                      value={createForm.sessionsPerWeek}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, sessionsPerWeek: e.target.value }))}
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
+                    >
+                      <option value="2">Twice (most schools)</option>
+                      <option value="1">Once</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Contact Person</label>

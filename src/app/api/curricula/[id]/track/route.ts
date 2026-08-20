@@ -5,6 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { triggerWeeklyMilestoneDigest } from '@/lib/curriculum/milestone-digest';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
+import { parseRequestSession } from '@/lib/academic/session-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,6 +92,7 @@ export async function POST(
   const { id } = await context.params;
   const body = await req.json();
   const { term_number, week_number, status, teacher_notes, actual_date, class_id, lesson_plan_id } = body;
+  const session = parseRequestSession(body) ?? 1;
 
   const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'skipped'] as const;
   if (!term_number || !week_number || !status) {
@@ -140,6 +142,7 @@ export async function POST(
     p_actor_id: auth.user.id,
     p_notes: teacher_notes || null,
     p_class_session_id: null,
+    p_session_number: session,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   // Fire-and-forget: trigger automated Weekly Milestone Digest when a week is marked completed

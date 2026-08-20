@@ -23,6 +23,7 @@ import {
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
 import { parseAutoGenerateSettings } from '@/lib/academic/auto-generate-settings';
+import { parseRequestSession } from '@/lib/academic/session-identity';
 import { extractCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
@@ -76,11 +77,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
             : (plan as any).academic_offering_periods)?.starts_on ?? null,
       });
 
-  const requestedSession = Number((body as any).session ?? (body as any).only_session);
-  const session =
-    Number.isFinite(requestedSession) && requestedSession > 0
-      ? Math.floor(requestedSession)
-      : null;
+  const session = parseRequestSession(body as Record<string, unknown>) ?? 1;
 
   const settings = parseAutoGenerateSettings(
     (plan.metadata as Record<string, unknown> | null)?.auto_generate_settings

@@ -7,6 +7,8 @@ import {
   parseRequestSession,
   planMeetingLookupKey,
   planRowMeetingSession,
+  teachingMeetingLabel,
+  teachingMeetingShortLabel,
 } from './session-identity';
 import {
   allowLiveTermFallback,
@@ -17,12 +19,13 @@ import { buildTeachingReadiness } from '@/lib/special-programs/teaching-readines
 import { pendingWeekKey } from './pending-approval';
 
 describe('session-identity', () => {
-  it('reads session from metadata, fields, then title', () => {
-    expect(assetMeetingSession({ metadata: { session: 2 }, title: 'Session 9' })).toBe(2);
+  it('reads session_number, then fields, then metadata — never titles', () => {
+    expect(assetMeetingSession({ session_number: 2, title: 'Session 9' })).toBe(2);
     expect(assetMeetingSession({ session: 3 })).toBe(3);
-    expect(assetMeetingSession({ title: 'Week 1 · Session 4: Cards' })).toBe(4);
-    expect(assetMeetingSession({ title: 'Week 1 homework' })).toBe(0);
-    expect(assetStampedMeetingSession({ title: 'Week 1 · Session 4: Cards' })).toBe(0);
+    expect(assetMeetingSession({ metadata: { session: 2 }, title: 'Session 9' })).toBe(2);
+    expect(assetMeetingSession({ title: 'Week 1 · Session 4: Cards' })).toBe(1);
+    expect(assetMeetingSession({ title: 'Week 1 homework' })).toBe(1);
+    expect(assetStampedMeetingSession({ title: 'Week 1 · Session 4: Cards' })).toBe(1);
   });
 
   it('parses request bodies consistently', () => {
@@ -33,12 +36,21 @@ describe('session-identity', () => {
     expect(normalizeMeetingSession(0)).toBeNull();
   });
 
-  it('builds lookup keys for school and special meetings', () => {
-    expect(meetingLookupKey(1, null)).toBe('1');
+  it('builds lookup keys as week:sN for every pathway', () => {
+    expect(meetingLookupKey(1, null)).toBe('1:s1');
     expect(meetingLookupKey(1, 2)).toBe('1:s2');
     expect(planMeetingLookupKey(1, null)).toBe('1:s1');
     expect(planRowMeetingSession({ session: 2 })).toBe(2);
-    expect(planRowMeetingSession({})).toBe(0);
+    expect(planRowMeetingSession({})).toBe(1);
+  });
+
+  it('labels a physical school week as Week N, and only shows Class when the week meets more than once', () => {
+    expect(teachingMeetingLabel(3)).toBe('Week 3');
+    expect(teachingMeetingLabel(3, 1)).toBe('Week 3');
+    expect(teachingMeetingLabel(3, 1, 2)).toBe('Week 3 · Class 1');
+    expect(teachingMeetingLabel(3, 2)).toBe('Week 3 · Class 2');
+    expect(teachingMeetingShortLabel(3, 1)).toBe('W3');
+    expect(teachingMeetingShortLabel(3, 2)).toBe('W3 · C2');
   });
 });
 
@@ -146,8 +158,8 @@ describe('prepare-teaching gate', () => {
 });
 
 describe('pendingWeekKey', () => {
-  it('includes session when present', () => {
+  it('always includes the class meeting', () => {
     expect(pendingWeekKey({ planId: 'p', week: 1, session: 2 })).toBe('p:1:s2');
-    expect(pendingWeekKey({ planId: 'p', week: 1 })).toBe('p:1');
+    expect(pendingWeekKey({ planId: 'p', week: 1 })).toBe('p:1:s1');
   });
 });

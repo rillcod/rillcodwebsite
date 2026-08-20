@@ -8,16 +8,23 @@ import {
 } from "./week-package";
 import {
   planMeetingLookupKey,
-  normalizeMeetingSession,
+  canonicalMeetingSession,
   parseRequestSession,
 } from "./session-identity";
+import {
+  calendarRoleLabel,
+  classifyCalendarWeek,
+  recommendTeachingAction,
+  type ProgrammeStanding,
+  type WeekCalendarRole,
+} from "./school-programme-standing";
 
 type Row = Record<string, any>;
 
 export type TeachingWeekRow = {
   weekMeta: Row;
   week: number;
-  session: number | null;
+  session: number;
   rowKey: string;
   term: number | null;
   lesson: Row | null;
@@ -41,6 +48,8 @@ export type TeachingWeekRow = {
     staleDerived: boolean;
   };
   evaluationStatus: "missing" | "held" | "live";
+  calendarRole: WeekCalendarRole;
+  calendarLabel: string | null;
   recommendedAction:
     | "prepare"
     | "refresh"
@@ -60,32 +69,31 @@ export type TeachingWorkspaceRowsInput = {
   flashcardDecks?: Row[] | null;
   exams?: Row[] | null;
   deliveries?: Row[] | null;
+  standing?: ProgrammeStanding;
+  usesHostEvaluation?: boolean;
+  termStart?: string | null;
+  activities?: Parameters<typeof classifyCalendarWeek>[0]["activities"];
 };
 
-export type TeachingTarget = { week: number; session: number | null };
+export type TeachingTarget = { week: number; session: number };
 
 /**
- * Week+meeting targets for bulk release and delivery. Accepts the current
- * `{ targets: [{ week_number, session }] }` body and the older `week_numbers`
- * list so one parser owns both.
+ * Week+meeting targets for bulk release and delivery.
+ * Body: `{ targets: [{ week_number, session }] }`. Session defaults to Class 1.
  */
 export function parseTeachingTargets(
   body: Record<string, unknown>
 ): TeachingTarget[] {
-  const rawTargets: Array<{ week_number?: unknown; session?: unknown }> =
-    Array.isArray(body.targets)
-      ? body.targets
-      : Array.isArray(body.week_numbers)
-        ? body.week_numbers.map((week) => ({ week_number: week }))
-        : [];
+  const rawTargets: Array<Record<string, unknown>> = Array.isArray(body.targets)
+    ? body.targets
+    : [];
   const unique = new Map<string, TeachingTarget>();
   for (const raw of rawTargets) {
     const week = Number(raw?.week_number);
     if (!Number.isInteger(week) || week <= 0 || week > 53) continue;
-    const session = parseRequestSession(
-      (raw ?? {}) as Record<string, unknown>
-    );
-    unique.set(`${week}:${session ?? 0}`, { week, session });
+    const session =
+      parseRequestSession((raw ?? {}) as Record<string, unknown>) ?? 1;
+    unique.set(`${week}:s${session}`, { week, session });
   }
   return [...unique.values()];
 }
@@ -147,7 +155,7 @@ export function buildTeachingWeekRows(
   for (const delivery of input.deliveries ?? []) {
     const week = Number(delivery.week_number);
     if (!Number.isInteger(week) || week <= 0) continue;
-    const session = normalizeMeetingSession(delivery.session_number);
+    const session = canonicalMeetingSession(delivery.session_number);
     const key = planMeetingLookupKey(week, session);
     const existing = deliveryBySlot.get(key);
     if (!existing || delivery.status === "delivered") {
@@ -159,7 +167,7 @@ export function buildTeachingWeekRows(
     const week = Number(
       weekMeta.week || weekMeta.curriculum_week_number || index + 1
     );
-    const session = normalizeMeetingSession(
+    const session = canonicalMeetingSession(
       weekMeta.session ?? weekMeta.session_number
     );
     const rowKey = weekSessionLookupKey(week, session);
@@ -217,7 +225,13 @@ export function buildTeachingWeekRows(
       : evaluation.is_active === true
         ? "live"
         : "held";
-    const recommendedAction = provenance.staleDerived
+    const calendarRole = classifyCalendarWeek({
+      standing: input.standing ?? "optional",
+      termStart: input.termStart,
+      weekNumber: week,
+      activities: input.activities,
+    });
+    const baseAction = provenance.staleDerived
       ? "refresh"
       : !packageStatus.complete
         ? "prepare"
@@ -230,6 +244,11 @@ export function buildTeachingWeekRows(
               : evaluationStatus === "held"
                 ? "review_assessment"
                 : "none";
+    const recommendedAction = recommendTeachingAction({
+      base: baseAction,
+      calendarRole,
+      usesHostEvaluation: Boolean(input.usesHostEvaluation),
+    });
 
     return {
       weekMeta,
@@ -256,6 +275,8 @@ export function buildTeachingWeekRows(
       taught,
       provenance,
       evaluationStatus,
+      calendarRole,
+      calendarLabel: calendarRoleLabel(calendarRole),
       recommendedAction,
     };
   });

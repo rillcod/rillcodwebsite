@@ -64,6 +64,14 @@ describe("indexFirstByWeekSession", () => {
     expect(index.get(weekSessionLookupKey(1, 1))?.id).toBe("s1");
     expect(index.get(weekSessionLookupKey(1, 2))?.id).toBe("s2");
   });
+
+  it("indexes a single-meeting school week as meeting 1", () => {
+    const index = indexFirstByWeekSession([
+      { id: "school", curriculum_week_number: 2 },
+    ]);
+    expect(index.get(weekSessionLookupKey(2, 1))?.id).toBe("school");
+    expect(index.get(weekSessionLookupKey(2))?.id).toBe("school");
+  });
 });
 
 describe("weekPackageStatus", () => {

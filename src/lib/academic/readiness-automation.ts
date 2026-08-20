@@ -8,6 +8,10 @@ import {
 import { humanEntryPoint, humanTermLabel, NOT_READY_REASONS, startPointNotSaved } from '@/lib/academic/labels';
 import { DEFAULT_AUTO_GENERATE_SETTINGS } from '@/lib/academic/auto-generate-settings';
 import { decideEntryPoint } from '@/lib/academic/entry-point';
+import {
+  expandPlanWeeksForMeetings,
+  policyFromClassSchool,
+} from '@/lib/academic/school-programme-standing';
 
 type DbClient = { from: (table: string) => any; rpc: (name: string, args: Record<string, unknown>) => any };
 
@@ -90,7 +94,7 @@ export async function runAcademicReadinessAutomation(
     // start_date is what turns "joined in Third Term" into "joined in Third Term,
     // Week 3" — without it every mid-year joiner would be recorded at week one
     // and marked behind from its first day.
-    'id,name,school_id,teacher_id,program_id,current_course_id,term_id,offering_period_id,academic_offering_id,status,academic_terms(academic_year,term_number,start_date),academic_offering_periods(label)',
+    'id,name,school_id,teacher_id,program_id,current_course_id,term_id,offering_period_id,academic_offering_id,status,academic_terms(academic_year,term_number,start_date,end_date),academic_offering_periods(label),schools(programme_standing,sessions_per_week)',
   ).or('status.is.null,status.neq.archived').limit(Math.min(Math.max(scope.limit ?? 200, 1), 500));
   if (scope.classIds?.length) query = query.in('id', scope.classIds);
   if (scope.offeringId) query = query.eq('academic_offering_id', scope.offeringId);
@@ -201,6 +205,8 @@ export async function runAcademicReadinessAutomation(
         continue;
       }
 
+      const schoolPolicy = policyFromClassSchool((klass as any).schools);
+
       const existingSchedule = await resolveOfficialDeliverySchedule(db, {
         schoolId: klass.school_id,
         classId: klass.id,
@@ -238,7 +244,7 @@ export async function runAcademicReadinessAutomation(
             curriculum_year_number: decision.curriculum_year_number,
             curriculum_term_number: decision.curriculum_term_number,
             curriculum_week_number: decision.curriculum_week_number,
-            sessions_per_week: 1,
+            sessions_per_week: schoolPolicy.sessionsPerWeek,
             status: 'active',
             created_by: teacherId,
           });
@@ -256,7 +262,7 @@ export async function runAcademicReadinessAutomation(
             curriculum_year_number: decision.curriculum_year_number,
             curriculum_term_number: decision.curriculum_term_number,
             curriculum_week_number: decision.curriculum_week_number,
-            sessions_per_week: 1,
+            sessions_per_week: schoolPolicy.sessionsPerWeek,
           } as typeof schedule;
         }
       }
@@ -266,9 +272,10 @@ export async function runAcademicReadinessAutomation(
         curriculum_year_number: 1,
         curriculum_term_number: 1,
         curriculum_week_number: 1,
-        sessions_per_week: 1,
+        sessions_per_week: schoolPolicy.sessionsPerWeek,
       } as typeof schedule);
 
+      const sessionsPerWeek = schoolPolicy.sessionsPerWeek;
       const { data: ensured, error: ensureError } = await db.rpc('ensure_class_teaching_plan', {
         p_class_id: klass.id,
         p_course_id: courseId,
@@ -276,7 +283,7 @@ export async function runAcademicReadinessAutomation(
         p_actor_id: teacherId,
         p_academic_term_id: klass.term_id,
         p_offering_period_id: klass.term_id ? null : klass.offering_period_id,
-        p_sessions_per_week: Number(schedule.sessions_per_week) || 1,
+        p_sessions_per_week: sessionsPerWeek,
       });
       if (ensureError) throw new Error(ensureError.message);
       const result = ensured as { plan_id: string; created: boolean };
@@ -289,13 +296,16 @@ export async function runAcademicReadinessAutomation(
           ? Number(term?.term_number) || 1
           : Number(schedule.entry_term_number) || 1;
         const currentSession = klass.term_id ? term?.academic_year ?? null : direction.academic_session;
-        const mappedWeeks = mapOfficialCurriculumToCalendarWeeks({
-          content: direction.content,
-          directionAcademicSession: direction.academic_session,
-          currentAcademicSession: currentSession,
-          calendarTerm,
-          schedule,
-        });
+        const mappedWeeks = expandPlanWeeksForMeetings(
+          mapOfficialCurriculumToCalendarWeeks({
+            content: direction.content,
+            directionAcademicSession: direction.academic_session,
+            currentAcademicSession: currentSession,
+            calendarTerm,
+            schedule,
+          }),
+          sessionsPerWeek,
+        );
 
         const termLabel = klass.term_id
           ? humanTermLabel(Number(term?.term_number) || 1)

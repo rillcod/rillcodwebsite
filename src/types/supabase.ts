@@ -16169,6 +16169,8 @@ export type Database = {
           program_interest: string[] | null
           public_enrollment_open: boolean
           rillcod_quota_percent: number | null
+          programme_standing: string
+          sessions_per_week: number
           school_type: string | null
           state: string | null
           status: string | null
@@ -16194,6 +16196,8 @@ export type Database = {
           program_interest?: string[] | null
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
+          programme_standing?: string
+          sessions_per_week?: number
           school_type?: string | null
           state?: string | null
           status?: string | null
@@ -16219,6 +16223,8 @@ export type Database = {
           program_interest?: string[] | null
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
+          programme_standing?: string
+          sessions_per_week?: number
           school_type?: string | null
           state?: string | null
           status?: string | null

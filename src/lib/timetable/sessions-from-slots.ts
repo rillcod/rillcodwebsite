@@ -22,6 +22,7 @@
  */
 
 import {
+  DEFAULT_TIMEZONE,
   generateOccurrences,
   MAX_OCCURRENCES_PER_RUN,
   type SeriesWindow,
@@ -155,3 +156,55 @@ export function planSessionsFromSlots(input: PlanInput): SessionPlan {
 
   return { create, skipped };
 }
+
+/** Calendar date a Nigerian school would call today. */
+export function schoolCalendarDate(now = new Date(), timeZone = DEFAULT_TIMEZONE): string {
+  return now.toLocaleDateString('en-CA', { timeZone });
+}
+
+/** Monday–Sunday school week containing `day` (YYYY-MM-DD). */
+export function schoolWeekRange(day = schoolCalendarDate()): { start: string; end: string } {
+  const [year, month, date] = day.split('-').map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, date));
+  const weekday = utc.getUTCDay();
+  const mondayShift = weekday === 0 ? -6 : 1 - weekday;
+  const monday = new Date(utc);
+  monday.setUTCDate(utc.getUTCDate() + mondayShift);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    start: monday.toISOString().slice(0, 10),
+    end: sunday.toISOString().slice(0, 10),
+  };
+}
+
+/**
+ * The Rillcod timetable period this class meeting hangs on.
+ * Class 1 is the first slot this school week; Class 2 is the next — whether
+ * those meetings are two periods on one day or Monday then Wednesday.
+ */
+export function pickTimetableSessionForMeeting<
+  T extends { session_date: string; start_time?: string | null },
+>(
+  sessions: T[],
+  meeting = 1,
+  today = schoolCalendarDate(),
+): T | null {
+  const { start, end } = schoolWeekRange(today);
+  const weekSessions = sessions
+    .filter((row) => {
+      const date = String(row.session_date).slice(0, 10);
+      return date >= start && date <= end;
+    })
+    .sort((a, b) => {
+      const byDate = String(a.session_date)
+        .slice(0, 10)
+        .localeCompare(String(b.session_date).slice(0, 10));
+      if (byDate !== 0) return byDate;
+      return String(a.start_time ?? '').localeCompare(String(b.start_time ?? ''));
+    });
+  const n = Math.max(1, Math.floor(meeting) || 1);
+  if (n > weekSessions.length) return null;
+  return weekSessions[n - 1] ?? null;
+}
+

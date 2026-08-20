@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndex, planSessionsFromSlots, sameTime } from './sessions-from-slots';
+import { dayIndex, pickTimetableSessionForMeeting, planSessionsFromSlots, sameTime, schoolWeekRange } from './sessions-from-slots';
 
 const TERM = { term_start: '2026-09-01', term_end: '2026-09-30' };
 const WINDOW = { from: new Date('2026-09-01T00:00:00Z'), until: new Date('2026-09-30T23:59:59Z') };
@@ -119,3 +119,34 @@ describe('helpers', () => {
     expect(sameTime(null, null)).toBe(false);
   });
 });
+
+describe('pickTimetableSessionForMeeting', () => {
+  it('numbers Class 1 then Class 2 across the school week', () => {
+    expect(schoolWeekRange('2026-08-20')).toEqual({
+      start: '2026-08-17',
+      end: '2026-08-23',
+    });
+    const rows = [
+      { id: 'wed', session_date: '2026-08-19', start_time: '09:00' },
+      { id: 'thu-am', session_date: '2026-08-20', start_time: '09:00' },
+      { id: 'thu-pm', session_date: '2026-08-20', start_time: '14:00' },
+      { id: 'next-week', session_date: '2026-08-24', start_time: '09:00' },
+    ];
+    expect(pickTimetableSessionForMeeting(rows, 1, '2026-08-20')?.id).toBe('wed');
+    expect(pickTimetableSessionForMeeting(rows, 2, '2026-08-20')?.id).toBe('thu-am');
+    expect(pickTimetableSessionForMeeting(rows, 3, '2026-08-20')?.id).toBe('thu-pm');
+    expect(pickTimetableSessionForMeeting(rows, 4, '2026-08-20')).toBeNull();
+  });
+
+  it('does not invent a period when the timetable is empty this week', () => {
+    expect(pickTimetableSessionForMeeting([], 1, '2026-08-20')).toBeNull();
+    expect(
+      pickTimetableSessionForMeeting(
+        [{ id: 'next', session_date: '2026-08-24', start_time: '09:00' }],
+        1,
+        '2026-08-20',
+      ),
+    ).toBeNull();
+  });
+});
+

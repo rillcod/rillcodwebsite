@@ -2,92 +2,68 @@ import { describe, expect, it } from "vitest";
 import { classCoverageFromRows } from "./class-coverage";
 
 describe("class curriculum coverage", () => {
-  it("prefers delivery rows over legacy week tracking", () => {
-    // A class on the current Teaching flow has delivery rows and usually no
-    // tracking rows. Reading tracking first left its bar empty forever.
+  it("counts taught meetings from delivery rows", () => {
     expect(
-      classCoverageFromRows(
-        [
-          { week_number: 1, status: "delivered" },
-          { week_number: 2, status: "planned" },
-        ],
-        [{ status: "delivered" }, { status: "delivered" }, { status: "delivered" }]
-      )
+      classCoverageFromRows([
+        { week_number: 1, session_number: 1, status: "delivered" },
+        { week_number: 2, session_number: 1, status: "planned" },
+      ])
     ).toEqual({ delivered: 1, planned: 2 });
   });
 
-  it("falls back to week tracking when nothing has been delivered", () => {
+  it("treats an omitted session as Class 1", () => {
     expect(
-      classCoverageFromRows([], [{ status: "delivered" }, { status: "planned" }])
-    ).toEqual({ delivered: 1, planned: 2 });
+      classCoverageFromRows([
+        { week_number: 1, status: "delivered" },
+        { week_number: 1, session_number: 1, status: "planned" },
+      ])
+    ).toEqual({ delivered: 1, planned: 1 });
   });
 
-  it("counts legacy tracking rows that used completed instead of delivered", () => {
+  it("counts a meeting once however many rows it has", () => {
     expect(
-      classCoverageFromRows([], [{ status: "completed" }, { status: "pending" }])
-    ).toEqual({ delivered: 1, planned: 2 });
-  });
-
-  it("counts a week once however many rows it has", () => {
-    // Marking a week taught twice must not make the class look twice as far on.
-    expect(
-      classCoverageFromRows(
-        [
-          { week_number: 3, status: "planned" },
-          { week_number: 3, status: "delivered" },
-          { week_number: 3, status: "planned" },
-        ],
-        []
-      )
+      classCoverageFromRows([
+        { week_number: 3, status: "planned" },
+        { week_number: 3, status: "delivered" },
+        { week_number: 3, status: "planned" },
+      ])
     ).toEqual({ delivered: 1, planned: 1 });
   });
 
   it("counts separate meetings in the same week", () => {
     expect(
-      classCoverageFromRows(
-        [
-          { week_number: 3, session_number: 1, status: "delivered" },
-          { week_number: 3, session_number: 2, status: "planned" },
-        ],
-        []
-      )
+      classCoverageFromRows([
+        { week_number: 3, session_number: 1, status: "delivered" },
+        { week_number: 3, session_number: 2, status: "planned" },
+      ])
     ).toEqual({ delivered: 1, planned: 2 });
   });
 
   it("lets delivered win regardless of row order", () => {
-    const first = classCoverageFromRows(
-      [
-        { week_number: 1, status: "delivered" },
-        { week_number: 1, status: "planned" },
-      ],
-      []
-    );
-    const reversed = classCoverageFromRows(
-      [
-        { week_number: 1, status: "planned" },
-        { week_number: 1, status: "delivered" },
-      ],
-      []
-    );
+    const first = classCoverageFromRows([
+      { week_number: 1, status: "delivered" },
+      { week_number: 1, status: "planned" },
+    ]);
+    const reversed = classCoverageFromRows([
+      { week_number: 1, status: "planned" },
+      { week_number: 1, status: "delivered" },
+    ]);
     expect(first).toEqual({ delivered: 1, planned: 1 });
     expect(reversed).toEqual(first);
   });
 
   it("ignores rows with an unusable week number", () => {
     expect(
-      classCoverageFromRows(
-        [
-          { week_number: Number.NaN, status: "delivered" },
-          { week_number: 2, status: "delivered" },
-        ],
-        []
-      )
+      classCoverageFromRows([
+        { week_number: Number.NaN, status: "delivered" },
+        { week_number: 2, status: "delivered" },
+      ])
     ).toEqual({ delivered: 1, planned: 1 });
   });
 
-  it("reports nothing rather than dividing by zero when both sources are empty", () => {
-    expect(classCoverageFromRows([], [])).toEqual({ delivered: 0, planned: 0 });
-    expect(classCoverageFromRows(null, undefined)).toEqual({
+  it("reports nothing rather than dividing by zero when empty", () => {
+    expect(classCoverageFromRows([])).toEqual({ delivered: 0, planned: 0 });
+    expect(classCoverageFromRows(null)).toEqual({
       delivered: 0,
       planned: 0,
     });

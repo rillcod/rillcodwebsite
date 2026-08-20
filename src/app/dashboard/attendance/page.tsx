@@ -16,6 +16,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import { buildSessionSuggestion, reusePreviousAttendanceStatuses, sortSessionsNewestFirst } from '@/lib/attendance/predictive-entry';
+import { pickTimetableSessionForMeeting, schoolCalendarDate } from '@/lib/timetable/sessions-from-slots';
 
 // Extract a scannable student code from a QR value. Handles the current card URL
 // (/result-check/RC-XXXXXXXX), the older /verify and /student/<uuid> URLs, and a bare
@@ -57,6 +58,9 @@ function AttendanceContent() {
   const router = useRouter();
   const rawClassId = searchParams.get('class_id');
   const classIdFromQuery = React.useMemo(() => rawClassId, [rawClassId]);
+  const teachingTopicFromQuery = searchParams.get('topic');
+  const sessionIdFromQuery = searchParams.get('session_id');
+  const teachingSessionFromQuery = Number(searchParams.get('session') || 1);
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
   const isSchoolRole = profile?.role === 'school';
   const isCanMark = isManager;
@@ -211,9 +215,31 @@ function AttendanceContent() {
         setStudents([]);
         setAttendance({});
 
-        // If we entered via direct link, try to find/init today's session
-        if (classIdFromQuery === selectedClass && sess.length === 0) {
-          quickMarkToday(sess[0]);
+        const today = schoolCalendarDate();
+        const namedSession =
+          sessionIdFromQuery && sess.find((item) => item.id === sessionIdFromQuery);
+        const meeting = Number.isFinite(teachingSessionFromQuery) && teachingSessionFromQuery > 0
+          ? Math.floor(teachingSessionFromQuery)
+          : 1;
+        const timetableSession = pickTimetableSessionForMeeting(sess, meeting, today);
+        const timetableSessionIsToday =
+          timetableSession &&
+          String(timetableSession.session_date).slice(0, 10) === today;
+
+        if (namedSession) {
+          setSelectedSession(namedSession.id);
+          setLoading(false);
+        } else if (classIdFromQuery === selectedClass && timetableSessionIsToday) {
+          setSelectedSession(timetableSession.id);
+          setLoading(false);
+        } else if (classIdFromQuery === selectedClass) {
+          setPageMessage({
+            type: 'info',
+            text: timetableSession
+              ? 'That class meeting is on the Rillcod timetable later this week. Pick the published period, or wait until that day.'
+              : 'No Rillcod timetable period today. Pick a published period, or create a makeup session.',
+          });
+          setLoading(false);
         } else {
           setLoading(false);
         }
@@ -541,28 +567,44 @@ function AttendanceContent() {
     }
   };
 
-  const quickMarkToday = async (latestSession?: { start_time?: string | null; end_time?: string | null }) => {
+  const quickMarkToday = async (
+    latestSession?: { start_time?: string | null; end_time?: string | null },
+    topic?: string | null,
+  ) => {
     if (!selectedClass) return;
     setLoading(true);
     setPageMessage(null);
     const suggestion = buildSessionSuggestion(latestSession ?? sessions[0]);
+    const sessionTopic =
+      topic?.trim() ||
+      teachingTopicFromQuery?.trim() ||
+      `Session on ${new Date().toLocaleDateString()}`;
     try {
       const db = createClient();
 
-      // Check if today's session already exists (read-only — OK for teachers)
+      // Follow the published Rillcod timetable — never replace it with a second session.
       let todaySessionQuery = db.from('class_sessions')
         .select('*')
         .eq('class_id', selectedClass)
-        .eq('session_date', suggestion.session_date);
+        .eq('session_date', suggestion.session_date)
+        .order('start_time');
       if (selectedClassTermId) todaySessionQuery = todaySessionQuery.eq('term_id', selectedClassTermId);
-      const { data: existing, error: lookupError } = await todaySessionQuery.maybeSingle();
+      const { data: existingRows, error: lookupError } = await todaySessionQuery;
       if (lookupError) {
         throw new Error(lookupError.message || 'Today\'s session could not be prepared.');
       }
 
+      const existing = pickTimetableSessionForMeeting(
+        existingRows ?? [],
+        Number.isFinite(teachingSessionFromQuery) && teachingSessionFromQuery > 0
+          ? Math.floor(teachingSessionFromQuery)
+          : 1,
+        suggestion.session_date,
+      ) ?? (existingRows ?? [])[0];
+
       if (existing) {
         setSelectedSession(existing.id);
-        setPageMessage({ type: 'info', text: 'Today\'s session is ready.' });
+        setPageMessage({ type: 'info', text: 'Today\'s Rillcod timetable period is ready.' });
       } else {
         // Create via API (bypasses RLS)
         const res = await fetch('/api/class-sessions', {
@@ -572,7 +614,7 @@ function AttendanceContent() {
             class_id: selectedClass,
             term_id: selectedClassTermId,
             session_date: suggestion.session_date,
-            topic: `Session on ${new Date().toLocaleDateString()}`,
+            topic: sessionTopic,
             start_time: suggestion.start_time,
             end_time: suggestion.end_time,
           }),

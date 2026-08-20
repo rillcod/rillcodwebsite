@@ -1,17 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  assetStampedMeetingSession,
+  assetMeetingSession,
+  canonicalMeetingSession,
   normalizeMeetingSession,
+  teachingMeetingLabel,
   type SessionBearing,
 } from "@/lib/academic/session-identity";
 
 /**
  * One release path for prepared teaching — Regular School and Special Programme.
- *
- * School: assets have no class-meeting stamp → release the whole calendar week.
- * Special (1 class/week): may stamp session:1 → we infer that single meeting when
- * the caller omits session, so "Release week" keeps working.
- * Special (2+ classes/week): pass `session` so Class 1 never activates Class 2.
+ * Every release names a class meeting. School weeks are Class 1.
  */
 export type WeekReleaseResult = {
   planId: string;
@@ -29,59 +27,36 @@ export type WeekReleaseResult = {
 
 type SessionRow = SessionBearing;
 
-/** @deprecated Prefer assetStampedMeetingSession for release — kept as alias. */
-export function releaseAssetSession(row: SessionRow): number {
-  return assetStampedMeetingSession(row);
-}
-
-/** @deprecated Prefer normalizeMeetingSession. */
-export function normalizeReleaseSession(
-  session: number | null | undefined,
-): number | null {
-  return normalizeMeetingSession(session);
-}
-
 /**
  * Resolve which class meeting this release targets.
  *
  * Explicit session always wins. Otherwise:
- * - no stamped sessions → school week (null = all unscoped rows)
- * - exactly one stamped session → that meeting (1-class special programmes)
- * - two or more → null (caller must pass session; never guess)
+ * - every held row is the same meeting → that meeting (school weeks are Class 1)
+ * - two or more meetings → null (caller must pass session; never guess)
  */
 export function resolveEffectiveReleaseSession(
   heldRows: SessionRow[],
-  requested: number | null | undefined,
+  requested: number | null | undefined
 ): number | null {
-  const explicit = normalizeReleaseSession(requested);
+  const explicit = normalizeMeetingSession(requested);
   if (explicit != null) return explicit;
 
   const sessions = new Set<number>();
   for (const row of heldRows) {
-    const s = assetStampedMeetingSession(row);
-    if (s > 0) sessions.add(s);
+    sessions.add(assetMeetingSession(row));
   }
-  if (sessions.size === 1) return [...sessions][0] ?? null;
-  return null;
+  if (sessions.size >= 2) return null;
+  return [...sessions][0] ?? 1;
 }
 
-/**
- * Decide if a held row belongs to this release.
- *
- * - Explicit / inferred session: that meeting only (unscoped ≡ session 1).
- * - No session (school week): every held row — titles with "Session N" are ignored.
- */
+/** A held row belongs to this release only when its meeting matches. */
 export function matchesReleaseSession(
   row: SessionRow,
-  session: number | null | undefined,
+  session: number | null | undefined
 ): boolean {
-  const got = assetStampedMeetingSession(row);
   const want = normalizeMeetingSession(session);
-  if (want != null) {
-    if (got < 1) return want === 1;
-    return got === want;
-  }
-  return true;
+  if (want == null) return false;
+  return assetMeetingSession(row) === want;
 }
 
 export async function releasePreparedWeek(input: {
@@ -127,9 +102,11 @@ export async function releasePreparedWeek(input: {
         .eq("is_public", false),
     ]);
 
-  if (lessonSelectError) return empty(normalizeReleaseSession(input.session), lessonSelectError.message);
+  if (lessonSelectError) {
+    return empty(normalizeMeetingSession(input.session), lessonSelectError.message);
+  }
   if (assignmentSelectError) {
-    return empty(normalizeReleaseSession(input.session), assignmentSelectError.message);
+    return empty(normalizeMeetingSession(input.session), assignmentSelectError.message);
   }
 
   const heldDecks = (decksRes?.data ?? []) as Array<{
@@ -140,7 +117,7 @@ export async function releasePreparedWeek(input: {
   }>;
   const deckSelectError = decksRes?.error as { message: string } | null;
   if (deckSelectError) {
-    return empty(normalizeReleaseSession(input.session), deckSelectError.message);
+    return empty(normalizeMeetingSession(input.session), deckSelectError.message);
   }
 
   const probeRows: SessionRow[] = [
@@ -162,22 +139,16 @@ export async function releasePreparedWeek(input: {
 
   const session = resolveEffectiveReleaseSession(probeRows, input.session);
 
-  // Two or more metadata-stamped meetings and no explicit session: the caller
-  // must pick a class meeting instead of releasing nothing or a random subset.
-  if (session == null && normalizeReleaseSession(input.session) == null) {
+  if (session == null) {
     const stamped = [
-      ...new Set(
-        probeRows.map((row) => assetStampedMeetingSession(row)).filter((s) => s > 0),
-      ),
+      ...new Set(probeRows.map((row) => assetMeetingSession(row))),
     ].sort((a, b) => a - b);
-    if (stamped.length >= 2) {
-      return {
-        ...empty(null),
-        needs_session: true,
-        available_sessions: stamped,
-        error: `Week ${week} has ${stamped.length} class meetings held for review. Choose which class meeting to release (Class ${stamped.join(', Class ')}).`,
-      };
-    }
+    return {
+      ...empty(null),
+      needs_session: true,
+      available_sessions: stamped,
+      error: `${teachingMeetingLabel(week)} has ${stamped.length} class meetings held for review. Choose which class meeting to release (Class ${stamped.join(", Class ")}).`,
+    };
   }
 
   const { data: released, error: releaseError } = await (db as any).rpc(
@@ -185,7 +156,7 @@ export async function releasePreparedWeek(input: {
     {
       p_lesson_plan_id: planId,
       p_week_number: week,
-      p_session_number: session,
+      p_session_number: canonicalMeetingSession(session),
       p_released_at: now,
     }
   );
@@ -201,9 +172,6 @@ export async function releasePreparedWeek(input: {
     ? payload.assignment_ids.filter(Boolean)
     : [];
 
-  // Notifications are side effects after the visibility transaction commits.
-  // A provider outage cannot roll learner visibility back or leave a half-live
-  // package; the normal notification retry path can recover separately.
   if (assignmentIds.length > 0) {
     const { triggerAssignmentReleaseNotifications } = await import(
       "@/lib/assignments/notifications"

@@ -22,6 +22,8 @@ export type WeekPackageAsset = (typeof WEEK_PACKAGE_ASSETS)[number];
 
 export type WeekLinkedAsset = {
   curriculum_week_number?: unknown;
+  session?: unknown;
+  session_number?: unknown;
   metadata?: Record<string, unknown> | null;
   title?: string | null;
 };
@@ -72,7 +74,7 @@ export function indexFirstByWeekSession<T extends WeekLinkedAsset>(
     const week = academicWeekNumber(row);
     if (week === null) continue;
     const session = assetMeetingSession(row);
-    const key = meetingLookupKey(week, session > 0 ? session : null);
+    const key = meetingLookupKey(week, session);
     if (!index.has(key)) index.set(key, row);
   }
   return index;

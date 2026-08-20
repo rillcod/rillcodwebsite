@@ -21,6 +21,15 @@ import {
   describeAutoGenerateSettings,
   parseAutoGenerateSettings,
 } from "@/lib/academic/auto-generate-settings";
+import {
+  schoolCalendarDate,
+  schoolWeekRange,
+} from "@/lib/timetable/sessions-from-slots";
+import {
+  defaultCompulsoryTermActivities,
+  expandPlanWeeksForMeetings,
+  policyFromClassSchool,
+} from "@/lib/academic/school-programme-standing";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +53,7 @@ async function scope(db: any, id: string, user: Actor) {
   const { data: klass } = await db
     .from("classes")
     .select(
-      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offerings(id,title,enrollment_type,pathway,programme_id),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name)"
+      "id,name,school_id,teacher_id,program_id,term_id,current_course_id,academic_offering_id,offering_period_id,academic_terms(id,academic_year,term_number,term_label,start_date,end_date),academic_offerings(id,title,enrollment_type,pathway,programme_id),academic_offering_periods(id,label,sequence_number,starts_on,ends_on),schools(name,programme_standing,sessions_per_week)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -126,7 +135,6 @@ export async function GET(
   // not, and "Evaluation" always reopened the create form.
   let exams: any[] = [];
   let deliveries: any[] = [];
-  let trackingRows: any[] = [];
   let progress: any = null;
   let direction: any = null;
 
@@ -165,37 +173,32 @@ export async function GET(
       pinnedReleaseId: plan?.curriculum_release_id,
     });
     if (plan) {
-      const [lessonResult, deliveryResult, progressResult, trackingResult] =
+      const [lessonResult, deliveryResult, progressResult] =
         await Promise.all([
-        db
-          .from("lessons")
-          .select(
-            "id,title,description,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id,customized_at"
-          )
-          .or(
-            `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`
-          )
-          .order("curriculum_week_number")
-          .order("order_index"),
-        db
-          .from("class_lesson_delivery")
-          .select("*")
-          .eq("lesson_plan_id", plan.id)
-          .order("week_number"),
-        db
-          .from("class_term_teaching_progress")
-          .select("*")
-          .eq("lesson_plan_id", plan.id)
-          .maybeSingle(),
-        db
-          .from("curriculum_week_tracking")
-          .select("status")
-          .eq("lesson_plan_id", plan.id),
-      ]);
+          db
+            .from("lessons")
+            .select(
+              "id,title,description,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id,customized_at"
+            )
+            .or(
+              `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`
+            )
+            .order("curriculum_week_number")
+            .order("order_index"),
+          db
+            .from("class_lesson_delivery")
+            .select("*")
+            .eq("lesson_plan_id", plan.id)
+            .order("week_number"),
+          db
+            .from("class_term_teaching_progress")
+            .select("*")
+            .eq("lesson_plan_id", plan.id)
+            .maybeSingle(),
+        ]);
       lessons = lessonResult.data || [];
       deliveries = deliveryResult.data || [];
       progress = progressResult.data;
-      trackingRows = trackingResult.data || [];
       const lessonIds = lessons.map((lesson: any) => lesson.id).filter(Boolean);
       const planOrLessonScope = [
         `lesson_plan_id.eq.${plan.id}`,
@@ -297,12 +300,23 @@ export async function GET(
           title: direction.title,
         },
       ]
+          : [];
+  const schoolPolicy = policyFromClassSchool(
+    klass.schools,
+    plan?.sessions_per_week
+  );
+  const termActivities = schoolPolicy.usesHostEvaluation
+    ? defaultCompulsoryTermActivities(
+        klass.academic_terms?.start_date,
+        klass.academic_terms?.end_date
+      )
     : [];
   const weekRows = plan
     ? buildTeachingWeekRows({
-        planWeeks: Array.isArray(plan.plan_data?.weeks)
-          ? plan.plan_data.weeks
-          : [],
+        planWeeks: expandPlanWeeksForMeetings(
+          Array.isArray(plan.plan_data?.weeks) ? plan.plan_data.weeks : [],
+          schoolPolicy.sessionsPerWeek
+        ),
         lessons,
         assignments,
         projects,
@@ -310,9 +324,25 @@ export async function GET(
         flashcardDecks,
         exams,
         deliveries,
+        standing: schoolPolicy.standing,
+        usesHostEvaluation: schoolPolicy.usesHostEvaluation,
+        termStart: klass.academic_terms?.start_date ?? null,
+        activities: termActivities,
       })
     : [];
-  const coverage = classCoverageFromRows(deliveries, trackingRows);
+  const coverage = classCoverageFromRows(deliveries);
+  const today = schoolCalendarDate();
+  const week = schoolWeekRange(today);
+  let timetableSessionsQuery = db
+    .from("class_sessions")
+    .select("id,session_date,start_time,end_time,title,topic,location")
+    .eq("class_id", id)
+    .gte("session_date", week.start)
+    .lte("session_date", week.end)
+    .order("session_date")
+    .order("start_time");
+  if (hasTerm) timetableSessionsQuery = timetableSessionsQuery.eq("term_id", klass.term_id);
+  const { data: timetableSessions } = await timetableSessionsQuery;
   const planStage: StageStatus | null = !courseId
     ? null
     : !direction
@@ -377,6 +407,9 @@ export async function GET(
       week_rows: weekRows,
       plan_stage: planStage,
       coverage,
+      timetable_sessions: timetableSessions ?? [],
+      programme_policy: schoolPolicy,
+      term_activities: termActivities,
       auto_generate: autoGenerate,
       prep_policy: describeAutoGenerateSettings(autoGenerate),
     },
@@ -548,6 +581,10 @@ export async function POST(
         { status: 409 }
       );
     }
+    const schoolPolicy = policyFromClassSchool(
+      klass.schools,
+      body.sessions_per_week
+    );
     const schedule = (await resolveOfficialDeliverySchedule(db, {
       schoolId: klass.school_id,
       classId: id,
@@ -562,8 +599,9 @@ export async function POST(
       curriculum_year_number: 1,
       curriculum_term_number: 1,
       curriculum_week_number: 1,
-      sessions_per_week: 1,
+      sessions_per_week: schoolPolicy.sessionsPerWeek,
     };
+    const sessionsPerWeek = schoolPolicy.sessionsPerWeek;
     const { data, error } = await db.rpc("ensure_class_teaching_plan", {
       p_class_id: id,
       p_course_id: courseId,
@@ -571,10 +609,7 @@ export async function POST(
       p_actor_id: user.id,
       p_academic_term_id: hasTerm ? klass.term_id : null,
       p_offering_period_id: hasTerm ? null : klass.offering_period_id,
-      p_sessions_per_week:
-        Number(body.sessions_per_week) ||
-        Number(schedule.sessions_per_week) ||
-        1,
+      p_sessions_per_week: sessionsPerWeek,
     });
     if (error)
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -600,13 +635,16 @@ export async function POST(
       ? klass.academic_terms.academic_year
       : direction.academic_session;
     const weeks = !alreadyHasWeeks
-      ? mapOfficialCurriculumToCalendarWeeks({
-          content: direction.content,
-          directionAcademicSession: direction.academic_session,
-          currentAcademicSession: currentSession,
-          calendarTerm,
-          schedule,
-        })
+      ? expandPlanWeeksForMeetings(
+          mapOfficialCurriculumToCalendarWeeks({
+            content: direction.content,
+            directionAcademicSession: direction.academic_session,
+            currentAcademicSession: currentSession,
+            calendarTerm,
+            schedule,
+          }),
+          sessionsPerWeek
+        )
       : null;
     await db
       .from("lesson_plans")
@@ -666,7 +704,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const session = parseRequestSession(body as Record<string, unknown>);
+    const session = parseRequestSession(body as Record<string, unknown>) ?? 1;
     const { data, error } = await db.rpc("record_class_lesson_delivery", {
       p_lesson_plan_id: body.lesson_plan_id,
       p_week_number: week,
@@ -675,7 +713,7 @@ export async function POST(
       p_actor_id: user.id,
       p_notes: body.notes || null,
       p_class_session_id: body.class_session_id || null,
-      p_session_number: session ?? 1,
+      p_session_number: session,
     });
     if (error)
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -706,7 +744,7 @@ export async function POST(
         : "delivered";
     const results: Array<{
       week: number;
-      session: number | null;
+      session: number;
       data?: unknown;
       error?: string;
     }> = [];
@@ -719,7 +757,7 @@ export async function POST(
         p_actor_id: user.id,
         p_notes: body.notes || null,
         p_class_session_id: null,
-        p_session_number: target.session ?? 1,
+        p_session_number: target.session,
       });
       results.push({
         week: target.week,
@@ -826,7 +864,7 @@ export async function POST(
     const results: Array<Awaited<ReturnType<typeof releasePreparedWeek>>> = [];
     const failures: Array<{
       week: number;
-      session: number | null;
+      session: number;
       error: string;
       available_sessions?: number[];
     }> = [];
@@ -890,7 +928,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const session = parseRequestSession(body as Record<string, unknown>);
+    const session = parseRequestSession(body as Record<string, unknown>) ?? 1;
     const { data: planMeta } = await db
       .from("lesson_plans")
       .select("metadata")

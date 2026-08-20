@@ -77,6 +77,7 @@ describe("relinkTeachingWeekAssets", () => {
       filters: [
         ["eq", "lesson_plan_id", "plan-1"],
         ["eq", "curriculum_week_number", 3],
+        ["eq", "session_number", 1],
         ["is", "lesson_id", null],
       ],
     });

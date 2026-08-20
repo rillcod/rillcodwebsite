@@ -92,9 +92,16 @@ export async function PATCH(
   // Default: update school row fields (status, name, contact, etc.)
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
   const allowed = ['name', 'status', 'school_type', 'contact_person', 'address', 'lga', 'city',
-    'state', 'phone', 'email', 'student_count', 'program_interest', 'enrollment_types', 'is_active'];
+    'state', 'phone', 'email', 'student_count', 'program_interest', 'enrollment_types', 'is_active',
+    'programme_standing', 'sessions_per_week'];
   for (const key of allowed) {
     if (rest[key] !== undefined) update[key] = rest[key];
+  }
+  if (update.programme_standing !== undefined) {
+    update.programme_standing = update.programme_standing === 'compulsory' ? 'compulsory' : 'optional';
+  }
+  if (update.sessions_per_week !== undefined) {
+    update.sessions_per_week = Number(update.sessions_per_week) === 1 ? 1 : 2;
   }
 
   const { data, error } = await adminClient()

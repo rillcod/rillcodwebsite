@@ -110,6 +110,21 @@ describe("teaching workspace week rows", () => {
     expect(row.evaluationStatus).toBe("held");
     expect(row.recommendedAction).toBe("review_assessment");
   });
+
+  it("does not queue Rillcod CBT when the host school already examines", () => {
+    const [row] = buildTeachingWeekRows({
+      planWeeks: [{ week: 1, topic: "Ready week" }],
+      lessons: [{ id: "l", curriculum_week_number: 1, status: "active" }],
+      assignments: [{ curriculum_week_number: 1, is_active: true }],
+      projects: [{ curriculum_week_number: 1, is_active: true }],
+      slideDecks: [{ curriculum_week_number: 1 }],
+      flashcardDecks: [{ curriculum_week_number: 1, is_public: true }],
+      exams: [{ curriculum_week_number: 1, is_active: false }],
+      deliveries: [{ week_number: 1, status: "delivered" }],
+      usesHostEvaluation: true,
+    });
+    expect(row.recommendedAction).toBe("none");
+  });
 });
 
 describe("parseTeachingTargets", () => {
@@ -127,11 +142,13 @@ describe("parseTeachingTargets", () => {
     ]);
   });
 
-  it("accepts the older week_numbers list as unscoped meetings", () => {
-    expect(parseTeachingTargets({ week_numbers: [2, 2, 3] })).toEqual([
-      { week: 2, session: null },
-      { week: 3, session: null },
-    ]);
+  it("defaults omitted session to Class 1 and ignores week_numbers", () => {
+    expect(parseTeachingTargets({ week_numbers: [2, 2, 3] })).toEqual([]);
+    expect(
+      parseTeachingTargets({
+        targets: [{ week_number: 4 }],
+      })
+    ).toEqual([{ week: 4, session: 1 }]);
   });
 
   it("drops unusable weeks", () => {
@@ -139,6 +156,6 @@ describe("parseTeachingTargets", () => {
       parseTeachingTargets({
         targets: [{ week_number: 0 }, { week_number: 99 }, { week_number: 4 }],
       })
-    ).toEqual([{ week: 4, session: null }]);
+    ).toEqual([{ week: 4, session: 1 }]);
   });
 });
