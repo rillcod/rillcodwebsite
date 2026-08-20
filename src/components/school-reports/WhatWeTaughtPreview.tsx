@@ -84,6 +84,11 @@ export function WhatWeTaughtPreview({
       ) : null}
 
       <div className={embedded ? 'space-y-3' : 'space-y-4 p-3 sm:p-4'}>
+        {presentation.disclaimer ? (
+          <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-950 dark:text-amber-100">
+            {presentation.disclaimer}
+          </p>
+        ) : null}
         <p className={`leading-relaxed text-foreground break-words ${embedded ? 'text-sm' : 'text-sm'}`}>
           {presentation.intro}
         </p>
@@ -137,6 +142,10 @@ export function WhatWeTaughtPreview({
               </article>
             ))}
           </div>
+        ) : null}
+
+        {presentation.pacingLine ? (
+          <p className="text-[11px] leading-relaxed text-muted-foreground italic">{presentation.pacingLine}</p>
         ) : null}
 
         {presentation.closing ? (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowPathIcon, SparklesIcon } from '@/lib/icons';
 import { DeliveryTopicsPicker } from '@/components/school-reports/DeliveryTopicsPicker';
 import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
@@ -75,6 +75,14 @@ export function TopicsDeliveryPanel({
   const hasStructuredMirror =
     Boolean(topicsValue.trim()) && !leadershipNarrative && Boolean(previewPresentation?.sections?.length);
 
+  const handleLivePreviewChange = useCallback(
+    (presentation: TopicsCoveredPresentation | null) => {
+      setLivePreview(presentation);
+      onLiveTopicsPresentationChange?.(presentation);
+    },
+    [onLiveTopicsPresentationChange],
+  );
+
   return (
     <div className="mb-4 space-y-3">
       {autoApplied ? (
@@ -99,10 +107,7 @@ export function TopicsDeliveryPanel({
         lockVersion={lockVersion}
         schoolName={snapshot.school?.name}
         termLabel={snapshot.period?.termLabel}
-        onLivePreviewChange={(presentation) => {
-          setLivePreview(presentation);
-          onLiveTopicsPresentationChange?.(presentation);
-        }}
+        onLivePreviewChange={handleLivePreviewChange}
         onApplied={(topicsCovered) => {
           if (topicsCovered.trim()) onInsertDraft(topicsCovered);
           void onDeliveryApplied();

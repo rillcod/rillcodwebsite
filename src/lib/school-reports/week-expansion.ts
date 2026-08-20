@@ -1,4 +1,8 @@
 import { geminiGenerateText } from '@/lib/gemini/client';
+import {
+  buildProgressiveExpansionContext,
+  progressiveCurriculumSystemRules,
+} from './progressive-curriculum-prompt';
 import { syntheticWeekTopicLabel } from './topics-covered-presentation';
 
 /**
@@ -127,17 +131,9 @@ export function normaliseExpansion(
 
 function buildSystemPrompt(weekCount: number): string {
   return [
-    'You plan week-by-week delivery for a STEM and computer-science provider working with Nigerian schools.',
-    'You produce a teaching plan a Head of School would recognise as real: concrete, sequential, and specific to the named course.',
-    'Rules:',
-    `- Return EXACTLY ${weekCount} objects, one for every week number in weeksToPlan. Do not skip any. Do not add any.`,
-    '- Topics must be specific to the course. Never emit generic filler such as "Core concepts & guided practice" or "Week N Lab".',
-    '- Build a sensible progression: foundations first, then application, then consolidation.',
-    '- When existing covered topics are supplied, continue and deepen that sequence — do not restate it verbatim.',
-    '- Mark roughly every fourth week as an assessment week.',
-    '- Objectives: AT MOST 2 per week, each under 12 words. Brevity matters more than detail.',
-    '- Use plain English suitable for Nigerian school leadership. No marketing language.',
-    'Return JSON: { "weeks": [ { "week": number, "topic": string, "weekType": "lesson" | "assessment", "objectives": string[] } ] }',
+    'You plan week-by-week delivery for Rillcod Technologies — a STEM and computer-science provider working with Nigerian partner schools.',
+    'You produce a teaching plan a Head of School would recognise as real: concrete, sequential, progressive, and specific to the named course.',
+    ...progressiveCurriculumSystemRules(weekCount),
   ].join('\n');
 }
 
@@ -158,22 +154,18 @@ async function requestWeeks(
         .map((row) => ({ week: row.week, topic: row.topic }))
     : undefined;
 
-  const userPrompt = JSON.stringify({
-    course: input.courseTitle,
-    programme: input.programme,
-    school: input.schoolName ?? null,
-    term: input.termLabel ?? `Term ${input.termNumber}`,
-    termNumber: input.termNumber,
-    weeksToPlan: weekNumbers,
-    weekCount: weekNumbers.length,
-    topicsAlreadyCovered: reached,
-    ...(surroundingWeeks
-      ? {
-          alreadyPlannedThisTerm: surroundingWeeks,
-          instruction: 'Fill ONLY the weeks in weeksToPlan. They must fit sequentially between the alreadyPlannedThisTerm weeks around them, and must not repeat those topics.',
-        }
-      : {}),
-  });
+  const userPrompt = JSON.stringify(
+    buildProgressiveExpansionContext({
+      courseTitle: input.courseTitle,
+      programme: input.programme,
+      schoolName: input.schoolName,
+      termLabel: input.termLabel,
+      termNumber: input.termNumber,
+      weekNumbers,
+      reachedTopics: reached,
+      alreadyPlanned: surroundingWeeks,
+    }),
+  );
 
   const result = await geminiGenerateText(buildSystemPrompt(weekNumbers.length), userPrompt, true);
   if (!result?.text) return { byWeek: new Map(), model: null };

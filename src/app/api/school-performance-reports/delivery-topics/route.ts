@@ -5,6 +5,7 @@ import { selectTopicKeysFromTracking } from '@/lib/school-reports/delivery-autom
 import {
   loadDeliveryTopicCatalogForReport,
   reportingWeekCount,
+  resolveDeliveryTermNumber,
   type DeliveryCheckpoint,
 } from '@/lib/school-reports/delivery-declaration';
 import { isSchoolReportUuid } from '@/lib/school-reports/ids';
@@ -90,8 +91,10 @@ export async function GET(req: NextRequest) {
       ? await actor.admin.from('academic_terms').select('term_number').eq('id', row.academic_term_id).maybeSingle()
       : { data: null };
 
-    const academicTermNumber = Number(
-      row.curriculum_start_term || academicTerm?.term_number || row.snapshot?.period?.academicTermNumber || 1,
+    const academicTermNumber = resolveDeliveryTermNumber(
+      row.curriculum_start_term,
+      academicTerm?.term_number,
+      row.snapshot?.period?.academicTermNumber,
     );
     const range = {
       startTerm: row.curriculum_start_term,
@@ -164,7 +167,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Academic term not found.' }, { status: 404 });
   }
 
-  const academicTermNumber = Number(academicTerm.term_number || startTerm);
+  const academicTermNumber = resolveDeliveryTermNumber(startTerm, academicTerm.term_number);
   const range = { startTerm, startWeek, endTerm, endWeek };
   const studentRows = await loadStudentRows(actor.admin, setupSchoolId);
 

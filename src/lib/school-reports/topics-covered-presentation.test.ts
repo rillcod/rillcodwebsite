@@ -10,6 +10,7 @@ import {
   buildCelebrationWallPdfStack,
   buildProgrammeSpotlightPdfStack,
   cleanTopicTitle,
+  honestDeliveryDeclaration,
   syntheticWeekTopicLabel,
 } from './topics-covered-presentation';
 
@@ -51,6 +52,7 @@ describe('topics-covered-presentation', () => {
     });
 
     expect(presentation.sections).toHaveLength(2);
+    expect(presentation.pacingLine).toContain('progressively');
     expect(presentation.plainText).toContain('Young Innovators');
     expect(presentation.plainText).toContain('• Introduction to sprites');
     expect(presentation.plainText).toContain('Teen Developers');
@@ -60,6 +62,31 @@ describe('topics-covered-presentation', () => {
       termLabel: 'First Term 2025/2026',
       academicTermNumber: 1,
     })).toBe(presentation.plainText);
+  });
+
+  it('drops placeholder ticks from published presentation', () => {
+    const withPlaceholder = {
+      ...sampleDeclaration,
+      selectedTopics: [
+        ...sampleDeclaration.selectedTopics,
+        {
+          key: 'synthetic::x::1::1',
+          programme: 'Young Innovators',
+          course: 'Scratch',
+          topic: syntheticWeekTopicLabel('Scratch', 1),
+          weekNumber: 1,
+        },
+      ],
+    };
+    const honest = honestDeliveryDeclaration(withPlaceholder);
+    expect(honest?.selectedTopics).toHaveLength(3);
+    const presentation = buildTopicsCoveredPresentation(withPlaceholder, {
+      schoolName: 'Franej College',
+      termLabel: 'First Term 2025/2026',
+      academicTermNumber: 1,
+    });
+    expect(presentation.sections.flatMap((s) => s.courses).flatMap((c) => c.topics)).toHaveLength(3);
+    expect(presentation.plainText).not.toContain('Core concepts & guided practice');
   });
 
   it('builds a two-course evidence presentation without week numbering in client copy', () => {

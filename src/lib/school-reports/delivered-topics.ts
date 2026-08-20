@@ -8,6 +8,7 @@ import {
   buildTopicsCoveredPresentation,
   buildTopicsCoveredPresentationFromCourses,
   cleanTopicTitle,
+  honestDeliveryDeclaration,
   type TopicsCoveredPresentation,
 } from './topics-covered-presentation';
 import { countNoun, nounFor } from './wording';
@@ -267,18 +268,18 @@ export function buildTopicsCoveredDraft(
     | 'deliveryDeclaration'
   >,
 ): string {
-  const declaration = snapshot.deliveryDeclaration;
-  if (declaration?.selectedTopics?.length) {
-    const base = buildTopicsCoveredFromDeclaration(declaration, {
+  const honest = honestDeliveryDeclaration(snapshot.deliveryDeclaration);
+  if (honest?.selectedTopics.length) {
+    const base = buildTopicsCoveredFromDeclaration(honest, {
       schoolName: snapshot.school?.name || 'this school',
       termLabel: snapshot.period?.termLabel || 'this term',
       academicTermNumber: snapshot.period?.academicTermNumber || 1,
     });
     const evidenceTopics = buildEvidenceDeliveredTopics(snapshot);
-    const declarationTopics = mergeTopicsByCourseName(topicsFromDeclaration(declaration));
+    const declarationTopics = mergeTopicsByCourseName(topicsFromDeclaration(honest));
     const merged = mergeDeliveredTopicLists(declarationTopics, evidenceTopics);
     const declaredKeys = new Set(
-      declaration.selectedTopics.map((row) => programmeCourseKey(row.programme, row.course)),
+      honest.selectedTopics.map((row) => programmeCourseKey(row.programme, row.course)),
     );
     const evidenceOnly = merged.filter(
       (topic) =>
@@ -401,7 +402,7 @@ export function buildDeliveryContext(
 
 function topicsFromDeclaration(declaration: DeliveryDeclaration): DeliveredTopic[] {
   const byKey = new Map<string, DeliveredTopic>();
-  for (const row of declaration.selectedTopics) {
+  for (const row of honestDeliveryDeclaration(declaration)?.selectedTopics || []) {
     const key = programmeCourseKey(row.programme, row.course);
     const existing = byKey.get(key);
     if (existing) {
@@ -549,7 +550,7 @@ export function buildReportTopicsPresentation(
     | 'deliveryDeclaration'
   >,
 ): TopicsCoveredPresentation | null {
-  const declaration = snapshot.deliveryDeclaration;
+  const declaration = honestDeliveryDeclaration(snapshot.deliveryDeclaration);
   const presentationInput = {
     schoolName: snapshot.school?.name || 'School',
     termLabel: snapshot.period?.termLabel || 'this term',
@@ -623,7 +624,7 @@ export function buildDeliveredTopicsSummary(
     | 'deliveryDeclaration'
   >,
 ): DeliveredTopicsSummary {
-  const declaration = snapshot.deliveryDeclaration;
+  const declaration = honestDeliveryDeclaration(snapshot.deliveryDeclaration);
   const evidenceTopics = buildEvidenceDeliveredTopics(snapshot);
 
   if (declaration?.selectedTopics?.length) {

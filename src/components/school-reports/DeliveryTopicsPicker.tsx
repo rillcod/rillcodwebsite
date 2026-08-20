@@ -56,8 +56,11 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
   /** Outcome of the last generation — staff must know if they got placeholders. */
   const [genNotice, setGenNotice] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
   const [query, setQuery] = useState('');
+  const [selectedProgrammeFilter, setSelectedProgrammeFilter] = useState<string>('all');
   const hasCatalogRef = useRef(false);
   const loadAbortRef = useRef<AbortController | null>(null);
+  const onLivePreviewChangeRef = useRef(onLivePreviewChange);
+  onLivePreviewChangeRef.current = onLivePreviewChange;
 
   const loadCatalog = useCallback(async () => {
     setError('');
@@ -238,7 +241,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
       } else if (unresolved > 0) {
         setGenNotice({
           tone: 'warn',
-          text: `${ai} course${ai === 1 ? '' : 's'} now have tickable topics; ${unresolved} could not be expanded. No placeholder topics were added.`,
+          text: `${ai} course${ai === 1 ? '' : 's'} now have tickable topics; ${unresolved} could not be expanded yet. Tick what is ready, then tap Generate again for the rest.`,
         });
       } else {
         setGenNotice({
@@ -252,6 +255,11 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
       setGeneratingCurriculum(false);
     }
   }
+
+  const generateCurriculumOnSpotRef = useRef(generateCurriculumOnSpot);
+  generateCurriculumOnSpotRef.current = generateCurriculumOnSpot;
+
+  const selectedKeyList = useMemo(() => [...selected].sort().join('|'), [selected]);
 
   function selectAllVisible() {
     setSelected((prev) => {
@@ -275,8 +283,6 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
   // Search across topic, course and programme so a long checklist can be
   // narrowed instead of scrolled. Filtering only affects what is SHOWN — ticks
   // made earlier stay selected even when hidden by the current search.
-  const [selectedProgrammeFilter, setSelectedProgrammeFilter] = useState<string>('all');
-
   const programmeList = useMemo(() => {
     return Array.from(new Set(catalog.map((t) => t.programme).filter(Boolean)));
   }, [catalog]);
@@ -327,9 +333,10 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
   const filledWeekCount = activeSpanPreview.filter((row) => row.topics.length > 0).length;
 
   useEffect(() => {
-    if (!onLivePreviewChange) return;
+    const notify = onLivePreviewChangeRef.current;
+    if (!notify) return;
     if (!selected.size || !catalog.length) {
-      onLivePreviewChange(null);
+      notify(null);
       return;
     }
     const declaration = buildDeliveryDeclaration({
@@ -338,21 +345,21 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
       reportingWeeks,
       rangeStartWeek,
     });
-    onLivePreviewChange(
+    notify(
       buildTopicsCoveredPresentation(declaration, {
         schoolName: schoolName || 'School',
         termLabel: termLabel || 'this term',
         academicTermNumber,
+        disclaimer: 'Draft selection — apply to confirm delivery on this report.',
       }),
     );
   }, [
     academicTermNumber,
     catalog,
-    onLivePreviewChange,
     rangeStartWeek,
     reportingWeeks,
     schoolName,
-    selected,
+    selectedKeyList,
     termLabel,
   ]);
 
@@ -406,7 +413,7 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
             ))}
           </div>
           <p className="mt-2 text-[10px] opacity-90">
-            Tap &quot;Generate Programme Syllabus Topics&quot; below to generate structured weekly lesson plans tailored to these courses.
+            Topics come from the programme syllabus for this term. Generate a checklist if none exists yet, then tick only what was actually taught.
           </p>
         </div>
       ) : null}
@@ -544,7 +551,9 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
                 </div>
               ) : null}
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Click below to generate structured weekly lesson plans with learning objectives and review checkpoints.
+                {generatingCurriculum
+                  ? 'Building a syllabus checklist from enrolled courses — tick only what was taught when ready.'
+                  : 'Generate a syllabus checklist from enrolled courses, then tick what was actually taught this term.'}
               </p>
               <button
                 type="button"

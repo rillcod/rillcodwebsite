@@ -7,10 +7,13 @@ import {
 } from './delivery-declaration';
 import { resolveDeliveryCoursesForReport, type DeliveryCourseRef } from './school-curriculum-scope';
 import { isPlaceholderDeliveryLabel } from './topics-covered-presentation';
+import { PROGRESSIVE_12_YEAR_SUMMARY } from './progressive-curriculum-prompt';
 import type { SchoolReportSnapshot } from './types';
 import {
   expandCourseDeliveryWeeks,
+  type ExpandCourseWeeksInput,
   type ExpandedWeek,
+  type WeekExpansion,
 } from './week-expansion';
 
 type AnyClient = SupabaseClient<any>;
@@ -215,7 +218,7 @@ export function mergeGeneratedWeeksIntoContent(
     course_title: String(content.course_title || input.courseTitle),
     overview:
       String(content.overview || '').trim() ||
-      `Progressive STEM & Computer Science curriculum tailored for ${input.schoolName || 'partner school'} learners during ${input.termLabel || `Term ${input.termNumber}`}.`,
+      `${PROGRESSIVE_12_YEAR_SUMMARY} This ${input.programme} plan for ${input.courseTitle} at ${input.schoolName || 'partner school'} continues the ladder during ${input.termLabel || `Term ${input.termNumber}`} — each week is the next detailed step, never a repeat.`,
     generated_source: input.source,
     generated_model: input.model,
     generated_at: new Date().toISOString(),
@@ -239,6 +242,48 @@ async function loadStudentRows(admin: AnyClient, schoolId: string, existing?: Ge
 
 function courseLabel(course: DeliveryCourseRef): string {
   return `${course.programme} / ${course.title}`;
+}
+
+const CHUNKED_WEEK_BATCH = 4;
+
+function chunkWeekNumbers(weekNumbers: number[], size: number): number[][] {
+  const sorted = [...new Set(weekNumbers.filter((week) => Number.isFinite(week)))].sort((a, b) => a - b);
+  const chunks: number[][] = [];
+  for (let index = 0; index < sorted.length; index += size) {
+    chunks.push(sorted.slice(index, index + size));
+  }
+  return chunks;
+}
+
+/**
+ * Long report windows often fail in one model call. Try the full window first,
+ * then smaller batches, and keep any real AI weeks we do get.
+ */
+export async function expandCourseWeeksForDelivery(
+  input: ExpandCourseWeeksInput,
+): Promise<WeekExpansion> {
+  const direct = await expandCourseDeliveryWeeks(input);
+  if (direct.source === 'ai' && direct.weeks.length) return direct;
+  if (input.weekNumbers.length <= CHUNKED_WEEK_BATCH) return direct;
+
+  const byWeek = new Map<number, ExpandedWeek>();
+  let model = direct.model;
+
+  for (const chunk of chunkWeekNumbers(input.weekNumbers, CHUNKED_WEEK_BATCH)) {
+    const partial = await expandCourseDeliveryWeeks({ ...input, weekNumbers: chunk });
+    if (partial.source !== 'ai' || !partial.weeks.length) continue;
+    for (const week of partial.weeks) byWeek.set(week.week, week);
+    model = model ?? partial.model;
+  }
+
+  const weeks = input.weekNumbers.filter((week) => byWeek.has(week)).map((week) => byWeek.get(week)!);
+  if (!weeks.length) return direct;
+
+  return {
+    weeks,
+    source: 'ai',
+    model,
+  };
 }
 
 /**
@@ -312,7 +357,7 @@ export async function generateReportDeliveryCurriculum(
         .filter(Boolean),
     );
 
-    const expansion = await expandCourseDeliveryWeeks({
+    const expansion = await expandCourseWeeksForDelivery({
       courseTitle: course.title,
       programme: course.programme,
       schoolName: input.schoolName ?? null,

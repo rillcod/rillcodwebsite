@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
+import { resolveDeliveryTermNumber } from '@/lib/school-reports/delivery-declaration';
 import { generateReportDeliveryCurriculum } from '@/lib/school-reports/generate-on-spot';
 import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
@@ -40,18 +41,26 @@ export async function POST(req: NextRequest) {
       }
 
       const row = report as SchoolPerformanceReportRow;
+      const { data: academicTerm } = row.academic_term_id
+        ? await actor.admin.from('academic_terms').select('term_number').eq('id', row.academic_term_id).maybeSingle()
+        : { data: null };
       const range = {
-        startTerm: row.curriculum_start_term || row.snapshot?.period?.academicTermNumber || 1,
+        startTerm: row.curriculum_start_term || row.snapshot?.period?.curriculumStart?.term || row.snapshot?.period?.academicTermNumber || 1,
         startWeek: row.curriculum_start_week || row.snapshot?.period?.curriculumStart?.week || 1,
-        endTerm: row.curriculum_end_term || row.curriculum_start_term || 1,
+        endTerm: row.curriculum_end_term || row.curriculum_start_term || row.snapshot?.period?.curriculumEnd?.term || 1,
         endWeek: row.curriculum_end_week || row.snapshot?.period?.curriculumEnd?.week || 14,
       };
+      const termNumber = resolveDeliveryTermNumber(
+        row.curriculum_start_term,
+        academicTerm?.term_number,
+        row.snapshot?.period?.academicTermNumber,
+      );
       const result = await generateReportDeliveryCurriculum(actor.admin, {
         schoolId: row.school_id,
         createdBy: actor.user.id,
         schoolName: row.snapshot?.school?.name ?? null,
         termLabel: row.term_label ?? null,
-        termNumber: range.startTerm,
+        termNumber,
         range,
         snapshot: row.snapshot,
       });
@@ -90,7 +99,7 @@ export async function POST(req: NextRequest) {
       createdBy: actor.user.id,
       schoolName: school?.name ?? null,
       termLabel: academicTerm.term_label ?? null,
-      termNumber: Number(academicTerm.term_number || startTerm),
+      termNumber: resolveDeliveryTermNumber(startTerm, academicTerm.term_number),
       range: { startTerm, startWeek, endTerm, endWeek },
     });
     return NextResponse.json({ success: true, ...result });

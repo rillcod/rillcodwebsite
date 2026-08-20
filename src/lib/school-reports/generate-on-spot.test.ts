@@ -1,5 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+const expansionMocks = vi.hoisted(() => ({ expandCourseDeliveryWeeks: vi.fn() }));
+
+vi.mock('./week-expansion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./week-expansion')>();
+  return {
+    ...actual,
+    expandCourseDeliveryWeeks: expansionMocks.expandCourseDeliveryWeeks,
+  };
+});
+
 import {
+  expandCourseWeeksForDelivery,
   isPlaceholderWeekRecord,
   mergeGeneratedWeeksIntoContent,
   realWeekNumbersInTerm,
@@ -108,5 +120,58 @@ describe('mergeGeneratedWeeksIntoContent', () => {
     expect(weeks).toHaveLength(1);
     expect(weeks[0].topic).toBe('Variables and input');
     expect(weeks[0].source).toBe('ai');
+  });
+});
+
+describe('expandCourseWeeksForDelivery', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const input = {
+    courseTitle: 'Robotics',
+    programme: 'Young Innovators',
+    termNumber: 1,
+    weekNumbers: [1, 2, 3, 4, 5, 6, 7, 8],
+  };
+
+  it('returns a full-window AI plan when the first call succeeds', async () => {
+    expansionMocks.expandCourseDeliveryWeeks.mockResolvedValueOnce({
+      weeks: input.weekNumbers.map((week) => ({ week, topic: `Topic ${week}`, weekType: 'lesson', objectives: [] })),
+      source: 'ai',
+      model: 'gemini-test',
+    });
+    const result = await expandCourseWeeksForDelivery(input);
+    expect(result.source).toBe('ai');
+    expect(result.weeks).toHaveLength(8);
+    expect(expansionMocks.expandCourseDeliveryWeeks).toHaveBeenCalledTimes(1);
+  });
+
+  it('merges chunked AI weeks when the full-window call falls back to placeholder', async () => {
+    expansionMocks.expandCourseDeliveryWeeks
+      .mockResolvedValueOnce({ weeks: [], source: 'placeholder', model: null })
+      .mockResolvedValueOnce({
+        weeks: [
+          { week: 1, topic: 'A', weekType: 'lesson', objectives: [] },
+          { week: 2, topic: 'B', weekType: 'lesson', objectives: [] },
+          { week: 3, topic: 'C', weekType: 'lesson', objectives: [] },
+          { week: 4, topic: 'D', weekType: 'lesson', objectives: [] },
+        ],
+        source: 'ai',
+        model: 'gemini-test',
+      })
+      .mockResolvedValueOnce({
+        weeks: [
+          { week: 5, topic: 'E', weekType: 'lesson', objectives: [] },
+          { week: 6, topic: 'F', weekType: 'lesson', objectives: [] },
+          { week: 7, topic: 'G', weekType: 'lesson', objectives: [] },
+          { week: 8, topic: 'H', weekType: 'lesson', objectives: [] },
+        ],
+        source: 'ai',
+        model: 'gemini-test',
+      });
+
+    const result = await expandCourseWeeksForDelivery(input);
+    expect(result.source).toBe('ai');
+    expect(result.weeks.map((row) => row.week)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(expansionMocks.expandCourseDeliveryWeeks).toHaveBeenCalledTimes(3);
   });
 });

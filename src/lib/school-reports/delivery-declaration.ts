@@ -183,6 +183,19 @@ export function topicInReportRange(
   );
 }
 
+/** Align catalog load and on-spot generation on the same national term number. */
+export function resolveDeliveryTermNumber(
+  curriculumStartTerm: number | null | undefined,
+  academicTermNumber: number | null | undefined,
+  snapshotTermNumber: number | null | undefined = null,
+): number {
+  for (const candidate of [curriculumStartTerm, academicTermNumber, snapshotTermNumber]) {
+    const term = Number(candidate);
+    if (Number.isFinite(term) && term > 0) return term;
+  }
+  return 1;
+}
+
 function preferredTermNumbers(
   academicTermNumber: number,
   range: { startTerm: number; endTerm: number }

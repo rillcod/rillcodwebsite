@@ -10,6 +10,7 @@ import {
   normalizeReportingWeeks,
   reportWeekNumbers,
   reportingWeekCount,
+  resolveDeliveryTermNumber,
   spanTopicsAcrossWeeks,
   supplementDeliveryCatalogForMissingCourses,
   type DeliveryTopicOption,
@@ -24,6 +25,12 @@ const sampleCatalog: DeliveryTopicOption[] = [
 ];
 
 describe('delivery-declaration', () => {
+  it('resolves the same term number for catalog load and on-spot generation', () => {
+    expect(resolveDeliveryTermNumber(null, 2, 1)).toBe(2);
+    expect(resolveDeliveryTermNumber(3, 2, 1)).toBe(3);
+    expect(resolveDeliveryTermNumber(0, null, 0)).toBe(1);
+  });
+
   it('generates exactly the selected term weeks', () => {
     expect(reportWeekNumbers(3, 8)).toEqual([3, 4, 5, 6, 7, 8]);
   });

@@ -23,6 +23,8 @@ export type TopicsCoveredPresentation = {
   pacingLine?: string;
   closing?: string;
   plainText: string;
+  /** Shown in editor preview only — never on published PDF. */
+  disclaimer?: string;
 };
 
 export type CourseDeliveryPresentationInput = {
@@ -78,9 +80,10 @@ export function buildTopicsCoveredPresentationFromCourses(
     return { intro, sections: [], plainText: intro };
   }
 
-  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} this reporting period.`;
-  const plainText = formatPlainText({ intro, sections });
-  return { intro, sections, plainText };
+  const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners worked across ${courseCount} active course${courseCount === 1 ? '' : 's'} with teaching evidence on record this reporting period.`;
+  const pacingLine = PROGRESSIVE_PACING_LINE;
+  const plainText = formatPlainText({ intro, sections, pacingLine });
+  return { intro, sections, pacingLine, plainText };
 }
 
 type FlatCourseSection = {
@@ -264,6 +267,29 @@ export function isPlaceholderDeliveryLabel(topic: string, key?: string): boolean
   return SYNTHETIC_WEEK_FOCUS.some((focus) => stripped.toLowerCase() === focus.toLowerCase());
 }
 
+/** Strip placeholder ticks — they must never appear on a published school report. */
+export function filterRealDeliveryTopics<T extends { topic: string; key?: string }>(topics: T[]): T[] {
+  return topics.filter((row) => !isPlaceholderDeliveryLabel(row.topic, row.key));
+}
+
+/** Declaration safe for PDF, preview, and completeness — real curriculum topics only. */
+export function honestDeliveryDeclaration(
+  declaration: DeliveryDeclaration | null | undefined,
+): DeliveryDeclaration | null {
+  if (!declaration?.selectedTopics?.length) return null;
+  const selectedTopics = filterRealDeliveryTopics(declaration.selectedTopics);
+  if (!selectedTopics.length) return null;
+  const keys = new Set(selectedTopics.map((row) => row.key));
+  return {
+    ...declaration,
+    selectedTopics,
+    selectedTopicKeys: (declaration.selectedTopicKeys || []).filter((key) => keys.has(key)),
+  };
+}
+
+const PROGRESSIVE_PACING_LINE =
+  'Partner schools pace STEM progressively — the topics above reflect confirmed delivery this reporting period, not the full syllabus bank for every enrolled course.';
+
 /** Strip noisy prefixes and technical slugs so topic lines read cleanly in reports. */
 export function cleanTopicTitle(topic: string, course: string): string {
   let label = String(topic || '').trim();
@@ -294,7 +320,7 @@ function escapeRegExp(value: string): string {
 function groupDeclarationTopics(declaration: DeliveryDeclaration): TopicsCoveredProgrammeSection[] {
   const byProgramme = new Map<string, Map<string, Array<{ weekNumber: number; label: string }>>>();
 
-  for (const row of declaration.selectedTopics) {
+  for (const row of filterRealDeliveryTopics(declaration.selectedTopics)) {
     const programmes = byProgramme.get(row.programme) || new Map();
     const courses = programmes.get(row.course) || [];
     courses.push({
@@ -424,24 +450,26 @@ export function buildTopicsCoveredPresentation(
     schoolName: string;
     termLabel: string;
     academicTermNumber: number;
+    disclaimer?: string;
   },
 ): TopicsCoveredPresentation {
+  const honest = honestDeliveryDeclaration(declaration);
   const phase = schoolReportPhaseLabel(DEFAULT_SCHOOL_REPORT_POLICY, input.academicTermNumber);
-  const { selectedTopics, reportingWeeks } = declaration;
 
-  if (!selectedTopics.length) {
-    const intro = `Delivery topics for ${input.termLabel} at ${input.schoolName} will appear here once confirmed with the school.`;
-    return { intro, sections: [], plainText: intro };
+  if (!honest?.selectedTopics.length) {
+    const intro = `Delivery topics for ${input.termLabel} at ${input.schoolName} will appear here once staff confirm what was taught from the programme syllabus.`;
+    return { intro, sections: [], plainText: intro, disclaimer: input.disclaimer };
   }
 
-  const sections = groupDeclarationTopics(declaration);
+  const sections = groupDeclarationTopics(honest);
   const courseCount = sections.reduce((sum, section) => sum + section.courses.length, 0);
   const intro = `During ${input.termLabel} (${phase} phase), ${input.schoolName} learners engaged with focused module delivery across ${courseCount} course${courseCount === 1 ? '' : 's'} this reporting period.`;
 
-  const closing = buildDeclarativeCheckpointClosing(declaration.nextTermCheckpoint);
+  const closing = buildDeclarativeCheckpointClosing(honest.nextTermCheckpoint);
+  const pacingLine = PROGRESSIVE_PACING_LINE;
 
-  const plainText = formatPlainText({ intro, sections, closing });
-  return { intro, sections, closing, plainText };
+  const plainText = formatPlainText({ intro, sections, pacingLine, closing });
+  return { intro, sections, pacingLine, closing, plainText, disclaimer: input.disclaimer };
 }
 
 /** pdfmake stack for leadership narrative beneath structured delivery cards. */
@@ -564,6 +592,10 @@ export function buildTopicsCoveredPdfStack(
         margin: [0, 0, 0, 5] as [number, number, number, number],
       });
     }
+  }
+
+  if (presentation.pacingLine) {
+    body.push(buildCalloutPanel(presentation.pacingLine, 'muted', colors));
   }
 
   if (presentation.closing) {

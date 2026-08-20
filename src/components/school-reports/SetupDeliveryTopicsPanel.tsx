@@ -246,7 +246,7 @@ export function SetupDeliveryTopicsPanel({
       } else if (unresolved > 0) {
         setGenNotice({
           tone: 'warn',
-          text: `${ai} course${ai === 1 ? '' : 's'} now have tickable topics; ${unresolved} could not be expanded. No placeholder topics were added.`,
+          text: `${ai} course${ai === 1 ? '' : 's'} now have tickable topics; ${unresolved} could not be expanded yet. Tick what is ready, then tap Generate again for the rest.`,
         });
       } else {
         setGenNotice({
@@ -437,8 +437,9 @@ export function SetupDeliveryTopicsPanel({
       {!loading && !catalog.length && form.schoolId ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-[11px] leading-relaxed text-amber-950 dark:text-amber-100">
           <p>
-            No authored syllabus exists for this window. Generate programme topics here, then tick what was taught — they
-            pull through into the draft.
+            {generatingCurriculum
+              ? 'Preparing a syllabus checklist from enrolled courses — tick only what was taught when ready.'
+              : 'No syllabus checklist for this window yet. Generate programme topics, then tick what was actually taught — they pull through into the draft.'}
           </p>
           <button
             type="button"
