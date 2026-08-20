@@ -161,7 +161,7 @@ const OPS_SECTION_META: Record<string, { label: string; desc: string }> = {
   },
   "lms.ops.promotion": {
     label: "Promotion Rules",
-    desc: "What a student must achieve to move to the next level.",
+    desc: "Readiness gates and the default Young-to-Teen exit. School overrides live in Session promotion.",
   },
   "lms.ops.alerts": {
     label: "Attendance & Performance Alerts",

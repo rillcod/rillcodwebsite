@@ -2,15 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   activeSessionTrackIds,
   classEligibleForSessionTrack,
-  classEligibleForTeenGraduation,
-  isBasic56SectionBand,
+  isBasic5Or6SectionBand,
   isJssExitSectionBand,
   mergeTrackDue,
   resolveSessionTrack,
   SESSION_BULK_SMART_DEFAULTS,
   SESSION_PROMOTION_TRACKS,
   studentDueForSessionTrack,
-  studentDueForTeenGraduation,
 } from '@/lib/classes/promotion-due-intelligence';
 import { parseBandLabel } from '@/lib/classes/naming';
 import { YOUNG_PROGRAMME } from '@/lib/classes/programme-transition';
@@ -18,7 +16,7 @@ import { YOUNG_PROGRAMME } from '@/lib/classes/programme-transition';
 describe('promotion due intelligence', () => {
   it('Basic 4-6 class is not eligible for young_to_teen (Hilltop Basic 4 scenario)', () => {
     expect(
-      classEligibleForTeenGraduation({
+      classEligibleForSessionTrack('young_to_teen', {
         qa_grade_band: 'Basic 4-6',
         program_name: YOUNG_PROGRAMME,
         name: 'Hilltop · Young Innovators · Basic 4-6',
@@ -28,7 +26,7 @@ describe('promotion due intelligence', () => {
 
   it('Basic 6 class is eligible for young_to_teen', () => {
     expect(
-      classEligibleForTeenGraduation({
+      classEligibleForSessionTrack('young_to_teen', {
         qa_grade_key: 'Basic 6',
         program_name: YOUNG_PROGRAMME,
       }),
@@ -36,9 +34,9 @@ describe('promotion due intelligence', () => {
   });
 
   it('only Basic 6 learners are due for young_to_teen, not Basic 4 or 5', () => {
-    expect(studentDueForTeenGraduation({ grade: 'Basic 6' }, 'Basic 5-6')).toBe(true);
-    expect(studentDueForTeenGraduation({ grade: 'Basic 4' }, 'Basic 4-6')).toBe(false);
-    expect(studentDueForTeenGraduation({ grade: 'Basic 5' }, 'Basic 5-6')).toBe(false);
+    expect(studentDueForSessionTrack('young_to_teen', { grade: 'Basic 6' }, 'Basic 5-6')).toBe(true);
+    expect(studentDueForSessionTrack('young_to_teen', { grade: 'Basic 4' }, 'Basic 4-6')).toBe(false);
+    expect(studentDueForSessionTrack('young_to_teen', { grade: 'Basic 5' }, 'Basic 5-6')).toBe(false);
   });
 
   it('uses the school policy when Young exits at Basic 5', () => {
@@ -68,12 +66,12 @@ describe('promotion due intelligence', () => {
     expect(isJssExitSectionBand(parseBandLabel('JSS 1-2'))).toBe(false);
   });
 
-  it('isBasic56SectionBand rejects Basic 4-6', () => {
-    expect(isBasic56SectionBand(parseBandLabel('Basic 5-6'))).toBe(true);
-    expect(isBasic56SectionBand(parseBandLabel('Basic 4-6'))).toBe(false);
+  it('isBasic5Or6SectionBand rejects Basic 4-6', () => {
+    expect(isBasic5Or6SectionBand(parseBandLabel('Basic 5-6'))).toBe(true);
+    expect(isBasic5Or6SectionBand(parseBandLabel('Basic 4-6'))).toBe(false);
   });
 
-  it('mergeTrackDue hides menu when no learners due', () => {
+  it('keeps schools configurable while counting only due learners', () => {
     const snap = mergeTrackDue([
       {
         school_id: 's1',
@@ -95,7 +93,7 @@ describe('promotion due intelligence', () => {
     ]);
     expect(snap.show_menu).toBe(true);
     expect(snap.total_due).toBe(2);
-    expect(snap.schools).toHaveLength(1);
+    expect(snap.schools).toHaveLength(2);
   });
 
   it('session bulk defaults to placement-only (no within-level curriculum jump)', () => {

@@ -102,8 +102,11 @@ export function ClassPromotionPanel({
     }
     const intel = plan.intelligence;
     const sample = plan.moves.find((m) => !m.skipped);
+    const bridgeMove = plan.moves.find((m) => !m.skipped && m.programme_transition);
     const destLabel = sample?.destination_class_name ?? 'the next class';
-    const bridgeRoute = sample ? `${sample.from_grade} → ${sample.to_grade}` : 'programme transition';
+    const bridgeRoute = bridgeMove
+      ? `${bridgeMove.from_grade} → ${bridgeMove.to_grade}`
+      : 'programme transition';
     const bridgeNote = plan.has_programme_bridge
       ? `\n\n${plan.programme_transition_count} learner${plan.programme_transition_count === 1 ? '' : 's'} will graduate from Young Innovators to Teen Developers (${bridgeRoute}).`
       : '';

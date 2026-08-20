@@ -94,6 +94,15 @@ const DEFAULTS: Record<SettingsKey, Record<string, unknown>> = {
   },
 };
 
+function validatePromotionSettings(value: Record<string, unknown> | undefined): string | null {
+  if (!value) return null;
+  const validExit = (exit: unknown) => exit === 'Basic 5' || exit === 'Basic 6';
+  if (value.young_to_teen_exit_grade != null && !validExit(value.young_to_teen_exit_grade)) {
+    return 'Young-to-Teen exit grade must be Basic 5 or Basic 6.';
+  }
+  return null;
+}
+
 async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -143,6 +152,10 @@ export async function PUT(req: NextRequest) {
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const settings = (body.settings ?? {}) as Record<string, Record<string, unknown>>;
+  const promotionError = validatePromotionSettings(settings['lms.ops.promotion']);
+  if (promotionError) {
+    return NextResponse.json({ error: promotionError }, { status: 400 });
+  }
   const rows = SETTINGS_KEYS
     .filter((key) => typeof settings[key] === 'object' && settings[key] !== null)
     .map((key) => ({

@@ -131,9 +131,6 @@ export function isBasic5Or6SectionBand(band: CanonicalBand | null): boolean {
   return false;
 }
 
-/** @deprecated use isBasic5Or6SectionBand */
-export const isBasic56SectionBand = isBasic5Or6SectionBand;
-
 function isYoungBasic56Class(cls: {
   qa_grade_key?: string | null;
   qa_grade_band?: string | null;
@@ -238,17 +235,6 @@ export function mergeTrackDue(rows: SchoolPromotionDueRow[]): PromotionDueSnapsh
   return {
     show_menu: total_due > 0,
     total_due,
-    schools: rows.filter((s) => s.tracks.some((t) => t.due_count > 0)),
+    schools: rows,
   };
-}
-
-export function classEligibleForTeenGraduation(cls: Parameters<typeof classEligibleForSessionTrack>[1]): boolean {
-  return isYoungBasic56Class(cls);
-}
-
-export function studentDueForTeenGraduation(
-  student: { grade?: string | null },
-  classAnchor: string | null,
-): boolean {
-  return studentDueForSessionTrack('young_to_teen', student, classAnchor);
 }

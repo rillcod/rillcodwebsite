@@ -8,9 +8,11 @@ import {
 
 export type PromotionSettings = PromotionRules & {
   young_to_teen_exit_grade?: YoungToTeenExitGrade;
-  /** Per-school override keyed by schools.id. */
-  school_young_to_teen_exit_grade?: Record<string, YoungToTeenExitGrade>;
 };
+
+export function schoolPromotionSettingsKey(schoolId: string): string {
+  return `lms.ops.promotion.school.${schoolId}`;
+}
 
 export async function loadPromotionRules(db: SupabaseClient): Promise<PromotionSettings> {
   const { data, error } = await db
@@ -18,12 +20,53 @@ export async function loadPromotionRules(db: SupabaseClient): Promise<PromotionS
     .select('value')
     .eq('key', 'lms.ops.promotion')
     .maybeSingle();
-  if (error || !data?.value) return DEFAULT_PROMOTION_RULES;
+  if (error) throw new Error(`Could not load promotion settings: ${error.message}`);
+  if (!data?.value) return DEFAULT_PROMOTION_RULES;
+  let settings: PromotionSettings;
   try {
-    return { ...DEFAULT_PROMOTION_RULES, ...(JSON.parse(data.value) as PromotionSettings) };
+    settings = { ...DEFAULT_PROMOTION_RULES, ...(JSON.parse(data.value) as PromotionSettings) };
   } catch {
-    return DEFAULT_PROMOTION_RULES;
+    throw new Error('Promotion settings contain invalid JSON.');
   }
+  if (
+    settings.young_to_teen_exit_grade != null
+    && settings.young_to_teen_exit_grade !== 'Basic 5'
+    && settings.young_to_teen_exit_grade !== 'Basic 6'
+  ) {
+    throw new Error('Promotion settings have an invalid Young-to-Teen exit grade.');
+  }
+  return settings;
+}
+
+/** Merge one school's isolated override onto the global promotion rules. */
+export async function loadSchoolPromotionSettings(
+  db: SupabaseClient,
+  schoolId: string,
+  globalSettings?: PromotionSettings,
+): Promise<PromotionSettings> {
+  const global = globalSettings ?? await loadPromotionRules(db);
+  if (!schoolId) return global;
+  const { data, error } = await db
+    .from('app_settings')
+    .select('value')
+    .eq('key', schoolPromotionSettingsKey(schoolId))
+    .maybeSingle();
+  if (error) throw new Error(`Could not load this school's promotion policy: ${error.message}`);
+  if (!data?.value) return global;
+  let override: Partial<PromotionSettings>;
+  try {
+    override = JSON.parse(data.value) as Partial<PromotionSettings>;
+  } catch {
+    throw new Error('School promotion policy contains invalid JSON.');
+  }
+  if (
+    override.young_to_teen_exit_grade != null
+    && override.young_to_teen_exit_grade !== 'Basic 5'
+    && override.young_to_teen_exit_grade !== 'Basic 6'
+  ) {
+    throw new Error('School promotion policy has an invalid exit grade.');
+  }
+  return { ...global, ...override };
 }
 
 /** Latest published report score + live-term attendance per learner. */

@@ -69,4 +69,25 @@ describe('buildClassPromotionPlan', () => {
     expect(plan.moves.every((m) => m.destination_class_id === 'c2')).toBe(true);
     expect(plan.moves.every((m) => m.to_grade === 'Basic 2')).toBe(true);
   });
+
+  it('does not apply the Young exit shortcut to another programme', () => {
+    const plan = buildClassPromotionPlan({
+      sourceClass: {
+        id: 'web-b5',
+        name: 'Web Development Bootcamp · Basic 5',
+        school_id: 's1',
+        program_id: 'web',
+        qa_grade_key: 'Basic 5',
+      },
+      students: [{ id: 'u1', grade: 'Basic 5' }],
+      schoolClasses: [
+        { id: 'web-b5', school_id: 's1', program_id: 'web', qa_grade_key: 'Basic 5' },
+        { id: 'web-b6', school_id: 's1', program_id: 'web', qa_grade_key: 'Basic 6' },
+      ],
+      programName: 'Web Development Bootcamp',
+      youngToTeenExitGrade: 'Basic 5',
+    });
+    expect(plan.moves[0].to_grade).toBe('Basic 6');
+    expect(plan.moves[0].programme_transition).toBe(false);
+  });
 });

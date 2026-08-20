@@ -16,13 +16,16 @@ import {
   type IntelligentClassPromotionPlan,
   type SmartPromotionOptions,
 } from '@/lib/progression/enrich-class-promotion';
-import { loadPromotionEvidenceByStudent, loadPromotionRules } from '@/lib/progression/promotion-settings';
+import {
+  loadPromotionEvidenceByStudent,
+  loadSchoolPromotionSettings,
+  type PromotionSettings,
+} from '@/lib/progression/promotion-settings';
 import {
   ensureTeenProgrammeEnrollment,
   suspendProgrammeEnrollment,
 } from '@/lib/progression/enroll-teen-entry';
 import { resolveSchoolSessionPromotionPolicy } from '@/lib/classes/session-promotion-policy';
-import type { PromotionSettings } from '@/lib/progression/promotion-settings';
 
 export type PromotionContext = {
   sourceClass: PromotionClassRow;
@@ -145,11 +148,16 @@ export async function loadPromotionContext(
     admin,
     [sourceClass.program_id, ...(schoolClasses ?? []).map((c: { program_id?: string | null }) => c.program_id)],
   );
-  const promotionSettings = preloadedSettings ?? await loadPromotionRules(admin);
-  const sessionPolicy = resolveSchoolSessionPromotionPolicy(
-    promotionSettings,
-    sourceClass.school_id ?? '',
-  );
+  let promotionSettings: PromotionSettings;
+  try {
+    promotionSettings = preloadedSettings ?? await loadSchoolPromotionSettings(
+      admin,
+      sourceClass.school_id ?? '',
+    );
+  } catch {
+    return { error: 'Promotion policy is unavailable. No learner was moved.' };
+  }
+  const sessionPolicy = resolveSchoolSessionPromotionPolicy(promotionSettings);
 
   return {
     sourceClass: sourceClass as PromotionClassRow,

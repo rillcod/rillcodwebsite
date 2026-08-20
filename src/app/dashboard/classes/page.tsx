@@ -207,7 +207,7 @@ export default function ClassesPage() {
                     <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
                     Transfer
                   </Link>
-                  {showGraduationTool && (
+                  {(profile?.role === 'admin' || profile?.role === 'school') && (
                     <button
                       type="button"
                       onClick={() => {
@@ -217,7 +217,9 @@ export default function ClassesPage() {
                       className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
                     >
                       <AcademicCapIcon className="h-4 w-4 text-muted-foreground" />
-                      Session promotion ({promotionDue?.total_due ?? 0})
+                      {showGraduationTool
+                        ? `Session promotion (${promotionDue?.total_due ?? 0})`
+                        : 'Promotion setup'}
                     </button>
                   )}
                   {profile?.role !== 'school' && (
@@ -280,7 +282,7 @@ export default function ClassesPage() {
         open={graduationModalOpen}
         onClose={() => setGraduationModalOpen(false)}
         dueSnapshot={promotionDue}
-        onComplete={() => void reloadClasses()}
+        onComplete={reloadClasses}
       />
 
       {/* Search & Filter */}

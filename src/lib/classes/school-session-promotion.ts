@@ -27,6 +27,7 @@ import {
 } from '@/lib/classes/session-promotion-policy';
 import {
   loadPromotionRules,
+  loadSchoolPromotionSettings,
   type PromotionSettings,
 } from '@/lib/progression/promotion-settings';
 
@@ -111,8 +112,9 @@ export async function scanSchoolPromotionDue(
   preloadedSettings?: PromotionSettings,
 ): Promise<SchoolPromotionDueRow> {
   const classes = await loadSchoolClasses(admin, schoolId);
-  const settings = preloadedSettings ?? await loadPromotionRules(admin);
-  const policy = resolveSchoolSessionPromotionPolicy(settings, schoolId);
+  const globalSettings = preloadedSettings ?? await loadPromotionRules(admin);
+  const settings = await loadSchoolPromotionSettings(admin, schoolId, globalSettings);
+  const policy = resolveSchoolSessionPromotionPolicy(settings);
   const tracks: SchoolTrackDue[] = [];
 
   for (const trackId of activeSessionTrackIds(policy)) {
@@ -164,8 +166,14 @@ export async function buildSchoolSessionPromotionPlan(
   trackId: SessionPromotionTrackId,
   smartOpts: SmartPromotionOptions,
 ): Promise<SchoolSessionPromotionPlan | { error: string }> {
-  const settings = await loadPromotionRules(admin);
-  const policy = resolveSchoolSessionPromotionPolicy(settings, schoolId);
+  let settings: PromotionSettings;
+  try {
+    const globalSettings = await loadPromotionRules(admin);
+    settings = await loadSchoolPromotionSettings(admin, schoolId, globalSettings);
+  } catch {
+    return { error: 'Promotion policy is unavailable. No learner was moved.' };
+  }
+  const policy = resolveSchoolSessionPromotionPolicy(settings);
   if (!activeSessionTrackIds(policy).includes(trackId)) {
     return { error: 'This promotion track is not used by this school.' };
   }

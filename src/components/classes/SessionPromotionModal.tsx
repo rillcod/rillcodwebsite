@@ -47,7 +47,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   dueSnapshot: DueSnapshot | null;
-  onComplete?: () => void;
+  onComplete?: () => void | Promise<void>;
 };
 
 /** Periodic session tool — only opened from More when learners are actually due. */
@@ -60,8 +60,14 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
   const [error, setError] = useState('');
   const [resultMsg, setResultMsg] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [savingPolicy, setSavingPolicy] = useState(false);
+  const [policyExit, setPolicyExit] = useState<'Basic 5' | 'Basic 6'>('Basic 6');
 
   const schools = dueSnapshot?.schools ?? [];
+  const selectedSchool = useMemo(
+    () => schools.find((school) => school.school_id === schoolId),
+    [schools, schoolId],
+  );
 
   const tracksForSchool = useMemo(() => {
     const row = schools.find((s) => s.school_id === schoolId);
@@ -71,6 +77,10 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
     tracksForSchool.find((track) => track.track_id === trackId)?.short_label
     ?? plan?.track_label
     ?? trackId;
+
+  useEffect(() => {
+    if (selectedSchool) setPolicyExit(selectedSchool.young_to_teen_exit_grade);
+  }, [selectedSchool]);
 
   useEffect(() => {
     if (!open) {
@@ -90,6 +100,9 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
   useEffect(() => {
     if (tracksForSchool.length && !tracksForSchool.some((t) => t.track_id === trackId)) {
       setTrackId(tracksForSchool[0].track_id);
+    } else if (tracksForSchool.length === 0) {
+      setPlan(null);
+      setConfirmed(false);
     }
   }, [tracksForSchool, trackId]);
 
@@ -113,11 +126,50 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
   }, [schoolId, trackId]);
 
   useEffect(() => {
-    if (open && schoolId && trackId) void loadPreview();
-  }, [open, schoolId, trackId, loadPreview]);
+    if (open && schoolId && tracksForSchool.some((track) => track.track_id === trackId)) {
+      void loadPreview();
+    }
+  }, [open, schoolId, trackId, tracksForSchool, loadPreview]);
+
+  const updateExitGrade = async (nextExit: 'Basic 5' | 'Basic 6') => {
+    if (!schoolId || nextExit === policyExit || applying) return;
+    const previous = policyExit;
+    setConfirmed(false);
+    setPolicyExit(nextExit);
+    setSavingPolicy(true);
+    setError('');
+    setResultMsg('');
+    try {
+      const res = await fetch('/api/classes/promotion-due', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: schoolId,
+          young_to_teen_exit_grade: nextExit,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not save school promotion policy');
+      const nextTrack = data.snapshot?.schools?.[0]?.tracks?.[0]?.track_id as TrackId | undefined;
+      if (nextTrack && nextTrack !== trackId) setTrackId(nextTrack);
+      await onComplete?.();
+      if (nextTrack === trackId) await loadPreview();
+      if (!nextTrack) setPlan(null);
+      setResultMsg(
+        data.warning
+          ?? `Young Innovators now move to Teen Developers after ${nextExit}.`,
+      );
+      setConfirmed(false);
+    } catch (e) {
+      setPolicyExit(previous);
+      setError(e instanceof Error ? e.message : 'Could not save school promotion policy');
+    } finally {
+      setSavingPolicy(false);
+    }
+  };
 
   const applyPromotion = async () => {
-    if (!plan || plan.total_promotable === 0 || !schoolId || !confirmed) return;
+    if (!plan || plan.total_promotable === 0 || !schoolId || !confirmed || savingPolicy) return;
     if (
       !confirm(
         `Move ${plan.total_promotable} learner${plan.total_promotable === 1 ? '' : 's'} (${trackLabel})?\n\nReports stay on their saved terms.`,
@@ -190,6 +242,21 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
             </select>
           )}
 
+          <label className="block space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+              Young → Teen exit for this school
+            </span>
+            <select
+              value={policyExit}
+              disabled={savingPolicy || applying}
+              onChange={(e) => void updateExitGrade(e.target.value as 'Basic 5' | 'Basic 6')}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold disabled:opacity-60"
+            >
+              <option value="Basic 5">After Basic 5</option>
+              <option value="Basic 6">After Basic 6</option>
+            </select>
+          </label>
+
           {tracksForSchool.length > 1 && (
             <select
               value={trackId}
@@ -208,6 +275,12 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
               Checking who is ready…
+            </p>
+          ) : null}
+
+          {!loading && selectedSchool && tracksForSchool.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No learners are due. This school’s exit setting will be used automatically when its cohort is ready.
             </p>
           ) : null}
 
@@ -236,7 +309,7 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
                 </label>
                 <button
                   type="button"
-                  disabled={applying || !confirmed}
+                  disabled={applying || savingPolicy || !confirmed}
                   onClick={() => void applyPromotion()}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-xs font-black text-white disabled:opacity-50"
                 >
@@ -255,6 +328,3 @@ export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }
     </div>
   );
 }
-
-/** @deprecated use SessionPromotionModal */
-export const SchoolTeenGraduationModal = SessionPromotionModal;

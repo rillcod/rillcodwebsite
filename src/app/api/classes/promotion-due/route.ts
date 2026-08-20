@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { scanPromotionDueForSchools } from '@/lib/classes/school-session-promotion';
+import { schoolPromotionSettingsKey } from '@/lib/progression/promotion-settings';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +46,72 @@ export async function GET() {
     return NextResponse.json({ show_menu: false, total_due: 0, schools: [] });
   }
 
-  const snapshot = await scanPromotionDueForSchools(admin, schoolIds);
-  return NextResponse.json(snapshot);
+  try {
+    const snapshot = await scanPromotionDueForSchools(admin, schoolIds);
+    return NextResponse.json(snapshot);
+  } catch {
+    return NextResponse.json(
+      { error: 'Promotion policy is unavailable. No promotion preview was generated.' },
+      { status: 503 },
+    );
+  }
+}
+
+/** Persist the Young → Teen exit point for one school. */
+export async function PUT(req: NextRequest) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const schoolId =
+    caller.role === 'school'
+      ? caller.school_id
+      : typeof body.school_id === 'string'
+        ? body.school_id
+        : null;
+  const exitGrade = body.young_to_teen_exit_grade;
+
+  if (!schoolId) return NextResponse.json({ error: 'school_id is required' }, { status: 400 });
+  if (exitGrade !== 'Basic 5' && exitGrade !== 'Basic 6') {
+    return NextResponse.json(
+      { error: 'Young-to-Teen exit grade must be Basic 5 or Basic 6.' },
+      { status: 400 },
+    );
+  }
+
+  const admin = adminClient();
+  const allowed = await callerSchoolIds(admin, caller);
+  if (!allowed.includes(schoolId)) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
+  const { error } = await admin.from('app_settings').upsert(
+    {
+      key: schoolPromotionSettingsKey(schoolId),
+      value: JSON.stringify({ young_to_teen_exit_grade: exitGrade }),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'key' },
+  );
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit(admin, {
+    actorId: caller.id,
+    action: 'update_school_promotion_policy',
+    resourceType: 'school',
+    resourceId: schoolId,
+    tableName: 'app_settings',
+    newValues: { young_to_teen_exit_grade: exitGrade },
+  });
+
+  try {
+    const snapshot = await scanPromotionDueForSchools(admin, [schoolId]);
+    return NextResponse.json({ success: true, snapshot });
+  } catch {
+    return NextResponse.json({
+      success: true,
+      snapshot: null,
+      warning: 'Policy saved, but the due-learner scan is temporarily unavailable.',
+    });
+  }
 }
