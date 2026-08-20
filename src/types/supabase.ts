@@ -16167,11 +16167,11 @@ export type Database = {
           name: string
           phone: string | null
           program_interest: string[] | null
+          programme_standing: string
           public_enrollment_open: boolean
           rillcod_quota_percent: number | null
-          programme_standing: string
-          sessions_per_week: number
           school_type: string | null
+          sessions_per_week: number
           state: string | null
           status: string | null
           student_count: number | null
@@ -16194,11 +16194,11 @@ export type Database = {
           name: string
           phone?: string | null
           program_interest?: string[] | null
+          programme_standing?: string
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
-          programme_standing?: string
-          sessions_per_week?: number
           school_type?: string | null
+          sessions_per_week?: number
           state?: string | null
           status?: string | null
           student_count?: number | null
@@ -16221,11 +16221,11 @@ export type Database = {
           name?: string
           phone?: string | null
           program_interest?: string[] | null
+          programme_standing?: string
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
-          programme_standing?: string
-          sessions_per_week?: number
           school_type?: string | null
+          sessions_per_week?: number
           state?: string | null
           status?: string | null
           student_count?: number | null
@@ -20361,6 +20361,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      discard_partnership_agreement: { Args: { p_id: string }; Returns: Json }
+      discard_withdrawn_partnership_agreements: {
+        Args: { p_school_id: string }
+        Returns: Json
+      }
       ensure_class_academic_pathway: {
         Args: {
           p_actor_id?: string
@@ -20636,20 +20641,11 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
-      release_prepared_week_atomic: {
-        Args: {
-          p_lesson_plan_id: string
-          p_released_at?: string
-          p_session_number?: number
-          p_week_number: number
-        }
-        Returns: Json
-      }
       record_class_lesson_delivery: {
         Args: {
           p_actor_id: string
           p_class_session_id?: string
-          p_lesson_id: string | null
+          p_lesson_id: string
           p_lesson_plan_id: string
           p_notes?: string
           p_session_number?: number
@@ -20660,6 +20656,19 @@ export type Database = {
       }
       refresh_accountability_cache: { Args: never; Returns: string }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
+      release_prepared_week_atomic: {
+        Args: {
+          p_lesson_plan_id: string
+          p_released_at?: string
+          p_session_number: number
+          p_week_number: number
+        }
+        Returns: Json
+      }
+      replace_live_partnership_documents: {
+        Args: { p_keep_id: string; p_kind: string; p_school_id: string }
+        Returns: number
+      }
       repoint_contact_book_dupe: {
         Args: { dupe_id: string; keep_id: string }
         Returns: undefined

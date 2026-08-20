@@ -44,7 +44,13 @@ describe("generated types match the teaching schema", () => {
 
   it("RPCs use the new signatures, not the week-only originals", () => {
     expect(types).toContain("release_prepared_week_atomic");
-    expect(types).toContain("p_session_number?: number");
+    expect(types).toContain("p_session_number: number");
+    const releaseRpc = types.slice(
+      types.indexOf("release_prepared_week_atomic: {"),
+      types.indexOf("replace_live_partnership_documents")
+    );
+    expect(releaseRpc).toContain("p_session_number: number");
+    expect(releaseRpc).not.toContain("p_session_number?: number");
     const rpc = types.slice(
       types.indexOf("record_class_lesson_delivery: {"),
       types.indexOf("refresh_accountability_cache")
