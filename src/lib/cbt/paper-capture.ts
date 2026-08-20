@@ -64,3 +64,19 @@ export function paperCaptureSessionFields(input: {
     updated_at: now,
   };
 }
+
+/** Persist the hall “out of” onto the exam so later opens match the teacher’s total. */
+export function withPersistedHostMax(
+  metadata: unknown,
+  hostMax: unknown,
+): Record<string, unknown> | null {
+  const ceiling = Number(hostMax);
+  if (!Number.isFinite(ceiling) || ceiling <= 0) return null;
+  const safeMax = Math.round(ceiling);
+  const base =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? { ...(metadata as Record<string, unknown>) }
+      : {};
+  if (Number(base.host_max) === safeMax) return null;
+  return { ...base, host_max: safeMax };
+}

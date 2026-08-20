@@ -5,6 +5,7 @@ import {
   paperCaptureSessionFields,
   paperCaptureStatus,
   sessionAllowsPaperOverwrite,
+  withPersistedHostMax,
 } from "./paper-capture";
 
 describe("paper capture", () => {
@@ -22,5 +23,14 @@ describe("paper capture", () => {
       score: 81,
       passingScore: 50,
     }).answers).toEqual({ capture: "paper" });
+  });
+
+  it("stamps a new host_max onto exam metadata only when it changes", () => {
+    expect(withPersistedHostMax({ host_assessment: "first_test", host_max: 20 }, 20)).toBeNull();
+    expect(withPersistedHostMax({ host_assessment: "first_test", host_max: 20 }, 30)).toEqual({
+      host_assessment: "first_test",
+      host_max: 30,
+    });
+    expect(withPersistedHostMax(null, 40)).toEqual({ host_max: 40 });
   });
 });

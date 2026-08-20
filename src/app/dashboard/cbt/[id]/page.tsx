@@ -185,6 +185,17 @@ export default function ExamDetailPage() {
       if (skipped.length > 0) {
         setHallError(`${payload.data.saved?.length ?? 0} saved. ${skipped.length} already have a CBT sitting and were left unchanged.`);
       }
+      const nextHostMax = Number(payload.data?.host_max);
+      if (Number.isFinite(nextHostMax) && nextHostMax > 0) {
+        setPaperOutOf(String(nextHostMax));
+        setExam((current: any) => current ? {
+          ...current,
+          metadata: {
+            ...(current.metadata && typeof current.metadata === 'object' ? current.metadata : {}),
+            host_max: nextHostMax,
+          },
+        } : current);
+      }
       const sesRes = await fetch(`/api/cbt/sessions?exam_id=${exam.id}`, { cache: 'no-store' }).then(r => r.json());
       const rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
       setSessions(rawSessions.map((s: any) => ({

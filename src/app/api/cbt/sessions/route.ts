@@ -12,6 +12,7 @@ import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 import {
   paperCaptureSessionFields,
   sessionAllowsPaperOverwrite,
+  withPersistedHostMax,
 } from '@/lib/cbt/paper-capture';
 import {
   hostMaxFromExam,
@@ -244,15 +245,38 @@ async function recordPaperScores(
     }
   }
 
+  const savedMax = parsed.find((row) =>
+    saved.some((entry) => entry.user_id === row.user_id),
+  )?.max;
+  const nextMetadata = withPersistedHostMax(metadata, savedMax ?? paperMax);
+  if (nextMetadata && saved.length > 0) {
+    const { error: metaErr } = await admin
+      .from('cbt_exams')
+      .update({ metadata: nextMetadata, updated_at: new Date().toISOString() })
+      .eq('id', examId);
+    if (metaErr) return NextResponse.json({ error: metaErr.message }, { status: 500 });
+  }
+
   await logAudit(admin as any, {
     action: 'record_paper_cbt_scores',
     actorId: caller.id,
     resourceType: 'cbt_exam',
     resourceId: examId,
     tableName: 'cbt_sessions',
-    newValues: { saved: saved.length, skipped: skipped.length, exam_id: examId },
+    newValues: {
+      saved: saved.length,
+      skipped: skipped.length,
+      exam_id: examId,
+      host_max: nextMetadata?.host_max ?? hostMaxFromExam({ metadata }),
+    },
   });
-  return NextResponse.json({ data: { saved, skipped } });
+  return NextResponse.json({
+    data: {
+      saved,
+      skipped,
+      host_max: nextMetadata?.host_max ?? hostMaxFromExam({ metadata }) ?? paperMax,
+    },
+  });
 }
 
 // POST /api/cbt/sessions

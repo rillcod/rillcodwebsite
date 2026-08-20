@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { parseRequestSession } from '@/lib/academic/session-identity';
+import { triggerWeeklyMilestoneDigest } from '@/lib/curriculum/milestone-digest';
 
 export const dynamic = 'force-dynamic';
 
