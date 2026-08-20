@@ -11,7 +11,7 @@ import {
   ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
-import { parentEnrollmentIsGood, parentEnrollmentLabel } from '@/lib/parents/enrollment-label';
+import { parentInactiveLearnerHint } from '@/lib/parents/enrollment-label';
 
 interface Child {
   id: string;
@@ -27,6 +27,8 @@ interface Child {
   parent_relationship: string | null;
   created_at: string;
   user_id?: string | null;
+  enrollment_label?: string;
+  is_enrollment_active?: boolean;
 }
 
 interface ChildStats {
@@ -278,11 +280,11 @@ export default function MyChildrenPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-base font-black text-foreground">{child.full_name}</h2>
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${
-                        parentEnrollmentIsGood(child.status)
+                        child.is_enrollment_active !== false
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                           : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
                       }`}>
-                        {parentEnrollmentLabel(child.status)}
+                        {child.enrollment_label ?? 'Active'}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
@@ -310,6 +312,11 @@ export default function MyChildrenPage() {
                         </span>
                       )}
                     </div>
+                    {child.is_enrollment_active === false ? (
+                      <p className="mt-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200">
+                        {parentInactiveLearnerHint()}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 

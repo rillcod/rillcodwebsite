@@ -31,7 +31,7 @@ import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
-import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
+import { ClassPromotionPanel } from '@/components/classes/ClassPromotionPanel';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 // Turn an enroll PUT response into a human message about students that were NOT added,
 // so a silent school-boundary / other-teacher drop never looks like a successful add.
@@ -817,7 +817,11 @@ export default function ClassDetailPage() {
     } finally { setMovingStudent(null); }
   };
   const removeStudent = async (studentId: string) => {
-    if (!confirm('Remove student from this class?')) return;
+    if (!confirm(
+      'Withdraw this learner from the active class roster?\n\n'
+      + 'They leave live attendance and grading for this term. Published reports stay on file.\n'
+      + 'Parents and the learner can still log in to view report cards and other history.',
+    )) return;
     setProcessingStudent(studentId);
     try {
       const res = await fetch(`/api/classes/${id}/enroll`, {
@@ -842,7 +846,11 @@ export default function ClassDetailPage() {
       .filter((e: any) => checkedEnrollIds.has(e.id))
       .map((e: any) => e.full_name)
       .join(', ');
-    if (!confirm(`Withdraw ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}`)) return;
+    if (!confirm(
+      `Withdraw ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}\n\n`
+      + 'They leave live attendance and grading for this term. Published reports stay on file.\n'
+      + 'Parents and learners can still log in to view report cards and other history.',
+    )) return;
     setBulkRemoving(true);
     try {
       const res = await fetch(`/api/classes/${id}/enroll`, {
@@ -1521,6 +1529,15 @@ export default function ClassDetailPage() {
                     </div>
                   )}
 
+                  {isStaff && (
+                    <ClassPromotionPanel
+                      classId={id!}
+                      activeStudentCount={currentTermStudents.length}
+                      selectedStudentIds={checkedEnrollIds.size > 0 ? [...checkedEnrollIds] : undefined}
+                      onComplete={() => void fetchData()}
+                    />
+                  )}
+
                   <div className="space-y-3">
                     <div className="flex flex-col gap-3">
                       <button
@@ -1596,6 +1613,18 @@ export default function ClassDetailPage() {
                                     <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
                                     Transfer / Move
                                   </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowRosterActions(false);
+                                      setRosterOpen(true);
+                                      document.getElementById('class-promotion-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                    }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                                  >
+                                    <AcademicCapIcon className="h-4 w-4" />
+                                    Promote to next grade
+                                  </button>
                                   <Link
                                     href={`/dashboard/classes/transfer-requests?class=${id}`}
                                     onClick={() => setShowRosterActions(false)}

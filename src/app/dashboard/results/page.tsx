@@ -30,6 +30,15 @@ import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
+import { AutoFillStatusBanner, NoScoresYetNotice, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
+import { ReportSessionContextBanner, SessionCalendarRollNotice } from '@/components/reports/ReportSessionContextBanner';
+import { sessionFromReport, sessionLabel } from '@/lib/reports/session-scope';
+import {
+  filterReportsByRosterSession,
+  rollRosterSessionIfStale,
+  rosterSessionQueryFilters,
+} from '@/lib/reports/session-workflows';
+import { automaticResultHasNoEvidence } from '@/lib/reports/score';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
@@ -197,23 +206,38 @@ function ResultsPageInner() {
         const live = liveAcademicSession();
         return { year: prefYear || live.periodLabel, term: prefTerm || live.termLabel };
     });
+    const [calendarRollFrom, setCalendarRollFrom] = useState<string | null>(null);
 
     // Keep draft/confirmed aligned with live calendar; never mash sessions together.
     // A term/year in the URL is an explicit request to open that session.
     useEffect(() => {
         if (prefTerm && prefYear) {
+            setCalendarRollFrom(null);
             setPeriodDraft({ year: prefYear, term: prefTerm });
             setConfirmedPeriod({ year: prefYear, term: prefTerm });
             return;
         }
         const live = liveAcademicSession();
-        const year = live.periodLabel;
-        const term = live.termLabel;
-        setPeriodDraft((d) => (isStaleAcademicSession(d.term, d.year, term, year) ? { year, term } : d));
+        setPeriodDraft((d) => {
+            const rolled = rollRosterSessionIfStale(
+                { term: d.term, period: d.year },
+                { term: live.termLabel, period: live.periodLabel },
+            );
+            if (rolled.rolledFrom) {
+                setCalendarRollFrom(sessionLabel(rolled.rolledFrom));
+            }
+            return { year: rolled.session.period ?? d.year, term: rolled.session.term ?? d.term };
+        });
         setConfirmedPeriod((c) => {
-            if (!c) return { year, term };
-            if (isStaleAcademicSession(c.term, c.year, term, year)) return { year, term };
-            return c;
+            if (!c) return { year: live.periodLabel, term: live.termLabel };
+            const rolled = rollRosterSessionIfStale(
+                { term: c.term, period: c.year },
+                { term: live.termLabel, period: live.periodLabel },
+            );
+            if (rolled.rolledFrom) {
+                setCalendarRollFrom(sessionLabel(rolled.rolledFrom));
+            }
+            return { year: rolled.session.period ?? c.year, term: rolled.session.term ?? c.term };
         });
     }, [prefTerm, prefYear]);
 
@@ -533,10 +557,13 @@ function ResultsPageInner() {
                         .select('student_id, overall_grade, is_published, updated_at, report_date, report_term, report_period')
                         .in('student_id', chunk);
 
-                    if (confirmedPeriod) {
+                    const rosterFilters = rosterSessionQueryFilters(
+                        confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
+                    );
+                    if (rosterFilters) {
                         reportsQuery = reportsQuery
-                            .eq('report_term', confirmedPeriod.term)
-                            .eq('report_period', confirmedPeriod.year) as typeof reportsQuery;
+                            .eq('report_term', rosterFilters.report_term)
+                            .eq('report_period', rosterFilters.report_period) as typeof reportsQuery;
                     }
 
                     // Do not filter by teacher_id — class-scoped students already limit the
@@ -656,9 +683,10 @@ function ResultsPageInner() {
         const history = ((data ?? []) as StudentReport[]).slice().sort(compareReportsByPeriodDesc);
         setReportHistory(history);
         const urlReport = prefReportId ? history.find((r) => r.id === prefReportId) ?? null : null;
-        const inPeriod = confirmedPeriod
-            ? history.filter((r) => r.report_term === confirmedPeriod.term && r.report_period === confirmedPeriod.year)
-            : history;
+        const inPeriod = filterReportsByRosterSession(
+            history,
+            confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
+        );
         const courseMatch = prefCourseId ? inPeriod.find((r) => r.course_id === prefCourseId) ?? null : null;
         const data0 = urlReport ?? courseMatch ?? inPeriod[0] ?? history[0] ?? null;
         setSelectedReport(data0);
@@ -1349,10 +1377,13 @@ function ResultsPageInner() {
             .in('student_id', ids)
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false });
-        if (confirmedPeriod) {
+        const rosterFilters = rosterSessionQueryFilters(
+            confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
+        );
+        if (rosterFilters) {
             sheetQuery = sheetQuery
-                .eq('report_term', confirmedPeriod.term)
-                .eq('report_period', confirmedPeriod.year) as typeof sheetQuery;
+                .eq('report_term', rosterFilters.report_term)
+                .eq('report_period', rosterFilters.report_period) as typeof sheetQuery;
         }
         const { data: allReports } = await sheetQuery;
 
@@ -1523,6 +1554,25 @@ tbody tr:hover{background:#f3f4f6}
                     <h1 className="text-lg font-extrabold tracking-tight">Student progress reports</h1>
                 ) : null}
 
+                {isStaff && staffPeriodReady ? (
+                    <>
+                    <SessionCalendarRollNotice fromLabel={calendarRollFrom} />
+                    <ReportSessionContextBanner
+                        context="publish"
+                        workingSession={{
+                            term: selectedReport?.report_term || confirmedPeriod?.term,
+                            period: selectedReport?.report_period || confirmedPeriod?.year,
+                        }}
+                        rosterSession={confirmedPeriod ? {
+                            term: confirmedPeriod.term,
+                            period: confirmedPeriod.year,
+                        } : null}
+                        reportSession={sessionFromReport(selectedReport)}
+                        showCalendarNow={false}
+                    />
+                    </>
+                ) : null}
+
                 {/* Mobile immersive: compact Progress Reports chrome while viewing a report */}
                 {mobileReportFocus && (
                     <div className="sticky top-0 z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur lg:hidden">
@@ -1598,7 +1648,7 @@ tbody tr:hover{background:#f3f4f6}
 
                     {isStaff && (
                         <div className="w-full rounded-xl border border-border bg-card p-2.5 sm:w-auto sm:min-w-[280px]">
-                            <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-primary">Showing</p>
+                            <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-primary">Roster filter — reports for</p>
                             <div className="grid grid-cols-2 gap-1.5">
                                 <select
                                     value={periodDraft.year}
@@ -1980,15 +2030,9 @@ tbody tr:hover{background:#f3f4f6}
                                                 {r ? (
                                                     <>
                                                         <span className="font-mono text-sm font-black tabular-nums text-foreground">
-                                                            {r.overall_grade ?? '?'}
+                                                            {automaticResultHasNoEvidence(r) ? '—' : (r.overall_grade ?? '?')}
                                                         </span>
-                                                        <span className={`rounded border px-1.5 py-0.5 text-[10px] font-black uppercase ${
-                                                            r.is_published
-                                                                ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                                                                : 'border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-400'
-                                                        }`}>
-                                                            {r.is_published ? 'Published' : 'Draft'}
-                                                        </span>
+                                                        <ResultStatusBadges report={r} />
                                                     </>
                                                 ) : (
                                                     <span className="rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-black uppercase text-muted-foreground">
@@ -2042,9 +2086,9 @@ tbody tr:hover{background:#f3f4f6}
                                                 )}
                                             </div>
                                             {selectedReport && (
-                                                <span className={`flex-shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold ${selectedReport.is_published ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'border-amber-500/30 bg-amber-500/15 text-amber-800 dark:text-amber-400'}`}>
-                                                    {selectedReport.is_published ? 'Published' : 'Draft'}
-                                                </span>
+                                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                    <ResultStatusBadges report={selectedReport} />
+                                                </div>
                                             )}
                                         </div>
 
@@ -2416,6 +2460,13 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
+                                         <div className="space-y-3">
+                                            {selectedReport && automaticResultHasNoEvidence(selectedReport) ? (
+                                                <NoScoresYetNotice />
+                                            ) : null}
+                                            {selectedReport ? (
+                                                <AutoFillStatusBanner report={selectedReport} />
+                                            ) : null}
                                          <div
                                             data-theme="light"
                                             onTouchStart={onReportTouchStart}
@@ -2439,6 +2490,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                                                 )}
                                             </ScaledReportCard>
+                                        </div>
                                         </div>
                                     ) : null}
                                 </div>

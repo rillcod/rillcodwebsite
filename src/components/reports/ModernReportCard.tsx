@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { brandContact } from '@/config/brand';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
+import { reportHasDisplayableScores } from '@/lib/reports/score';
 
 export interface ReportCardData {
     id?: string | null;
@@ -53,6 +54,8 @@ export interface ReportCardData {
     engagement_metrics?: any | null;
     template_id?: 'futuristic' | 'industrial' | 'executive' | string | null;
     verification_code?: string | null;
+    calculation_mode?: string | null;
+    calculation_snapshot?: unknown;
 }
 
 export interface OrgSettings {
@@ -126,6 +129,7 @@ export default function ModernReportCard({ report, orgSettings }: {
     const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = waecGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
+    const showScores = reportHasDisplayableScores(report);
 
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
@@ -323,6 +327,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                 </div>
 
                 {/* ── ASSESSMENT MATRIX ──────────────────────────────────────── */}
+                {showScores ? (
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
@@ -392,6 +397,22 @@ export default function ModernReportCard({ report, orgSettings }: {
                         </div>
                     </div>
                 </div>
+                ) : (
+                <div style={{
+                    background: accentLight,
+                    border: panelBorder,
+                    borderRadius: radius,
+                    padding: '16px 18px',
+                    textAlign: 'center',
+                }}>
+                    <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#b45309', marginBottom: 6 }}>
+                        Scores pending
+                    </p>
+                    <p style={{ fontSize: 11, lineHeight: 1.55, color: '#78350f', fontWeight: 600 }}>
+                        No class evidence was recorded for this term. Fill from class work or type scores in Write before publishing.
+                    </p>
+                </div>
+                )}
 
                 {/* ── QUALITATIVE ASSESSMENT — grows to fill remaining space ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>

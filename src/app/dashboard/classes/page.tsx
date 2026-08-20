@@ -14,6 +14,7 @@ import {
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
+import { SessionPromotionModal } from '@/components/classes/SessionPromotionModal';
 
 const STATUS_BADGE: Record<string, string> = {
   active:    'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -33,6 +34,12 @@ export default function ClassesPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [graduationModalOpen, setGraduationModalOpen] = useState(false);
+  const [promotionDue, setPromotionDue] = useState<{
+    show_menu: boolean;
+    total_due: number;
+    schools: Array<{ school_id: string; school_name: string | null; tracks: Array<{ track_id: string; due_count: number }> }>;
+  } | null>(null);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -69,6 +76,17 @@ export default function ClassesPage() {
     return () => { cancelled = true; };
   }, [profile?.id, authLoading]);
 
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    if (profile.role !== 'admin' && profile.role !== 'school') return;
+    let cancelled = false;
+    fetch('/api/classes/promotion-due', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled) setPromotionDue(data); })
+      .catch(() => { if (!cancelled) setPromotionDue(null); });
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.role, authLoading, classes.length]);
+
   const filtered = classes.filter(c => {
     const q = searchTerm.toLowerCase();
     const matchName = (c.name ?? '').toLowerCase().includes(q) || (c.programs?.name ?? '').toLowerCase().includes(q);
@@ -86,6 +104,20 @@ export default function ClassesPage() {
   const termOptions = Array.from(new Set(classes.map(c =>
     c.academic_terms ? `${c.academic_terms.term_label} ${c.academic_terms.academic_year}` : 'No term'
   ))).sort();
+
+  const showGraduationTool = promotionDue?.show_menu === true;
+
+  const reloadClasses = async () => {
+    const res = await fetch('/api/classes', { cache: 'no-store' });
+    if (res.ok) {
+      const { data } = await res.json();
+      setClasses(data ?? []);
+    }
+    if (profile?.role === 'admin' || profile?.role === 'school') {
+      const dueRes = await fetch('/api/classes/promotion-due', { cache: 'no-store' });
+      if (dueRes.ok) setPromotionDue(await dueRes.json());
+    }
+  };
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
@@ -165,6 +197,19 @@ export default function ClassesPage() {
                     <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
                     Transfer
                   </Link>
+                  {showGraduationTool && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        setGraduationModalOpen(true);
+                      }}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                    >
+                      <AcademicCapIcon className="h-4 w-4 text-muted-foreground" />
+                      Session promotion ({promotionDue?.total_due ?? 0})
+                    </button>
+                  )}
                   {profile?.role !== 'school' && (
                     <Link
                       href="/dashboard/reports/builder"
@@ -220,6 +265,13 @@ export default function ClassesPage() {
           </div>
         ))}
       </div>
+
+      <SessionPromotionModal
+        open={graduationModalOpen}
+        onClose={() => setGraduationModalOpen(false)}
+        dueSnapshot={promotionDue}
+        onComplete={() => void reloadClasses()}
+      />
 
       {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-3">

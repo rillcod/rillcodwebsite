@@ -23,6 +23,8 @@ import {
   BookOpenIcon,
 } from '@/lib/icons';
 import { GradingAssessmentView } from '@/components/grading/GradingAssessmentView';
+import { AcademicSessionScopeStrip } from '@/components/reports/ReportSessionContextBanner';
+import { gradingEvidenceSession } from '@/lib/reports/session-workflows';
 import Link from 'next/link';
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import { roleHasCapability } from '@/lib/auth/capabilities';
@@ -471,6 +473,7 @@ export default function GradingQueuePage() {
   }
 
   const scoped = Boolean(scope?.class_id || scope?.term_label);
+  const evidenceSession = useMemo(() => gradingEvidenceSession(scope), [scope]);
   const reviewSubmissions = buildGradingReviewQueue(submissions, assignmentView);
   const aiReadyCount = submissions.filter((item) => item.ai_suggested_grade != null).length;
   const manualCount = submissions.length - aiReadyCount;
@@ -499,6 +502,12 @@ export default function GradingQueuePage() {
             </div>
           </div>
         </div>
+
+        <AcademicSessionScopeStrip
+          purpose="Grading & evaluation evidence"
+          workingSession={evidenceSession}
+          hint="Assignments, CBT evaluations, and written exams shown here attach to this evidence session. Batch-sync and Auto-fill pull from the same term when building report cards."
+        />
 
         {/* ── Tab bar ─────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-xl p-1">

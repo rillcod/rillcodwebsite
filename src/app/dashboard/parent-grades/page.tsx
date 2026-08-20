@@ -13,8 +13,15 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
+import { ParentPortalSessionBanner, ParentChildEnrollmentBanner } from '@/components/reports/ReportSessionContextBanner';
 
-interface Child { id: string; full_name: string; school_name: string | null }
+interface Child {
+  id: string;
+  full_name: string;
+  school_name: string | null;
+  enrollment_label?: string;
+  is_enrollment_active?: boolean;
+}
 interface GradeItem {
   id: string;
   resource_id: string | null;
@@ -104,6 +111,9 @@ function ParentGradesContent() {
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('date');
+  const [evidenceSession, setEvidenceSession] = useState<{ term: string; period: string } | null>(null);
+  const [enrollmentLabel, setEnrollmentLabel] = useState<string | null>(null);
+  const [isEnrollmentActive, setIsEnrollmentActive] = useState<boolean | undefined>(undefined);
 
   // ── Fetch children ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -144,6 +154,9 @@ function ParentGradesContent() {
     setLoadingGrades(true);
     setGrades([]);
     setGradesError('');
+    setEvidenceSession(null);
+    setEnrollmentLabel(null);
+    setIsEnrollmentActive(undefined);
     fetchWithTimeoutOrThrow(`/api/parents/portal?section=grades&child_id=${selectedId}`, { cache: 'no-store' })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -154,6 +167,9 @@ function ParentGradesContent() {
         if (cancelled) return;
         if (!data.success) throw new Error(data.error || 'Failed to load grades');
         setGrades((data.grades ?? []) as GradeItem[]);
+        setEvidenceSession(data.evidenceSession ?? null);
+        setEnrollmentLabel(data.enrollment_label ?? null);
+        setIsEnrollmentActive(data.is_enrollment_active);
         setLoadingGrades(false);
       })
       .catch(err => {
@@ -269,6 +285,9 @@ function ParentGradesContent() {
               }`}
             >
               {child.full_name}
+              {child.is_enrollment_active === false ? (
+                <span className="ml-1.5 opacity-70">· {child.enrollment_label || 'Inactive'}</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -287,6 +306,11 @@ function ParentGradesContent() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Grades for {selectedChild.full_name}
           </p>
+          <ParentPortalSessionBanner mode="grades" evidenceSession={evidenceSession} />
+          <ParentChildEnrollmentBanner
+            enrollmentLabel={enrollmentLabel ?? selectedChild.enrollment_label}
+            isActive={isEnrollmentActive ?? selectedChild.is_enrollment_active}
+          />
 
           {/* ── Stat Summary Bar ──────────────────────────────────────────── */}
           {!loadingGrades && gradedItems.length > 0 && (

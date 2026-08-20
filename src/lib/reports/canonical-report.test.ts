@@ -99,7 +99,7 @@ describe('findCanonicalProgressReport', () => {
     expect(found).toBeNull();
   });
 
-  it('falls back to offering identity when term labels differ', async () => {
+  it('does not reuse offering row when session labels differ and row is not placeholder', async () => {
     const offeringRow = {
       ...builderRow,
       report_term: 'Term 1',
@@ -112,6 +112,27 @@ describe('findCanonicalProgressReport', () => {
       courseName: 'Scratch',
       reportTerm: 'First Term',
       reportPeriod: '2025/2026',
+      academicOfferingId: 'off-1',
+      offeringPeriodId: 'per-1',
+    });
+    expect(found).toBeNull();
+  });
+
+  it('reuses offering row when term_id matches even if labels drift', async () => {
+    const offeringRow = {
+      ...builderRow,
+      report_term: 'Term 1',
+      term_id: 'term-1',
+      academic_offering_id: 'off-1',
+      offering_period_id: 'per-1',
+    };
+    const found = await findCanonicalProgressReport(fakeAdmin([offeringRow]) as any, {
+      studentId: 'stu-1',
+      courseId: 'course-1',
+      courseName: 'Scratch',
+      reportTerm: 'First Term',
+      reportPeriod: '2025/2026',
+      termId: 'term-1',
       academicOfferingId: 'off-1',
       offeringPeriodId: 'per-1',
     });

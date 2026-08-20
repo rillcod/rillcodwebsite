@@ -11,8 +11,16 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
+import { ParentPortalSessionBanner, ParentChildEnrollmentBanner } from '@/components/reports/ReportSessionContextBanner';
 
-interface Child { id: string; full_name: string; school_name: string | null; user_id: string | null }
+interface Child {
+  id: string;
+  full_name: string;
+  school_name: string | null;
+  user_id: string | null;
+  enrollment_label?: string;
+  is_enrollment_active?: boolean;
+}
 interface Report {
   id: string;
   course_name: string;
@@ -112,6 +120,8 @@ function ParentResultsContent() {
   const [reportsError, setReportsError] = useState('');
   const [childrenRevision, setChildrenRevision] = useState(0);
   const [reportsRevision, setReportsRevision] = useState(0);
+  const [enrollmentLabel, setEnrollmentLabel] = useState<string | null>(null);
+  const [isEnrollmentActive, setIsEnrollmentActive] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     if (!profile) return;
@@ -150,6 +160,8 @@ function ParentResultsContent() {
     setLoadingReports(true);
     setReports([]);
     setReportsError('');
+    setEnrollmentLabel(null);
+    setIsEnrollmentActive(undefined);
     fetchWithTimeoutOrThrow(`/api/parents/portal?section=results&child_id=${selectedId}`, { cache: 'no-store' })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -160,6 +172,8 @@ function ParentResultsContent() {
         if (cancelled) return;
         if (!data.success) throw new Error(data.error || 'Failed to load report cards');
         setReports((data.reports ?? []) as Report[]);
+        setEnrollmentLabel(data.enrollment_label ?? null);
+        setIsEnrollmentActive(data.is_enrollment_active);
         setLoadingReports(false);
       })
       .catch(err => {
@@ -214,6 +228,9 @@ function ParentResultsContent() {
                   : 'bg-card border-border text-muted-foreground hover:border-primary/50'
               }`}>
               {child.full_name}
+              {child.is_enrollment_active === false ? (
+                <span className="ml-1.5 opacity-70">· {child.enrollment_label || 'Inactive'}</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -229,6 +246,11 @@ function ParentResultsContent() {
 
       {selectedChild && (
         <div className="space-y-4 mobile-page-root">
+          <ParentPortalSessionBanner mode="results" />
+          <ParentChildEnrollmentBanner
+            enrollmentLabel={enrollmentLabel ?? selectedChild.enrollment_label}
+            isActive={isEnrollmentActive ?? selectedChild.is_enrollment_active}
+          />
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Reports for {selectedChild.full_name}

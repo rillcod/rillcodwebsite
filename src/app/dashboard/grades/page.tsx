@@ -18,7 +18,19 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
-import { liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions, isStaleAcademicSession, formatAcademicSession } from '@/lib/reports/academic-period';
+import { formatAcademicSession, liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions } from '@/lib/reports/academic-period';
+import { AcademicSessionScopeStrip, formatClassRowOptionLabel } from '@/components/reports/ReportSessionContextBanner';
+import {
+  calendarSessionLabel,
+  classSessionFromTerms,
+  liveSessionLike,
+  resolveSmartWorkingSession,
+  sessionLabel,
+} from '@/lib/reports/session-scope';
+import {
+  batchSyncAllowBackfill,
+  resolveBatchSyncSession,
+} from '@/lib/reports/session-workflows';
 import { getWAECGrade } from '@/lib/grading';
 import { resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { brandContact } from '@/config/brand';
@@ -82,14 +94,21 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
     const [programId, setProgramId] = useState('');
     const [courseId, setCourseId] = useState('');
     const [className, setClassName] = useState('');
-    const [term, setTerm] = useState(() => liveAcademicSession().termLabel);
-    const [period, setPeriod] = useState(() => liveAcademicSession().periodLabel);
+    const [term, setTerm] = useState(() => liveSessionLike().term ?? '');
+    const [period, setPeriod] = useState(() => liveSessionLike().period ?? '');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [instructor, setInstructor] = useState(profile?.full_name || '');
     const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState('');
 
     const courses = programId ? allCourses.filter(c => c.program_id === programId) : [];
+
+    const selectedClass = teacherClasses.find((c) => c.id === selectedClassId);
+    const classSession = classSessionFromTerms(selectedClass?.academic_terms);
+    const batchWorkingSession = useMemo(() => resolveSmartWorkingSession({
+        classSession,
+        saved: { term, period },
+    }), [classSession, term, period]);
 
     const handleClassChange = (classId: string) => {
         setSelectedClassId(classId);
@@ -104,6 +123,13 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
 
             const linkedCourse = resolveLinkedCourseForClass(matchingClass, allCourses);
             setCourseId(linkedCourse?.id || '');
+
+            const session = resolveBatchSyncSession({
+                classRow: matchingClass,
+                current: { term, period },
+            });
+            if (session.term) setTerm(session.term);
+            if (session.period) setPeriod(session.period);
         }
     };
 
@@ -130,7 +156,7 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
                     school_id: profile?.school_id,
                     school_name: profile?.school_name,
                     // Keep an intentionally selected prior session (don't silently roll to live).
-                    allow_backfill: isStaleAcademicSession(term, period),
+                    allow_backfill: batchSyncAllowBackfill(term, period),
                 })
             });
             const data = await res.json();
@@ -155,12 +181,23 @@ function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynce
                     </div>
                 </div>
 
+                <AcademicSessionScopeStrip
+                    purpose="Batch-sync target"
+                    workingSession={batchWorkingSession}
+                    classSession={classSession}
+                    hint="Drafts created here attach to this session — aligned with the class assignment when you pick a class."
+                />
+
                 <div className="space-y-4">
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
                         <select value={selectedClassId} onChange={e => handleClassChange(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
                             <option value="">Select Class</option>
-                            {teacherClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {teacherClasses.map(c => (
+                                <option key={c.id} value={c.id}>
+                                    {formatClassRowOptionLabel(c)}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -877,7 +914,20 @@ export default function GradesPage() {
     const canGrade = role === 'admin' || role === 'teacher';
     const activeSessionLabel = useMemo(() => {
       const t = academicTerms.find((row) => row.id === sessionTermId);
-      return t ? `${t.academic_year} · ${t.term_label}` : formatAcademicSession(liveAcademicSession());
+      return t
+        ? sessionLabel({ term: t.term_label, period: t.academic_year })
+        : calendarSessionLabel();
+    }, [academicTerms, sessionTermId]);
+
+    const filteredClassSession = useMemo(
+      () => classSessionFromTerms(teacherClasses.find((c: any) => c.id === filterClass)?.academic_terms),
+      [filterClass, teacherClasses],
+    );
+
+    const workingGradeSession = useMemo(() => {
+      const t = academicTerms.find((row) => row.id === sessionTermId);
+      if (!t) return liveSessionLike();
+      return { term: t.term_label, period: t.academic_year };
     }, [academicTerms, sessionTermId]);
 
     // ── Fetch ──────────────────────────────────────────────────
@@ -1288,6 +1338,12 @@ export default function GradesPage() {
 
                 {/* ── Filters + Sort ────────────────────────────── */}
                 <div className="flex flex-col gap-2">
+                    <AcademicSessionScopeStrip
+                      purpose="Grades & submissions"
+                      workingSession={workingGradeSession}
+                      classSession={filteredClassSession}
+                      hint="Assignments, CBT, and classwork shown here attach to this academic session — not automatically to the class label in the dropdown."
+                    />
                     <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                         <div className="sm:min-w-[240px]">
                             <select
@@ -1303,7 +1359,7 @@ export default function GradesPage() {
                               ))}
                             </select>
                             <p className="text-[10px] text-muted-foreground mt-1">
-                              Viewing grades for {activeSessionLabel} only
+                              Evidence session: {activeSessionLabel}
                             </p>
                         </div>
                         <div className="relative flex-1">
@@ -1318,7 +1374,11 @@ export default function GradesPage() {
                             <select value={filterClass} onChange={e => setFilterClass(e.target.value)}
                                 className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                 <option value="">All My Classes</option>
-                                {teacherClasses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {teacherClasses.map((c: any) => (
+                                    <option key={c.id} value={c.id}>
+                                        {formatClassRowOptionLabel(c)}
+                                    </option>
+                                ))}
                             </select>
                         )}
                         {programs.length > 0 && (

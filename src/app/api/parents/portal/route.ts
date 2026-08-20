@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getParentLinkScope, healParentEmailLinks } from '@/lib/parents/links';
+import { loadParentLearnerRosterContext, parentLearnerEnrollmentFields } from '@/lib/parents/learner-roster-status';
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
 import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
@@ -11,6 +12,11 @@ function assertQueryResults(results: Array<{ error?: { message?: string } | null
   if (failed?.error) {
     throw new Error(`${label}: ${failed.error.message || 'database request failed'}`);
   }
+}
+
+async function liveEvidenceSessionPayload() {
+  const { evidenceSessionPayload } = await import('@/lib/reports/session-scope');
+  return evidenceSessionPayload();
 }
 
 // ── Auth guard: must be an active parent ─────────────────────────────────────
@@ -94,6 +100,8 @@ export async function GET(req: Request) {
 
       if (childErr) throw childErr;
       if (!children || children.length === 0) return NextResponse.json({ success: true, children: [] });
+
+      const rosterFields = await loadParentLearnerRosterContext(admin, children as any[]);
 
       // Pre-load teachers for these schools
       const uniqueSchools = [...new Set((children as any[]).map((k: any) => k.school_name).filter(Boolean))] as string[];
@@ -196,8 +204,14 @@ export async function GET(req: Request) {
           })?.overall_grade
           ?? null;
 
+        const enrollment = rosterFields.get(child.id) ?? parentLearnerEnrollmentFields({
+          studentStatus: child.status,
+          rosterInactive: false,
+        });
+
         return {
           ...child,
+          ...enrollment,
           stats: {
             attendancePct,
             lastGrade: latestGrade,
@@ -210,7 +224,11 @@ export async function GET(req: Request) {
         };
       });
 
-      return NextResponse.json({ success: true, children: results });
+      return NextResponse.json({
+        success: true,
+        children: results,
+        evidenceSession: await liveEvidenceSessionPayload(),
+      });
     }
 
     // ── Children list ────────────────────────────────────────────────────────
@@ -227,7 +245,15 @@ export async function GET(req: Request) {
       const { data: children, error } = await childQuery;
 
       if (error) throw error;
-      return NextResponse.json({ success: true, children: children ?? [] });
+      const rosterFields = await loadParentLearnerRosterContext(admin, children ?? []);
+      const enriched = (children ?? []).map((child: any) => {
+        const fields = rosterFields.get(child.id) ?? parentLearnerEnrollmentFields({
+          studentStatus: child.status,
+          rosterInactive: false,
+        });
+        return { ...child, ...fields };
+      });
+      return NextResponse.json({ success: true, children: enriched });
     }
 
     // ── For all other sections we need child_id and must verify ownership ────
@@ -238,7 +264,7 @@ export async function GET(req: Request) {
     // Ownership check — the child must belong to this parent
     let childScopeQuery = admin
       .from('students')
-      .select('id, full_name, school_id, school_name, user_id')
+      .select('id, full_name, school_id, school_name, user_id, status')
       .eq('id', childId);
     if (linkedIds.length > 0) {
       childScopeQuery = childScopeQuery.in('id', linkedIds) as typeof childScopeQuery;
@@ -251,6 +277,10 @@ export async function GET(req: Request) {
     if (!child) {
       return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
     }
+
+    const childEnrollmentFields =
+      (await loadParentLearnerRosterContext(admin, [child])).get(child.id) ??
+      parentLearnerEnrollmentFields({ studentStatus: (child as any).status, rosterInactive: false });
 
     // ── Grades ───────────────────────────────────────────────────────────────
     if (section === 'grades') {
@@ -320,7 +350,13 @@ export async function GET(req: Request) {
         })),
       ].sort((a, b) => new Date(b.submitted_at ?? 0).getTime() - new Date(a.submitted_at ?? 0).getTime());
 
-      return NextResponse.json({ success: true, grades });
+      return NextResponse.json({
+        success: true,
+        grades,
+        evidenceSession: await liveEvidenceSessionPayload(),
+        child_status: (child as any).status ?? null,
+        ...childEnrollmentFields,
+      });
     }
 
     // ── Results / Progress Reports ───────────────────────────────────────────
@@ -363,6 +399,8 @@ export async function GET(req: Request) {
         success: true,
         reports: finalReports,
         message: finalReports.length === 0 ? 'No published reports are available for this child yet.' : undefined,
+        child_status: (child as any).status ?? null,
+        ...childEnrollmentFields,
       });
     }
 

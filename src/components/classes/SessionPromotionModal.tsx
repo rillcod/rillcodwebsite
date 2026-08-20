@@ -1,0 +1,258 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AcademicCapIcon, ArrowPathIcon, XMarkIcon } from '@/lib/icons';
+
+type TrackDue = {
+  track_id: 'young_to_teen' | 'jss_to_ss';
+  due_count: number;
+  class_count: number;
+};
+
+type DueSchool = {
+  school_id: string;
+  school_name: string | null;
+  tracks: TrackDue[];
+};
+
+type DueSnapshot = {
+  show_menu: boolean;
+  total_due: number;
+  schools: DueSchool[];
+};
+
+type GraduationSlice = {
+  class_id: string;
+  class_name: string;
+  due_students: number;
+  plan: { promotable_count: number };
+};
+
+type GraduationPlan = {
+  track_id: 'young_to_teen' | 'jss_to_ss';
+  track_label: string;
+  school_id: string;
+  school_name: string | null;
+  slices: GraduationSlice[];
+  total_promotable: number;
+  total_held: number;
+  blocked: string[];
+};
+
+const TRACK_LABELS: Record<string, string> = {
+  young_to_teen: 'Basic 6 → JSS 1 (into Teen category)',
+  jss_to_ss: 'JSS 3 → SS 1 (Teen · junior → senior)',
+};
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  dueSnapshot: DueSnapshot | null;
+  onComplete?: () => void;
+};
+
+/** Periodic session tool — only opened from More when learners are actually due. */
+export function SessionPromotionModal({ open, onClose, dueSnapshot, onComplete }: Props) {
+  const [schoolId, setSchoolId] = useState('');
+  const [trackId, setTrackId] = useState<'young_to_teen' | 'jss_to_ss'>('young_to_teen');
+  const [loading, setLoading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [plan, setPlan] = useState<GraduationPlan | null>(null);
+  const [error, setError] = useState('');
+  const [resultMsg, setResultMsg] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
+
+  const schools = dueSnapshot?.schools ?? [];
+
+  const tracksForSchool = useMemo(() => {
+    const row = schools.find((s) => s.school_id === schoolId);
+    return row?.tracks ?? [];
+  }, [schools, schoolId]);
+
+  useEffect(() => {
+    if (!open) {
+      setPlan(null);
+      setError('');
+      setResultMsg('');
+      setConfirmed(false);
+      return;
+    }
+    const first = schools[0];
+    if (first && !schoolId) {
+      setSchoolId(first.school_id);
+      setTrackId(first.tracks[0]?.track_id ?? 'young_to_teen');
+    }
+  }, [open, schools, schoolId]);
+
+  useEffect(() => {
+    if (tracksForSchool.length && !tracksForSchool.some((t) => t.track_id === trackId)) {
+      setTrackId(tracksForSchool[0].track_id);
+    }
+  }, [tracksForSchool, trackId]);
+
+  const loadPreview = useCallback(async () => {
+    if (!schoolId || !trackId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const qs = new URLSearchParams({ school_id: schoolId, track: trackId });
+      const res = await fetch(`/api/classes/graduate-teen?${qs}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not scan');
+      setPlan(data.plan);
+      setConfirmed(false);
+    } catch (e) {
+      setPlan(null);
+      setError(e instanceof Error ? e.message : 'Scan failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolId, trackId]);
+
+  useEffect(() => {
+    if (open && schoolId && trackId) void loadPreview();
+  }, [open, schoolId, trackId, loadPreview]);
+
+  const applyPromotion = async () => {
+    if (!plan || plan.total_promotable === 0 || !schoolId || !confirmed) return;
+    const label = TRACK_LABELS[trackId] ?? trackId;
+    if (
+      !confirm(
+        `Move ${plan.total_promotable} learner${plan.total_promotable === 1 ? '' : 's'} (${label})?\n\nReports stay on their saved terms.`,
+      )
+    ) {
+      return;
+    }
+
+    setApplying(true);
+    setError('');
+    setResultMsg('');
+    try {
+      const res = await fetch('/api/classes/graduate-teen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ school_id: schoolId, track: trackId }),
+      });
+      const data = await res.json();
+      if (!res.ok && !data.promoted) throw new Error(data.error || 'Promotion failed');
+      setResultMsg(data.message ?? `Promoted ${data.promoted ?? 0} learners.`);
+      onComplete?.();
+      void loadPreview();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Promotion failed');
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-labelledby="session-promotion-title"
+        className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-5"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p id="session-promotion-title" className="text-sm font-black text-foreground">
+              Session promotion
+            </p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              Class &amp; grade placement only — Teen is a programme category. Faster program progress
+              at the same level stays in Learner Progress or Smart promote on each class.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-muted-foreground hover:bg-muted" aria-label="Close">
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {schools.length > 1 && (
+            <select
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold"
+            >
+              {schools.map((s) => (
+                <option key={s.school_id} value={s.school_id}>{s.school_name ?? 'School'}</option>
+              ))}
+            </select>
+          )}
+
+          {tracksForSchool.length > 1 && (
+            <select
+              value={trackId}
+              onChange={(e) => setTrackId(e.target.value as 'young_to_teen' | 'jss_to_ss')}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold"
+            >
+              {tracksForSchool.map((t) => (
+                <option key={t.track_id} value={t.track_id}>
+                  {TRACK_LABELS[t.track_id]} ({t.due_count} due)
+                </option>
+              ))}
+            </select>
+          )}
+
+          {loading ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+              Checking who is ready…
+            </p>
+          ) : null}
+
+          {error ? <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
+          {resultMsg ? <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{resultMsg}</p> : null}
+
+          {plan && !loading ? (
+            plan.total_promotable > 0 ? (
+              <>
+                <p className="text-xs font-bold text-foreground">
+                  {plan.total_promotable} ready
+                  {plan.total_held > 0 ? ` · ${plan.total_held} held` : ''}
+                  {' · '}{TRACK_LABELS[trackId]}
+                </p>
+                <ul className="max-h-24 space-y-1 overflow-y-auto text-[11px]">
+                  {plan.slices.map((slice) => (
+                    <li key={slice.class_id} className="flex justify-between gap-2 rounded-md bg-muted/40 px-2 py-1">
+                      <span className="truncate">{slice.class_name}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">{slice.plan.promotable_count} moving</span>
+                    </li>
+                  ))}
+                </ul>
+                <label className="flex cursor-pointer items-start gap-2 text-[11px]">
+                  <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+                  <span>Confirm {plan.track_label} for {plan.school_name ?? 'this school'}</span>
+                </label>
+                <button
+                  type="button"
+                  disabled={applying || !confirmed}
+                  onClick={() => void applyPromotion()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-xs font-black text-white disabled:opacity-50"
+                >
+                  {applying ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <AcademicCapIcon className="h-4 w-4" />}
+                  Run ({plan.total_promotable})
+                </button>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {plan.blocked[0] ?? 'Nobody at an exit grade yet. Same-level program speed → Learner Progress.'}
+              </p>
+            )
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** @deprecated use SessionPromotionModal */
+export const SchoolTeenGraduationModal = SessionPromotionModal;

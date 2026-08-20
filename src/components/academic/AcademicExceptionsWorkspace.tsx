@@ -29,7 +29,7 @@ const QUEUE_META: Record<StudentExceptionKind, { label: string; hint: string; to
   },
   withdrawn_active: {
     label: 'Left but still logged in',
-    hint: 'Marked as left / ended, but their login is still on',
+    hint: 'Legacy queue — roster withdraw now keeps login on by design so families can view reports',
     tone: 'text-violet-600 dark:text-violet-400',
   },
   class_mismatch: {

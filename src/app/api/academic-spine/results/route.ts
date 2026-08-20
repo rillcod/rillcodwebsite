@@ -6,6 +6,7 @@ import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
 import { resolveClassReportSession } from '@/lib/reports/session-labels';
+import { autoFillResultMessage } from '@/lib/reports/score';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -47,7 +48,7 @@ export async function GET() {
   // Report Builder loads by student_id. Many older rows have null class_id, so
   // filtering only `.in('class_id', classIds)` under-counted the workspace hero.
   const reportSelect =
-    'id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at';
+    'id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at,calculation_snapshot';
   const byId = new Map<string, Record<string, unknown>>();
   const studentIds = ((students.data ?? []) as Array<{ id: string }>).map((s) => s.id);
 
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
       newValue: 'Refreshed scores from current class work',
       newValues: { calculation, academic_quality: quality },
     });
-    return NextResponse.json({ data: { report_id: reportId, calculation, academic_quality: quality } });
+    return NextResponse.json({ data: { report_id: reportId, calculation, academic_quality: quality, message: autoFillResultMessage(calculation) } });
   }
 
   const studentId = typeof body.student_id === 'string' ? body.student_id : '';
@@ -274,9 +275,12 @@ export async function POST(req: NextRequest) {
   });
   return NextResponse.json({ data: {
     report_id: write.data.id,
+    calculation_mode: calculationMode,
     pathway: offering?.pathway,
     academic_model: offering?.academic_model,
     calculation,
     academic_quality: quality,
+    message: autoFillResultMessage(calculation),
+    reused: false,
   } }, { status: existing ? 200 : 201 });
 }

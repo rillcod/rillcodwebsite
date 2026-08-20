@@ -37,6 +37,15 @@ import {
   getCurrentAcademicYear,
   getCurrentTermLabel,
 } from "@/lib/reports/academic-period";
+import {
+  AcademicSessionScopeStrip,
+  formatClassRowOptionLabel,
+} from "@/components/reports/ReportSessionContextBanner";
+import {
+  classSessionFromTerms,
+  liveSessionLike,
+  parseCanonicalTermLabel,
+} from "@/lib/reports/session-scope";
 
 interface LessonPlan {
   id: string;
@@ -101,6 +110,7 @@ interface Class {
   school_id?: string | null;
   teacher_id?: string | null;
   program_id?: string | null;
+  academic_terms?: { term_label: string; academic_year: string } | null;
 }
 interface School {
   id: string;
@@ -604,6 +614,18 @@ function LessonPlansPageInner() {
     return Array.from(set).sort();
   }, [plans]);
 
+  const workingLessonSession = useMemo(() => {
+    if (filterTerm) {
+      return parseCanonicalTermLabel(filterTerm) ?? liveSessionLike();
+    }
+    return liveSessionLike();
+  }, [filterTerm]);
+
+  const filteredClassSession = useMemo(
+    () => classSessionFromTerms(allClasses.find((c) => c.id === (filterClassId || form.class_id))?.academic_terms),
+    [filterClassId, form.class_id, allClasses],
+  );
+
   // Classes filtered by school AND (when available) by the selected course's
   // target grades. We match loosely: a class "JSS1A" or "Grade JSS1 — Blue"
   // all count as belonging to grade "JSS1". If the course hasn't been tagged
@@ -1044,6 +1066,12 @@ function LessonPlansPageInner() {
         </div>
 
         {/* Filters */}
+        <AcademicSessionScopeStrip
+          purpose="Lesson plans"
+          workingSession={workingLessonSession}
+          classSession={filteredClassSession}
+          hint="New plans save to the term you pick in the form. Filtering by term chip only narrows the list — it does not change a class's assignment."
+        />
         <div className="flex flex-wrap gap-3 items-center bg-card border border-border p-3 rounded-lg">
           <div className="relative flex-1 min-w-[220px]">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1424,7 +1452,7 @@ function LessonPlansPageInner() {
                   <option value="">— All classes —</option>
                   {formClasses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {formatClassRowOptionLabel(c)}
                     </option>
                   ))}
                 </select>

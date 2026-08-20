@@ -554,6 +554,8 @@ export async function DELETE(
   // Two modes:
   //  • Soft unenrol (default): KEEP the class tie so the student is never classless and the
   //    class keeps its history — they're just marked 'withdrawn' in this term's roster.
+  //    portal_users.is_active is intentionally NOT changed: parents and learners keep login
+  //    access to published reports, invoices, certificates, and other historical records.
   //  • Hard remove (body.hard === true): fully WIPE the student account (all FK children +
   //    students + portal_users + auth) — a complete admin-style delete, not just a detach.
   if (body.hard === true) {

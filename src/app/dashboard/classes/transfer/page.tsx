@@ -191,7 +191,11 @@ export default function ClassTransferPage() {
   // (student is marked withdrawn, never classless). No destination needed.
   const deactivate = async () => {
     if (!sourceId || selected.size === 0) return;
-    if (!confirm(`Deactivate ${selected.size} student(s) from ${sourceClass?.name ?? 'this class'}? They keep their class history and can be re-activated or moved later.`)) return;
+    if (!confirm(
+      `Withdraw ${selected.size} student(s) from ${sourceClass?.name ?? 'this class'}?\n\n`
+      + 'They leave the active roster but keep class history and portal login.\n'
+      + 'Published reports stay available; use Reinstate when they return.',
+    )) return;
     setMoving(true);
     setResult(null);
     const ids = [...selected];

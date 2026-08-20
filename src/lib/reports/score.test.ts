@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   allProgressReportScoresPresent,
+  autoFillResultMessage,
+  automaticResultHasNoEvidence,
   deriveProgressReportResult,
   hasRecordedProgressReportScores,
   isLockedLearnerResult,
@@ -8,6 +10,7 @@ import {
   parseOptionalScore,
   parseScoreForDisplay,
   progressReportScoreComponents,
+  reportHasDisplayableScores,
   scoreFieldToFormValue,
   touchesProgressReportScores,
 } from './score';
@@ -84,5 +87,31 @@ describe('progress report score adapter', () => {
     expect(isLockedLearnerResult({ is_published: false, calculation_mode: 'manual', theory_score: 80 })).toBe(true);
     expect(isLockedLearnerResult({ is_published: false, calculation_mode: 'automatic', theory_score: 80 })).toBe(false);
     expect(isLockedLearnerResult({ is_published: false, theory_score: 80 })).toBe(true);
+  });
+
+  it('detects automatic drafts with no class evidence', () => {
+    const emptyAuto = {
+      calculation_mode: 'automatic',
+      calculation_snapshot: { applied_weight: 0 },
+      theory_score: 0,
+      practical_score: 0,
+      attendance_score: 0,
+      participation_score: 0,
+      overall_score: 0,
+    };
+    expect(automaticResultHasNoEvidence(emptyAuto)).toBe(true);
+    expect(reportHasDisplayableScores(emptyAuto)).toBe(false);
+    expect(automaticResultHasNoEvidence({
+      calculation_mode: 'automatic',
+      calculation_snapshot: { applied_weight: 20 },
+      theory_score: 72,
+    })).toBe(false);
+    expect(reportHasDisplayableScores({
+      calculation_mode: 'manual',
+      theory_score: null,
+      practical_score: null,
+    })).toBe(false);
+    expect(autoFillResultMessage({ applied_weight: 0 })).toMatch(/No class evidence/);
+    expect(autoFillResultMessage({ applied_weight: 40 })).toMatch(/filled from class work/i);
   });
 });

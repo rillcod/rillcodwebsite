@@ -100,10 +100,25 @@ export async function findCanonicalProgressReport(
     if (rows.length === 1 && rows[0]?.id) return rows[0];
   }
   if (courseId && offeringId && offeringPeriodId) {
-    const { data } = await newest(
-      byStudent().eq('course_id', courseId).eq('academic_offering_id', offeringId).eq('offering_period_id', offeringPeriodId),
+    const base = byStudent()
+      .eq('course_id', courseId)
+      .eq('academic_offering_id', offeringId)
+      .eq('offering_period_id', offeringPeriodId);
+    if (termId) {
+      const { data } = await newest(base.eq('term_id', termId));
+      if (data?.id) return data;
+    }
+    if (term && period) {
+      const { data } = await newest(base.eq('report_term', term).eq('report_period', period));
+      if (data?.id) return data;
+    }
+    // Offering ids alone must not pick a prior academic session — only placeholder rows.
+    const { data: rows } = await newestFew(base, 5);
+    const list = Array.isArray(rows) ? rows : [];
+    const placeholderMatches = list.filter((row) =>
+      isPlaceholderReportSession(row.report_term, row.report_period),
     );
-    if (data?.id) return data;
+    if (placeholderMatches.length === 1 && placeholderMatches[0]?.id) return placeholderMatches[0];
   }
   return null;
 }

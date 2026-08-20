@@ -149,3 +149,48 @@ export function isLockedLearnerResult(
   if (mode === 'automatic') return false;
   return hasRecordedProgressReportScores(report);
 }
+
+type AutomaticEvidenceReport = ProgressReportScoreSource & {
+  calculation_mode?: unknown;
+  calculation_snapshot?: unknown;
+  overall_score?: unknown;
+};
+
+/**
+ * Auto-fill ran but nothing was assessed for this term (applied_weight = 0).
+ * Do not show zero-filled score breakdowns — they look like typed scores.
+ */
+export function automaticResultHasNoEvidence(report: AutomaticEvidenceReport): boolean {
+  if (String(report.calculation_mode || '').toLowerCase() !== 'automatic') return false;
+  const snapshot = metrics(report.calculation_snapshot);
+  const appliedWeight = Number(snapshot.applied_weight);
+  if (Number.isFinite(appliedWeight)) return appliedWeight <= 0;
+  return !hasRecordedProgressReportScores(report);
+}
+
+/** Whether the report card / publish view should show numeric scores. */
+export function reportHasDisplayableScores(report: AutomaticEvidenceReport): boolean {
+  if (automaticResultHasNoEvidence(report)) return false;
+  if (String(report.calculation_mode || '').toLowerCase() === 'manual') {
+    const engagement = metrics(report.engagement_metrics);
+    return [
+      report.theory_score,
+      report.practical_score,
+      report.attendance_score,
+      report.participation_score,
+      engagement.classwork_score,
+      engagement.assessment_score,
+      report.overall_score,
+    ].some((value) => !isUnsetScore(value));
+  }
+  return hasRecordedProgressReportScores(report) || !isUnsetScore(report.overall_score);
+}
+
+export function autoFillResultMessage(calculation: unknown): string {
+  const snapshot = metrics(calculation);
+  const appliedWeight = Number(snapshot.applied_weight);
+  if (Number.isFinite(appliedWeight) && appliedWeight <= 0) {
+    return 'No class evidence for this term yet. Record CBT, assignments, or attendance — or open Write to type scores.';
+  }
+  return 'Draft filled from class work. Review in Write, then Publish.';
+}

@@ -74,7 +74,7 @@ const VIEWS = [
   {
     id: "decisions" as const,
     label: "Promotion decisions",
-    purpose: "End-of-term advance, repeat or complete",
+    purpose: "Curriculum track advance · class grade moves use Class → Roster",
     icon: RocketLaunchIcon,
     roles: ["admin", "teacher"],
   },

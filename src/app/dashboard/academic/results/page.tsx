@@ -3,36 +3,39 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import {
+  AutoFillClassSummary,
+  AutoFillFlowGuide,
+  AutoFillLearnerContext,
+  AutoFillReadinessPanel,
+  buildAutoFillReadiness,
+  formatReportScoreDisplay,
+  type AutoFillReport,
+} from '@/components/reports/AutoFillWorkspace';
 import { ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
+import { formatClassRowOptionLabel, ReportSessionContextBanner } from '@/components/reports/ReportSessionContextBanner';
+import { autoFillResultMessage, automaticResultHasNoEvidence } from '@/lib/reports/score';
+import {
+  classSessionFromTerms,
+  reportMatchesClassSession,
+  sessionFromReport,
+} from '@/lib/reports/session-scope';
 import { buildClassTeachingHref } from '@/lib/curriculum/href';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
 type Klass = {
   id: string;
   name: string;
+  academic_offering_id?: string | null;
+  offering_period_id?: string | null;
   academic_offerings?: { title: string; enrollment_type: string; academic_model: string } | null;
   academic_offering_periods?: { label: string } | null;
+  academic_terms?: { term_label: string; academic_year: string } | null;
 };
 type Student = { id: string; full_name: string; class_id: string; enrollment_type: string };
 type Plan = { id: string; class_id: string; course_id: string; curriculum_release_id: string | null; courses?: { title: string } | null };
-type Report = {
-  id: string;
-  student_id?: string;
-  class_id?: string;
-  course_id?: string;
-  student_name: string;
-  course_name: string;
-  report_term: string;
-  report_period: string;
-  overall_score: number | null;
-  overall_grade: string | null;
-  calculation_mode: string;
-  academic_qa_status: string;
-  is_published: boolean;
-  updated_at?: string;
-};
-type Data = { classes: Klass[]; students: Student[]; plans: Plan[]; reports: Report[] };
+type Data = { classes: Klass[]; students: Student[]; plans: Plan[]; reports: AutoFillReport[] };
 
 const enrollmentLabel: Record<string, string> = {
   school: 'Regular School',
@@ -41,7 +44,8 @@ const enrollmentLabel: Record<string, string> = {
   in_person: 'Special Programme (in person)',
 };
 
-type ListFilter = 'all' | 'manual' | 'automatic' | 'draft' | 'published';
+type ListFilter = 'all' | 'manual' | 'automatic' | 'draft' | 'published' | 'no_evidence';
+type MessageTone = 'success' | 'warning' | 'neutral';
 
 export default function CentralResultsPage() {
   return (
@@ -66,12 +70,13 @@ function CentralResultsPageInner() {
   const [search, setSearch] = useState('');
   const [openingTyped, setOpeningTyped] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0, filled: 0, empty: 0, skipped: 0 });
   const [recalcId, setRecalcId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState<MessageTone>('neutral');
   const [reportId, setReportId] = useState('');
-  // The list was hard-capped at 60 with nothing on screen to say so, so a school
-  // past that number simply could not see its remaining results.
   const [listLimit, setListLimit] = useState(60);
 
   const load = useCallback(async () => {
@@ -92,17 +97,9 @@ function CentralResultsPageInner() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (linkedClassId) setClassId(linkedClassId);
-  }, [linkedClassId]);
-
-  useEffect(() => {
-    if (linkedCourseId) setCourseId(linkedCourseId);
-  }, [linkedCourseId]);
-
-  useEffect(() => {
-    if (linkedStudentId) setStudentId(linkedStudentId);
-  }, [linkedStudentId]);
+  useEffect(() => { if (linkedClassId) setClassId(linkedClassId); }, [linkedClassId]);
+  useEffect(() => { if (linkedCourseId) setCourseId(linkedCourseId); }, [linkedCourseId]);
+  useEffect(() => { if (linkedStudentId) setStudentId(linkedStudentId); }, [linkedStudentId]);
 
   useEffect(() => {
     if (!linkedReportId) return;
@@ -121,6 +118,8 @@ function CentralResultsPageInner() {
     () => [...new Map(plans.map((plan) => [plan.course_id, plan])).values()],
     [plans],
   );
+  const selectedStudent = students.find((item) => item.id === studentId);
+  const selectedPlan = courseOptions.find((item) => item.course_id === courseId);
 
   useEffect(() => {
     if (!classId) return;
@@ -130,67 +129,110 @@ function CentralResultsPageInner() {
     });
   }, [classId, courseOptions]);
 
+  const classSession = useMemo(
+    () => classSessionFromTerms(activeClass?.academic_terms),
+    [activeClass],
+  );
+
+  const sessionScopedReports = useMemo(() => {
+    if (!classSession) return data.reports;
+    return data.reports.filter((report) => reportMatchesClassSession(report, activeClass));
+  }, [data.reports, classSession, activeClass]);
+
   useEffect(() => {
     if (!classId || students.length === 0) return;
     setStudentId((current) => {
       if (current && students.some((student) => student.id === current)) return current;
       const learnerWithoutResult = courseId
-        ? students.find((student) => !data.reports.some((report) =>
+        ? students.find((student) => !sessionScopedReports.some((report) =>
             report.student_id === student.id && report.course_id === courseId,
           ))
         : null;
       return learnerWithoutResult?.id ?? students[0].id;
     });
-  }, [classId, courseId, courseOptions, data.reports, students]);
+  }, [classId, courseId, courseOptions, sessionScopedReports, students]);
 
-  const classStudentIds = useMemo(
-    () => new Set(students.map((s) => s.id)),
-    [students],
+  const selectedReport = useMemo(() => {
+    const matches = sessionScopedReports.filter(
+      (report) => report.student_id === studentId && report.course_id === courseId,
+    );
+    return matches.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0] ?? null;
+  }, [sessionScopedReports, studentId, courseId]);
+
+  const autoFillWorkingSession = classSession ?? { term: '', period: '' };
+
+  const readiness = useMemo(
+    () => buildAutoFillReadiness({
+      classId,
+      studentId,
+      courseId,
+      activeClass,
+      selectedStudent,
+      selectedPlan,
+    }),
+    [classId, studentId, courseId, activeClass, selectedStudent, selectedPlan],
   );
+  const readyToFill = readiness.every((item) => item.ok);
+
+  const classStudentIds = useMemo(() => new Set(students.map((s) => s.id)), [students]);
 
   const visibleReports = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return data.reports.filter((report) => {
+    return sessionScopedReports.filter((report) => {
       if (classId) {
         const inSelectedClass =
           report.class_id === classId ||
           (!!report.student_id && classStudentIds.has(report.student_id));
         if (!inSelectedClass) return false;
       }
+      if (courseId && report.course_id !== courseId) return false;
       if (listFilter === 'manual' && report.calculation_mode !== 'manual') return false;
       if (listFilter === 'automatic' && report.calculation_mode !== 'automatic') return false;
       if (listFilter === 'draft' && report.is_published) return false;
       if (listFilter === 'published' && !report.is_published) return false;
+      if (listFilter === 'no_evidence' && !automaticResultHasNoEvidence(report)) return false;
       if (!q) return true;
       return `${report.student_name} ${report.course_name} ${report.report_term} ${report.report_period}`
         .toLowerCase()
         .includes(q);
     });
-  }, [data.reports, classId, classStudentIds, listFilter, search]);
+  }, [sessionScopedReports, classId, classStudentIds, courseId, listFilter, search]);
 
   const counts = useMemo(() => {
-    const scoped = classId
-      ? data.reports.filter(
-          (r) =>
-            r.class_id === classId ||
-            (!!r.student_id && classStudentIds.has(r.student_id)),
-        )
-      : data.reports;
+    const scoped = sessionScopedReports.filter((r) => {
+      const inClass = !classId || r.class_id === classId || (!!r.student_id && classStudentIds.has(r.student_id));
+      const inCourse = !courseId || r.course_id === courseId;
+      return inClass && inCourse;
+    });
     return {
       all: scoped.length,
       manual: scoped.filter((r) => r.calculation_mode === 'manual').length,
       automatic: scoped.filter((r) => r.calculation_mode === 'automatic').length,
       draft: scoped.filter((r) => !r.is_published).length,
       published: scoped.filter((r) => r.is_published).length,
+      no_evidence: scoped.filter((r) => automaticResultHasNoEvidence(r)).length,
     };
-  }, [data.reports, classId, classStudentIds]);
+  }, [sessionScopedReports, classId, classStudentIds, courseId]);
+
+  const bulkTargets = useMemo(() => students.filter((student) => {
+    const existing = sessionScopedReports.find((report) => report.student_id === student.id && report.course_id === courseId);
+    if (!existing) return true;
+    if (existing.is_published) return false;
+    if (existing.calculation_mode === 'manual') return false;
+    return true;
+  }), [students, sessionScopedReports, courseId]);
+
+  function setFeedback(text: string, tone: MessageTone, nextReportId = '') {
+    setMessage(text);
+    setMessageTone(tone);
+    setReportId(nextReportId);
+  }
 
   async function prepare(mode: 'automatic' | 'manual' = 'automatic') {
     if (mode === 'manual') setOpeningTyped(true);
     else setSaving(true);
     setError('');
     setMessage('');
-    setReportId('');
     try {
       const response = await fetch('/api/academic-spine/results', {
         method: 'POST',
@@ -204,12 +246,15 @@ function CentralResultsPageInner() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || (mode === 'manual' ? 'Could not open for typed scores.' : 'Could not fill from class work.'));
-      setReportId(body.data.report_id);
-      setMessage(
-        body.data.message || (mode === 'manual'
-          ? 'Opened in Write. Auto-fill will not change these scores.'
-          : 'Draft filled from class work. Review, then Publish.'),
-      );
+      const text = body.data.message || (mode === 'manual'
+        ? 'Opened in Write. Auto-fill will not change these scores.'
+        : 'Draft filled from class work. Review, then Publish.');
+      const tone: MessageTone = mode === 'manual'
+        ? 'neutral'
+        : text.toLowerCase().includes('no class evidence')
+          ? 'warning'
+          : 'success';
+      setFeedback(text, tone, body.data.report_id);
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : (mode === 'manual' ? 'Could not open for typed scores.' : 'Could not fill from class work.'));
@@ -231,8 +276,12 @@ function CentralResultsPageInner() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Could not refresh from class work.');
-      setMessage('Scores refreshed from the latest class work.');
-      setReportId(id);
+      const text = body.data.message || autoFillResultMessage(body.data.calculation);
+      setFeedback(
+        text,
+        text.toLowerCase().includes('no class evidence') ? 'warning' : 'success',
+        id,
+      );
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not refresh from class work.');
@@ -241,52 +290,122 @@ function CentralResultsPageInner() {
     }
   }
 
+  async function fillClass() {
+    if (!readyToFill || bulkTargets.length === 0) return;
+    setBulkRunning(true);
+    setError('');
+    setMessage('');
+    setBulkProgress({ done: 0, total: bulkTargets.length, filled: 0, empty: 0, skipped: 0 });
+    let filled = 0;
+    let empty = 0;
+    let skipped = 0;
+    try {
+      for (let index = 0; index < bulkTargets.length; index += 1) {
+        const student = bulkTargets[index];
+        const response = await fetch('/api/academic-spine/results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_id: student.id,
+            class_id: classId,
+            course_id: courseId,
+            calculation_mode: 'automatic',
+          }),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          skipped += 1;
+        } else {
+          const text = body.data.message || autoFillResultMessage(body.data.calculation);
+          if (text.toLowerCase().includes('no class evidence')) empty += 1;
+          else filled += 1;
+        }
+        setBulkProgress({ done: index + 1, total: bulkTargets.length, filled, empty, skipped });
+      }
+      setFeedback(
+        `Class batch complete: ${filled} filled from evidence, ${empty} with no evidence yet${skipped ? `, ${skipped} skipped` : ''}.`,
+        empty > 0 && filled === 0 ? 'warning' : 'success',
+        '',
+      );
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Bulk auto-fill failed.');
+    } finally {
+      setBulkRunning(false);
+    }
+  }
+
+  const primaryBlocked = selectedReport?.calculation_mode === 'manual' || selectedReport?.is_published;
+  const primaryLabel = selectedReport?.is_published
+    ? 'Published — open Publish'
+    : selectedReport?.calculation_mode === 'manual'
+      ? 'Already typed — use Write'
+      : selectedReport?.calculation_mode === 'automatic'
+        ? (saving ? 'Refreshing…' : 'Refresh from class work')
+        : (saving ? 'Working…' : 'Fill from class work');
+
   return (
     <div className={`mx-auto max-w-7xl space-y-4 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-black tracking-tight">Auto-fill</h1>
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Pull scores from class work for this term. Auto-fill never overwrites typed or published reports.
+        </p>
+      </div>
+
       <LearnerReportFlowStrip
         current="prepare"
         classId={classId}
         studentId={studentId}
         courseId={courseId}
-        reportId={reportId}
+        reportId={reportId || selectedReport?.id}
         from="prepare"
       />
+
+      <AutoFillFlowGuide />
+
+      {classId || selectedReport ? (
+        <ReportSessionContextBanner
+          context="autofill"
+          workingSession={autoFillWorkingSession}
+          classSession={classSession}
+          reportSession={sessionFromReport(selectedReport)}
+        />
+      ) : null}
+
       {classId ? (
         <p className="text-xs text-muted-foreground">
           <Link href={buildClassTeachingHref({ classId, courseId })} className="font-bold text-primary hover:underline">
-            Class teaching
+            Open class teaching
           </Link>
+          {' '}to record assignments, CBT, and attendance before auto-fill.
         </p>
       ) : null}
 
       {error ? (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
       ) : null}
+
       {message ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex flex-col gap-3 rounded-2xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between ${
+          messageTone === 'warning'
+            ? 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-100'
+            : messageTone === 'success'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+              : 'border-border bg-muted/30 text-foreground'
+        }`}>
           <span>{message}</span>
           {reportId ? (
             <div className="flex flex-wrap gap-2">
               <Link
-                href={learnerReportHref('write', {
-                  reportId,
-                  studentId,
-                  classId,
-                  courseId,
-                  from: 'prepare',
-                })}
-                className="rounded-xl bg-emerald-700 px-4 py-2 text-center font-bold text-white"
+                href={learnerReportHref('write', { reportId, studentId, classId, courseId, from: 'prepare' })}
+                className="rounded-xl bg-primary px-4 py-2 text-center text-xs font-bold text-primary-foreground"
               >
-                Review scores
+                Review in Write
               </Link>
               <Link
-                href={learnerReportHref('publish', {
-                  reportId,
-                  studentId,
-                  classId,
-                  courseId,
-                })}
-                className="rounded-xl border border-emerald-700/30 px-4 py-2 text-center font-bold"
+                href={learnerReportHref('publish', { reportId, studentId, classId, courseId })}
+                className="rounded-xl border border-border px-4 py-2 text-center text-xs font-bold"
               >
                 Publish
               </Link>
@@ -295,9 +414,35 @@ function CentralResultsPageInner() {
         </div>
       ) : null}
 
+      {bulkRunning ? (
+        <div className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-4">
+          <p className="text-sm font-bold text-sky-900 dark:text-sky-100">
+            Filling class… {bulkProgress.done}/{bulkProgress.total}
+          </p>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-sky-500/15">
+            <div
+              className="h-full bg-sky-500 transition-all"
+              style={{ width: `${bulkProgress.total ? (bulkProgress.done / bulkProgress.total) * 100 : 0}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {bulkProgress.filled} with evidence · {bulkProgress.empty} no evidence · {bulkProgress.skipped} skipped
+          </p>
+        </div>
+      ) : null}
+
       <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-        <h2 className="text-lg font-black">Choose a learner</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-lg font-black">Choose class & learner</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Auto-fill uses the class programme, reporting period, and teaching plan.</p>
+          </div>
+          {classId && courseId ? (
+            <AutoFillClassSummary students={students} reports={data.reports} courseId={courseId} />
+          ) : null}
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <label className="text-sm font-bold">
             Class
             <select
@@ -311,7 +456,9 @@ function CentralResultsPageInner() {
             >
               <option value="">Choose class</option>
               {data.classes.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
+                <option key={item.id} value={item.id}>
+                  {formatClassRowOptionLabel(item)}
+                </option>
               ))}
             </select>
           </label>
@@ -345,6 +492,7 @@ function CentralResultsPageInner() {
             </select>
           </label>
         </div>
+
         {activeClass ? (
           <p className="mt-3 text-xs text-muted-foreground">
             {enrollmentLabel[activeClass.academic_offerings?.enrollment_type || ''] || 'Programme'}
@@ -352,44 +500,58 @@ function CentralResultsPageInner() {
             {activeClass.academic_offering_periods?.label || 'Current period'}
           </p>
         ) : null}
-        <details className="mt-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
-          <summary className="cursor-pointer font-bold">If this is blocked</summary>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted-foreground">
-            <li>Class needs a programme and reporting period</li>
-            <li>Learner placement must match that class</li>
-            <li>Course needs a teaching plan</li>
-            <li>There should be some class work to score from</li>
-          </ul>
-        </details>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <AutoFillReadinessPanel items={readiness} />
+          <AutoFillLearnerContext report={selectedReport} classId={classId} courseId={courseId} />
+        </div>
+
         <div className="mt-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => void prepare('automatic')}
-          disabled={saving || openingTyped || !classId || !studentId || !courseId}
-          className="min-h-11 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50"
-        >
-          {saving ? 'Working…' : 'Fill from class work'}
-        </button>
-        <button
-          type="button"
-          onClick={() => void prepare('manual')}
-          disabled={saving || openingTyped || !classId || !studentId || !courseId}
-          className="min-h-11 rounded-xl border border-border bg-background px-6 py-3 font-bold disabled:opacity-50"
-        >
-          {openingTyped ? 'Opening…' : 'Open for typed scores'}
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedReport?.calculation_mode === 'automatic' && !selectedReport.is_published && selectedReport.id) {
+                void recalculate(selectedReport.id);
+                return;
+              }
+              void prepare('automatic');
+            }}
+            disabled={saving || openingTyped || bulkRunning || !readyToFill || primaryBlocked}
+            className="min-h-11 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50"
+            title={primaryBlocked ? 'Typed and published reports must be opened in Write or Publish' : undefined}
+          >
+            {primaryLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => void prepare('manual')}
+            disabled={saving || openingTyped || bulkRunning || !readyToFill}
+            className="min-h-11 rounded-xl border border-border bg-background px-6 py-3 font-bold disabled:opacity-50"
+          >
+            {openingTyped ? 'Opening…' : 'Open for typed scores'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void fillClass()}
+            disabled={saving || openingTyped || bulkRunning || !readyToFill || bulkTargets.length === 0}
+            className="min-h-11 rounded-xl border border-sky-500/40 bg-sky-500/10 px-6 py-3 font-bold text-sky-900 dark:text-sky-100 disabled:opacity-50"
+            title={bulkTargets.length === 0 ? 'Every learner is typed, published, or already has a draft' : undefined}
+          >
+            {bulkRunning ? 'Filling class…' : `Fill class (${bulkTargets.length})`}
+          </button>
         </div>
       </section>
 
       <section className="rounded-3xl border border-border bg-card p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-lg font-black">These reports</h2>
+            <h2 className="text-lg font-black">Class reports</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Refresh only works on unpublished Auto-fill drafts.
+              Refresh only works on unpublished Auto-fill drafts. Typed scores stay protected.
             </p>
           </div>
-          <input aria-label="Search learners or courses"
+          <input
+            aria-label="Search learners or courses"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search learner or course"
@@ -401,8 +563,9 @@ function CentralResultsPageInner() {
           {(
             [
               ['all', `All (${counts.all})`],
-              ['manual', `Typed (${counts.manual})`],
               ['automatic', `Auto-fill (${counts.automatic})`],
+              ['manual', `Typed (${counts.manual})`],
+              ['no_evidence', `No evidence (${counts.no_evidence})`],
               ['draft', `Draft (${counts.draft})`],
               ['published', `Published (${counts.published})`],
             ] as const
@@ -422,70 +585,74 @@ function CentralResultsPageInner() {
         </div>
 
         <div className="mt-4 space-y-3">
-          {visibleReports.slice(0, listLimit).map((report) => (
-            <article
-              key={report.id}
-              className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <p className="font-black text-foreground">
-                  {report.student_name} · {report.course_name}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {report.report_term} {report.report_period}
-                </p>
-                <div className="mt-2">
-                  <ResultStatusBadges report={report} />
+          {visibleReports.slice(0, listLimit).map((report) => {
+            const score = formatReportScoreDisplay(report);
+            return (
+              <article
+                key={report.id}
+                className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="font-black text-foreground">
+                    {report.student_name} · {report.course_name}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {report.report_term} {report.report_period}
+                  </p>
+                  <div className="mt-2">
+                    <ResultStatusBadges report={report} />
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="text-xl font-black">
-                  {report.overall_score ?? '—'}
-                  {report.overall_score == null ? '' : '%'}
-                  {report.overall_grade ? (
-                    <span className="ml-2 text-sm font-bold text-muted-foreground">{report.overall_grade}</span>
-                  ) : null}
-                </span>
-                <Link
-                  href={learnerReportHref('write', {
-                    reportId: report.id,
-                    studentId: report.student_id,
-                    classId: report.class_id || classId,
-                    courseId: report.course_id,
-                    term: report.report_term,
-                    period: report.report_period,
-                    from: 'prepare',
-                  })}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
-                >
-                  {report.calculation_mode === 'manual' ? 'Edit scores' : 'Review'}
-                </Link>
-                {report.calculation_mode === 'automatic' && !report.is_published ? (
-                  <button
-                    type="button"
-                    disabled={recalcId === report.id}
-                    onClick={() => void recalculate(report.id)}
-                    className="rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-800 dark:text-sky-200 disabled:opacity-50"
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <div className="text-right">
+                    <span className="text-xl font-black tabular-nums text-foreground">{score.value}</span>
+                    {score.hint ? (
+                      <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">{score.hint}</p>
+                    ) : report.overall_grade ? (
+                      <p className="text-xs font-bold text-muted-foreground">{report.overall_grade}</p>
+                    ) : null}
+                  </div>
+                  <Link
+                    href={learnerReportHref('write', {
+                      reportId: report.id,
+                      studentId: report.student_id,
+                      classId: report.class_id || classId,
+                      courseId: report.course_id,
+                      term: report.report_term,
+                      period: report.report_period,
+                      from: 'prepare',
+                    })}
+                    className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
                   >
-                    {recalcId === report.id ? 'Refreshing…' : 'Refresh'}
-                  </button>
-                ) : null}
-                <Link
-                  href={learnerReportHref('publish', {
-                    reportId: report.id,
-                    studentId: report.student_id,
-                    classId: report.class_id || classId,
-                    courseId: report.course_id,
-                    term: report.report_term,
-                    period: report.report_period,
-                  })}
-                  className="rounded-xl border border-border px-4 py-2 text-sm font-bold"
-                >
-                  Publish
-                </Link>
-              </div>
-            </article>
-          ))}
+                    {report.calculation_mode === 'manual' ? 'Edit scores' : 'Review'}
+                  </Link>
+                  {report.calculation_mode === 'automatic' && !report.is_published ? (
+                    <button
+                      type="button"
+                      disabled={recalcId === report.id || bulkRunning}
+                      onClick={() => void recalculate(report.id)}
+                      className="rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-bold text-sky-800 dark:text-sky-200 disabled:opacity-50"
+                    >
+                      {recalcId === report.id ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                  ) : null}
+                  <Link
+                    href={learnerReportHref('publish', {
+                      reportId: report.id,
+                      studentId: report.student_id,
+                      classId: report.class_id || classId,
+                      courseId: report.course_id,
+                      term: report.report_term,
+                      period: report.report_period,
+                    })}
+                    className="rounded-xl border border-border px-4 py-2 text-sm font-bold"
+                  >
+                    Publish
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
           {visibleReports.length > listLimit && (
             <div className="rounded-2xl border border-border bg-muted/40 p-4 text-center">
               <p className="text-xs font-bold text-muted-foreground">
@@ -506,7 +673,7 @@ function CentralResultsPageInner() {
             </p>
           ) : null}
         </div>
-    </section>
+      </section>
     </div>
   );
 }

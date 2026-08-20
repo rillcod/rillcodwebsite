@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +31,12 @@ import {
   nextAcademicSession,
   termNumberFromLabel,
 } from "@/lib/reports/academic-period";
+import { AcademicSessionScopeStrip } from "@/components/reports/ReportSessionContextBanner";
+import {
+  liveSessionLike,
+  parseCanonicalTermLabel,
+} from "@/lib/reports/session-scope";
+import { rollRosterSessionIfStale } from "@/lib/reports/session-workflows";
 
 type TermOption = {
   value: string;
@@ -400,6 +406,11 @@ export default function ProgressionPage({
     selectedProgram?.courses?.filter((c: any) => c.is_active !== false) ?? [];
   const pending = enrollments.filter((e) => !submitted.includes(e.id));
 
+  const workingProgressionSession = useMemo(
+    () => parseCanonicalTermLabel(filterTerm) ?? liveSessionLike(),
+    [filterTerm],
+  );
+
   // Aggregated counts for summary bar
   const decidedCount = pending.filter((e) => decisions[e.id]).length;
   const processedCount = submitted.length;
@@ -505,6 +516,18 @@ export default function ProgressionPage({
           </div>
 
           {/* Quick Action Filters — always 1-col on mobile, 3-col on sm+ */}
+          <AcademicSessionScopeStrip
+            purpose="Promotion decisions"
+            workingSession={workingProgressionSession}
+            hint="Grades and enrollments load for this term only. Advancing a learner does not rewrite reports from earlier terms."
+          />
+          <p className="text-[11px] leading-5 text-muted-foreground rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
+            <span className="font-bold text-foreground">School grade moves</span> (Basic 1 → Basic 2, whole class bulk)
+            live on each class: open the class → <span className="font-bold text-foreground">Roster → Promote for new session</span>.
+            This screen is for <span className="font-bold text-foreground">curriculum track</span> levels (Scratch Level 1 → Level 2) only.
+            {' '}
+            <span className="font-bold text-foreground">Withdraw</span> here does not remove learners from the class roster.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-card/50 backdrop-blur-xl border border-border p-3 rounded-2xl shadow-lg">
             <select
               title="Program"

@@ -5,7 +5,7 @@ import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 import { logAudit } from '@/lib/audit/log';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
-import { resolveSessionForWrite } from '@/lib/reports/academic-period';
+import { resolveBatchSyncApiSession } from '@/lib/reports/session-workflows';
 import { evidencePercentage, relevantAssignmentsForReport } from '@/lib/reports/evidence';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
@@ -95,13 +95,13 @@ export async function POST(request: NextRequest) {
     .eq('id', course_id)
     .maybeSingle();
   const programId = (courseMeta as any)?.program_id ?? null;
+  const allowBackfill = body.allow_backfill === true || body.allowBackfill === true;
   const requestedPeriod = typeof body.report_period === 'string' && body.report_period.trim()
     ? body.report_period.trim()
     : null;
-  const allowBackfill = body.allow_backfill === true || body.allowBackfill === true;
-  const { session } = resolveSessionForWrite(report_term, requestedPeriod, { allowBackfill });
-  const reportPeriod = session.periodLabel;
-  const resolvedTerm = session.termLabel;
+  const resolved = resolveBatchSyncApiSession(report_term, requestedPeriod, allowBackfill);
+  const reportPeriod = resolved.period ?? '';
+  const resolvedTerm = resolved.term ?? report_term;
   const { data: academicTerm } = await admin.from('academic_terms')
     .select('id, start_date, end_date')
     .eq('academic_year', reportPeriod).eq('term_label', resolvedTerm).maybeSingle();

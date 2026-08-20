@@ -141,11 +141,9 @@ export function buildStudentExceptionQueues(
       if (recommended === 'review') recommended = 'link_parent';
     }
 
-    if (withdrawn && p.is_active) {
-      kinds.push('withdrawn_active');
-      reasons.push('Marked as left / ended, but their login is still on');
-      if (recommended === 'review') recommended = 'deactivate';
-    }
+    // Class roster withdraw intentionally keeps portal login on so parents and
+    // learners can still view published reports, invoices, and certificates.
+    // Do not surface "withdrawn but still logged in" as an exception queue.
 
     if (kinds.length === 0) continue;
 

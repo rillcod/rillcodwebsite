@@ -1,0 +1,81 @@
+import { describe, expect, it } from 'vitest';
+import {
+  classEligibleForSessionTrack,
+  classEligibleForTeenGraduation,
+  isBasic56SectionBand,
+  isJssExitSectionBand,
+  mergeTrackDue,
+  SESSION_BULK_SMART_DEFAULTS,
+  SESSION_PROMOTION_TRACKS,
+  studentDueForSessionTrack,
+  studentDueForTeenGraduation,
+} from '@/lib/classes/promotion-due-intelligence';
+import { parseBandLabel } from '@/lib/classes/naming';
+import { YOUNG_PROGRAMME } from '@/lib/classes/programme-transition';
+
+describe('promotion due intelligence', () => {
+  it('Basic 4-6 class is not eligible for young_to_teen (Hilltop Basic 4 scenario)', () => {
+    expect(
+      classEligibleForTeenGraduation({
+        qa_grade_band: 'Basic 4-6',
+        program_name: YOUNG_PROGRAMME,
+        name: 'Hilltop · Young Innovators · Basic 4-6',
+      }),
+    ).toBe(false);
+  });
+
+  it('Basic 6 class is eligible for young_to_teen', () => {
+    expect(
+      classEligibleForTeenGraduation({
+        qa_grade_key: 'Basic 6',
+        program_name: YOUNG_PROGRAMME,
+      }),
+    ).toBe(true);
+  });
+
+  it('only Basic 6 learners are due for young_to_teen, not Basic 4 or 5', () => {
+    expect(studentDueForTeenGraduation({ grade: 'Basic 6' }, 'Basic 5-6')).toBe(true);
+    expect(studentDueForTeenGraduation({ grade: 'Basic 4' }, 'Basic 4-6')).toBe(false);
+    expect(studentDueForTeenGraduation({ grade: 'Basic 5' }, 'Basic 5-6')).toBe(false);
+  });
+
+  it('JSS 3 learners due for jss_to_ss even if class name says SS 2', () => {
+    expect(
+      classEligibleForSessionTrack('jss_to_ss', {
+        qa_grade_band: 'JSS 1-3',
+        program_name: 'Teen Developers',
+        name: 'School · Teen Dev · SS 2',
+      }),
+    ).toBe(true);
+    expect(studentDueForSessionTrack('jss_to_ss', { grade: 'JSS 3' }, 'JSS 1-3')).toBe(true);
+    expect(studentDueForSessionTrack('jss_to_ss', { grade: 'JSS 2' }, 'JSS 1-3')).toBe(false);
+  });
+
+  it('isJssExitSectionBand covers JSS 1-3 and JSS 3', () => {
+    expect(isJssExitSectionBand(parseBandLabel('JSS 1-3'))).toBe(true);
+    expect(isJssExitSectionBand(parseBandLabel('JSS 3'))).toBe(true);
+    expect(isJssExitSectionBand(parseBandLabel('JSS 1-2'))).toBe(false);
+  });
+
+  it('isBasic56SectionBand rejects Basic 4-6', () => {
+    expect(isBasic56SectionBand(parseBandLabel('Basic 5-6'))).toBe(true);
+    expect(isBasic56SectionBand(parseBandLabel('Basic 4-6'))).toBe(false);
+  });
+
+  it('mergeTrackDue hides menu when no learners due', () => {
+    const snap = mergeTrackDue([
+      { school_id: 's1', school_name: 'Hilltop', tracks: [] },
+      { school_id: 's2', school_name: 'Other', tracks: [{ track_id: 'young_to_teen', due_count: 2, class_count: 1 }] },
+    ]);
+    expect(snap.show_menu).toBe(true);
+    expect(snap.total_due).toBe(2);
+    expect(snap.schools).toHaveLength(1);
+  });
+
+  it('session bulk defaults to placement-only (no within-level curriculum jump)', () => {
+    expect(SESSION_BULK_SMART_DEFAULTS.advance_curriculum).toBe('never');
+    expect(SESSION_PROMOTION_TRACKS.young_to_teen.kind).toBe('category_change');
+    expect(SESSION_PROMOTION_TRACKS.jss_to_ss.kind).toBe('teen_grade_step');
+    expect(SESSION_PROMOTION_TRACKS.jss_to_ss.placement_only).toBe(true);
+  });
+});

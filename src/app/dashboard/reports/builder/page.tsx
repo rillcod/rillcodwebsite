@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useRef, useMemo, Suspense, useDeferredValue } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense, useDeferredValue } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -51,9 +51,12 @@ import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { resolveEffectiveScoreWeights, scoreWeightPercent, type PublishedGradingScheme } from '@/lib/grading-scheme';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
-import { ManualProtectionBanner } from '@/components/reports/ResultStatusBadges';
+import { ManualProtectionBanner, AutoFillStatusBanner, AutoFillEditConfirmDialog, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
+import { formatClassRowOptionLabel, ReportSessionContextBanner } from '@/components/reports/ReportSessionContextBanner';
+import { resolveSmartWorkingSession, classSessionFromTerms, sessionFromReport, liveSessionLike } from '@/lib/reports/session-scope';
+import { resolveWriteHydrateSession } from '@/lib/reports/session-workflows';
 import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
-import { isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
+import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -374,7 +377,10 @@ function ReportingPeriodLock({ term, period, set, unlocked, setUnlocked, readOnl
             <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
                 <span className="text-emerald-600 dark:text-emerald-400">🔒</span>
                 <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold">
-                    Creating <span className="underline">{term || '—'}</span> reports for <span className="underline">{period || '— set year —'}</span>.
+                    Reports you save here belong to{' '}
+                    <span className="underline">{term || '—'}</span>
+                    {' · '}
+                    <span className="underline">{period || '— set year —'}</span>.
                 </p>
                 {!readOnly && (
                     <button type="button" onClick={() => setUnlocked(true)}
@@ -676,11 +682,13 @@ function ReportBuilderInner() {
     const skipAutoPickRef = useRef(false);
 
     // ── Session config (shared for all students in this grading session) ──────
-    const [sessionConfig, setSessionConfig] = useState<SessionConfig>({
+    const [sessionConfig, setSessionConfig] = useState<SessionConfig>(() => {
+        const live = liveSessionLike();
+        return {
         instructor_name: '',
         report_date: '',
-        report_term: getCurrentTermLabel(),
-        report_period: getCurrentAcademicYear(),
+        report_term: live.term ?? getCurrentTermLabel(),
+        report_period: live.period ?? getCurrentAcademicYear(),
         course_id: '',
         course_name: '',
         school_name: '',
@@ -693,6 +701,7 @@ function ReportBuilderInner() {
         fee_label: '',
         fee_amount: '',
         show_payment_notice: false,
+        };
     });
     const [sessionExpanded, setSessionExpanded] = useState(true); // collapsed after "Start Grading"
     // Term & Academic Year default (locked) to the current period — matching the Results page lock.
@@ -864,6 +873,9 @@ function ReportBuilderInner() {
     const snapForm = useRef<typeof form | null>(null);   // snapshot of form at last student load
     const isHydrating = useRef(false);                   // true while selectStudent is loading form
     const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoFillEditConfirmedRef = useRef<string | null>(null);
+    const pendingScoreEditRef = useRef<(() => void) | null>(null);
+    const [autoFillEditPromptOpen, setAutoFillEditPromptOpen] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
     // Ref mirror of filteredStudents — avoids forward-reference TDZ in keyboard useEffect
     const filteredStudentsRef = useRef<PortalUser[]>([]);
@@ -904,10 +916,12 @@ function ReportBuilderInner() {
                     _step?: string; _sessionDone?: boolean;
                     _selectedStudentId?: string; _currentStudentIdx?: number;
                     _courseConfirmationKey?: string;
+                    _periodUnlocked?: boolean;
                 };
-                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, ...config } = parsed;
+                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, _periodUnlocked, ...config } = parsed;
                 setCourseConfirmationKey(_courseConfirmationKey || '');
                 setSessionConfig(s => ({ ...s, ...config }));
+                if (_periodUnlocked) setPeriodUnlocked(true);
                 
                 // If a specific student was requested via URL, do not restore the stale session state
                 if (!prefStudentId) {
@@ -940,7 +954,16 @@ function ReportBuilderInner() {
             }
             // Locked period = "follow current". Roll only when saved identity is BEHIND live
             // (Second→Third same year, or prior year). Future / next-year First is untouched.
-            const stale = isStaleAcademicSession(s.report_term, s.report_period, live.termLabel, live.periodLabel);
+            // Deliberate backfill (period unlocked) must survive a browser refresh.
+            const savedUnlocked = (() => {
+                try {
+                    const raw = localStorage.getItem(`rillcod_report_session_${profile.id}`);
+                    if (!raw) return false;
+                    const parsed = JSON.parse(raw) as { _periodUnlocked?: boolean };
+                    return Boolean(parsed._periodUnlocked);
+                } catch { return false; }
+            })();
+            const stale = !savedUnlocked && isStaleAcademicSession(s.report_term, s.report_period, live.termLabel, live.periodLabel);
             return {
                 ...s,
                 report_date: new Date().toISOString().split('T')[0],
@@ -1133,9 +1156,10 @@ function ReportBuilderInner() {
                 _selectedStudentId: selectedStudent?.id ?? null,
                 _currentStudentIdx: currentStudentIdx,
                 _courseConfirmationKey: courseConfirmationKey,
+                _periodUnlocked: periodUnlocked,
             }));
         } catch { /* ignore */ }
-    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, profile?.id]);
+    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, periodUnlocked, profile?.id]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
     useEffect(() => {
@@ -1453,14 +1477,14 @@ function ReportBuilderInner() {
         // section must NOT snap the teacher back to an old class term — that blocked
         // new-term grading after unlock / calendar rollover.
         setSessionConfig((current) => {
-            const keepPeriod = periodUnlocked
-                || (!!current.report_term && !!current.report_period);
-            const report_term = keepPeriod
-                ? current.report_term
-                : (term?.term_label || current.report_term);
-            const report_period = keepPeriod
-                ? current.report_period
-                : (term?.academic_year || current.report_period);
+            const classSession = classSessionFromTerms(term);
+            const resolved = resolveSmartWorkingSession({
+                classSession,
+                saved: { term: current.report_term, period: current.report_period },
+                periodUnlocked,
+            });
+            const report_term = resolved.term || current.report_term;
+            const report_period = resolved.period || current.report_period;
             const sameAsClassTerm = !!matchingClass.term_id
                 && report_term === (term?.term_label || '')
                 && report_period === (term?.academic_year || '');
@@ -1805,17 +1829,19 @@ function ReportBuilderInner() {
             const fullSessionHydrate = !sessionDone || opts?.forceHydrate;
             if (keepRequestedSession) setPeriodUnlocked(true);
             setSessionConfig(prev => {
-                const live = liveAcademicSession();
-                const adoptedTerm = (keepRequestedSession || opts?.forceHydrate) ? (hydratedReport.report_term ?? prev.report_term) : prev.report_term;
-                const adoptedPeriod = hydratedReport.report_period ?? prev.report_period;
-                const staleAdopt = !keepRequestedSession && isStaleAcademicSession(adoptedTerm, adoptedPeriod, live.termLabel, live.periodLabel);
+                const adopted = resolveWriteHydrateSession({
+                    hydratedReport,
+                    prevSession: { report_term: prev.report_term, report_period: prev.report_period },
+                    keepRequestedSession,
+                    live: liveSessionLike(),
+                });
                 return {
                     ...prev,
+                    report_term: adopted.report_term,
+                    report_period: adopted.report_period,
                     ...(fullSessionHydrate ? {
                         instructor_name: hydratedReport.instructor_name ?? prev.instructor_name,
                         report_date: hydratedReport.report_date ?? prev.report_date,
-                        report_term: staleAdopt ? live.termLabel : adoptedTerm,
-                        report_period: staleAdopt ? live.periodLabel : adoptedPeriod,
                         school_id: hydratedReport.school_id ?? prev.school_id,
                         school_name: (hydratedReport.school_name ?? prev.school_name) || (s as any).school_name || '',
                         current_module: hydratedReport.current_module ?? prev.current_module,
@@ -1849,6 +1875,7 @@ function ReportBuilderInner() {
         }
 
         const existingMetrics = (hydratedReport as any)?.engagement_metrics ?? {};
+        const noAutoEvidence = hydratedReport ? automaticResultHasNoEvidence(hydratedReport) : false;
         const theoryBlank = isUnsetScore(hydratedReport?.theory_score);
         const practicalBlank = isUnsetScore(hydratedReport?.practical_score);
         const attendanceBlank = isUnsetScore(hydratedReport?.attendance_score);
@@ -1865,12 +1892,12 @@ function ReportBuilderInner() {
             student_name: s.full_name ?? '',
             section_class: hydratedReport?.section_class ?? (s as any).section_class ?? '',
             gender: ((hydratedReport as any)?.gender ?? (s as any).gender ?? '') as '' | 'male' | 'female',
-            theory_score:        savedTheory,
-            classwork_score:     savedClasswork,
-            practical_score:     savedPractical,
-            attendance_score:    savedAttendance,
-            participation_score: savedParticipation,
-            assessment_score:    savedAssessment,
+            theory_score:        noAutoEvidence ? '' : savedTheory,
+            classwork_score:     noAutoEvidence ? '' : savedClasswork,
+            practical_score:     noAutoEvidence ? '' : savedPractical,
+            attendance_score:    noAutoEvidence ? '' : savedAttendance,
+            participation_score: noAutoEvidence ? '' : savedParticipation,
+            assessment_score:    noAutoEvidence ? '' : savedAssessment,
             participation_grade: hydratedReport?.participation_grade ?? '',
             projects_grade:      hydratedReport?.projects_grade      ?? '',
             homework_grade:      hydratedReport?.homework_grade       ?? '',
@@ -1888,6 +1915,8 @@ function ReportBuilderInner() {
         setForm(loadedFormValues);
         snapForm.current = JSON.parse(JSON.stringify(loadedFormValues));
         setIsDirty(false);
+        setAutoFillEditPromptOpen(false);
+        pendingScoreEditRef.current = null;
         setTimeout(() => { isHydrating.current = false; }, 100);
         setStep('edit');
         setSessionExpanded(false);
@@ -2049,6 +2078,42 @@ function ReportBuilderInner() {
         termId: sessionConfig.term_id || null,
     });
     const weightPct = (key: keyof typeof effectiveWeighting.weights) => scoreWeightPercent(effectiveWeighting.weights, key);
+
+    const isAutomaticDraft = existingReport?.calculation_mode === 'automatic' && !existingReport?.is_published;
+
+    useEffect(() => {
+        if (!existingReport?.id) return;
+        if (autoFillEditConfirmedRef.current && autoFillEditConfirmedRef.current !== existingReport.id) {
+            autoFillEditConfirmedRef.current = null;
+        }
+    }, [existingReport?.id]);
+
+    const guardAutomaticScoreEdit = useCallback((apply: () => void) => {
+        if (!isAutomaticDraft) {
+            apply();
+            return;
+        }
+        if (autoFillEditConfirmedRef.current === existingReport?.id) {
+            apply();
+            return;
+        }
+        pendingScoreEditRef.current = apply;
+        setAutoFillEditPromptOpen(true);
+    }, [existingReport?.id, isAutomaticDraft]);
+
+    const confirmAutomaticScoreEdit = useCallback(() => {
+        if (existingReport?.id) autoFillEditConfirmedRef.current = existingReport.id;
+        setAutoFillEditPromptOpen(false);
+        setExistingReport((prev) => (prev ? { ...prev, calculation_mode: 'manual' } : prev));
+        pendingScoreEditRef.current?.();
+        pendingScoreEditRef.current = null;
+    }, [existingReport?.id]);
+
+    const cancelAutomaticScoreEdit = useCallback(() => {
+        setAutoFillEditPromptOpen(false);
+        pendingScoreEditRef.current = null;
+    }, []);
+
     // One Academic Office weighting policy drives preview, bulk entry and API saves.
     const rawOverallScore = computeWeightedScore({
         theory: parseScoreForDisplay(form.theory_score),
@@ -2556,6 +2621,7 @@ function ReportBuilderInner() {
                 ...payload,
                 id: savedReportId,
                 verification_code: savedVerificationCode,
+                calculation_mode: 'manual',
             } as unknown as StudentReport));
             if (!publish && !reportedIds.has(selectedStudent.id)) {
                 setDraftedIds(current => new Set(current).add(selectedStudent.id));
@@ -2823,21 +2889,34 @@ function ReportBuilderInner() {
         }
     }
 
+    const noAutoFillEvidence = existingReport ? automaticResultHasNoEvidence(existingReport) : false;
+    const formHasAnyScore = [
+        form.theory_score,
+        form.classwork_score,
+        form.practical_score,
+        form.attendance_score,
+        form.participation_score,
+        form.assessment_score,
+    ].some((value) => !isUnsetScore(value));
+    const previewShowsScores = !noAutoFillEvidence || formHasAnyScore;
+
     const previewData: any = {
         ...sessionConfig,
         ...form,
         id: existingReport?.id || 'Preview',
         verification_code: existingReport?.verification_code || (form as any).verification_code || undefined,
         template_id: modernTemplateId,
-        theory_score:        parseScoreForDisplay(form.theory_score),
-        practical_score:     parseScoreForDisplay(form.practical_score),
-        attendance_score:    parseScoreForDisplay(form.attendance_score),
-        participation_score: parseScoreForDisplay(form.participation_score),
-        overall_score: overallScore,
-        overall_grade: waecCode,
+        calculation_mode: existingReport?.calculation_mode ?? null,
+        calculation_snapshot: existingReport?.calculation_snapshot ?? null,
+        theory_score:        previewShowsScores ? parseScoreForDisplay(form.theory_score) : null,
+        practical_score:     previewShowsScores ? parseScoreForDisplay(form.practical_score) : null,
+        attendance_score:    previewShowsScores ? parseScoreForDisplay(form.attendance_score) : null,
+        participation_score: previewShowsScores ? parseScoreForDisplay(form.participation_score) : null,
+        overall_score: previewShowsScores ? overallScore : null,
+        overall_grade: previewShowsScores ? waecCode : null,
         engagement_metrics: {
-            classwork_score:  parseScoreForDisplay(form.classwork_score),
-            assessment_score: parseScoreForDisplay(form.assessment_score),
+            classwork_score:  previewShowsScores ? parseScoreForDisplay(form.classwork_score) : null,
+            assessment_score: previewShowsScores ? parseScoreForDisplay(form.assessment_score) : null,
             score_weights: effectiveWeighting.weights,
             grading_scheme_id: effectiveWeighting.scheme?.id ?? null,
             grading_scheme_name: effectiveWeighting.scheme?.name ?? 'Rillcod balanced evidence model',
@@ -2949,7 +3028,7 @@ function ReportBuilderInner() {
                                 onChange={e => selectReportSection(e.target.value)}
                                 className={INPUT}>
                                 <option value="">— Select class —</option>
-                                {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label} · ${c.academic_terms.academic_year}` : ''}</option>)}
+                                {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{formatClassRowOptionLabel(c)}</option>)}
                             </select>
                         </Field>
                         <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" suggestions={getSuggestionsForCourse()} />
@@ -3165,7 +3244,24 @@ function ReportBuilderInner() {
                     reportId={existingReport?.id}
                     from={fromPrepare ? 'prepare' : fromResults ? 'results' : undefined}
                 />
-                {existingReport ? <ManualProtectionBanner mode={existingReport.calculation_mode} /> : null}
+                {existingReport ? (
+                    <div className="space-y-2">
+                        <ResultStatusBadges report={existingReport} />
+                        <ManualProtectionBanner mode={existingReport.calculation_mode} />
+                        <AutoFillStatusBanner report={existingReport} />
+                    </div>
+                ) : null}
+                {(sessionConfig.report_term || sessionConfig.class_id) ? (
+                    <ReportSessionContextBanner
+                        context="write"
+                        workingSession={{
+                            term: sessionConfig.report_term,
+                            period: sessionConfig.report_period,
+                        }}
+                        classSession={classSessionFromTerms(activeSessionClass?.academic_terms)}
+                        reportSession={sessionFromReport(existingReport)}
+                    />
+                ) : null}
 
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
@@ -3205,7 +3301,7 @@ function ReportBuilderInner() {
                                             .filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id)
                                             .map(c => (
                                                 <option key={c.id} value={c.id}>
-                                                    {c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label}` : ''}
+                                                    {formatClassRowOptionLabel(c)}
                                                 </option>
                                             ))}
                                     </select>
@@ -4029,7 +4125,7 @@ function ReportBuilderInner() {
                                             ] as const).map(({ label, scores, color }) => (
                                                 <button
                                                     key={label} type="button"
-                                                    onClick={() => setForm(f => ({
+                                                    onClick={() => guardAutomaticScoreEdit(() => setForm(f => ({
                                                         ...f,
                                                         theory_score:        String(scores[0]),
                                                         classwork_score:     String(scores[1]),
@@ -4038,7 +4134,7 @@ function ReportBuilderInner() {
                                                         participation_score: String(scores[4]),
                                                         assessment_score:    String(scores[5]),
                                                         proficiency_level:   scores[0] >= 80 ? 'advanced' : scores[0] >= 50 ? 'intermediate' : 'beginner',
-                                                    }))}
+                                                    })))}
                                                     className={`h-7 px-2 text-[10px] font-black uppercase tracking-wider border rounded-lg transition-all ${
                                                         color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
                                                         : color === 'primary' ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
@@ -4073,7 +4169,7 @@ function ReportBuilderInner() {
                                                     <div className="mt-1 flex items-center gap-1.5">
                                                         <input
                                                             type="range" min="0" max="100" value={String(form[key])}
-                                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                            onChange={e => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: e.target.value })))}
                                                             className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted/40 outline-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:shadow-sm"
                                                             style={{ background: `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
                                                             aria-label={label}
@@ -4084,7 +4180,10 @@ function ReportBuilderInner() {
                                                             placeholder="0"
                                                             onChange={e => {
                                                                 const raw = e.target.value.replace(/[^0-9]/g, '');
-                                                                setForm(f => ({ ...f, [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))) }));
+                                                                guardAutomaticScoreEdit(() => setForm(f => ({
+                                                                    ...f,
+                                                                    [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))),
+                                                                })));
                                                             }}
                                                             onFocus={e => { if (!e.target.value) e.target.select(); }}
                                                             className="h-7 w-11 flex-shrink-0 rounded-lg border border-border bg-card text-center text-xs font-black text-foreground focus:border-primary focus:outline-none"
@@ -4100,14 +4199,26 @@ function ReportBuilderInner() {
                                         <div className="mt-1 flex items-center justify-between border-t border-border pt-2">
                                             <div>
                                                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Overall</p>
-                                                <p className="text-xl font-black tabular-nums text-foreground leading-none">{overallScore}<span className="ml-0.5 text-xs text-muted-foreground/50">%</span></p>
+                                                <p className="text-xl font-black tabular-nums text-foreground leading-none">
+                                                    {previewShowsScores ? (
+                                                        <>{overallScore}<span className="ml-0.5 text-xs text-muted-foreground/50">%</span></>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </p>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
-                                                <div className="flex h-9 w-9 flex-col items-center justify-center rounded-lg border-2 border-primary/40 bg-primary/10 font-black text-primary">
-                                                    <span className="text-sm leading-none">{waecCode}</span>
-                                                    <span className="text-[7px] font-bold text-primary/60">{overallGradeLetter}</span>
-                                                </div>
+                                                {previewShowsScores ? (
+                                                    <>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
+                                                        <div className="flex h-9 w-9 flex-col items-center justify-center rounded-lg border-2 border-primary/40 bg-primary/10 font-black text-primary">
+                                                            <span className="text-sm leading-none">{waecCode}</span>
+                                                            <span className="text-[7px] font-bold text-primary/60">{overallGradeLetter}</span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">Awaiting evidence</span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -4874,6 +4985,13 @@ function ReportBuilderInner() {
                     )}
                 </div>
             </div>
+
+            <AutoFillEditConfirmDialog
+                open={autoFillEditPromptOpen}
+                studentName={form.student_name || selectedStudent?.full_name}
+                onConfirm={confirmAutomaticScoreEdit}
+                onCancel={cancelAutomaticScoreEdit}
+            />
         </div >
     );
 }
