@@ -31,7 +31,7 @@ import {
 } from '@/lib/school-reports/editor-state';
 import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
-import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
+import { resolveLeadershipNarrativeForDisplay, type TopicsCoveredPresentation } from '@/lib/school-reports/topics-covered-presentation';
 import { filterNextPhaseItems, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
 import { deduplicateNarrativeContent } from '@/lib/school-reports/narrative';
 import { isDraftSnapshotStale, snapshotAgeLabel } from '@/lib/school-reports/source-query';
@@ -168,6 +168,7 @@ export function SchoolReportBuilderCanvas({
   const [aiError, setAiError] = useState('');
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [liveTopicsPresentation, setLiveTopicsPresentation] = useState<TopicsCoveredPresentation | null>(null);
   const snapshot = report.snapshot;
   const insights = resolveSchoolReportInsights(snapshot);
   const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
@@ -193,6 +194,10 @@ export function SchoolReportBuilderCanvas({
   useEffect(() => {
     setTitleDraft(report.title);
   }, [report.id, report.title]);
+
+  useEffect(() => {
+    setLiveTopicsPresentation(null);
+  }, [report.id, report.lock_version, snapshot.deliveryDeclaration?.updatedAt]);
 
   useEffect(() => {
     if (previewOpen) setHasPreviewed(true);
@@ -243,6 +248,7 @@ export function SchoolReportBuilderCanvas({
         design={design}
         billingHref={billingHref}
         draft={!published}
+        topicsPresentationOverride={liveTopicsPresentation}
       />
     </>
   );
@@ -810,6 +816,7 @@ export function SchoolReportBuilderCanvas({
                           onGenerateAi={() => void generateAi(['topicsCovered'])}
                           onDeliveryApplied={() => void onDeliveryApplied?.()}
                           onLockVersionChange={onLockVersionChange}
+                          onLiveTopicsPresentationChange={setLiveTopicsPresentation}
                         />
                       ) : null}
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

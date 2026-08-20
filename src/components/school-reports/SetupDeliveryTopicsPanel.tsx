@@ -69,6 +69,7 @@ export function SetupDeliveryTopicsPanel({
   const onSelectedTopicKeysChangeRef = useRef(onSelectedTopicKeysChange);
   onSelectedTopicKeysChangeRef.current = onSelectedTopicKeysChange;
   const loadAbortRef = useRef<AbortController | null>(null);
+  const deliveryScopeRef = useRef('');
   const selected = useMemo(() => new Set(selectedTopicKeys), [selectedTopicKeys]);
 
   const loadCatalog = useCallback(async () => {
@@ -107,9 +108,13 @@ export function SetupDeliveryTopicsPanel({
       setResolvedCourses(data.resolvedCourses || []);
       setPreviousCheckpoint(data.previousCheckpoint || null);
 
-      if (
+      const catalogKeys = new Set((data.catalog || []).map((topic) => topic.key));
+      const currentKeys = selectedTopicKeysRef.current.filter((key) => catalogKeys.has(key));
+      if (currentKeys.length !== selectedTopicKeysRef.current.length) {
+        onSelectedTopicKeysChangeRef.current(currentKeys);
+      } else if (
         !autoSuggestedRef.current &&
-        selectedTopicKeysRef.current.length === 0 &&
+        currentKeys.length === 0 &&
         data.suggestedTopicKeys?.length
       ) {
         autoSuggestedRef.current = true;
@@ -140,16 +145,13 @@ export function SetupDeliveryTopicsPanel({
   ]);
 
   useEffect(() => {
-    autoSuggestedRef.current = false;
-    onSelectedTopicKeysChangeRef.current([]);
-  }, [
-    form.schoolId,
-    form.academicTermId,
-    form.curriculumStartTerm,
-    form.curriculumStartWeek,
-    form.curriculumEndTerm,
-    form.curriculumEndWeek,
-  ]);
+    const scopeKey = `${form.schoolId}:${form.academicTermId}`;
+    if (deliveryScopeRef.current && deliveryScopeRef.current !== scopeKey) {
+      autoSuggestedRef.current = false;
+      onSelectedTopicKeysChangeRef.current([]);
+    }
+    deliveryScopeRef.current = scopeKey;
+  }, [form.schoolId, form.academicTermId]);
 
   useEffect(
     () => () => {
@@ -319,10 +321,15 @@ export function SetupDeliveryTopicsPanel({
         </div>
       </div>
 
-      {loading ? (
+      {loading && !catalog.length ? (
         <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <ArrowPathIcon className="h-4 w-4 animate-spin" />
           Loading syllabus topics for every enrolled course…
+        </p>
+      ) : loading ? (
+        <p className="mb-2 flex items-center gap-2 text-[11px] font-medium text-primary">
+          <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+          Refreshing topics…
         </p>
       ) : null}
 
@@ -360,7 +367,7 @@ export function SetupDeliveryTopicsPanel({
         </div>
       ) : null}
 
-      {!loading && catalog.length ? (
+      {catalog.length ? (
         <>
           <p className="text-[11px] leading-relaxed text-muted-foreground break-words">
             {phase} phase · {reportingWeeks}-week window · tick topics across{' '}

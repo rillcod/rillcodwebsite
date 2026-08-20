@@ -1,4 +1,6 @@
+import { normalizePeriodLabel, normalizeTermLabel } from '@/lib/reports/academic-period';
 import { isLockedLearnerResult } from '@/lib/reports/score';
+import { isPlaceholderReportSession } from '@/lib/reports/session-labels';
 
 type ReportLookupClient = {
   from: (table: string) => any;
@@ -12,6 +14,7 @@ export type CanonicalProgressReport = {
   course_name: string | null;
   report_term: string | null;
   report_period: string | null;
+  term_id?: string | null;
   theory_score?: unknown;
   practical_score?: unknown;
   attendance_score?: unknown;
@@ -21,7 +24,7 @@ export type CanonicalProgressReport = {
 };
 
 const SELECT =
-  'id,calculation_mode,is_published,course_id,course_name,report_term,report_period,theory_score,practical_score,attendance_score,participation_score,overall_score,engagement_metrics';
+  'id,calculation_mode,is_published,course_id,course_name,report_term,report_period,term_id,theory_score,practical_score,attendance_score,participation_score,overall_score,engagement_metrics';
 
 function newest(query: any) {
   return query.order('updated_at', { ascending: false }).limit(1).maybeSingle();
@@ -43,6 +46,7 @@ export async function findCanonicalProgressReport(
     courseName?: string | null;
     reportTerm?: string | null;
     reportPeriod?: string | null;
+    termId?: string | null;
     academicOfferingId?: string | null;
     offeringPeriodId?: string | null;
   },
@@ -50,15 +54,20 @@ export async function findCanonicalProgressReport(
   const studentId = String(input.studentId || '').trim();
   if (!studentId) return null;
 
-  const term = String(input.reportTerm || '').trim();
-  const period = String(input.reportPeriod || '').trim();
+  const term = normalizeTermLabel(String(input.reportTerm || '').trim());
+  const period = normalizePeriodLabel(String(input.reportPeriod || '').trim());
   const courseId = String(input.courseId || '').trim();
   const courseName = String(input.courseName || '').trim();
+  const termId = String(input.termId || '').trim();
   const offeringId = String(input.academicOfferingId || '').trim();
   const offeringPeriodId = String(input.offeringPeriodId || '').trim();
 
   const byStudent = () => admin.from('student_progress_reports').select(SELECT).eq('student_id', studentId);
 
+  if (courseId && termId) {
+    const { data } = await newest(byStudent().eq('course_id', courseId).eq('term_id', termId));
+    if (data?.id) return data;
+  }
   if (courseId && term && period) {
     const { data } = await newest(byStudent().eq('course_id', courseId).eq('report_term', term).eq('report_period', period));
     if (data?.id) return data;
@@ -67,8 +76,26 @@ export async function findCanonicalProgressReport(
     const { data } = await newest(byStudent().ilike('course_name', courseName).eq('report_term', term).eq('report_period', period));
     if (data?.id) return data;
   }
+  if (courseId && (term || period || termId)) {
+    const { data: rows } = await newestFew(byStudent().eq('course_id', courseId), 10);
+    const list = Array.isArray(rows) ? rows : [];
+    const placeholderMatches = list.filter((row) => {
+      if (!isPlaceholderReportSession(row.report_term, row.report_period)) return false;
+      if (termId) return String(row.term_id || '') === termId;
+      if (term && period) {
+        return normalizeTermLabel(row.report_term) === term || normalizePeriodLabel(row.report_period) === period;
+      }
+      return true;
+    });
+    if (placeholderMatches.length === 1 && placeholderMatches[0]?.id) return placeholderMatches[0];
+  }
   if (term && period) {
     const { data } = await newestFew(byStudent().eq('report_term', term).eq('report_period', period), 2);
+    const rows = Array.isArray(data) ? data : [];
+    if (rows.length === 1 && rows[0]?.id) return rows[0];
+  }
+  if (termId && !courseId && !courseName) {
+    const { data } = await newestFew(byStudent().eq('term_id', termId), 2);
     const rows = Array.isArray(data) ? data : [];
     if (rows.length === 1 && rows[0]?.id) return rows[0];
   }

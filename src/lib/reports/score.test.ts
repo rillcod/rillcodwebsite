@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  allProgressReportScoresPresent,
   deriveProgressReportResult,
   hasRecordedProgressReportScores,
   isLockedLearnerResult,
   isUnsetScore,
+  parseOptionalScore,
+  parseScoreForDisplay,
   progressReportScoreComponents,
+  scoreFieldToFormValue,
   touchesProgressReportScores,
 } from './score';
 
@@ -48,6 +52,29 @@ describe('progress report score adapter', () => {
     expect(isUnsetScore('')).toBe(true);
     expect(isUnsetScore(0)).toBe(false);
     expect(isUnsetScore('0')).toBe(false);
+    expect(scoreFieldToFormValue(null)).toBe('');
+    expect(scoreFieldToFormValue(0)).toBe('0');
+    expect(parseOptionalScore('')).toBeNull();
+    expect(parseOptionalScore('0')).toBe(0);
+    expect(parseScoreForDisplay('')).toBe(0);
+    expect(parseScoreForDisplay('0')).toBe(0);
+  });
+
+  it('only derives overall when every component is present', () => {
+    expect(allProgressReportScoresPresent({
+      theory_score: 80,
+      practical_score: null,
+      attendance_score: 60,
+      participation_score: 90,
+      engagement_metrics: { classwork_score: 50, assessment_score: 40 },
+    })).toBe(false);
+    expect(allProgressReportScoresPresent({
+      theory_score: 80,
+      practical_score: 70,
+      attendance_score: 60,
+      participation_score: 90,
+      engagement_metrics: { classwork_score: 50, assessment_score: 40 },
+    })).toBe(true);
   });
 
   it('treats typed and published rows as locked, but not unpublished automatic drafts', () => {

@@ -13,7 +13,12 @@ import {
 import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-course';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { logAudit } from '@/lib/audit/log';
-import { deriveProgressReportResult, PROGRESS_REPORT_SCORE_FIELDS } from '@/lib/reports/score';
+import {
+  allProgressReportScoresPresent,
+  applyOptionalScoresToPayload,
+  deriveProgressReportResult,
+  PROGRESS_REPORT_SCORE_FIELDS,
+} from '@/lib/reports/score';
 import { findCanonicalProgressReport } from '@/lib/reports/canonical-report';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 
@@ -103,6 +108,8 @@ export async function POST(request: NextRequest) {
       (insertPayload as Record<string, unknown>)[field] = body[field];
     }
   }
+  applyOptionalScoresToPayload(updatePayload as Record<string, unknown>, body);
+  applyOptionalScoresToPayload(insertPayload as Record<string, unknown>, body);
 
   // Overall score and grade are server-derived. Clients submit evidence components,
   // never the official result. Require the full component set before recalculating
@@ -243,7 +250,8 @@ export async function POST(request: NextRequest) {
 
   // The published Academic Office scheme is the one weighting authority for
   // both manually entered evidence and automatic evidence calculations.
-  if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)) {
+  if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)
+    && allProgressReportScoresPresent(updatePayload as Record<string, unknown>)) {
     try {
       const weighting = await loadEffectiveScoreWeights(admin as any, {
         schoolId: String(updatePayload.school_id ?? insertPayload.school_id ?? '') || null,
@@ -294,6 +302,7 @@ export async function POST(request: NextRequest) {
       courseName: insertPayload.course_name ? String(insertPayload.course_name) : null,
       reportTerm: insertPayload.report_term ? String(insertPayload.report_term) : null,
       reportPeriod: insertPayload.report_period ? String(insertPayload.report_period) : null,
+      termId: insertPayload.term_id ? String(insertPayload.term_id) : null,
     });
     if (found) targetId = found.id;
   }

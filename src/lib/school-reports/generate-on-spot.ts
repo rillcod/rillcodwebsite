@@ -64,7 +64,7 @@ function termNumberOf(term: Record<string, unknown>): number {
 }
 
 export function isPlaceholderWeekRecord(
-  week: { topic?: unknown; source?: unknown },
+  week: { topic?: unknown; source?: unknown; week?: unknown },
   contentGeneratedSource?: string | null,
 ): boolean {
   const source = String(week.source ?? contentGeneratedSource ?? '').trim().toLowerCase();

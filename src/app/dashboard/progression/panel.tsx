@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { learnerReportHref } from "@/components/reports/LearnerReportFlowStrip";
@@ -222,6 +223,7 @@ export default function ProgressionPage({
     Record<
       string,
       {
+        id?: string;
         overall_grade: string;
         overall_score?: number | null;
         is_published?: boolean | null;

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowPathIcon, CheckCircleIcon } from '@/lib/icons';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import type { DeliveryCheckpoint, DeliveryDeclaration, DeliveryTopicOption } from '@/lib/school-reports/delivery-declaration';
-import { buildWeekSpanTimeline, nigeriaTechPhaseLabel } from '@/lib/school-reports/delivery-declaration';
+import { buildWeekSpanTimeline, buildDeliveryDeclaration, buildTopicsCoveredFromDeclaration, nigeriaTechPhaseLabel } from '@/lib/school-reports/delivery-declaration';
+import { buildTopicsCoveredPresentation, type TopicsCoveredPresentation } from '@/lib/school-reports/topics-covered-presentation';
 
 type CatalogResponse = {
   catalog: DeliveryTopicOption[];
@@ -26,7 +27,10 @@ type Props = {
   reportId: string;
   lockVersion: number;
   disabled?: boolean;
+  schoolName?: string;
+  termLabel?: string;
   onApplied: (topicsCovered: string) => void;
+  onLivePreviewChange?: (presentation: TopicsCoveredPresentation | null) => void;
   onLockVersionChange?: (next: number) => void;
 };
 
@@ -35,7 +39,7 @@ const topicCheckboxClass =
 const tapRowClass =
   'flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-lg px-1 py-2 text-[11px] leading-snug active:bg-muted/40';
 
-export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplied, onLockVersionChange }: Props) {
+export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolName, termLabel, onApplied, onLivePreviewChange, onLockVersionChange }: Props) {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
@@ -187,8 +191,21 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to save delivery (HTTP ${response.status}).`);
       if (json.lockVersion) onLockVersionChange?.(Number(json.lockVersion));
+      const selectedTopics = catalog.filter((topic) => selected.has(topic.key));
+      const declaration = buildDeliveryDeclaration({
+        catalog,
+        selectedTopicKeys: [...selected],
+        reportingWeeks,
+        rangeStartWeek,
+      });
+      setSpannedPreview(buildWeekSpanTimeline(selectedTopics, reportingWeeks, rangeStartWeek));
+      const topicsCovered = buildTopicsCoveredFromDeclaration(declaration, {
+        schoolName: schoolName || 'School',
+        termLabel: termLabel || 'this term',
+        academicTermNumber,
+      });
       await loadCatalog();
-      onApplied('');
+      onApplied(topicsCovered);
     } catch (applyError) {
       setError(applyError instanceof Error ? applyError.message : 'Unable to save delivery.');
     } finally {
@@ -308,6 +325,36 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, onApplie
         ? liveSpanPreview
         : spannedPreview;
   const filledWeekCount = activeSpanPreview.filter((row) => row.topics.length > 0).length;
+
+  useEffect(() => {
+    if (!onLivePreviewChange) return;
+    if (!selected.size || !catalog.length) {
+      onLivePreviewChange(null);
+      return;
+    }
+    const declaration = buildDeliveryDeclaration({
+      catalog,
+      selectedTopicKeys: [...selected],
+      reportingWeeks,
+      rangeStartWeek,
+    });
+    onLivePreviewChange(
+      buildTopicsCoveredPresentation(declaration, {
+        schoolName: schoolName || 'School',
+        termLabel: termLabel || 'this term',
+        academicTermNumber,
+      }),
+    );
+  }, [
+    academicTermNumber,
+    catalog,
+    onLivePreviewChange,
+    rangeStartWeek,
+    reportingWeeks,
+    schoolName,
+    selected,
+    termLabel,
+  ]);
 
   if (loading && catalog.length === 0) {
     return (

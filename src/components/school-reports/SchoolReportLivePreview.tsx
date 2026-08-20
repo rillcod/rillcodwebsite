@@ -16,7 +16,7 @@ import { resolveSchoolReportInsights } from '@/lib/school-reports/insights';
 import { SegmentGrid, SegmentPanel } from '@/components/school-reports/SegmentPanel';
 import { buildTopicsCoveredDraft, buildReportTopicsPresentation } from '@/lib/school-reports/delivered-topics';
 import { filterNextPhaseItems, NEXT_TERM_FOCUS_LABEL, resolveCommunityMessageForReport } from '@/lib/school-reports/report-content-dedup';
-import { resolveLeadershipNarrativeForDisplay } from '@/lib/school-reports/topics-covered-presentation';
+import { resolveLeadershipNarrativeForDisplay, type TopicsCoveredPresentation } from '@/lib/school-reports/topics-covered-presentation';
 import { ExpandedNarrativePreview } from '@/components/school-reports/ExpandedNarrativePreview';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
 import { DeliveryLedgerView } from '@/components/school-reports/DeliveryLedgerView';
@@ -116,12 +116,14 @@ export function SchoolReportLivePreview({
   design,
   billingHref,
   draft = true,
+  topicsPresentationOverride,
 }: {
   report: SchoolPerformanceReportRow;
   narrative: SchoolReportNarrative;
   design: SchoolReportDesignSettings;
   billingHref: string;
   draft?: boolean;
+  topicsPresentationOverride?: TopicsCoveredPresentation | null;
 }) {
   const snapshot = report.snapshot || ({} as SchoolPerformanceReportRow['snapshot']);
   const insights = resolveSchoolReportInsights(snapshot);
@@ -147,7 +149,7 @@ export function SchoolReportLivePreview({
   const themeAccent = resolveThemeAwareAccent(accent);
   const layout = previewLayout(design.previewDevice);
   const show = (key: SchoolReportSectionKey) => showReportSection(design, key);
-  const topicsPresentation = buildReportTopicsPresentation(snapshot);
+  const topicsPresentation = topicsPresentationOverride ?? buildReportTopicsPresentation(snapshot);
   const topicsDraftFallback = buildTopicsCoveredDraft(snapshot);
   const leadershipNarrative = resolveLeadershipNarrativeForDisplay(
     narrative.topicsCovered,

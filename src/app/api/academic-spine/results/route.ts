@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit/log';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
+import { resolveClassReportSession } from '@/lib/reports/session-labels';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -170,11 +171,13 @@ export async function POST(req: NextRequest) {
   const period = one<any>(klass.academic_offering_periods);
   const term = one<any>(klass.academic_terms);
   const school = one<any>(klass.schools);
-  const isTermly = offering?.academic_model === 'termly_school';
-  const periodLabel = isTermly ? term?.term_label : period?.label || offering?.title;
-  const periodContext = isTermly
-    ? term?.academic_year
-    : [period?.starts_on, period?.ends_on].filter(Boolean).join(' to ') || offering?.title;
+  const sessionLabels = resolveClassReportSession({
+    academicTerm: term,
+    termId: klass.term_id,
+    offeringPeriod: period,
+    offeringTitle: offering?.title,
+    isTermly: offering?.academic_model === 'termly_school',
+  });
   const calculationMode = body.calculation_mode === 'manual' ? 'manual' : 'automatic';
 
   const payload = {
@@ -187,14 +190,14 @@ export async function POST(req: NextRequest) {
     curriculum_release_id: plan.curriculum_release_id,
     academic_offering_id: klass.academic_offering_id,
     offering_period_id: klass.offering_period_id,
-    term_id: klass.term_id,
+    term_id: sessionLabels.term_id,
     student_name: student.full_name,
     school_name: school?.name ?? null,
     section_class: student.section_class || klass.name,
     student_grade: student.grade ?? null,
     course_name: course.title,
-    report_term: periodLabel || 'Current learning period',
-    report_period: periodContext || 'Current programme',
+    report_term: sessionLabels.report_term,
+    report_period: sessionLabels.report_period,
     report_date: new Date().toISOString().slice(0, 10),
     calculation_mode: calculationMode,
     academic_trace_status: 'traceable',
@@ -209,6 +212,7 @@ export async function POST(req: NextRequest) {
     courseName: course.title,
     reportTerm: payload.report_term,
     reportPeriod: payload.report_period,
+    termId: sessionLabels.term_id,
     academicOfferingId: klass.academic_offering_id,
     offeringPeriodId: klass.offering_period_id,
   });

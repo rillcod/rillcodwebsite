@@ -117,4 +117,35 @@ describe('findCanonicalProgressReport', () => {
     });
     expect(found?.id).toBe('spr-1');
   });
+
+  it('reuses the same course_id row when Auto-fill used placeholder session labels', async () => {
+    const placeholder = {
+      ...builderRow,
+      term_id: 'term-1',
+      report_term: 'Current learning period',
+      report_period: 'Current programme',
+    };
+    const found = await findCanonicalProgressReport(fakeAdmin([placeholder]) as any, {
+      studentId: 'stu-1',
+      courseId: 'course-1',
+      courseName: 'Scratch',
+      reportTerm: 'First Term',
+      reportPeriod: '2025/2026',
+      termId: 'term-1',
+    });
+    expect(found?.id).toBe('spr-1');
+  });
+
+  it('prefers course_id and term_id over drifted course names', async () => {
+    const drifted = { ...builderRow, course_name: 'Intro to Scratch', term_id: 'term-1' };
+    const found = await findCanonicalProgressReport(fakeAdmin([drifted]) as any, {
+      studentId: 'stu-1',
+      courseId: 'course-1',
+      courseName: 'Scratch',
+      reportTerm: 'First Term',
+      reportPeriod: '2025/2026',
+      termId: 'term-1',
+    });
+    expect(found?.id).toBe('spr-1');
+  });
 });

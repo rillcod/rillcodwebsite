@@ -53,7 +53,7 @@ import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner } from '@/components/reports/ResultStatusBadges';
 import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
-import { isLockedLearnerResult, isUnsetScore } from '@/lib/reports/score';
+import { isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -717,12 +717,12 @@ function ReportBuilderInner() {
         section_class: '',
         gender: '' as '' | 'male' | 'female',
         // ── WAEC 6-component scores ──────────────────────────────────────────
-        theory_score:       '0',   // Theory/Written    20%
-        classwork_score:    '0',   // Classwork evidence (stored in engagement_metrics)
-        practical_score:    '0',   // Practical/Projects 25%
-        attendance_score:   '0',   // Assignments       20%  (DB: attendance_score)
-        participation_score:'0',   // Attendance        10%  (DB: participation_score)
-        assessment_score:   '0',   // Mid-term evidence (stored in engagement_metrics)
+        theory_score:       '',   // Theory/Written    20%
+        classwork_score:    '',   // Classwork evidence (stored in engagement_metrics)
+        practical_score:    '',   // Practical/Projects 25%
+        attendance_score:   '',   // Assignments       20%  (DB: attendance_score)
+        participation_score:'',   // Attendance        10%  (DB: participation_score)
+        assessment_score:   '',   // Mid-term evidence (stored in engagement_metrics)
         // ── Qualitative ─────────────────────────────────────────────────────
         participation_grade: '',   // Classwork qualifier comment
         projects_grade: '',        // Practical/Projects qualifier comment
@@ -1855,22 +1855,22 @@ function ReportBuilderInner() {
         const participationBlank = isUnsetScore(hydratedReport?.participation_score);
         const classworkBlank = isUnsetScore(existingMetrics.classwork_score);
         const assessmentBlank = isUnsetScore(existingMetrics.assessment_score);
-        const savedClasswork  = Number(existingMetrics.classwork_score  ?? 0);
-        const savedAssessment = Number(existingMetrics.assessment_score ?? 0);
-        const savedTheory        = Number(hydratedReport?.theory_score        ?? 0);
-        const savedPractical     = Number(hydratedReport?.practical_score     ?? 0);
-        const savedAttendance    = Number(hydratedReport?.attendance_score    ?? 0);
-        const savedParticipation = Number(hydratedReport?.participation_score ?? 0);
+        const savedClasswork  = scoreFieldToFormValue(existingMetrics.classwork_score);
+        const savedAssessment = scoreFieldToFormValue(existingMetrics.assessment_score);
+        const savedTheory        = scoreFieldToFormValue(hydratedReport?.theory_score);
+        const savedPractical     = scoreFieldToFormValue(hydratedReport?.practical_score);
+        const savedAttendance    = scoreFieldToFormValue(hydratedReport?.attendance_score);
+        const savedParticipation = scoreFieldToFormValue(hydratedReport?.participation_score);
         const loadedFormValues = {
             student_name: s.full_name ?? '',
             section_class: hydratedReport?.section_class ?? (s as any).section_class ?? '',
             gender: ((hydratedReport as any)?.gender ?? (s as any).gender ?? '') as '' | 'male' | 'female',
-            theory_score:        String(savedTheory),
-            classwork_score:     String(savedClasswork),
-            practical_score:     String(savedPractical),
-            attendance_score:    String(savedAttendance),
-            participation_score: String(savedParticipation),
-            assessment_score:    String(savedAssessment),
+            theory_score:        savedTheory,
+            classwork_score:     savedClasswork,
+            practical_score:     savedPractical,
+            attendance_score:    savedAttendance,
+            participation_score: savedParticipation,
+            assessment_score:    savedAssessment,
             participation_grade: hydratedReport?.participation_grade ?? '',
             projects_grade:      hydratedReport?.projects_grade      ?? '',
             homework_grade:      hydratedReport?.homework_grade       ?? '',
@@ -2051,12 +2051,12 @@ function ReportBuilderInner() {
     const weightPct = (key: keyof typeof effectiveWeighting.weights) => scoreWeightPercent(effectiveWeighting.weights, key);
     // One Academic Office weighting policy drives preview, bulk entry and API saves.
     const rawOverallScore = computeWeightedScore({
-        theory: parseFloat(form.theory_score) || 0,
-        classwork: parseFloat(form.classwork_score) || 0,
-        practical: parseFloat(form.practical_score) || 0,
-        assignments: parseFloat(form.attendance_score) || 0,
-        attendance: parseFloat(form.participation_score) || 0,
-        assessment: parseFloat(form.assessment_score) || 0,
+        theory: parseScoreForDisplay(form.theory_score),
+        classwork: parseScoreForDisplay(form.classwork_score),
+        practical: parseScoreForDisplay(form.practical_score),
+        assignments: parseScoreForDisplay(form.attendance_score),
+        attendance: parseScoreForDisplay(form.participation_score),
+        assessment: parseScoreForDisplay(form.assessment_score),
     }, effectiveWeighting.weights);
     // Engagement is coaching evidence only; the official score always uses the canonical weights.
     const overallScore = rawOverallScore;
@@ -2071,12 +2071,12 @@ function ReportBuilderInner() {
         courseName: sessionConfig.course_name,
         currentModule: form.student_current_module || sessionConfig.current_module,
         nextModule: form.student_next_module || sessionConfig.next_module,
-        theory: parseFloat(form.theory_score) || 0,
-        classwork: parseFloat(form.classwork_score) || 0,
-        practical: parseFloat(form.practical_score) || 0,
-        assignments: parseFloat(form.attendance_score) || 0,
-        attendance: parseFloat(form.participation_score) || 0,
-        assessment: parseFloat(form.assessment_score) || 0,
+        theory: parseScoreForDisplay(form.theory_score),
+        classwork: parseScoreForDisplay(form.classwork_score),
+        practical: parseScoreForDisplay(form.practical_score),
+        assignments: parseScoreForDisplay(form.attendance_score),
+        attendance: parseScoreForDisplay(form.participation_score),
+        assessment: parseScoreForDisplay(form.assessment_score),
         assignmentCompletion: studentStats.totalAssignments > 0 ? studentStats.assignmentPct : undefined,
     });
 
@@ -2091,7 +2091,7 @@ function ReportBuilderInner() {
         if (!needsStrengths && !needsGrowth) return;
 
         // Ensure overall score and relevant scores are ready before generating
-        const hasScores = parseFloat(form.theory_score) > 0 || parseFloat(form.practical_score) > 0;
+        const hasScores = (parseOptionalScore(form.theory_score) ?? 0) > 0 || (parseOptionalScore(form.practical_score) ?? 0) > 0;
         if (!hasScores) return;
 
         const triggerPreemptiveAI = async () => {
@@ -2114,12 +2114,12 @@ function ReportBuilderInner() {
                             studentName: form.student_name || 'The Student',
                             gender: form.gender || null,
                             gradeLevel: form.section_class || 'General Academic',
-                            theoryScore:        parseFloat(form.theory_score)        || 0,
-                            classworkScore:     parseFloat(form.classwork_score)     || 0,
-                            practicalScore:     parseFloat(form.practical_score)     || 0,
-                            attendanceScore:    parseFloat(form.attendance_score)    || 0,
-                            participationScore: parseFloat(form.participation_score) || 0,
-                            assessmentScore:    parseFloat(form.assessment_score)    || 0,
+                            theoryScore:        parseScoreForDisplay(form.theory_score),
+                            classworkScore:     parseScoreForDisplay(form.classwork_score),
+                            practicalScore:     parseScoreForDisplay(form.practical_score),
+                            attendanceScore:    parseScoreForDisplay(form.attendance_score),
+                            participationScore: parseScoreForDisplay(form.participation_score),
+                            assessmentScore:    parseScoreForDisplay(form.assessment_score),
                             overallScore,
                             overallGrade: overallGradeLetter,
                             proficiencyLevel: form.proficiency_level,
@@ -2165,12 +2165,12 @@ function ReportBuilderInner() {
                             studentName: form.student_name || 'The Student',
                             gender: form.gender || null,
                             gradeLevel: form.section_class || 'General Academic',
-                            theoryScore:        parseFloat(form.theory_score)        || 0,
-                            classworkScore:     parseFloat(form.classwork_score)     || 0,
-                            practicalScore:     parseFloat(form.practical_score)     || 0,
-                            attendanceScore:    parseFloat(form.attendance_score)    || 0,
-                            participationScore: parseFloat(form.participation_score) || 0,
-                            assessmentScore:    parseFloat(form.assessment_score)    || 0,
+                            theoryScore:        parseScoreForDisplay(form.theory_score),
+                            classworkScore:     parseScoreForDisplay(form.classwork_score),
+                            practicalScore:     parseScoreForDisplay(form.practical_score),
+                            attendanceScore:    parseScoreForDisplay(form.attendance_score),
+                            participationScore: parseScoreForDisplay(form.participation_score),
+                            assessmentScore:    parseScoreForDisplay(form.assessment_score),
                             overallScore,
                             overallGrade: overallGradeLetter,
                             proficiencyLevel: form.proficiency_level,
@@ -2206,6 +2206,30 @@ function ReportBuilderInner() {
         const timer = setTimeout(triggerPreemptiveAI, 1500);
         return () => clearTimeout(timer);
     }, [selectedStudent?.id, step, form.theory_score, form.practical_score, form.classwork_score, form.assessment_score, form.attendance_score, form.participation_score, overallScore, overallGradeLetter]);
+
+    const returnToResultsHref = useMemo(() => {
+        const p = new URLSearchParams();
+        if (selectedStudent?.id) p.set('student', selectedStudent.id);
+        else if (prefStudentId) p.set('student', prefStudentId);
+        if (existingReport?.id) p.set('report', existingReport.id);
+        if (sessionConfig.report_term) p.set('term', sessionConfig.report_term);
+        if (sessionConfig.report_period) p.set('year', sessionConfig.report_period);
+        if (sessionConfig.class_id) p.set('class_id', sessionConfig.class_id);
+        if (sessionConfig.school_id) p.set('school_id', sessionConfig.school_id);
+        const qs = p.toString();
+        return qs ? `/dashboard/results?${qs}` : '/dashboard/results';
+    }, [selectedStudent?.id, prefStudentId, existingReport?.id, sessionConfig.report_term, sessionConfig.report_period, sessionConfig.class_id, sessionConfig.school_id]);
+
+    const returnToPrepareHref = useMemo(() => {
+        const p = new URLSearchParams();
+        if (selectedStudent?.id) p.set('student', selectedStudent.id);
+        else if (prefStudentId) p.set('student', prefStudentId);
+        if (sessionConfig.class_id) p.set('class_id', sessionConfig.class_id);
+        else if (prefClassId) p.set('class_id', prefClassId);
+        if (sessionConfig.course_id) p.set('course_id', sessionConfig.course_id);
+        const qs = p.toString();
+        return qs ? `/dashboard/academic/results?${qs}` : '/dashboard/academic/results';
+    }, [selectedStudent?.id, prefStudentId, sessionConfig.class_id, prefClassId, sessionConfig.course_id]);
 
     const scoreValue = (value: string) => Number.parseFloat(value);
     const scoreReady = (value: string) => Number.isFinite(scoreValue(value)) && scoreValue(value) >= 0 && scoreValue(value) <= 100;
@@ -2473,9 +2497,9 @@ function ReportBuilderInner() {
                 next_module: form.student_next_module || sessionConfig.next_module || null,
                 learning_milestones: sessionConfig.learning_milestones,
                 course_duration: sessionConfig.course_duration || null,
-                theory_score: parseFloat(form.theory_score) || 0,
-                practical_score: parseFloat(form.practical_score) || 0,
-                attendance_score: parseFloat(form.attendance_score) || 0,
+                theory_score: parseOptionalScore(form.theory_score),
+                practical_score: parseOptionalScore(form.practical_score),
+                attendance_score: parseOptionalScore(form.attendance_score),
                 participation_grade: form.participation_grade,
                 projects_grade: form.projects_grade,
                 homework_grade: form.homework_grade,
@@ -2496,11 +2520,11 @@ function ReportBuilderInner() {
                 fee_amount: sessionConfig.fee_amount || null,
                 fee_status: form.fee_status || null,
                 show_payment_notice: form.show_payment_notice,
-                participation_score: parseFloat(form.participation_score) || 0,
+                participation_score: parseOptionalScore(form.participation_score),
                 engagement_metrics: {
                     // WAEC components stored in metrics (not in dedicated DB columns)
-                    classwork_score:    parseFloat(form.classwork_score)  || 0,
-                    assessment_score:   parseFloat(form.assessment_score) || 0,
+                    classwork_score:    parseOptionalScore(form.classwork_score),
+                    assessment_score:   parseOptionalScore(form.assessment_score),
                     // Source data for transparency
                     examScore:           studentStats.cbtScore,
                     testAvg:             studentStats.assignmentAvg,
@@ -2695,12 +2719,12 @@ function ReportBuilderInner() {
                         gender: form.gender || null,
                         gradeLevel: form.section_class || 'General Academic',
                         // All 6 WAEC components
-                        theoryScore:        parseFloat(form.theory_score)        || 0,
-                        classworkScore:     parseFloat(form.classwork_score)     || 0,
-                        practicalScore:     parseFloat(form.practical_score)     || 0,
-                        attendanceScore:    parseFloat(form.attendance_score)    || 0,
-                        participationScore: parseFloat(form.participation_score) || 0,
-                        assessmentScore:    parseFloat(form.assessment_score)    || 0,
+                        theoryScore:        parseScoreForDisplay(form.theory_score),
+                        classworkScore:     parseScoreForDisplay(form.classwork_score),
+                        practicalScore:     parseScoreForDisplay(form.practical_score),
+                        attendanceScore:    parseScoreForDisplay(form.attendance_score),
+                        participationScore: parseScoreForDisplay(form.participation_score),
+                        assessmentScore:    parseScoreForDisplay(form.assessment_score),
                         overallScore,
                         overallGrade: overallGradeLetter,
                         proficiencyLevel: form.proficiency_level,
@@ -2805,15 +2829,15 @@ function ReportBuilderInner() {
         id: existingReport?.id || 'Preview',
         verification_code: existingReport?.verification_code || (form as any).verification_code || undefined,
         template_id: modernTemplateId,
-        theory_score:        parseFloat(form.theory_score)        || 0,
-        practical_score:     parseFloat(form.practical_score)     || 0,
-        attendance_score:    parseFloat(form.attendance_score)    || 0,
-        participation_score: parseFloat(form.participation_score) || 0,
+        theory_score:        parseScoreForDisplay(form.theory_score),
+        practical_score:     parseScoreForDisplay(form.practical_score),
+        attendance_score:    parseScoreForDisplay(form.attendance_score),
+        participation_score: parseScoreForDisplay(form.participation_score),
         overall_score: overallScore,
         overall_grade: waecCode,
         engagement_metrics: {
-            classwork_score:  parseFloat(form.classwork_score)  || 0,
-            assessment_score: parseFloat(form.assessment_score) || 0,
+            classwork_score:  parseScoreForDisplay(form.classwork_score),
+            assessment_score: parseScoreForDisplay(form.assessment_score),
             score_weights: effectiveWeighting.weights,
             grading_scheme_id: effectiveWeighting.scheme?.id ?? null,
             grading_scheme_name: effectiveWeighting.scheme?.name ?? 'Rillcod balanced evidence model',
@@ -3037,30 +3061,6 @@ function ReportBuilderInner() {
             )}
         </div>
     );
-
-    const returnToResultsHref = useMemo(() => {
-        const p = new URLSearchParams();
-        if (selectedStudent?.id) p.set('student', selectedStudent.id);
-        else if (prefStudentId) p.set('student', prefStudentId);
-        if (existingReport?.id) p.set('report', existingReport.id);
-        if (sessionConfig.report_term) p.set('term', sessionConfig.report_term);
-        if (sessionConfig.report_period) p.set('year', sessionConfig.report_period);
-        if (sessionConfig.class_id) p.set('class_id', sessionConfig.class_id);
-        if (sessionConfig.school_id) p.set('school_id', sessionConfig.school_id);
-        const qs = p.toString();
-        return qs ? `/dashboard/results?${qs}` : '/dashboard/results';
-    }, [selectedStudent?.id, prefStudentId, existingReport?.id, sessionConfig.report_term, sessionConfig.report_period, sessionConfig.class_id, sessionConfig.school_id]);
-
-    const returnToPrepareHref = useMemo(() => {
-        const p = new URLSearchParams();
-        if (selectedStudent?.id) p.set('student', selectedStudent.id);
-        else if (prefStudentId) p.set('student', prefStudentId);
-        if (sessionConfig.class_id) p.set('class_id', sessionConfig.class_id);
-        else if (prefClassId) p.set('class_id', prefClassId);
-        if (sessionConfig.course_id) p.set('course_id', sessionConfig.course_id);
-        const qs = p.toString();
-        return qs ? `/dashboard/academic/results?${qs}` : '/dashboard/academic/results';
-    }, [selectedStudent?.id, prefStudentId, sessionConfig.class_id, prefClassId, sessionConfig.course_id]);
 
     return (
         <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
