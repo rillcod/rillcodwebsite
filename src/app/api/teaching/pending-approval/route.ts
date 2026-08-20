@@ -63,11 +63,11 @@ export async function GET() {
   const planIds = plans.map((p: any) => p.id);
 
   const [{ data: lessons }, { data: assignments }, { data: decks }] = await Promise.all([
-    db.from("lessons").select("id,title,status,lesson_plan_id,curriculum_week_number,metadata")
+    db.from("lessons").select("id,title,status,lesson_plan_id,curriculum_week_number,session_number,metadata")
       .in("lesson_plan_id", planIds).eq("status", "draft"),
-    db.from("assignments").select("id,title,is_active,assignment_type,lesson_plan_id,curriculum_week_number,metadata")
+    db.from("assignments").select("id,title,is_active,assignment_type,lesson_plan_id,curriculum_week_number,session_number,metadata")
       .in("lesson_plan_id", planIds).eq("is_active", false),
-    (db as any).from("flashcard_decks").select("id,title,is_public,lesson_plan_id,curriculum_week_number")
+    (db as any).from("flashcard_decks").select("id,title,is_public,lesson_plan_id,curriculum_week_number,session_number")
       .in("lesson_plan_id", planIds).eq("is_public", false),
   ]);
 

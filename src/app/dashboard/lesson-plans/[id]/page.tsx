@@ -4224,13 +4224,22 @@ export default function LessonPlanDetailPage() {
                                   },
                                   {
                                     value: true,
-                                    label: "Show students straight away",
-                                    hint: "Goes live with no review",
+                                    label: "Trusted auto-release",
+                                    hint:
+                                      profile?.role === "admin" ||
+                                      lmsSettings.auto_publish
+                                        ? "Goes live with no weekly release step"
+                                        : "An administrator must approve this once",
                                   },
                                 ].map(({ value, label, hint }) => (
                                   <button
                                     key={String(value)}
                                     type="button"
+                                    disabled={
+                                      value &&
+                                      profile?.role !== "admin" &&
+                                      !lmsSettings.auto_publish
+                                    }
                                     onClick={() =>
                                       setLmsSettings((s) => ({
                                         ...s,
@@ -4242,7 +4251,7 @@ export default function LessonPlanDetailPage() {
                                         ? value
                                           ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40"
                                           : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40"
-                                        : "bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10"
+                                        : "bg-white/5 text-card-foreground/50 border border-white/10 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                                     }`}
                                   >
                                     <span className="block">

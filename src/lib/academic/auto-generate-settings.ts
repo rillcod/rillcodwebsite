@@ -58,7 +58,7 @@ export const DEFAULT_AUTO_GENERATE_SETTINGS: AutoGenerateSettings = {
   enabled: true,
   types: [...WEEK_CONTENT_TYPES],
   maxWeeksPerBatch: 1,
-  prep_ahead_weeks: 0,
+  prep_ahead_weeks: 1,
   auto_publish: false,
 };
 
@@ -99,7 +99,9 @@ export function parseAutoGenerateSettings(raw: unknown): AutoGenerateSettings {
     maxWeeksPerBatch:
       Number.isFinite(batch) && batch > 0 ? Math.min(10, Math.floor(batch)) : 0,
     prep_ahead_weeks:
-      Number.isFinite(ahead) && ahead > 0 ? Math.min(4, Math.floor(ahead)) : 0,
+      Number.isFinite(ahead) && ahead >= 0
+        ? Math.min(4, Math.floor(ahead))
+        : DEFAULT_AUTO_GENERATE_SETTINGS.prep_ahead_weeks,
     // Anything other than an explicit true holds for approval. An absent flag
     // must never be read as permission to publish to learners.
     auto_publish: source.auto_publish === true,

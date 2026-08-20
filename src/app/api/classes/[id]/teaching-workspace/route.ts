@@ -9,7 +9,18 @@ import {
   resolveOfficialDeliverySchedule,
 } from "@/lib/curriculum/official-direction";
 import { diagnoseDirection } from "@/lib/academic/status";
+import type { StageStatus } from "@/lib/academic/status";
 import { parseRequestSession } from "@/lib/academic/session-identity";
+import {
+  buildTeachingWeekRows,
+  parseTeachingTargets,
+} from "@/lib/academic/teaching-workspace";
+import { classCoverageFromRows } from "@/lib/academic/class-coverage";
+import { buildCurriculumHref } from "@/lib/curriculum/href";
+import {
+  describeAutoGenerateSettings,
+  parseAutoGenerateSettings,
+} from "@/lib/academic/auto-generate-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +126,7 @@ export async function GET(
   // not, and "Evaluation" always reopened the create form.
   let exams: any[] = [];
   let deliveries: any[] = [];
+  let trackingRows: any[] = [];
   let progress: any = null;
   let direction: any = null;
 
@@ -153,11 +165,12 @@ export async function GET(
       pinnedReleaseId: plan?.curriculum_release_id,
     });
     if (plan) {
-      const [lessonResult, deliveryResult, progressResult] = await Promise.all([
+      const [lessonResult, deliveryResult, progressResult, trackingResult] =
+        await Promise.all([
         db
           .from("lessons")
           .select(
-            "id,title,description,status,session_date,duration_minutes,curriculum_week_number,lesson_plan_id,metadata"
+            "id,title,description,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id,customized_at"
           )
           .or(
             `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`
@@ -174,10 +187,15 @@ export async function GET(
           .select("*")
           .eq("lesson_plan_id", plan.id)
           .maybeSingle(),
+        db
+          .from("curriculum_week_tracking")
+          .select("status")
+          .eq("lesson_plan_id", plan.id),
       ]);
       lessons = lessonResult.data || [];
       deliveries = deliveryResult.data || [];
       progress = progressResult.data;
+      trackingRows = trackingResult.data || [];
       const lessonIds = lessons.map((lesson: any) => lesson.id).filter(Boolean);
       const planOrLessonScope = [
         `lesson_plan_id.eq.${plan.id}`,
@@ -188,7 +206,7 @@ export async function GET(
           db
             .from("assignments")
             .select(
-              "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,metadata,assignment_type"
+              "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,session_number,metadata,assignment_type,shared_master_id,customized_at"
             )
             .or(
               [
@@ -202,12 +220,16 @@ export async function GET(
             .order("created_at", { ascending: false }),
           db
             .from("lesson_materials")
-            .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number")
+            .select(
+              "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,content_stale_at"
+            )
             .or(planOrLessonScope)
             .eq("file_type", "slide-deck"),
           db
             .from("flashcard_decks")
-            .select("id,title,lesson_id,lesson_plan_id,curriculum_week_number,is_public")
+            .select(
+              "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
+            )
             .or(planOrLessonScope)
             .order("created_at", { ascending: false }),
           // exam_type is not a column — it lives in metadata, the way the
@@ -276,6 +298,54 @@ export async function GET(
         },
       ]
     : [];
+  const weekRows = plan
+    ? buildTeachingWeekRows({
+        planWeeks: Array.isArray(plan.plan_data?.weeks)
+          ? plan.plan_data.weeks
+          : [],
+        lessons,
+        assignments,
+        projects,
+        slideDecks,
+        flashcardDecks,
+        exams,
+        deliveries,
+      })
+    : [];
+  const coverage = classCoverageFromRows(deliveries, trackingRows);
+  const planStage: StageStatus | null = !courseId
+    ? null
+    : !direction
+      ? {
+          id: "plan",
+          state: "blocked",
+          headline: "Official curriculum direction is not ready.",
+          detail:
+            "The class cannot prepare teaching content until this course has an official edition for its pathway.",
+          actionLabel: "Open curriculum direction",
+          actionHref: buildCurriculumHref({ courseId }),
+        }
+      : plan?.curriculum_release_id
+        ? {
+            id: "plan",
+            state: "done",
+            headline: "Teaching plan follows the official edition.",
+          }
+        : plan
+          ? {
+              id: "plan",
+              state: "ready",
+              headline: "Teaching plan needs its official edition.",
+              detail: "Refresh the academic direction to attach this plan.",
+            }
+          : {
+              id: "plan",
+              state: "ready",
+              headline: "Teaching plan is ready to start automatically.",
+            };
+  const autoGenerate = parseAutoGenerateSettings(
+    plan?.metadata?.auto_generate_settings
+  );
   return NextResponse.json({
     data: {
       class: klass,
@@ -304,6 +374,11 @@ export async function GET(
       exams,
       deliveries,
       progress,
+      week_rows: weekRows,
+      plan_stage: planStage,
+      coverage,
+      auto_generate: autoGenerate,
+      prep_policy: describeAutoGenerateSettings(autoGenerate),
     },
   });
 }
@@ -584,14 +659,23 @@ export async function POST(
         { status: 403 }
       );
     }
+    const week = Number(body.week_number);
+    if (!Number.isInteger(week) || week <= 0 || week > 53) {
+      return NextResponse.json(
+        { error: "week_number must be between 1 and 53" },
+        { status: 400 }
+      );
+    }
+    const session = parseRequestSession(body as Record<string, unknown>);
     const { data, error } = await db.rpc("record_class_lesson_delivery", {
       p_lesson_plan_id: body.lesson_plan_id,
-      p_week_number: Number(body.week_number),
+      p_week_number: week,
       p_lesson_id: body.lesson_id || null,
       p_status: body.status || "delivered",
       p_actor_id: user.id,
       p_notes: body.notes || null,
       p_class_session_id: body.class_session_id || null,
+      p_session_number: session ?? 1,
     });
     if (error)
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -601,14 +685,10 @@ export async function POST(
   // Same operation, several weeks of one plan. Delivery is class-scoped, so it
   // belongs here rather than under a curriculum id.
   if (body.action === "record_delivery_bulk") {
-    const weekNumbers: number[] = Array.isArray(body.week_numbers)
-      ? [
-          ...new Set((body.week_numbers as unknown[]).map((w) => Number(w))),
-        ].filter((w) => Number.isFinite(w) && w > 0)
-      : [];
-    if (weekNumbers.length === 0) {
+    const targets = parseTeachingTargets(body as Record<string, unknown>);
+    if (targets.length === 0) {
       return NextResponse.json(
-        { error: "Select at least one week" },
+        { error: "Select at least one teaching slot" },
         { status: 400 }
       );
     }
@@ -624,25 +704,46 @@ export async function POST(
         : body.status === "skipped"
         ? "skipped"
         : "delivered";
-    const results: unknown[] = [];
-    for (const week of weekNumbers) {
+    const results: Array<{
+      week: number;
+      session: number | null;
+      data?: unknown;
+      error?: string;
+    }> = [];
+    for (const target of targets) {
       const { data, error } = await db.rpc("record_class_lesson_delivery", {
         p_lesson_plan_id: body.lesson_plan_id,
-        p_week_number: week,
+        p_week_number: target.week,
         p_lesson_id: null,
         p_status: status,
         p_actor_id: user.id,
         p_notes: body.notes || null,
         p_class_session_id: null,
+        p_session_number: target.session ?? 1,
       });
-      if (error)
-        return NextResponse.json(
-          { error: `Week ${week}: ${error.message}` },
-          { status: 400 }
-        );
-      results.push(data);
+      results.push({
+        week: target.week,
+        session: target.session,
+        ...(error ? { error: error.message } : { data }),
+      });
     }
-    return NextResponse.json({ data: results, count: results.length, status });
+    const failures = results.filter((result) => result.error);
+    return NextResponse.json({
+      data: {
+        results,
+        attempted_count: results.length,
+        completed_count: results.length - failures.length,
+        failed_count: failures.length,
+        status,
+      },
+      ...(failures.length
+        ? {
+            warning: `${failures.length} teaching slot${
+              failures.length === 1 ? "" : "s"
+            } could not be updated. The workspace was refreshed to show the recorded state.`,
+          }
+        : {}),
+    });
   }
 
   // Publish the class plan so week generators stop refusing it. Teachers used to
@@ -700,6 +801,112 @@ export async function POST(
         { status: 400 }
       );
     }
+    return NextResponse.json({ data: result });
+  }
+
+  // Release selected week+meeting targets. Each result is returned so partial
+  // database failures are visible and the client can refresh authoritative state.
+  if (body.action === "release_week_bulk") {
+    const targets = parseTeachingTargets(body as Record<string, unknown>);
+    if (targets.length === 0) {
+      return NextResponse.json(
+        { error: "Select at least one teaching slot to release" },
+        { status: 400 }
+      );
+    }
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
+    const { releasePreparedWeek } = await import(
+      "@/lib/academic/release-week-content"
+    );
+    const results: Array<Awaited<ReturnType<typeof releasePreparedWeek>>> = [];
+    const failures: Array<{
+      week: number;
+      session: number | null;
+      error: string;
+      available_sessions?: number[];
+    }> = [];
+    let totalLessons = 0;
+    let totalAssignments = 0;
+    let totalFlashcards = 0;
+
+    for (const target of targets) {
+      const res = await releasePreparedWeek({
+        planId: String(body.lesson_plan_id),
+        week: target.week,
+        session: target.session,
+      });
+      if (res.error) {
+        failures.push({
+          week: target.week,
+          session: target.session,
+          error: res.error,
+          ...(res.available_sessions
+            ? { available_sessions: res.available_sessions }
+            : {}),
+        });
+      }
+      totalLessons += res.lessons_released ?? 0;
+      totalAssignments += res.assignments_released ?? 0;
+      totalFlashcards += res.flashcards_released ?? 0;
+      results.push(res);
+    }
+    return NextResponse.json({
+      data: {
+        results,
+        attempted_count: targets.length,
+        completed_count: targets.length - failures.length,
+        failed_count: failures.length,
+        failures,
+        total_lessons: totalLessons,
+        total_assignments: totalAssignments,
+        total_flashcards: totalFlashcards,
+      },
+      ...(failures.length
+        ? {
+            warning: `${failures.length} selected teaching slot${
+              failures.length === 1 ? "" : "s"
+            } could not be fully released. The workspace was refreshed to show the current state.`,
+          }
+        : {}),
+    });
+  }
+
+  if (body.action === "prepare_week") {
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
+    const week = Number(body.week_number);
+    if (!Number.isInteger(week) || week <= 0 || week > 53) {
+      return NextResponse.json(
+        { error: "week_number must be between 1 and 53" },
+        { status: 400 }
+      );
+    }
+    const session = parseRequestSession(body as Record<string, unknown>);
+    const { data: planMeta } = await db
+      .from("lesson_plans")
+      .select("metadata")
+      .eq("id", body.lesson_plan_id)
+      .maybeSingle();
+    const autoGenerate = parseAutoGenerateSettings(
+      planMeta?.metadata?.auto_generate_settings
+    );
+    const { generatePlanWeek } = await import("@/lib/academic/week-generation");
+    const result = await generatePlanWeek({
+      planId: String(body.lesson_plan_id),
+      week,
+      session,
+      autoPublish: autoGenerate.auto_publish,
+      cookie: req.headers.get("cookie") || undefined,
+    });
     return NextResponse.json({ data: result });
   }
 

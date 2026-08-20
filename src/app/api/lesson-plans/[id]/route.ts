@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessLessonScope } from "../authz";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { canonicalPlanCurriculum } from "@/lib/curriculum/official-direction";
+import { parseAutoGenerateSettings } from "@/lib/academic/auto-generate-settings";
 
 export const dynamic = "force-dynamic";
 import { getProgressionTermStatus } from "@/lib/progression/termStatus";
@@ -195,10 +196,43 @@ export async function PATCH(
   // and last_run_at, and a settings save must not erase the automation's own
   // bookkeeping.
   if ("metadata" in body) {
-    patchBody.metadata = {
-      ...asObject(existingPlanRow.metadata),
-      ...asObject(body.metadata),
+    const existingMetadata = asObject(existingPlanRow.metadata);
+    const incomingMetadata = asObject(body.metadata);
+    const nextMetadata = {
+      ...existingMetadata,
+      ...incomingMetadata,
     };
+    if ("auto_generate_settings" in incomingMetadata) {
+      const previous = parseAutoGenerateSettings(
+        existingMetadata.auto_generate_settings
+      );
+      const next = parseAutoGenerateSettings(
+        incomingMetadata.auto_generate_settings
+      );
+      if (next.auto_publish && !previous.auto_publish && user.role !== "admin") {
+        return NextResponse.json(
+          {
+            error:
+              "Trusted auto-release must be approved by an administrator. Automatic preparation can remain on while content waits for review.",
+          },
+          { status: 403 }
+        );
+      }
+      nextMetadata.auto_generate_settings = next;
+      if (next.auto_publish && !previous.auto_publish) {
+        nextMetadata.trusted_auto_release = {
+          authorized_by: user.id,
+          authorized_at: new Date().toISOString(),
+        };
+      } else if (!next.auto_publish && previous.auto_publish) {
+        nextMetadata.trusted_auto_release = {
+          ...asObject(existingMetadata.trusted_auto_release),
+          revoked_by: user.id,
+          revoked_at: new Date().toISOString(),
+        };
+      }
+    }
+    patchBody.metadata = nextMetadata;
   }
   let nextPlanData = existingPlanData;
 

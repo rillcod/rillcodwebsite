@@ -1,4 +1,10 @@
-export type DeliveryRow = { week_number: number; status: string };
+import { planMeetingLookupKey } from "./session-identity";
+
+export type DeliveryRow = {
+  week_number: number;
+  session_number?: number | null;
+  status: string;
+};
 export type WeekTrackingRow = { status: string };
 
 export type ClassCoverage = {
@@ -17,9 +23,10 @@ export type ClassCoverage = {
  * matches what teachers mark in the Teaching tab — reading the legacy table
  * first left the bar empty forever for classes on the current flow.
  *
- * A week can hold several delivery rows, so they collapse to one status per
- * week before counting, and "delivered" beats any other status for that week.
- * Counting rows instead of weeks inflated both numbers.
+ * A teaching slot can hold several delivery rows, so they collapse by
+ * week+session before counting, and "delivered" beats any other status for
+ * that slot. This keeps school weeks deduplicated while preserving distinct
+ * meetings in multi-session programmes.
  *
  * This lived twice, copied between the initial page load and the realtime
  * refresh, which meant the precedence rule had two copies that could drift.
@@ -32,14 +39,15 @@ export function classCoverageFromRows(
   const tracking = weekRows ?? [];
 
   if (delivery.length > 0) {
-    const statusByWeek = new Map<number, string>();
+    const statusBySlot = new Map<string, string>();
     for (const row of delivery) {
       const week = Number(row.week_number);
       if (!Number.isFinite(week)) continue;
-      const seen = statusByWeek.get(week);
-      if (row.status === "delivered" || !seen) statusByWeek.set(week, row.status);
+      const key = planMeetingLookupKey(week, row.session_number);
+      const seen = statusBySlot.get(key);
+      if (row.status === "delivered" || !seen) statusBySlot.set(key, row.status);
     }
-    const statuses = [...statusByWeek.values()];
+    const statuses = [...statusBySlot.values()];
     return {
       delivered: statuses.filter((status) => status === "delivered").length,
       planned: statuses.length,
@@ -47,7 +55,9 @@ export function classCoverageFromRows(
   }
 
   return {
-    delivered: tracking.filter((row) => row.status === "delivered").length,
+    delivered: tracking.filter((row) =>
+      row.status === "delivered" || row.status === "completed"
+    ).length,
     planned: tracking.length,
   };
 }

@@ -6,7 +6,7 @@ import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { parseRequestSession, assetMeetingSession } from "@/lib/academic/session-identity";
-import { geminiGenerateText } from "@/lib/gemini/client";
+import { generateAIContent } from "@/lib/ai/generate-core";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 
 export const dynamic = "force-dynamic";
@@ -17,37 +17,6 @@ type AiGeneratedCard = {
   tags?: string[];
   difficulty?: string;
 };
-
-const FLASHCARD_SYSTEM_PROMPT = `You are an expert educational content creator for Rillcod Technologies, a Christian STEM innovation academy.
-Generate high-quality flashcards that are clear, accurate, and pedagogically sound.
-Each card should have a clear question or concept on the front and a concise, complete answer on the back.
-Return ONLY valid JSON — no markdown fences, no extra text.`;
-
-function buildFlashcardPrompt(topic: string, count: number, content?: string): string {
-  const contextBlock = content?.trim()
-    ? `\nLesson context (use this to make cards more relevant):\n${content.trim().slice(0, 2000)}`
-    : "";
-  return `Generate exactly ${count} flashcards about: "${topic}"${contextBlock}
-
-Return a JSON object with this exact shape:
-{
-  "cards": [
-    {
-      "front": "string — question or concept to test",
-      "back": "string — clear, complete answer or explanation",
-      "tags": ["string — relevant topic tags"],
-      "difficulty": "medium"
-    }
-  ]
-}
-
-RULES:
-- Generate EXACTLY ${count} cards — no more, no less.
-- front: concise question or prompt (max 20 words).
-- back: clear answer with enough context to be self-explanatory (1-3 sentences).
-- Vary question types: definitions, applications, comparisons, code output, true/false reasoning.
-- British English throughout.`;
-}
 
 export async function POST(
   req: NextRequest,
@@ -230,6 +199,7 @@ export async function POST(
       table: "flashcard_decks",
       releaseId: (plan as any).curriculum_release_id ?? null,
       week,
+      session: session ?? 1,
       targetPlanId: id,
       classId: (plan as any).class_id ?? null,
       scope: {
@@ -278,6 +248,7 @@ export async function POST(
         class_id: (plan as any).class_id ?? null,
         lesson_plan_id: id,
         curriculum_week_number: week,
+        session_number: session ?? 1,
         is_public: isPublic,
         created_by: deckOwner,
         school_id: (plan as any).school_id ?? null,
@@ -300,26 +271,24 @@ export async function POST(
           .filter(Boolean)
           .join("\n")
       : "";
-    const prompt = buildFlashcardPrompt(
-      String(weekMeta.topic || "This week"),
-      15,
-      contextText,
-    );
-    const aiResult = await geminiGenerateText(FLASHCARD_SYSTEM_PROMPT, prompt, true);
-    if (!aiResult?.text) {
-      lastError = "AI returned empty response";
-      skipped += 1;
-      continue;
-    }
-    let parsed: { cards?: AiGeneratedCard[] };
+    const removeEmptyDeck = async () => {
+      await (db as any).from("flashcard_cards").delete().eq("deck_id", deck.id);
+      await (db as any).from("flashcard_decks").delete().eq("id", deck.id);
+    };
+    let parsed: { cards?: AiGeneratedCard[] } = {};
     try {
-      const clean = aiResult.text
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-      parsed = JSON.parse(clean);
-    } catch {
-      lastError = "AI returned invalid JSON for flashcards";
+      const aiResult = await generateAIContent({
+        type: "flashcard",
+        topic: String(weekMeta.topic || "This week"),
+        courseName: (plan as any).courses?.title ?? undefined,
+        questionCount: 15,
+        sourceMaterial: contextText,
+      });
+      parsed = (aiResult.data ?? {}) as { cards?: AiGeneratedCard[] };
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error.message : "Flashcard generation failed";
+      await removeEmptyDeck();
       skipped += 1;
       continue;
     }
@@ -337,6 +306,7 @@ export async function POST(
       .filter((card) => card.front && card.back);
     if (!cardsToInsert.length) {
       lastError = "No valid flashcards generated";
+      await removeEmptyDeck();
       skipped += 1;
       continue;
     }
@@ -347,6 +317,7 @@ export async function POST(
       .select("id");
     if (insertError) {
       lastError = insertError.message;
+      await removeEmptyDeck();
       skipped += 1;
       continue;
     }

@@ -146,6 +146,8 @@ export type ReuseInput = {
   /** The edition the target plan was built from. No edition, no copying. */
   releaseId: string | null | undefined;
   week: number | null | undefined;
+  /** 1-based class meeting within the week; null means the single first meeting. */
+  session?: number | null;
   targetPlanId: string;
   classId: string | null;
   /**
@@ -191,7 +193,7 @@ export type ReuseResult =
 
 /** The lineage columns decideReuse needs, for any of the four tables. */
 const CANDIDATE_COLUMNS =
-  'id, curriculum_release_id, curriculum_week_number, lesson_plan_id, metadata, created_at';
+  'id, curriculum_release_id, curriculum_week_number, session_number, lesson_plan_id, metadata, created_at';
 
 /**
  * Tables where one master body is mirrored to every class that adopted it.
@@ -261,6 +263,9 @@ const CANDIDATE_LIMIT = 20;
 
 export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> {
   const { db, table, releaseId, week, targetPlanId, classId } = input;
+  const session = Number.isFinite(Number(input.session)) && Number(input.session) > 0
+    ? Math.floor(Number(input.session))
+    : 1;
 
   if (!releaseId) return { copied: false, reason: 'no_release' };
   if (!week || !Number.isFinite(Number(week))) return { copied: false, reason: 'no_week' };
@@ -271,6 +276,7 @@ export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> 
       .select(CANDIDATE_COLUMNS)
       .eq('curriculum_release_id', releaseId)
       .eq('curriculum_week_number', week)
+      .eq('session_number', session)
       .neq('lesson_plan_id', targetPlanId);
 
     // Narrowing happens before ordering and limiting, not after. Applied last,
@@ -289,6 +295,7 @@ export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> 
     const decision = decideReuse(candidates as ExistingContent[] | null, {
       releaseId,
       week,
+      session,
       targetPlanId,
     });
     if (decision.action === 'generate') return { copied: false, reason: decision.reason };
@@ -323,6 +330,7 @@ export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> 
       // overrides beat everything, since they describe this specific week.
       ...identityFor(table, input.scope),
       ...masterIdFor(table, source as Record<string, unknown>, decision.sourceId),
+      session_number: session,
       ...derived,
       ...(input.overrides ?? {}),
     };

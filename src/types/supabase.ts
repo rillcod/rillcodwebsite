@@ -1940,6 +1940,7 @@ export type Database = {
           questions: Json | null
           school_id: string | null
           school_name: string | null
+          session_number: number
           shared_master_id: string | null
           term_id: string | null
           title: string
@@ -1976,6 +1977,7 @@ export type Database = {
           questions?: Json | null
           school_id?: string | null
           school_name?: string | null
+          session_number?: number
           shared_master_id?: string | null
           term_id?: string | null
           title: string
@@ -2012,6 +2014,7 @@ export type Database = {
           questions?: Json | null
           school_id?: string | null
           school_name?: string | null
+          session_number?: number
           shared_master_id?: string | null
           term_id?: string | null
           title?: string
@@ -3567,7 +3570,7 @@ export type Database = {
       }
       class_lesson_delivery: {
         Row: {
-          academic_term_id: string
+          academic_term_id: string | null
           class_id: string
           class_session_id: string | null
           course_id: string
@@ -3578,12 +3581,14 @@ export type Database = {
           lesson_id: string | null
           lesson_plan_id: string
           notes: string | null
+          offering_period_id: string | null
+          session_number: number
           status: string
           updated_at: string
           week_number: number
         }
         Insert: {
-          academic_term_id: string
+          academic_term_id?: string | null
           class_id: string
           class_session_id?: string | null
           course_id: string
@@ -3594,12 +3599,14 @@ export type Database = {
           lesson_id?: string | null
           lesson_plan_id: string
           notes?: string | null
+          offering_period_id?: string | null
+          session_number?: number
           status?: string
           updated_at?: string
           week_number: number
         }
         Update: {
-          academic_term_id?: string
+          academic_term_id?: string | null
           class_id?: string
           class_session_id?: string | null
           course_id?: string
@@ -3610,6 +3617,8 @@ export type Database = {
           lesson_id?: string | null
           lesson_plan_id?: string
           notes?: string | null
+          offering_period_id?: string | null
+          session_number?: number
           status?: string
           updated_at?: string
           week_number?: number
@@ -3697,6 +3706,13 @@ export type Database = {
             columns: ["lesson_plan_id"]
             isOneToOne: false
             referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_lesson_delivery_offering_period_id_fkey"
+            columns: ["offering_period_id"]
+            isOneToOne: false
+            referencedRelation: "academic_offering_periods"
             referencedColumns: ["id"]
           },
         ]
@@ -8697,6 +8713,7 @@ export type Database = {
           progression_weekly_frequency: number | null
           school_id: string | null
           school_progression_enabled: boolean
+          session_number: number
           tags: string[] | null
           term_id: string | null
           title: string
@@ -8724,6 +8741,7 @@ export type Database = {
           progression_weekly_frequency?: number | null
           school_id?: string | null
           school_progression_enabled?: boolean
+          session_number?: number
           tags?: string[] | null
           term_id?: string | null
           title: string
@@ -8751,6 +8769,7 @@ export type Database = {
           progression_weekly_frequency?: number | null
           school_id?: string | null
           school_progression_enabled?: boolean
+          session_number?: number
           tags?: string[] | null
           term_id?: string | null
           title?: string
@@ -10203,6 +10222,7 @@ export type Database = {
           lesson_plan_id: string | null
           metadata: Json | null
           offering_period_id: string | null
+          session_number: number
           title: string
         }
         Insert: {
@@ -10220,6 +10240,7 @@ export type Database = {
           lesson_plan_id?: string | null
           metadata?: Json | null
           offering_period_id?: string | null
+          session_number?: number
           title: string
         }
         Update: {
@@ -10237,6 +10258,7 @@ export type Database = {
           lesson_plan_id?: string | null
           metadata?: Json | null
           offering_period_id?: string | null
+          session_number?: number
           title?: string
         }
         Relationships: [
@@ -10648,6 +10670,7 @@ export type Database = {
           school_id: string | null
           school_name: string | null
           session_date: string | null
+          session_number: number
           shared_master_id: string | null
           status: string | null
           title: string
@@ -10679,6 +10702,7 @@ export type Database = {
           school_id?: string | null
           school_name?: string | null
           session_date?: string | null
+          session_number?: number
           shared_master_id?: string | null
           status?: string | null
           title: string
@@ -10710,6 +10734,7 @@ export type Database = {
           school_id?: string | null
           school_name?: string | null
           session_date?: string | null
+          session_number?: number
           shared_master_id?: string | null
           status?: string | null
           title?: string
@@ -20605,13 +20630,23 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: Json
       }
+      release_prepared_week_atomic: {
+        Args: {
+          p_lesson_plan_id: string
+          p_released_at?: string
+          p_session_number?: number
+          p_week_number: number
+        }
+        Returns: Json
+      }
       record_class_lesson_delivery: {
         Args: {
           p_actor_id: string
           p_class_session_id?: string
-          p_lesson_id: string
+          p_lesson_id: string | null
           p_lesson_plan_id: string
           p_notes?: string
+          p_session_number?: number
           p_status: string
           p_week_number: number
         }

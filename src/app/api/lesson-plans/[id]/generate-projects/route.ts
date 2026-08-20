@@ -276,6 +276,10 @@ export async function POST(
             table: "assignments",
             releaseId: (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null,
             week: week.week,
+            session:
+              getPlanWeekSession(
+                week as unknown as Record<string, unknown>
+              ) || 1,
             targetPlanId: plan.id,
             classId: plan.class_id ?? null,
             match: { "metadata->>generated_from": "progression_project_route" },
@@ -484,6 +488,10 @@ export async function POST(
               academic_offering_id: plan.academic_offering_id,
               offering_period_id: plan.offering_period_id,
               curriculum_week_number: week.week,
+              session_number:
+                getPlanWeekSession(
+                  week as unknown as Record<string, unknown>
+                ) || 1,
               title: (d.title ||
                 week.project?.title ||
                 `${week.topic} Project`) as string,

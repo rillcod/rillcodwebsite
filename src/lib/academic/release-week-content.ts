@@ -109,19 +109,19 @@ export async function releasePreparedWeek(input: {
     await Promise.all([
       db
         .from("lessons")
-        .select("id,metadata,title,status")
+        .select("id,metadata,title,status,session_number")
         .eq("lesson_plan_id", planId)
         .eq("curriculum_week_number", week)
         .eq("status", "draft"),
       db
         .from("assignments")
-        .select("id,metadata,title,is_active")
+        .select("id,metadata,title,is_active,session_number")
         .eq("lesson_plan_id", planId)
         .eq("curriculum_week_number", week)
         .eq("is_active", false),
       (db as any)
         .from("flashcard_decks")
-        .select("id,title,lesson_id,is_public")
+        .select("id,title,lesson_id,is_public,session_number")
         .eq("lesson_plan_id", planId)
         .eq("curriculum_week_number", week)
         .eq("is_public", false),
@@ -136,19 +136,28 @@ export async function releasePreparedWeek(input: {
     id: string;
     title?: string | null;
     lesson_id?: string | null;
+    session_number?: number | null;
   }>;
   const deckSelectError = decksRes?.error as { message: string } | null;
+  if (deckSelectError) {
+    return empty(normalizeReleaseSession(input.session), deckSelectError.message);
+  }
 
   const probeRows: SessionRow[] = [
     ...(draftLessons ?? []).map((row: any) => ({
       metadata: row.metadata as Record<string, unknown> | null,
       title: row.title,
+      session_number: row.session_number,
     })),
     ...(heldAssignments ?? []).map((row: any) => ({
       metadata: row.metadata as Record<string, unknown> | null,
       title: row.title,
+      session_number: row.session_number,
     })),
-    ...heldDecks.map((row) => ({ title: row.title })),
+    ...heldDecks.map((row) => ({
+      title: row.title,
+      session_number: row.session_number,
+    })),
   ];
 
   const session = resolveEffectiveReleaseSession(probeRows, input.session);
@@ -171,136 +180,47 @@ export async function releasePreparedWeek(input: {
     }
   }
 
-  const lessonIds = (draftLessons ?? [])
-    .filter((row: any) =>
-      matchesReleaseSession(
-        {
-          metadata: row.metadata as Record<string, unknown> | null,
-          title: row.title,
-        },
-        session,
-      ),
-    )
-    .map((row: any) => String(row.id));
-
-  let lessonsReleased = 0;
-  if (lessonIds.length) {
-    const { data: released, error: lessonError } = await db
-      .from("lessons")
-      .update({ status: "active", updated_at: now })
-      .in("id", lessonIds)
-      .eq("status", "draft")
-      .select("id");
-    if (lessonError) return empty(session, lessonError.message);
-    lessonsReleased = released?.length ?? 0;
-  }
-
-  const assignmentIds = (heldAssignments ?? [])
-    .filter((row: any) =>
-      matchesReleaseSession(
-        {
-          metadata: row.metadata as Record<string, unknown> | null,
-          title: row.title,
-        },
-        session,
-      ),
-    )
-    .map((row: any) => String(row.id));
-
-  let assignmentsReleased = 0;
-  let assignmentError: { message: string } | null = null;
-  if (assignmentIds.length) {
-    const { data: activated, error } = await db
-      .from("assignments")
-      .update({ is_active: true, updated_at: now })
-      .in("id", assignmentIds)
-      .eq("is_active", false)
-      .select("id");
-    if (error) assignmentError = error;
-    else {
-      assignmentsReleased = activated?.length ?? 0;
-      if (Array.isArray(activated) && activated.length > 0) {
-        const { triggerAssignmentReleaseNotifications } = await import(
-          "@/lib/assignments/notifications"
-        );
-        void Promise.all(
-          activated.map((row: { id: string }) =>
-            triggerAssignmentReleaseNotifications(row.id).catch(console.error),
-          ),
-        );
-      }
+  const { data: released, error: releaseError } = await (db as any).rpc(
+    "release_prepared_week_atomic",
+    {
+      p_lesson_plan_id: planId,
+      p_week_number: week,
+      p_session_number: session,
+      p_released_at: now,
     }
-  }
+  );
+  if (releaseError) return empty(session, releaseError.message);
 
-  if (deckSelectError && !assignmentError) {
-    return {
-      planId,
-      week,
-      session,
-      lessons_released: lessonsReleased,
-      assignments_released: assignmentsReleased,
-      flashcards_released: 0,
-      error: deckSelectError.message,
-    };
-  }
+  const payload = (released ?? {}) as {
+    lessons_released?: number;
+    assignments_released?: number;
+    flashcards_released?: number;
+    assignment_ids?: string[];
+  };
+  const assignmentIds = Array.isArray(payload.assignment_ids)
+    ? payload.assignment_ids.filter(Boolean)
+    : [];
 
-  // Prefer session match. Only follow a released lesson when the deck itself
-  // is unscoped or already matches the meeting — otherwise Class 2 decks that
-  // share a lesson_id would go live with Class 1.
-  const releasedLessonSet = new Set(lessonIds);
-  const deckIds = heldDecks
-    .filter((row) => {
-      if (matchesReleaseSession({ title: row.title }, session)) return true;
-      if (
-        row.lesson_id &&
-        releasedLessonSet.has(String(row.lesson_id)) &&
-        assetStampedMeetingSession({ title: row.title }) < 1
-      ) {
-        return true;
-      }
-      return false;
-    })
-    .map((row) => String(row.id));
-
-  let flashcardsReleased = 0;
-  let deckError: { message: string } | null = deckSelectError;
-  if (deckIds.length && !deckSelectError) {
-    const { data: decks, error } = await (db as any)
-      .from("flashcard_decks")
-      .update({ is_public: true, updated_at: now })
-      .in("id", deckIds)
-      .eq("is_public", false)
-      .select("id");
-    if (error) deckError = error;
-    else flashcardsReleased = decks?.length ?? 0;
-  }
-
-  if (assignmentError && !deckError) {
-    return {
-      planId,
-      week,
-      session,
-      lessons_released: lessonsReleased,
-      assignments_released: 0,
-      flashcards_released: flashcardsReleased,
-      error: assignmentError.message,
-    };
+  // Notifications are side effects after the visibility transaction commits.
+  // A provider outage cannot roll learner visibility back or leave a half-live
+  // package; the normal notification retry path can recover separately.
+  if (assignmentIds.length > 0) {
+    const { triggerAssignmentReleaseNotifications } = await import(
+      "@/lib/assignments/notifications"
+    );
+    void Promise.all(
+      assignmentIds.map((assignmentId) =>
+        triggerAssignmentReleaseNotifications(assignmentId).catch(console.error)
+      )
+    );
   }
 
   return {
     planId,
     week,
     session,
-    lessons_released: lessonsReleased,
-    assignments_released: assignmentError ? 0 : assignmentsReleased,
-    flashcards_released: deckError ? 0 : flashcardsReleased,
-    ...(assignmentError || deckError
-      ? {
-          error:
-            assignmentError?.message ||
-            deckError?.message ||
-            "Partial release",
-        }
-      : {}),
+    lessons_released: Number(payload.lessons_released) || 0,
+    assignments_released: Number(payload.assignments_released) || 0,
+    flashcards_released: Number(payload.flashcards_released) || 0,
   };
 }

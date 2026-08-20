@@ -12,7 +12,10 @@ import {
 } from "@/lib/lesson-plans/syllabusImport";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
-import { parseRequestSession } from "@/lib/academic/session-identity";
+import {
+  parseRequestSession,
+  planRowMeetingSession,
+} from "@/lib/academic/session-identity";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import {
   extractLessonPlanOperationWeeks,
@@ -270,6 +273,10 @@ export async function POST(
           // looks wrong, decideReuse says generate and the AI path below runs
           // unchanged — which is why this cannot half-break.
           const planReleaseId = (plan as { curriculum_release_id?: string | null })?.curriculum_release_id ?? null;
+          const session =
+            planRowMeetingSession(
+              week as unknown as Record<string, unknown>
+            ) || 1;
           const reuse = await reuseWeekContent({
             // Cast: reuseWeekContent takes a structural { from(table: string) }
             // so one helper can serve four tables. A Supabase client's `from` is
@@ -278,6 +285,7 @@ export async function POST(
             table: "lessons",
             releaseId: planReleaseId,
             week: week.week,
+            session,
             targetPlanId: id,
             classId: (plan as { class_id?: string | null })?.class_id ?? null,
             // Exactly the identity the AI path below writes, so a copied week
@@ -371,6 +379,7 @@ export async function POST(
               school_id: planSchoolId,
               lesson_plan_id: id,
               curriculum_week_number: week.week,
+              session_number: session,
               title: (d.title || week.topic) as string,
               description: (d.description || "") as string,
               lesson_notes: (d.lesson_notes || "") as string,

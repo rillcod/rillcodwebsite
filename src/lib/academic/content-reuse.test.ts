@@ -31,6 +31,15 @@ describe('what may be copied', () => {
       .toEqual({ action: 'generate', reason: 'nothing_to_copy' });
   });
 
+  it('never copies a different meeting in the same week', () => {
+    expect(
+      decideReuse(
+        [row({ session_number: 2 })],
+        { ...req, session: 1 }
+      )
+    ).toEqual({ action: 'generate', reason: 'nothing_to_copy' });
+  });
+
   it('never copies from the same plan', () => {
     // That is a duplicate rather than a reuse, and the uniqueness index on
     // (lesson_plan_id, week) would reject it anyway.

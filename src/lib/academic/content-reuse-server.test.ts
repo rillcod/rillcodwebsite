@@ -120,6 +120,7 @@ const candidate: Row = {
   id: 'source-content',
   curriculum_release_id: RELEASE,
   curriculum_week_number: 3,
+  session_number: 1,
   lesson_plan_id: SOURCE_PLAN,
   metadata: {},
   created_at: '2026-01-01T00:00:00Z',
@@ -162,6 +163,7 @@ describe('a copy wears the copying class identity, never the source', () => {
     expect(row.created_by).toBe('teacher-TARGET');
     expect(row.lesson_plan_id).toBe(TARGET_PLAN);
     expect(row.class_id).toBe('class-TARGET');
+    expect(row.session_number).toBe(1);
   });
 
   it('files the copy under the target pathway, not the source offering', async () => {
@@ -246,6 +248,14 @@ describe('the search is scoped before anything is copied', () => {
     expect(filters['lessons.neq.lesson_plan_id']).toBe(TARGET_PLAN);
     expect(filters['lessons.curriculum_release_id']).toBe(RELEASE);
     expect(filters['lessons.curriculum_week_number']).toBe(3);
+    expect(filters['lessons.session_number']).toBe(1);
+  });
+
+  it('keeps a second meeting from borrowing the first meeting package', async () => {
+    const { filters, inserted, result } = await copyOnce('lessons', { session: 2 });
+    expect(filters['lessons.session_number']).toBe(2);
+    expect(result.copied).toBe(false);
+    expect(inserted).toHaveLength(0);
   });
 
   it('applies extra match filters, so a project cannot be copied over homework', async () => {

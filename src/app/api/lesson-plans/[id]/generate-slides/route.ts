@@ -284,6 +284,7 @@ export async function POST(
       table: "lesson_materials",
       releaseId: (plan as Record<string, any>).curriculum_release_id ?? null,
       week,
+      session: session ?? 1,
       targetPlanId: plan.id,
       classId: (plan as Record<string, any>).class_id ?? null,
       match: { file_type: "slide-deck" },
@@ -393,6 +394,7 @@ export async function POST(
           academic_offering_id: plan.academic_offering_id,
           offering_period_id: plan.offering_period_id,
           curriculum_week_number: week,
+          session_number: session ?? 1,
           title: `${
             lesson.title || planWeek.topic || `Week ${week}`
           }${sessionLabel} - Learning Slides`,

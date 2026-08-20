@@ -8,6 +8,7 @@ import {
 } from '@/lib/live-sessions/authz';
 import { notifySessionLive } from '@/lib/live-sessions/notify';
 import { ensureLiveKitRoom } from '@/lib/live-sessions/livekit-server';
+import { recordCompletedLiveTeaching } from '@/lib/live-sessions/teaching-delivery';
 
 // Auto-log a completed session to CRM interactions for the school and attendees
 async function autoLogCRM(session: any, staffName: string) {
@@ -108,9 +109,18 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Auto-log to CRM when a session is marked completed
+  let teachingDelivery: Awaited<ReturnType<typeof recordCompletedLiveTeaching>> | null = null;
+
+  // Auto-log to CRM and record reliable teaching evidence when a linked
+  // session is completed with at least one learner in attendance.
   if (before?.status !== 'completed' && data?.status === 'completed') {
     autoLogCRM(data, (caller as any).full_name || 'Staff').catch(() => {});
+    teachingDelivery = await recordCompletedLiveTeaching({
+      db: createAdminClient() as any,
+      liveSessionId: data.id,
+      notes: data.notes,
+      actorId: caller.id,
+    });
   }
 
   // Push + in-app notification when session goes live
@@ -120,7 +130,16 @@ export async function PATCH(
     notifySessionLive(data).catch(() => {});
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({
+    data,
+    ...(teachingDelivery ? { teaching_delivery: teachingDelivery } : {}),
+    ...(teachingDelivery?.status === 'failed'
+      ? {
+          warning:
+            `The live class was completed, but teaching delivery could not be recorded: ${teachingDelivery.error}`,
+        }
+      : {}),
+  });
 }
 
 // DELETE /api/live-sessions/[id] — delete session

@@ -22,6 +22,12 @@ describe("class curriculum coverage", () => {
     ).toEqual({ delivered: 1, planned: 2 });
   });
 
+  it("counts legacy tracking rows that used completed instead of delivered", () => {
+    expect(
+      classCoverageFromRows([], [{ status: "completed" }, { status: "pending" }])
+    ).toEqual({ delivered: 1, planned: 2 });
+  });
+
   it("counts a week once however many rows it has", () => {
     // Marking a week taught twice must not make the class look twice as far on.
     expect(
@@ -34,6 +40,18 @@ describe("class curriculum coverage", () => {
         []
       )
     ).toEqual({ delivered: 1, planned: 1 });
+  });
+
+  it("counts separate meetings in the same week", () => {
+    expect(
+      classCoverageFromRows(
+        [
+          { week_number: 3, session_number: 1, status: "delivered" },
+          { week_number: 3, session_number: 2, status: "planned" },
+        ],
+        []
+      )
+    ).toEqual({ delivered: 1, planned: 2 });
   });
 
   it("lets delivered win regardless of row order", () => {

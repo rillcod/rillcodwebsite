@@ -17,6 +17,7 @@ import {
   type AutoGenerateSettings,
 } from '@/lib/academic/auto-generate-settings';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
+import { buildTeachingWeekRows } from '@/lib/academic/teaching-workspace';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
@@ -164,32 +165,56 @@ async function handleRequest(req: NextRequest) {
         continue;
       }
 
-      // Which class meetings already have a lesson — skip those, prep the next.
-      const { data: existingLessons } = await db
-        .from('lessons')
-        .select('id,curriculum_week_number,metadata')
-        .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`);
-      const completedKeys = new Set<string>();
-      for (const lesson of existingLessons ?? []) {
-        const week = Number(
-          lesson.curriculum_week_number ??
-            (lesson.metadata as any)?.week ??
-            (lesson.metadata as any)?.week_number ??
-            0,
-        );
-        if (!Number.isFinite(week) || week < 1) continue;
-        const session = Number(
-          (lesson.metadata as any)?.session ??
-            (lesson.metadata as any)?.session_number ??
-            0,
-        );
-        if (Number.isFinite(session) && session > 0) {
-          completedKeys.add(planMeetingKey({ week, session: Math.floor(session) }));
-        } else {
-          completedKeys.add(String(week));
-          completedKeys.add(planMeetingKey({ week, session: 1 }));
-        }
-      }
+      // Completion means the whole five-asset package exists and no derived
+      // deck is stale. Looking at lessons alone stopped the sweep forever after
+      // the first asset and left slides, recall cards and tasks as teacher work.
+      const [
+        { data: existingLessons },
+        { data: existingAssignments },
+        { data: existingSlides },
+        { data: existingFlashcards },
+      ] = await Promise.all([
+        db
+          .from('lessons')
+          .select('id,title,status,curriculum_week_number,session_number,metadata')
+          .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`),
+        db
+          .from('assignments')
+          .select('id,title,is_active,assignment_type,curriculum_week_number,session_number,metadata')
+          .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`),
+        db
+          .from('lesson_materials')
+          .select('id,title,lesson_id,curriculum_week_number,session_number,content_stale_at')
+          .eq('lesson_plan_id', plan.id)
+          .eq('file_type', 'slide-deck'),
+        db
+          .from('flashcard_decks')
+          .select('id,title,lesson_id,is_public,curriculum_week_number,session_number,content_stale_at')
+          .eq('lesson_plan_id', plan.id),
+      ]);
+      const assignmentRows = existingAssignments ?? [];
+      const weekState = buildTeachingWeekRows({
+        planWeeks: planRows,
+        lessons: existingLessons ?? [],
+        assignments: assignmentRows.filter(
+          (row: any) => row.assignment_type !== 'project'
+        ),
+        projects: assignmentRows.filter(
+          (row: any) => row.assignment_type === 'project'
+        ),
+        slideDecks: existingSlides ?? [],
+        flashcardDecks: existingFlashcards ?? [],
+      });
+      const completedKeys = new Set(
+        weekState
+          .filter(
+            (row) =>
+              row.packageStatus.complete && !row.provenance.staleDerived
+          )
+          .map((row) =>
+            planMeetingKey({ week: row.week, session: row.session ?? 1 })
+          )
+      );
 
       const targetMeetings = nextMeetingsToGenerate({
         meetings: listPlanMeetings(planRows),

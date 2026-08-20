@@ -20,7 +20,6 @@ import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
-import { classCoverageFromRows } from '@/lib/academic/class-coverage';
 import {
   buildAssignmentNewHref,
   buildCbtNewHref,
@@ -352,31 +351,6 @@ export default function ClassDetailPage() {
           cbtSessions
         });
 
-        // Precedence between the two sources lives in classCoverageFromRows,
-        // so this and the realtime refresh below cannot disagree.
-        const [deliveryRes, weekRes] = await Promise.all([
-          withTimeout(
-            supabase
-              .from('class_lesson_delivery')
-              .select('week_number, status')
-              .eq('class_id', id),
-            { data: [] },
-            'class lesson delivery coverage',
-          ),
-          withTimeout(
-            supabase
-              .from('curriculum_week_tracking')
-              .select('status')
-              .eq('class_id', id),
-            { data: [] },
-            'class week tracking coverage',
-          ),
-        ]);
-        {
-          const deliveryRows = ((deliveryRes as { data: { week_number: number; status: string }[] | null })?.data ?? []);
-          const weekRows = ((weekRes as { data: { status: string }[] | null })?.data ?? []);
-          setCoverage(classCoverageFromRows(deliveryRows, weekRows));
-        }
       } else {
         // No program_id, set empty items
         setItems({
@@ -513,28 +487,12 @@ export default function ClassDetailPage() {
   // Live monitor. A week marked taught, a script submitted, an exam finished — wherever it
   // happens, the class reflects it without a refresh.
   //
-  // Coverage recomputes in place because it is two numbers. Learner work re-runs fetchData
-  // instead: submissions and CBT sessions are keyed on assignment and exam ids the page
-  // already resolved, so recomputing them here would mean duplicating that whole chain.
+  // Teaching coverage is owned by ClassTeachingWorkspace's unified response.
+  // Learner work still re-runs fetchData because submissions and CBT sessions
+  // are keyed on assignment and exam ids already resolved by this page.
   useEffect(() => {
     if (!id || !profile) return;
     const supabase = createClient();
-
-    const refreshCoverage = async () => {
-      const [deliveryRes, weekRes] = await Promise.all([
-        supabase
-          .from('class_lesson_delivery')
-          .select('week_number, status')
-          .eq('class_id', id),
-        supabase
-          .from('curriculum_week_tracking')
-          .select('status')
-          .eq('class_id', id),
-      ]);
-      setCoverage(
-        classCoverageFromRows(deliveryRes.data ?? [], weekRes.data ?? [])
-      );
-    };
 
     // assignment_submissions and cbt_sessions carry no class_id, so the subscription
     // cannot be filtered server-side and every submission in the school arrives here.
@@ -556,16 +514,6 @@ export default function ClassDetailPage() {
 
     const channel = supabase
       .channel(`class_monitor_${id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'curriculum_week_tracking', filter: `class_id=eq.${id}` },
-        () => { void refreshCoverage(); },
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'class_lesson_delivery', filter: `class_id=eq.${id}` },
-        () => { void refreshCoverage(); },
-      )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignment_submissions' }, refreshLearners)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cbt_sessions' }, refreshLearners)
       .subscribe();
@@ -2130,6 +2078,7 @@ export default function ClassDetailPage() {
                     initialCourseId={searchParams.get('course_id') || cls?.current_course_id}
                     canEdit={isStaff}
                     onCourseChange={handleSaveCourseFocus}
+                    onCoverageChange={setCoverage}
                   />
                 </div>
               )}

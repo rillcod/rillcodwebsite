@@ -1703,13 +1703,15 @@ Topic: "${req.topic}"
 Grade Level: ${req.gradeLevel ?? "JSS1–SS3"}
 Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
 Difficulty: ${req.difficulty ?? "medium"}
+${req.sourceMaterial?.trim() ? `Lesson context — stay within this material:\n"""\n${req.sourceMaterial.trim().slice(0, 4000)}\n"""` : ""}
 
 RULES:
-1. "Front" should be a clear, concise question or term.
-2. "Back" should be a clear, informative answer or explanation.
-3. Content must be age-appropriate for ${req.gradeLevel ?? "all levels"}.
-4. For technical topics, include brief code snippets or technical diagrams (as text/markdown).
-5. Ensure zero repetition and high conceptual value.
+1. Generate exactly ${count} cards.
+2. "Front" should be a clear, concise question or term (maximum 20 words).
+3. "Back" should be a self-contained answer or explanation in 1–3 sentences.
+4. Content must be age-appropriate for ${req.gradeLevel ?? "all levels"}.
+5. Vary definitions, applications, comparisons, code output and true/false reasoning.
+6. Use British English and avoid repetition.
 
 Return a JSON object with this exact shape:
 {

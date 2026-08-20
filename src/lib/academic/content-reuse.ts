@@ -23,6 +23,7 @@ export type ExistingContent = {
   id: string;
   curriculum_release_id: string | null;
   curriculum_week_number: number | null;
+  session_number?: number | null;
   lesson_plan_id: string | null;
   /** Content a teacher changed after generation. Never a source. */
   metadata?: Record<string, unknown> | null;
@@ -34,6 +35,8 @@ export type ExistingContent = {
 export type ReuseRequest = {
   releaseId: string | null | undefined;
   week: number | null | undefined;
+  /** 1-based class meeting within the week; untagged school weeks are 1. */
+  session?: number | null;
   /** The plan the copy will belong to. A plan never copies from itself. */
   targetPlanId: string;
 };
@@ -66,6 +69,7 @@ export function canBeCopied(row: ExistingContent | null | undefined, req: ReuseR
   if (!row || !req.releaseId || !req.week) return false;
   if (row.curriculum_release_id !== req.releaseId) return false;
   if (Number(row.curriculum_week_number) !== Number(req.week)) return false;
+  if (Number(row.session_number ?? 1) !== Number(req.session ?? 1)) return false;
 
   // A plan copying from itself is a duplicate, not a reuse — and the uniqueness
   // index would reject it anyway.
