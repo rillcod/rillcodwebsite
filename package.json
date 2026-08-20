@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint src",
     "lint:encoding": "node scripts/check-encoding.mjs",
+    "typecheck": "tsc --noEmit",
     "audit:ui": "node scripts/audit-ui-standards.mjs",
     "audit:embeds": "tsx scripts/audit-supabase-embeds.ts",
     "cron:table": "tsx scripts/print-cron-table.ts",

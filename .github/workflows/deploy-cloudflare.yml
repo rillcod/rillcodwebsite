@@ -1,9 +1,15 @@
-# Push to main → build Next.js standalone → deploy Cloudflare Containers.
+# Push to main → CI verify → only then deploy Cloudflare Containers.
 # Requires repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+#
+# Deploy used to race CI on the same push. Type errors then failed halfway
+# through the container build. This workflow waits for CI on main to succeed,
+# then deploys that exact commit. Manual dispatch still works for cutovers.
 name: Deploy Cloudflare
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -13,10 +19,17 @@ concurrency:
 
 jobs:
   deploy:
+    # PR CI must not ship. Only a green push CI on main, or a manual run.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
       contents: read
+      actions: read
 
     env:
       CI: "true"
@@ -32,8 +45,19 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
+      - name: Resolve commit
+        id: rev
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.rev.outputs.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -43,6 +67,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
+      # Belt-and-suspenders for workflow_dispatch / stale runners: fail before Docker.
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

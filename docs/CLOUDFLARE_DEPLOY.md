@@ -15,9 +15,15 @@ the `deploy:vercel` script and the Vercel-sourced env sync are all gone. Do not 
 ### Automatic (preferred)
 
 1. Push (or merge) to **`main`**.
-2. GitHub Action **Deploy Cloudflare** runs:
+2. GitHub Action **CI** runs first (lint, typecheck, tests, production build):
+   - `.github/workflows/ci.yml`
+3. Only when that CI push run succeeds, **Deploy Cloudflare** starts for the
+   same commit:
    - `.github/workflows/deploy-cloudflare.yml`
-3. Site updates after the job succeeds (~10–20 minutes).
+4. Site updates after the deploy job succeeds (~10–20 minutes after CI).
+
+Deploy no longer races CI on the same push. A type error fails CI and never
+starts the container build. Manual re-run still works via **workflow_dispatch**.
 
 **Required GitHub repo secrets** (Settings → Secrets and variables → Actions):
 
@@ -43,6 +49,7 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 
 | Command | Purpose |
 |---------|---------|
+| `npm run typecheck` | `tsc --noEmit` — run before pushing to `main` |
 | `npm run deploy` | Full local Cloudflare Containers deploy |
 | `npm run cf:container:deploy:ci` | Deploy without local prereq checks (CI) |
 | `npm run cf:set-route` | Attach custom domains in `wrangler.toml` |

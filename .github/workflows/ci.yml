@@ -71,7 +71,7 @@ jobs:
         run: npm run audit:ui
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Unit tests
         run: npm test

@@ -9,8 +9,8 @@ Production is **Cloudflare Containers**, and it is the only host. Vercel was ful
 2026-08-04 — do not reintroduce `vercel.json`, `.vercel/`, or any `vercel env pull` step.
 
 - Live: `https://www.rillcod.com`, `https://rillcod.com`, `https://cf.rillcod.com`
-- Auto-deploy: push to `main` → `.github/workflows/deploy-cloudflare.yml`
-- Local deploy: `npm run deploy` (Docker required)
+- Auto-deploy: push to `main` → CI green → `.github/workflows/deploy-cloudflare.yml`
+- Local deploy: `npm run deploy` (Docker required); run `npm run typecheck` before push
 - Source of truth: `docs/CLOUDFLARE_DEPLOY.md`
 
 When changing deploy, DNS, crons, or hosting:
