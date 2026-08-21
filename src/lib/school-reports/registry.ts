@@ -25,11 +25,14 @@ export async function getTeacherManageableSchoolIds(
   primarySchoolId: string | null,
 ): Promise<string[]> {
   const ids = new Set(await getTeacherSchoolIds(teacherId, primarySchoolId));
-  const { data: ownedClasses } = await admin
+  const { data: ownedClasses, error: ownedClassesError } = await admin
     .from('classes')
     .select('school_id')
     .eq('teacher_id', teacherId)
     .limit(1000);
+  if (ownedClassesError) {
+    throw new Error(`Teacher report access could not be verified: ${ownedClassesError.message}`);
+  }
   for (const row of ownedClasses ?? []) {
     if (row.school_id) ids.add(row.school_id);
   }

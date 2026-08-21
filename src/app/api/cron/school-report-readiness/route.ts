@@ -4,6 +4,7 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
 import { termNumberFromLabel } from '@/lib/reports/academic-period';
+import { ensureCurrentTermSchoolReportBooks } from '@/lib/school-reports/book-automation';
 import { runReportPreflight } from '@/lib/school-reports/preflight';
 import {
   classifyReadinessStatus,
@@ -11,7 +12,6 @@ import {
   shouldNotifyReadiness,
 } from '@/lib/school-reports/readiness-scan';
 import { logAuditEvent } from '@/lib/observability/audit-events';
-import { notificationsService } from '@/services/notifications.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,40 +37,51 @@ async function handleRequest(req: NextRequest) {
 
   const supabase = adminClient();
   const today = new Date().toISOString().slice(0, 10);
+  const bootstrap = await ensureCurrentTermSchoolReportBooks(supabase);
 
-  const { data: drafts, error: draftError } = await supabase
-    .from('school_performance_reports')
-    .select(
-      'id,school_id,title,academic_term_id,academic_year,term_label,period_start,period_end,created_by,status,schools(name)',
-    )
-    .eq('status', 'draft')
-    .order('updated_at', { ascending: false })
-    .limit(100);
-
-  if (draftError) {
-    return NextResponse.json({ error: draftError.message }, { status: 500 });
+  const drafts: any[] = [];
+  const pageSize = 250;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('school_performance_reports')
+      .select(
+        'id,school_id,title,academic_term_id,academic_year,term_label,period_start,period_end,created_by,status,schools(name),academic_terms(term_number)',
+      )
+      .eq('status', 'draft')
+      .order('updated_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) return NextResponse.json({ error: error.message, bootstrap }, { status: 500 });
+    const page = data ?? [];
+    drafts.push(...page);
+    if (page.length < pageSize) break;
   }
 
   const reportIds = (drafts ?? []).map((row: { id: string }) => row.id);
-  const { data: recentLogs } = reportIds.length
-    ? await supabase
-        .from('school_report_readiness_log')
-        .select('report_id,status,notified_at,checked_at')
-        .in('report_id', reportIds)
-        .gte('checked_at', `${today}T00:00:00.000Z`)
-        .limit(500)
-    : { data: [] };
+  const recentLogs: Array<{ report_id: string; status: string; notified_at: string | null; checked_at: string }> = [];
+  for (let offset = 0; offset < reportIds.length; offset += 100) {
+    const ids = reportIds.slice(offset, offset + 100);
+    const { data, error } = await supabase
+      .from('school_report_readiness_log')
+      .select('report_id,status,notified_at,checked_at')
+      .in('report_id', ids)
+      .gte('checked_at', `${today}T00:00:00.000Z`)
+      .limit(1000);
+    if (error) return NextResponse.json({ error: error.message, bootstrap }, { status: 500 });
+    recentLogs.push(...(data ?? []));
+  }
 
   let scanned = 0;
   let ready = 0;
   let notified = 0;
   let blocked = 0;
-  const errors: string[] = [];
+  const errors: string[] = bootstrap.errors.map((message) => `book bootstrap: ${message}`);
 
   for (const report of drafts ?? []) {
     scanned += 1;
     try {
-      const termNumber = parseInt(termNumberFromLabel(report.term_label), 10) || 1;
+      const termNumber = Number(
+        (Array.isArray(report.academic_terms) ? report.academic_terms[0] : report.academic_terms)?.term_number,
+      ) || parseInt(termNumberFromLabel(report.term_label), 10) || 1;
       const preflight = await runReportPreflight(supabase, {
         schoolId: report.school_id,
         academicTermId: report.academic_term_id || '',
@@ -117,17 +128,30 @@ async function handleRequest(req: NextRequest) {
           reportId: report.id,
         });
 
-        await notificationsService.logNotification(
-          report.created_by,
-          copy.title,
-          copy.message,
-          'success',
-        );
+        const now = new Date().toISOString();
+        const { error: notificationError } = await supabase.from('notifications').insert({
+          user_id: report.created_by,
+          title: copy.title,
+          message: copy.message,
+          type: 'success',
+          action_url: `/dashboard/school-performance-reports/${report.id}`,
+          is_read: false,
+          created_at: now,
+          updated_at: now,
+        });
+        if (notificationError) {
+          errors.push(`${report.id}: readiness notification failed: ${notificationError.message}`);
+          continue;
+        }
 
-        await supabase
+        const { error: notifiedError } = await supabase
           .from('school_report_readiness_log')
-          .update({ notified_at: new Date().toISOString() })
+          .update({ notified_at: now })
           .eq('id', logRow.id);
+        if (notifiedError) {
+          errors.push(`${report.id}: notification receipt failed: ${notifiedError.message}`);
+          continue;
+        }
 
         logAuditEvent('report.readiness.notify', {
           reportId: report.id,
@@ -143,6 +167,7 @@ async function handleRequest(req: NextRequest) {
   }
 
   return NextResponse.json({
+    bootstrap,
     scanned,
     ready,
     blocked,

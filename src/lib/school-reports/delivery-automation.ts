@@ -36,11 +36,14 @@ export async function selectTopicKeysFromTracking(
   const curriculumIds = [...new Set(catalog.map((row) => row.curriculumId).filter(Boolean))];
   if (!curriculumIds.length) return [];
 
-  const { data: tracking } = await admin
+  const { data: tracking, error: trackingError } = await admin
     .from('curriculum_week_tracking')
     .select('curriculum_id,term_number,week_number,status')
     .eq('school_id', schoolId)
     .in('curriculum_id', curriculumIds);
+  if (trackingError) {
+    throw new Error(`Delivery tracking could not be read: ${trackingError.message}`);
+  }
 
   const trackedKeys = new Set(
     (tracking ?? [])
@@ -59,13 +62,10 @@ export function selectAllCatalogTopicKeys(catalog: DeliveryTopicOption[]): strin
 }
 
 function automationEnabled(policy: SchoolReportPolicy): boolean {
-  return (
-    policy.automation.autoApplyDeliveryFromTracking ||
-    policy.automation.autoFillDeliveryOnRefresh
-  );
+  return policy.automation.autoApplyDeliveryFromTracking;
 }
 
-/** Auto-build delivery declaration from tracking or catalog — never replaces manual staff picks. */
+/** Auto-build delivery declaration from verified tracking — never replaces manual staff picks. */
 export async function tryAutoApplyDeliveryDeclaration(
   admin: AnyClient,
   input: {
@@ -118,16 +118,10 @@ export async function tryAutoApplyDeliveryDeclaration(
   }
 
   let selectedTopicKeys: string[] = [];
-  let autoSource: DeliveryDeclaration['autoSource'] = 'catalog';
+  const autoSource: DeliveryDeclaration['autoSource'] = 'tracking';
 
   if (input.policy.automation.autoApplyDeliveryFromTracking) {
     selectedTopicKeys = await selectTopicKeysFromTracking(admin, input.report.school_id, catalog, range);
-    if (selectedTopicKeys.length) autoSource = 'tracking';
-  }
-
-  if (!selectedTopicKeys.length && input.policy.automation.autoFillDeliveryOnRefresh) {
-    selectedTopicKeys = selectAllCatalogTopicKeys(catalog);
-    autoSource = 'catalog';
   }
 
   if (!selectedTopicKeys.length) {

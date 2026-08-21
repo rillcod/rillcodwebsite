@@ -1152,9 +1152,31 @@ export function ClassTeachingWorkspace({
                 </h3>
                 <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
                   {data?.programme_policy?.usesHostEvaluation
-                    ? "This school made coding a subject, so we follow their First Test, Second Test and Examination weeks. Those papers are generated from weeks already marked taught — print them, or sit the Examination as CBT if this school has labs."
-                    : "Rillcod evaluations apply here. Teach on the published timetable — most school classes meet twice a week."}
+                    ? `This school made coding a compulsory subject, so teaching follows its First Test, Second Test and Examination calendar. Papers are generated only from sessions already marked taught; tests use ${data.programme_policy.testCapture === "cbt" ? "CBT" : "printed papers"} and examinations use ${data.programme_policy.examCapture === "cbt" ? "CBT" : "printed papers"}.`
+                    : "Rillcod teaching and CBT evaluations apply here. Every lesson meeting follows the published timetable and feeds this one term delivery record."}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-black text-primary">
+                    {data?.programme_policy?.usesHostEvaluation ? "Compulsory school path" : "Optional Rillcod path"}
+                  </span>
+                  <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+                    {data?.programme_policy?.sessionsPerWeek === 1 ? "1 teaching session / week" : "2 teaching sessions / week"}
+                  </span>
+                  {data?.programme_policy?.usesHostEvaluation ? (
+                    <>
+                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+                        Tests · {data.programme_policy.testCapture === "cbt" ? "CBT" : "Paper"}
+                      </span>
+                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+                        Exam · {data.programme_policy.examCapture === "cbt" ? "CBT" : "Paper"}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+                      Evaluation · Rillcod CBT
+                    </span>
+                  )}
+                </div>
               </div>
               <span className="w-fit rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
                 5 Linked Assets

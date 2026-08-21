@@ -67,6 +67,39 @@ describe('buildDeliveredTopicsSummary', () => {
     expect(summary.topics.some((topic) => topic.course === 'Intro Bots')).toBe(true);
   });
 
+  it('explains the compulsory school assessment path without presenting assignments as examinations', () => {
+    const summary = buildDeliveredTopicsSummary({
+      school: {
+        id: 'school-1',
+        name: 'Royhills',
+        programmePolicy: {
+          standing: 'compulsory',
+          usesRillcodEvaluation: false,
+          usesHostEvaluation: true,
+          sessionsPerWeek: 2,
+          testCapture: 'physical',
+          examCapture: 'cbt',
+        },
+      },
+      period: { termLabel: 'First Term' } as any,
+      summary: { curriculumCoverage: 20 } as any,
+      curriculum: {
+        plannedWeeks: 10,
+        completedWeeks: 2,
+        inProgressWeeks: 0,
+        skippedWeeks: 0,
+        courses: [],
+      },
+      programmeCoursePerformance: [
+        { programme: 'Coding', course: 'Scratch', students: 20, submissions: 6, averageScore: 70 },
+      ],
+    });
+
+    expect(summary.deliveryPathNote).toContain("school's compulsory-subject calendar");
+    expect(summary.deliveryPathNote).toContain('physical school tests');
+    expect(summary.deliveryPathNote).toContain('cbt school examinations');
+  });
+
   it('merges published-report courses when declaration only covers one course', () => {
     const summary = buildDeliveredTopicsSummary({
       period: { termLabel: 'Second Term', academicTermNumber: 1 } as any,

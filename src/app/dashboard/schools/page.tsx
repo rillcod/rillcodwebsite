@@ -64,6 +64,7 @@ export default function SchoolsPage() {
     programmeStanding: 'optional',
     sessionsPerWeek: '2',
     examCapture: 'physical',
+    testCapture: 'physical',
   });
 
   const isAdmin = profile?.role === 'admin';
@@ -219,6 +220,7 @@ export default function SchoolsPage() {
         programme_standing: createForm.programmeStanding === 'compulsory' ? 'compulsory' : 'optional',
         sessions_per_week: createForm.sessionsPerWeek === '1' ? 1 : 2,
         exam_capture: createForm.examCapture === 'cbt' ? 'cbt' : 'physical',
+        test_capture: createForm.testCapture === 'cbt' ? 'cbt' : 'physical',
         is_active: true,
       };
 
@@ -292,6 +294,7 @@ export default function SchoolsPage() {
         programmeStanding: 'optional',
         sessionsPerWeek: '2',
         examCapture: 'physical',
+        testCapture: 'physical',
       });
     } catch (e: any) {
       setError(e.message ?? 'Failed to save school');
@@ -359,6 +362,7 @@ export default function SchoolsPage() {
       programmeStanding: school.programme_standing === 'compulsory' ? 'compulsory' : 'optional',
       sessionsPerWeek: school.sessions_per_week === 1 ? '1' : '2',
       examCapture: school.exam_capture === 'cbt' ? 'cbt' : 'physical',
+      testCapture: school.test_capture === 'cbt' ? 'cbt' : 'physical',
     });
     setShowCreate(true);
   };
@@ -842,8 +846,9 @@ export default function SchoolsPage() {
                   <div className="p-6 space-y-4 text-sm">
                     {[
                       { label: 'School Type', value: detail.school_type },
-                      { label: 'Programme', value: detail.programme_standing === 'compulsory' ? 'Compulsory — First Test, Second Test and Examination' : 'Optional — Rillcod evaluations' },
-                      { label: 'Classes / week', value: detail.sessions_per_week === 1 ? 'Once' : 'Twice' },
+                      { label: 'Evaluation path', value: detail.programme_standing === 'compulsory' ? 'Compulsory — First Test, Second Test and Examination' : 'Optional — Rillcod evaluations' },
+                      { label: 'Teaching sessions / week', value: detail.sessions_per_week === 1 ? 'Once' : 'Twice' },
+                      { label: 'Test sitting', value: detail.programme_standing === 'compulsory' ? (detail.test_capture === 'cbt' ? 'CBT' : 'Printed paper') : null },
                       { label: 'Exam sitting', value: detail.programme_standing === 'compulsory' ? (detail.exam_capture === 'cbt' ? 'CBT (advanced labs)' : 'Printed paper') : null },
                       { label: 'Contact Person', value: detail.contact_person },
                       { label: 'Email', value: detail.email },
@@ -851,7 +856,7 @@ export default function SchoolsPage() {
                       { label: 'Address', value: detail.address },
                       { label: 'LGA / State', value: [detail.lga, detail.state].filter(Boolean).join(', ') },
                       { label: 'Student Count', value: detail.student_count ? `${detail.student_count} students` : null },
-                      { label: 'Programme', value: detail.program_interest?.join(', ') },
+                      { label: 'Programme interests', value: detail.program_interest?.join(', ') },
                       { label: 'Registered', value: detail.created_at ? new Date(detail.created_at).toLocaleDateString() : null },
                     ].map(({ label, value }) => value ? (
                       <div key={label} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
@@ -1054,7 +1059,7 @@ export default function SchoolsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Programme</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Evaluation path</label>
                     <select
                       value={createForm.programmeStanding}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, programmeStanding: e.target.value }))}
@@ -1065,7 +1070,7 @@ export default function SchoolsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Classes per week</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Teaching sessions per week</label>
                     <select
                       value={createForm.sessionsPerWeek}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, sessionsPerWeek: e.target.value }))}
@@ -1076,18 +1081,38 @@ export default function SchoolsPage() {
                     </select>
                   </div>
                   {createForm.programmeStanding === 'compulsory' ? (
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Examination</label>
-                    <select
-                      value={createForm.examCapture}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, examCapture: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
-                    >
-                      <option value="physical">Printed paper from taught weeks</option>
-                      <option value="cbt">CBT — advanced labs sit the exam here</option>
-                    </select>
-                  </div>
-                  ) : null}
+                    <>
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">School tests</label>
+                        <select
+                          value={createForm.testCapture}
+                          onChange={(e) => setCreateForm(prev => ({ ...prev, testCapture: e.target.value }))}
+                          className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
+                        >
+                          <option value="physical">Printed First and Second Test</option>
+                          <option value="cbt">CBT First and Second Test</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">School examination</label>
+                        <select
+                          value={createForm.examCapture}
+                          onChange={(e) => setCreateForm(prev => ({ ...prev, examCapture: e.target.value }))}
+                          className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
+                        >
+                          <option value="physical">Printed examination paper</option>
+                          <option value="cbt">CBT — advanced labs sit here</option>
+                        </select>
+                      </div>
+                      <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground sm:col-span-2">
+                        Rillcod continues teaching on school instruction weeks. These choices only control how the school&apos;s official tests and examination are captured; they do not change the teaching timetable.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground sm:col-span-2">
+                      Rillcod supplies the teaching sequence and CBT evaluations for optional-programme learners.
+                    </p>
+                  )}
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Contact Person</label>
                     <input

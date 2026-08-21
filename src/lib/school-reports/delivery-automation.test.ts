@@ -39,4 +39,23 @@ describe('delivery-automation', () => {
 
     expect(keys).toEqual(['cur1::1::1', 'cur1::1::2']);
   });
+
+  it('surfaces tracking failures instead of silently declaring no delivery', async () => {
+    const admin = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            in: async () => ({ data: null, error: { message: 'tracking unavailable' } }),
+          }),
+        }),
+      }),
+    };
+
+    await expect(selectTopicKeysFromTracking(admin as any, 'school-1', catalog, {
+      startTerm: 1,
+      startWeek: 1,
+      endTerm: 1,
+      endWeek: 14,
+    })).rejects.toThrow('Delivery tracking could not be read: tracking unavailable');
+  });
 });

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolveSchoolProgrammePolicy } from '@/lib/academic/school-programme-standing';
 import { canonicalGrade, cleanClassName, cleanGrade } from '@/lib/classes/naming';
 import { formatPersonDisplayName, formatSchoolDisplayName } from './display-labels';
 import { attendanceBands, average, scoreBands, percentage } from './calculations';
@@ -144,9 +145,14 @@ export async function buildSchoolReportSnapshot(
   const checkedAt = new Date().toISOString();
   const dataSources: DataSourceStatus[] = [];
 
-  const { data: school, error: schoolError } = await admin.from('schools').select('id,name').eq('id', schoolId).maybeSingle();
+  const { data: school, error: schoolError } = await admin
+    .from('schools')
+    .select('id,name,programme_standing,sessions_per_week,exam_capture,test_capture')
+    .eq('id', schoolId)
+    .maybeSingle();
   if (schoolError || !school) throw new Error('School could not be found.');
   dataSources.push(recordSource('school', { rows: [school], required: true, checkedAt }));
+  const programmePolicy = resolveSchoolProgrammePolicy(school);
   const reportPolicy = await loadSchoolReportPolicy(admin);
   const { data: previousReport } = await admin
     .from('school_performance_reports')
@@ -550,7 +556,11 @@ export async function buildSchoolReportSnapshot(
     previousTerm,
     generatedAt: new Date().toISOString(),
     snapshotVersion: 1,
-    school: { id: school.id, name: formatSchoolDisplayName(school.name) },
+    school: {
+      id: school.id,
+      name: formatSchoolDisplayName(school.name),
+      programmePolicy,
+    },
     period: {
       startDate: range.startDate, endDate: range.endDate,
       academicTermId: range.academicTermId,

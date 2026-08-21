@@ -15,7 +15,7 @@ export type SchoolReportPolicy = {
   automation: {
     /** When true, completed/in-progress week tracking pre-selects delivery topics on refresh/create. */
     autoApplyDeliveryFromTracking: boolean;
-    /** When true and tracking is empty, all in-range catalog topics are auto-selected. */
+    /** Legacy setting retained for stored policy compatibility. Catalog alone is never proof of delivery. */
     autoFillDeliveryOnRefresh: boolean;
     /** Refresh & ready also regenerates AI narrative when not manually locked. */
     refreshAndReadyIncludesNarrative: boolean;
@@ -36,7 +36,7 @@ export const DEFAULT_SCHOOL_REPORT_POLICY: SchoolReportPolicy = {
   display: { maxChartRows: 12, maxHighlights: 4, maxRecommendations: 4 },
   automation: {
     autoApplyDeliveryFromTracking: true,
-    autoFillDeliveryOnRefresh: true,
+    autoFillDeliveryOnRefresh: false,
     refreshAndReadyIncludesNarrative: true,
     promptEmailAfterPublish: true,
   },

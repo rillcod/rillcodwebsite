@@ -622,7 +622,7 @@ export function buildDeliveredTopicsSummary(
     | 'summary'
     | 'period'
     | 'deliveryDeclaration'
-  >,
+  > & { school?: SchoolReportSnapshot['school'] },
 ): DeliveredTopicsSummary {
   const declaration = honestDeliveryDeclaration(snapshot.deliveryDeclaration);
   const evidenceTopics = buildEvidenceDeliveredTopics(snapshot);
@@ -632,8 +632,11 @@ export function buildDeliveredTopicsSummary(
     const topics = mergeDeliveredTopicLists(declarationTopics, evidenceTopics);
     const termLabel = snapshot.period?.termLabel || 'this term';
     const windowWeeks = declaration.reportingWeeks;
-    const deliveryPathNote =
-      'Confirmed topics define delivery depth for this period; remaining syllabus content continues in the next learning period.';
+    const deliveryPathNote = snapshot.school?.programmePolicy?.usesHostEvaluation
+      ? `Coding follows the school's compulsory-subject calendar. Confirmed topics show Rillcod teaching depth, while ${snapshot.school.programmePolicy.testCapture} school tests and ${snapshot.school.programmePolicy.examCapture} school examinations remain the authoritative evaluation record.`
+      : snapshot.school?.programmePolicy
+        ? 'This optional programme follows the Rillcod teaching and CBT evaluation path. Confirmed topics define delivery depth for this period; remaining syllabus content continues in the next learning period.'
+        : 'Confirmed topics define delivery depth for this period; remaining syllabus content continues in the next learning period.';
     const summaryLines = [
       `${declaration.selectedTopics.length} module topic${declaration.selectedTopics.length === 1 ? '' : 's'} confirmed for ${termLabel}.`,
     ];
@@ -694,8 +697,11 @@ export function buildDeliveredTopicsSummary(
       a.course.localeCompare(b.course),
   );
 
-  const deliveryPathNote =
-    'Delivery ranges describe what was taught and evidenced this term. Partner schools pace STEM progressively — focused module delivery within the term window is expected and healthy.';
+  const deliveryPathNote = snapshot.school?.programmePolicy?.usesHostEvaluation
+    ? `Coding follows the school's compulsory-subject calendar. Delivery ranges describe Rillcod teaching, while ${snapshot.school.programmePolicy.testCapture} school tests and ${snapshot.school.programmePolicy.examCapture} school examinations remain the authoritative evaluation record.`
+    : snapshot.school?.programmePolicy
+      ? 'This optional programme follows the Rillcod teaching and CBT evaluation path. Delivery ranges describe what was taught and evidenced this term; focused module delivery within the term window is expected and healthy.'
+      : 'Delivery ranges describe what was taught and evidenced this term. Partner schools pace STEM progressively — focused module delivery within the term window is expected and healthy.';
   const summaryLines: string[] = [];
 
   if (!topics.length) {

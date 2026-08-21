@@ -359,7 +359,7 @@ export function keepRillcodTeachingWeeks(
 export function expandPlanWeeksForMeetings<T extends Record<string, unknown>>(
   weeks: T[] | null | undefined,
   sessionsPerWeek: number,
-): T[] {
+): Array<T & { session?: number; session_number?: number }> {
   const rows = Array.isArray(weeks) ? weeks : [];
   const spw = sessionsPerWeek === 2 ? 2 : 1;
   if (spw === 1 || rows.length === 0) return rows;

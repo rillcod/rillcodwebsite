@@ -32,7 +32,12 @@ export interface SchoolReportSnapshot {
     curriculumCoverage: number;
   } | null;
   generatedAt: string;
-  school: { id: string; name: string };
+  school: {
+    id: string;
+    name: string;
+    /** Frozen school delivery/evaluation contract used for this report revision. */
+    programmePolicy?: import('@/lib/academic/school-programme-standing').SchoolProgrammePolicy;
+  };
   period: {
     startDate: string;
     endDate: string;

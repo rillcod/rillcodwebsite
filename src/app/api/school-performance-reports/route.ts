@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSchoolReportActor, canManageSchoolReport } from '@/lib/school-reports/access';
 import { buildSchoolReportSnapshot } from '@/lib/school-reports/aggregate';
 import { buildSchoolReportCompleteness } from '@/lib/school-reports/completeness';
+import { createSchoolReportBookDraft } from '@/lib/school-reports/book-service';
 import { normalizeSchoolReportDesign } from '@/lib/school-reports/design';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import { tryAutoApplyDeliveryDeclaration } from '@/lib/school-reports/delivery-automation';
-import { createSchoolReportNarrative } from '@/lib/school-reports/narrative';
 import { applySetupDeliveryDeclaration } from '@/lib/school-reports/setup-delivery';
 import { openSchoolReportBook } from '@/lib/school-reports/registry';
 import { loadSchoolReportPolicy } from '@/lib/school-reports/report-policy';
-import { ensureWorkingRevision } from '@/lib/school-reports/revisions';
 
 export const dynamic = 'force-dynamic';
 
@@ -283,92 +282,17 @@ export async function POST(req: NextRequest) {
       schoolId,
       academicTermId: academicTerm.id,
       create: async () => {
-        const policy = await loadSchoolReportPolicy(actor.admin);
-        let snapshot = await buildSchoolReportSnapshot(actor.admin, schoolId, range);
-
-        const setupResult = setupTopicKeys.length
-          ? await applySetupDeliveryDeclaration(actor.admin, schoolId, snapshot, range, {
-              selectedTopicKeys: setupTopicKeys,
-              reportingWeeks: setupReportingWeeks,
-            })
-          : null;
-        if (setupResult) {
-          snapshot = setupResult.snapshot;
-        }
-
-        if (!setupResult) {
-          const autoResult = await tryAutoApplyDeliveryDeclaration(actor.admin, {
-            report: {
-              school_id: schoolId,
-              curriculum_start_term: startTerm,
-              curriculum_start_week: startWeek,
-              curriculum_end_term: endTerm,
-              curriculum_end_week: endWeek,
-              academic_year: academicTerm.academic_year,
-              term_label: academicTerm.term_label,
-              academic_term_id: academicTerm.id,
-              snapshot,
-            },
-            snapshot,
-            policy,
-          });
-          if (autoResult.autoApplied) {
-            snapshot = autoResult.snapshot;
-          }
-        }
-
-        const narrative = await createSchoolReportNarrative(snapshot);
-        snapshot = {
-          ...snapshot,
-          completeness: buildSchoolReportCompleteness(snapshot, initialDesign),
-        };
-        const { data, error } = await actor.admin
-          .from('school_performance_reports')
-          .insert({
-            school_id: schoolId,
-            title,
-            period_start: body.startDate,
-            period_end: body.endDate,
-            curriculum_start_term: startTerm,
-            curriculum_start_week: startWeek,
-            academic_term_id: academicTerm.id,
-            academic_year: academicTerm.academic_year,
-            term_label: academicTerm.term_label,
-            curriculum_end_term: endTerm,
-            curriculum_end_week: endWeek,
-            snapshot,
-            narrative,
-            design: initialDesign,
-            status: 'draft',
-            created_by: actor.user.id,
-            updated_at: new Date().toISOString(),
-          })
-          .select('id')
-          .single();
-        if (error) {
-          if (error.code === '23505') {
-            const { data: existing, error: existingError } = await actor.admin
-              .from('school_performance_reports')
-              .select('id')
-              .eq('school_id', schoolId)
-              .eq('academic_term_id', academicTerm.id)
-              .in('status', ['draft', 'published'])
-              .maybeSingle();
-            if (existingError) throw new Error(existingError.message);
-            if (existing?.id) return existing.id;
-          }
-          throw new Error(error.message);
-        }
-        if (!data?.id) throw new Error('Report record was not created.');
-        const reportId = data.id as string;
-        const { data: inserted, error: insertedError } = await actor.admin
-          .from('school_performance_reports')
-          .select('*')
-          .eq('id', reportId)
-          .single();
-        if (insertedError || !inserted) throw new Error(insertedError?.message || 'Report record could not be reloaded.');
-        await ensureWorkingRevision(actor.admin, inserted as any, actor.user.id);
-        return reportId;
+        const created = await createSchoolReportBookDraft(actor.admin, {
+          schoolId,
+          title,
+          range,
+          createdBy: actor.user.id,
+          design: initialDesign,
+          delivery: setupTopicKeys.length
+            ? { selectedTopicKeys: setupTopicKeys, reportingWeeks: setupReportingWeeks }
+            : null,
+        });
+        return created.id;
       },
     });
 
@@ -404,15 +328,21 @@ export async function POST(req: NextRequest) {
           ...freshSnapshot,
           completeness: buildSchoolReportCompleteness(freshSnapshot, initialDesign),
         };
-        await actor.admin
+        const { error: refreshError } = await actor.admin
           .from('school_performance_reports')
           .update({
             snapshot: freshSnapshot,
             updated_at: new Date().toISOString(),
           })
           .eq('id', result.id);
-      } catch {
-        // Continue with existing snapshot if live refresh encounters an error
+        if (refreshError) throw new Error(refreshError.message);
+      } catch (refreshError) {
+        console.error('[school-report] shared draft refresh failed:', refreshError);
+        throw new Error(
+          `The shared report book exists, but its live evidence refresh failed: ${
+            refreshError instanceof Error ? refreshError.message : 'unknown refresh error'
+          }`,
+        );
       }
     }
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolveSchoolProgrammePolicy } from '@/lib/academic/school-programme-standing';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
 import {
   academicPeriodWeekCount,
@@ -17,7 +18,11 @@ import { buildSchoolReportBillingHrefFromPeriod, buildSchoolReportInvoiceEditHre
 import { academicPeriodFromReportFields } from './academic-period';
 import { attendanceInReportTerm, submissionInReportTerm } from './term-evidence';
 import type { SchoolReportRange } from './loaders/types';
-import { extractResultEntryAttendanceScores, type StudentProgressReportRow } from './progress-report';
+import {
+  extractResultEntryAttendanceScores,
+  filterPublishedProgressReports,
+  type StudentProgressReportRow,
+} from './progress-report';
 
 type AnyClient = SupabaseClient<any>;
 
@@ -60,7 +65,11 @@ export async function runReportPreflight(
 
   const [{ data: school, error: schoolError }, { data: students, error: studentError }, { data: classes, error: classError }] =
     await Promise.all([
-      admin.from('schools').select('id,name').eq('id', input.schoolId).maybeSingle(),
+      admin
+        .from('schools')
+        .select('id,name,programme_standing,sessions_per_week,exam_capture,test_capture')
+        .eq('id', input.schoolId)
+        .maybeSingle(),
       admin
         .from('portal_users')
         .select('id')
@@ -78,6 +87,7 @@ export async function runReportPreflight(
 
   const studentIds = (students ?? []).map((row: { id: string }) => row.id);
   const classIds = (classes ?? []).map((row: { id: string }) => row.id);
+  const programmePolicy = resolveSchoolProgrammePolicy(school ?? {});
 
   const [{ data: teacherSchoolRows, error: staffError }, { data: invoiceRows, error: invoiceError }, curriculum] =
     await Promise.all([
@@ -95,6 +105,7 @@ export async function runReportPreflight(
 
   let resultsStatus: DataSourceStatus = recordSource('results', { rows: [], checkedAt });
   let attendanceStatus: DataSourceStatus = recordSource('attendance', { rows: [], checkedAt });
+  let publishedProgressCount = 0;
 
   if (studentIds.length) {
     const idList = studentIds.join(',');
@@ -124,7 +135,7 @@ export async function runReportPreflight(
     });
     let progressQuery = admin
       .from('student_progress_reports')
-      .select('student_id')
+      .select('student_id,participation_score,is_published,engagement_metrics')
       .eq('school_id', input.schoolId)
       .in('student_id', studentIds)
       .limit(10000);
@@ -164,13 +175,15 @@ export async function runReportPreflight(
     const termAttendance = ((attendanceResult.data ?? []) as any[]).filter((row) =>
       attendanceInReportTerm(row, reportRange),
     );
-    const resultEntryAttendance = extractResultEntryAttendanceScores(
+    const publishedProgress = filterPublishedProgressReports(
       (progressResult.data ?? []) as StudentProgressReportRow[],
     );
+    publishedProgressCount = publishedProgress.length;
+    const resultEntryAttendance = extractResultEntryAttendanceScores(publishedProgress);
 
     resultsStatus = recordSource('results', {
       error: submissionResult.error || progressResult.error,
-      rows: [...termSubmissions, ...(progressResult.data ?? [])],
+      rows: [...termSubmissions, ...publishedProgress],
       cap: 10000,
       checkedAt,
     });
@@ -275,13 +288,29 @@ export async function runReportPreflight(
   });
 
   pushCheck({
+    key: 'evaluation_path',
+    label: 'Evaluation path',
+    status: schoolError ? 'fail' : 'pass',
+    detail: programmePolicy.usesHostEvaluation
+      ? `Compulsory school path: school tests and examinations are authoritative (${programmePolicy.testCapture} tests, ${programmePolicy.examCapture} examinations); Rillcod teaching follows ${programmePolicy.sessionsPerWeek} session${programmePolicy.sessionsPerWeek === 1 ? '' : 's'} per week.`
+      : `Optional school path: Rillcod teaching and CBT evaluations are authoritative across ${programmePolicy.sessionsPerWeek} session${programmePolicy.sessionsPerWeek === 1 ? '' : 's'} per week.`,
+  });
+
+  pushCheck({
     key: 'results',
-    label: 'Results coverage',
-    status: resultsStatus.status === 'failed' ? 'fail' : resultsStatus.rowCount > 0 ? 'pass' : 'warn',
+    label: programmePolicy.usesHostEvaluation ? 'Host-school assessment coverage' : 'Rillcod evaluation coverage',
+    status:
+      resultsStatus.status === 'failed'
+        ? 'fail'
+        : programmePolicy.usesHostEvaluation
+          ? publishedProgressCount > 0 ? 'pass' : 'warn'
+          : resultsStatus.rowCount > 0 ? 'pass' : 'warn',
     detail:
       resultsStatus.status === 'failed'
         ? resultsStatus.message || 'Results query failed'
-        : `${resultsStatus.rowCount} result/submission row${resultsStatus.rowCount === 1 ? '' : 's'}`,
+        : programmePolicy.usesHostEvaluation
+          ? `${publishedProgressCount} published school assessment record${publishedProgressCount === 1 ? '' : 's'}; assignment evidence does not replace the school examination path.`
+          : `${resultsStatus.rowCount} verified Rillcod result/submission row${resultsStatus.rowCount === 1 ? '' : 's'}`,
   });
 
   pushCheck({
