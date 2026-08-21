@@ -170,4 +170,19 @@ describe("generators and workspace stay on that schema", () => {
     const live = read("src/app/api/live-sessions/[id]/route.ts");
     expect(live).toContain("recordCompletedLiveTeaching");
   });
+
+  it("records the database guard against duplicate weekly packages", () => {
+    const cleanup = read(
+      "supabase/migrations/20260929000089_consolidate_weekly_teaching_packages.sql"
+    );
+    expect(cleanup).toContain("_lesson_duplicate_map");
+    expect(cleanup).toContain("lessons_plan_week_session_unique");
+    expect(cleanup).toContain("lesson_materials_plan_week_session_slides_unique");
+    expect(cleanup).toContain("flashcard_decks_plan_week_session_unique");
+    expect(cleanup).toContain("assignments_plan_week_session_type_unique");
+    expect(cleanup).toContain("update public.lesson_progress");
+    expect(cleanup).not.toContain("delete from public.lesson_progress");
+    expect(cleanup).not.toContain("delete from public.assignment_submissions");
+    expect(cleanup).not.toContain("delete from public.cbt_sessions");
+  });
 });

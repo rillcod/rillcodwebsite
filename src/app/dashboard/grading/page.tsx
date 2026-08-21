@@ -464,6 +464,8 @@ export default function GradingQueuePage() {
 
   // ── Derived state ────────────────────────────────────────────────────────
 
+  const evidenceSession = useMemo(() => gradingEvidenceSession(scope), [scope]);
+
   if (!mayGrade) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
@@ -473,7 +475,6 @@ export default function GradingQueuePage() {
   }
 
   const scoped = Boolean(scope?.class_id || scope?.term_label);
-  const evidenceSession = useMemo(() => gradingEvidenceSession(scope), [scope]);
   const reviewSubmissions = buildGradingReviewQueue(submissions, assignmentView);
   const aiReadyCount = submissions.filter((item) => item.ai_suggested_grade != null).length;
   const manualCount = submissions.length - aiReadyCount;

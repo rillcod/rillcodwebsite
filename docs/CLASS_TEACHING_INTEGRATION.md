@@ -22,6 +22,11 @@ Curriculum remains in **Curriculum Studio** because it is reusable source materi
 - Assignments and projects inherit class, course and term from the canonical plan.
 - Flashcard decks store real class_id, lesson_plan_id, lesson_id, term_id, and curriculum-week scope.
 - JSON metadata is retained only as a compatibility mirror, never as the source of truth.
+- Every plan/week/class-meeting has one lesson foundation, one slide deck, one
+  flashcard deck, and at most one assignment/project of each type.
+- Lesson, slides, flashcards, assignment and project are one teaching package.
+  Generation keeps them held unless auto-publish is explicitly enabled; manual
+  release publishes the whole package in one database transaction.
 - A delivered lesson creates or updates `class_lesson_delivery`.
 - The same database transaction updates `curriculum_week_tracking` when the plan has a curriculum.
 - Teaching progress is derived from lessons and delivery; staff must not type a second progress record.
@@ -55,6 +60,16 @@ Migration `20260921000007_class_teaching_workspace.sql` provides:
 - `record_class_lesson_delivery`, which synchronizes delivery and curriculum tracking;
 - `class_term_teaching_progress`, a derived read model.
 
+Migrations `20260929000087`–`20260929000089` complete the package contract:
+
+- canonical class/plan/week/session columns mirror into legacy metadata;
+- lessons, slides, flashcards, assignments and projects release atomically;
+- published records remain locked and immutable;
+- historical generated duplicates are consolidated after all dependent assets
+  are relinked;
+- partial unique indexes prevent concurrent or scheduled generation from
+  recreating the same plan/week/session asset.
+
 ## Rules for future AI or developer changes
 
 1. Never create a class term plan without `class_id`, `course_id`, and `term_id`.
@@ -66,6 +81,9 @@ Migration `20260921000007_class_teaching_workspace.sql` provides:
 7. Reports must read the canonical plan, lesson, and delivery records.
 8. Preserve legacy routes only as alternate views or compatibility adapters, not alternate write models.
 9. Curriculum deletion must return a conflict while any class plan references that version.
+10. Never publish slides independently from their weekly teaching package.
+11. Never remove a duplicate lesson until assignments, decks, materials,
+    delivery evidence and learner progress have been checked and relinked.
 
 ## Verification completed
 
@@ -73,6 +91,20 @@ Migration `20260921000007_class_teaching_workspace.sql` provides:
 - Repository tests: 71 files and 296 tests passed.
 - Remote migration dry run: passed.
 - Live Supabase migration state: up to date after applying migration 20260921000007.
+
+### Live package audit — 2026-08-21
+
+- 73 lesson plans checked; every plan is linked to a valid class.
+- Zero orphan plan links, class mismatches, course mismatches or incomplete
+  class/plan/week/session identities.
+- Historical duplicate lesson foundations were reduced from four duplicate
+  groups (16 redundant rows) to zero without touching scores, submissions,
+  learner progress or delivery history.
+- Historical duplicate slide decks were consolidated and eight slides that had
+  bypassed the held-package gate were returned to held status.
+- Three historical packages retain a live lesson with held tasks/cards. This is
+  intentional: staff must review and release the held learning work; cleanup
+  must not expose unfinished assignments automatically.
 ## Evaluation and reporting boundary
 
 Class evaluations use the existing CBT grading pipeline. Progress Reports and Report Builder continue consuming cbt_sessions and assignment evidence through their existing term-scoped aggregation. Canonical evaluation links are additive and must not rewrite report templates, formulas, revisions, readiness, comments, or edit-conflict protection.
