@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { automaticResultHasNoEvidence } from '@/lib/reports/score';
+import { parseScoreAuthority } from '@/lib/reports/complement';
 
 /** Shared status chips for one progress-report row across Write / Publish / Auto-fill. */
 
@@ -10,6 +11,7 @@ export type ResultStatusFields = {
   is_published?: boolean | null;
   academic_qa_status?: string | null;
   calculation_snapshot?: unknown;
+  engagement_metrics?: unknown;
 };
 
 function chip(className: string, label: string) {
@@ -23,6 +25,10 @@ function chip(className: string, label: string) {
 export function ResultStatusBadges({ report }: { report: ResultStatusFields }) {
   const mode = String(report.calculation_mode || '').toLowerCase();
   const qa = String(report.academic_qa_status || 'not_checked').replace(/_/g, ' ');
+  const metrics = report.engagement_metrics && typeof report.engagement_metrics === 'object' && !Array.isArray(report.engagement_metrics)
+    ? report.engagement_metrics as Record<string, unknown>
+    : null;
+  const authority = metrics ? parseScoreAuthority(metrics) : null;
 
   return (
     <span className="inline-flex flex-wrap gap-1.5">
@@ -34,6 +40,11 @@ export function ResultStatusBadges({ report }: { report: ResultStatusFields }) {
       {report.is_published
         ? chip('border-primary/30 bg-primary/10 text-primary', 'Published')
         : chip('border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300', 'Draft')}
+      {authority === 'host_school'
+        ? chip('border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300', 'School papers')
+        : authority === 'rillcod'
+          ? chip('border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300', 'Rillcod evidence')
+          : null}
       {qa && qa !== 'not checked' ? chip('border-border bg-background text-muted-foreground', qa) : null}
     </span>
   );

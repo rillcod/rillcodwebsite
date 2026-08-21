@@ -21,6 +21,7 @@ export type AutoFillReport = {
   is_published: boolean;
   updated_at?: string;
   calculation_snapshot?: unknown;
+  engagement_metrics?: unknown;
 };
 
 export function formatReportScoreDisplay(report: AutoFillReport): { value: string; hint?: string } {

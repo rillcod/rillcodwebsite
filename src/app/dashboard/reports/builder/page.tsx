@@ -55,7 +55,7 @@ import { ManualProtectionBanner, AutoFillStatusBanner, AutoFillEditConfirmDialog
 import { formatClassRowOptionLabel, ReportSessionContextBanner } from '@/components/reports/ReportSessionContextBanner';
 import { resolveSmartWorkingSession, classSessionFromTerms, sessionFromReport, liveSessionLike } from '@/lib/reports/session-scope';
 import { resolveWriteHydrateSession } from '@/lib/reports/session-workflows';
-import { LearnerReportFlowStrip } from '@/components/reports/LearnerReportFlowStrip';
+import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
@@ -1712,20 +1712,49 @@ function ReportBuilderInner() {
             || ((opts?.forceHydrate && (prefReportTerm || prefReportId)) ? (prefReportTerm || sessionConfig.report_term) : sessionConfig.report_term);
         const lookupPeriod = opts?.session?.report_period
             || ((opts?.forceHydrate && (prefReportPeriod || prefReportId)) ? (prefReportPeriod || sessionConfig.report_period) : sessionConfig.report_period);
-        let scoped = baseSelect();
-        if (lookupTerm)   scoped = scoped.eq('report_term', lookupTerm) as typeof scoped;
-        if (lookupPeriod) scoped = scoped.eq('report_period', lookupPeriod) as typeof scoped;
-        const { data: scopedReport } = await withTimeout(
-            scoped.order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-            { data: null, error: null },
-            'scoped report lookup',
-        );
+        const lookupCourseId = opts?.session?.course_id || sessionConfig.course_id;
+        const sessionQuery = () => {
+            let query = baseSelect();
+            if (lookupTerm) query = query.eq('report_term', lookupTerm) as typeof query;
+            if (lookupPeriod) query = query.eq('report_period', lookupPeriod) as typeof query;
+            return query;
+        };
+        // Course is part of the canonical report identity. A term may contain
+        // several course reports for one learner; never hydrate the newest
+        // course merely because it was saved last.
+        let scopedReport: StudentReport | null = null;
+        if (lookupCourseId) {
+            const { data: byCourseId } = await withTimeout(
+                sessionQuery().eq('course_id', lookupCourseId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+                { data: null, error: null },
+                'course-scoped report lookup',
+            );
+            scopedReport = (byCourseId as StudentReport | null) ?? null;
+        }
+        if (!scopedReport && sessionConfig.course_name.trim()) {
+            const { data: byCourseName } = await withTimeout(
+                sessionQuery().ilike('course_name', sessionConfig.course_name.trim()).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+                { data: null, error: null },
+                'course-name report lookup',
+            );
+            scopedReport = (byCourseName as StudentReport | null) ?? null;
+        }
+        if (!scopedReport && !lookupCourseId && !sessionConfig.course_name.trim()) {
+            const { data: onlySessionReport } = await withTimeout(
+                sessionQuery().order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+                { data: null, error: null },
+                'session report lookup',
+            );
+            scopedReport = (onlySessionReport as StudentReport | null) ?? null;
+        }
 
         const explicitReportId = opts?.reportId || (opts?.forceHydrate ? prefReportId : null);
         let explicitReport: StudentReport | null = null;
         if (explicitReportId) {
+            let explicitQuery = db.from('student_progress_reports').select('*').eq('id', explicitReportId);
+            if (!isPrePortal) explicitQuery = explicitQuery.eq('student_id', s.id) as typeof explicitQuery;
             const { data: byId } = await withTimeout(
-                db.from('student_progress_reports').select('*').eq('id', explicitReportId).maybeSingle(),
+                explicitQuery.maybeSingle(),
                 { data: null, error: null },
                 'explicit report lookup',
             );
@@ -1754,7 +1783,7 @@ function ReportBuilderInner() {
         if (hydratedReport && reconciledCourse) {
             const courseDrift = (reconciledCourse.course_id && hydratedReport.course_id !== reconciledCourse.course_id)
                 || (reconciledCourse.course_name && hydratedReport.course_name !== reconciledCourse.course_name);
-            if (courseDrift && hydratedReport.id && !isPrePortal && !keepRequestedSession) {
+            if (courseDrift && hydratedReport.id && !hydratedReport.is_published && !isPrePortal && !keepRequestedSession) {
                 try {
                     const syncRes = await fetch(`/api/progress-reports/${hydratedReport.id}`, {
                         method: 'PATCH',
@@ -2340,6 +2369,9 @@ function ReportBuilderInner() {
     const scoreReady = (value: string) => Number.isFinite(scoreValue(value)) && scoreValue(value) >= 0 && scoreValue(value) <= 100;
     const publishQualityIssues = (() => {
         const issues: string[] = [];
+        if (reportScoreAuthority === 'host_school' && hostPaperRows.length < 3) {
+            issues.push('Record First Test, Second Test and Examination marks before publishing this compulsory school report.');
+        }
         const isManual = selectedStudent?.id?.startsWith('manual-') || selectedStudent?.id?.startsWith('students-');
         const hasSchoolPeriod = isSchoolSection(sessionConfig.school_section)
             ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.term_id && sessionConfig.course_id)
@@ -2371,7 +2403,8 @@ function ReportBuilderInner() {
         if (!hasPreviewedCurrentReport && !livePreviewOpen) issues.push('Preview the latest report before publishing.');
         return issues;
     })();
-    const canPublishReport = publishQualityIssues.length === 0;
+    const reportIsPublished = Boolean(existingReport?.is_published);
+    const canPublishReport = !reportIsPublished && publishQualityIssues.length === 0;
 
     // ── Bulk Build: Process all students in current view ─────────────────────
     const handleBulkBuild = async () => {
@@ -2571,6 +2604,10 @@ function ReportBuilderInner() {
     // ── Save report ───────────────────────────────────────────────────────────
     const handleSave = async (publish = false) => {
         if (!selectedStudent) return false;
+        if (existingReport?.is_published) {
+            setError('This report is published and locked. Open Publish & Share, unpublish it, then return to Write to make corrections.');
+            return false;
+        }
         if (publish) setPublishing(true); else setSaving(true);
         setError(''); setSuccess('');
 
@@ -2651,6 +2688,7 @@ function ReportBuilderInner() {
                 body: JSON.stringify({
                     ...payload,
                     existing_id: existingReport?.id ?? null,
+                    expected_updated_at: existingReport?.updated_at ?? null,
                     // Keep a deliberately chosen prior session instead of rolling it to
                     // live. Without this the builder writes up a finished term correctly
                     // right up to the day the calendar turns over, then silently refiles
@@ -2668,6 +2706,7 @@ function ReportBuilderInner() {
                 ...payload,
                 id: savedReportId,
                 verification_code: savedVerificationCode,
+                updated_at: j.data?.updated_at ?? new Date().toISOString(),
                 calculation_mode: 'manual',
             } as unknown as StudentReport));
             if (!publish && !reportedIds.has(selectedStudent.id)) {
@@ -3299,6 +3338,16 @@ function ReportBuilderInner() {
                         <ResultStatusBadges report={existingReport} />
                         <ManualProtectionBanner mode={existingReport.calculation_mode} />
                         <AutoFillStatusBanner report={existingReport} />
+                        {existingReport.is_published ? (
+                            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs sm:flex-row sm:items-center">
+                                <p className="min-w-0 flex-1 text-muted-foreground">
+                                    <strong className="text-foreground">Published and locked.</strong> Families see this version. Unpublish it before correcting scores or comments.
+                                </p>
+                                <Link href={returnToResultsHref} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-3 font-black text-white">
+                                    Open Publish &amp; Share
+                                </Link>
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
                 {(sessionConfig.report_term || sessionConfig.class_id) ? (
@@ -3661,24 +3710,18 @@ function ReportBuilderInner() {
                                     </button>
                                 )}
                                 {filteredStudents.length > 0 && (
-                                    <button
-                                        onClick={handleBulkBuild}
-                                        disabled={isBulkBuilding}
-                                        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-wide text-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary disabled:opacity-50 group"
+                                    <Link
+                                        href={learnerReportHref('prepare', {
+                                            classId: sessionConfig.class_id,
+                                            courseId: sessionConfig.course_id,
+                                            term: sessionConfig.report_term,
+                                            period: sessionConfig.report_period,
+                                        })}
+                                        className="group inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-black text-primary transition-colors hover:bg-primary/15"
                                     >
-                                        {isBulkBuilding ? (
-                                            <>
-                                                <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                                                {bulkProgress.current} / {bulkProgress.total}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <RocketLaunchIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-y-[-2px]" />
-                                                <span className="sm:hidden">Bulk build</span>
-                                                <span className="hidden sm:inline">Fill all drafts</span>
-                                            </>
-                                        )}
-                                    </button>
+                                        <RocketLaunchIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5" />
+                                        Optional Auto-fill
+                                    </Link>
                                 )}
                                 </div>
                             </div>
@@ -3885,13 +3928,11 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         {duplicateWarning === 'published' && (
-                            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                            <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
                                 <p className="min-w-0 flex-1">
-                                    Editing published report for {selectedStudent.full_name} ({duplicateDetail}). Save updates it in place.
+                                    This published report is read-only. To correct it, open Publish &amp; Share, choose <strong className="text-foreground">Unpublish to edit</strong>, then return here. The same report record is reused.
                                 </p>
-                                <button type="button" onClick={() => setDuplicateWarning(null)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
-                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                </button>
+                                <Link href={returnToResultsHref} className="flex-shrink-0 rounded-lg bg-amber-600 px-2.5 py-1.5 font-black text-white">Open Publish</Link>
                             </div>
                         )}
                         {duplicateWarning === 'new-term' && (
@@ -4790,13 +4831,15 @@ function ReportBuilderInner() {
                                     type="button"
                                     onClick={() => {
                                         if (!canPublishReport) {
-                                            setError(publishQualityIssues[0] || 'Finish required items to publish');
+                                            setError(reportIsPublished
+                                                ? 'Already published. Open Publish & Share to view, share, or unpublish it.'
+                                                : publishQualityIssues[0] || 'Finish required items to publish');
                                             return;
                                         }
                                         void saveAndNext(true);
                                     }}
-                                    disabled={saving || publishing}
-                                    title={!canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish and move to next'}
+                                    disabled={saving || publishing || reportIsPublished}
+                                    title={reportIsPublished ? 'Already published — manage it in Publish & Share' : !canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish and move to next'}
                                     className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-600 text-primary-foreground disabled:opacity-50 ${!canPublishReport ? 'opacity-60' : ''}`}
                                 >
                                     {publishing ? <ArrowPathIcon className="h-3 w-3 animate-spin" /> : <RocketLaunchIcon className="h-3 w-3" />}

@@ -13,6 +13,7 @@ import {
 import { logAudit } from '@/lib/audit/log';
 import { deriveProgressReportResult, touchesProgressReportScores } from '@/lib/reports/score';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
+import { publishedProgressReportEditIssue } from '@/lib/reports/publication';
 
 function adminClient() {
   return createClient<Database>(
@@ -53,7 +54,7 @@ async function canModifyReport(caller: any, reportId: string): Promise<ReportAcc
   // Class-owner takeover: transfer authorship so publish/unpublish stays unblocked.
   if ((report as any).teacher_id !== caller.id) {
     const { error: transferError } = await admin.from('student_progress_reports')
-      .update({ teacher_id: caller.id, updated_at: new Date().toISOString() } as any)
+      .update({ teacher_id: caller.id } as any)
       .eq('id', reportId);
     if (transferError) {
       console.error('[progress-reports] report ownership transfer failed:', transferError);
@@ -75,6 +76,9 @@ export async function PATCH(
   const access = await canModifyReport(caller, id);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   const body = await request.json();
+  const expectedUpdatedAt = typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
+    ? body.expected_updated_at.trim()
+    : null;
 
   const allowed: Record<string, any> = {};
   const fields = [
@@ -100,13 +104,27 @@ export async function PATCH(
 
   const { data: currentReport, error: currentReportError } = await admin
     .from('student_progress_reports')
-    .select('student_id, student_name, section_class, school_id, class_id, course_id, course_name, term_id, academic_offering_id, report_term, report_period, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode')
+    .select('student_id, student_name, section_class, school_id, class_id, course_id, course_name, term_id, academic_offering_id, report_term, report_period, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode, updated_at')
     .eq('id', id)
     .maybeSingle();
   if (currentReportError) {
     return NextResponse.json({ error: 'The report could not be verified before saving. Please try again.' }, { status: 503 });
   }
   if (!currentReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
+  const publishedIssue = publishedProgressReportEditIssue(
+    currentReport as Record<string, unknown>,
+    body as Record<string, unknown>,
+  );
+  if (publishedIssue) {
+    return NextResponse.json({ error: publishedIssue, code: 'PUBLISHED_REPORT_LOCKED' }, { status: 409 });
+  }
+  if (expectedUpdatedAt && (currentReport as any).updated_at && expectedUpdatedAt !== (currentReport as any).updated_at) {
+    return NextResponse.json({
+      error: 'This report changed after you opened it. Reload the latest version before saving.',
+      code: 'STALE_REPORT_DRAFT',
+    }, { status: 409 });
+  }
 
   // Central session resolve on PATCH (same rules as POST). Resubmitting the
   // stored term — e.g. a course rename — must not roll a prior report to live.
@@ -195,17 +213,25 @@ export async function PATCH(
     data = publishResult.report;
     newlyPublished = publishResult.newlyPublished;
   } else {
-    const updateResult = await admin
-    .from('student_progress_reports')
-    .update(allowed as TablesUpdate<'student_progress_reports'>)
-      .eq('id', id)
-      .select('id, student_id, course_name, overall_score, overall_grade, is_published, verification_code')
-      .single();
+    let updateQuery = admin
+      .from('student_progress_reports')
+      .update(allowed as TablesUpdate<'student_progress_reports'>)
+      .eq('id', id);
+    if (expectedUpdatedAt) updateQuery = updateQuery.eq('updated_at', expectedUpdatedAt);
+    const updateResult = await updateQuery
+      .select('id, student_id, course_name, overall_score, overall_grade, is_published, verification_code, updated_at')
+      .maybeSingle();
     data = updateResult.data;
     error = updateResult.error;
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) {
+    return NextResponse.json({
+      error: 'This report changed while you were editing it. Reload the latest version before saving.',
+      code: 'STALE_REPORT_DRAFT',
+    }, { status: 409 });
+  }
 
   if (data && typeof body.is_published !== 'boolean') {
     await logAudit(admin as any, {

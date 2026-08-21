@@ -29,6 +29,7 @@ type Klass = {
   name: string;
   academic_offering_id?: string | null;
   offering_period_id?: string | null;
+  schools?: { programme_standing?: string | null } | null;
   academic_offerings?: { title: string; enrollment_type: string; academic_model: string } | null;
   academic_offering_periods?: { label: string } | null;
   academic_terms?: { term_label: string; academic_year: string } | null;
@@ -112,6 +113,7 @@ function CentralResultsPageInner() {
   }, [linkedReportId, data.reports]);
 
   const activeClass = data.classes.find((item) => item.id === classId);
+  const compulsorySchoolPapers = activeClass?.schools?.programme_standing === 'compulsory';
   const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
   const plans = useMemo(() => data.plans.filter((item) => item.class_id === classId), [data.plans, classId]);
   const courseOptions = useMemo(
@@ -363,6 +365,16 @@ function CentralResultsPageInner() {
       />
 
       <AutoFillFlowGuide />
+
+      {compulsorySchoolPapers ? (
+        <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-muted-foreground">
+          <strong className="text-foreground">Compulsory school pathway:</strong> Auto-fill may prepare classwork evidence, but First Test, Second Test and Examination remain the official papers. Open the draft in Write to review those marks before Publish &amp; Share.
+        </div>
+      ) : activeClass ? (
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-muted-foreground">
+          <strong className="text-foreground">Rillcod pathway:</strong> Auto-fill uses the class evidence already recorded in Rillcod. Review the unified draft in Write before publishing.
+        </div>
+      ) : null}
 
       {classId || selectedReport ? (
         <ReportSessionContextBanner

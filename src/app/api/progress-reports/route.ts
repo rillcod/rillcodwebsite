@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
-import { generateProgressReportVerificationCode } from '@/lib/reports/publication';
+import { generateProgressReportVerificationCode, publishedProgressReportEditIssue } from '@/lib/reports/publication';
 import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 import {
   resolveSessionForWrite,
@@ -62,6 +62,9 @@ export async function POST(request: NextRequest) {
   delete body.is_published;
   let targetId = typeof body.existing_id === 'string' && body.existing_id.trim()
     ? body.existing_id.trim()
+    : null;
+  const expectedUpdatedAt = typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
+    ? body.expected_updated_at.trim()
     : null;
   const allowBackfill = body.allow_backfill === true;
 
@@ -146,11 +149,13 @@ export async function POST(request: NextRequest) {
     teacher_id?: string | null;
     school_id?: string | null;
     instructor_name?: string | null;
+    is_published?: boolean | null;
+    updated_at?: string | null;
   } | null = null;
   if (targetId) {
     const { data: pointed } = await admin
       .from('student_progress_reports')
-      .select('id, student_id, class_id, course_id, course_name, report_term, report_period, teacher_id, school_id, instructor_name')
+      .select('id, student_id, class_id, course_id, course_name, report_term, report_period, teacher_id, school_id, instructor_name, is_published, updated_at')
       .eq('id', targetId)
       .maybeSingle();
     if (!pointed) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
@@ -290,6 +295,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Programme standing is a school policy, never a client choice. Both direct
+  // Write and reviewed Auto-fill drafts store the authority marker used by all
+  // three report-card renderers and the publication validator.
+  const standingSchoolId = String(updatePayload.school_id ?? insertPayload.school_id ?? '').trim();
+  if (standingSchoolId) {
+    const { data: standingSchool, error: standingError } = await admin
+      .from('schools')
+      .select('programme_standing')
+      .eq('id', standingSchoolId)
+      .maybeSingle();
+    if (standingError) {
+      return NextResponse.json({ error: 'The school result pathway could not be verified. Please try again.' }, { status: 503 });
+    }
+    const compulsory = (standingSchool as any)?.programme_standing === 'compulsory';
+    for (const payload of [updatePayload, insertPayload]) {
+      const metrics = payload.engagement_metrics && typeof payload.engagement_metrics === 'object' && !Array.isArray(payload.engagement_metrics)
+        ? payload.engagement_metrics as Record<string, unknown>
+        : {};
+      payload.engagement_metrics = {
+        ...metrics,
+        score_authority: compulsory ? 'host_school' : 'rillcod',
+        programme_standing: compulsory ? 'compulsory' : 'optional',
+        host_review_required: false,
+      } as any;
+    }
+  }
+
   // SERVER-SIDE DEDUP: a student has at most ONE report per (course · term · academic
   // year) — teacher-INDEPENDENT, matched on course_name (course_id was inconsistently
   // NULL, and per-teacher scoping let two teachers create twin reports). If the client
@@ -328,10 +360,24 @@ export async function POST(request: NextRequest) {
   if (targetId) {
     const { data: existingReport } = await admin
       .from('student_progress_reports')
-      .select('teacher_id, instructor_name, student_id, school_id')
+      .select('teacher_id, instructor_name, student_id, school_id, is_published, updated_at')
       .eq('id', targetId)
       .maybeSingle();
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
+    const publishedIssue = publishedProgressReportEditIssue(existingReport as Record<string, unknown>, body as Record<string, unknown>);
+    if (publishedIssue) {
+      return NextResponse.json({
+        error: publishedIssue,
+        code: 'PUBLISHED_REPORT_LOCKED',
+      }, { status: 409 });
+    }
+    if (expectedUpdatedAt && existingReport.updated_at && expectedUpdatedAt !== existingReport.updated_at) {
+      return NextResponse.json({
+        error: 'This report changed after you opened it. Reload the latest draft before saving so another teacher’s work is not overwritten.',
+        code: 'STALE_REPORT_DRAFT',
+      }, { status: 409 });
+    }
 
     // Always re-derive school tenancy from the report's student (never trust client school_id)
     const scopeStudentId = String(updatePayload.student_id || existingReport.student_id || '');
@@ -385,13 +431,21 @@ export async function POST(request: NextRequest) {
         (updatePayload as any).instructor_name = (existingReport as any).instructor_name;
       }
     }
-    const { data, error } = await admin
+    let updateQuery = admin
       .from('student_progress_reports')
       .update(updatePayload)
-      .eq('id', targetId)
-      .select('id, verification_code')
-      .single();
+      .eq('id', targetId);
+    if (expectedUpdatedAt) updateQuery = updateQuery.eq('updated_at', expectedUpdatedAt);
+    const { data, error } = await updateQuery
+      .select('id, verification_code, updated_at')
+      .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) {
+      return NextResponse.json({
+        error: 'This report changed while you were editing it. Reload the latest draft before saving.',
+        code: 'STALE_REPORT_DRAFT',
+      }, { status: 409 });
+    }
 
     await logAudit(admin as any, {
       action: 'save_progress_report',
@@ -411,7 +465,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await admin
       .from('student_progress_reports')
       .insert(insertPayload)
-      .select('id')
+      .select('id, verification_code, updated_at')
       .single();
     if (error) {
       // Hard backstop: the unique index caught a duplicate the app dedup missed (race

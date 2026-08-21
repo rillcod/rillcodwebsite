@@ -12,16 +12,16 @@ export const LEARNER_REPORT_STEPS = [
     detail: 'Type scores',
   },
   {
-    key: 'publish',
-    href: '/dashboard/results',
-    label: 'Publish',
-    detail: 'Preview and release',
-  },
-  {
     key: 'prepare',
     href: '/dashboard/academic/results',
     label: 'Auto-fill',
-    detail: 'Optional',
+    detail: 'Optional draft shortcut',
+  },
+  {
+    key: 'publish',
+    href: '/dashboard/results',
+    label: 'Publish & Share',
+    detail: 'Review, release and send',
   },
 ] as const;
 
@@ -117,7 +117,7 @@ function LearnerReportFlowStripInner({
   return (
     <nav aria-label="Report card steps" className="rounded-2xl border border-border bg-card px-3 py-2.5 sm:px-4">
       <ol className={`grid gap-1.5 ${compact ? 'grid-cols-3' : 'sm:grid-cols-3'}`}>
-        {LEARNER_REPORT_STEPS.map((step, index) => {
+        {LEARNER_REPORT_STEPS.map((step) => {
           const isCurrent = step.key === active;
           const href = learnerReportHref(step.key, context);
           return (
@@ -138,7 +138,7 @@ function LearnerReportFlowStripInner({
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {index + 1}
+                  {step.key === 'prepare' ? 'OR' : step.key === 'write' ? '1' : '2'}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-black text-foreground">{step.label}</span>

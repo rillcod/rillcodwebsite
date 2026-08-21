@@ -1,7 +1,47 @@
 import crypto from 'crypto';
 import { courseConflictsWithClassSection } from '@/lib/reports/class-course';
+import { hostSchoolScoreboard } from '@/lib/academic/host-marks';
 
 type ReportLike = Record<string, unknown>;
+
+const PUBLISHED_REPORT_AUXILIARY_FIELDS = new Set([
+  'show_payment_notice',
+  'fee_status',
+  'fee_amount',
+  'fee_label',
+]);
+
+/**
+ * A published result is a family-visible academic record. Content corrections
+ * must be a deliberate two-step operation: unpublish in Publish & Share, then
+ * edit the same row in Write. Finance display fields may still be maintained
+ * without changing the academic result itself.
+ */
+export function publishedProgressReportEditIssue(
+  report: ReportLike | null | undefined,
+  changes: ReportLike,
+): string | null {
+  if (!report?.is_published) return null;
+
+  const mutationFields = Object.keys(changes).filter((field) => ![
+    'allow_backfill',
+    'expected_updated_at',
+  ].includes(field));
+  const unpublishOnly = changes.is_published === false
+    && mutationFields.every((field) => field === 'is_published');
+  if (unpublishOnly) return null;
+
+  const auxiliaryOnly = !('is_published' in changes)
+    && mutationFields.length > 0
+    && mutationFields.every((field) => PUBLISHED_REPORT_AUXILIARY_FIELDS.has(field));
+  if (auxiliaryOnly) return null;
+
+  const idempotentPublish = changes.is_published === true
+    && mutationFields.every((field) => field === 'is_published');
+  if (idempotentPublish) return null;
+
+  return 'This report is published and locked. Unpublish it in Publish & Share before changing academic content.';
+}
 
 export function progressReportPublishIssues(report: ReportLike): string[] {
   const issues: string[] = [];
@@ -12,6 +52,14 @@ export function progressReportPublishIssues(report: ReportLike): string[] {
     ? report.engagement_metrics as Record<string, unknown>
     : {};
   const isSchoolReport = ['basic', 'secondary', 'unified', 'school'].includes(text(report.school_section));
+
+  if (metrics.host_review_required === true) {
+    issues.push('school First Test, Second Test and Examination marks must be reviewed in Write before publishing');
+  }
+  const hostBoard = hostSchoolScoreboard(metrics);
+  if ((metrics.score_authority === 'host_school' || metrics.programme_standing === 'compulsory') && !hostBoard?.complete) {
+    issues.push('First Test, Second Test and Examination marks are all required for this compulsory school report');
+  }
 
   if (!text(report.student_id)) issues.push('student_id is required before publishing');
   if (!text(report.student_name)) issues.push('student_name is required before publishing');

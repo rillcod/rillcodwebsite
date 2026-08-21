@@ -554,8 +554,12 @@ function ResultsPageInner() {
                 const allReports: any[] = [];
                 await Promise.all(chunks.map(async (chunk) => {
                     let reportsQuery = db.from('student_progress_reports')
-                        .select('student_id, overall_grade, is_published, updated_at, report_date, report_term, report_period')
+                        .select('student_id, course_id, overall_grade, is_published, updated_at, report_date, report_term, report_period')
                         .in('student_id', chunk);
+
+                    if (prefCourseId) {
+                        reportsQuery = reportsQuery.eq('course_id', prefCourseId) as typeof reportsQuery;
+                    }
 
                     const rosterFilters = rosterSessionQueryFilters(
                         confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
@@ -637,7 +641,7 @@ function ResultsPageInner() {
 
         loadStaffData().catch(() => { if (!aborted) setLoading(false); });
         return () => { aborted = true; };
-    }, [profile?.id, authLoading, confirmedPeriod?.year, confirmedPeriod?.term, refreshTick]); // eslint-disable-line
+    }, [profile?.id, authLoading, confirmedPeriod?.year, confirmedPeriod?.term, prefCourseId, refreshTick]); // eslint-disable-line
 
     // ── Auto-print when ?autoprint=1 is in the URL ────────────────────────────
     const autoPrintFired = useRef(false);
@@ -920,6 +924,10 @@ function ResultsPageInner() {
 
     const sendReportByEmail = async () => {
         if (!printableRef.current || !reportToDisplay || !emailShareTo.trim()) return;
+        if (!reportToDisplay.is_published) {
+            setEmailShareError('Publish this report before sending it to a family.');
+            return;
+        }
         setEmailShareSending(true);
         setEmailShareError(null);
         try {
@@ -1031,8 +1039,10 @@ function ResultsPageInner() {
             .in('student_id', ids);
         const term = selectedReport?.report_term ?? null;
         const period = (selectedReport as any)?.report_period ?? null;
+        const courseId = selectedReport?.course_id ?? prefCourseId ?? null;
         if (term) q = q.eq('report_term', term) as typeof q;
         if (period) q = q.eq('report_period', period) as typeof q;
+        if (courseId) q = q.eq('course_id', courseId) as typeof q;
         return q.order('updated_at', { ascending: false });
     }
 
@@ -1123,11 +1133,12 @@ function ResultsPageInner() {
             return;
         }
 
-        // Dedupe: keep latest per student; only include students with a parent_email on file
+        // Families receive only published records. Draft PDFs remain available to
+        // staff for internal review, but are never placed in the email queue.
         const seen = new Set<string>();
         const queue: StudentReport[] = [];
         for (const r of reports) {
-            if (!seen.has(r.student_id)) {
+            if (r.is_published && !seen.has(r.student_id)) {
                 const stu = students.find(s => s.id === r.student_id);
                 if ((stu as any)?.parent_email) {
                     seen.add(r.student_id);
@@ -1138,7 +1149,7 @@ function ResultsPageInner() {
 
         if (queue.length === 0) {
             setIsBulkEmailing(false);
-            alert('None of the selected students have a parent email on file.');
+            alert('No selected student has both a published report and a parent email on file.');
             return;
         }
 
@@ -1326,6 +1337,30 @@ function ResultsPageInner() {
             if (selectedStudent) {
                 setReportsMap(prev => ({ ...prev, [selectedStudent.id]: updated }));
             }
+        } finally {
+            setIsTogglingPublish(false);
+        }
+    }
+
+    async function handleUnpublishAndEdit() {
+        if (!selectedReport || !selectedStudent) return;
+        if (!confirm('Unpublish this report and open Write? Family access to this version will pause until you publish it again.')) return;
+        setIsTogglingPublish(true);
+        try {
+            const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_published: false }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                alert(json.error ?? 'The report could not be unlocked for editing.');
+                return;
+            }
+            const updated = { ...selectedReport, ...json.data, is_published: false } as StudentReport;
+            setSelectedReport(updated);
+            setReportsMap(prev => ({ ...prev, [selectedStudent.id]: updated }));
+            router.push(reportBuilderEditHref(selectedStudent.id, updated, confirmedPeriod, filterClass, filterSchool));
         } finally {
             setIsTogglingPublish(false);
         }
@@ -1551,7 +1586,7 @@ tbody tr:hover{background:#f3f4f6}
                         from="results"
                     />
                 ) : !isStaff ? (
-                    <h1 className="text-lg font-extrabold tracking-tight">Student progress reports</h1>
+                    <h1 className="text-lg font-extrabold tracking-tight">Publish &amp; Share</h1>
                 ) : null}
 
                 {isStaff && staffPeriodReady ? (
@@ -1614,7 +1649,7 @@ tbody tr:hover{background:#f3f4f6}
                                 <span className="text-muted-foreground">{stats.none} new</span>
                             </div>
                         ) : !isStaff ? (
-                            <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">Student Progress Reports</h1>
+                            <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">Publish &amp; Share</h1>
                         ) : null}
                     </div>
 
@@ -2175,23 +2210,38 @@ tbody tr:hover{background:#f3f4f6}
                                             {isEditor && (selectedStudent || selectedReport) && (
                                                 <div className="-order-1 flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-0.5 lg:order-none">
                                                     {selectedStudent && (
-                                                        <Link
-                                                            href={reportBuilderEditHref(selectedStudent.id, selectedReport, confirmedPeriod, filterClass, filterSchool)}
-                                                            className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/10"
-                                                        >
-                                                            <PencilSquareIcon className="h-3 w-3" /> Edit
-                                                        </Link>
+                                                        selectedReport?.is_published ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void handleUnpublishAndEdit()}
+                                                                disabled={isTogglingPublish}
+                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-amber-800 transition-all hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+                                                            >
+                                                                <PencilSquareIcon className="h-3 w-3" /> Unpublish to edit
+                                                            </button>
+                                                        ) : (
+                                                            <Link
+                                                                href={reportBuilderEditHref(selectedStudent.id, selectedReport, confirmedPeriod, filterClass, filterSchool)}
+                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/10"
+                                                            >
+                                                                <PencilSquareIcon className="h-3 w-3" /> Edit draft
+                                                            </Link>
+                                                        )
                                                     )}
                                                     {selectedReport && (
                                                         <>
                                                             {selectedStudent && <div className="mx-0.5 h-3.5 w-px bg-border" />}
-                                                            <button
-                                                                onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-amber-800 transition-all hover:bg-amber-500/10 dark:text-amber-400"
-                                                            >
-                                                                <PencilSquareIcon className="h-3 w-3" /> Rename
-                                                            </button>
-                                                            <div className="mx-0.5 h-3.5 w-px bg-border" />
+                                                            {!selectedReport.is_published ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
+                                                                        className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-amber-800 transition-all hover:bg-amber-500/10 dark:text-amber-400"
+                                                                    >
+                                                                        <PencilSquareIcon className="h-3 w-3" /> Rename
+                                                                    </button>
+                                                                    <div className="mx-0.5 h-3.5 w-px bg-border" />
+                                                                </>
+                                                            ) : null}
                                                             <button
                                                                 onClick={handleInvoiceToggle}
                                                                 disabled={isTogglingInvoice}
@@ -2206,12 +2256,12 @@ tbody tr:hover{background:#f3f4f6}
                                                             <button
                                                                 onClick={handlePublishToggle}
                                                                 disabled={isTogglingPublish}
-                                                                title={selectedReport.is_published ? 'Unpublish report' : 'Publish report — makes it visible to student'}
+                                                                title={selectedReport.is_published ? 'Unpublish report before making corrections' : 'Publish report — makes it visible to student'}
                                                                 className={`inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all disabled:opacity-50 ${selectedReport.is_published ? 'text-amber-800 hover:bg-amber-500/10 dark:text-amber-400' : 'text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400'}`}
                                                             >
                                                                 {isTogglingPublish
                                                                     ? <div className={`h-3 w-3 animate-spin rounded-full border-2 border-t-transparent ${selectedReport.is_published ? 'border-amber-400' : 'border-emerald-400'}`} />
-                                                                    : selectedReport.is_published ? 'Unpub' : 'Publish'}
+                                                                    : selectedReport.is_published ? 'Unpublish' : 'Publish'}
                                                             </button>
                                                             <div className="mx-0.5 h-3.5 w-px bg-border" />
                                                             <button
@@ -2250,8 +2300,8 @@ tbody tr:hover{background:#f3f4f6}
                                                         PDF
                                                     </button>
                                                     <button
-                                                        disabled={isSharingPdf}
-                                                        title="Share via WhatsApp"
+                                                        disabled={isSharingPdf || !selectedReport.is_published}
+                                                        title={selectedReport.is_published ? 'Share published report via WhatsApp' : 'Publish this report before sharing it'}
                                                         onClick={async () => {
                                                             if (!printableRef.current || !reportToDisplay) return;
                                                             setIsSharingPdf(true);
@@ -2284,13 +2334,14 @@ tbody tr:hover{background:#f3f4f6}
                                                         Share
                                                     </button>
                                                     <button
-                                                        title="Send via Email"
+                                                        disabled={!selectedReport.is_published}
+                                                        title={selectedReport.is_published ? 'Send published report via email' : 'Publish this report before emailing it'}
                                                         onClick={() => {
                                                             setEmailShareTo((selectedStudent as any)?.parent_email || selectedStudent?.email || '');
                                                             setEmailShareError(null);
                                                             setEmailShareOpen(true);
                                                         }}
-                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-sky-600 px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-sky-500"
+                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-sky-600 px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
                                                     >
                                                         <svg className="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                                         Email

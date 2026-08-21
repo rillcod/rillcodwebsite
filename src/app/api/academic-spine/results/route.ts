@@ -30,6 +30,7 @@ export async function GET() {
   const db: any = createAdminClient();
   let classQuery = db.from('classes').select(`
     id,name,teacher_id,term_id,academic_offering_id,offering_period_id,
+    schools(programme_standing),
     academic_offerings(title,enrollment_type,academic_model),
     academic_offering_periods(label),academic_terms(term_label,academic_year)
   `).order('name');
@@ -48,7 +49,7 @@ export async function GET() {
   // Report Builder loads by student_id. Many older rows have null class_id, so
   // filtering only `.in('class_id', classIds)` under-counted the workspace hero.
   const reportSelect =
-    'id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at,calculation_snapshot';
+    'id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at,calculation_snapshot,engagement_metrics';
   const byId = new Map<string, Record<string, unknown>>();
   const studentIds = ((students.data ?? []) as Array<{ id: string }>).map((s) => s.id);
 
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
   if (!studentId || !classId || !courseId) return NextResponse.json({ error: 'Learner, class and course are required.' }, { status: 400 });
 
   const [{ data: klass }, { data: student }, { data: course }] = await Promise.all([
-    db.from('classes').select('id,name,school_id,teacher_id,program_id,term_id,academic_offering_id,offering_period_id,schools(name),academic_terms(term_label,academic_year),academic_offerings(title,pathway,academic_model,delivery_mode,enrollment_type),academic_offering_periods(label,starts_on,ends_on)').eq('id', classId).maybeSingle(),
+    db.from('classes').select('id,name,school_id,teacher_id,program_id,term_id,academic_offering_id,offering_period_id,schools(name,programme_standing),academic_terms(term_label,academic_year),academic_offerings(title,pathway,academic_model,delivery_mode,enrollment_type),academic_offering_periods(label,starts_on,ends_on)').eq('id', classId).maybeSingle(),
     db.from('portal_users').select('id,full_name,class_id,school_id,section_class,grade,enrollment_type').eq('id', studentId).eq('role', 'student').maybeSingle(),
     db.from('courses').select('id,title,program_id').eq('id', courseId).maybeSingle(),
   ]);
@@ -172,6 +173,7 @@ export async function POST(req: NextRequest) {
   const period = one<any>(klass.academic_offering_periods);
   const term = one<any>(klass.academic_terms);
   const school = one<any>(klass.schools);
+  const compulsorySchoolPapers = school?.programme_standing === 'compulsory';
   const sessionLabels = resolveClassReportSession({
     academicTerm: term,
     termId: klass.term_id,
@@ -203,6 +205,13 @@ export async function POST(req: NextRequest) {
     calculation_mode: calculationMode,
     academic_trace_status: 'traceable',
     academic_qa_status: 'not_checked',
+    engagement_metrics: {
+      score_authority: compulsorySchoolPapers ? 'host_school' : 'rillcod',
+      programme_standing: compulsorySchoolPapers ? 'compulsory' : 'optional',
+      // Auto-fill may prepare the shared draft, but host-school test/exam
+      // papers are authoritative and must be adopted in Write before release.
+      host_review_required: compulsorySchoolPapers,
+    },
     is_published: false,
     updated_at: new Date().toISOString(),
   };
