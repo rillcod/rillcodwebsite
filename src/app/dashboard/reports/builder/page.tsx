@@ -675,6 +675,7 @@ function ReportBuilderInner() {
     const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
     const [draftedIds, setDraftedIds] = useState<Set<string>>(new Set());
     const [resumedSession, setResumedSession] = useState(false);
+    const [storageWarning, setStorageWarning] = useState<string | null>(null);
     const [showHiddenStudents, setShowHiddenStudents] = useState(false);
     const [wipingStudentId, setWipingStudentId] = useState<string | null>(null);
 
@@ -945,7 +946,9 @@ function ReportBuilderInner() {
                     }
                 }
             }
-        } catch { /* ignore */ }
+        } catch {
+            setStorageWarning('Your previous position in the report writer could not be restored. Server-saved report drafts are unchanged.');
+        }
         // Default the academic session (Sept–Aug Nigerian calendar) and the current
         // term when none is set, so school reports always carry a session/term and a
         // new year never collides with the previous one's same-named term.
@@ -1167,7 +1170,9 @@ function ReportBuilderInner() {
                 _courseConfirmationKey: courseConfirmationKey,
                 _periodUnlocked: periodUnlocked,
             }));
-        } catch { /* ignore */ }
+        } catch {
+            setStorageWarning('This browser could not remember your current place. Save the report draft before leaving this page.');
+        }
     }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, periodUnlocked, profile?.id]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
@@ -1417,7 +1422,8 @@ function ReportBuilderInner() {
             || s.email?.toLowerCase().includes(search.toLowerCase())
             || String((s as any).grade_level || (s as any).grade || '').toLowerCase().includes(search.toLowerCase());
 
-        // Override mode or active search: show all loaded students, just filter by name/email
+        // Override mode or active search: show all loaded students and match
+        // the same name, email or grade fields advertised by the search box.
         if (overrideFilters || search.length >= 2) return matchesSearch;
 
         // School filter: use school_id match OR school_name match (handles legacy records)
@@ -1564,7 +1570,12 @@ function ReportBuilderInner() {
                             report_period: wanted.academic_year,
                         }));
                     }
-                } catch { /* ignore */ }
+                } catch {
+                    if (!cancelled) {
+                        setError('The requested reporting period could not be loaded. Choose the term and academic year again before writing.');
+                    }
+                    return;
+                }
             }
             if (!cancelled) selectReportSection(linkedClass.id);
         })();
@@ -1610,7 +1621,11 @@ function ReportBuilderInner() {
                 if (match?.id && match.id !== sessionConfig.term_id) {
                     setSessionConfig((s) => (s.term_id === match.id ? s : { ...s, term_id: match.id }));
                 }
-            } catch { /* ignore */ }
+            } catch {
+                if (!cancelled) {
+                    setError('The selected term could not be matched to the academic calendar. Re-select the reporting period before saving.');
+                }
+            }
         })();
         return () => { cancelled = true; };
     }, [sessionConfig.report_term, sessionConfig.report_period]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -3333,6 +3348,24 @@ function ReportBuilderInner() {
                     reportId={existingReport?.id}
                     from={fromPrepare ? 'prepare' : fromResults ? 'results' : undefined}
                 />
+                {storageWarning && (
+                    <div className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs text-muted-foreground">
+                        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                        <p className="min-w-0 flex-1">{storageWarning}</p>
+                        <button type="button" onClick={() => setStorageWarning(null)} className="flex-shrink-0 text-muted-foreground/60 hover:text-foreground" aria-label="Dismiss browser storage warning">
+                            <XMarkIcon className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
+                {error && !selectedStudent && (
+                    <div className="flex items-start gap-2 rounded-xl border border-rose-500/25 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-700 dark:text-rose-300">
+                        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                        <p className="min-w-0 flex-1">{error}</p>
+                        <button type="button" onClick={() => setError('')} className="flex-shrink-0 opacity-60 hover:opacity-100" aria-label="Dismiss report writer error">
+                            <XMarkIcon className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
                 {existingReport ? (
                     <div className="space-y-2">
                         <ResultStatusBadges report={existingReport} />
@@ -3729,7 +3762,7 @@ function ReportBuilderInner() {
                             {/* Search + Override controls */}
                             <div className="mb-4 space-y-3">
                                 <input aria-label="Search students"
-                                    type="search" placeholder="Search student by name or email…"
+                                    type="search" placeholder="Search student by name, email or grade…"
                                     value={search} onChange={e => setSearch(e.target.value)}
                                     className="min-h-11 w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
 
