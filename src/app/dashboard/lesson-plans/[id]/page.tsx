@@ -604,6 +604,7 @@ export default function LessonPlanDetailPage() {
   >([]);
   const [assigningClass, setAssigningClass] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [classLoadError, setClassLoadError] = useState<string | null>(null);
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [progressionRunConfirm, setProgressionRunConfirm] = useState<{
@@ -1600,25 +1601,34 @@ export default function LessonPlanDetailPage() {
     }
   }
 
-  // Load teacher's own classes for inline class assignment
-  useEffect(() => {
+  const loadAssignableClasses = useCallback(async () => {
     if (!profile?.id || !["teacher", "admin"].includes(profile.role ?? ""))
       return;
     const url =
       profile.role === "teacher" ? "/api/classes?mine=true" : "/api/classes";
-    fetch(url)
-      .then((r) => r.json())
-      .then((j) =>
-        setMyClasses(
-          (j.data ?? []) as {
-            id: string;
-            name: string;
-            teacher_id?: string | null;
-          }[]
-        )
-      )
-      .catch(() => {});
+    setClassLoadError(null);
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error("Classes could not be loaded.");
+      setMyClasses(
+        (payload.data ?? []) as {
+          id: string;
+          name: string;
+          teacher_id?: string | null;
+        }[]
+      );
+    } catch {
+      setClassLoadError(
+        "Class options could not be loaded. The lesson plan is unchanged."
+      );
+    }
   }, [profile?.id, profile?.role]);
+
+  // Load teacher's own classes for inline class assignment.
+  useEffect(() => {
+    void loadAssignableClasses();
+  }, [loadAssignableClasses]);
 
   async function assignClass(classId: string | null) {
     setAssigningClass(true);
@@ -2007,12 +2017,25 @@ export default function LessonPlanDetailPage() {
                   Assign to class
                 </p>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {myClasses.length === 0 && (
+                  {classLoadError ? (
+                    <div className="space-y-2 rounded-lg border border-amber-500/25 bg-amber-500/10 p-2.5">
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                        {classLoadError}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void loadAssignableClasses()}
+                        className="text-xs font-black text-primary hover:underline"
+                      >
+                        Retry classes
+                      </button>
+                    </div>
+                  ) : myClasses.length === 0 ? (
                     <p className="text-xs text-card-foreground/40">
                       No classes found — ensure you are assigned as teacher to a
                       class first.
                     </p>
-                  )}
+                  ) : null}
                   {myClasses.map((cls) => (
                     <button
                       key={cls.id}

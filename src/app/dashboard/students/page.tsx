@@ -397,7 +397,8 @@ export default function StudentsPage() {
   // Enrolled portal students (portal_users role=student)
   const [sourceFilter, setSourceFilter] = useState<'all' | 'applications' | 'enrolled' | 'special'>('all');
   const [portalStudents, setPortalStudents] = useState<any[]>([]);
-  const [_portalLoading, setPortalLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
   const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
 
@@ -418,6 +419,7 @@ export default function StudentsPage() {
   // Bulk enrol
   const [selectedForEnrol, setSelectedForEnrol] = useState<Set<string>>(new Set());
   const [showBulkEnrolModal, setShowBulkEnrolModal] = useState(false);
+  const [bulkEnrolError, setBulkEnrolError] = useState<string | null>(null);
 
   // Bulk unenrol
   const [selectedForUnenrol, setSelectedForUnenrol] = useState<Set<string>>(new Set());
@@ -458,6 +460,7 @@ export default function StudentsPage() {
   const loadPortalStudents = useCallback(async () => {
     if (!profile || !isStaff) return;
     setPortalLoading(true);
+    setPortalError(null);
     try {
       const [stuRes, clsRes, schRes, invRes] = await Promise.all([
         fetch('/api/portal-users?role=student&scoped=true&with_reports=1', { cache: 'no-store' }),
@@ -465,37 +468,62 @@ export default function StudentsPage() {
         fetch('/api/schools', { cache: 'no-store' }),
         fetch('/api/invoices?limit=500', { cache: 'no-store' }),
       ]);
-      const stuJson = await stuRes.json();
+
+      const stuJson = await stuRes.json().catch(() => ({}));
+      if (!stuRes.ok) throw new Error('Enrolled student accounts could not be loaded.');
       setPortalStudents(stuJson.data ?? []);
-      const clsJson = await clsRes.json();
-      const map: Record<string, string> = {};
-      (clsJson.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
-      setClassMap(map);
-      const schJson = await schRes.json();
-      setSchoolList(schJson.data ?? []);
+      const unavailable: string[] = [];
+
+      if (clsRes.ok) {
+        const clsJson = await clsRes.json().catch(() => ({ data: [] }));
+        const map: Record<string, string> = {};
+        (clsJson.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
+        setClassMap(map);
+      } else {
+        unavailable.push('class names');
+      }
+
+      if (schRes.ok) {
+        const schJson = await schRes.json().catch(() => ({ data: [] }));
+        setSchoolList(schJson.data ?? []);
+      } else {
+        unavailable.push('school options');
+      }
 
       // Build fee status map keyed by portal_user_id (latest non-cancelled invoice wins)
-      const invJson = await invRes.json().catch(() => ({ data: [] }));
-      const invoices: any[] = invJson.data ?? [];
-      const map2: Record<string, FeeEntry> = {};
-      const priority = ['overdue', 'sent', 'pending', 'paid', 'cancelled'];
-      invoices
-        .filter((inv: any) => inv.portal_user_id && inv.status !== 'cancelled')
-        .forEach((inv: any) => {
-          const uid = inv.portal_user_id;
-          const existing = map2[uid];
-          const rank = (s: string) => priority.indexOf(s.toLowerCase());
-          if (!existing || rank(inv.status) < rank(existing.status)) {
-            map2[uid] = {
-              status: inv.status,
-              amount: Number(inv.amount ?? 0),
-              currency: inv.currency ?? 'NGN',
-              dueDate: inv.due_date ?? null,
-            };
-          }
-        });
-      setFeeMap(map2);
-    } catch { /* ignore */ } finally {
+      if (invRes.ok) {
+        const invJson = await invRes.json().catch(() => ({ data: [] }));
+        const invoices: any[] = invJson.data ?? [];
+        const map2: Record<string, FeeEntry> = {};
+        const priority = ['overdue', 'sent', 'pending', 'paid', 'cancelled'];
+        invoices
+          .filter((inv: any) => inv.portal_user_id && inv.status !== 'cancelled')
+          .forEach((inv: any) => {
+            const uid = inv.portal_user_id;
+            const existing = map2[uid];
+            const rank = (s: string) => priority.indexOf(s.toLowerCase());
+            if (!existing || rank(inv.status) < rank(existing.status)) {
+              map2[uid] = {
+                status: inv.status,
+                amount: Number(inv.amount ?? 0),
+                currency: inv.currency ?? 'NGN',
+                dueDate: inv.due_date ?? null,
+              };
+            }
+          });
+        setFeeMap(map2);
+      } else {
+        unavailable.push('fee status');
+      }
+
+      if (unavailable.length > 0) {
+        setPortalError(`Student accounts loaded, but ${unavailable.join(', ')} could not be refreshed.`);
+      }
+    } catch (loadError: unknown) {
+      setPortalError(
+        loadError instanceof Error ? loadError.message : 'Enrolled student accounts could not be loaded.'
+      );
+    } finally {
       setPortalLoading(false);
     }
   }, [profile, isStaff]);
@@ -530,18 +558,33 @@ export default function StudentsPage() {
     if (selectedForEnrol.size === 0) return;
     setShowBulkEnrolModal(true);
     setBulkEnrolMode('pick');
+    setBulkEnrolError(null);
     const fetches: Promise<any>[] = [];
     if (classList.length === 0) {
       fetches.push(
-        fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).then(j => setClassList(j.data ?? [])).catch(() => { })
+        fetch('/api/classes', { cache: 'no-store' }).then(async response => {
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error('Classes could not be loaded.');
+          setClassList(payload.data ?? []);
+        })
       );
     }
     if (programsList.length === 0) {
       fetches.push(
-        fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()).then(j => setProgramsList(j.data ?? [])).catch(() => { })
+        fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(async response => {
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error('Programmes could not be loaded.');
+          setProgramsList(payload.data ?? []);
+        })
       );
     }
-    if (fetches.length > 0) await Promise.all(fetches);
+    if (fetches.length > 0) {
+      const results = await Promise.allSettled(fetches);
+      const failures = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason instanceof Error ? result.reason.message : 'Enrolment options could not be loaded.');
+      if (failures.length > 0) setBulkEnrolError([...new Set(failures)].join(' '));
+    }
   };
 
   const createAndEnrol = async () => {
@@ -670,48 +713,65 @@ export default function StudentsPage() {
   // ── Approve ────────────────────────────────────────────────
   const approve = async (id: string) => {
     setActing(id);
+    setError(null);
     try {
       const res = await fetch('/api/approvals/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action: 'approved' }),
       });
-      if (res.ok) {
-        setStudents(prev => prev.map(s => s.id === id
-          ? { ...s, status: 'approved', approved_at: new Date().toISOString(), user_id: 'pending_refresh' }
-          : s));
-        const json = await res.json();
-        if (json.credentials) {
-          setCredentials({ email: json.credentials.email, tempPassword: json.credentials.password, name: json.credentials.name || 'Student' });
-          load(); // Refresh list to get accurate user_id
-        }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error('The student could not be approved.');
+      setStudents(prev => prev.map(s => s.id === id
+        ? { ...s, status: 'approved', approved_at: new Date().toISOString(), user_id: 'pending_refresh' }
+        : s));
+      if (json.credentials) {
+        setCredentials({ email: json.credentials.email, tempPassword: json.credentials.password, name: json.credentials.name || 'Student' });
+        load(); // Refresh list to get accurate user_id
       }
-    } catch { /* ignore */ }
-    setActing(null);
+    } catch (approvalError: unknown) {
+      setError(
+        approvalError instanceof Error ? approvalError.message : 'The student could not be approved.'
+      );
+    } finally {
+      setActing(null);
+    }
   };
 
   // ── Reject ─────────────────────────────────────────────────
   const reject = async (id: string) => {
     setActing(id);
+    setError(null);
     try {
       const res = await fetch('/api/approvals/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action: 'rejected' }),
       });
-      if (res.ok) {
-        setStudents(prev => prev.map(s => s.id === id ? { ...s, status: 'rejected' } : s));
-      }
-    } catch { /* ignore */ }
-    setActing(null);
+      await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error('The registration could not be rejected.');
+      setStudents(prev => prev.map(s => s.id === id ? { ...s, status: 'rejected' } : s));
+    } catch (rejectionError: unknown) {
+      setError(
+        rejectionError instanceof Error ? rejectionError.message : 'The registration could not be rejected.'
+      );
+    } finally {
+      setActing(null);
+    }
   };
 
   // ── Activate portal account ─────────────────────────────────
   const openActivatePicker = async (student: any) => {
     // Lazily load classes if not already loaded
     if (classList.length === 0) {
-      const j = await fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }));
-      setClassList(j.data ?? []);
+      try {
+        const response = await fetch('/api/classes', { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error('Class options could not be loaded.');
+        setClassList(payload.data ?? []);
+      } catch {
+        setPortalError('Class options could not be loaded. You can still activate the account without a class and assign it later.');
+      }
     }
     setActivateClassId('');
     setActivatePending({ id: student.id, name: student.full_name, school_id: student.school_id ?? null });
@@ -817,9 +877,13 @@ export default function StudentsPage() {
   const checkGaps = async () => {
     try {
       const res = await fetch('/api/admin/sync-users');
-      const json = await res.json();
-      if (res.ok) setGapCount(json.gaps?.students_needing_accounts ?? 0);
-    } catch { /* ignore */ }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error('Account readiness check failed.');
+      setGapCount(json.gaps?.students_needing_accounts ?? 0);
+    } catch {
+      setGapCount(null);
+      setPortalError(current => current ?? 'The account readiness check could not be refreshed.');
+    }
   };
 
   const handleSync = async () => {
@@ -1214,6 +1278,12 @@ export default function StudentsPage() {
 
             {/* Body */}
             <div className="p-6 space-y-4 overflow-y-auto flex-1">
+
+              {bulkEnrolError && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  {bulkEnrolError} Retry loading before choosing a class or programme.
+                </div>
+              )}
 
               {bulkEnrolMode === 'pick' ? (() => {
                 // Filter classes to only schools of selected students (match by school_id OR school name)
@@ -1640,9 +1710,9 @@ export default function StudentsPage() {
                 className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">
                 <PlusIcon className="w-4 h-4" /> Register Student
               </button>
-              <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
-                className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground transition-all">
-                <ArrowPathIcon className="w-4 h-4" />
+              <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh" disabled={loading || portalLoading}
+                className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground transition-all disabled:opacity-50">
+                <ArrowPathIcon className={`w-4 h-4 ${loading || portalLoading ? 'animate-spin' : ''}`} />
               </button>
               {/* Admin + Teacher only */}
               {(profile?.role === 'admin' || profile?.role === 'teacher') && (
@@ -1715,6 +1785,24 @@ export default function StudentsPage() {
                 <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
               </div>
               <p className="text-rose-600 dark:text-rose-400 text-sm font-bold">{error}</p>
+            </div>
+          )}
+
+          {portalError && (
+            <div className="flex flex-col gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-amber-700 dark:text-amber-300">Some connected student data needs attention</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{portalError} Existing student records remain visible and unchanged.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadPortalStudents()}
+                disabled={portalLoading}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-background px-4 py-2 text-xs font-black text-amber-700 transition-colors hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-300"
+              >
+                <ArrowPathIcon className={`h-4 w-4 ${portalLoading ? 'animate-spin' : ''}`} />
+                {portalLoading ? 'Retrying…' : 'Retry linked data'}
+              </button>
             </div>
           )}
 
