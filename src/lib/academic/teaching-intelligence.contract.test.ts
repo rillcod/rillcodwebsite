@@ -160,6 +160,9 @@ describe("generators and workspace stay on that schema", () => {
     expect(route).toContain("releasePreparedWeek");
     expect(route).toContain("timetable_sessions");
     expect(route).toContain("programme_policy");
+    // Customization belongs to lessons/assignments metadata. Selecting a
+    // top-level customized_at column makes Supabase reject the whole workspace.
+    expect(route).not.toContain(",customized_at");
     expect(route).not.toContain("curriculum_week_tracking");
     expect(parser).not.toContain("week_numbers");
     expect(identity).toContain("online timetable");

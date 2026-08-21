@@ -178,7 +178,7 @@ export async function GET(
           db
             .from("lessons")
             .select(
-              "id,title,description,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id,customized_at"
+              "id,title,description,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
             )
             .or(
               `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`
@@ -209,7 +209,7 @@ export async function GET(
           db
             .from("assignments")
             .select(
-              "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,session_number,metadata,assignment_type,shared_master_id,customized_at"
+              "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,session_number,metadata,assignment_type,shared_master_id"
             )
             .or(
               [

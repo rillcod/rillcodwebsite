@@ -2033,9 +2033,19 @@ function InteractiveQuiz({
           conversationHistory: [],
         }),
       })
-        .then((r) => r.json())
-        .then((d) => setAiExplanation(d.reply ?? null))
-        .catch(() => {})
+        .then(async (response) => {
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || typeof payload.reply !== "string" || !payload.reply.trim()) {
+            throw new Error("Explanation unavailable");
+          }
+          return payload;
+        })
+        .then((payload) => setAiExplanation(payload.reply))
+        .catch(() => {
+          setAiExplanation(
+            "This explanation is temporarily unavailable. Your quiz result is safe, so you can continue and try again later."
+          );
+        })
         .finally(() => setLoadingExplanation(false));
     }
   };
@@ -2211,9 +2221,19 @@ function CompletionCelebration({
         conversationHistory: [],
       }),
     })
-      .then((r) => r.json())
-      .then((d) => setRecap(d.reply ?? null))
-      .catch(() => {})
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || typeof payload.reply !== "string" || !payload.reply.trim()) {
+          throw new Error("Recap unavailable");
+        }
+        return payload;
+      })
+      .then((payload) => setRecap(payload.reply))
+      .catch(() => {
+        setRecap(
+          "Your lesson is complete and your progress is saved. The personalised recap is temporarily unavailable."
+        );
+      })
       .finally(() => setRecapLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -4196,6 +4216,7 @@ export default function LessonDetailPage() {
     challenge_question: string;
   } | null>(null);
   const [hookLoading, setHookLoading] = useState(false);
+  const [hookError, setHookError] = useState<string | null>(null);
   const hookFetchedRef = useRef(false);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -4806,6 +4827,7 @@ export default function LessonDetailPage() {
     if (!lesson || hookFetchedRef.current) return;
     hookFetchedRef.current = true;
     setHookLoading(true);
+    setHookError(null);
     fetch("/api/ai/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -4817,11 +4839,19 @@ export default function LessonDetailPage() {
         programName: lesson.courses?.programs?.name || undefined,
       }),
     })
-      .then((r) => r.json())
-      .then((p) => {
-        if (p.data?.hook) setLessonHook(p.data);
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || typeof payload.data?.hook !== "string" || !payload.data.hook.trim()) {
+          throw new Error("Lesson opener unavailable");
+        }
+        return payload;
       })
-      .catch(() => {})
+      .then((payload) => setLessonHook(payload.data))
+      .catch(() => {
+        setHookError(
+          "The optional lesson opener is temporarily unavailable. Continue with the objectives below; the prepared lesson is unaffected."
+        );
+      })
       .finally(() => setHookLoading(false));
   }, [lesson]);
 
@@ -5292,7 +5322,7 @@ export default function LessonDetailPage() {
 
                   {/* ── STAGE 1: HOOK — cinematic opener ────────────────── */}
                   <AnimatePresence>
-                    {(hookLoading || lessonHook) && (
+                    {(hookLoading || lessonHook || hookError) && (
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -5320,8 +5350,7 @@ export default function LessonDetailPage() {
                               <div className="h-2 w-72 bg-muted/30 rounded animate-pulse" />
                             </div>
                           </div>
-                        ) : (
-                          lessonHook && (
+                        ) : lessonHook ? (
                             <div className="relative z-10 p-8 sm:p-12 space-y-6">
                               <div className="flex items-start gap-4">
                                 <div className="shrink-0 w-10 h-10 bg-primary/20 border border-primary/30 flex items-center justify-center text-lg">
@@ -5369,8 +5398,13 @@ export default function LessonDetailPage() {
                                 )}
                               </div>
                             </div>
-                          )
-                        )}
+                        ) : hookError ? (
+                          <div className="relative z-10 p-6 sm:p-8">
+                            <p className="text-sm font-semibold leading-relaxed text-muted-foreground">
+                              {hookError}
+                            </p>
+                          </div>
+                        ) : null}
                       </motion.div>
                     )}
                   </AnimatePresence>
