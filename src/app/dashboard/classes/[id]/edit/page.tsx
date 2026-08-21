@@ -34,6 +34,7 @@ export default function EditClassPage() {
     const [teachers, setTeachers] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
     const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
+    const [pathClassMode, setPathClassMode] = useState<'full' | 'milestone'>('full');
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -93,13 +94,15 @@ export default function EditClassPage() {
                 });
 
                 // 2. Fetch lookups
-                const [programsRes, coursesRes, teachersRes, termsRes] = await Promise.all([
+                const [programsRes, coursesRes, teachersRes, termsRes, visibilityRes] = await Promise.all([
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
                     db.from('courses').select('id, title, program_id, is_active').eq('is_active', true).order('title'),
                     db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
                     fetch('/api/settings/academic-year', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ terms: [] })),
+                    fetch(`/api/progression/path-visibility?class_id=${id}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: { class_mode: 'full' } })),
                 ]);
                 const terms = ((termsRes as any).terms ?? []) as AcademicTermOption[];
+                setPathClassMode(visibilityRes?.data?.class_mode === 'milestone' ? 'milestone' : 'full');
 
                 // 3. Schools lookup
                 let schoolsQuery = db.from('schools').select('id, name').eq('status', 'approved').order('name');
@@ -175,6 +178,16 @@ export default function EditClassPage() {
                 body: JSON.stringify(payload),
             });
             if (!patchRes.ok) { const j = await patchRes.json(); throw new Error(j.error || 'Failed to update class'); }
+
+            const visibilityRes = await fetch('/api/progression/path-visibility', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ class_id: id, mode: pathClassMode }),
+            });
+            if (!visibilityRes.ok) {
+                const j = await visibilityRes.json().catch(() => ({}));
+                throw new Error(j.error || 'Class details saved, but learning-path visibility could not be saved.');
+            }
 
             // Editing a class only changes its SETTINGS. Enrolling students happens at class
             // creation; moving students between classes is the dedicated Transfer flow — so
@@ -317,6 +330,30 @@ export default function EditClassPage() {
                         </select>
                         <p className="text-[10px] text-muted-foreground mt-1.5">Write opens with this course selected for the class.</p>
                     </div>
+
+                    <fieldset className="rounded-xl border border-border bg-muted/20 p-4">
+                        <legend className="px-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Student learning path</legend>
+                        <p className="mb-3 text-xs leading-5 text-muted-foreground">
+                            Choose the default view for this whole class. A rare learner-specific exception can be changed only from that learner’s expanded roster row.
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {([
+                                { mode: 'full' as const, label: 'Full details', detail: 'Show activities, progress and supporting detail.' },
+                                { mode: 'milestone' as const, label: 'Milestones only', detail: 'Show a simpler progress journey.' },
+                            ]).map(option => (
+                                <button
+                                    key={option.mode}
+                                    type="button"
+                                    aria-pressed={pathClassMode === option.mode}
+                                    onClick={() => setPathClassMode(option.mode)}
+                                    className={`min-h-16 rounded-xl border p-3 text-left transition-colors ${pathClassMode === option.mode ? 'border-primary/40 bg-primary/10' : 'border-border bg-background hover:border-primary/25'}`}
+                                >
+                                    <span className="block text-sm font-bold text-foreground">{option.label}</span>
+                                    <span className="mt-1 block text-xs leading-4 text-muted-foreground">{option.detail}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </fieldset>
 
                     <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Partner School <span className="text-rose-600 dark:text-rose-400">*</span></label>

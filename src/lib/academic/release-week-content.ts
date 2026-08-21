@@ -17,6 +17,7 @@ export type WeekReleaseResult = {
   session: number | null;
   lessons_released: number;
   assignments_released: number;
+  slides_released: number;
   flashcards_released: number;
   error?: string;
   /** Multiple class meetings are held and the caller must name one. */
@@ -76,11 +77,12 @@ export async function releasePreparedWeek(input: {
     session,
     lessons_released: 0,
     assignments_released: 0,
+    slides_released: 0,
     flashcards_released: 0,
     ...(error ? { error } : {}),
   });
 
-  const [{ data: draftLessons, error: lessonSelectError }, { data: heldAssignments, error: assignmentSelectError }, decksRes] =
+  const [{ data: draftLessons, error: lessonSelectError }, { data: heldAssignments, error: assignmentSelectError }, slidesRes, decksRes] =
     await Promise.all([
       db
         .from("lessons")
@@ -94,6 +96,13 @@ export async function releasePreparedWeek(input: {
         .eq("lesson_plan_id", planId)
         .eq("curriculum_week_number", week)
         .eq("is_active", false),
+      (db as any)
+        .from("lesson_materials")
+        .select("id,title,lesson_id,is_public,session_number")
+        .eq("lesson_plan_id", planId)
+        .eq("curriculum_week_number", week)
+        .eq("file_type", "slide-deck")
+        .eq("is_public", false),
       (db as any)
         .from("flashcard_decks")
         .select("id,title,lesson_id,is_public,session_number")
@@ -115,6 +124,16 @@ export async function releasePreparedWeek(input: {
     lesson_id?: string | null;
     session_number?: number | null;
   }>;
+  const heldSlides = (slidesRes?.data ?? []) as Array<{
+    id: string;
+    title?: string | null;
+    lesson_id?: string | null;
+    session_number?: number | null;
+  }>;
+  const slideSelectError = slidesRes?.error as { message: string } | null;
+  if (slideSelectError) {
+    return empty(normalizeMeetingSession(input.session), slideSelectError.message);
+  }
   const deckSelectError = decksRes?.error as { message: string } | null;
   if (deckSelectError) {
     return empty(normalizeMeetingSession(input.session), deckSelectError.message);
@@ -128,6 +147,10 @@ export async function releasePreparedWeek(input: {
     })),
     ...(heldAssignments ?? []).map((row: any) => ({
       metadata: row.metadata as Record<string, unknown> | null,
+      title: row.title,
+      session_number: row.session_number,
+    })),
+    ...heldSlides.map((row) => ({
       title: row.title,
       session_number: row.session_number,
     })),
@@ -165,6 +188,7 @@ export async function releasePreparedWeek(input: {
   const payload = (released ?? {}) as {
     lessons_released?: number;
     assignments_released?: number;
+    slides_released?: number;
     flashcards_released?: number;
     assignment_ids?: string[];
   };
@@ -189,6 +213,7 @@ export async function releasePreparedWeek(input: {
     session,
     lessons_released: Number(payload.lessons_released) || 0,
     assignments_released: Number(payload.assignments_released) || 0,
+    slides_released: Number(payload.slides_released) || 0,
     flashcards_released: Number(payload.flashcards_released) || 0,
   };
 }

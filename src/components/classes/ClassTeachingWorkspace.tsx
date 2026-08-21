@@ -56,6 +56,7 @@ import {
 import {
   expandPlanWeeksForMeetings,
 } from "@/lib/academic/school-programme-standing";
+import { WEEK_CONTENT_TYPES } from "@/lib/academic/auto-generate-settings";
 import {
   hostAssessmentSit,
   isHostAssessmentWeek,
@@ -77,6 +78,11 @@ type Props = {
     delivered: number;
     planned: number;
   }) => void;
+  onAttentionChange?: (attention: {
+    weeksNeedingWork: number;
+    weeksFullyLive: number;
+    planned: number;
+  }) => void;
 };
 
 export function ClassTeachingWorkspace({
@@ -85,6 +91,7 @@ export function ClassTeachingWorkspace({
   canEdit,
   onCourseChange,
   onCoverageChange,
+  onAttentionChange,
 }: Props) {
   const [data, setData] = useState<any>(null);
   const [courseId, setCourseId] = useState(initialCourseId || "");
@@ -110,6 +117,10 @@ export function ClassTeachingWorkspace({
 
   // AI Generation state
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{
+    tone: "progress" | "success" | "warning";
+    message: string;
+  } | null>(null);
   const [aiWeek, setAiWeek] = useState<{
     week: number;
     session?: number | null;
@@ -271,30 +282,97 @@ export function ClassTeachingWorkspace({
     }
   }
 
-  async function generateLessonsWithAi() {
+  async function generateMissingPackages() {
     if (!plan) return;
+    const targets = weekRows.filter(
+      (row) =>
+        row.recommendedAction === "prepare" ||
+        row.recommendedAction === "refresh"
+    );
+    if (targets.length === 0) {
+      setAiStatus({
+        tone: "success",
+        message: "Every teaching package is already prepared. Nothing was duplicated.",
+      });
+      return;
+    }
+
     setAiBusy(true);
     setError("");
     setErrorAction(null);
+    setAiStatus({
+      tone: "progress",
+      message: `Preparing 1 of ${targets.length} teaching packages…`,
+    });
     try {
-      const r = await fetch(`/api/lesson-plans/${plan.id}/generate-lessons`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        if (j.action_href && j.action_label) {
-          setErrorAction({ href: j.action_href, label: j.action_label });
-        }
-        throw new Error(
-          [j.error, j.detail].filter(Boolean).join(" — ") ||
-            "AI could not generate lessons"
+      let generated = 0;
+      let skipped = 0;
+      const failures: string[] = [];
+
+      for (let index = 0; index < targets.length; index++) {
+        const target = targets[index];
+        setAiStatus({
+          tone: "progress",
+          message: `Preparing ${teachingMeetingLabel(
+            target.week,
+            target.session,
+            target.meetingsInWeek
+          )} · ${index + 1} of ${targets.length}…`,
+        });
+        const response = await fetch(
+          `/api/lesson-plans/${plan.id}/generate-week`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              week: target.week,
+              session: target.session,
+              // The primary teacher action always prepares the complete
+              // package. Type-level repair remains available in Advanced.
+              types: WEEK_CONTENT_TYPES,
+            }),
+          }
         );
+        const result = await response.json().catch(() => ({}));
+        generated += Number(result.generated) || 0;
+        skipped += Number(result.skipped) || 0;
+        if (!response.ok || result.success === false) {
+          failures.push(
+            `${teachingMeetingLabel(
+              target.week,
+              target.session,
+              target.meetingsInWeek
+            )}: ${result.error || "package generation did not finish"}`
+          );
+          continue;
+        }
+        if (Array.isArray(result.failedTypes) && result.failedTypes.length > 0) {
+          failures.push(
+            `${teachingMeetingLabel(
+              target.week,
+              target.session,
+              target.meetingsInWeek
+            )}: ${result.failedTypes.join(", ")} still need attention`
+          );
+        }
       }
+
       await load(courseId);
+      setAiStatus({
+        tone: failures.length > 0 ? "warning" : "success",
+        message: failures.length > 0
+          ? `${generated} content item${generated === 1 ? "" : "s"} saved, but ${failures.length} package${failures.length === 1 ? "" : "s"} still need attention. ${failures.slice(0, 2).join(" · ")}`
+          : generated > 0
+            ? `${generated} content item${generated === 1 ? "" : "s"} saved across complete teaching packages${skipped > 0 ? `; ${skipped} existing item${skipped === 1 ? " was" : "s were"} kept.` : "."}`
+            : "Every teaching package was already prepared. Nothing was duplicated.",
+      });
     } catch (e: any) {
-      setError(e.message || "AI generate failed");
+      setAiStatus(null);
+      setError(
+        e instanceof TypeError && /fetch/i.test(e.message || "")
+          ? "The generation connection was interrupted. Refresh this class before retrying—completed lessons remain saved and will reappear here."
+          : e.message || "AI generation failed"
+      );
     } finally {
       setAiBusy(false);
     }
@@ -367,6 +445,7 @@ export function ClassTeachingWorkspace({
         lessonPlanId: plan?.id ?? null,
         curriculumId: plan?.curriculum_version_id ?? null,
         week,
+        session,
         topic,
         subject: selectedCourse?.title,
         description: [objectives, activities].filter(Boolean).join("\n\n"),
@@ -499,6 +578,14 @@ export function ClassTeachingWorkspace({
   const weeksFullyLive = weekRows.filter(
     (row) => row.visibilitySummary.fullyLive
   ).length;
+
+  useEffect(() => {
+    onAttentionChange?.({
+      weeksNeedingWork,
+      weeksFullyLive,
+      planned: weekRows.length,
+    });
+  }, [onAttentionChange, weekRows.length, weeksFullyLive, weeksNeedingWork]);
 
   const termsPresent = useMemo(
     () =>
@@ -739,6 +826,27 @@ export function ClassTeachingWorkspace({
               {errorAction.label}
             </Link>
           )}
+        </div>
+      )}
+
+      {aiStatus && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`flex items-center gap-2 rounded-xl border p-3 text-xs ${
+            aiStatus.tone === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : aiStatus.tone === "warning"
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              : "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+          }`}
+        >
+          {aiStatus.tone === "progress" ? (
+            <ArrowPathIcon className="h-4 w-4 shrink-0 animate-spin" />
+          ) : (
+            <CheckCircleIcon className="h-4 w-4 shrink-0" />
+          )}
+          <span className="font-semibold">{aiStatus.message}</span>
         </div>
       )}
 
@@ -1072,7 +1180,7 @@ export function ClassTeachingWorkspace({
                 disabled={
                   busy || aiBusy || weekRows.length === 0 || !planReady
                 }
-                onClick={() => void generateLessonsWithAi()}
+                onClick={() => void generateMissingPackages()}
                 title={
                   !planReady
                     ? `This plan is a ${
@@ -1088,11 +1196,11 @@ export function ClassTeachingWorkspace({
                   <span className="flex items-center gap-2 text-sm font-black text-foreground">
                     <SparklesIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                     {aiBusy
-                      ? "Generating lessons…"
-                      : "Generate lesson foundations"}
+                      ? "Preparing teaching packages…"
+                      : "Prepare all missing packages"}
                   </span>
                   <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                    Creates missing lessons in bulk across all curriculum weeks.
+                    Builds lessons, slides, flashcards, homework and projects together. Existing work is kept.
                   </span>
                 </span>
                 {aiBusy ? (

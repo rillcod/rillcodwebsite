@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
       "lesson_notes",
       "metadata",
       "curriculum_week_number",
+      "session_number",
     ];
     const payload: Record<string, unknown> = { created_by: caller.id };
     for (const f of allowed) {
@@ -265,6 +266,7 @@ export async function POST(request: NextRequest) {
         lessonPlanId: data.lesson_plan_id,
         curriculumWeekNumber: data.curriculum_week_number,
         lessonId: data.id,
+        session: data.session_number,
       });
     }
 

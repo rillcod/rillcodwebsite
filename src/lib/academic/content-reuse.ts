@@ -143,6 +143,11 @@ export function buildCopy<T extends Record<string, unknown>>(
     content_locked_by: null,
     metadata: {
       ...meta,
+      // The real column is authoritative, but legacy operations/readiness
+      // views still understand this metadata mirror. A copied row must never
+      // retain the source plan's id here or disappear from the target plan.
+      lesson_plan_id: target.planId,
+      class_id: target.classId,
       copied_from_content_id: target.sourceId,
       copied_at: new Date().toISOString(),
       // Explicitly not customised — this is curriculum output, and marking it

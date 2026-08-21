@@ -62,20 +62,16 @@ export async function GET() {
 
   const planIds = plans.map((p: any) => p.id);
 
-  const [{ data: lessons }, { data: assignments }, { data: decks }] = await Promise.all([
+  const [{ data: lessons }, { data: assignments }, { data: slides }, { data: decks }] = await Promise.all([
     db.from("lessons").select("id,title,status,lesson_plan_id,curriculum_week_number,session_number,metadata")
       .in("lesson_plan_id", planIds).eq("status", "draft"),
     db.from("assignments").select("id,title,is_active,assignment_type,lesson_plan_id,curriculum_week_number,session_number,metadata")
       .in("lesson_plan_id", planIds).eq("is_active", false),
+    (db as any).from("lesson_materials").select("id,title,lesson_id,is_public,lesson_plan_id,curriculum_week_number,session_number")
+      .in("lesson_plan_id", planIds).eq("file_type", "slide-deck").eq("is_public", false),
     (db as any).from("flashcard_decks").select("id,title,is_public,lesson_plan_id,curriculum_week_number,session_number")
       .in("lesson_plan_id", planIds).eq("is_public", false),
   ]);
-
-  const lessonIds = (lessons ?? []).map((l: any) => l.id);
-  const { data: materials } = lessonIds.length
-    ? await db.from("lesson_materials").select("id,title,lesson_id").in("lesson_id", lessonIds).eq("file_type", "slide-deck")
-    : { data: [] as any[] };
-  const slidesByLesson = new Map((materials ?? []).map((m: any) => [m.lesson_id, m]));
 
   const byWeek = new Map<string, PendingWeek>();
   const planById = new Map(plans.map((p: any) => [p.id, p]));
@@ -133,8 +129,6 @@ export async function GET() {
       session,
     );
     row.items.push({ kind: "lesson", id: (l as any).id, title: (l as any).title });
-    const deck = slidesByLesson.get((l as any).id);
-    if (deck) row.items.push({ kind: "slides", id: (l as any).id, title: deck.title });
   }
   for (const a of assignments ?? []) {
     const week = Number((a as any).curriculum_week_number);
@@ -164,6 +158,18 @@ export async function GET() {
       kind: "flashcards",
       id: (d as any).id,
       title: (d as any).title,
+    });
+  }
+  for (const slide of slides ?? []) {
+    const week = Number((slide as any).curriculum_week_number);
+    if (!Number.isFinite(week)) continue;
+    const session = assetMeetingSession(slide as any);
+    const row = bucket((slide as any).lesson_plan_id, week, session);
+    row.items.push({
+      kind: "slides",
+      // The slide viewer lives on the lesson detail page.
+      id: (slide as any).lesson_id ?? (slide as any).id,
+      title: (slide as any).title,
     });
   }
 
@@ -228,6 +234,7 @@ export async function POST(req: NextRequest) {
         session: target.session,
         lessons_released: 0,
         assignments_released: 0,
+        slides_released: 0,
         flashcards_released: 0,
         error: "Forbidden",
       });

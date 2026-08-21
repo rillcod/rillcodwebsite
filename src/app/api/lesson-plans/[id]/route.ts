@@ -101,11 +101,11 @@ export async function GET(
     db
       .from("lessons")
       .select("id", { count: "exact", head: true })
-      .filter("metadata->>lesson_plan_id", "eq", id),
+      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
     db
       .from("assignments")
       .select("id", { count: "exact", head: true })
-      .filter("metadata->>lesson_plan_id", "eq", id),
+      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
     db
       .from("progression_override_audit")
       .select("id", { count: "exact", head: true })
@@ -407,17 +407,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Cascade: remove generated lessons and assignments linked to this plan via metadata.
-  // These are orphaned if the plan is deleted without cleaning them first.
+  // Cascade both canonical columns and the legacy metadata mirror.
   await db
     .from("lessons")
     .delete()
-    .filter("metadata->>lesson_plan_id", "eq", id);
+    .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
 
   await db
     .from("assignments")
     .delete()
-    .filter("metadata->>lesson_plan_id", "eq", id);
+    .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
 
   const { error } = await db.from("lesson_plans").delete().eq("id", id);
   if (error)

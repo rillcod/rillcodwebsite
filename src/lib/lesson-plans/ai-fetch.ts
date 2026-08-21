@@ -1,4 +1,5 @@
 import { generateAIContent, type GenerateRequest } from '@/lib/ai/generate-core';
+import { consumeJsonSSE } from '@/lib/http/json-sse';
 
 export class AIFetchError extends Error {
   constructor(
@@ -57,32 +58,24 @@ export async function consumeSSEUntilDone(res: Response): Promise<{
   failures: Array<{ week: number; topic: string; reason: string }>;
   truncated: boolean;
 }> {
-  const fallback = { generated: 0, skipped: 0, failures: [], truncated: false };
-  if (!res.body) return fallback;
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
+  const fallback: {
+    generated: number;
+    skipped: number;
+    failures: Array<{ week: number; topic: string; reason: string }>;
+    truncated: boolean;
+  } = { generated: 0, skipped: 0, failures: [], truncated: false };
   let result = fallback;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value).split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        try {
-          const d = JSON.parse(line.slice(6));
-          if (d.done) {
-            result = {
-              generated: d.generated ?? 0,
-              skipped: d.skipped ?? 0,
-              failures: d.failures ?? [],
-              truncated: d.truncated ?? false,
-            };
-          }
-        } catch { /* ignore parse errors on partial chunks */ }
-      }
+  await consumeJsonSSE(res, (d) => {
+    if (d.done) {
+      result = {
+        generated: Number(d.generated) || 0,
+        skipped: Number(d.skipped) || 0,
+        failures: Array.isArray(d.failures)
+          ? (d.failures as Array<{ week: number; topic: string; reason: string }>)
+          : [],
+        truncated: d.truncated === true,
+      };
     }
-  } finally {
-    reader.releaseLock();
-  }
+  });
   return result;
 }

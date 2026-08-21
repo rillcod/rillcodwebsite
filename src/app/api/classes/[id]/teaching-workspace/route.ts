@@ -872,6 +872,7 @@ export async function POST(
     }> = [];
     let totalLessons = 0;
     let totalAssignments = 0;
+    let totalSlides = 0;
     let totalFlashcards = 0;
 
     for (const target of targets) {
@@ -892,6 +893,7 @@ export async function POST(
       }
       totalLessons += res.lessons_released ?? 0;
       totalAssignments += res.assignments_released ?? 0;
+      totalSlides += res.slides_released ?? 0;
       totalFlashcards += res.flashcards_released ?? 0;
       results.push(res);
     }
@@ -904,6 +906,7 @@ export async function POST(
         failures,
         total_lessons: totalLessons,
         total_assignments: totalAssignments,
+        total_slides: totalSlides,
         total_flashcards: totalFlashcards,
       },
       ...(failures.length

@@ -124,6 +124,10 @@ describe('the copy that gets written', () => {
   it('belongs to the new class, not the old one', () => {
     expect(copy.lesson_plan_id).toBe('plan-second');
     expect(copy.class_id).toBe('class-second');
+    expect(copy.metadata).toMatchObject({
+      lesson_plan_id: 'plan-second',
+      class_id: 'class-second',
+    });
     expect(copy.id).toBeUndefined();
     expect(copy.created_at).toBeUndefined();
   });

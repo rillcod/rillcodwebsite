@@ -20,7 +20,6 @@ import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import {
   extractLessonPlanOperationWeeks,
   filterPlanOperationWeeks,
-  getMetadataWeekCompositeKey,
   getWeekCompositeKey,
   parseWeekTermRefs,
   planWeekSessionMetadata,
@@ -34,6 +33,10 @@ import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
+import {
+  contentTypeForLessonMode,
+  inferLessonGenerationMode,
+} from "@/lib/lesson-plans/lesson-generation-mode";
 
 const ALLOWED_LESSON_TYPES = [
   "lesson",
@@ -157,21 +160,25 @@ export async function POST(
 
     const { data: existingLessons } = await supabase
       .from("lessons")
-      .select("id, metadata")
+      .select(
+        "id, lesson_plan_id, curriculum_week_number, session_number, metadata"
+      )
       .eq("course_id", planCourseId)
-      .eq("school_id", planSchoolId);
+      .eq("school_id", planSchoolId)
+      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
 
     const existingWeekSet = new Set<string>(
       (existingLessons ?? [])
-        .filter((l) => {
-          const metadata =
-            (l.metadata as Record<string, unknown> | null) ?? null;
-          return metadata?.lesson_plan_id === id;
-        })
         .map((l) =>
-          getMetadataWeekCompositeKey(
-            l.metadata as Record<string, unknown> | null
-          )
+          getWeekCompositeKey({
+            ...((l.metadata as Record<string, unknown> | null) ?? {}),
+            week_number:
+              l.curriculum_week_number ??
+              (l.metadata as Record<string, unknown> | null)?.week_number,
+            session_number:
+              l.session_number ??
+              (l.metadata as Record<string, unknown> | null)?.session_number,
+          })
         )
     );
 
@@ -328,6 +335,7 @@ export async function POST(
             yearNumber
           );
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
+          const lessonMode = inferLessonGenerationMode(week);
           const durationFromSyllabus =
             syllabusWeek?.lesson_plan?.duration_minutes;
           const durationMinutes =
@@ -352,6 +360,12 @@ export async function POST(
                 typeof week.objectives === "string" ? week.objectives : "",
               planWeekActivities:
                 typeof week.activities === "string" ? week.activities : "",
+              lessonMode,
+              contentType: contentTypeForLessonMode(lessonMode),
+              sourceMaterial:
+                typeof (week as { notes?: unknown }).notes === "string"
+                  ? String((week as { notes?: string }).notes).slice(0, 4000)
+                  : undefined,
               priorLessonTitlesThisRun: [...titlesThisRun],
             });
           } catch (err) {
@@ -395,6 +409,7 @@ export async function POST(
               metadata: {
                 source: "lesson-plan-bulk",
                 generated_from: "progression_lesson_route",
+                ai_lesson_mode: lessonMode,
                 lesson_plan_id: id,
                 week: week.week,
                 week_number: week.week,

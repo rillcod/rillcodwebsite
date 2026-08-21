@@ -65,7 +65,14 @@ export default function ClassDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'cbt' | 'gradebook' | 'sessions'>('overview');
-  const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('roster');
+  // Teaching is the class's daily job. Roster administration stays available,
+  // but it must not be the first thing a teacher sees on every visit.
+  const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('teaching');
+  const [teachingAttention, setTeachingAttention] = useState({
+    weeksNeedingWork: 0,
+    weeksFullyLive: 0,
+    planned: 0,
+  });
 
   useEffect(() => {
     const requested = searchParams.get('operation');
@@ -134,7 +141,7 @@ export default function ClassDetailPage() {
 
   // Roster collapse: the list is dense by default (name + work signal) and each learner
   // opens on demand, so a 40-student class still fits one phone screen.
-  const [rosterOpen, setRosterOpen] = useState(true);
+  const [rosterOpen, setRosterOpen] = useState(false);
   const [showRosterActions, setShowRosterActions] = useState(false);
   const [showWithdrawnList, setShowWithdrawnList] = useState(false);
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set());
@@ -166,10 +173,8 @@ export default function ClassDetailPage() {
   const [editingSession, setEditingSession] = useState<any>(null);
   const [sessionForm, setSessionForm] = useState({ topic: '', session_date: '', start_time: '', end_time: '', notes: '' });
   const [savingSession, setSavingSession] = useState(false);
-  const [pathClassMode, setPathClassMode] = useState<'full' | 'milestone'>('full');
   const [pathStudentModes, setPathStudentModes] = useState<Record<string, 'inherit' | 'full' | 'milestone'>>({});
   const [pathVisibilitySaving, setPathVisibilitySaving] = useState<string | null>(null);
-  const [showPathOverrides, setShowPathOverrides] = useState(false);
 
   // Persist the course the class teaches. The only caller is the Teaching workspace's
   // picker — the duplicate "Course Focus Settings" dropdown that also wrote this column
@@ -269,8 +274,6 @@ export default function ClassDetailPage() {
       setReportIndicatorEnabled((studentsRes as any).report_indicator_enabled !== false);
       setPasteClaimEnabled((studentsRes as any).paste_claim_enabled === true);
       if (isStaff && visJson) {
-        const classMode = (visJson.data?.class_mode ?? 'full') as 'full' | 'milestone';
-        setPathClassMode(classMode);
         const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
         for (const row of ((visJson.data?.students ?? []) as any[])) {
           const mode = row.mode === 'full' || row.mode === 'milestone' ? row.mode : 'inherit';
@@ -366,24 +369,6 @@ export default function ClassDetailPage() {
       else console.warn('[class workspace] secondary records did not finish loading', e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const saveClassPathMode = async (mode: 'full' | 'milestone') => {
-    setPathVisibilitySaving('class');
-    try {
-      const res = await fetch('/api/progression/path-visibility', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_id: id, mode }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to save');
-      setPathClassMode(mode);
-    } catch (e: any) {
-      alert(e.message ?? 'Failed to save class visibility mode');
-    } finally {
-      setPathVisibilitySaving(null);
     }
   };
 
@@ -1244,20 +1229,11 @@ export default function ClassDetailPage() {
   }).length;
   const activeExamCount = items.cbt.filter((exam: any) => exam.is_active).length;
   const gradedSubmissionCount = items.submissions.filter((submission: any) => submission.grade !== null && submission.grade !== undefined).length + items.cbtSessions.filter((session: any) => session.score !== null && session.score !== undefined).length;
+  const totalSubmissionCount = items.submissions.length + items.cbtSessions.length;
+  const ungradedSubmissionCount = Math.max(0, totalSubmissionCount - gradedSubmissionCount);
   // Each mode carries its own numbers, so the page header does not have to repeat them.
   // `attention` is work waiting on a person — it is the only thing that gets a red badge.
   const operationCards = [
-    {
-      id: 'roster' as const,
-      title: 'Roster',
-      desc: 'Students, reinstatement, term movement',
-      icon: UserGroupIcon,
-      stat: `${currentTermStudents.length} active · ${inactiveTermStudents.length} withdrawn`,
-      progress: null as number | null,
-      attention: transferRequests.filter((request: any) => request.status === 'pending').length,
-      attentionLabel: 'Transfer requests awaiting a decision',
-      tone: 'text-primary',
-    },
     {
       id: 'teaching' as const,
       title: 'Teaching',
@@ -1271,8 +1247,8 @@ export default function ClassDetailPage() {
       progress: coverage && coverage.planned > 0
         ? Math.round((coverage.delivered / coverage.planned) * 100)
         : null,
-      attention: 0,
-      attentionLabel: '',
+      attention: teachingAttention.weeksNeedingWork,
+      attentionLabel: 'Curriculum weeks requiring preparation, review or release',
       tone: 'text-cyan-600 dark:text-cyan-400',
     },
     {
@@ -1282,7 +1258,7 @@ export default function ClassDetailPage() {
       icon: ChartBarIcon,
       stat: `${openAssignments + activeExamCount} open · ${gradedSubmissionCount} marked`,
       progress: null as number | null,
-      attention: Math.max(0, items.submissions.length - gradedSubmissionCount),
+      attention: ungradedSubmissionCount,
       attentionLabel: 'Submissions still to mark',
       tone: 'text-amber-600 dark:text-amber-400',
     },
@@ -1297,6 +1273,17 @@ export default function ClassDetailPage() {
       attentionLabel: '',
       tone: 'text-emerald-600 dark:text-emerald-400',
     },
+    {
+      id: 'roster' as const,
+      title: 'Students',
+      desc: 'Roster, transfers and term movement',
+      icon: UserGroupIcon,
+      stat: `${currentTermStudents.length} active · ${inactiveTermStudents.length} withdrawn`,
+      progress: null as number | null,
+      attention: transferRequests.filter((request: any) => request.status === 'pending').length,
+      attentionLabel: 'Transfer requests awaiting a decision',
+      tone: 'text-primary',
+    },
   ];
   const selectedOperation = operationCards.find(card => card.id === activeOperation) ?? operationCards[0];
 
@@ -1308,10 +1295,48 @@ export default function ClassDetailPage() {
     { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon, count: items.cbt.length, modes: ['assessment'] },
     { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, count: undefined, modes: ['assessment'], staffOnly: true },
     { id: 'sessions', label: 'Sessions', icon: CalendarIcon, count: sessions.length, modes: ['communication'] },
-    { id: 'overview', label: 'Class record', icon: UserGroupIcon, count: undefined, modes: ['roster', 'teaching', 'assessment', 'communication'] },
+    { id: 'overview', label: 'Class record', icon: UserGroupIcon, count: undefined, modes: ['roster'] },
   ].filter(tab => (!tab.staffOnly || isStaff) && tab.modes.includes(activeOperation));
   const pendingIncomingTransfers = transferRequests.filter((request: any) => request.status === 'pending' && (profile?.role === 'admin' || request.from_teacher_id === profile?.id));
   const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
+  const pendingTransferCount = pendingIncomingTransfers.length + pendingOutgoingTransfers.length;
+  const classPriorities = [
+    ...(teachingAttention.weeksNeedingWork > 0 ? [{
+      id: 'teaching',
+      title: `${teachingAttention.weeksNeedingWork} teaching week${teachingAttention.weeksNeedingWork === 1 ? '' : 's'} need attention`,
+      detail: 'Prepare missing content, review held work or release it to students.',
+      operation: 'teaching' as const,
+      tone: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+    }] : []),
+    ...(ungradedSubmissionCount > 0 ? [{
+      id: 'grading',
+      title: `${ungradedSubmissionCount} submission${ungradedSubmissionCount === 1 ? '' : 's'} waiting to be marked`,
+      detail: 'Open assessment to continue grading from the central gradebook.',
+      operation: 'assessment' as const,
+      tone: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    }] : []),
+    ...(reportIndicatorEnabled && needsReportCount > 0 ? [{
+      id: 'reports',
+      title: `${needsReportCount} learner report${needsReportCount === 1 ? '' : 's'} not published`,
+      detail: 'The affected learners are already sorted first in Students.',
+      operation: 'roster' as const,
+      tone: 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300',
+    }] : []),
+    ...(pendingTransferCount > 0 ? [{
+      id: 'transfers',
+      title: `${pendingTransferCount} transfer request${pendingTransferCount === 1 ? '' : 's'} awaiting action`,
+      detail: 'Review ownership before the learner moves class.',
+      operation: 'roster' as const,
+      tone: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+    }] : []),
+    ...(offBandCount > 0 ? [{
+      id: 'band',
+      title: `${offBandCount} learner${offBandCount === 1 ? '' : 's'} outside this class band`,
+      detail: 'Check grade placement before publishing academic records.',
+      operation: 'roster' as const,
+      tone: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+    }] : []),
+  ];
 
   return (
     <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
@@ -1373,6 +1398,37 @@ export default function ClassDetailPage() {
           </div>
         )}
 
+        {classPriorities.length > 0 && (
+          <section aria-label="Class priorities" className="flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-2">
+            <span className="inline-flex flex-shrink-0 items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
+              <ExclamationTriangleIcon className="h-3.5 w-3.5" /> {classPriorities.length} need attention
+            </span>
+            <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto no-scrollbar">
+              {classPriorities.slice(0, 4).map((priority) => (
+                <button
+                  key={priority.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveOperation(priority.operation);
+                    if (priority.id === 'reports') {
+                      setShowNeedsReportOnly(true);
+                      setRosterOpen(true);
+                    } else if (priority.id === 'band') {
+                      setShowNeedsReportOnly(false);
+                      setRosterOpen(true);
+                    }
+                  }}
+                  title={priority.detail}
+                  className={`inline-flex min-h-10 flex-shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-black transition-colors hover:brightness-110 ${priority.tone}`}
+                >
+                  <span>{priority.title}</span>
+                  <ChevronRightIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── The work ──────────────────────────────────────────────────────────
             Directly under the identity bar, because this is what the page is for. */}
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
@@ -1385,7 +1441,9 @@ export default function ClassDetailPage() {
               items={operationCards.map((card) => ({
                 id: card.id,
                 label: card.title,
-                hint: card.stat,
+                hint: card.attention > 0
+                  ? `${card.attention} need attention`
+                  : card.stat,
                 icon: card.icon,
                 selected: activeOperation === card.id,
                 onClick: () => setActiveOperation(card.id),
@@ -1894,6 +1952,18 @@ export default function ClassDetailPage() {
                                 >
                                   Transfer
                                 </Link>
+                                <select
+                                  aria-label={`Learning path visibility for ${student.full_name}`}
+                                  value={pathStudentModes[student.id] ?? 'inherit'}
+                                  onChange={(event) => void saveStudentPathMode(student.id, event.target.value as 'inherit' | 'full' | 'milestone')}
+                                  disabled={pathVisibilitySaving === student.id}
+                                  title="Optional exception to the class learning-path setting"
+                                  className="min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 lg:max-w-[13rem]"
+                                >
+                                  <option value="inherit">Path · use class setting</option>
+                                  <option value="full">Path · full details</option>
+                                  <option value="milestone">Path · milestones only</option>
+                                </select>
                                 <button
                                   type="button"
                                   onClick={() => removeStudent(student.id)}
@@ -2079,6 +2149,7 @@ export default function ClassDetailPage() {
                     canEdit={isStaff}
                     onCourseChange={handleSaveCourseFocus}
                     onCoverageChange={setCoverage}
+                    onAttentionChange={setTeachingAttention}
                   />
                 </div>
               )}
@@ -2168,6 +2239,7 @@ export default function ClassDetailPage() {
             to keep the real work closed. Teaching preparation now stays in the workspace
             above; Assessment owns assignments / exams / gradebook, and the class
             record is available from anywhere. */}
+        {recordTabs.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <div className="min-w-0 space-y-4">
 
@@ -2224,96 +2296,6 @@ export default function ClassDetailPage() {
                     <p className="mt-4 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">{cls.description}</p>
                   )}
                 </div>
-
-                {isStaff && (
-                  <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
-                    <div>
-                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Path Visibility Control</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Control what students and parents see for learning path progress.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold text-foreground">Class default:</span>
-                      <button
-                        type="button"
-                        onClick={() => saveClassPathMode('full')}
-                        disabled={pathVisibilitySaving === 'class'}
-                        className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition-colors ${
-                          pathClassMode === 'full'
-                            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-background border-border text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        Full details
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => saveClassPathMode('milestone')}
-                        disabled={pathVisibilitySaving === 'class'}
-                        className={`px-3 py-1.5 text-xs font-bold border rounded-xl transition-colors ${
-                          pathClassMode === 'milestone'
-                            ? 'bg-primary/15 border-primary/30 text-violet-700 dark:text-violet-300'
-                            : 'bg-background border-border text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        Milestone only
-                      </button>
-                    </div>
-
-                    <div className="border-t border-border pt-3">
-                      {(() => {
-                        const customised = Object.values(pathStudentModes).filter(m => m && m !== 'inherit').length;
-                        return (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setShowPathOverrides(v => !v)}
-                              className="flex items-center justify-between w-full text-left group"
-                            >
-                              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
-                                Per-child override
-                                {customised > 0 && (
-                                  <span className="ml-2 normal-case tracking-normal text-[10px] text-violet-700 dark:text-violet-300 font-semibold">· {customised} customised</span>
-                                )}
-                              </span>
-                              <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground">
-                                {showPathOverrides ? 'Hide ▲' : 'Manage ▾'}
-                              </span>
-                            </button>
-                            {showPathOverrides && (
-                              enrollments.length === 0 ? (
-                                <p className="text-xs text-muted-foreground mt-3">No enrolled students yet.</p>
-                              ) : (
-                                <div className="space-y-2 mt-3 max-h-80 overflow-y-auto pr-1">
-                                  {enrollments.map((student: any) => (
-                                    <div key={student.id} className="flex items-center justify-between gap-3 bg-background border border-border rounded-lg px-3 py-2">
-                                      <div className="min-w-0">
-                                        <p className="text-sm font-semibold text-foreground truncate">{student.full_name ?? 'Student'}</p>
-                                        <p className="text-[10px] text-muted-foreground truncate">{student.email ?? ''}</p>
-                                      </div>
-                                      <select
-                                        value={pathStudentModes[student.id] ?? 'inherit'}
-                                        onChange={(e) => saveStudentPathMode(student.id, e.target.value as 'inherit' | 'full' | 'milestone')}
-                                        disabled={pathVisibilitySaving === student.id}
-                                        className="px-2 py-1.5 text-xs bg-card border border-border rounded-lg text-foreground flex-shrink-0"
-                                      >
-                                        <option value="inherit">Inherit class default</option>
-                                        <option value="full">Full details</option>
-                                        <option value="milestone">Milestone only</option>
-                                      </select>
-                                    </div>
-                                  ))}
-                                </div>
-                              )
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
 
                 {/* "Course Focus Settings" used to sit here with its own dropdown writing the
                     same classes.current_course_id that Teaching writes — two controls, two
@@ -2684,6 +2666,7 @@ export default function ClassDetailPage() {
 
           </div>
         </div>
+        )}
       </div>
 
       {/* Student Enrol Modal */}

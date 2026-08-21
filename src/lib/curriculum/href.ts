@@ -109,6 +109,7 @@ export function buildLessonNewHref(args: {
   lessonPlanId?: string | null;
   curriculumId?: string | null;
   week?: number | string | null;
+  session?: number | string | null;
   topic?: string | null;
   subject?: string | null;
   description?: string | null;
@@ -125,6 +126,7 @@ export function buildLessonNewHref(args: {
     lesson_plan_id: args.lessonPlanId,
     curriculum_id: args.curriculumId,
     week: args.week,
+    session: args.session,
     title: args.topic,
     topic: args.topic,
     subject: args.subject,

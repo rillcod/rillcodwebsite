@@ -34,6 +34,7 @@ import PipelineStepper from "@/components/pipeline/PipelineStepper";
 import LessonPreviewModal from "@/features/lessons/components/LessonPreviewModal";
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from "@/components/mobile/mobile-styles";
 import { AnimatePresence } from "framer-motion";
+import { consumeJsonSSE } from "@/lib/http/json-sse";
 
 function parseLessonPlanFromQuery(
   raw: string | null
@@ -77,6 +78,7 @@ function AddLessonPageContent() {
   const curriculumId = sp.get("curriculum_id");
   const curriculumTerm = sp.get("term");
   const curriculumWeek = sp.get("week");
+  const classSession = sp.get("session");
   const preTitle = sp.get("title");
   const preDescription = sp.get("description");
   const preDuration = sp.get("duration");
@@ -119,6 +121,9 @@ function AddLessonPageContent() {
   const [extractMsg, setExtractMsg] = useState("");
   const [showLessonPreview, setShowLessonPreview] = useState(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [editorStep, setEditorStep] = useState<
+    "setup" | "generate" | "design" | "review"
+  >(termPlanId ? "generate" : "setup");
 
   const isYoungLearner = YOUNG_LEARNER_GRADES.some(
     (g) => aiGrade === g || aiGrade.startsWith(g)
@@ -132,7 +137,9 @@ function AddLessonPageContent() {
     lesson_type: "hands-on",
     duration_minutes: "60",
     video_url: "",
-    status: "active", // publish by default so generated/added lessons are visible without a manual step
+    // Class-plan lessons join the same review/release gate as their slides,
+    // cards and tasks. Truly standalone lessons keep their direct-publish flow.
+    status: termPlanId ? "draft" : "active",
     content_layout: [] as any[],
   });
 
@@ -296,6 +303,35 @@ function AddLessonPageContent() {
     }
   };
 
+  const applyGeneratedLesson = (
+    data: Record<string, any>,
+    model: string | null | undefined,
+    topicOverride?: string
+  ) => {
+    setLastModel(model ?? null);
+    if (Array.isArray(data.objectives) && data.objectives.length > 0) {
+      setAiObjectives(data.objectives);
+    }
+    setForm((prev) => ({
+      ...prev,
+      title: data.title ?? (topicOverride || prev.title),
+      description: data.description ?? prev.description,
+      lesson_notes: data.lesson_notes ?? prev.lesson_notes,
+      content_layout:
+        Array.isArray(data.content_layout) && data.content_layout.length > 0
+          ? data.content_layout
+          : prev.content_layout,
+      video_url: data.video_url ?? prev.video_url,
+      duration_minutes: data.duration_minutes
+        ? String(data.duration_minutes)
+        : prev.duration_minutes,
+      lesson_type: normalizeLessonType(data.lesson_type, prev.lesson_type),
+    }));
+    setAiOpen(false);
+    setShowLessonPreview(true);
+    setEditorStep("design");
+  };
+
   const handleAiGenerate = async (topicOverride?: string) => {
     const topicToUse = topicOverride || aiTopic;
     if (!topicToUse.trim()) {
@@ -339,58 +375,17 @@ function AddLessonPageContent() {
       const contentType = res.headers.get("Content-Type") ?? "";
 
       if (contentType.includes("text/event-stream") && res.body) {
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
         let streamCompleted = false;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            try {
-              const event = JSON.parse(line.slice(6));
-              if (event.status) {
-                setAiStatus(event.status);
-              } else if (event.error) {
-                throw new Error(event.error);
-              } else if (event.done && event.data) {
-                const d = event.data;
-                setLastModel(event.model ?? null);
-                if (Array.isArray(d.objectives) && d.objectives.length > 0)
-                  setAiObjectives(d.objectives);
-                setForm((prev) => ({
-                  ...prev,
-                  title: d.title ?? (topicOverride || prev.title),
-                  description: d.description ?? prev.description,
-                  lesson_notes: d.lesson_notes ?? prev.lesson_notes,
-                  content_layout:
-                    Array.isArray(d.content_layout) &&
-                    d.content_layout.length > 0
-                      ? d.content_layout
-                      : prev.content_layout,
-                  video_url: d.video_url ?? prev.video_url,
-                  duration_minutes: d.duration_minutes
-                    ? String(d.duration_minutes)
-                    : prev.duration_minutes,
-                  lesson_type: normalizeLessonType(
-                    d.lesson_type,
-                    prev.lesson_type
-                  ),
-                }));
-                setAiOpen(false);
-                setShowLessonPreview(true);
-                streamCompleted = true;
-              }
-            } catch (parseErr: any) {
-              if (parseErr.message !== "Unexpected end of JSON input")
-                throw parseErr;
-            }
+        await consumeJsonSSE<any>(res, (event) => {
+          if (event.status) {
+            setAiStatus(String(event.status));
+          } else if (event.error) {
+            throw new Error(String(event.error));
+          } else if (event.done && event.data) {
+            applyGeneratedLesson(event.data, event.model, topicOverride);
+            streamCompleted = true;
           }
-        }
+        });
         // The stream ended without a complete result — the function was likely cut
         // off (timeout). Surface a clear error + retry instead of a hasty "success".
         if (!streamCompleted) {
@@ -400,27 +395,7 @@ function AddLessonPageContent() {
         }
       } else {
         const payload = await res.json();
-        const d = payload.data;
-        setLastModel(payload.model ?? null);
-        if (Array.isArray(d.objectives) && d.objectives.length > 0)
-          setAiObjectives(d.objectives);
-        setForm((prev) => ({
-          ...prev,
-          title: d.title ?? (topicOverride || prev.title),
-          description: d.description ?? prev.description,
-          lesson_notes: d.lesson_notes ?? prev.lesson_notes,
-          content_layout:
-            Array.isArray(d.content_layout) && d.content_layout.length > 0
-              ? d.content_layout
-              : prev.content_layout,
-          video_url: d.video_url ?? prev.video_url,
-          duration_minutes: d.duration_minutes
-            ? String(d.duration_minutes)
-            : prev.duration_minutes,
-          lesson_type: normalizeLessonType(d.lesson_type, prev.lesson_type),
-        }));
-        setAiOpen(false);
-        setShowLessonPreview(true);
+        applyGeneratedLesson(payload.data, payload.model, topicOverride);
       }
     } catch (e: any) {
       setAiError(e.message ?? "Failed to generate lesson");
@@ -510,6 +485,7 @@ function AddLessonPageContent() {
           ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
           ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
           ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
+          ...(classSession ? { session_number: Number(classSession) } : {}),
           ...aiMeta,
         };
       } else if (termPlanId) {
@@ -530,13 +506,19 @@ function AddLessonPageContent() {
         lesson_notes: form.lesson_notes.trim() || null,
         course_id: form.course_id,
         lesson_type: normalizeLessonType(form.lesson_type, "lesson"),
-        status: form.status,
+        // A plan-linked lesson belongs to the complete teaching package and
+        // must pass the same review/release gate as its slides and activities.
+        status: termPlanId ? "draft" : form.status,
         video_url: form.video_url.trim() || null,
         content_layout: form.content_layout,
         metadata: lessonMetadata,
-        ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
+          ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
+          ...(classSession ? { session_number: Number(classSession) } : {}),
         ...(curriculumWeek
           ? { curriculum_week_number: parseInt(curriculumWeek, 10) }
+          : {}),
+        ...(classSession
+          ? { session_number: Math.max(1, parseInt(classSession, 10) || 1) }
           : {}),
         created_by: profile?.id || "",
         ...(form.duration_minutes
@@ -580,11 +562,14 @@ function AddLessonPageContent() {
               lesson_id: data.id,
               assignment_type: "homework",
               max_points: 100,
-              is_active: true,
+              is_active: !termPlanId,
               ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
               ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
               ...(curriculumWeek
                 ? { curriculum_week_number: parseInt(curriculumWeek, 10) }
+                : {}),
+              ...(classSession
+                ? { session_number: Math.max(1, parseInt(classSession, 10) || 1) }
                 : {}),
             }),
           });
@@ -761,8 +746,52 @@ function AddLessonPageContent() {
         </div>
       )}
 
+      {/* One focused job at a time on both phone and desktop. */}
+      <nav
+        aria-label="Lesson creation steps"
+        className="sticky top-0 z-20 -mx-4 border-y border-border bg-background/95 px-4 py-2 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border"
+      >
+        <div className="grid grid-cols-4 gap-1.5">
+          {(
+            [
+              ["setup", "1", "Setup"],
+              ["generate", "2", "Generate"],
+              ["design", "3", "Design"],
+              ["review", "4", "Review"],
+            ] as const
+          ).map(([step, number, label]) => {
+            const active = editorStep === step;
+            return (
+              <button
+                key={step}
+                type="button"
+                aria-current={active ? "step" : undefined}
+                onClick={() => setEditorStep(step)}
+                className={`flex min-h-12 min-w-0 flex-col items-center justify-center rounded-xl border px-1.5 py-2 text-center transition-colors sm:flex-row sm:gap-2 ${
+                  active
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-transparent bg-muted/50 text-muted-foreground hover:border-border hover:text-foreground"
+                }`}
+              >
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                    active ? "bg-white/20" : "bg-background"
+                  }`}
+                >
+                  {number}
+                </span>
+                <span className="mt-1 truncate text-[9px] font-black uppercase tracking-wide sm:mt-0 sm:text-[10px]">
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
       {/* AI Generate Panel */}
-      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl overflow-hidden">
+      {editorStep === "generate" && (
+      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl overflow-hidden">
         <button
           type="button"
           onClick={() => setAiOpen((o) => !o)}
@@ -1113,9 +1142,11 @@ function AddLessonPageContent() {
           </div>
         )}
       </div>
+      )}
 
       {/* AI Generated preview banner */}
-      {!aiOpen && !aiGenerating && form.title && (
+      {(editorStep === "generate" || editorStep === "review") &&
+        !aiOpen && !aiGenerating && form.title && (
         <div className="bg-gradient-to-br from-primary/15 to-fuchsia-500/10 border border-primary/30 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="shrink-0 w-9 h-9 rounded-xl bg-primary/25 flex items-center justify-center">
@@ -1179,6 +1210,7 @@ function AddLessonPageContent() {
       </AnimatePresence>
 
       {/* Lesson Details */}
+      {editorStep === "setup" && (
       <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-3 pb-3 border-b border-border">
           <Settings2 className="w-4 h-4 text-primary" />
@@ -1266,17 +1298,26 @@ function AddLessonPageContent() {
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Visibility
             </label>
-            <select
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none cursor-pointer"
-            >
-              <option value="draft">Draft — not visible to students yet</option>
-              <option value="scheduled">
-                Scheduled — will go live automatically
-              </option>
-              <option value="active">Active — visible to students now</option>
-            </select>
+            {termPlanId ? (
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
+                <p className="text-sm font-bold text-foreground">Held for package review</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Save here, then release the complete week from the class teaching workspace. Students never receive only one unfinished part.
+                </p>
+              </div>
+            ) : (
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none cursor-pointer"
+              >
+                <option value="draft">Draft — not visible to students yet</option>
+                <option value="scheduled">
+                  Scheduled — will go live automatically
+                </option>
+                <option value="active">Active — visible to students now</option>
+              </select>
+            )}
           </div>
         </div>
 
@@ -1392,8 +1433,10 @@ function AddLessonPageContent() {
           />
         </div>
       </div>
+      )}
 
       {/* Content Builder */}
+      {editorStep === "design" && (
       <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-4">
         <div className="flex items-center gap-3 pb-3 border-b border-border">
           <Layout className="w-4 h-4 text-primary" />
@@ -1410,6 +1453,73 @@ function AddLessonPageContent() {
           lessonTitle={form.title}
         />
       </div>
+      )}
+
+      {editorStep === "review" && (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  Final review
+                </p>
+                <h2 className="mt-1 text-xl font-black text-foreground">
+                  {form.title || "Untitled lesson"}
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {form.description ||
+                    "Add a short description so students know what they will learn."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLessonPreview(true)}
+                disabled={!form.title}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 text-xs font-black text-primary disabled:opacity-40"
+              >
+                <Eye className="h-4 w-4" /> Preview student experience
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                ["Course", currentCourse?.title || "Not selected"],
+                ["Format", form.lesson_type],
+                ["Duration", `${form.duration_minutes || 0} min`],
+                [
+                  "Visibility",
+                  termPlanId ? "Held for review" : form.status,
+                ],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-border bg-muted/30 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                    {label}
+                  </p>
+                  <p className="mt-1 truncate text-xs font-bold capitalize text-foreground">
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+              <p className="text-xs font-black text-foreground">
+                Content readiness
+              </p>
+              <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                <span>{form.content_layout.length} visual/content blocks</span>
+                <span>{form.lesson_notes.trim() ? "Student notes ready" : "No student notes"}</span>
+                <span>{form.video_url.trim() ? "Video linked" : "No video linked"}</span>
+              </div>
+              {termPlanId && (
+                <p className="mt-3 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                  This class-plan lesson will be saved for teacher review. It becomes visible with its slides, flashcards, homework and project through the shared Release step.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Sticky Save Bar */}
       <div className="sticky bottom-[var(--app-bottom-nav-height)] md:bottom-0 z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] bg-background/95 backdrop-blur-xl border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -1418,26 +1528,65 @@ function AddLessonPageContent() {
           {form.content_layout.length !== 1 ? "s" : ""} ·{" "}
           {form.title || "Untitled"}
         </p>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={saving}
-          className="flex w-full sm:w-auto min-h-[48px] items-center justify-center gap-2 px-8 py-3 bg-primary hover:bg-primary active:bg-primary/80 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-primary/30 touch-manipulation"
-        >
-          {saving ? (
-            <>
-              <div
-                className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"
-                aria-hidden
-              />{" "}
-              Creating…
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" aria-hidden /> Create lesson
-            </>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          {editorStep !== "setup" && (
+            <button
+              type="button"
+              onClick={() =>
+                setEditorStep(
+                  editorStep === "review"
+                    ? "design"
+                    : editorStep === "design"
+                      ? "generate"
+                      : "setup"
+                )
+              }
+              className="flex min-h-12 items-center justify-center rounded-xl border border-border bg-card px-5 text-xs font-black uppercase tracking-widest text-foreground"
+            >
+              Back
+            </button>
           )}
-        </button>
+          {editorStep !== "review" ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (editorStep === "setup" && !form.course_id) {
+                  setError("Select a course before continuing.");
+                  return;
+                }
+                setError(null);
+                setEditorStep(
+                  editorStep === "setup"
+                    ? "generate"
+                    : editorStep === "generate"
+                      ? "design"
+                      : "review"
+                );
+              }}
+              className="col-span-2 flex min-h-12 items-center justify-center rounded-xl bg-primary px-6 text-xs font-black uppercase tracking-widest text-primary-foreground shadow-lg shadow-primary/20 sm:col-span-1"
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving || !form.title.trim() || !form.course_id}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-xs font-black uppercase tracking-widest text-primary-foreground shadow-lg shadow-primary/30 disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {termPlanId ? "Save for review" : "Create lesson"}
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

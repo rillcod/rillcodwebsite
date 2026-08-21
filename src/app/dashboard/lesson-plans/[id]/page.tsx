@@ -53,9 +53,12 @@ import {
   inferTermNumberFromPlanTerm,
   type SyllabusContentImport,
 } from "@/lib/lesson-plans/syllabusImport";
+import { consumeJsonSSE } from "@/lib/http/json-sse";
 
 interface WeekEntry {
   week: number;
+  session?: number;
+  session_number?: number;
   topic: string;
   completed?: boolean;
   mastery_mode?: "strict" | "soft";
@@ -194,6 +197,10 @@ function buildPlanWeekCreateLessonUrl(opts: {
       plan: planSlice,
     });
     params.set("lesson_plan_id", plan.id);
+    const session = Number(w.session ?? w.session_number ?? 0);
+    if (Number.isInteger(session) && session > 0) {
+      params.set("session", String(session));
+    }
     params.set("flow_origin", "lesson-plan");
     return `/dashboard/lessons/add?${params.toString()}`;
   }
@@ -213,6 +220,9 @@ function buildPlanWeekCreateLessonUrl(opts: {
     new URLSearchParams({
       lesson_plan_id: plan.id,
       week: String(w.week),
+      ...((w.session ?? w.session_number)
+        ? { session: String(w.session ?? w.session_number) }
+        : {}),
       ...(plan.course_id ? { course_id: plan.course_id } : {}),
       ...(w.topic ? { title: w.topic } : {}),
       ...(w.topic ? { topic: w.topic } : {}),
@@ -370,6 +380,10 @@ type LessonPlanOperations = {
     lessons_published: number;
     assignments_total: number;
     assignments_active: number;
+    slides_total: number;
+    slides_public: number;
+    flashcards_total: number;
+    flashcards_public: number;
     latest_release_at: string | null;
     history: Array<{ type: string; at: string; status: string }>;
   }>;
@@ -512,9 +526,11 @@ export default function LessonPlanDetailPage() {
     weekNum: number;
   } | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
-  const [activeTab, setActiveTab] = useState<"weeks" | "content">("weeks");
+  const [activeTab, setActiveTab] = useState<
+    "plan" | "release" | "advanced"
+  >("plan");
   const [generating, setGenerating] = useState<
-    "lessons" | "assignments" | "projects" | "progression" | null
+    "lessons" | "assignments" | "projects" | "progression" | "package" | null
   >(null);
   const [genProgress, setGenProgress] = useState<{
     generated: number;
@@ -863,7 +879,7 @@ export default function LessonPlanDetailPage() {
   ]);
 
   useEffect(() => {
-    if (activeTab !== "content" || !canGenerateProgression || !id) return;
+    if (activeTab !== "advanced" || !canGenerateProgression || !id) return;
     let cancelled = false;
     setQaLoading(true);
     setQaError(null);
@@ -895,7 +911,12 @@ export default function LessonPlanDetailPage() {
   }, [activeTab, canGenerateProgression, id]);
 
   useEffect(() => {
-    if (activeTab !== "content" || !canGenerateProgression || !id) return;
+    if (
+      (activeTab !== "release" && activeTab !== "advanced") ||
+      !canGenerateProgression ||
+      !id
+    )
+      return;
     let cancelled = false;
     setOpsLoading(true);
     setOpsError(null);
@@ -1233,6 +1254,74 @@ export default function LessonPlanDetailPage() {
     return; // execution resumes in confirmAndGenerate() when user approves
   }
 
+  async function generateCompletePackages() {
+    if (!plan?.course_id || !plan.school_id) {
+      toast.error("Link this plan to a course and school before preparing teaching packages.");
+      return;
+    }
+    if (!plan.class_id) {
+      toast.error("Assign this plan to a class first so every item has one teaching destination.");
+      setClassPickerOpen(true);
+      return;
+    }
+    if (weeks.length === 0) {
+      toast.error("Add or import curriculum weeks before generating content.");
+      return;
+    }
+
+    setGenerating("package");
+    setGenProgress({ generated: 0, total: weeks.length, status: "Preparing the first complete package…" });
+    let generated = 0;
+    let skipped = 0;
+    const failures: string[] = [];
+    try {
+      for (let index = 0; index < weeks.length; index++) {
+        const week = weeks[index];
+        const session = Math.max(1, Number(week.session_number ?? week.session ?? 1) || 1);
+        setGenProgress({
+          generated: index,
+          total: weeks.length,
+          status: `Week ${week.week}${session > 1 ? ` · Session ${session}` : ""}: preparing all learning content`,
+        });
+        const response = await fetch(`/api/lesson-plans/${id}/generate-week`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            week: week.week,
+            session,
+            types: WEEK_CONTENT_TYPES,
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        generated += Number(result.generated) || 0;
+        skipped += Number(result.skipped) || 0;
+        if (!response.ok || result.success === false) {
+          failures.push(`Week ${week.week}: ${result.error || "package generation did not finish"}`);
+        } else if (Array.isArray(result.failedTypes) && result.failedTypes.length > 0) {
+          failures.push(`Week ${week.week}: ${result.failedTypes.join(", ")} still need attention`);
+        }
+      }
+      await load();
+      if (failures.length > 0) {
+        toast.warning(`${generated} content item${generated === 1 ? "" : "s"} saved; ${failures.length} week${failures.length === 1 ? "" : "s"} still need attention.`, {
+          description: failures.slice(0, 3).join(" · "),
+          duration: 9000,
+        });
+      } else {
+        toast.success(
+          generated > 0
+            ? `${generated} content item${generated === 1 ? "" : "s"} prepared across complete weekly packages${skipped ? `; ${skipped} existing item${skipped === 1 ? " was" : "s were"} kept.` : "."}`
+            : "Every weekly teaching package was already prepared. Nothing was duplicated."
+        );
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Teaching package generation was interrupted. Saved content has been kept.");
+    } finally {
+      setGenerating(null);
+      setGenProgress(null);
+    }
+  }
+
   async function confirmAndGenerate() {
     if (!genConfirm) return;
     const { type } = genConfirm;
@@ -1259,18 +1348,10 @@ export default function LessonPlanDetailPage() {
       });
       if (!res.ok) throw new Error("Generation failed");
 
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No stream");
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
-        for (const line of lines) {
-          const data = JSON.parse(line.slice(6));
+      let receivedDone = false;
+      await consumeJsonSSE<any>(res, (data) => {
           if (data.done) {
+            receivedDone = true;
             if (data.skipped > 0 && data.failures?.length > 0) {
               toast.error(`Bulk generation partial success`, {
                 description: (
@@ -1309,11 +1390,15 @@ export default function LessonPlanDetailPage() {
             return;
           }
           setGenProgress({
-            generated: data.generated,
-            total: data.total,
-            status: data.status,
+            generated: Number(data.generated) || 0,
+            total: Number(data.total) || weeks.length,
+            status: typeof data.status === "string" ? data.status : "Working…",
           });
-        }
+      });
+      if (!receivedDone) {
+        throw new Error(
+          "Generation ended before the server confirmed the saved content. Refresh the plan before retrying."
+        );
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Generation failed";
@@ -2210,32 +2295,44 @@ export default function LessonPlanDetailPage() {
         }
       `}</style>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-white/[0.08] print:hidden">
-        <button
-          onClick={() => setActiveTab("weeks")}
-          className={`px-4 py-2 text-sm font-bold transition-all ${
-            activeTab === "weeks"
-              ? "text-primary border-b-2 border-primary"
-              : "text-card-foreground/50 hover:text-card-foreground/70"
-          }`}
-        >
-          Week-by-Week Plan
-        </button>
-        <button
-          onClick={() => setActiveTab("content")}
-          className={`px-4 py-2 text-sm font-bold transition-all ${
-            activeTab === "content"
-              ? "text-primary border-b-2 border-primary"
-              : "text-card-foreground/50 hover:text-card-foreground/70"
-          }`}
-        >
-          Content &amp; Overview
-        </button>
-      </div>
+      {/* Teacher workflow: everyday work stays visible; specialist controls do not compete with it. */}
+      <nav
+        aria-label="Lesson plan workspace"
+        className="sticky top-0 z-20 grid grid-cols-3 gap-1.5 rounded-2xl border border-border bg-background/95 p-1.5 shadow-sm backdrop-blur-xl print:hidden"
+      >
+        {(
+          [
+            ["plan", "Plan & teach", "Weeks and packages"],
+            ["release", "Review & release", "Student visibility"],
+            ["advanced", "Advanced", "QA and automation"],
+          ] as const
+        ).map(([tab, label, detail]) => {
+          const selected = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              aria-current={selected ? "page" : undefined}
+              onClick={() => setActiveTab(tab)}
+              className={`min-h-14 min-w-0 rounded-xl px-2 py-2 text-center transition-colors sm:px-4 ${
+                selected
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <span className="block truncate text-[10px] font-black uppercase tracking-wide sm:text-xs">
+                {label}
+              </span>
+              <span className={`mt-0.5 hidden text-[10px] sm:block ${selected ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
+                {detail}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Week Entries */}
-      {activeTab === "weeks" && (
+      {activeTab === "plan" && (
         <div className="space-y-3">
           {/* This week: prepare it and see how the class is doing, without leaving the tab. */}
           <ThisWeekPanel
@@ -2244,51 +2341,25 @@ export default function LessonPlanDetailPage() {
             canGenerate={canGenerateProgression}
           />
 
-          {/* Quick Generate bar */}
+          {/* Daily path: one complete package action. Type-by-type repair stays in Advanced. */}
           {canGenerateProgression && plan.course_id && plan.school_id && (
-            <div className="print:hidden bg-card border border-white/[0.08] rounded-2xl p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 mb-3">
-                Generate content for this plan
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => bulkGenerate("lessons")}
-                  disabled={generating !== null}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-3.5 h-3.5" /> Lessons
-                </button>
-                <button
-                  onClick={() => bulkGenerate("assignments")}
-                  disabled={generating !== null}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-3.5 h-3.5" /> Assignments
-                </button>
-                <button
-                  onClick={() => bulkGenerate("cbt")}
-                  disabled={generating !== null}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/90 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all"
-                >
-                  <BoltIcon className="w-3.5 h-3.5" /> CBT Exams
-                </button>
-                <button
-                  onClick={() => bulkGenerate("flashcards")}
-                  disabled={generating !== null}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600/90 hover:bg-yellow-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-3.5 h-3.5" /> Flashcards
-                </button>
-                <button
-                  onClick={() => bulkGenerate("projects")}
-                  disabled={generating !== null}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all"
-                >
-                  <SparklesIcon className="w-3.5 h-3.5" /> Projects
-                </button>
+            <div className="print:hidden flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black text-card-foreground">Prepare complete teaching packages</p>
+                <p className="mt-1 text-xs leading-5 text-card-foreground/60">
+                  Builds lessons, slides, flashcards, assignments and projects together. Existing work is preserved; held content waits for review.
+                </p>
               </div>
+              <button
+                onClick={() => void generateCompletePackages()}
+                disabled={generating !== null}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm disabled:opacity-40"
+              >
+                {generating === "package" ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SparklesIcon className="h-4 w-4" />}
+                {generating === "package" ? "Preparing packages…" : "Prepare all weeks"}
+              </button>
               {genProgress && (
-                <p className="text-xs text-card-foreground/50 mt-2">
+                <p className="text-xs text-card-foreground/60 sm:basis-full">
                   {genProgress.status} — {genProgress.generated}/
                   {genProgress.total}
                 </p>
@@ -2654,6 +2725,151 @@ export default function LessonPlanDetailPage() {
         </div>
       )}
 
+      {activeTab === "release" && (
+        <div className="space-y-4">
+          {(() => {
+            const visibleLessons = linkedLessons.filter((lesson) =>
+              ["active", "published"].includes(lesson.status)
+            ).length;
+            const heldLessons = Math.max(0, linkedLessons.length - visibleLessons);
+            const releasedWeeks =
+              operations?.release_board.filter(
+                (row) => row.release_status === "released"
+              ).length ?? 0;
+            const attentionWeeks =
+              operations?.release_board.filter(
+                (row) => row.release_status !== "released"
+              ).length ?? 0;
+
+            return (
+              <>
+                <section className="overflow-hidden rounded-2xl border border-border bg-card">
+                  <div className="border-b border-border bg-gradient-to-br from-primary/10 via-transparent to-emerald-500/10 p-4 sm:p-6">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="max-w-2xl">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                          Student delivery gate
+                        </p>
+                        <h2 className="mt-1 text-xl font-black text-foreground sm:text-2xl">
+                          Review once, release the complete package
+                        </h2>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          Lessons, learning slides, flashcards, homework and projects stay together. Review held work before students see it; released work remains available from the same week record.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[30rem]">
+                        {[
+                          ["Held lessons", heldLessons],
+                          ["Visible lessons", visibleLessons],
+                          ["Released weeks", releasedWeeks],
+                          ["Need attention", attentionWeeks],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-xl border border-border bg-background/80 p-3">
+                            <p className="text-xl font-black text-foreground">{value}</p>
+                            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-muted-foreground">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-4">
+                    <Link
+                      href="/dashboard/teaching/approvals"
+                      className="flex min-h-20 flex-col justify-center rounded-xl bg-primary p-4 text-primary-foreground shadow-sm"
+                    >
+                      <span className="text-sm font-black">Review held packages</span>
+                      <span className="mt-1 text-xs text-primary-foreground/75">Approve what students will receive →</span>
+                    </Link>
+                    {plan.class_id ? (
+                      <Link
+                        href={`/dashboard/classes/${plan.class_id}?course_id=${encodeURIComponent(plan.course_id ?? "")}#teaching`}
+                        className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-background p-4"
+                      >
+                        <span className="text-sm font-black text-foreground">Open class teaching</span>
+                        <span className="mt-1 text-xs text-muted-foreground">Teach, attend and track delivery →</span>
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setClassPickerOpen(true)}
+                        className="flex min-h-20 flex-col justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left"
+                      >
+                        <span className="text-sm font-black text-foreground">Assign a class</span>
+                        <span className="mt-1 text-xs text-muted-foreground">Required before student delivery →</span>
+                      </button>
+                    )}
+                    <Link
+                      href={`/dashboard/lessons?lesson_plan_id=${id}`}
+                      className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-background p-4"
+                    >
+                      <span className="text-sm font-black text-foreground">Lesson library</span>
+                      <span className="mt-1 text-xs text-muted-foreground">Open the exact student lesson content →</span>
+                    </Link>
+                    <Link
+                      href={`/dashboard/assignments?lesson_plan_id=${id}`}
+                      className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-background p-4"
+                    >
+                      <span className="text-sm font-black text-foreground">Tasks & submissions</span>
+                      <span className="mt-1 text-xs text-muted-foreground">Homework, projects and grading →</span>
+                    </Link>
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Weekly visibility</p>
+                      <h3 className="mt-1 text-lg font-black text-foreground">What is ready and what students can see</h3>
+                    </div>
+                    {opsLoading && (
+                      <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                        <ArrowPathIcon className="h-4 w-4 animate-spin" /> Refreshing…
+                      </span>
+                    )}
+                  </div>
+                  {opsError && (
+                    <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300">{opsError}</p>
+                  )}
+                  {!opsLoading && !opsError && !operations?.release_board.length && (
+                    <p className="mt-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                      No teaching weeks are ready yet. Return to Plan &amp; teach to prepare the first complete package.
+                    </p>
+                  )}
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {operations?.release_board.map((row) => (
+                      <div key={row.key} className="rounded-xl border border-border bg-background p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Week {row.week_number}</p>
+                            <p className="mt-1 truncate text-sm font-black text-foreground">{row.topic}</p>
+                          </div>
+                          <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${
+                            row.release_status === "released"
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                              : row.release_status === "partial"
+                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                : "bg-muted text-muted-foreground"
+                          }`}>
+                            {row.release_status}
+                          </span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                          <span>{row.lessons_published}/{row.lessons_total} lessons live</span>
+                          <span>{row.assignments_active}/{row.assignments_total} tasks live</span>
+                          <span>{row.slides_public}/{row.slides_total} slide decks live</span>
+                          <span>{row.flashcards_public}/{row.flashcards_total} card decks live</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       {/* ── Week AI Generator modal ── */}
       {aiWeek && (
         <WeekAIGenerator
@@ -2724,7 +2940,7 @@ export default function LessonPlanDetailPage() {
       )}
 
       {/* Content Dashboard Tab */}
-      {activeTab === "content" && (
+      {activeTab === "advanced" && (
         <div className="space-y-4">
           {(() => {
             const nextOps = linearOpsFlow.find((item) => item.state !== "live") ?? linearOpsFlow[0];
@@ -2744,7 +2960,7 @@ export default function LessonPlanDetailPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("weeks")}
+                    onClick={() => setActiveTab("plan")}
                     className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-black"
                   >
                     Go to Weeks

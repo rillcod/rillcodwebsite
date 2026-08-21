@@ -180,6 +180,10 @@ export async function POST(
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const week = Number(body.week);
+  // Generation is held for teacher review unless this one request explicitly
+  // opts into publication. Slides now follow the same rule as the lesson,
+  // flashcards, homework and project in their package.
+  const isPublic = body.auto_publish === true;
   /** Opt-in: replace an existing deck instead of reporting it already exists. */
   const regenerate = body.regenerate === true;
   const onlySession = parseRequestSession(body);
@@ -296,6 +300,10 @@ export async function POST(
         offeringId: (plan as Record<string, any>).academic_offering_id ?? null,
         periodId: (plan as Record<string, any>).offering_period_id ?? null,
       },
+      overrides: {
+        lesson_id: lesson.id,
+        is_public: isPublic,
+      },
       transform: async (source) => {
         const parsed = JSON.parse(String(source.file_url ?? "{}"));
         const sourceKeys: string[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
@@ -404,7 +412,7 @@ export async function POST(
             source: "ai-generated",
             ...(session != null ? { session } : {}),
           }),
-          is_public: true,
+          is_public: isPublic,
         })
         .select()
         .single();

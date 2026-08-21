@@ -8,15 +8,28 @@ export const dynamic = 'force-dynamic';
 type Dict = Record<string, unknown>;
 type LessonRow = {
   id: string;
+  lesson_plan_id: string | null;
+  curriculum_week_number: number | null;
+  session_number: number | null;
   status: string | null;
   updated_at: string | null;
   metadata: Dict | null;
 };
 type AssignmentRow = {
   id: string;
+  lesson_plan_id: string | null;
+  curriculum_week_number: number | null;
+  session_number: number | null;
   assignment_type: string | null;
   is_active: boolean | null;
   updated_at: string | null;
+  metadata: Dict | null;
+};
+type PackageAssetRow = {
+  id: string;
+  curriculum_week_number: number | null;
+  session_number: number | null;
+  is_public: boolean | null;
   metadata: Dict | null;
 };
 type PerformanceRow = {
@@ -93,6 +106,8 @@ export async function GET(
     scheduleRes,
     lessonsRes,
     assignmentsRes,
+    slidesRes,
+    flashcardsRes,
     performanceRes,
     auditRes,
   ] = await Promise.all([
@@ -105,18 +120,29 @@ export async function GET(
       ? (() => {
           let q = (supabase as any)
             .from('lessons')
-            .select('id,status,updated_at,metadata')
-            .eq('course_id', plan.course_id);
+            .select('id,lesson_plan_id,curriculum_week_number,session_number,status,updated_at,metadata')
+            .eq('course_id', plan.course_id)
+            .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
           q = plan.school_id ? q.eq('school_id', plan.school_id) : q.is('school_id', null);
           return q;
         })()
       : Promise.resolve({ data: [], error: null }),
+    (supabase as any)
+      .from('lesson_materials')
+      .select('id,curriculum_week_number,session_number,is_public,metadata')
+      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
+      .eq('file_type', 'slide-deck'),
+    (supabase as any)
+      .from('flashcard_decks')
+      .select('id,curriculum_week_number,session_number,is_public,metadata')
+      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
     plan.course_id
       ? (() => {
           let q = (supabase as any)
             .from('assignments')
-            .select('id,assignment_type,is_active,updated_at,metadata')
-            .eq('course_id', plan.course_id);
+            .select('id,lesson_plan_id,curriculum_week_number,session_number,assignment_type,is_active,updated_at,metadata')
+            .eq('course_id', plan.course_id)
+            .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
           q = plan.school_id ? q.eq('school_id', plan.school_id) : q.is('school_id', null);
           return q;
         })()
@@ -133,19 +159,23 @@ export async function GET(
       .limit(100),
   ]);
 
-  if (scheduleRes.error || lessonsRes.error || assignmentsRes.error || performanceRes.error || auditRes.error) {
+  if (scheduleRes.error || lessonsRes.error || assignmentsRes.error || slidesRes.error || flashcardsRes.error || performanceRes.error || auditRes.error) {
     return NextResponse.json({
       error: scheduleRes.error?.message
         ?? lessonsRes.error?.message
         ?? assignmentsRes.error?.message
+        ?? slidesRes.error?.message
+        ?? flashcardsRes.error?.message
         ?? performanceRes.error?.message
         ?? auditRes.error?.message
         ?? 'Failed to load operations data.',
     }, { status: 500 });
   }
 
-  const lessonRows = ((lessonsRes.data ?? []) as LessonRow[]).filter((row) => asObject(row.metadata).lesson_plan_id === id);
-  const assignmentRows = ((assignmentsRes.data ?? []) as AssignmentRow[]).filter((row) => asObject(row.metadata).lesson_plan_id === id);
+  const lessonRows = (lessonsRes.data ?? []) as LessonRow[];
+  const assignmentRows = (assignmentsRes.data ?? []) as AssignmentRow[];
+  const slideRows = (slidesRes.data ?? []) as PackageAssetRow[];
+  const flashcardRows = (flashcardsRes.data ?? []) as PackageAssetRow[];
   const performanceRows = (performanceRes.data ?? []) as PerformanceRow[];
   const auditRows = (auditRes.data ?? []) as AuditRow[];
 
@@ -153,15 +183,43 @@ export async function GET(
     const week = asObject(rawWeek);
     const ref = getYearTermWeek(week);
     const lessons = lessonRows.filter((row) => {
-      return metadataMatchesWeek(row.metadata, week, ref.year, ref.term);
+      const metadata = asObject(row.metadata);
+      return metadataMatchesWeek({
+        ...metadata,
+        week_number: row.curriculum_week_number ?? metadata.week_number,
+        session_number: row.session_number ?? metadata.session_number,
+      }, week, ref.year, ref.term);
     });
     const assignments = assignmentRows.filter((row) => {
-      return metadataMatchesWeek(row.metadata, week, ref.year, ref.term);
+      const metadata = asObject(row.metadata);
+      return metadataMatchesWeek({
+        ...metadata,
+        week_number: row.curriculum_week_number ?? metadata.week_number,
+        session_number: row.session_number ?? metadata.session_number,
+      }, week, ref.year, ref.term);
     });
-    const publishedLessons = lessons.filter((row) => row.status === 'published').length;
+    const slides = slideRows.filter((row) => {
+      const metadata = asObject(row.metadata);
+      return metadataMatchesWeek({
+        ...metadata,
+        week_number: row.curriculum_week_number ?? metadata.week_number,
+        session_number: row.session_number ?? metadata.session_number,
+      }, week, ref.year, ref.term);
+    });
+    const flashcards = flashcardRows.filter((row) => {
+      const metadata = asObject(row.metadata);
+      return metadataMatchesWeek({
+        ...metadata,
+        week_number: row.curriculum_week_number ?? metadata.week_number,
+        session_number: row.session_number ?? metadata.session_number,
+      }, week, ref.year, ref.term);
+    });
+    const publishedLessons = lessons.filter((row) => ['active', 'published'].includes(row.status ?? '')).length;
     const activeAssignments = assignments.filter((row) => row.is_active === true).length;
-    const totalItems = lessons.length + assignments.length;
-    const releasedItems = publishedLessons + activeAssignments;
+    const publicSlides = slides.filter((row) => row.is_public === true).length;
+    const publicFlashcards = flashcards.filter((row) => row.is_public === true).length;
+    const totalItems = lessons.length + assignments.length + slides.length + flashcards.length;
+    const releasedItems = publishedLessons + activeAssignments + publicSlides + publicFlashcards;
     const status =
       totalItems === 0 ? 'pending'
         : releasedItems === 0 ? 'draft'
@@ -195,6 +253,10 @@ export async function GET(
       lessons_published: publishedLessons,
       assignments_total: assignments.length,
       assignments_active: activeAssignments,
+      slides_total: slides.length,
+      slides_public: publicSlides,
+      flashcards_total: flashcards.length,
+      flashcards_public: publicFlashcards,
       latest_release_at: history[0]?.at ?? null,
       history: history.slice(0, 5),
     };

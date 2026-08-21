@@ -143,6 +143,7 @@ export default function ContentApprovalsPage() {
       const n =
         (result?.lessons_released ?? 0) +
         (result?.assignments_released ?? 0) +
+        (result?.slides_released ?? 0) +
         (result?.flashcards_released ?? 0);
       const meeting = teachingMeetingLabel(row.week, row.session);
       toast.success(`${meeting} released — ${n} item${n === 1 ? "" : "s"} now live`);
