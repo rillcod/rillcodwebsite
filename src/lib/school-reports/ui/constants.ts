@@ -23,7 +23,7 @@ export const plainStatus = (value: string) =>
 export const defaultSetupForm = () => ({
   schoolId: '',
   academicTermId: '',
-  title: 'School Performance and Curriculum Report',
+  title: '',
   startDate: REPORT_TODAY,
   endDate: REPORT_TODAY,
   curriculumStartTerm: 1,

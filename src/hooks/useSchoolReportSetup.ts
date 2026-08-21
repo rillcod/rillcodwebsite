@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import {
@@ -31,6 +31,8 @@ export function useSchoolReportSetup() {
   const [detectingRange, setDetectingRange] = useState(false);
   const [preflight, setPreflight] = useState<ReportPreflightResult | null>(null);
   const [preflightLoading, setPreflightLoading] = useState(false);
+  const detectionAbortRef = useRef<AbortController | null>(null);
+  const preflightAbortRef = useRef<AbortController | null>(null);
   const [activeBooks, setActiveBooks] = useState<
     Array<{
       id: string;
@@ -71,7 +73,10 @@ export function useSchoolReportSetup() {
           ...current,
           schoolId,
           academicTermId: termId,
-          title: current.title || defaultTitle,
+          title:
+            !current.title || current.title === 'School Performance and Curriculum Report'
+              ? defaultTitle
+              : current.title,
           curriculumStartTerm: current.academicTermId
             ? current.curriculumStartTerm
             : defaultTerm?.term_number || 1,
@@ -95,6 +100,14 @@ export function useSchoolReportSetup() {
     void load();
   }, [load]);
 
+  useEffect(
+    () => () => {
+      detectionAbortRef.current?.abort();
+      preflightAbortRef.current?.abort();
+    },
+    [],
+  );
+
   function applyCurriculumRangeSuggestion(suggestion: SuggestedCurriculumRange) {
     const startWeek = Math.max(1, suggestion.curriculumStartWeek || 1);
     const rawWeeks = Math.max(1, suggestion.curriculumEndWeek - startWeek + 1);
@@ -111,16 +124,22 @@ export function useSchoolReportSetup() {
 
   const detectCurriculumRange = useCallback(async (schoolId: string, academicTermId: string) => {
     if (!schoolId || !academicTermId) {
+      detectionAbortRef.current?.abort();
+      detectionAbortRef.current = null;
+      setDetectingRange(false);
       setCurriculumRangeHint(null);
       setCurriculumDetectionError(null);
       return;
     }
+    detectionAbortRef.current?.abort();
+    const controller = new AbortController();
+    detectionAbortRef.current = controller;
     setDetectingRange(true);
     setCurriculumDetectionError(null);
     try {
       const response = await fetch(
         `/api/school-performance-reports/curriculum-range?schoolId=${encodeURIComponent(schoolId)}&academicTermId=${encodeURIComponent(academicTermId)}`,
-        { cache: 'no-store' },
+        { cache: 'no-store', signal: controller.signal },
       );
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to detect delivery range (HTTP ${response.status}).`);
@@ -132,12 +151,16 @@ export function useSchoolReportSetup() {
       }
       applyCurriculumRangeSuggestion(suggestion);
     } catch (detectError) {
+      if (controller.signal.aborted) return;
       setCurriculumRangeHint(null);
       setCurriculumDetectionError(
         detectError instanceof Error ? detectError.message : 'Network error while detecting delivery range.',
       );
     } finally {
-      setDetectingRange(false);
+      if (detectionAbortRef.current === controller) {
+        detectionAbortRef.current = null;
+        setDetectingRange(false);
+      }
     }
   }, []);
 
@@ -151,7 +174,11 @@ export function useSchoolReportSetup() {
       setPreflight(null);
       return;
     }
+    preflightAbortRef.current?.abort();
+    const controller = new AbortController();
+    preflightAbortRef.current = controller;
     setPreflightLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams({
         schoolId: form.schoolId,
@@ -161,15 +188,20 @@ export function useSchoolReportSetup() {
       });
       const response = await fetch(`/api/school-performance-reports/preflight?${params.toString()}`, {
         cache: 'no-store',
+        signal: controller.signal,
       });
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Preflight failed (HTTP ${response.status}).`);
       setPreflight(json.data as ReportPreflightResult);
     } catch (preflightError) {
+      if (controller.signal.aborted) return;
       setPreflight(null);
       setError(preflightError instanceof Error ? preflightError.message : 'Preflight failed.');
     } finally {
-      setPreflightLoading(false);
+      if (preflightAbortRef.current === controller) {
+        preflightAbortRef.current = null;
+        setPreflightLoading(false);
+      }
     }
   }, [form.academicTermId, form.endDate, form.schoolId, form.startDate]);
 
@@ -178,9 +210,42 @@ export function useSchoolReportSetup() {
     void runPreflight();
   }, [canManage, form.academicTermId, form.schoolId, runPreflight]);
 
+  function chooseSchool(id: string) {
+    const school = schools.find((item) => item.id === id);
+    const term = terms.find((item) => item.id === form.academicTermId);
+    detectionAbortRef.current?.abort();
+    preflightAbortRef.current?.abort();
+    setDetectingRange(false);
+    setPreflightLoading(false);
+    setError('');
+    setCurriculumRangeHint(null);
+    setCurriculumDetectionError(null);
+    setPreflight(null);
+    setForm((current) => ({
+      ...current,
+      schoolId: id,
+      title:
+        !current.title || current.title.includes('Performance Report')
+          ? school && term
+            ? `${school.name} - ${term.term_label} ${term.academic_year} Performance Report`
+            : current.title
+          : current.title,
+      selectedTopicKeys: [],
+      curriculumOverrideReason: '',
+    }));
+  }
+
   function chooseTerm(id: string) {
     const term = terms.find((item) => item.id === id);
     const s = schools.find((item) => item.id === form.schoolId);
+    detectionAbortRef.current?.abort();
+    preflightAbortRef.current?.abort();
+    setDetectingRange(false);
+    setPreflightLoading(false);
+    setError('');
+    setCurriculumRangeHint(null);
+    setCurriculumDetectionError(null);
+    setPreflight(null);
     setForm((current) => {
       const nextTitle =
         !current.title || current.title.includes('Performance Report')
@@ -192,6 +257,8 @@ export function useSchoolReportSetup() {
         ...current,
         academicTermId: id,
         title: nextTitle,
+        selectedTopicKeys: [],
+        curriculumOverrideReason: '',
         ...(term
           ? {
               curriculumStartTerm: term.term_number,
@@ -282,6 +349,7 @@ export function useSchoolReportSetup() {
     preflightLoading,
     detectCurriculumRange,
     runPreflight,
+    chooseSchool,
     chooseTerm,
     generate,
     step,

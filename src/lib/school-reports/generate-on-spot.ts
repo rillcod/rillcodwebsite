@@ -305,7 +305,9 @@ export async function generateReportDeliveryCurriculum(
   if (!deliveryCourses.length) {
     throw Object.assign(
       new Error(
-        'No courses could be resolved for this report. Refresh the report snapshot first so programme courses are detected, then try again.',
+        input.snapshot
+          ? 'No courses could be resolved for this report. Refresh the report snapshot first so programme courses are detected, then try again.'
+          : 'No active course could be matched to this school. Assign learners to a class or programme course, then retry.',
       ),
       { status: 409 },
     );

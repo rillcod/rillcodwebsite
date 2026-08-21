@@ -202,11 +202,14 @@ export async function loadSchoolProgrammeScope(
   schoolId: string,
   studentRows: SchoolRosterRow[],
 ): Promise<SchoolProgrammeCourse[]> {
-  const { data: classes } = await admin
+  const { data: classes, error: classesError } = await admin
     .from('classes')
     .select('id, name, program_id, current_course_id, programs(id, name)')
     .eq('school_id', schoolId)
     .limit(1000);
+  if (classesError) {
+    throw new Error(`School classes could not be loaded: ${classesError.message}`);
+  }
 
   const programIds = [
     ...new Set((classes ?? []).map((cls: any) => String(cls.program_id || '')).filter(Boolean)),
@@ -222,7 +225,7 @@ export async function loadSchoolProgrammeScope(
           .select('id, title, program_id, is_active, programs(name)')
           .in('id', courseIdsFromClasses)
           .eq('is_active', true)
-      : Promise.resolve({ data: [] as CourseRow[] }),
+      : Promise.resolve({ data: [] as CourseRow[], error: null }),
     programIds.length
       ? admin
           .from('courses')
@@ -230,8 +233,14 @@ export async function loadSchoolProgrammeScope(
           .in('program_id', programIds)
           .eq('is_active', true)
           .order('level_order', { ascending: true })
-      : Promise.resolve({ data: [] as CourseRow[] }),
+      : Promise.resolve({ data: [] as CourseRow[], error: null }),
   ]);
+  if (coursesByIdResult.error) {
+    throw new Error(`Assigned class courses could not be loaded: ${coursesByIdResult.error.message}`);
+  }
+  if (coursesByProgramResult.error) {
+    throw new Error(`Programme courses could not be loaded: ${coursesByProgramResult.error.message}`);
+  }
 
   const courseById = new Map<string, CourseRow>();
   for (const course of [...(coursesByIdResult.data ?? []), ...(coursesByProgramResult.data ?? [])] as CourseRow[]) {
@@ -275,12 +284,15 @@ export async function loadSchoolProgrammeScope(
 
   const studentIds = studentRows.map((row) => row.id);
   if (studentIds.length) {
-    const { data: levelEnrollments } = await admin
+    const { data: levelEnrollments, error: levelEnrollmentError } = await admin
       .from('student_level_enrollments')
       .select('student_id, course_id, program_id, courses!student_level_enrollments_course_id_fkey(id, title, program_id, is_active, programs(name))')
       .eq('school_id', schoolId)
       .in('student_id', studentIds)
       .eq('status', 'active');
+    if (levelEnrollmentError) {
+      throw new Error(`Learner course enrolments could not be loaded: ${levelEnrollmentError.message}`);
+    }
 
     const learnersByCourse = new Map<string, Set<string>>();
     for (const row of (levelEnrollments ?? []) as any[]) {

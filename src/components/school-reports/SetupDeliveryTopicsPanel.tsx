@@ -35,13 +35,14 @@ type Props = {
   termLabel: string;
   selectedTopicKeys: string[];
   onSelectedTopicKeysChange: (keys: string[]) => void;
+  onLoadStateChange?: (state: 'idle' | 'loading' | 'ready' | 'empty' | 'error') => void;
   disabled?: boolean;
 };
 
 const topicCheckboxClass =
   'mt-1 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/30';
 const tapRowClass =
-  'flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-lg px-1 py-2 text-[11px] leading-snug active:bg-muted/40';
+  'flex min-h-11 w-full cursor-pointer items-start gap-3 rounded-lg px-2 py-2.5 text-sm leading-snug hover:bg-muted/40 active:bg-muted/60';
 
 export function SetupDeliveryTopicsPanel({
   form,
@@ -49,6 +50,7 @@ export function SetupDeliveryTopicsPanel({
   termLabel,
   selectedTopicKeys,
   onSelectedTopicKeysChange,
+  onLoadStateChange,
   disabled,
 }: Props) {
   const [loading, setLoading] = useState(false);
@@ -63,17 +65,28 @@ export function SetupDeliveryTopicsPanel({
   const [previousCheckpoint, setPreviousCheckpoint] = useState<CatalogResponse['previousCheckpoint']>(null);
   const [generatingCurriculum, setGeneratingCurriculum] = useState(false);
   const [genNotice, setGenNotice] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
-  const autoSuggestedRef = useRef(false);
+  const [selectionNotice, setSelectionNotice] = useState('');
+  const [search, setSearch] = useState('');
+  const autoSuggestedScopeRef = useRef('');
   const selectedTopicKeysRef = useRef(selectedTopicKeys);
   selectedTopicKeysRef.current = selectedTopicKeys;
   const onSelectedTopicKeysChangeRef = useRef(onSelectedTopicKeysChange);
   onSelectedTopicKeysChangeRef.current = onSelectedTopicKeysChange;
   const loadAbortRef = useRef<AbortController | null>(null);
   const deliveryScopeRef = useRef('');
+  const catalogScopeRef = useRef('');
   const selected = useMemo(() => new Set(selectedTopicKeys), [selectedTopicKeys]);
 
   const loadCatalog = useCallback(async () => {
     if (!form.schoolId || !form.academicTermId) return;
+    const requestScope = [
+      form.schoolId,
+      form.academicTermId,
+      form.curriculumStartTerm,
+      form.curriculumStartWeek,
+      form.curriculumEndTerm,
+      form.curriculumEndWeek,
+    ].join(':');
     setLoading(true);
     setError('');
     loadAbortRef.current?.abort();
@@ -95,9 +108,11 @@ export function SetupDeliveryTopicsPanel({
       });
       const response = await fetch(`/api/school-performance-reports/delivery-topics?${params.toString()}`, {
         signal: controller.signal,
+        cache: 'no-store',
       });
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load delivery topics (HTTP ${response.status}).`);
+      if (loadAbortRef.current !== controller || catalogScopeRef.current !== requestScope) return;
       const data = json as CatalogResponse;
       setMissingCurriculumCourses(data.missingCurriculumCourses || []);
       setCatalog(data.catalog || []);
@@ -112,18 +127,19 @@ export function SetupDeliveryTopicsPanel({
       const currentKeys = selectedTopicKeysRef.current.filter((key) => catalogKeys.has(key));
       if (currentKeys.length !== selectedTopicKeysRef.current.length) {
         onSelectedTopicKeysChangeRef.current(currentKeys);
+        setSelectionNotice('The delivery window changed, so topics outside the new window were removed from this draft.');
       } else if (
-        !autoSuggestedRef.current &&
+        autoSuggestedScopeRef.current !== requestScope &&
         currentKeys.length === 0 &&
         data.suggestedTopicKeys?.length
       ) {
-        autoSuggestedRef.current = true;
+        autoSuggestedScopeRef.current = requestScope;
         onSelectedTopicKeysChangeRef.current(data.suggestedTopicKeys);
       }
     } catch (loadError) {
       if (controller.signal.aborted) {
         if (timedOut && loadAbortRef.current === controller) {
-          setError('Topic load timed out. Tap Reload topics to try again.');
+          setError('The curriculum checklist took too long to load. Retry it below.');
         }
       } else {
         setError(loadError instanceof Error ? loadError.message : 'Unable to load delivery topics.');
@@ -147,11 +163,42 @@ export function SetupDeliveryTopicsPanel({
   useEffect(() => {
     const scopeKey = `${form.schoolId}:${form.academicTermId}`;
     if (deliveryScopeRef.current && deliveryScopeRef.current !== scopeKey) {
-      autoSuggestedRef.current = false;
+      autoSuggestedScopeRef.current = '';
       onSelectedTopicKeysChangeRef.current([]);
+      setSearch('');
+      setSelectionNotice('');
     }
     deliveryScopeRef.current = scopeKey;
   }, [form.schoolId, form.academicTermId]);
+
+  useEffect(() => {
+    const requestScope = [
+      form.schoolId,
+      form.academicTermId,
+      form.curriculumStartTerm,
+      form.curriculumStartWeek,
+      form.curriculumEndTerm,
+      form.curriculumEndWeek,
+    ].join(':');
+    if (catalogScopeRef.current !== requestScope) {
+      loadAbortRef.current?.abort();
+      catalogScopeRef.current = requestScope;
+      setCatalog([]);
+      setSchoolProgrammes([]);
+      setResolvedCourses([]);
+      setMissingCurriculumCourses([]);
+      setPreviousCheckpoint(null);
+      setError('');
+      setGenNotice(null);
+    }
+  }, [
+    form.academicTermId,
+    form.curriculumEndTerm,
+    form.curriculumEndWeek,
+    form.curriculumStartTerm,
+    form.curriculumStartWeek,
+    form.schoolId,
+  ]);
 
   useEffect(
     () => () => {
@@ -161,12 +208,27 @@ export function SetupDeliveryTopicsPanel({
   );
 
   useEffect(() => {
-    void loadCatalog();
+    if (!form.schoolId || !form.academicTermId) return;
+    const timer = window.setTimeout(() => void loadCatalog(), 300);
+    return () => window.clearTimeout(timer);
   }, [loadCatalog]);
+
+  useEffect(() => {
+    onLoadStateChange?.(
+      loading ? 'loading' : error ? 'error' : catalog.length ? 'ready' : form.schoolId ? 'empty' : 'idle',
+    );
+  }, [catalog.length, error, form.schoolId, loading, onLoadStateChange]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Map<string, DeliveryTopicOption[]>>();
+    const query = search.trim().toLocaleLowerCase();
     for (const row of catalog) {
+      if (
+        query &&
+        !`${row.programme} ${row.course} ${row.topic} week ${row.weekNumber}`.toLocaleLowerCase().includes(query)
+      ) {
+        continue;
+      }
       const programmes = map.get(row.programme) || new Map<string, DeliveryTopicOption[]>();
       const courses = programmes.get(row.course) || [];
       courses.push(row);
@@ -177,7 +239,7 @@ export function SetupDeliveryTopicsPanel({
       programme,
       courses: [...courses.entries()].map(([course, topics]) => ({ course, topics })),
     }));
-  }, [catalog]);
+  }, [catalog, search]);
 
   function setSelected(next: Set<string>) {
     onSelectedTopicKeysChange([...next]);
@@ -300,23 +362,25 @@ export function SetupDeliveryTopicsPanel({
           </p>
         </div>
         <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
-          <button
-            type="button"
-            disabled={disabled || generatingCurriculum || !form.schoolId}
-            onClick={() => void generateCurriculumOnSpot()}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50 sm:w-auto"
-          >
-            <ArrowPathIcon className={`h-3.5 w-3.5 ${generatingCurriculum ? 'animate-spin' : ''}`} />
-            {generatingCurriculum ? 'Generating…' : 'Generate topics'}
-          </button>
+          {!loading && !error && (!catalog.length || missingCurriculumCourses.length) ? (
+            <button
+              type="button"
+              disabled={disabled || generatingCurriculum || !form.schoolId}
+              onClick={() => void generateCurriculumOnSpot()}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50 sm:w-auto"
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${generatingCurriculum ? 'animate-spin' : ''}`} />
+              {generatingCurriculum ? 'Preparing checklist…' : 'Prepare missing topics'}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={disabled || loading || !form.schoolId}
             onClick={() => void loadCatalog()}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-black disabled:opacity-50 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-xs font-black disabled:opacity-50 sm:w-auto"
           >
             <ArrowPathIcon className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Reload topics
+            {loading ? 'Refreshing…' : 'Refresh checklist'}
           </button>
         </div>
       </div>
@@ -333,7 +397,36 @@ export function SetupDeliveryTopicsPanel({
         </p>
       ) : null}
 
-      {error ? <p className="text-[11px] font-semibold text-destructive break-words">{error}</p> : null}
+      {error ? (
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+          <p className="text-sm font-black text-destructive">Curriculum checklist did not load</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground break-words">{error}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={disabled || loading}
+              onClick={() => void loadCatalog()}
+              className="min-h-10 rounded-lg bg-primary px-4 py-2 text-xs font-black text-primary-foreground disabled:opacity-50"
+            >
+              Retry checklist
+            </button>
+            <button
+              type="button"
+              disabled={disabled || generatingCurriculum}
+              onClick={() => void generateCurriculumOnSpot()}
+              className="min-h-10 rounded-lg border border-border bg-background px-4 py-2 text-xs font-black disabled:opacity-50"
+            >
+              Prepare missing topics
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {selectionNotice ? (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:text-amber-100">
+          {selectionNotice}
+        </p>
+      ) : null}
 
       {genNotice ? (
         <p
@@ -373,7 +466,17 @@ export function SetupDeliveryTopicsPanel({
             {phase} phase · {reportingWeeks}-week window · tick topics across{' '}
             {resolvedCourses.map((row) => `${row.programme} · ${row.title}`).join(' · ') || 'enrolled courses'}
           </p>
-          <div className="max-h-[min(52dvh,22rem)] space-y-3 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-background/80 p-2 touch-pan-y sm:max-h-72 sm:p-3">
+          <label className="block">
+            <span className="sr-only">Search curriculum topics</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search programme, course, topic, or week"
+              className="min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+            />
+          </label>
+          <div className="max-h-[min(56dvh,28rem)] space-y-3 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-background/80 p-2 touch-pan-y sm:max-h-96 sm:p-3">
             {grouped.map((group) => {
               const programmeTopics = group.courses.flatMap((item) => item.topics);
               const selectedInProgramme = programmeTopics.filter((topic) => selected.has(topic.key)).length;
@@ -401,7 +504,7 @@ export function SetupDeliveryTopicsPanel({
                           type="button"
                           disabled={disabled}
                           onClick={() => toggleCourse(topics)}
-                          className="mb-1 min-h-10 w-full rounded-lg px-1 py-1.5 text-left text-[11px] font-black text-foreground hover:bg-muted/30 disabled:opacity-50"
+                          className="mb-1 min-h-11 w-full rounded-lg px-2 py-2 text-left text-sm font-black text-foreground hover:bg-muted/30 disabled:opacity-50"
                         >
                           <span className="break-words">{courseAll ? '☑' : '☐'} {course}</span>
                         </button>
@@ -430,26 +533,20 @@ export function SetupDeliveryTopicsPanel({
                 </div>
               );
             })}
+            {search.trim() && !grouped.length ? (
+              <p className="p-4 text-center text-sm text-muted-foreground">No topic matches “{search.trim()}”.</p>
+            ) : null}
           </div>
         </>
       ) : null}
 
-      {!loading && !catalog.length && form.schoolId ? (
+      {!loading && !error && !catalog.length && form.schoolId ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-[11px] leading-relaxed text-amber-950 dark:text-amber-100">
           <p>
             {generatingCurriculum
               ? 'Preparing a syllabus checklist from enrolled courses — tick only what was taught when ready.'
               : 'No syllabus checklist for this window yet. Generate programme topics, then tick what was actually taught — they pull through into the draft.'}
           </p>
-          <button
-            type="button"
-            disabled={disabled || generatingCurriculum}
-            onClick={() => void generateCurriculumOnSpot()}
-            className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-2 text-[11px] font-black text-white disabled:opacity-50"
-          >
-            <ArrowPathIcon className={`h-3.5 w-3.5 ${generatingCurriculum ? 'animate-spin' : ''}`} />
-            {generatingCurriculum ? 'Generating programme topics…' : 'Generate programme topics'}
-          </button>
         </div>
       ) : null}
 

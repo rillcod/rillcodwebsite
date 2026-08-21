@@ -88,6 +88,7 @@ export function SchoolReportSetupWizard({
   terms,
   form,
   setForm,
+  chooseSchool,
   chooseTerm,
   curriculumRangeHint,
   curriculumDetectionError,
@@ -106,6 +107,7 @@ export function SchoolReportSetupWizard({
   terms: AcademicTerm[];
   form: ReportSetupForm;
   setForm: (value: ReportSetupForm | ((prev: ReportSetupForm) => ReportSetupForm)) => void;
+  chooseSchool: (id: string) => void;
   chooseTerm: (id: string) => void;
   curriculumRangeHint: SuggestedCurriculumRange | null;
   curriculumDetectionError: string | null;
@@ -127,11 +129,12 @@ export function SchoolReportSetupWizard({
   }>;
 }) {
   const [stepHint, setStepHint] = useState<string>('');
+  const [checklistLoadState, setChecklistLoadState] = useState<'idle' | 'loading' | 'ready' | 'empty' | 'error'>('idle');
   const scopeReady = Boolean(form.schoolId && form.academicTermId && form.title.trim().length >= 3);
   const overrideRequired = needsCurriculumOverrideReason(form, curriculumRangeHint);
   const overrideReady = !overrideRequired || form.curriculumOverrideReason.trim().length >= 8;
   const deliveryReady = form.selectedTopicKeys.length > 0;
-  const curriculumStepReady = overrideReady;
+  const curriculumStepReady = overrideReady && checklistLoadState !== 'loading';
   const existingBook = activeBooks.find(
     (book) => book.school_id === form.schoolId && book.academic_term_id === form.academicTermId,
   );
@@ -149,7 +152,9 @@ export function SchoolReportSetupWizard({
       return 'Choose the school, term, and report title first.';
     }
     if (target > 2 && !curriculumStepReady) {
-      return 'Provide the curriculum override reason before continuing.';
+      return !overrideReady
+        ? 'Provide the curriculum override reason before continuing.'
+        : 'Wait for the curriculum checklist to finish loading.';
     }
     return '';
   }
@@ -180,16 +185,6 @@ export function SchoolReportSetupWizard({
             <p className="text-sm text-muted-foreground">Tick what was taught first — those topics pull through into the draft.</p>
           </div>
         </div>
-        {scopeReady ? (
-          <button
-            type="button"
-            onClick={() => goToStep(2)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-black text-white shadow-md hover:from-blue-700 hover:to-purple-700 transition-all"
-          >
-            <SparklesIcon className="h-4 w-4" />
-            Continue to What we taught
-          </button>
-        ) : null}
       </div>
 
       <div className="relative mt-5 -mx-1">
@@ -223,7 +218,7 @@ export function SchoolReportSetupWizard({
             <span className="text-xs font-black uppercase text-muted-foreground">School</span>
             <select
               value={form.schoolId}
-              onChange={(e) => setForm({ ...form, schoolId: e.target.value })}
+              onChange={(e) => chooseSchool(e.target.value)}
               className="w-full rounded-xl border border-border bg-background p-3"
             >
               <option value="">Choose school</option>
@@ -276,23 +271,6 @@ export function SchoolReportSetupWizard({
               className="w-full rounded-xl border border-border bg-background p-3"
             />
           </label>
-          {scopeReady ? (
-            <div className="md:col-span-2 rounded-2xl border border-primary/30 bg-primary/[0.04] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-sm font-black text-foreground">Next: tick what was taught</p>
-                <p className="text-xs text-muted-foreground">
-                  Confirm topics now. They are saved into the draft when you create it — you do not have to open the editor first.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => goToStep(2)}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-xs font-black text-white shadow-sm hover:from-blue-700 hover:to-purple-700 transition-all"
-              >
-                What we taught
-              </button>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
@@ -331,8 +309,8 @@ export function SchoolReportSetupWizard({
               </p>
             ) : null}
             {curriculumRangeHint?.schoolCourses?.length ? (
-              <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
-                <p className="text-[11px] font-black uppercase text-muted-foreground">Programmes at this school</p>
+              <details className="mt-3 rounded-xl border border-border bg-background/60 p-3">
+                <summary className="cursor-pointer text-xs font-black text-foreground">Review matched programmes and courses</summary>
                 <ul className="mt-2 space-y-2">
                   {curriculumRangeHint.schoolCourses.map((item) => (
                     <li
@@ -354,7 +332,7 @@ export function SchoolReportSetupWizard({
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             ) : null}
           </label>
           <div className="md:col-span-2 space-y-2">
@@ -394,33 +372,26 @@ export function SchoolReportSetupWizard({
               term&apos;s delivery window — topics and manual delivery span across your selection.
             </p>
           </div>
-          <label className="space-y-1">
-            <span className="text-xs font-black uppercase text-muted-foreground">Range starts (term · week)</span>
-            <div className="grid grid-cols-2 gap-2">
-              <input type="number" min="1" value={form.curriculumStartTerm} onChange={(e) => setForm({ ...form, curriculumStartTerm: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
-              <input type="number" min="1" value={form.curriculumStartWeek} onChange={(e) => setForm({ ...form, curriculumStartWeek: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
+          <details className="md:col-span-2 rounded-xl border border-border bg-muted/20 p-3">
+            <summary className="cursor-pointer text-xs font-black text-foreground">Advanced delivery range</summary>
+            <p className="mt-2 text-xs text-muted-foreground">Only change these values when the report spans a custom term or week range.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-xs font-black uppercase text-muted-foreground">Starts (term · week)</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" min="1" value={form.curriculumStartTerm} onChange={(e) => setForm({ ...form, curriculumStartTerm: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
+                  <input type="number" min="1" value={form.curriculumStartWeek} onChange={(e) => setForm({ ...form, curriculumStartWeek: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
+                </div>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-black uppercase text-muted-foreground">Ends (term · week)</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="number" min="1" value={form.curriculumEndTerm} onChange={(e) => setForm({ ...form, curriculumEndTerm: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
+                  <input type="number" min="1" value={form.curriculumEndWeek} onChange={(e) => setForm({ ...form, curriculumEndWeek: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
+                </div>
+              </label>
             </div>
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs font-black uppercase text-muted-foreground">Range ends (term · week)</span>
-            <div className="grid grid-cols-2 gap-2">
-              <input type="number" min="1" value={form.curriculumEndTerm} onChange={(e) => setForm({ ...form, curriculumEndTerm: Number(e.target.value) })} className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm" />
-              <input
-                type="number"
-                min="1"
-                value={form.curriculumEndWeek}
-                onChange={(e) => {
-                  const endWeek = Number(e.target.value);
-                  const windowWeeks = normalizeReportingWeeks(endWeek - form.curriculumStartWeek + 1);
-                  setForm({
-                    ...form,
-                    curriculumEndWeek: endWeekForReportWindow(form.curriculumStartWeek, windowWeeks),
-                  });
-                }}
-                className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-base sm:text-sm"
-              />
-            </div>
-          </label>
+          </details>
           {overrideRequired ? (
             <label className="space-y-1 md:col-span-2">
               <span className="text-xs font-black uppercase text-muted-foreground">Why override the detected range?</span>
@@ -450,6 +421,7 @@ export function SchoolReportSetupWizard({
               return same ? prev : { ...prev, selectedTopicKeys: keys };
             })
           }
+          onLoadStateChange={setChecklistLoadState}
           disabled={working === 'generate'}
         />
         </>

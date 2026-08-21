@@ -514,6 +514,8 @@ export async function loadDeliveryTopicCatalogForReport(
   input: {
     schoolId: string;
     snapshot?: DeliveryCatalogSnapshot | null;
+    /** Keep setup mode on the same session-specific adoption used by a frozen report snapshot. */
+    academicYear?: string | null;
     academicTermNumber: number;
     range: {
       startTerm: number;
@@ -554,7 +556,7 @@ export async function loadDeliveryTopicCatalogForReport(
   const curricula = await loadSchoolDeliveryCurricula(admin, input.schoolId, {
     studentRows,
     resolvedCourseIds,
-    academicYear: input.snapshot?.period?.academicYear,
+    academicYear: input.academicYear ?? input.snapshot?.period?.academicYear,
     academicTermNumber: input.academicTermNumber,
     schoolScope,
   });

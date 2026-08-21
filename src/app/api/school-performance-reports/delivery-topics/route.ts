@@ -31,7 +31,8 @@ async function loadPreviousCheckpoint(
     .order('updated_at', { ascending: false })
     .limit(12);
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw new Error(`Previous report checkpoint could not be loaded: ${error.message}`);
   for (const row of data ?? []) {
     if (excludeReportId && row.id === excludeReportId) continue;
     const decl = (row.snapshot as { deliveryDeclaration?: DeliveryDeclaration } | null)?.deliveryDeclaration;
@@ -47,7 +48,7 @@ async function loadPreviousCheckpoint(
 }
 
 async function loadStudentRows(admin: SupabaseClient, schoolId: string) {
-  const { data: students } = await admin
+  const { data: students, error } = await admin
     .from('portal_users')
     .select('id,class_id,full_name,section_class,grade,class_arm')
     .eq('role', 'student')
@@ -55,6 +56,7 @@ async function loadStudentRows(admin: SupabaseClient, schoolId: string) {
     .eq('is_active', true)
     .or('is_deleted.is.null,is_deleted.eq.false')
     .limit(5000);
+  if (error) throw new Error(`The active learner list could not be loaded: ${error.message}`);
   return (students ?? []) as any[];
 }
 
@@ -87,9 +89,10 @@ export async function GET(req: NextRequest) {
     }
 
     const row = report as SchoolPerformanceReportRow;
-    const { data: academicTerm } = row.academic_term_id
+    const { data: academicTerm, error: academicTermError } = row.academic_term_id
       ? await actor.admin.from('academic_terms').select('term_number').eq('id', row.academic_term_id).maybeSingle()
-      : { data: null };
+      : { data: null, error: null };
+    if (academicTermError) throw new Error(`The report term could not be loaded: ${academicTermError.message}`);
 
     const academicTermNumber = resolveDeliveryTermNumber(
       row.curriculum_start_term,
@@ -173,6 +176,7 @@ export async function GET(req: NextRequest) {
 
   const { catalog, resolvedCourses, schoolScope, missingCurriculumCourses } = await loadDeliveryTopicCatalogForReport(actor.admin, {
     schoolId: setupSchoolId,
+    academicYear: academicTerm.academic_year,
     academicTermNumber,
     range,
     studentRows,
@@ -202,8 +206,13 @@ export async function GET(req: NextRequest) {
     missingCurriculumCourses,
   });
   } catch (error) {
+    console.error('[school-reports/delivery-topics] Failed to load curriculum checklist', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unable to load delivery topics.' },
+      {
+        error:
+          'The curriculum checklist could not be loaded from the school records. Retry now; if it persists, confirm the learners’ class and programme-course assignments.',
+        code: 'CURRICULUM_CHECKLIST_UNAVAILABLE',
+      },
       { status: 500 },
     );
   }

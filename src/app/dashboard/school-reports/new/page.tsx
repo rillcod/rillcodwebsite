@@ -50,6 +50,7 @@ export default function NewSchoolReportPage() {
           terms={setup.terms}
           form={setup.form}
           setForm={setup.setForm}
+          chooseSchool={setup.chooseSchool}
           chooseTerm={setup.chooseTerm}
           curriculumRangeHint={setup.curriculumRangeHint}
           curriculumDetectionError={setup.curriculumDetectionError}
