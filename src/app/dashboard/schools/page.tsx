@@ -709,6 +709,9 @@ export default function SchoolsPage() {
                         {s.school_type && (
                           <span className="text-xs text-muted-foreground bg-card px-2 py-0.5 rounded-full">{s.school_type}</span>
                         )}
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${s.programme_standing === 'compulsory' ? 'border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300' : 'border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'}`}>
+                          {s.programme_standing === 'compulsory' ? 'School papers' : 'Rillcod evidence'}
+                        </span>
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         {s.contact_person && <span>{s.contact_person}</span>}
@@ -846,7 +849,7 @@ export default function SchoolsPage() {
                   <div className="p-6 space-y-4 text-sm">
                     {[
                       { label: 'School Type', value: detail.school_type },
-                      { label: 'Evaluation path', value: detail.programme_standing === 'compulsory' ? 'Compulsory — First Test, Second Test and Examination' : 'Optional — Rillcod evaluations' },
+                      { label: 'Result pathway', value: detail.programme_standing === 'compulsory' ? 'School papers — First Test, Second Test and Examination' : 'Rillcod evidence — classwork, projects and Rillcod assessments' },
                       { label: 'Teaching sessions / week', value: detail.sessions_per_week === 1 ? 'Once' : 'Twice' },
                       { label: 'Test sitting', value: detail.programme_standing === 'compulsory' ? (detail.test_capture === 'cbt' ? 'CBT' : 'Printed paper') : null },
                       { label: 'Exam sitting', value: detail.programme_standing === 'compulsory' ? (detail.exam_capture === 'cbt' ? 'CBT (advanced labs)' : 'Printed paper') : null },
@@ -1058,16 +1061,33 @@ export default function SchoolsPage() {
                       placeholder="Basic / Secondary / Unified"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Evaluation path</label>
-                    <select
-                      value={createForm.programmeStanding}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, programmeStanding: e.target.value }))}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary appearance-none"
-                    >
-                      <option value="optional">Optional — Rillcod evaluations</option>
-                      <option value="compulsory">Compulsory — First Test, Second Test and Examination</option>
-                    </select>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Result pathway</label>
+                    <div className="grid grid-cols-1 gap-2 rounded-2xl border border-border bg-muted/20 p-1.5 sm:grid-cols-2" role="radiogroup" aria-label="School result pathway">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={createForm.programmeStanding !== 'compulsory'}
+                        onClick={() => setCreateForm(prev => ({ ...prev, programmeStanding: 'optional' }))}
+                        className={`min-h-16 rounded-xl border px-3 py-2.5 text-left transition-colors ${createForm.programmeStanding !== 'compulsory' ? 'border-cyan-500/40 bg-cyan-500/10 text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-card'}`}
+                      >
+                        <span className="block text-sm font-black">Rillcod evidence</span>
+                        <span className="mt-0.5 block text-[11px] leading-4">Classwork, projects and Rillcod assessments drive the result.</span>
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={createForm.programmeStanding === 'compulsory'}
+                        onClick={() => setCreateForm(prev => ({ ...prev, programmeStanding: 'compulsory' }))}
+                        className={`min-h-16 rounded-xl border px-3 py-2.5 text-left transition-colors ${createForm.programmeStanding === 'compulsory' ? 'border-violet-500/40 bg-violet-500/10 text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:bg-card'}`}
+                      >
+                        <span className="block text-sm font-black">School papers</span>
+                        <span className="mt-0.5 block text-[11px] leading-4">First Test, Second Test and Examination are authoritative.</span>
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
+                      One central switch for this school. It changes future drafts and teaching tools; published reports keep the pathway recorded when they were released.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Teaching sessions per week</label>
