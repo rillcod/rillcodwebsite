@@ -46,6 +46,7 @@ import {
   liveSessionLike,
   parseCanonicalTermLabel,
 } from "@/lib/reports/session-scope";
+import type { PlanContentSummary } from "@/lib/academic/plan-content-summary";
 
 interface LessonPlan {
   id: string;
@@ -80,6 +81,7 @@ interface LessonPlan {
   courses?: { id: string; title: string; program_id?: string | null } | null;
   classes?: { id: string; name: string } | null;
   schools?: { id: string; name: string } | null;
+  content_summary?: PlanContentSummary;
 }
 
 function getWeekEntries(
@@ -142,6 +144,14 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
     cls: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30",
   },
 };
+
+const CONTENT_ASSET_LABELS = [
+  ["lesson", "Lessons"],
+  ["slides", "Slides"],
+  ["flashcards", "Cards"],
+  ["assignment", "Tasks"],
+  ["project", "Projects"],
+] as const;
 
 // ─── Term date helpers (Nigerian school calendar) ────────────────────────────
 function termDates(
@@ -226,9 +236,6 @@ function LessonPlansPageInner() {
     Course[] | null
   >(null);
   const [programCoursesLoading, setProgramCoursesLoading] = useState(false);
-  const [allLessons, setAllLessons] = useState<any[]>([]);
-  const [allAssignments, setAllAssignments] = useState<any[]>([]);
-
   const isAdmin = profile?.role === "admin";
   const isTeacher = profile?.role === "teacher";
   const canManage = isAdmin || isTeacher;
@@ -331,8 +338,6 @@ function LessonPlansPageInner() {
         coursesJson,
         classesJson,
         programsJson,
-        lessonsJson,
-        assignmentsJson,
       ] = await Promise.all([
         fetchJsonWithTimeout("/api/lesson-plans", { data: [] }, "lesson plans"),
         fetchJsonWithTimeout(
@@ -351,24 +356,12 @@ function LessonPlansPageInner() {
           { data: [] },
           "lesson plan programs"
         ),
-        fetchJsonWithTimeout(
-          "/api/lessons",
-          { data: [] },
-          "lesson plan lessons"
-        ),
-        fetchJsonWithTimeout(
-          "/api/assignments",
-          { data: [] },
-          "lesson plan assignments"
-        ),
       ]);
 
       setPlans(plansJson.data ?? []);
       setCourses(coursesJson.data ?? []);
       setAllClasses(classesJson.data ?? []);
       setPrograms(programsJson.data ?? []);
-      setAllLessons(lessonsJson.data ?? []);
-      setAllAssignments(assignmentsJson.data ?? []);
 
       if (isAdmin) {
         const schoolsJson = await fetchJsonWithTimeout(
@@ -1159,24 +1152,19 @@ function LessonPlansPageInner() {
                 })}`;
               })();
 
-              const totalWeeks = getWeekEntries(plan.plan_data).length || 1;
-              const lessonsCount = allLessons.filter(
-                (l) => l.metadata?.lesson_plan_id === plan.id
-              ).length;
-              const assignmentsCount = allAssignments.filter(
-                (a) => a.metadata?.lesson_plan_id === plan.id
-              ).length;
-              const lessonsPercentage = Math.min(
-                100,
-                Math.round((lessonsCount / totalWeeks) * 100)
-              );
-              const assignmentsPercentage = Math.min(
-                100,
-                Math.round((assignmentsCount / totalWeeks) * 100)
-              );
-              const readinessPercentage = Math.round(
-                ((lessonsCount + assignmentsCount) / (totalWeeks * 2)) * 100
-              );
+              const contentSummary = plan.content_summary;
+              const readinessPercentage = contentSummary?.prepared_pct ?? 0;
+              const contentState = contentSummary?.state ?? "empty";
+              const contentStateLabel =
+                contentState === "released"
+                  ? "Released"
+                  : contentState === "ready_to_review"
+                    ? "Ready for review"
+                    : contentState === "mixed"
+                      ? "Review visibility"
+                      : contentState === "in_progress"
+                        ? "In progress"
+                        : "Not prepared";
 
               return (
                 <motion.div
@@ -1220,40 +1208,65 @@ function LessonPlansPageInner() {
                       </h3>
                     </div>
 
-                    {/* Progress visualizer */}
+                    {/* The same five-asset readiness used by class delivery and release. */}
                     <div className="mt-3 mb-4 space-y-2 border-t border-border/40 pt-3">
-                      <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                        <span>LMS Readiness</span>
-                        <span className="text-primary font-black">
-                          {readinessPercentage}%
+                      <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-widest">
+                        <span className="text-muted-foreground">Package readiness</span>
+                        <span
+                          className={
+                            contentState === "released"
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : contentState === "ready_to_review"
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-primary"
+                          }
+                        >
+                          {readinessPercentage}% · {contentStateLabel}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <div className="h-1 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-indigo-500 transition-all rounded-full"
-                            style={{ width: `${lessonsPercentage}%` }}
-                            title={`Lessons: ${lessonsCount}/${totalWeeks}`}
-                          />
-                        </div>
-                        <div className="h-full bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500 transition-all rounded-full"
-                            style={{ width: `${assignmentsPercentage}%` }}
-                            title={`Assignments: ${assignmentsCount}/${totalWeeks}`}
-                          />
-                        </div>
+                      <div
+                        className="h-1.5 overflow-hidden rounded-full bg-muted"
+                        aria-label={`${readinessPercentage}% of the five-part teaching package is prepared`}
+                      >
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            contentState === "released"
+                              ? "bg-emerald-500"
+                              : contentState === "ready_to_review"
+                                ? "bg-amber-500"
+                                : "bg-primary"
+                          }`}
+                          style={{ width: `${readinessPercentage}%` }}
+                        />
                       </div>
-                      <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                          {lessonsCount}/{totalWeeks} Lessons
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          {assignmentsCount}/{totalWeeks} Tasks
-                        </span>
+                      <div className="grid grid-cols-5 gap-1 text-center text-[8px] font-bold text-muted-foreground sm:text-[9px]">
+                        {CONTENT_ASSET_LABELS.map(([asset, label]) => {
+                          const item = contentSummary?.by_asset[asset];
+                          const complete =
+                            Boolean(item?.expected) && item!.prepared === item!.expected;
+                          const live = Boolean(item?.expected) && item!.live === item!.expected;
+                          return (
+                            <span
+                              key={asset}
+                              title={`${label}: ${item?.prepared ?? 0}/${item?.expected ?? 0} prepared`}
+                              className={`rounded-md border px-1 py-1 ${
+                                live
+                                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                  : complete
+                                    ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                    : "border-border bg-muted/30"
+                              }`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })}
                       </div>
+                      {contentSummary?.review_ready && (
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          Prepared work remains held until a teacher reviews and releases it.
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/60 text-xs">

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  PLATFORM_CONFIGURATION_KEYS,
+  isAllowedAppSettingMutationKey,
+  isSensitivePlatformSetting,
+} from '@/lib/config/platform-settings';
 
 function adminClient() {
   return createClient(
@@ -23,7 +28,7 @@ async function requireAdmin() {
   return profile;
 }
 
-// GET /api/app-settings — admin fetches all settings (values redacted for display)
+// GET /api/app-settings — only the keys owned by Platform Configuration.
 export async function GET() {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
@@ -31,15 +36,19 @@ export async function GET() {
   const { data, error } = await adminClient()
     .from('app_settings')
     .select('key, value, updated_at')
+    .in('key', [...PLATFORM_CONFIGURATION_KEYS])
     .order('key');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Mask secret values for display — only show last 4 chars
+  // Secrets are write-only. A browser only learns whether one is configured.
   const masked = (data ?? []).map((row: any) => ({
     key: row.key,
-    // Return the real value for editing, masked display is done client-side
-    value: row.value,
+    value: isSensitivePlatformSetting(row.key) ? '' : row.value,
+    sensitive: isSensitivePlatformSetting(row.key),
+    configured: isSensitivePlatformSetting(row.key)
+      ? Boolean(String(row.value ?? '').trim())
+      : undefined,
     updated_at: row.updated_at,
   }));
 
@@ -57,6 +66,16 @@ export async function PUT(request: NextRequest) {
 
   if (!Array.isArray(settings) || settings.length === 0) {
     return NextResponse.json({ error: 'settings array required' }, { status: 400 });
+  }
+
+  const unsupported = settings.find(
+    (setting) => !isAllowedAppSettingMutationKey(String(setting?.key ?? ''))
+  );
+  if (unsupported) {
+    return NextResponse.json(
+      { error: `Setting is owned by another workflow: ${unsupported.key}` },
+      { status: 400 },
+    );
   }
 
   for (const s of settings) {
@@ -101,12 +120,25 @@ export async function PUT(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Audit platform-policy changes — who changed which settings to what.
+  const safeAuditSettings = settings.map((setting) => ({
+    key: setting.key,
+    value: isSensitivePlatformSetting(setting.key)
+      ? '[secret updated]'
+      : setting.value,
+  }));
   await logAudit(adminClient() as any, {
     action: 'update_platform_settings',
     actorId: (caller as any)?.id ?? null,
     resourceType: 'app_settings',
-    newValue: settings.map(s => `${s.key}=${s.value}`).join(', ').slice(0, 500),
-    newValues: Object.fromEntries(settings.map(s => [s.key, s.value])),
+    newValue: `Updated platform configuration: ${safeAuditSettings
+      .map(
+        (setting) =>
+          `${setting.key.replace(/_/g, ' ')} (${setting.value})`
+      )
+      .join(', ')}`.slice(0, 500),
+    newValues: Object.fromEntries(
+      safeAuditSettings.map((setting) => [setting.key, setting.value])
+    ),
   });
 
   return NextResponse.json({ success: true });

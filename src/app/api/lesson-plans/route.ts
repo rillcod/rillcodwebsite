@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessLessonScope } from "./authz";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
+import { summarisePlanContent } from "@/lib/academic/plan-content-summary";
 
 export const dynamic = "force-dynamic";
 import { inferTermNumberFromPlanTerm } from "@/lib/lesson-plans/syllabusImport";
@@ -128,6 +129,81 @@ export async function GET(request: Request) {
         return !planTerm && termId === liveTermId;
       });
     }
+  }
+
+  // The list screen receives one canonical five-asset summary. Previously it
+  // fetched lessons and assignments separately in the browser, ignored slides,
+  // flashcards and projects, and therefore showed a different readiness number
+  // from the class workspace and release gate.
+  const planIds = plans.map((plan: any) => String(plan.id)).filter(Boolean);
+  if (planIds.length > 0) {
+    const [lessonRows, assignmentRows, slideRows, flashcardRows] =
+      await Promise.all([
+        db
+          .from("lessons")
+          .select(
+            "id,lesson_plan_id,curriculum_week_number,session_number,status"
+          )
+          .in("lesson_plan_id", planIds),
+        db
+          .from("assignments")
+          .select(
+            "id,lesson_plan_id,lesson_id,curriculum_week_number,session_number,assignment_type,is_active"
+          )
+          .in("lesson_plan_id", planIds),
+        (db as any)
+          .from("lesson_materials")
+          .select(
+            "id,lesson_plan_id,lesson_id,curriculum_week_number,session_number,file_type,is_public"
+          )
+          .in("lesson_plan_id", planIds)
+          .eq("file_type", "slide-deck"),
+        (db as any)
+          .from("flashcard_decks")
+          .select(
+            "id,lesson_plan_id,lesson_id,curriculum_week_number,session_number,is_public"
+          )
+          .in("lesson_plan_id", planIds),
+      ]);
+
+    const contentError = [
+      lessonRows.error,
+      assignmentRows.error,
+      slideRows.error,
+      flashcardRows.error,
+    ].find(Boolean);
+    if (contentError) {
+      return NextResponse.json(
+        { error: `Teaching content summary failed: ${contentError.message}` },
+        { status: 500 }
+      );
+    }
+
+    const rowsForPlan = (rows: any[] | null | undefined, planId: string) =>
+      (rows ?? []).filter((row: any) => row.lesson_plan_id === planId);
+
+    plans = plans.map((plan: any) => {
+      const assignments = rowsForPlan(assignmentRows.data, plan.id);
+      return {
+        ...plan,
+        content_summary: summarisePlanContent({
+          planWeeks: Array.isArray(plan.plan_data?.weeks)
+            ? plan.plan_data.weeks
+            : [],
+          lessons: rowsForPlan(lessonRows.data, plan.id),
+          assignments: assignments.filter(
+            (row: any) =>
+              String(row.assignment_type ?? "").toLowerCase() !== "project"
+          ),
+          projects: assignments.filter(
+            (row: any) =>
+              String(row.assignment_type ?? "").toLowerCase() === "project"
+          ),
+          slideDecks: rowsForPlan(slideRows.data, plan.id),
+          flashcardDecks: rowsForPlan(flashcardRows.data, plan.id),
+        }),
+      };
+    });
   }
 
   return NextResponse.json({ data: plans });

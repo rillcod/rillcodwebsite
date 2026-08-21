@@ -115,6 +115,12 @@ const VIEWS = [
   },
 ];
 
+const PRIMARY_VIEW_IDS = new Set<ViewId>([
+  "overview",
+  "delivery",
+  "decisions",
+]);
+
 const PANELS: Record<ViewId, ComponentType<{ embedded?: boolean }>> = {
   overview: LearnerOverview,
   delivery: TeachingCoverage,
@@ -132,6 +138,10 @@ function LearnerProgressOfficePageContent() {
   const searchParams = useSearchParams();
   const role = profile?.role ?? "";
   const available = VIEWS.filter((view) => view.roles.includes(role));
+  const primaryViews = available.filter((view) => PRIMARY_VIEW_IDS.has(view.id));
+  const supportingViews = available.filter(
+    (view) => !PRIMARY_VIEW_IDS.has(view.id)
+  );
   const requested = searchParams.get("view") as ViewId | null;
   const active = available.some((view) => view.id === requested)
     ? requested!
@@ -193,7 +203,7 @@ function LearnerProgressOfficePageContent() {
         <MobileScrollStrip
           label="Choose view"
           ariaLabel="Learner Progress views"
-          items={available.map((view) => ({
+          items={primaryViews.map((view) => ({
             id: view.id,
             label: view.label,
             hint: view.purpose,
@@ -203,13 +213,13 @@ function LearnerProgressOfficePageContent() {
           }))}
         />
 
-        {/* Desktop: grid picker */}
+        {/* The three recurring decisions stay visible; specialist tools stay nearby without becoming eight competing tabs. */}
         <section
           className="hidden rounded-2xl border border-border bg-card p-3 sm:p-4 md:block"
           aria-label="Learner Progress tools"
         >
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {available.map((view) => {
+          <div className="grid gap-2 sm:grid-cols-3">
+            {primaryViews.map((view) => {
               const Icon = view.icon;
               const selected = view.id === active;
               return (
@@ -246,6 +256,53 @@ function LearnerProgressOfficePageContent() {
             })}
           </div>
         </section>
+
+        {supportingViews.length > 0 && (
+          <details
+            className="rounded-2xl border border-border bg-card"
+            open={supportingViews.some((view) => view.id === active) || undefined}
+          >
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black [&::-webkit-details-marker]:hidden">
+              <span>More academic tools</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Insights, projects, history and configuration
+              </span>
+            </summary>
+            <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 lg:grid-cols-3">
+              {supportingViews.map((view) => {
+                const Icon = view.icon;
+                const selected = view.id === active;
+                return (
+                  <button
+                    key={view.id}
+                    type="button"
+                    onClick={() => choose(view.id)}
+                    aria-pressed={selected}
+                    className={`flex min-h-14 items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
+                      selected
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-border bg-background/40 hover:border-primary/30 hover:bg-muted/40"
+                    }`}
+                  >
+                    <Icon
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+                        selected ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    />
+                    <span>
+                      <span className="block text-xs font-black">
+                        {view.label}
+                      </span>
+                      <span className="mt-1 block text-[11px] leading-snug text-muted-foreground">
+                        {view.purpose}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        )}
 
         <section
           className="min-w-0 overflow-hidden rounded-2xl border border-border bg-background"

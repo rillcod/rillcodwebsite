@@ -1,5 +1,5 @@
-import CommunicationSafetyPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <CommunicationSafetyPage />;
+  redirect("/dashboard/learner-safety");
 }

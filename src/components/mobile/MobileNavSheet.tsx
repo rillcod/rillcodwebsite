@@ -397,8 +397,8 @@ export default function MobileNavSheet({ isOpen, onClose, navEntries }: MobileNa
                 href="/dashboard/platform-operations"
                 onClick={onClose}
                 className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-foreground"
-                aria-label="Platform operations"
-                title="Platform operations"
+                aria-label="Platform configuration"
+                title="Platform configuration"
               >
                 <CogIcon className="h-5 w-5" />
               </Link>

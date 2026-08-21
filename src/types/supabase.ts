@@ -14476,6 +14476,97 @@ export type Database = {
           },
         ]
       }
+      progression_path_visibility: {
+        Row: {
+          class_id: string | null
+          id: string
+          mode: string
+          student_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          id?: string
+          mode?: string
+          student_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          id?: string
+          mode?: string
+          student_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progression_path_visibility_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progression_path_visibility_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       project_engagement: {
         Row: {
           assignment_id: string | null
@@ -16159,6 +16250,7 @@ export type Database = {
           default_band_granularity: string | null
           email: string | null
           enrollment_types: string[] | null
+          exam_capture: string
           id: string
           is_active: boolean | null
           is_deleted: boolean | null
@@ -16168,8 +16260,6 @@ export type Database = {
           phone: string | null
           program_interest: string[] | null
           programme_standing: string
-          exam_capture: string
-          test_capture: string
           public_enrollment_open: boolean
           rillcod_quota_percent: number | null
           school_type: string | null
@@ -16177,6 +16267,7 @@ export type Database = {
           state: string | null
           status: string | null
           student_count: number | null
+          test_capture: string
           updated_at: string | null
         }
         Insert: {
@@ -16188,6 +16279,7 @@ export type Database = {
           default_band_granularity?: string | null
           email?: string | null
           enrollment_types?: string[] | null
+          exam_capture?: string
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
@@ -16197,8 +16289,6 @@ export type Database = {
           phone?: string | null
           program_interest?: string[] | null
           programme_standing?: string
-          exam_capture?: string
-          test_capture?: string
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
           school_type?: string | null
@@ -16206,6 +16296,7 @@ export type Database = {
           state?: string | null
           status?: string | null
           student_count?: number | null
+          test_capture?: string
           updated_at?: string | null
         }
         Update: {
@@ -16217,6 +16308,7 @@ export type Database = {
           default_band_granularity?: string | null
           email?: string | null
           enrollment_types?: string[] | null
+          exam_capture?: string
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
@@ -16226,8 +16318,6 @@ export type Database = {
           phone?: string | null
           program_interest?: string[] | null
           programme_standing?: string
-          exam_capture?: string
-          test_capture?: string
           public_enrollment_open?: boolean
           rillcod_quota_percent?: number | null
           school_type?: string | null
@@ -16235,6 +16325,7 @@ export type Database = {
           state?: string | null
           status?: string | null
           student_count?: number | null
+          test_capture?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -20630,6 +20721,46 @@ export type Database = {
           p_release_id: string
         }
         Returns: string
+      }
+      publish_school_report_revision_atomic: {
+        Args: {
+          p_actor_user_id: string
+          p_change_reason: string
+          p_data_sources: Json
+          p_design: Json
+          p_expected_lock_version: number
+          p_force_override: Json
+          p_narrative: Json
+          p_pdf_hash: string
+          p_report_id: string
+          p_snapshot: Json
+          p_title: string
+          p_verification_code: string
+        }
+        Returns: {
+          change_reason: string | null
+          created_at: string
+          created_by: string
+          data_sources: Json | null
+          design: Json | null
+          force_publish_override: Json | null
+          id: string
+          narrative: Json
+          pdf_hash: string | null
+          published_at: string | null
+          published_by: string | null
+          report_id: string
+          revision_number: number
+          snapshot: Json
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "school_report_revisions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       qa_build_explicit_topic: {
         Args: { p_lane: number; p_week: number }

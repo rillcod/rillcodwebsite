@@ -42,6 +42,7 @@ import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import { LANE_LABELS } from "@/lib/qa/resolveQaSpineLane";
 import { liveAcademicSession } from "@/lib/reports/academic-period";
+import { isSensitivePlatformSetting } from "@/lib/config/platform-settings";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -281,9 +282,15 @@ function SettingsPageContent({
 }) {
   const { profile, refreshProfile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
+  const requestedAccountTab = searchParams.get("tab");
+  const safeAccountTab = BASE_TABS.some(
+    (item) => item.id === requestedAccountTab
+  )
+    ? requestedAccountTab!
+    : "profile";
   const [tab, setTab] = useState(
     forcedTab ??
-      (embedded ? "academic-rules" : searchParams.get("tab") ?? "profile")
+      (embedded ? "academic-rules" : safeAccountTab)
   );
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -305,6 +312,9 @@ function SettingsPageContent({
 
   // ── AI / LMS Config state ──────────────────────────────────────────────────
   const [aiSettings, setAiSettings] = useState<Record<string, string>>({});
+  const [configuredSecrets, setConfiguredSecrets] = useState<
+    Record<string, boolean>
+  >({});
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
 
@@ -486,10 +496,16 @@ function SettingsPageContent({
       .then((r) => r.json())
       .then((d) => {
         const map: Record<string, string> = {};
+        const secretState: Record<string, boolean> = {};
         (d.data ?? []).forEach((row: any) => {
-          map[row.key] = row.value ?? "";
+          if (row.sensitive) {
+            secretState[row.key] = row.configured === true;
+          } else {
+            map[row.key] = row.value ?? "";
+          }
         });
         setAiSettings(map);
+        setConfiguredSecrets(secretState);
       })
       .finally(() => setAiLoading(false));
   }, [profile?.role, tab]);
@@ -742,13 +758,34 @@ function SettingsPageContent({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          settings: Object.entries(aiSettings).map(([key, value]) => ({
-            key,
-            value,
-          })),
+          settings: Object.entries(aiSettings)
+            .filter(
+              ([key, value]) =>
+                !isSensitivePlatformSetting(key) || value.trim().length > 0
+            )
+            .map(([key, value]) => ({ key, value })),
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Save failed");
+      setConfiguredSecrets((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          Object.entries(aiSettings)
+            .filter(
+              ([key, value]) =>
+                isSensitivePlatformSetting(key) && value.trim().length > 0
+            )
+            .map(([key]) => [key, true])
+        ),
+      }));
+      setAiSettings((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([key, value]) => [
+            key,
+            isSensitivePlatformSetting(key) ? "" : value,
+          ])
+        )
+      );
       showToast("Settings saved");
     } catch (e: any) {
       showToast(e.message ?? "Failed", false);
@@ -3702,7 +3739,11 @@ function SettingsPageContent({
                         </label>
                         <div className="flex gap-2">
                           <input
-                            type="text"
+                            type={
+                              isSensitivePlatformSetting(key)
+                                ? "password"
+                                : "text"
+                            }
                             value={aiSettings[key] ?? ""}
                             onChange={(e) =>
                               setAiSettings((prev) => ({
@@ -3710,10 +3751,15 @@ function SettingsPageContent({
                                 [key]: e.target.value,
                               }))
                             }
-                            placeholder={placeholder}
+                            placeholder={
+                              configuredSecrets[key]
+                                ? "Configured — enter a replacement only"
+                                : placeholder
+                            }
                             className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-mono focus:outline-none focus:border-primary transition-colors"
                           />
-                          {(aiSettings[key] ?? "").length > 4 && (
+                          {!isSensitivePlatformSetting(key) &&
+                            (aiSettings[key] ?? "").length > 4 && (
                             <button
                               onClick={() =>
                                 setAiSettings((prev) => ({
@@ -3728,19 +3774,14 @@ function SettingsPageContent({
                           )}
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-1">
-                          {hint}
+                          {configuredSecrets[key]
+                            ? `${hint} The stored value is never returned to this browser.`
+                            : hint}
                         </p>
                       </div>
                     ))}
                     {Object.entries(aiSettings)
-                      .filter(
-                        ([k]) =>
-                          ![
-                            "openrouter_api_key",
-                            "gemini_api_key",
-                            "pollinations_enabled",
-                          ].includes(k)
-                      )
+                      .filter(([key]) => key === "ai_free_models")
                       .map(([key, value]) => (
                         <div key={key}>
                           <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5">

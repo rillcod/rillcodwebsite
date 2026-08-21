@@ -1,5 +1,5 @@
-import ProgressionAnalyticsPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ProgressionAnalyticsPage />;
+  redirect("/dashboard/learner-progress?view=insights");
 }

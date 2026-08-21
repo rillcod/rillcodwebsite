@@ -1,5 +1,5 @@
-import ProgressionAuditPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ProgressionAuditPage />;
+  redirect("/dashboard/learner-progress?view=history");
 }

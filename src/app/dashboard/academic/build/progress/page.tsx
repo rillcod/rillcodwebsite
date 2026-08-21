@@ -1,5 +1,5 @@
-import CurriculumProgressPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <CurriculumProgressPage />;
+  redirect("/dashboard/learner-progress?view=delivery");
 }

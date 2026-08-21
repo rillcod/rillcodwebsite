@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeSubscriptionRow, type SubscriptionUiRow } from '@/lib/finance/subscription-records';
 import { toast } from 'sonner';
@@ -296,20 +296,6 @@ const ALL_TABS: TabDef[] = [
   { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, capability: 'view_school_finance' },
   { key: 'settings', label: 'Settings', icon: CreditCardIcon, capability: 'manage_school_payment_settings' },
 ];
-
-const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
-  '/dashboard/payments': 'collections',
-  '/dashboard/transactions': 'today',
-  '/dashboard/finance/reconciliation': 'reconciliation',
-  '/dashboard/billing': 'settings',
-  '/dashboard/billing-automation': 'settings',
-  '/dashboard/school-billing': 'invoices',
-  '/dashboard/subscriptions': 'settings',
-  '/dashboard/balance-reminders': 'collections',
-  '/dashboard/my-payments': 'today',
-  '/dashboard/parent-invoices': 'today',
-  '/dashboard/money': 'today',
-};
 
 const LEGACY_TAB_MAP: Record<string, TabKey> = {
   my_money: 'today',
@@ -2237,7 +2223,6 @@ function FinanceSettingsWorkspace({ profile, isAdmin }: { profile: any; isAdmin:
 export default function FinancePage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [tab, setTab] = useState<TabKey>('today');
@@ -2263,14 +2248,14 @@ export default function FinancePage() {
     const isAdminUser = profile.role === 'admin';
     const next = pickTab(
       tabParam,
-      workspaceParam || LEGACY_PATH_WORKSPACE[pathname] || null,
+      workspaceParam,
       profile.role,
       isAdminUser,
       opsParam,
     );
     setTab(next);
 
-    // Canonicalize legacy bleed URLs into workspace=collections|invoices|billing.
+    // Canonicalize legacy query links into the six supported workspaces.
     const rawTab = tabParam;
     const needsCanonical =
       Boolean(rawTab) ||
@@ -2296,7 +2281,7 @@ export default function FinancePage() {
     if (url.toString() !== window.location.href) {
       window.history.replaceState({}, '', url.toString());
     }
-  }, [tabParam, workspaceParam, opsParam, pathname, profile?.id, profile?.role]);
+  }, [tabParam, workspaceParam, opsParam, profile?.id, profile?.role]);
 
   if (authLoading || profileLoading || !profile) {
     return (

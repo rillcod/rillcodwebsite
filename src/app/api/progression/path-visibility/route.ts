@@ -76,35 +76,44 @@ export async function GET(req: NextRequest) {
   if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const admin = adminClient();
-  const classKey = `progression.path_visibility.class.${classId}`;
-  const { data: classSetting } = await admin
-    .from('app_settings')
-    .select('key, value')
-    .eq('key', classKey)
+  const { data: classSetting, error: classSettingError } = await admin
+    .from('progression_path_visibility')
+    .select('mode')
+    .eq('class_id', classId)
+    .is('student_id', null)
     .maybeSingle();
+  if (classSettingError) {
+    return NextResponse.json({ error: classSettingError.message }, { status: 500 });
+  }
 
-  const { data: students } = await admin
+  const { data: students, error: studentsError } = await admin
     .from('portal_users')
     .select('id, full_name, class_id')
     .eq('class_id', classId)
     .eq('role', 'student')
     .order('full_name');
-  const studentKeys = (students ?? []).map((s: any) => `progression.path_visibility.student.${s.id}`);
+  if (studentsError) {
+    return NextResponse.json({ error: studentsError.message }, { status: 500 });
+  }
   let overrides: Record<string, string> = {};
-  if (studentKeys.length > 0) {
-    const { data: rows } = await admin
-      .from('app_settings')
-      .select('key, value')
-      .in('key', studentKeys);
+  const studentIds = (students ?? []).map((student: any) => student.id);
+  if (studentIds.length > 0) {
+    const { data: rows, error: overridesError } = await admin
+      .from('progression_path_visibility')
+      .select('student_id, mode')
+      .in('student_id', studentIds);
+    if (overridesError) {
+      return NextResponse.json({ error: overridesError.message }, { status: 500 });
+    }
     overrides = Object.fromEntries(
-      (rows ?? []).map((r: any) => [String(r.key).replace('progression.path_visibility.student.', ''), String(r.value)]),
+      (rows ?? []).map((row: any) => [String(row.student_id), String(row.mode)]),
     );
   }
 
   return NextResponse.json({
     data: {
       class_id: classId,
-      class_mode: classSetting?.value ?? 'full',
+      class_mode: classSetting?.mode ?? 'full',
       students: (students ?? []).map((s: any) => ({
         student_id: s.id,
         full_name: s.full_name,
@@ -139,11 +148,15 @@ export async function PUT(req: NextRequest) {
     const ids = await scopedClassIds(caller);
     if (ids.length === 0) return NextResponse.json({ success: true, data: { updated_count: 0 } });
     const rows = ids.map((id) => ({
-      key: `progression.path_visibility.class.${id}`,
-      value: mode,
+      class_id: id,
+      student_id: null,
+      mode,
       updated_at: new Date().toISOString(),
+      updated_by: caller.id,
     }));
-    const { error } = await admin.from('app_settings').upsert(rows, { onConflict: 'key' });
+    const { error } = await admin
+      .from('progression_path_visibility')
+      .upsert(rows, { onConflict: 'class_id,student_id' });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, data: { updated_count: ids.length, mode } });
   }
@@ -163,22 +176,34 @@ export async function PUT(req: NextRequest) {
   const canManage = await callerCanManageClass(caller, targetClassId);
   if (!canManage) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const key = studentId
-    ? `progression.path_visibility.student.${studentId}`
-    : `progression.path_visibility.class.${targetClassId}`;
-
   if (mode === 'inherit' && studentId) {
-    await admin.from('app_settings').delete().eq('key', key);
-    return NextResponse.json({ success: true, data: { key, mode } });
+    const { error } = await admin
+      .from('progression_path_visibility')
+      .delete()
+      .eq('student_id', studentId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, data: { student_id: studentId, mode } });
   }
   if (mode === 'inherit' && !studentId) {
     return NextResponse.json({ error: 'Class default cannot be inherit' }, { status: 400 });
   }
 
   const { error } = await admin
-    .from('app_settings')
-    .upsert({ key, value: mode, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    .from('progression_path_visibility')
+    .upsert(
+      {
+        class_id: studentId ? null : targetClassId,
+        student_id: studentId,
+        mode,
+        updated_at: new Date().toISOString(),
+        updated_by: caller.id,
+      },
+      { onConflict: 'class_id,student_id' },
+    );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ success: true, data: { key, mode } });
+  return NextResponse.json({
+    success: true,
+    data: studentId ? { student_id: studentId, mode } : { class_id: targetClassId, mode },
+  });
 }

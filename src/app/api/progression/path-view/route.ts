@@ -180,34 +180,52 @@ export async function GET(req: NextRequest) {
       ])
     );
 
-  const classKeys = Array.from(
+  const visibilityClassIds = Array.from(
     new Set(Object.values(classByStudent).filter(Boolean))
-  ).map((id) => `progression.path_visibility.class.${id}`);
-  const studentKeys = uniqueStudentIds.map(
-    (id) => `progression.path_visibility.student.${id}`
+  ) as string[];
+  const [classVisibilityResult, studentVisibilityResult] =
+    await Promise.all([
+      visibilityClassIds.length > 0
+        ? admin
+            .from("progression_path_visibility")
+            .select("class_id, mode")
+            .in("class_id", visibilityClassIds)
+            .is("student_id", null)
+        : Promise.resolve({ data: [], error: null }),
+      uniqueStudentIds.length > 0
+        ? admin
+            .from("progression_path_visibility")
+            .select("student_id, mode")
+            .in("student_id", uniqueStudentIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+  if (classVisibilityResult.error || studentVisibilityResult.error) {
+    return NextResponse.json(
+      {
+        error:
+          classVisibilityResult.error?.message ??
+          studentVisibilityResult.error?.message ??
+          "Unable to load learning-path visibility",
+      },
+      { status: 500 }
+    );
+  }
+  const classVisibilityRows = classVisibilityResult.data;
+  const studentVisibilityRows = studentVisibilityResult.data;
+  const visibilityByClass: Record<string, string> = Object.fromEntries(
+    (classVisibilityRows ?? []).map((row: any) => [String(row.class_id), String(row.mode)])
   );
-  const allVisibilityKeys = [...classKeys, ...studentKeys];
-  const { data: settingRows } =
-    allVisibilityKeys.length > 0
-      ? await admin
-          .from("app_settings")
-          .select("key, value")
-          .in("key", allVisibilityKeys)
-      : { data: [] };
-  const visibilityByKey: Record<string, string> = Object.fromEntries(
-    (settingRows ?? []).map((r: any) => [String(r.key), String(r.value)])
+  const visibilityByStudent: Record<string, string> = Object.fromEntries(
+    (studentVisibilityRows ?? []).map((row: any) => [String(row.student_id), String(row.mode)])
   );
 
   const paths = [];
   for (const enr of enrollments) {
     const classId = classByStudent[enr.student_id] ?? null;
     const classMode = classId
-      ? visibilityByKey[`progression.path_visibility.class.${classId}`]
+      ? visibilityByClass[classId]
       : null;
-    const studentMode =
-      visibilityByKey[
-        `progression.path_visibility.student.${enr.student_id}`
-      ] ?? null;
+    const studentMode = visibilityByStudent[enr.student_id] ?? null;
     const visibilityMode: VisibilityMode =
       (studentMode ?? classMode ?? "full") === "milestone"
         ? "milestone"

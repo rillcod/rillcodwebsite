@@ -1,5 +1,5 @@
-import CommunicationReportsPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <CommunicationReportsPage />;
+  redirect("/dashboard/learner-safety?view=cases");
 }

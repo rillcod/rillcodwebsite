@@ -465,7 +465,7 @@ export default function DashboardNavigation() {
             // build that goes with it, keyed by track and year/term/week. They
             // meet in `assignments`, where both eventually write.
             name: "Practical Projects",
-            href: "/dashboard/progression/project-registry",
+            href: "/dashboard/learner-progress?view=projects",
             icon: BeakerIcon,
           },
           { divider: true, label: "Assessment" },
@@ -599,7 +599,7 @@ export default function DashboardNavigation() {
             icon: ClipboardDocumentListIcon,
           },
           {
-            name: "Platform Operations",
+            name: "Platform Configuration",
             href: "/dashboard/platform-operations",
             icon: CogIcon,
           },

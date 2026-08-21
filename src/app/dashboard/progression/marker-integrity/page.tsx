@@ -1,5 +1,5 @@
-import MarkerIntegrityPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <MarkerIntegrityPage />;
+  redirect("/dashboard/platform-operations?view=health");
 }

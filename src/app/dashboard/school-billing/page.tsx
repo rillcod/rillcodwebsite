@@ -1,1 +1,5 @@
-export { default } from '../finance/page';
+import { redirect } from "next/navigation";
+
+export default function LegacyFinanceRedirect() {
+  redirect("/dashboard/finance?workspace=invoices");
+}

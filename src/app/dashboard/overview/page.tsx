@@ -288,11 +288,15 @@ export default function OverviewPage() {
     { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-primary' },
     { label: 'Exam Results', href: '/dashboard/results', icon: DocumentTextIcon, color: 'bg-emerald-600' },
     { label: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: BellIcon, color: 'bg-amber-600' },
+  ] : role === 'parent' ? [
+    { label: 'Child Learning Path', href: '/dashboard/parent-path-progress', icon: ChartBarIcon, color: 'bg-primary' },
+    { label: 'Published Reports', href: '/dashboard/results', icon: DocumentTextIcon, color: 'bg-emerald-600' },
+    { label: 'Messages', href: '/dashboard/inbox', icon: BellIcon, color: 'bg-amber-600' },
   ] : [
     { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-primary' },
     { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-primary' },
     { label: 'My Grades', href: '/dashboard/grades', icon: TrophyIcon, color: 'bg-emerald-600' },
-    { label: 'Learner Progress', href: '/dashboard/learner-progress', icon: ChartBarIcon, color: 'bg-amber-600' },
+    { label: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
   ];
 
   return (

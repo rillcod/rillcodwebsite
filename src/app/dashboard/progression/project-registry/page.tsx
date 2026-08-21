@@ -1,5 +1,5 @@
-import ProjectRegistryPage from "./panel";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ProjectRegistryPage />;
+  redirect("/dashboard/learner-progress?view=projects");
 }

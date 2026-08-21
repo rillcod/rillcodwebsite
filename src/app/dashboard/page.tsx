@@ -29,7 +29,7 @@ const QUICK_ACTIONS = {
   admin: [
     { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve partner schools' },
     { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff accounts' },
-    { name: 'Platform Operations', href: '/dashboard/platform-operations', icon: CogIcon, desc: 'LMS, AI, system activity and health' },
+    { name: 'Platform Configuration', href: '/dashboard/platform-operations', icon: CogIcon, desc: 'App behaviour, AI and system notifications' },
     { name: 'Office Center', href: '/dashboard/office', icon: BuildingOfficeIcon, desc: 'Support cases & customer directory' },
   ],
   // Register Students and Grading Center were dropped from here: the teacher
