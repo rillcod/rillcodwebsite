@@ -212,6 +212,26 @@ function mockAdmin(
 }
 
 describe("applySchoolReportPatch audit guards", () => {
+  it("does not report an empty executive-summary autosave as successful", async () => {
+    const result = await applySchoolReportPatch(
+      mockAdmin(),
+      baseReport({ lock_version: 4 }),
+      "teacher-1",
+      {
+        narrative: { executiveSummary: "" },
+        autosave: true,
+        expectedRevision: 4,
+      },
+      { actorRole: "teacher" }
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(400);
+      expect(result.error).toMatch(/local recovery draft/i);
+      expect(result.lockVersion).toBe(4);
+    }
+  });
+
   it("rejects forcePublish from non-admin teachers", async () => {
     const result = await applySchoolReportPatch(
       mockAdmin(),

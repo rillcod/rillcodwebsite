@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageSchoolReport, getSchoolReportActor } from '@/lib/school-reports/access';
 import { logAuditEvent } from '@/lib/observability/audit-events';
 import { regenerateSchoolReportSnapshot } from '@/lib/school-reports/service';
+import { recordSchoolReportEvent } from '@/lib/school-reports/revisions';
 import { isSchoolReportUuid } from '@/lib/school-reports/ids';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const body = await req.json().catch(() => ({}));
   const refreshNarrative = body?.refreshNarrative === true;
   const refreshAndReady = body?.refreshAndReady === true;
+  const expectedRevision = Number(body?.expectedRevision);
 
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
@@ -34,6 +36,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
   if (!canManageSchoolReport(actor, report.school_id)) {
     return NextResponse.json({ error: 'You cannot manage this school report.' }, { status: 403 });
+  }
+
+  const currentLock = Number(report.lock_version ?? 1);
+  if (!Number.isInteger(expectedRevision) || expectedRevision !== currentLock) {
+    return NextResponse.json(
+      {
+        error: 'This report changed before the refresh started. Reload the latest version and try again.',
+        code: 'REPORT_CONFLICT',
+        lockVersion: currentLock,
+      },
+      { status: 409 },
+    );
   }
 
   if (report.status === 'published' && (refreshNarrative || refreshAndReady)) {
@@ -85,15 +99,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const updates: Record<string, unknown> = {
       snapshot: result.snapshot,
       updated_at: new Date().toISOString(),
+      lock_version: currentLock + 1,
     };
     if (result.narrative) updates.narrative = result.narrative;
 
-    const { error: updateError } = await actor.admin
+    const { data: updated, error: updateError } = await actor.admin
       .from('school_performance_reports')
       .update(updates)
-      .eq('id', id);
+      .eq('id', id)
+      .eq('lock_version', currentLock)
+      .select('id,lock_version')
+      .maybeSingle();
 
     if (updateError) throw new Error(updateError.message);
+    if (!updated) {
+      return NextResponse.json(
+        {
+          error: 'Another staff member saved this report during the refresh. Reload the latest version and try again.',
+          code: 'REPORT_CONFLICT',
+          lockVersion: currentLock,
+        },
+        { status: 409 },
+      );
+    }
 
     logAuditEvent('report.regenerate', {
       reportId: id,
@@ -101,6 +129,22 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       refreshNarrative,
       learnerCount: Array.isArray(result.snapshot.learners) ? result.snapshot.learners.length : 0,
     });
+    try {
+      await recordSchoolReportEvent(actor.admin, {
+        reportId: id,
+        eventType: 'regenerated',
+        actorId: actor.user.id,
+        payload: {
+          refreshNarrative,
+          refreshAndReady,
+          snapshotVersion: result.snapshot.snapshotVersion ?? null,
+          autoAppliedDelivery: Boolean(result.autoAppliedDelivery),
+          autoDeliverySource: result.autoDeliverySource || null,
+        },
+      });
+    } catch (auditError) {
+      console.error('[school-report] refresh audit event failed:', auditError);
+    }
 
     return NextResponse.json({
       success: true,
@@ -110,6 +154,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       autoAppliedDelivery: Boolean(result.autoAppliedDelivery),
       autoDeliverySource: result.autoDeliverySource || null,
       refreshAndReady,
+      lockVersion: Number(updated.lock_version || currentLock + 1),
     });
   } catch (err) {
     console.error('[school-report] regenerate failed:', err);

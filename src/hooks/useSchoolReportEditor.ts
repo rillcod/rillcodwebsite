@@ -25,6 +25,8 @@ type Options = {
   enabled: boolean;
   published: boolean;
   lockVersion: number;
+  /** Changes only when a fresh server representation has been loaded. */
+  baselineVersion: string | null;
   onLockVersionChange?: (next: number) => void;
   onSaveFailed?: (message: string) => void;
   onConflict?: (serverLock: number, message: string) => void;
@@ -64,6 +66,7 @@ export function useSchoolReportEditor({
   enabled,
   published,
   lockVersion,
+  baselineVersion,
   onLockVersionChange,
   onSaveFailed,
   onConflict,
@@ -72,6 +75,7 @@ export function useSchoolReportEditor({
     editor,
     design: normalizeSchoolReportDesign(design),
   });
+  const baselineVersionRef = useRef<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [autosaving, setAutosaving] = useState(false);
@@ -86,6 +90,17 @@ export function useSchoolReportEditor({
     setHasLocalDraft(false);
     if (reportId) setHasLocalDraft(Boolean(readLocalDraft(reportId)));
   }, [reportId]);
+
+  useEffect(() => {
+    if (!reportId || !baselineVersion || baselineVersionRef.current === baselineVersion) return;
+    baselineVersionRef.current = baselineVersion;
+    snapRef.current = {
+      editor: { ...editor },
+      design: normalizeSchoolReportDesign(design),
+    };
+    setIsDirty(false);
+    setSaveFailed(false);
+  }, [baselineVersion, design, editor, reportId]);
 
   useEffect(() => {
     const editorDirty = !editorStatesEqual(editor, snapRef.current.editor);
@@ -170,6 +185,13 @@ export function useSchoolReportEditor({
       }
       if (json.lockVersion) onLockVersionChange?.(Number(json.lockVersion));
       markSaved({ editor, design });
+    } catch (saveError) {
+      setSaveFailed(true);
+      onSaveFailed?.(
+        saveError instanceof Error
+          ? `Autosave could not reach the server: ${saveError.message}`
+          : 'Autosave could not reach the server. Your local recovery draft is safe.',
+      );
     } finally {
       setAutosaving(false);
     }

@@ -1412,7 +1412,10 @@ function ReportBuilderInner() {
             : pickReportFilter === 'has' ? reportedIds.has(s.id)
             : !reportedIds.has(s.id);
         if (!matchesReport) return false;
-        const matchesSearch = !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = !search
+            || s.full_name?.toLowerCase().includes(search.toLowerCase())
+            || s.email?.toLowerCase().includes(search.toLowerCase())
+            || String((s as any).grade_level || (s as any).grade || '').toLowerCase().includes(search.toLowerCase());
 
         // Override mode or active search: show all loaded students, just filter by name/email
         if (overrideFilters || search.length >= 2) return matchesSearch;
@@ -4654,8 +4657,12 @@ function ReportBuilderInner() {
                                 const editMatches = editSearch.trim().length >= 1
                                     ? navList.filter((s: any) =>
                                         s.full_name?.toLowerCase().includes(editSearch.toLowerCase())
-                                        || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
+                                        || s.email?.toLowerCase().includes(editSearch.toLowerCase())
+                                        || String(s.grade_level || s.grade || '').toLowerCase().includes(editSearch.toLowerCase()))
                                     : [];
+                                const selectedGrade = String(
+                                    (selectedStudent as any)?.grade_level || (selectedStudent as any)?.grade || '',
+                                ).trim();
                                 const returnToRoster = async () => {
                                     if (saving || publishing) return;
                                     if (isDirty) {
@@ -4715,7 +4722,13 @@ function ReportBuilderInner() {
                                     <input
                                         type="search"
                                         aria-label="Search or jump to student"
-                                        placeholder={selectedStudent?.full_name ?? form.student_name ?? 'Jump…'}
+                                        placeholder={
+                                            selectedStudent?.full_name
+                                                ? `${selectedStudent.full_name}${selectedGrade ? ` · ${selectedGrade}` : ''}`
+                                                : form.student_name
+                                                    ? `${form.student_name}${profileGrade ? ` · ${profileGrade}` : ''}`
+                                                    : 'Search name or grade…'
+                                        }
                                         value={editSearch}
                                         disabled={saving || publishing}
                                         onChange={(e) => setEditSearch(e.target.value)}
@@ -4753,7 +4766,12 @@ function ReportBuilderInner() {
                                                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-black text-primary">
                                                         {ms.full_name?.[0] ?? '?'}
                                                     </span>
-                                                    <span className="min-w-0 flex-1 truncate font-bold text-foreground">{ms.full_name}</span>
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate font-bold text-foreground">{ms.full_name}</span>
+                                                        <span className="block truncate text-[10px] font-semibold text-muted-foreground">
+                                                            {ms.grade_level || ms.grade || 'Grade not assigned'}
+                                                        </span>
+                                                    </span>
                                                     {published ? (
                                                         <span className="flex-shrink-0 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Pub</span>
                                                     ) : draft ? (

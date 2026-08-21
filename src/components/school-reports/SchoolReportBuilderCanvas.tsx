@@ -122,13 +122,12 @@ type Props = {
     forcePublishReason?: string;
     statusOnly?: boolean;
     withdrawReason?: string;
-  }) => Promise<{ ok: boolean; published?: boolean }>;
+  }) => Promise<{ ok: boolean; published?: boolean; lockVersion?: number }>;
   onRegenerate: (refreshNarrative?: boolean) => Promise<void>;
   onRefreshAndReady?: () => Promise<void>;
   onDelete?: () => Promise<void>;
   onTitleChange?: (title: string) => Promise<void>;
   onBack?: () => void;
-  onEditorSynced?: () => void;
   onNarrativeGenerated?: (narrative: SchoolReportNarrative) => void;
   onDeliveryApplied?: () => Promise<void>;
   onLockVersionChange?: (next: number) => void;
@@ -151,7 +150,6 @@ export function SchoolReportBuilderCanvas({
   onDelete,
   onTitleChange,
   onBack,
-  onEditorSynced,
   onNarrativeGenerated,
   onDeliveryApplied,
   onLockVersionChange,
@@ -269,7 +267,11 @@ export function SchoolReportBuilderCanvas({
       const response = await fetch(`/api/school-performance-reports/${report.id}/narrative`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: fields?.length ? fields : undefined, persist: true }),
+        body: JSON.stringify({
+          fields: fields?.length ? fields : undefined,
+          currentNarrative: narrativeFromEditor(editor),
+          expectedRevision: report.lock_version ?? 1,
+        }),
       });
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to generate wording (HTTP ${response.status}).`);
@@ -278,11 +280,10 @@ export function SchoolReportBuilderCanvas({
         setEditor(editorFromNarrative(narrative));
       });
       onNarrativeGenerated?.(narrative);
-      onEditorSynced?.();
       setAiNote(
         json.usedAi
-          ? `Generated in ${Math.max(1, Math.round((json.durationMs || 0) / 1000))}s · review before saving`
-          : 'Factual draft ready (AI key not configured) · review before saving',
+          ? `Drafted in ${Math.max(1, Math.round((json.durationMs || 0) / 1000))}s · your existing edits were preserved · review before saving`
+          : 'Factual draft ready · your existing edits were preserved · review before saving',
       );
       setTab('write');
       setPreviewOpen(true);
@@ -529,7 +530,11 @@ export function SchoolReportBuilderCanvas({
                   onClick={() => void publishReport()}
                   className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
-                  {working === 'published' ? 'Publishing…' : 'Publish'}
+                  {working === 'published'
+                    ? 'Publishing…'
+                    : saveStatus?.isDirty
+                      ? 'Save & publish'
+                      : 'Publish'}
                 </button>
                       {canManage && missingRequired.length && role === 'admin' ? (
                   <button
@@ -693,7 +698,7 @@ export function SchoolReportBuilderCanvas({
                 className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted/40 transition-all disabled:opacity-50 sm:flex-none shadow-2xs"
               >
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
-                Refresh data
+                {saveStatus?.isDirty ? 'Save & refresh data' : 'Refresh data'}
               </button>
               <button
                 type="button"
@@ -710,10 +715,14 @@ export function SchoolReportBuilderCanvas({
                   disabled={busy}
                   onClick={() => void onRefreshAndReady()}
                   className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 py-2 text-xs font-black text-white hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 sm:flex-none shadow-sm"
-                  title="Refresh snapshot, auto-apply delivery from tracking, and regenerate AI narrative"
+                  title="Save pending wording, refresh the snapshot, auto-apply verified delivery tracking, and prepare the narrative"
                 >
                   <SparklesIcon className={`h-3.5 w-3.5 ${working === 'refresh-ready' ? 'animate-spin' : ''}`} />
-                  {working === 'refresh-ready' ? 'Preparing…' : 'Refresh & ready'}
+                  {working === 'refresh-ready'
+                    ? 'Preparing…'
+                    : saveStatus?.isDirty
+                      ? 'Save, refresh & ready'
+                      : 'Refresh & ready'}
                 </button>
               ) : null}
             </div>

@@ -308,8 +308,12 @@ export async function applySchoolReportPatch(
       : incoming;
     const narrative = cleanNarrative(merged);
     if (!narrative) {
-      if (body.autosave === true) return { ok: true, lockVersion: currentLock };
-      return { ok: false, status: 400, error: 'The executive summary cannot be empty.' };
+      return {
+        ok: false,
+        status: 400,
+        error: 'Add an executive summary before saving. Your local recovery draft has been kept.',
+        lockVersion: currentLock,
+      };
     }
     updates.narrative = narrative;
   } else if (body.narrativePatch && typeof body.narrativePatch === 'object' && !Array.isArray(body.narrativePatch)) {
@@ -478,18 +482,9 @@ export async function applySchoolReportPatch(
         };
       }
 
-      if (Object.keys(updates).length > 1 || body.narrative || body.design || body.deliveryDeclaration) {
-        const { error: prePublishError } = await admin
-          .from('school_performance_reports')
-          .update(updates)
-          .eq('id', report.id);
-        if (prePublishError) {
-          return { ok: false, status: 500, error: prePublishError.message, lockVersion: currentLock };
-        }
-      }
-
       const mergedReport = {
         ...report,
+        title: (updates.title as string | undefined) ?? report.title,
         snapshot: (updates.snapshot as typeof report.snapshot) ?? report.snapshot,
         narrative: (updates.narrative as typeof report.narrative) ?? report.narrative,
         design: (updates.design as typeof report.design) ?? report.design,
@@ -497,6 +492,7 @@ export async function applySchoolReportPatch(
 
       try {
         const publishedRevision = await publishSchoolReportRevision(admin, mergedReport, actorUserId, {
+          expectedLockVersion: currentLock,
           changeReason: force ? overrideReason : 'Published to school',
           forceOverride: force
             ? { reason: overrideReason, missing: (completeness.items || []).filter((i) => i.required && !i.ok).map((i) => i.label) }
@@ -504,9 +500,13 @@ export async function applySchoolReportPatch(
         });
         return { ok: true, lockVersion: currentLock + 1, revisionNumber: publishedRevision.revision_number };
       } catch (publishError) {
+        const conflict =
+          publishError instanceof Error
+          && (publishError as Error & { code?: string }).code === 'REPORT_CONFLICT';
         return {
           ok: false,
-          status: 500,
+          status: conflict ? 409 : 500,
+          code: conflict ? 'REPORT_CONFLICT' : undefined,
           error: publishError instanceof Error ? publishError.message : 'Unable to publish report.',
           lockVersion: currentLock,
         };

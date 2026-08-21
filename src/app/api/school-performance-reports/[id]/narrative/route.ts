@@ -21,7 +21,10 @@ const ALL_FIELDS: NarrativeFieldKey[] = [
 /**
  * POST /api/school-performance-reports/[id]/narrative
  * Fast AI wording generator — does NOT rebuild the snapshot.
- * Body: { fields?: NarrativeFieldKey[], persist?: boolean }
+ * Body: { fields?: NarrativeFieldKey[], currentNarrative?: SchoolReportNarrative, expectedRevision: number }
+ *
+ * The generated wording is returned to the editor as an unsaved draft. The
+ * normal PATCH/autosave path remains the single revision-aware write path.
  */
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await getSchoolReportActor();
@@ -38,7 +41,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       )
     : ALL_FIELDS;
   const fields = requested.length ? requested : ALL_FIELDS;
-  const persist = body?.persist === true;
 
   const { data: report, error } = await actor.admin
     .from('school_performance_reports')
@@ -57,34 +59,44 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     );
   }
 
+  const currentLock = Number(report.lock_version ?? 1);
+  if (!Number.isInteger(body?.expectedRevision) || Number(body.expectedRevision) !== currentLock) {
+    return NextResponse.json(
+      {
+        error: 'This report changed before AI drafting started. Reload the latest version and try again.',
+        code: 'REPORT_CONFLICT',
+        lockVersion: currentLock,
+      },
+      { status: 409 },
+    );
+  }
+
   const row = report as SchoolPerformanceReportRow;
+  const supplied = body?.currentNarrative && typeof body.currentNarrative === 'object'
+    ? body.currentNarrative as Partial<SchoolReportNarrative>
+    : null;
+  const list = (value: unknown, fallback: string[]) =>
+    Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean).slice(0, 8) : fallback;
   const current: SchoolReportNarrative = {
-    executiveSummary: String(row.narrative?.executiveSummary || ''),
-    topicsCovered: row.narrative?.topicsCovered,
-    achievements: Array.isArray(row.narrative?.achievements) ? row.narrative.achievements : [],
-    concerns: Array.isArray(row.narrative?.concerns) ? row.narrative.concerns : [],
-    recommendations: Array.isArray(row.narrative?.recommendations) ? row.narrative.recommendations : [],
-    nextPeriodFocus: Array.isArray(row.narrative?.nextPeriodFocus) ? row.narrative.nextPeriodFocus : [],
+    executiveSummary: String(supplied?.executiveSummary ?? row.narrative?.executiveSummary ?? '').trim(),
+    topicsCovered: String(supplied?.topicsCovered ?? row.narrative?.topicsCovered ?? '').trim() || undefined,
+    achievements: list(supplied?.achievements, Array.isArray(row.narrative?.achievements) ? row.narrative.achievements : []),
+    concerns: list(supplied?.concerns, Array.isArray(row.narrative?.concerns) ? row.narrative.concerns : []),
+    recommendations: list(supplied?.recommendations, Array.isArray(row.narrative?.recommendations) ? row.narrative.recommendations : []),
+    nextPeriodFocus: list(supplied?.nextPeriodFocus, Array.isArray(row.narrative?.nextPeriodFocus) ? row.narrative.nextPeriodFocus : []),
   };
 
   try {
     const started = Date.now();
     const { narrative, usedAi } = await rewriteSchoolReportNarrativeFields(row.snapshot, current, fields);
 
-    if (persist) {
-      const { error: updateError } = await actor.admin
-        .from('school_performance_reports')
-        .update({ narrative, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (updateError) throw new Error(updateError.message);
-    }
-
     return NextResponse.json({
       success: true,
       narrative,
       fields,
       usedAi,
-      persisted: persist,
+      persisted: false,
+      lockVersion: currentLock,
       durationMs: Date.now() - started,
     });
   } catch (err) {

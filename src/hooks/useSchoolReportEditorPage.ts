@@ -61,6 +61,9 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       enabled: canManage && report?.status !== 'published',
       published: report?.status === 'published',
       lockVersion: report?.lock_version ?? 1,
+      baselineVersion: report
+        ? `${report.id}:${report.updated_at}:${report.lock_version ?? 1}:${report.snapshot?.snapshotVersion ?? 1}`
+        : null,
       onLockVersionChange: (next) => {
         setReport((current) => (current ? { ...current, lock_version: next } : current));
       },
@@ -75,7 +78,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       forcePublishReason?: string;
       statusOnly?: boolean;
       withdrawReason?: string;
-    }): Promise<{ ok: boolean; published?: boolean }> => {
+    }): Promise<{ ok: boolean; published?: boolean; lockVersion?: number }> => {
       if (!report) return { ok: false };
       const status = saveOpts?.status;
       setWorking(status || 'save');
@@ -110,16 +113,15 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
           }
           throw new Error(missing ? `${json.error} (${missing})` : json.error || 'Unable to save report.');
         }
-        if (json.lockVersion) {
-          setReport((current) => (current ? { ...current, lock_version: Number(json.lockVersion) } : current));
-        }
+        const savedLockVersion = Number(json.lockVersion || report.lock_version || 1);
+        setReport((current) => (current ? { ...current, lock_version: savedLockVersion } : current));
         if (status === 'archived') {
           router.push('/dashboard/school-reports');
-          return { ok: true };
+          return { ok: true, lockVersion: savedLockVersion };
         }
         markSaved({ editor, design });
         await loadReport();
-        return { ok: true, published: status === 'published' };
+        return { ok: true, published: status === 'published', lockVersion: savedLockVersion };
       } catch (saveError) {
         setError(saveError instanceof Error ? saveError.message : 'Unable to save report.');
         return { ok: false };
@@ -159,10 +161,17 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       setWorking(refreshNarrative ? 'regenerate-ai' : 'regenerate');
       setError('');
       try {
+        let expectedRevision = Number(report.lock_version ?? 1);
+        if (isDirty) {
+          const saved = await save();
+          if (!saved.ok || !saved.lockVersion) return;
+          expectedRevision = saved.lockVersion;
+          setWorking(refreshNarrative ? 'regenerate-ai' : 'regenerate');
+        }
         const response = await fetch(`/api/school-performance-reports/${report.id}/regenerate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshNarrative }),
+          body: JSON.stringify({ refreshNarrative, expectedRevision }),
         });
         const json = await response.json().catch(() => ({} as Record<string, unknown>));
         if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to refresh report data (HTTP ${response.status}).`);
@@ -173,7 +182,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
         setWorking('');
       }
     },
-    [loadReport, report],
+    [isDirty, loadReport, report, save],
   );
 
   const refreshAndReady = useCallback(async () => {
@@ -181,10 +190,17 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     setWorking('refresh-ready');
     setError('');
     try {
+      let expectedRevision = Number(report.lock_version ?? 1);
+      if (isDirty) {
+        const saved = await save();
+        if (!saved.ok || !saved.lockVersion) return;
+        expectedRevision = saved.lockVersion;
+        setWorking('refresh-ready');
+      }
       const response = await fetch(`/api/school-performance-reports/${report.id}/regenerate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshAndReady: true }),
+        body: JSON.stringify({ refreshAndReady: true, expectedRevision }),
       });
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to refresh and prepare report (HTTP ${response.status}).`);
@@ -194,7 +210,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
     } finally {
       setWorking('');
     }
-  }, [loadReport, report]);
+  }, [isDirty, loadReport, report, save]);
 
   const deleteReport = useCallback(async () => {
     if (!report) return;

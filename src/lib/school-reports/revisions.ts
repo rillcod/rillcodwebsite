@@ -162,70 +162,43 @@ export async function publishSchoolReportRevision(
     changeReason?: string;
     forceOverride?: { reason: string; missing: string[] };
     pdfHash?: string;
+    expectedLockVersion?: number;
   },
 ): Promise<SchoolReportRevisionRow> {
-  const working = await ensureWorkingRevision(admin, report, actorUserId);
   const publishedAt = new Date().toISOString();
   const pdfHash = opts?.pdfHash ?? hashReportPayload(report);
-
-  const { data: published, error } = await admin
-    .from('school_report_revisions')
-    .update({
-      status: 'published',
-      snapshot: report.snapshot,
-      narrative: report.narrative,
-      design: report.design ?? null,
-      data_sources: report.snapshot?.dataSources ?? null,
-      published_by: actorUserId,
-      published_at: publishedAt,
-      change_reason: opts?.changeReason || opts?.forceOverride?.reason || 'Published to school',
-      pdf_hash: pdfHash,
-      force_publish_override: opts?.forceOverride
-        ? {
-            reason: opts.forceOverride.reason,
-            missing: opts.forceOverride.missing,
-            actorId: actorUserId,
-            at: publishedAt,
-          }
-        : null,
-      updated_at: publishedAt,
-    })
-    .eq('id', working.id)
-    .eq('status', 'working')
-    .select('*')
-    .single();
-
-  if (error || !published) throw new Error(error?.message || 'Unable to publish revision.');
-
-  const { data: reportUpdated, error: reportUpdateError } = await admin
-    .from('school_performance_reports')
-    .update({
-      status: 'published',
-      published_at: publishedAt,
-      published_by: actorUserId,
-      published_revision_number: published.revision_number,
-      working_revision_number: null,
-      verification_code: report.verification_code || schoolReportVerificationCode(report.id),
-      updated_at: publishedAt,
-    })
-    .eq('id', report.id)
-    .select('id')
-    .maybeSingle();
-  if (reportUpdateError || !reportUpdated) throw new Error(reportUpdateError?.message || 'Published report state could not be saved.');
-
-  await recordSchoolReportEvent(admin, {
-    reportId: report.id,
-    revisionId: published.id,
-    eventType: opts?.forceOverride ? 'force_published' : 'published',
-    actorId: actorUserId,
-    payload: {
-      revision_number: published.revision_number,
-      pdf_hash: pdfHash,
-      ...(opts?.forceOverride
-        ? { override_reason: opts.forceOverride.reason, missing: opts.forceOverride.missing }
-        : {}),
-    },
+  const forceOverride = opts?.forceOverride
+    ? {
+        reason: opts.forceOverride.reason,
+        missing: opts.forceOverride.missing,
+        actorId: actorUserId,
+        at: publishedAt,
+      }
+    : null;
+  const { data, error } = await admin.rpc('publish_school_report_revision_atomic', {
+    p_report_id: report.id,
+    p_expected_lock_version: Number(opts?.expectedLockVersion ?? report.lock_version ?? 1),
+    p_actor_user_id: actorUserId,
+    p_title: report.title,
+    p_snapshot: report.snapshot,
+    p_narrative: report.narrative,
+    p_design: report.design ?? {},
+    p_data_sources: report.snapshot?.dataSources ?? null,
+    p_change_reason: opts?.changeReason || opts?.forceOverride?.reason || 'Published to school',
+    p_pdf_hash: pdfHash,
+    p_force_override: forceOverride,
+    p_verification_code: report.verification_code || schoolReportVerificationCode(report.id),
   });
+  const published = (Array.isArray(data) ? data[0] : data) as SchoolReportRevisionRow | null;
+  if (error || !published) {
+    const message = error?.message || 'Unable to publish revision.';
+    if (message.includes('REPORT_CONFLICT')) {
+      throw Object.assign(new Error('This report changed before publication completed.'), {
+        code: 'REPORT_CONFLICT',
+      });
+    }
+    throw new Error(message);
+  }
 
   logAuditEvent(opts?.forceOverride ? 'report.publish' : 'report.publish', {
     reportId: report.id,
