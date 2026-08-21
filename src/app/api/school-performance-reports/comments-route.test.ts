@@ -25,8 +25,10 @@ vi.mock('@/lib/observability/audit-events', () => ({
 
 import { GET, POST } from './[id]/comments/route';
 
+const REPORT_ID = '00000000-0000-4000-8000-000000000001';
+
 function actor(role = 'teacher', report: any = {
-  id: 'report-1',
+  id: REPORT_ID,
   school_id: 'school-1',
   working_revision_number: 2,
 }) {
@@ -42,7 +44,7 @@ function actor(role = 'teacher', report: any = {
   };
 }
 
-const context = { params: Promise.resolve({ id: 'report-1' }) };
+const context = { params: Promise.resolve({ id: REPORT_ID }) };
 
 describe('school report comments route', () => {
   beforeEach(() => {
@@ -53,7 +55,7 @@ describe('school report comments route', () => {
   it('rejects school accounts before querying comments', async () => {
     mocks.getSchoolReportActor.mockResolvedValue(actor('school'));
     const response = await GET(
-      new NextRequest('http://localhost/api/school-performance-reports/report-1/comments'),
+      new NextRequest(`http://localhost/api/school-performance-reports/${REPORT_ID}/comments`),
       context,
     );
 
@@ -65,7 +67,7 @@ describe('school report comments route', () => {
     mocks.getSchoolReportActor.mockResolvedValue(actor());
     mocks.canManageSchoolReport.mockReturnValue(false);
     const response = await GET(
-      new NextRequest('http://localhost/api/school-performance-reports/report-1/comments'),
+      new NextRequest(`http://localhost/api/school-performance-reports/${REPORT_ID}/comments`),
       context,
     );
 
@@ -76,20 +78,20 @@ describe('school report comments route', () => {
   it('returns comments to authorized staff', async () => {
     mocks.getSchoolReportActor.mockResolvedValue(actor());
     mocks.listSchoolReportComments.mockResolvedValue([
-      { id: 'comment-1', report_id: 'report-1', body: 'Review this.' },
+      { id: 'comment-1', report_id: REPORT_ID, body: 'Review this.' },
     ]);
     const response = await GET(
-      new NextRequest('http://localhost/api/school-performance-reports/report-1/comments'),
+      new NextRequest(`http://localhost/api/school-performance-reports/${REPORT_ID}/comments`),
       context,
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      data: { comments: [{ id: 'comment-1', report_id: 'report-1', body: 'Review this.' }] },
+      data: { comments: [{ id: 'comment-1', report_id: REPORT_ID, body: 'Review this.' }] },
     });
     expect(mocks.listSchoolReportComments).toHaveBeenCalledWith(
       expect.anything(),
-      'report-1',
+      REPORT_ID,
     );
   });
 
@@ -97,13 +99,13 @@ describe('school report comments route', () => {
     mocks.getSchoolReportActor.mockResolvedValue(actor());
     mocks.addSchoolReportComment.mockResolvedValue({
       id: 'comment-1',
-      report_id: 'report-1',
+      report_id: REPORT_ID,
       revision_id: 'revision-2',
       author_id: 'teacher-1',
       body: 'Review attendance.',
     });
     const request = new NextRequest(
-      'http://localhost/api/school-performance-reports/report-1/comments',
+      `http://localhost/api/school-performance-reports/${REPORT_ID}/comments`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,13 +116,13 @@ describe('school report comments route', () => {
 
     expect(response.status).toBe(201);
     expect(mocks.addSchoolReportComment).toHaveBeenCalledWith(expect.anything(), {
-      reportId: 'report-1',
+      reportId: REPORT_ID,
       authorId: 'teacher-1',
       body: 'Review attendance.',
       revisionId: 'revision-2',
     });
     expect(mocks.logAuditEvent).toHaveBeenCalledWith('report.comment', {
-      reportId: 'report-1',
+      reportId: REPORT_ID,
       commentId: 'comment-1',
       authorId: 'teacher-1',
       revisionNumber: 2,
@@ -130,7 +132,7 @@ describe('school report comments route', () => {
   it('returns 400 for malformed JSON without attempting a write', async () => {
     mocks.getSchoolReportActor.mockResolvedValue(actor());
     const request = new NextRequest(
-      'http://localhost/api/school-performance-reports/report-1/comments',
+      `http://localhost/api/school-performance-reports/${REPORT_ID}/comments`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
