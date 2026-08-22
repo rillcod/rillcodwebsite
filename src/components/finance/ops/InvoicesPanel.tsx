@@ -31,7 +31,6 @@ import {
 } from '@/lib/finance/streams';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
-import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
 import { TermInvoicePayPanel } from './TermInvoicePayPanel';
 import {
@@ -429,53 +428,6 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
       schools: inv.schools ?? null,
     });
 
-    // For school invoices reconstruct the rich school invoice HTML from stored line items
-    let rawHtml: string | undefined;
-    if (stream === 'school') {
-      const mainItem = rawItems[0] ?? {};
-      const commissionItem = rawItems.find((it) =>
-        String(it.description ?? '').toLowerCase().includes('commission'),
-      );
-      const depositItem = rawItems.find((it) =>
-        String(it.description ?? '').toLowerCase().includes('deposit'),
-      );
-      const isFixed = String(mainItem.description ?? '').toLowerCase().includes('package');
-      const count = Number(mainItem.quantity ?? 1);
-      const ratePerChild = isFixed ? 0 : Number(mainItem.unit_price ?? 0);
-      const fixedPrice = isFixed ? Number(mainItem.unit_price ?? 0) : 0;
-      const subtotal = Number(mainItem.total ?? 0);
-      const revenueShareOn = !!commissionItem;
-      const schoolShare = commissionItem ? Math.abs(Number(commissionItem.total ?? 0)) : 0;
-      const deposit = depositItem ? Math.abs(Number(depositItem.total ?? 0)) : 0;
-      const rillcodShare = subtotal - schoolShare;
-      const pctMatch = String(commissionItem?.description ?? '').match(/\((\d+)%\)/);
-      const quotaPct = pctMatch ? 100 - parseInt(pctMatch[1]) : 75;
-      const fmtDate = (d: string) =>
-        new Date(d).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
-      rawHtml = buildSchoolInvoiceHTML({
-        sch: { name: inv.schools?.name || 'Partner School' },
-        isFixed,
-        count,
-        ratePerChild,
-        fixedPrice,
-        quotaPct,
-        subtotal,
-        deposit,
-        rillcodShare,
-        schoolShare,
-        balance: Number(inv.amount),
-        revenueShareOn,
-        dateStr: fmtDate(inv.created_at),
-        dueStr: inv.due_date ? fmtDate(inv.due_date) : '—',
-        docRef: inv.invoice_number,
-        payToAcc: null,
-        showRevenueShare: revenueShareOn,
-        showWhatsapp: true,
-        notes: inv.notes || '',
-        currency: inv.currency,
-      });
-    }
-
     // Resolve recipient email: billing_contacts → portal_users (individual)
     const resolvedEmail = stream === 'school'
       ? (inv.billing_contacts?.representative_email || undefined)
@@ -501,7 +453,10 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         : (inv.portal_users?.full_name || 'Client'),
       studentEmail: resolvedEmail,
       schoolName: 'RILLCOD TECHNOLOGIES',
-      rawHtml,
+      // Persisted invoices always preview the same server-owned document used
+      // by the PDF/print action. This prevents payment details drifting between
+      // the quick preview, corrected invoice, and resend.
+      documentUrl: `/api/invoices/${inv.id}/pdf`,
       billingCycleId: inv.billing_cycle_id ?? null,
       termLabel,
     });
@@ -978,6 +933,16 @@ interface LineItem {
   unit_price: number;
 }
 
+interface QuickPaymentAccount {
+  id: string;
+  owner_type?: string;
+  is_active?: boolean;
+  label?: string | null;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+}
+
 function QuickInvoiceForm({
   students,
   onClose,
@@ -998,12 +963,36 @@ function QuickInvoiceForm({
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
+  const [paymentAccounts, setPaymentAccounts] = useState<QuickPaymentAccount[]>([]);
+  const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [paymentAccountError, setPaymentAccountError] = useState('');
+
+  useEffect(() => {
+    setPaymentAccountError('');
+    fetch('/api/payment-accounts', { cache: 'no-store' })
+      .then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Payment accounts could not be loaded.');
+        const accounts = (body.data ?? []).filter(
+          (account: QuickPaymentAccount) => account.owner_type === 'rillcod' && account.is_active !== false,
+        ) as QuickPaymentAccount[];
+        if (accounts.length === 0) throw new Error('No active Rillcod payment account is configured.');
+        setPaymentAccounts(accounts);
+        setPaymentAccountId((current) => current || accounts[0].id);
+      })
+      .catch((reason) => {
+        setPaymentAccounts([]);
+        setPaymentAccountId('');
+        setPaymentAccountError(reason instanceof Error ? reason.message : 'Payment accounts could not be loaded.');
+      });
+  }, []);
 
   const total = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 
   const buildPreviewData = (): DocPreviewData | null => {
     const valid = items.filter((i) => i.description.trim() && i.unit_price > 0);
     const selected = students.find((s) => s.id === portalUserId);
+    const paymentAccount = paymentAccounts.find((account) => account.id === paymentAccountId);
     if (valid.length === 0) return null;
     const rows = valid.map((i) => ({
       description: i.description,
@@ -1023,6 +1012,14 @@ function QuickInvoiceForm({
       studentName: selected?.full_name || 'Learner / Payer',
       studentEmail: selected?.email,
       schoolName: 'RILLCOD TECHNOLOGIES',
+      paymentMethod: 'bank_transfer',
+      depositAccount: paymentAccount
+        ? {
+            bank_name: paymentAccount.bank_name,
+            account_number: paymentAccount.account_number,
+            account_name: paymentAccount.account_name,
+          }
+        : undefined,
     };
   };
 
@@ -1065,6 +1062,10 @@ function QuickInvoiceForm({
       toast.error('Add at least one line item');
       return false;
     }
+    if (!paymentAccountId) {
+      toast.error(paymentAccountError || 'Choose an active Rillcod payment account');
+      return false;
+    }
 
     setSaving(true);
     try {
@@ -1081,6 +1082,10 @@ function QuickInvoiceForm({
           notes,
           status: 'sent',
           send_email: sendEmail,
+          metadata: {
+            payment_method: 'bank_transfer',
+            pay_to_account_id: paymentAccountId,
+          },
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -1216,6 +1221,34 @@ function QuickInvoiceForm({
 
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+              Payment account
+            </label>
+            <select
+              value={paymentAccountId}
+              onChange={(event) => setPaymentAccountId(event.target.value)}
+              disabled={paymentAccounts.length === 0}
+              className="w-full text-sm border border-border bg-background px-3 py-2 rounded-md focus:outline-none focus:border-primary disabled:opacity-60"
+            >
+              <option value="">Select an active account</option>
+              {paymentAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.label || account.bank_name} · {account.account_number}
+                </option>
+              ))}
+            </select>
+            {paymentAccountError ? (
+              <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
+                {paymentAccountError} Invoice creation is paused so no incomplete PDF is issued.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                These verified details will remain consistent in preview, PDF, email, and resend.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
               Line items
             </label>
             <div className="space-y-2">
@@ -1301,7 +1334,7 @@ function QuickInvoiceForm({
             </button>
             <button
               onClick={openPreview}
-              disabled={saving || total === 0}
+              disabled={saving || total === 0 || !paymentAccountId}
               className="inline-flex items-center gap-1 px-4 py-2 border border-border hover:border-primary text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-40"
               title="Live preview before issuing"
             >
@@ -1309,7 +1342,7 @@ function QuickInvoiceForm({
             </button>
             <button
               onClick={() => void save()}
-              disabled={saving}
+              disabled={saving || !paymentAccountId}
               className="inline-flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
             >
               {saving ? (

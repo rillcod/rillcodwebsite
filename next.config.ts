@@ -194,17 +194,16 @@ const nextConfig: NextConfig = {
         source: '/images/:path*',
         headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }],
       },
-      {
-        // Development chunks are not content-addressed and change during HMR;
-        // caching them as immutable causes stale module-factory crashes.
+      ...(isProduction ? [{
+        // Production chunks are content-addressed. Do not override Next's
+        // development chunk headers: Next 16 warns that doing so can break HMR
+        // and it is a known path to stale module-factory crashes.
         source: '/_next/static/(.*)',
         headers: [{
           key: 'Cache-Control',
-          value: isProduction
-            ? 'public, max-age=31536000, immutable'
-            : 'no-store, max-age=0, must-revalidate',
+          value: 'public, max-age=31536000, immutable',
         }],
-      },
+      }] : []),
     ];
   },
 };

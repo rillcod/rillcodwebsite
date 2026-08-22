@@ -7,6 +7,7 @@ import { toJson } from '@/lib/supabase/json';
 import type { Json } from '@/types/supabase';
 import { logAudit } from '@/lib/audit/log';
 import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
+import { prepareInvoicePaymentMetadata } from '@/lib/finance/invoice-payment-accounts';
 
 export type CreateInvoiceInput = {
   school_id?: string | null;
@@ -247,6 +248,15 @@ export async function createInvoice(
         },
       );
     }
+  }
+
+  try {
+    metadataObject = await prepareInvoicePaymentMetadata(db as any, metadataObject);
+  } catch (error) {
+    return financeFail(
+      'db_error',
+      error instanceof Error ? error.message : 'Invoice payment instructions could not be prepared.',
+    );
   }
 
   const invoice_number = input.invoice_number || buildInvoiceNumber();

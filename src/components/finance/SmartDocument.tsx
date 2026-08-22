@@ -240,7 +240,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
                 </div>
                 <div>
                   <h1 className={`text-2xl font-black uppercase tracking-tighter leading-none ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>
-                    Rillcod <span style={{ color: accentColor }}>Academy</span>
+                    Rillcod <span style={{ color: accentColor }}>Technologies</span>
                   </h1>
                   <p className={`text-[9px] font-black uppercase tracking-[0.3em] mt-1.5 flex items-center gap-2 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
                     <span style={{ color: accentColor }}><ShieldCheckIcon className="w-3 h-3" /></span> Authorized Learning Platform
@@ -391,12 +391,14 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             </table>
           </div>
 
-          {/* ── Bank Deposit Info (receipts only) ── */}
-          {isReceipt && data.depositAccount && (
+          {/* ── Canonical payment account used by invoices and receipts ── */}
+          {data.depositAccount && (
             <div className={`relative z-10 mb-8 p-5 border rounded-2xl ${template === 'bold' ? 'bg-white/5 border-white/10' : 'bg-background border-slate-100'}`}>
               <div className="flex items-center gap-3 mb-4">
                 <BuildingOfficeIcon className={`w-4 h-4 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`} />
-                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>Deposited To</p>
+                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${template === 'bold' ? 'text-white/30' : 'text-slate-300'}`}>
+                  {isReceipt ? 'Deposited To' : 'Payment Instructions'}
+                </p>
               </div>
               <div className="grid grid-cols-3 gap-6">
                 <div>

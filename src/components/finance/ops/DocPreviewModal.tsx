@@ -37,6 +37,8 @@ export interface DocPreviewData {
   instructorName?: string;
   /** Pre-built HTML to render in an iframe instead of SmartDocument (used for school invoices). */
   rawHtml?: string;
+  /** Canonical server-rendered document for an already-persisted invoice. */
+  documentUrl?: string;
   /** Linked term billing cycle id (school term invoices). */
   billingCycleId?: string | null;
   /** Human term label, e.g. "1st Term 2025/26". */
@@ -376,7 +378,14 @@ export function DocPreviewModal({
 
         {/* Document */}
         <div className="mt-4">
-          {data.rawHtml ? (
+          {data.documentUrl ? (
+            <iframe
+              src={data.documentUrl}
+              title={`Invoice ${data.number}`}
+              className="w-full border-0 rounded-xl shadow-2xl"
+              style={{ minHeight: '1200px', background: '#fff' }}
+            />
+          ) : data.rawHtml ? (
             <iframe
               srcDoc={data.rawHtml}
               title={`Invoice ${data.number}`}

@@ -802,7 +802,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-003 | P0 | Verified locally; production proof pending | Report authority/pathway split protects compulsory papers and optional six-box results | Deploy, role E2E, and binary PDF parity |
 | SYS-004 | P0 | At risk | No verified central CSRF/origin guard | Unsafe route inventory and attack tests pass |
 | SYS-005 | P0 | Confirmed defect | Limiter is a process-local `Map` and covers only `/api/inbox` | Shared-store, all-sensitive-action inventory, concurrency, and bypass tests pass |
-| SYS-006 | P0 | At risk | Financial correction/resend PDF account details | Same invoice version matches save/preview/download/resend |
+| SYS-006 | P0 | Locally remediated; production resend proof pending | Financial correction/resend now uses one canonical document route and a trusted issued-account snapshot | Deploy and prove the same invoice version matches save/preview/download/email/resend |
 | SYS-007 | P0 | At risk | Protected evidence across 175 delete sites | Every site classified/tested; marks and posted finance immutable |
 | SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
 | SYS-009 | P1 | Confirmed gap | CSP and HSTS absent/unverified | Report-only observation, enforced CSP, HTTPS/HSTS verification |
@@ -1807,3 +1807,49 @@ Remaining production/device proof:
 - add required dependency, secret, static-analysis, and container-image scanners to CI with named
   owners and documented exception expiry; zero local npm findings do not replace those controls;
 - deploy only through the Cloudflare pipeline after the remaining local milestones are approved.
+
+### 16.5 Invoice document authority and live-session runtime milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- removed the second persisted-invoice renderer from the finance operations panel; preview,
+  print, download, email, and resend now consume the canonical `/api/invoices/[id]/pdf` document
+  route instead of reconstructing a different invoice from transient browser state;
+- introduced a server-trusted, immutable `payment_account_snapshot` in invoice metadata. New and
+  corrected bank-transfer invoices resolve an active Rillcod account on the server, reject
+  missing accounts, ignore forged client snapshot fields, and preserve unrelated invoice metadata;
+- made the canonical invoice loader prefer the issued snapshot and retain a controlled legacy
+  fallback for invoices created before snapshots existed;
+- added explicit account/payment-method selection and fail-closed feedback to both the full
+  invoice editor and quick individual-invoice flow, and made previews show the exact selected
+  payment instructions before issuance;
+- restricted invoice correction to the central finance permission and replaced stale “Rillcod
+  Academy” document copy with “Rillcod Technologies”;
+- stabilized the Next.js 16 development runtime by using the configured Webpack compiler and by
+  leaving development chunk cache headers under Next.js control. Cleared only the generated
+  `.next` cache, then cold-compiled and reloaded `/dashboard/live-sessions` without the reported
+  `options.factory`/undefined-module runtime crash;
+- accepted Next.js 16's generated React JSX compiler setting and repository agent guidance so
+  clean developer runs do not continually mutate tracked configuration.
+
+Automated and runtime evidence:
+
+- clean cold request to `/dashboard/live-sessions`: HTTP 200; subsequent browser reload had no
+  runtime-error overlay or module-factory exception;
+- focused live-session and invoice suite: 12 files and 105 tests passed;
+- full suite: 337 files and 2,370 tests passed;
+- TypeScript: passed;
+- no production build or remote push was performed, in accordance with the current instruction.
+
+Remaining production proof and finance scope:
+
+- deploy through Cloudflare and repeat authenticated admin/teacher/student host/join/end/recording
+  journeys; the local browser check proved chunk stability and controlled signed-out behavior but
+  did not transmit stored credentials without an immediate confirmation;
+- perform a production-like correction, save, browser preview, binary PDF download, email, and
+  resend comparison for the same invoice version, including an old invoice without a snapshot;
+- extend immutable account snapshotting to billing-cycle invoices created by the database RPC;
+  those invoices currently retain the legacy server-side active-account fallback and therefore do
+  not yet preserve the exact account version atomically at cycle creation;
+- complete reconciliation, refund/reversal/overpayment, onboarding-gate, and role-level finance
+  journeys before declaring section 6.4 fully closed.

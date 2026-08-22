@@ -10,6 +10,7 @@ import {
 } from '@/lib/finance/billing-cycle-invoice-sync';
 import { logAudit } from '@/lib/audit/log';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { prepareUpdatedInvoicePaymentMetadata } from '@/lib/finance/invoice-payment-accounts';
 
 function adminClient() {
   return createClient(
@@ -107,6 +108,9 @@ export async function PATCH(
   const { id } = await context.params;
   const body = await req.json();
   const { due_date, notes, status, items, amount, portal_user_id, metadata } = body;
+  if (metadata !== undefined && (!metadata || typeof metadata !== 'object' || Array.isArray(metadata))) {
+    return NextResponse.json({ error: 'metadata must be an object' }, { status: 400 });
+  }
 
   let normalizedItems: NormalizedInvoiceLineItem[] | undefined;
   if (items !== undefined) {
@@ -120,7 +124,7 @@ export async function PATCH(
 
   // Verify invoice exists and caller has access.
   const { data: existing, error: existingError } = await admin.from('invoices')
-    .select('id, school_id, billing_cycle_id, status, items, amount, original_amount, amount_paid, amount_remaining, portal_user_id')
+    .select('id, school_id, billing_cycle_id, status, items, amount, original_amount, amount_paid, amount_remaining, portal_user_id, metadata')
     .eq('id', id)
     .single();
   if (existingError && existingError.code !== 'PGRST116') return NextResponse.json({ error: existingError.message }, { status: 500 });
@@ -132,6 +136,22 @@ export async function PATCH(
     }
   }
   if (existing.status === 'paid') return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
+
+  let preparedMetadata: Record<string, unknown>;
+  try {
+    preparedMetadata = await prepareUpdatedInvoicePaymentMetadata(
+      admin as any,
+      (existing.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata))
+        ? existing.metadata as Record<string, unknown>
+        : {},
+      metadata ?? {},
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Invoice payment instructions could not be prepared.' },
+      { status: 409 },
+    );
+  }
 
   const cycleLinkedUpdate = [due_date, status, items, amount, metadata, notes].some((value) => value !== undefined);
   let cycleId: string | null = null;
@@ -159,8 +179,8 @@ export async function PATCH(
     }
 
     const termLabel =
-      metadata && typeof metadata === 'object' && typeof metadata.term_label === 'string'
-        ? metadata.term_label
+      typeof preparedMetadata.term_label === 'string'
+        ? preparedMetadata.term_label
         : undefined;
 
     const sync = await syncInvoiceFieldsThroughBillingCycle(admin, cycleId, {
@@ -169,7 +189,7 @@ export async function PATCH(
       amount: amount !== undefined ? Number(amount) : undefined,
       currency: typeof body.currency === 'string' ? body.currency : undefined,
       items: normalizedItems,
-      metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : undefined,
+      metadata: preparedMetadata,
       notes: notes !== undefined ? (notes || null) : undefined,
       invoice_status: requestedStatus ?? existing.status,
     });
@@ -261,10 +281,7 @@ export async function PATCH(
     }
     update.portal_user_id = nextPayerId;
   }
-  if (metadata !== undefined) {
-    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return NextResponse.json({ error: 'metadata must be an object' }, { status: 400 });
-    update.metadata = metadata;
-  }
+  update.metadata = preparedMetadata;
 
   // Keep the printed document, ledger total, and outstanding balance aligned.
   const effectiveItems = update.items ?? existing.items;

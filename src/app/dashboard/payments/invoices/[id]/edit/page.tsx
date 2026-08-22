@@ -5,12 +5,22 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import SmartDocument from '@/components/finance/SmartDocument';
+import { roleHasCapability } from '@/lib/auth/capabilities';
 import {
   ArrowLeftIcon, PlusIcon, TrashIcon, EyeIcon,
   CheckCircleIcon, ClockIcon, XMarkIcon,
 } from '@/lib/icons';
 
 type LineItem = { description: string; quantity: number; unit_price: number; total: number };
+type PaymentAccount = {
+  id: string;
+  owner_type?: string;
+  is_active?: boolean;
+  label?: string | null;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+};
 
 const STATUSES: { value: string; label: string; color: string }[] = [
   { value: 'draft',     label: 'Draft',     color: 'border-border text-muted-foreground' },
@@ -31,6 +41,8 @@ export default function EditInvoicePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
+  const [paymentAccountsError, setPaymentAccountsError] = useState<string | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -38,6 +50,8 @@ export default function EditInvoicePage() {
     due_date: '',
     notes: '',
     portal_user_id: '',
+    payment_method: 'bank_transfer',
+    pay_to_account_id: '',
     items: [{ description: '', quantity: 1, unit_price: 0, total: 0 }] as LineItem[],
   });
 
@@ -59,6 +73,12 @@ export default function EditInvoicePage() {
         due_date: inv.due_date?.split('T')[0] ?? '',
         notes: inv.notes ?? '',
         portal_user_id: inv.portal_user_id ?? '',
+        payment_method: typeof inv.metadata?.payment_method === 'string'
+          ? inv.metadata.payment_method
+          : 'bank_transfer',
+        pay_to_account_id: typeof inv.metadata?.pay_to_account_id === 'string'
+          ? inv.metadata.pay_to_account_id
+          : '',
         items: rawItems.length > 0
           ? rawItems.map((it: any) => ({
               description: String(it.description ?? ''),
@@ -76,6 +96,33 @@ export default function EditInvoicePage() {
   }, [id]);
 
   useEffect(() => { if (!authLoading && profile) load(); }, [authLoading, profile, load]);
+
+  useEffect(() => {
+    if (!roleHasCapability(profile?.role, 'manage_finance')) return;
+    setPaymentAccountsError(null);
+    fetch('/api/payment-accounts', { cache: 'no-store' })
+      .then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Payment accounts could not be loaded.');
+        const accounts = (body.data ?? []).filter(
+          (account: PaymentAccount) => account.owner_type === 'rillcod' && account.is_active !== false,
+        ) as PaymentAccount[];
+        setPaymentAccounts(accounts);
+        setForm((current) => current.payment_method === 'bank_transfer' && !current.pay_to_account_id && accounts[0]?.id
+          ? { ...current, pay_to_account_id: accounts[0].id }
+          : current);
+      })
+      .catch((reason) => {
+        setPaymentAccounts([]);
+        setPaymentAccountsError(reason instanceof Error ? reason.message : 'Payment accounts could not be loaded.');
+      });
+  }, [profile?.role]);
+
+  useEffect(() => {
+    if (form.payment_method !== 'bank_transfer' || paymentAccounts.length === 0) return;
+    if (paymentAccounts.some((account) => account.id === form.pay_to_account_id)) return;
+    setForm((current) => ({ ...current, pay_to_account_id: paymentAccounts[0].id }));
+  }, [form.payment_method, form.pay_to_account_id, paymentAccounts]);
 
   useEffect(() => {
     if (!profile) return;
@@ -110,6 +157,10 @@ export default function EditInvoicePage() {
     e.preventDefault();
     const validItems = form.items.filter(it => it.description.trim() && it.unit_price > 0);
     if (validItems.length === 0) { setError('Add at least one line item with a description and price.'); return; }
+    if (form.payment_method === 'bank_transfer' && !form.pay_to_account_id) {
+      setError('Choose an active Rillcod payment account before saving this bank-transfer invoice.');
+      return;
+    }
     setSaving(true); setError(null);
     try {
       const items = validItems.map(it => ({ ...it, total: +(it.quantity * it.unit_price).toFixed(2) }));
@@ -121,6 +172,12 @@ export default function EditInvoicePage() {
           due_date: form.due_date || null,
           notes: form.notes || null,
           portal_user_id: form.portal_user_id || null,
+          metadata: {
+            payment_method: form.payment_method,
+            ...(form.payment_method === 'bank_transfer'
+              ? { pay_to_account_id: form.pay_to_account_id }
+              : {}),
+          },
           items,
           amount: items.reduce((s, it) => s + it.total, 0),
         }),
@@ -144,6 +201,9 @@ export default function EditInvoicePage() {
     const isSchoolInvoice = !!invoice?.school_id && !invoice?.portal_user_id;
     const schoolBillingStudent = !!invoice?.school_id && !!invoice?.portal_user_id;
     const student = students.find(s => s.id === form.portal_user_id) ?? invoice?.portal_users;
+    const paymentAccount = form.payment_method === 'bank_transfer'
+      ? paymentAccounts.find((account) => account.id === form.pay_to_account_id) ?? null
+      : null;
     return {
       id: invoice?.id,
       number: invoice?.invoice_number ?? '—',
@@ -163,8 +223,16 @@ export default function EditInvoicePage() {
       schoolName: schoolBillingStudent
         ? (invoice?.schools?.name ?? 'Rillcod Technologies')
         : 'Rillcod Technologies',
+      paymentMethod: form.payment_method,
+      depositAccount: paymentAccount
+        ? {
+            bank_name: paymentAccount.bank_name,
+            account_number: paymentAccount.account_number,
+            account_name: paymentAccount.account_name,
+          }
+        : undefined,
     };
-  }, [form, invoice, students, totalAmount]);
+  }, [form, invoice, paymentAccounts, students, totalAmount]);
 
   if (authLoading || loading) {
     return (
@@ -175,8 +243,16 @@ export default function EditInvoicePage() {
     );
   }
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'school' || profile?.role === 'teacher';
-  if (!isStaff) return null;
+  const canManageFinance = roleHasCapability(profile?.role, 'manage_finance');
+  if (!canManageFinance) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-4 mobile-page-root">
+        <p className="text-lg font-black text-foreground">Finance administrator access required</p>
+        <p className="text-sm text-muted-foreground">You can view permitted invoices in Finance, but only an administrator can change an issued amount or payment destination.</p>
+        <button onClick={() => router.back()} className="text-xs font-black uppercase tracking-widest text-primary underline">Go back</button>
+      </div>
+    );
+  }
 
   if (invoice?.status === 'paid') {
     return (
@@ -340,6 +416,65 @@ export default function EditInvoicePage() {
             </div>
           </div>
 
+          {/* Section: Payment instructions */}
+          <div className="bg-card border border-border">
+            <div className="px-6 py-3 border-b border-border flex items-center gap-2">
+              <span className="w-1 h-4 bg-primary flex-shrink-0" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Payment Instructions</p>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Payment Method</label>
+                <select
+                  title="Payment method"
+                  value={form.payment_method}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    payment_method: event.target.value,
+                    pay_to_account_id: event.target.value === 'bank_transfer'
+                      ? current.pay_to_account_id || paymentAccounts[0]?.id || ''
+                      : '',
+                  }))}
+                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="online">Online payment</option>
+                  <option value="cash">Cash</option>
+                  <option value="pos">POS terminal</option>
+                  <option value="cheque">Cheque</option>
+                </select>
+              </div>
+              {form.payment_method === 'bank_transfer' ? (
+                <div>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Pay To</label>
+                  <select
+                    title="Rillcod payment account"
+                    value={form.pay_to_account_id}
+                    onChange={(event) => setForm((current) => ({ ...current, pay_to_account_id: event.target.value }))}
+                    disabled={paymentAccounts.length === 0}
+                    className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
+                  >
+                    <option value="">Select an active account</option>
+                    {paymentAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.label || account.bank_name} · {account.account_number}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              {paymentAccountsError ? (
+                <div role="alert" className="md:col-span-2 border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-700 dark:text-rose-300">
+                  {paymentAccountsError} Saving a bank-transfer invoice is paused so an incomplete PDF cannot be issued.
+                </div>
+              ) : form.payment_method === 'bank_transfer' && form.pay_to_account_id ? (
+                <p className="md:col-span-2 text-xs text-muted-foreground">
+                  The selected account is verified by the server and captured with this revision. The same details appear in preview, PDF, email, and resend.
+                </p>
+              ) : null}
+            </div>
+          </div>
+
           {/* Section: Notes */}
           <div className="bg-card border border-border">
             <div className="px-6 py-3 border-b border-border flex items-center gap-2">
@@ -363,7 +498,7 @@ export default function EditInvoicePage() {
               className="sm:w-40 px-6 py-3 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all">
               Cancel
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || (form.payment_method === 'bank_transfer' && (!form.pay_to_account_id || !!paymentAccountsError))}
               className="flex-1 px-6 py-3 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
               {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {saving ? 'Saving…' : 'Save Changes'}
