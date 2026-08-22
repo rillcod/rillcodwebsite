@@ -7,6 +7,7 @@ import {
   programIdForCourse,
 } from '@/lib/assignments/visibility';
 import { logAudit } from '@/lib/audit/log';
+import { isAutoGradableAssignmentQuestion } from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -380,12 +381,9 @@ export async function POST(request: NextRequest) {
       if (f in body) payload[f] = body[f] ?? null;
     }
     if (!payload.grading_mode && Array.isArray(payload.questions) && payload.questions.length > 0) {
-      const autoTypes = new Set(['multiple_choice', 'true_false', 'fill_blank', 'coding_blocks', 'block_sequence']);
-      const autoGradeable = payload.questions.every((q: any) => (
-        autoTypes.has(String(q.question_type ?? '').toLowerCase())
-        && String(q.correct_answer ?? '').trim()
-      ));
-      if (autoGradeable) payload.grading_mode = 'auto';
+      payload.grading_mode = payload.questions.every(isAutoGradableAssignmentQuestion)
+        ? 'auto'
+        : 'manual';
     }
 
     // Programme is the authoritative cohort scope. If the client didn't send one,

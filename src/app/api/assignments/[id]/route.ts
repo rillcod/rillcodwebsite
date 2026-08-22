@@ -5,6 +5,7 @@ import { programIdForCourse } from '@/lib/assignments/visibility';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
 import { logAudit } from '@/lib/audit/log';
+import { isAutoGradableAssignmentQuestion } from '@/lib/assignments/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,8 +37,8 @@ function validateAssignmentInput(body: Record<string, any>, partial = false): { 
   }
   if ('weight' in body && body.weight != null) {
     const weight = Number(body.weight);
-    if (!Number.isFinite(weight) || weight < 0) {
-      return { error: 'weight must be zero or a positive number', field: 'weight' };
+    if (!Number.isFinite(weight) || weight < 0 || weight > 100) {
+      return { error: 'weight must be between 0 and 100', field: 'weight' };
     }
     body.weight = weight;
   }
@@ -218,12 +219,9 @@ export async function PATCH(
     if (f in body) allowed[f] = body[f] ?? null;
   }
   if (!allowed.grading_mode && Array.isArray(allowed.questions) && allowed.questions.length > 0) {
-    const autoTypes = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
-    const autoGradeable = allowed.questions.every((q: any) => (
-      autoTypes.has(String(q.question_type ?? '').toLowerCase())
-      && String(q.correct_answer ?? '').trim()
-    ));
-    if (autoGradeable) allowed.grading_mode = 'auto';
+    allowed.grading_mode = allowed.questions.every(isAutoGradableAssignmentQuestion)
+      ? 'auto'
+      : 'manual';
   }
 
   // Keep programme scope consistent with the course: when the course changes but no
