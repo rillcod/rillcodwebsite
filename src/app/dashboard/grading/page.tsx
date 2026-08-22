@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { buildGradingReviewQueue, type GradingReviewFilter } from '@/lib/grading-review-queue';
+import { gradeAssignmentRubric } from '@/lib/assignments/grading';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,9 @@ interface Submission {
   ai_suggested_grade: number | null;
   ai_suggested_feedback?: string | null;
   grading_mode: string | null;
+  grading_details?: {
+    rubric_scores?: Array<{ criterionIndex: number; earned: number }>;
+  } | null;
   portal_users?: { full_name: string; email: string; section_class?: string | null };
   assignments?: {
     title: string;
@@ -352,6 +356,7 @@ export default function GradingQueuePage() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [grade, setGrade] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [rubricScores, setRubricScores] = useState<Record<string, Record<number, string>>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -412,12 +417,19 @@ export default function GradingQueuePage() {
     // until the teacher explicitly chooses Use AI draft or Accept AI.
     const g: Record<string, string> = {};
     const f: Record<string, string> = {};
+    const r: Record<string, Record<number, string>> = {};
     for (const s of subs) {
       if (s.grade != null) g[s.id] = String(s.grade);
       if (s.feedback) f[s.id] = s.feedback;
+      if (Array.isArray(s.grading_details?.rubric_scores)) {
+        r[s.id] = Object.fromEntries(
+          s.grading_details.rubric_scores.map((row) => [row.criterionIndex, String(row.earned)]),
+        );
+      }
     }
     setGrade(g);
     setFeedback(f);
+    setRubricScores(r);
     setLoading(false);
   }, [classId, queryString, termId]);
 
@@ -457,6 +469,46 @@ export default function GradingQueuePage() {
       }, andNext ? 500 : 700);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Grading failed. Please try again.');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function doRubricGrade(
+    id: string,
+    rubric: Array<{ criterion: string; description?: string; maxPoints: number }>,
+    maxPoints: number,
+    andNext = false,
+  ) {
+    const scores = rubricScores[id] ?? {};
+    const result = gradeAssignmentRubric(rubric, scores, maxPoints);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setSaving(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/grading/submissions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rubric_scores: scores, feedback: feedback[id] || null }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Rubric grade could not be saved. Please try again.');
+      setSaved(prev => new Set([...prev, id]));
+      setTimeout(() => {
+        setSubmissions(prev => {
+          const next = prev.filter(s => s.id !== id);
+          const nextVisible = buildGradingReviewQueue(next, assignmentView);
+          setActiveIdx(index => Math.min(index, Math.max(0, nextVisible.length - 1)));
+          return next;
+        });
+        setSaved(prev => { const next = new Set(prev); next.delete(id); return next; });
+      }, andNext ? 500 : 700);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Rubric grade could not be saved. Please try again.');
     } finally {
       setSaving(null);
     }
@@ -712,6 +764,11 @@ export default function GradingQueuePage() {
                       const isSaved = saved.has(sub.id);
                       const scoreValue = Number(grade[sub.id]);
                       const canGrade = grade[sub.id] !== '' && Number.isFinite(scoreValue) && scoreValue >= 0 && scoreValue <= maxPts;
+                      const isRubric = rubric.length > 0;
+                      const activeRubricScores = rubricScores[sub.id] ?? {};
+                      const rubricResult = isRubric
+                        ? gradeAssignmentRubric(rubric, activeRubricScores, maxPts)
+                        : null;
 
                       return (
                         <div className={`rounded-2xl border overflow-hidden transition-all ${
@@ -823,8 +880,44 @@ export default function GradingQueuePage() {
                               )}
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[13rem_1fr]">
-                              <div>
+                            <div className={`grid grid-cols-1 gap-3 ${isRubric ? '' : 'sm:grid-cols-[13rem_1fr]'}`}>
+                              {isRubric ? (
+                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 space-y-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-xs font-black text-foreground">Score each rubric criterion</p>
+                                      <p className="mt-0.5 text-[10px] text-muted-foreground">The final mark is normalized to {maxPts} points and stored with the criterion evidence.</p>
+                                    </div>
+                                    <span className="shrink-0 text-xs font-black text-amber-700 dark:text-amber-300">
+                                      {rubricResult && !rubricResult.error ? `${rubricResult.grade}/${maxPts}` : 'Incomplete'}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    {rubric.map((criterion, index) => (
+                                      <label key={`${criterion.criterion}-${index}`} className="rounded-lg border border-border bg-background/70 p-3">
+                                        <span className="flex items-start justify-between gap-3">
+                                          <span className="text-xs font-bold text-foreground">{criterion.criterion}</span>
+                                          <span className="shrink-0 text-[10px] text-muted-foreground">/{criterion.maxPoints}</span>
+                                        </span>
+                                        {criterion.description && <span className="mt-1 block text-[10px] text-muted-foreground">{criterion.description}</span>}
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={criterion.maxPoints}
+                                          value={activeRubricScores[index] ?? ''}
+                                          onChange={(event) => setRubricScores(current => ({
+                                            ...current,
+                                            [sub.id]: { ...(current[sub.id] ?? {}), [index]: event.target.value },
+                                          }))}
+                                          className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-bold text-foreground focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                                          placeholder={`0 – ${criterion.maxPoints}`}
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
+                                  {rubricResult?.error && <p className="text-xs text-amber-700 dark:text-amber-300">Complete every criterion to save the rubric.</p>}
+                                </div>
+                              ) : <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
                                   Score out of {maxPts}
                                 </label>
@@ -837,7 +930,10 @@ export default function GradingQueuePage() {
                                   className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                   placeholder={`0 – ${maxPts}`}
                                 />
-                              </div>
+                                {!canGrade && grade[sub.id] != null && grade[sub.id] !== '' && (
+                                  <p className="mt-1 text-[10px] text-rose-600 dark:text-rose-400">Enter a score from 0 to {maxPts}.</p>
+                                )}
+                              </div>}
                               <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
                                   Teacher Feedback (optional)
@@ -865,22 +961,41 @@ export default function GradingQueuePage() {
                                   {isSaving ? 'Saving…' : `Accept AI · ${sub.ai_suggested_grade}/${maxPts}`}
                                 </button>
                               )}
-                              {/* Manual save */}
-                              <button
-                                onClick={() => void doGrade(sub.id, 'override', false)}
-                                disabled={!canGrade || isSaving}
-                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-all shadow-sm shadow-primary/20"
-                              >
-                                {isSaving ? 'Saving…' : 'Save Score'}
-                              </button>
-                              {/* Save & next */}
-                              <button
-                                onClick={() => void doGrade(sub.id, 'override', true)}
-                                disabled={!canGrade || isSaving}
-                                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/20 disabled:opacity-40 transition-all"
-                              >
-                                Save & Next <ArrowRightIcon className="w-4 h-4" />
-                              </button>
+                              {isRubric ? (
+                                <>
+                                  <button
+                                    onClick={() => void doRubricGrade(sub.id, rubric, maxPts, false)}
+                                    disabled={Boolean(rubricResult?.error) || isSaving}
+                                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-all shadow-sm shadow-primary/20"
+                                  >
+                                    {isSaving ? 'Saving…' : 'Save Rubric'}
+                                  </button>
+                                  <button
+                                    onClick={() => void doRubricGrade(sub.id, rubric, maxPts, true)}
+                                    disabled={Boolean(rubricResult?.error) || isSaving}
+                                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/20 disabled:opacity-40 transition-all"
+                                  >
+                                    Save Rubric & Next <ArrowRightIcon className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => void doGrade(sub.id, 'override', false)}
+                                    disabled={!canGrade || isSaving}
+                                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-xs font-black uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-all shadow-sm shadow-primary/20"
+                                  >
+                                    {isSaving ? 'Saving…' : 'Save Score'}
+                                  </button>
+                                  <button
+                                    onClick={() => void doGrade(sub.id, 'override', true)}
+                                    disabled={!canGrade || isSaving}
+                                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-3 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/20 disabled:opacity-40 transition-all"
+                                  >
+                                    Save & Next <ArrowRightIcon className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
                             </div>
 
                             <p className="text-[10px] text-muted-foreground text-center">
