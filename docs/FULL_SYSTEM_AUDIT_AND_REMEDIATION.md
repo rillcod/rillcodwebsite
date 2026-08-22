@@ -2040,3 +2040,32 @@ Remaining proof:
   and prove concurrent correction, manual-question completion, approval and returned-review behavior;
 - send `expected_version` from long-lived staff grading canvases for explicit stale-tab protection;
 - connect approved CBT/manual-paper evidence to the shared result contribution ledger and PDF proof.
+
+### 16.11 Central evaluation evidence milestone — verified locally on 23 August 2026
+
+Implemented:
+
+- repaired the database bridge from assignment/project review and CBT/manual-paper review into the
+  existing `academic_assessment_evidence` authority consumed by report academic QA;
+- maps graded evidence to `graded`, approved moderation/publication to `moderated`, and returned,
+  pending-manual or still-in-review evidence to `submitted` rather than incorrectly downgrading or
+  prematurely publishing it;
+- carries review version, moderation state and human correction reason into the evidence snapshot;
+- added a database invariant preventing CBT approval while manual questions remain unmarked;
+- reconciles existing rows by replaying metadata triggers only; learner answers, manual marks and
+  scores are never rewritten.
+
+Automated evidence:
+
+- focused evaluation-evidence suite: 3 files and 11 tests passed;
+- full suite: 343 files and 2,396 tests passed;
+- TypeScript: passed;
+- no production build, remote push or live database mutation was performed.
+
+Remaining evaluation/result scope:
+
+- apply migrations 93–95 in order on a disposable database and prove report QA sees only eligible
+  graded/moderated evidence;
+- add equivalent version/moderation/correction authority for written `exam_attempts`;
+- verify the weighting policy that turns named evidence into report components, then complete
+  candidate-paper/PDF and parent publication journeys.
