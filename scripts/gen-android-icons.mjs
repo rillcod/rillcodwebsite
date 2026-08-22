@@ -7,6 +7,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const sourcePath = path.join(root, 'resources', 'icon.png');
 const resPath = path.join(root, 'android', 'app', 'src', 'main', 'res');
+const iosIconPath = path.join(root, 'ios', 'App', 'App', 'Assets.xcassets', 'AppIcon.appiconset', 'AppIcon-512@2x.png');
+const iosSplashPath = path.join(root, 'ios', 'App', 'App', 'Assets.xcassets', 'Splash.imageset');
 const background = { r: 15, g: 15, b: 26, alpha: 255 };
 
 const densities = {
@@ -143,4 +145,33 @@ for (const [density, sizes] of Object.entries(densities)) {
   await generateDensity(logo, density, sizes);
 }
 
-console.log('Generated Android launcher icons with adaptive safe spacing.');
+await fs.mkdir(path.dirname(iosIconPath), { recursive: true });
+await sharp(sourcePath)
+  .resize(1024, 1024, { fit: 'cover' })
+  .png({ compressionLevel: 9 })
+  .toFile(iosIconPath);
+
+const splashLogo = await centeredLogo(logo, 2732, 0.34);
+const splash = await sharp({
+  create: { width: 2732, height: 2732, channels: 4, background },
+})
+  .composite([{ input: splashLogo }])
+  .png({ compressionLevel: 9 })
+  .toBuffer();
+
+await fs.mkdir(iosSplashPath, { recursive: true });
+for (const name of [
+  'splash-2732x2732.png',
+  'splash-2732x2732-1.png',
+  'splash-2732x2732-2.png',
+  'Default@1x~universal~anyany.png',
+  'Default@2x~universal~anyany.png',
+  'Default@3x~universal~anyany.png',
+  'Default@1x~universal~anyany-dark.png',
+  'Default@2x~universal~anyany-dark.png',
+  'Default@3x~universal~anyany-dark.png',
+]) {
+  await fs.writeFile(path.join(iosSplashPath, name), splash);
+}
+
+console.log('Generated Android and iOS launcher/splash assets with safe spacing.');

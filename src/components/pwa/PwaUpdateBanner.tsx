@@ -22,8 +22,8 @@ export default function PwaUpdateBanner({ enabled = true }: { enabled?: boolean 
 
     const trackRegistration = async () => {
       try {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (!reg || !mounted) return;
+        const reg = await navigator.serviceWorker.ready;
+        if (!mounted) return;
         if (reg.waiting) setWaitingWorker(reg.waiting);
 
         reg.addEventListener("updatefound", () => {

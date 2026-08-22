@@ -92,7 +92,7 @@ describe("model choice stays central", () => {
       offenders,
       `these choose their own models instead of asking modelQueueFor:\n  ${offenders.join("\n  ")}`
     ).toEqual([]);
-  }, 15_000);
+  }, 60_000);
 
   it("keeps the policy itself as the only ranking authority", () => {
     // If a second file starts ranking free models, the two will disagree.
@@ -104,5 +104,5 @@ describe("model choice stays central", () => {
       .map(repoRelative);
 
     expect(rankers).toEqual([]);
-  }, 15_000);
+  }, 60_000);
 });

@@ -806,7 +806,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-007 | P0 | At risk | Protected evidence across 175 delete sites | Every site classified/tested; marks and posted finance immutable |
 | SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
 | SYS-009 | P1 | Confirmed gap | CSP and HSTS absent/unverified | Report-only observation, enforced CSP, HTTPS/HSTS verification |
-| SYS-010 | P1 | Confirmed mismatch | Native display brand says Rillcod Academy | Android/iOS/PWA installed-app visual proof |
+| SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
 | SYS-012 | P1 | At risk | Large academic/lesson/report/settings pages | Vertical service/component split and performance baselines |
 | SYS-013 | P1 | User-reported | AI generation fails and prior content is hard to find | Durable job, retry, persistence, provenance, discovery tests |
@@ -814,11 +814,11 @@ snapshots, not current certification. This register is the current product-level
 | SYS-015 | P1 | At risk | Content types not always carried together | Unified lesson-content contract and learner publication tests |
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Confirmed gap | External error tracking/alerting absent | Release-linked errors and alerts verified |
-| SYS-018 | P0 | Confirmed defect | 21 production dependency findings (10 high, 1 critical) and no dependency/code/container scanning gate | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
+| SYS-018 | P0 | Dependency tree remediated; CI security gate pending | Full and production npm audits now report zero findings; dependency/code/container scanning still needs a required CI gate | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | At risk | Cron operational guarantees undocumented | Job registry, run ledger, alerts, replay and overlap tests |
 | SYS-020 | P1 | At risk | WhatsApp/message failures can be swallowed | No empty catches; delivery ledger and partial-failure UI |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
-| SYS-022 | P1 | Confirmed defect | Committed generated `public/sw.js` imports an ignored fallback and freezes a local precache manifest | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
+| SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
 | SYS-023 | P2 | Confirmed UI | Public home copy “EducationAcross” | Corrected production copy |
 | SYS-024 | P2 | Confirmed a11y | Public contact fields lack programmatic labels | Accessible-name browser check passes |
 | SYS-025 | P2 | Confirmed a11y | Small public/login touch targets | 44px target audit passes |
@@ -1764,3 +1764,46 @@ Remaining production proof:
 These findings are now part of SYS-005, SYS-018, SYS-022, SYS-042, and SYS-043. They remain in
 the workload and will be remediated through isolated security/PWA milestones rather than an
 unreviewed forced major upgrade.
+
+### 16.4 Dependency, PWA, push, and native foundation milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- upgraded Next.js from the vulnerable 15.5.23 line to 16.3.2 and aligned its ESLint package;
+- upgraded Monaco and Capacitor, removed `next-pwa`, Workbox, Firebase Admin, and the vulnerable
+  Capacitor asset helper dependency chains, and pinned patched transitive packages where the
+  direct owners have not yet released compatible ranges;
+- replaced the committed generated Workbox worker and missing ignored fallback with one
+  source-controlled service worker that never caches API or dashboard responses, uses
+  network-first navigation, supports push/notification clicks, cleans legacy caches, and waits
+  for explicit update activation;
+- centralized production registration in `ServiceWorkerRegistrar`, removed the update-banner
+  registration race, and made development unregister stale workers instead of serving old code;
+- replaced Firebase Admin delivery with a small JOSE-based OAuth service-account signer and FCM
+  HTTP v1 sender while preserving stale-token detection;
+- aligned Android, iOS, and Capacitor display names to Rillcod Technologies and regenerated the
+  native icon/splash assets from the canonical artwork;
+- upgraded the Android Capacitor target to Java 21 and successfully synchronized all five native
+  plugins;
+- set the full-suite timeout to 60 seconds for architecture tests that intentionally scan the
+  repository, including every test that previously overrode the harness with a 15-second cap.
+
+Automated evidence:
+
+- complete `npm audit`: 0 critical, high, moderate, low, or total findings across 1,389
+  production/development/optional dependencies;
+- focused PWA/push/auth/report suite: 4 files and 10 tests passed;
+- focused source-inventory stability suite: 4 files and 14 tests passed;
+- full suite: 335 files and 2,361 tests passed under concurrent load;
+- TypeScript: passed;
+- service-worker JavaScript syntax check: passed;
+- Android Capacitor sync: passed with five plugins; Capacitor Doctor reports Android configured.
+
+Remaining production/device proof:
+
+- exercise install, offline navigation, update activation, push receipt, and old-worker cleanup in
+  deployed Chrome/Safari and on physical Android/iOS devices;
+- build iOS on a macOS/Xcode runner (Xcode is unavailable on this Windows workstation);
+- add required dependency, secret, static-analysis, and container-image scanners to CI with named
+  owners and documented exception expiry; zero local npm findings do not replace those controls;
+- deploy only through the Cloudflare pipeline after the remaining local milestones are approved.

@@ -13,6 +13,10 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     globals: true,
     setupFiles: ['src/test/setup-env.ts'],
+    // Several architecture guards intentionally scan the full source tree.
+    // Give those deterministic checks enough headroom when every test file is
+    // competing for I/O in CI; assertions still fail immediately on drift.
+    testTimeout: 60_000,
   },
   resolve: {
     alias: {

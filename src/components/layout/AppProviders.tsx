@@ -11,6 +11,7 @@ import PWAInstaller, { OfflineIndicator } from "@/components/PWAInstaller";
 import PushSubscriptionManager from "@/components/pwa/PushSubscriptionManager";
 import NativePushManager from "@/components/pwa/NativePushManager";
 import PwaUpdateBanner from "@/components/pwa/PwaUpdateBanner";
+import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 import { Toaster } from "sonner";
 
 import { usePathname } from "next/navigation";
@@ -42,6 +43,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
     <ThemeProvider>
       <AuthProvider>
         <CapacitorBoot />
+        <ServiceWorkerRegistrar />
         {!isNativeApp && <Navigation />}
         <PwaProvider enabled={isDashboard} />
         {isDashboard && <PWAInstaller />}

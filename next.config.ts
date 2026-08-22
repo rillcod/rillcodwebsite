@@ -1,8 +1,4 @@
 import type { NextConfig } from "next";
-// @ts-ignore
-import withPWAInit from "next-pwa";
-// @ts-ignore
-import runtimeCaching from "next-pwa/cache";
 
 /**
  * PRODUCTION PATH: Cloudflare Containers (Dockerfile.cf) — slim standalone
@@ -13,28 +9,7 @@ import runtimeCaching from "next-pwa/cache";
 const isContainerBuild = process.env.DOCKER_BUILD === "1";
 const isProduction = process.env.NODE_ENV === "production";
 
-const withPWA = withPWAInit({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  // SafeDev PWA Mode: Disabled in development to ensure stable dashboard loading
-  disable: process.env.NODE_ENV === "development",
-  buildExcludes: [
-    /middleware-manifest\.json$/,
-    /app-build-manifest\.json$/,
-    /_buildManifest\.js$/,
-    /_ssgManifest\.js$/,
-  ],
-  runtimeCaching,
-  fallbacks: {
-    document: "/offline.html",
-  },
-});
-
 const nextConfig: NextConfig = {
-  // ── ESLint: run separately (pre-commit / CI), not during next build ───────
-  eslint: { ignoreDuringBuilds: true },
-
   // ── TypeScript: type errors still block builds ────────────────────────────
   typescript: { ignoreBuildErrors: false },
 
@@ -73,7 +48,6 @@ const nextConfig: NextConfig = {
   },
 
   // ── Turbopack Compatibility ──────────────────────────────────────────────
-  // silences warning for custom webpack used by next-pwa
   // @ts-ignore
   turbopack: {},
 
@@ -121,8 +95,8 @@ const nextConfig: NextConfig = {
   // Avoid browser source maps in CI — they inflate compile RAM.
   productionBrowserSourceMaps: false,
 
-  // next-pwa already injects webpack; disable persistent cache in the container
-  // build to cut peak RAM (and to keep the Docker layer small).
+  // Disable persistent cache in the container build to cut peak RAM and keep
+  // the Docker layer small.
   webpack: (config, { dev }) => {
     if (!dev && process.env.DOCKER_BUILD) {
       config.cache = false;
@@ -186,6 +160,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // The service worker is source-controlled and must be revalidated on
+        // every visit so a deploy cannot strand clients on stale chunks.
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
         // Noindex auth pages — they're not in the sitemap and should not be indexed
         source: '/(login|signup|reset-password|student/login)',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
@@ -226,4 +209,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;

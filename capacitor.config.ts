@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.rillcod.academy',
-  appName: 'Rillcod Academy',
+  appName: 'Rillcod Technologies',
   webDir: 'www',
   // Keep native/JavaScript logs out of release builds while retaining them in debug builds.
   loggingBehavior: 'debug',
