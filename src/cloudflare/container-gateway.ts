@@ -1,3 +1,4 @@
+/// <reference types="@cloudflare/workers-types" />
 /**
  * Thin Cloudflare Worker gateway that proxies all traffic to a Next.js
  * Container (full Node runtime). This avoids OpenNext's single-Worker

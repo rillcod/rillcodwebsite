@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { parseScoreAuthority, progressReportComplement, scoreAuthorityFromStanding } from './complement';
+import { parseScoreAuthority, progressReportComplement, scoreAuthorityFromStanding, usesRillcodSixBox } from './complement';
 
 describe('progress report complement', () => {
   it('keeps optional schools on the Rillcod report and compulsory on one complementary record', () => {
     expect(scoreAuthorityFromStanding('optional')).toBe('rillcod');
     expect(scoreAuthorityFromStanding('compulsory')).toBe('host_school');
     expect(parseScoreAuthority({ score_authority: 'host_school' })).toBe('host_school');
+    expect(usesRillcodSixBox({ score_authority: 'rillcod' })).toBe(true);
+    expect(usesRillcodSixBox({ score_authority: 'host_school' })).toBe(false);
     expect(progressReportComplement('rillcod').documentTitle).toBe('Progress Report');
     expect(progressReportComplement('host_school').documentTitle).toBe('Rillcod Progress Report');
     expect(progressReportComplement('host_school').parentNotice).toMatch(/Rillcod progress report/i);

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { courseConflictsWithClassSection } from '@/lib/reports/class-course';
 import { hostSchoolScoreboard } from '@/lib/academic/host-marks';
+import { parseScoreAuthority } from '@/lib/reports/complement';
 
 type ReportLike = Record<string, unknown>;
 
@@ -56,8 +57,9 @@ export function progressReportPublishIssues(report: ReportLike): string[] {
   if (metrics.host_review_required === true) {
     issues.push('school First Test, Second Test and Examination marks must be reviewed in Write before publishing');
   }
+  const hostSchool = parseScoreAuthority(metrics) === 'host_school';
   const hostBoard = hostSchoolScoreboard(metrics);
-  if ((metrics.score_authority === 'host_school' || metrics.programme_standing === 'compulsory') && !hostBoard?.complete) {
+  if (hostSchool && !hostBoard?.complete) {
     issues.push('First Test, Second Test and Examination marks are all required for this compulsory school report');
   }
 
@@ -80,14 +82,16 @@ export function progressReportPublishIssues(report: ReportLike): string[] {
   if (!isSchoolReport && text(report.school_section) && !text(report.course_duration)) issues.push('course_duration is required for cohort reports before publishing');
   if (!text(report.report_date)) issues.push('report_date is required before publishing');
   if (!text(report.instructor_name)) issues.push('instructor_name is required before publishing');
-  if (!scoreReady(report.theory_score)) issues.push('theory_score must be between 0 and 100 before publishing');
+  if (!hostSchool) {
+    if (!scoreReady(report.theory_score)) issues.push('theory_score must be between 0 and 100 before publishing');
+    if (!scoreReady(metrics.assessment_score)) issues.push('assessment_score must be between 0 and 100 before publishing');
+  }
   if (!scoreReady(metrics.classwork_score)) issues.push('classwork_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.practical_score)) issues.push('practical_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.attendance_score)) issues.push('attendance_score must be between 0 and 100 before publishing');
-  if (metrics.assignment_evidence_missing === true) issues.push('assignment evidence is missing; review and enter the real assignment score before publishing');
-  if (metrics.attendance_evidence_missing === true) issues.push('attendance evidence is missing; review and enter the real attendance score before publishing');
+  if (!hostSchool && metrics.assignment_evidence_missing === true) issues.push('assignment evidence is missing; review and enter the real assignment score before publishing');
+  if (!hostSchool && metrics.attendance_evidence_missing === true) issues.push('attendance evidence is missing; review and enter the real attendance score before publishing');
   if (!scoreReady(report.participation_score)) issues.push('participation_score must be between 0 and 100 before publishing');
-  if (!scoreReady(metrics.assessment_score)) issues.push('assessment_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.overall_score)) issues.push('overall_score must be between 0 and 100 before publishing');
   if (!text(report.overall_grade)) issues.push('overall_grade is required before publishing');
   if (!text(report.key_strengths)) issues.push('key_strengths is required before publishing');

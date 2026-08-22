@@ -350,12 +350,22 @@ function ParentResultsContent() {
                       <div className="flex items-center gap-4 flex-shrink-0">
                         {/* Mini score bars */}
                         <div className="hidden sm:flex items-center gap-3">
-                          {[
-                            { label: 'T', value: report.theory_score, title: copy.theory },
-                            { label: 'P', value: report.practical_score, title: copy.practical },
-                            { label: 'As', value: report.attendance_score, title: copy.assignments },
-                            { label: 'At', value: report.participation_score, title: copy.attendance },
-                          ].map(({ label, value, title }) => (
+                          {(() => {
+                            const board = hostSchoolScoreboard(report.engagement_metrics);
+                            const rings = board
+                              ? board.papers.map((row) => ({
+                                  label: row.kind === 'examination' ? 'Ex' : row.kind === 'second_test' ? '2' : '1',
+                                  value: row.mark.percent,
+                                  title: `${row.label}: ${formatHostMark(row.mark)}`,
+                                  display: formatHostMark(row.mark),
+                                }))
+                              : [
+                                  { label: 'T', value: report.theory_score, title: copy.theory, display: report.theory_score != null ? String(report.theory_score) : '—' },
+                                  { label: 'P', value: report.practical_score, title: copy.practical, display: report.practical_score != null ? String(report.practical_score) : '—' },
+                                  { label: 'As', value: report.attendance_score, title: copy.assignments, display: report.attendance_score != null ? String(report.attendance_score) : '—' },
+                                  { label: 'At', value: report.participation_score, title: copy.attendance, display: report.participation_score != null ? String(report.participation_score) : '—' },
+                                ];
+                            return rings.map(({ label, value, title, display }) => (
                             <div key={label} title={title} className="flex flex-col items-center gap-1">
                               <div className="w-8 h-8 relative">
                                 <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
@@ -369,15 +379,22 @@ function ParentResultsContent() {
                                 </svg>
                                 <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-foreground">{label}</span>
                               </div>
-                              <span className="text-[8px] font-black text-muted-foreground">{value ?? '—'}</span>
+                              <span className="text-[8px] font-black text-muted-foreground">{display}</span>
                             </div>
-                          ))}
+                            ));
+                          })()}
                         </div>
 
                         {/* Grade badge */}
                         <div className="text-center">
                           <p className={`text-2xl font-black ${gradeColor(report.overall_grade)}`}>{report.overall_grade ?? '—'}</p>
-                          <p className="text-[9px] text-muted-foreground">{report.overall_score != null ? `${report.overall_score}%` : ''}</p>
+                          <p className="text-[9px] text-muted-foreground">
+                            {(() => {
+                              const board = hostSchoolScoreboard(report.engagement_metrics);
+                              if (board) return formatHostMark(board.total);
+                              return report.overall_score != null ? `${report.overall_score}%` : '';
+                            })()}
+                          </p>
                         </div>
 
                         <div className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}>

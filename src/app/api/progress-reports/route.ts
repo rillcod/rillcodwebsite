@@ -16,6 +16,7 @@ import { logAudit } from '@/lib/audit/log';
 import {
   allProgressReportScoresPresent,
   applyOptionalScoresToPayload,
+  deriveHostSchoolReportResult,
   deriveProgressReportResult,
   PROGRESS_REPORT_SCORE_FIELDS,
 } from '@/lib/reports/score';
@@ -253,9 +254,49 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // The published Academic Office scheme is the one weighting authority for
-  // both manually entered evidence and automatic evidence calculations.
-  if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)
+  // Programme standing is a school policy, never a client choice. Optional
+  // schools keep the Rillcod 6-box overall. Compulsory papers add together
+  // and are not mixed into those weights.
+  const standingSchoolId = String(updatePayload.school_id ?? insertPayload.school_id ?? '').trim();
+  let compulsorySchoolPapers = false;
+  if (standingSchoolId) {
+    const { data: standingSchool, error: standingError } = await admin
+      .from('schools')
+      .select('programme_standing')
+      .eq('id', standingSchoolId)
+      .maybeSingle();
+    if (standingError) {
+      return NextResponse.json({ error: 'The school result pathway could not be verified. Please try again.' }, { status: 503 });
+    }
+    compulsorySchoolPapers = (standingSchool as any)?.programme_standing === 'compulsory';
+    for (const payload of [updatePayload, insertPayload]) {
+      const metrics = payload.engagement_metrics && typeof payload.engagement_metrics === 'object' && !Array.isArray(payload.engagement_metrics)
+        ? payload.engagement_metrics as Record<string, unknown>
+        : {};
+      payload.engagement_metrics = {
+        ...metrics,
+        score_authority: compulsorySchoolPapers ? 'host_school' : 'rillcod',
+        programme_standing: compulsorySchoolPapers ? 'compulsory' : 'optional',
+        host_review_required: false,
+      } as any;
+    }
+  }
+
+  if (compulsorySchoolPapers) {
+    const hostResult = deriveHostSchoolReportResult(updatePayload.engagement_metrics)
+      ?? deriveHostSchoolReportResult(insertPayload.engagement_metrics);
+    if (hostResult) {
+      updatePayload.overall_score = hostResult.overallScore;
+      updatePayload.overall_grade = hostResult.overallGrade;
+      insertPayload.overall_score = hostResult.overallScore;
+      insertPayload.overall_grade = hostResult.overallGrade;
+    } else {
+      updatePayload.overall_score = null;
+      updatePayload.overall_grade = null;
+      insertPayload.overall_score = null;
+      insertPayload.overall_grade = null;
+    }
+  } else if (PROGRESS_REPORT_SCORE_FIELDS.every((field) => field in body)
     && allProgressReportScoresPresent(updatePayload as Record<string, unknown>)) {
     try {
       const weighting = await loadEffectiveScoreWeights(admin as any, {
@@ -292,33 +333,6 @@ export async function POST(request: NextRequest) {
     const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
     if (!(await assertTeacherReportCourseScope(admin, caller.id, String(updatePayload.course_id), classScope.classIds))) {
       return NextResponse.json({ error: 'You are not assigned to this course through an owned class or direct course assignment.' }, { status: 403 });
-    }
-  }
-
-  // Programme standing is a school policy, never a client choice. Both direct
-  // Write and reviewed Auto-fill drafts store the authority marker used by all
-  // three report-card renderers and the publication validator.
-  const standingSchoolId = String(updatePayload.school_id ?? insertPayload.school_id ?? '').trim();
-  if (standingSchoolId) {
-    const { data: standingSchool, error: standingError } = await admin
-      .from('schools')
-      .select('programme_standing')
-      .eq('id', standingSchoolId)
-      .maybeSingle();
-    if (standingError) {
-      return NextResponse.json({ error: 'The school result pathway could not be verified. Please try again.' }, { status: 503 });
-    }
-    const compulsory = (standingSchool as any)?.programme_standing === 'compulsory';
-    for (const payload of [updatePayload, insertPayload]) {
-      const metrics = payload.engagement_metrics && typeof payload.engagement_metrics === 'object' && !Array.isArray(payload.engagement_metrics)
-        ? payload.engagement_metrics as Record<string, unknown>
-        : {};
-      payload.engagement_metrics = {
-        ...metrics,
-        score_authority: compulsory ? 'host_school' : 'rillcod',
-        programme_standing: compulsory ? 'compulsory' : 'optional',
-        host_review_required: false,
-      } as any;
     }
   }
 
@@ -360,10 +374,27 @@ export async function POST(request: NextRequest) {
   if (targetId) {
     const { data: existingReport } = await admin
       .from('student_progress_reports')
-      .select('teacher_id, instructor_name, student_id, school_id, is_published, updated_at')
+      .select('teacher_id, instructor_name, student_id, school_id, is_published, updated_at, engagement_metrics')
       .eq('id', targetId)
       .maybeSingle();
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
+    // Partial UI saves must not erase evidence entered earlier. Merge first,
+    // then derive the official school result from all three current papers.
+    if (updatePayload.engagement_metrics && typeof updatePayload.engagement_metrics === 'object' && !Array.isArray(updatePayload.engagement_metrics)) {
+      const storedMetrics = existingReport.engagement_metrics && typeof existingReport.engagement_metrics === 'object' && !Array.isArray(existingReport.engagement_metrics)
+        ? existingReport.engagement_metrics as Record<string, unknown>
+        : {};
+      updatePayload.engagement_metrics = {
+        ...storedMetrics,
+        ...(updatePayload.engagement_metrics as Record<string, unknown>),
+      } as any;
+      if (compulsorySchoolPapers) {
+        const hostResult = deriveHostSchoolReportResult(updatePayload.engagement_metrics);
+        updatePayload.overall_score = hostResult?.overallScore ?? null;
+        updatePayload.overall_grade = hostResult?.overallGrade ?? null;
+      }
+    }
 
     const publishedIssue = publishedProgressReportEditIssue(existingReport as Record<string, unknown>, body as Record<string, unknown>);
     if (publishedIssue) {

@@ -59,7 +59,7 @@ import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/
 import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
-import { emptyHostPaperMarks, formatHostMark, type HostMark, type HostPaperMarks } from '@/lib/academic/host-marks';
+import { emptyHostPaperMarks, formatHostMark, hostPapersComplete, type HostMark, type HostPaperMarks } from '@/lib/academic/host-marks';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -2084,10 +2084,14 @@ function ReportBuilderInner() {
             );
             const examinationFallback = topCbtScore(scopedCbt, 'examination', evidenceCourseId, statsProgramId);
             const evaluationFallback = topCbtScore(scopedCbt, 'evaluation', evidenceCourseId, statsProgramId);
+            const statsAuthority = scoreAuthorityFromStanding(
+                schools.find((school) => school.id === (sessionConfig.school_id || s.school_id))?.programme_standing,
+            );
             const hostApplied = applyHostAssessmentToReportScores({
                 rows: scopedCbt,
                 examinationFallback,
                 evaluationFallback,
+                mapIntoSixBox: statsAuthority !== 'host_school',
             });
             const cbtScore = hostApplied.theory;
             const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
@@ -2132,12 +2136,12 @@ function ReportBuilderInner() {
                     : 0;
                 setForm(f => ({
                     ...f,
-                    ...(cbtScore > 0 && theoryBlank           ? { theory_score:        String(cbtScore) }     : {}),
+                    ...(statsAuthority !== 'host_school' && cbtScore > 0 && theoryBlank           ? { theory_score:        String(cbtScore) }     : {}),
                     ...(assignmentAvg > 0 && classworkBlank   ? { classwork_score:     String(assignmentAvg) } : {}),
                     ...(projectPct > 0 && practicalBlank      ? { practical_score:     String(projectPct) }   : {}),
                     ...(assignmentPct > 0 && attendanceBlank  ? { attendance_score:    String(assignmentPct) }: {}),
                     ...(attPct > 0 && participationBlank      ? { participation_score: String(attPct) }       : {}),
-                    ...(evalScore > 0 && assessmentBlank      ? { assessment_score:    String(evalScore) }    : {}),
+                    ...(statsAuthority !== 'host_school' && evalScore > 0 && assessmentBlank      ? { assessment_score:    String(evalScore) }    : {}),
                 }));
             }
         } catch { /* silent fail */ } finally {
@@ -2384,7 +2388,7 @@ function ReportBuilderInner() {
     const scoreReady = (value: string) => Number.isFinite(scoreValue(value)) && scoreValue(value) >= 0 && scoreValue(value) <= 100;
     const publishQualityIssues = (() => {
         const issues: string[] = [];
-        if (reportScoreAuthority === 'host_school' && hostPaperRows.length < 3) {
+        if (reportScoreAuthority === 'host_school' && !hostPapersComplete(studentStats.hostPapers)) {
             issues.push('Record First Test, Second Test and Examination marks before publishing this compulsory school report.');
         }
         const isManual = selectedStudent?.id?.startsWith('manual-') || selectedStudent?.id?.startsWith('students-');
@@ -2407,12 +2411,12 @@ function ReportBuilderInner() {
         if (!sessionConfig.course_id || !sessionConfig.course_name.trim()) issues.push('Course is required.');
         if (!sessionConfig.instructor_name.trim()) issues.push('Instructor name is required.');
         if (!sessionConfig.report_date) issues.push('Report date is required.');
-        if (!scoreReady(form.theory_score)) issues.push('Theory score must be 0-100.');
+        if (reportScoreAuthority !== 'host_school' && !scoreReady(form.theory_score)) issues.push('Theory score must be 0-100.');
         if (!scoreReady(form.classwork_score)) issues.push('Classwork score must be 0-100.');
         if (!scoreReady(form.practical_score)) issues.push('Practical score must be 0-100.');
         if (!scoreReady(form.attendance_score)) issues.push('Assignment score must be 0-100.');
         if (!scoreReady(form.participation_score)) issues.push('Attendance score must be 0-100.');
-        if (!scoreReady(form.assessment_score)) issues.push('Assessment score must be 0-100.');
+        if (reportScoreAuthority !== 'host_school' && !scoreReady(form.assessment_score)) issues.push('Assessment score must be 0-100.');
         if (!form.key_strengths.trim()) issues.push('Key strengths comment is required.');
         if (!form.areas_for_growth.trim()) issues.push('Areas for growth comment is required.');
         if (!hasPreviewedCurrentReport && !livePreviewOpen) issues.push('Preview the latest report before publishing.');
@@ -2532,6 +2536,7 @@ function ReportBuilderInner() {
                     rows: scopedCbt,
                     examinationFallback: topCbtScore(scopedCbt, 'examination'),
                     evaluationFallback: topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4)),
+                    mapIntoSixBox: reportScoreAuthority !== 'host_school',
                 });
                 const cbtScore = hostApplied.theory;
                 const evalScore = hostApplied.assessment;
@@ -2557,14 +2562,15 @@ function ReportBuilderInner() {
                     return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
                 })(), { data: null, error: null }, 'bulk existing report lookup');
 
-                const overall = reportScoreAuthority === 'host_school' && hostApplied.total
-                  ? hostApplied.total.percent
+                const hostComplete = hostPapersComplete(hostApplied.papers);
+                const overall = reportScoreAuthority === 'host_school'
+                  ? (hostComplete ? hostApplied.total!.percent : null)
                   : computeWeightedScore(
                   { theory, classwork, practical, assignments, attendance, assessment },
                   effectiveWeighting.weights,
                 );
                 // Grade code for display (A1–F9); letter grade kept for Standard report card
-                const bulkWaecCode = getWAECGrade(overall).code;
+                const bulkWaecCode = overall == null ? null : getWAECGrade(overall).code;
 
                 const payload: any = {
                     student_id: isPrePortal ? null : s.id,
@@ -2580,14 +2586,14 @@ function ReportBuilderInner() {
                     report_period: sessionConfig.report_period,
                     instructor_name: sessionConfig.instructor_name,
                     // DB column mapping: attendance_score → assignments, participation_score → attendance
-                    theory_score:        theory,
+                    theory_score:        reportScoreAuthority === 'host_school' ? null : theory,
                     practical_score:     practical,
                     attendance_score:    assignments,
                     participation_score: attendance,
-                    engagement_metrics:  { classwork_score: classwork, assessment_score: assessment, assignment_evidence_missing: !hasAssignmentEvidence, attendance_evidence_missing: !hasAttendanceEvidence, score_authority: reportScoreAuthority, programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional', ...hostAssessmentMetricFields(hostApplied.papers) },
+                    engagement_metrics:  { classwork_score: classwork, assessment_score: reportScoreAuthority === 'host_school' ? null : assessment, assignment_evidence_missing: reportScoreAuthority === 'host_school' ? false : !hasAssignmentEvidence, attendance_evidence_missing: reportScoreAuthority === 'host_school' ? false : !hasAttendanceEvidence, score_authority: reportScoreAuthority, programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional', ...(reportScoreAuthority === 'host_school' ? hostAssessmentMetricFields(hostApplied.papers) : {}) },
                     overall_score: overall,
                     overall_grade: bulkWaecCode,
-                    proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
+                    proficiency_level: overall == null ? null : overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
                     show_payment_notice: sessionConfig.show_payment_notice,
                     updated_at: new Date().toISOString(),
                 };
@@ -2660,7 +2666,7 @@ function ReportBuilderInner() {
                 next_module: form.student_next_module || sessionConfig.next_module || null,
                 learning_milestones: sessionConfig.learning_milestones,
                 course_duration: sessionConfig.course_duration || null,
-                theory_score: parseOptionalScore(form.theory_score),
+                theory_score: reportScoreAuthority === 'host_school' ? null : parseOptionalScore(form.theory_score),
                 practical_score: parseOptionalScore(form.practical_score),
                 attendance_score: parseOptionalScore(form.attendance_score),
                 participation_grade: form.participation_grade,
@@ -2686,14 +2692,14 @@ function ReportBuilderInner() {
                 participation_score: parseOptionalScore(form.participation_score),
                 engagement_metrics: {
                     classwork_score:    parseOptionalScore(form.classwork_score),
-                    assessment_score:   parseOptionalScore(form.assessment_score),
+                    assessment_score:   reportScoreAuthority === 'host_school' ? null : parseOptionalScore(form.assessment_score),
                     score_authority:    reportScoreAuthority,
                     programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional',
                     examScore:           studentStats.cbtScore,
                     testAvg:             studentStats.assignmentAvg,
                     assignmentCompletion:studentStats.assignmentPct,
                     projectsCompleted:   studentStats.projects,
-                    ...hostAssessmentMetricFields(studentStats.hostPapers),
+                    ...(reportScoreAuthority === 'host_school' ? hostAssessmentMetricFields(studentStats.hostPapers) : {}),
                 },
             };
 
@@ -2998,7 +3004,8 @@ function ReportBuilderInner() {
         form.attendance_score,
         form.participation_score,
         form.assessment_score,
-    ].some((value) => !isUnsetScore(value));
+    ].some((value) => !isUnsetScore(value))
+      || (reportScoreAuthority === 'host_school' && studentStats.hostTotal != null);
     const previewShowsScores = !noAutoFillEvidence || formHasAnyScore;
 
     const previewData: any = {
@@ -3009,7 +3016,7 @@ function ReportBuilderInner() {
         template_id: modernTemplateId,
         calculation_mode: existingReport?.calculation_mode ?? null,
         calculation_snapshot: existingReport?.calculation_snapshot ?? null,
-        theory_score:        previewShowsScores ? parseScoreForDisplay(form.theory_score) : null,
+        theory_score:        reportScoreAuthority === 'host_school' ? null : (previewShowsScores ? parseScoreForDisplay(form.theory_score) : null),
         practical_score:     previewShowsScores ? parseScoreForDisplay(form.practical_score) : null,
         attendance_score:    previewShowsScores ? parseScoreForDisplay(form.attendance_score) : null,
         participation_score: previewShowsScores ? parseScoreForDisplay(form.participation_score) : null,
@@ -3017,13 +3024,13 @@ function ReportBuilderInner() {
         overall_grade: previewShowsScores ? waecCode : null,
         engagement_metrics: {
             classwork_score:  previewShowsScores ? parseScoreForDisplay(form.classwork_score) : null,
-            assessment_score: previewShowsScores ? parseScoreForDisplay(form.assessment_score) : null,
+            assessment_score: reportScoreAuthority === 'host_school' ? null : (previewShowsScores ? parseScoreForDisplay(form.assessment_score) : null),
             score_authority: reportScoreAuthority,
             programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional',
             score_weights: effectiveWeighting.weights,
             grading_scheme_id: effectiveWeighting.scheme?.id ?? null,
             grading_scheme_name: effectiveWeighting.scheme?.name ?? 'Rillcod balanced evidence model',
-            ...hostAssessmentMetricFields(studentStats.hostPapers),
+            ...(reportScoreAuthority === 'host_school' ? hostAssessmentMetricFields(studentStats.hostPapers) : {}),
         },
         has_certificate: forceCertificate || overallScore >= 45,
         certificate_text: (forceCertificate || overallScore >= 45)

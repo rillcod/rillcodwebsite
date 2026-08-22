@@ -147,6 +147,10 @@ export function emptyHostPaperMarks(): HostPaperMarks {
   return { first_test: null, second_test: null, examination: null };
 }
 
+export function hostPapersComplete(papers: HostPaperMarks): boolean {
+  return Boolean(papers.first_test && papers.second_test && papers.examination);
+}
+
 export function hostMarksFromCbtSessions(
   rows: Array<{
     score?: unknown;
@@ -265,16 +269,17 @@ export function hostSchoolScoreboard(metrics: unknown): HostSchoolScoreboard | n
       return mark ? { kind, label: hostPaperLabel(kind), mark } : null;
     })
     .filter((row): row is { kind: HostAssessmentKind; label: string; mark: HostMark } => !!row);
-  const storedTotal =
-    markFromEarned(rec.host_total_earned, rec.host_total_max) ||
-    markFromPercent(rec.host_total_percent, rec.host_total_max);
-  const total =
-    storedTotal ||
-    hostSchoolTotal({
+  const derivedTotal = hostSchoolTotal({
       first_test: papers.find((row) => row.kind === "first_test")?.mark ?? null,
       second_test: papers.find((row) => row.kind === "second_test")?.mark ?? null,
       examination: papers.find((row) => row.kind === "examination")?.mark ?? null,
     });
+  const storedTotal =
+    markFromEarned(rec.host_total_earned, rec.host_total_max) ||
+    markFromPercent(rec.host_total_percent, rec.host_total_max);
+  // The paper rows are authoritative. A stored total is only a fallback for
+  // older records that predate individual paper persistence.
+  const total = derivedTotal || storedTotal;
   if (!total || papers.length === 0) return null;
   return {
     papers,

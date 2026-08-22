@@ -1,4 +1,6 @@
 import { computeWeightedScore, getWAECGrade, type ScoreComponents, type ScoreWeights } from '@/lib/grading';
+import { hostSchoolScoreboard } from '@/lib/academic/host-marks';
+import { parseScoreAuthority } from '@/lib/reports/complement';
 
 type ProgressReportScoreSource = {
   theory_score?: unknown;
@@ -48,6 +50,19 @@ export function deriveProgressReportResult(report: ProgressReportScoreSource, we
     overallScore,
     overallGrade: getWAECGrade(overallScore).code,
     components,
+  };
+}
+
+/** Compulsory papers add together. Do not send this through the 6-box weights. */
+export function deriveHostSchoolReportResult(metrics: unknown): {
+  overallScore: number;
+  overallGrade: string;
+} | null {
+  const board = hostSchoolScoreboard(metrics);
+  if (!board?.complete) return null;
+  return {
+    overallScore: board.total.percent,
+    overallGrade: getWAECGrade(board.total.percent).code,
   };
 }
 
@@ -188,9 +203,16 @@ export function reportHasDisplayableScores(report: AutomaticEvidenceReport): boo
 
 export function autoFillResultMessage(calculation: unknown): string {
   const snapshot = metrics(calculation);
+  if (snapshot.skipped === 'host_school' || parseScoreAuthority(snapshot) === 'host_school') {
+    return autoFillHostSchoolMessage();
+  }
   const appliedWeight = Number(snapshot.applied_weight);
   if (Number.isFinite(appliedWeight) && appliedWeight <= 0) {
     return 'No class evidence for this term yet. Teach, take attendance, or generate the school test from taught weeks — Write will fill from that.';
   }
   return 'Draft filled from class work. Review in Write, then Publish.';
+}
+
+export function autoFillHostSchoolMessage(): string {
+  return 'Draft prepared. First Test, Second Test and Examination stay as the school papers — review them in Write. Classwork, assignments and projects sit beside them.';
 }

@@ -11,7 +11,8 @@ import {
   sessionsEqual,
 } from '@/lib/reports/academic-period';
 import { logAudit } from '@/lib/audit/log';
-import { deriveProgressReportResult, touchesProgressReportScores } from '@/lib/reports/score';
+import { deriveHostSchoolReportResult, deriveProgressReportResult, touchesProgressReportScores } from '@/lib/reports/score';
+import { parseScoreAuthority } from '@/lib/reports/complement';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 import { publishedProgressReportEditIssue } from '@/lib/reports/publication';
 
@@ -155,20 +156,38 @@ export async function PATCH(
 
   if (touchesProgressReportScores(body as Record<string, unknown>)) {
     allowed.calculation_mode = 'manual';
-    try {
-      const weighting = await loadEffectiveScoreWeights(admin as any, {
-        schoolId: (currentReport as any)?.school_id,
-        courseId: allowed.course_id ?? (currentReport as any)?.course_id,
-        termId: allowed.term_id ?? (currentReport as any)?.term_id,
-        academicOfferingId: (currentReport as any)?.academic_offering_id,
-      });
-      const result = deriveProgressReportResult({ ...(currentReport as any), ...allowed }, weighting.weights);
-      allowed.overall_score = result.overallScore;
-      allowed.overall_grade = result.overallGrade;
-    } catch (cause) {
-      return NextResponse.json({
-        error: cause instanceof Error ? cause.message : 'The active result-weighting policy could not be loaded.',
-      }, { status: 500 });
+    const mergedMetrics =
+      allowed.engagement_metrics && typeof allowed.engagement_metrics === 'object' && !Array.isArray(allowed.engagement_metrics)
+        ? { ...((currentReport as any)?.engagement_metrics ?? {}), ...allowed.engagement_metrics }
+        : (currentReport as any)?.engagement_metrics;
+    if ('engagement_metrics' in allowed) allowed.engagement_metrics = mergedMetrics;
+    if (parseScoreAuthority(mergedMetrics) === 'host_school') {
+      const hostResult = deriveHostSchoolReportResult(mergedMetrics);
+      if (hostResult) {
+        allowed.overall_score = hostResult.overallScore;
+        allowed.overall_grade = hostResult.overallGrade;
+      } else {
+        // Partial papers remain editable draft evidence, never an official 0/F9
+        // and never an older total left behind after a paper is cleared.
+        allowed.overall_score = null;
+        allowed.overall_grade = null;
+      }
+    } else {
+      try {
+        const weighting = await loadEffectiveScoreWeights(admin as any, {
+          schoolId: (currentReport as any)?.school_id,
+          courseId: allowed.course_id ?? (currentReport as any)?.course_id,
+          termId: allowed.term_id ?? (currentReport as any)?.term_id,
+          academicOfferingId: (currentReport as any)?.academic_offering_id,
+        });
+        const result = deriveProgressReportResult({ ...(currentReport as any), ...allowed }, weighting.weights);
+        allowed.overall_score = result.overallScore;
+        allowed.overall_grade = result.overallGrade;
+      } catch (cause) {
+        return NextResponse.json({
+          error: cause instanceof Error ? cause.message : 'The active result-weighting policy could not be loaded.',
+        }, { status: 500 });
+      }
     }
   }
 
@@ -191,7 +210,8 @@ export async function PATCH(
     }
   }
 
-  if (allowed.is_published === true && (currentReport as any)?.academic_trace_status === 'traceable') {
+  if (allowed.is_published === true && (currentReport as any)?.academic_trace_status === 'traceable'
+    && parseScoreAuthority((currentReport as any)?.engagement_metrics) !== 'host_school') {
     const { data: qa, error: qaError } = await (admin as any).rpc('evaluate_progress_report_academic_qa', {
       p_report_id: id,
     });

@@ -30,6 +30,21 @@ describe('progressReportPublishIssues', () => {
       first_test_max: 20,
     },
   })).toContain('First Test, Second Test and Examination marks are all required for this compulsory school report'));
+  it('does not demand theory or assessment 6-box columns when the three papers are on the record', () => expect(progressReportPublishIssues({
+    ...validReport,
+    theory_score: null,
+    engagement_metrics: {
+      classwork_score: 70,
+      score_authority: 'host_school',
+      programme_standing: 'compulsory',
+      first_test_earned: 14,
+      first_test_max: 20,
+      second_test_earned: 16,
+      second_test_max: 20,
+      examination_earned: 50,
+      examination_max: 60,
+    },
+  })).toEqual([]));
   it('blocks publishing when course_name conflicts with section_class programme', () => expect(progressReportPublishIssues({
     ...validReport,
     section_class: 'Abundant Grace · Teen Dev · JSS 1 - SS 3',

@@ -21,6 +21,11 @@ export function scoreAuthorityFromStanding(standing: unknown): ReportScoreAuthor
   return standing === 'compulsory' ? 'host_school' : 'rillcod';
 }
 
+/** Optional schools keep the Rillcod 6-box calculator. Compulsory papers are not mixed into it. */
+export function usesRillcodSixBox(value: unknown): boolean {
+  return parseScoreAuthority(value) !== 'host_school';
+}
+
 export function progressReportComplement(authority: ReportScoreAuthority) {
   if (authority === 'host_school') {
     return {

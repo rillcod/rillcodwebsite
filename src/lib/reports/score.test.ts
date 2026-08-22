@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   allProgressReportScoresPresent,
+  autoFillHostSchoolMessage,
   autoFillResultMessage,
   automaticResultHasNoEvidence,
+  deriveHostSchoolReportResult,
   deriveProgressReportResult,
   hasRecordedProgressReportScores,
   isLockedLearnerResult,
@@ -41,6 +43,28 @@ describe('progress report score adapter', () => {
       participation_score: 90,
       engagement_metrics: { classwork_score: 50, assessment_score: 40 },
     })).toMatchObject({ overallScore: 66, overallGrade: 'B3' });
+  });
+
+  it('derives the compulsory overall from added papers, not the 6-box weights', () => {
+    expect(deriveHostSchoolReportResult({
+      score_authority: 'host_school',
+      first_test_earned: 15,
+      first_test_max: 20,
+      second_test_earned: 18,
+      second_test_max: 20,
+      examination_earned: 57,
+      examination_max: 60,
+      host_total_earned: 90,
+      host_total_max: 100,
+    })).toEqual({ overallScore: 90, overallGrade: 'A1' });
+    expect(deriveHostSchoolReportResult({
+      score_authority: 'host_school',
+      first_test_earned: 15,
+      first_test_max: 20,
+      host_total_earned: 15,
+      host_total_max: 20,
+    })).toBeNull();
+    expect(deriveHostSchoolReportResult({ score_authority: 'rillcod', theory_score: 80 })).toBeNull();
   });
 
   it('detects score-bearing updates without treating narrative edits as scores', () => {
@@ -113,5 +137,6 @@ describe('progress report score adapter', () => {
     })).toBe(false);
     expect(autoFillResultMessage({ applied_weight: 0 })).toMatch(/No class evidence/);
     expect(autoFillResultMessage({ applied_weight: 40 })).toMatch(/filled from class work/i);
+    expect(autoFillResultMessage({ skipped: 'host_school' })).toBe(autoFillHostSchoolMessage());
   });
 });

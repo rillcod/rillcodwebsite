@@ -43,9 +43,9 @@ const baseReport = {
 };
 
 const templates = [
-  ['standard', (report: any) => <ReportCard report={report} orgSettings={null} />],
-  ['modern', (report: any) => <ModernReportCard report={{ ...report, template_id: 'executive' }} orgSettings={null} />],
-  ['printable', (report: any) => <PrintableReport report={report} orgSettings={null} />],
+  ['standard', (report: any) => React.createElement(ReportCard, { report, orgSettings: null })],
+  ['modern', (report: any) => React.createElement(ModernReportCard, { report: { ...report, template_id: 'executive' }, orgSettings: null })],
+  ['printable', (report: any) => React.createElement(PrintableReport, { report, orgSettings: null })],
 ] as const;
 
 describe('progress report pathway rendering used by PDF capture', () => {
@@ -79,7 +79,7 @@ describe('progress report pathway rendering used by PDF capture', () => {
         programme_standing: 'optional',
       },
     };
-    const html = renderToStaticMarkup(<ReportCard report={rillcodReport} orgSettings={null} />);
+    const html = renderToStaticMarkup(React.createElement(ReportCard, { report: rillcodReport, orgSettings: null }));
 
     expect(html).toContain('Progress Report');
     expect(html).toContain('Theory / Written');

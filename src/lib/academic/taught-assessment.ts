@@ -59,6 +59,20 @@ function overlaps(
   return !(activity.end < window.start || activity.start > window.end);
 }
 
+function firstTestWeekNumber(
+  termStart: string | null | undefined,
+  activities: TermActivity[] | null | undefined,
+): number | null {
+  if (!termStart) return null;
+  const first = (activities ?? []).find((row) => row.kind === "first_test");
+  if (!first) return null;
+  for (let week = 1; week <= 20; week += 1) {
+    const window = weekWindow(termStart, week);
+    if (overlaps(first, window)) return week;
+  }
+  return null;
+}
+
 export function hostAssessmentKindForWeek(input: {
   calendarRole?: WeekCalendarRole | null;
   weekNumber: number;
@@ -79,20 +93,10 @@ export function hostAssessmentKindForWeek(input: {
       return "first_test";
     }
   }
-  if (input.calendarRole === "school_test") return "first_test";
-  return null;
-}
-
-function firstTestWeekNumber(
-  termStart: string | null | undefined,
-  activities: TermActivity[] | null | undefined,
-): number | null {
-  if (!termStart) return null;
-  const first = (activities ?? []).find((row) => row.kind === "first_test");
-  if (!first) return null;
-  for (let week = 1; week <= 20; week += 1) {
-    const window = weekWindow(termStart, week);
-    if (overlaps(first, window)) return week;
+  if (input.calendarRole === "school_test") {
+    const firstWeek = firstTestWeekNumber(input.termStart, input.activities);
+    if (firstWeek != null && input.weekNumber > firstWeek) return "second_test";
+    return "first_test";
   }
   return null;
 }
@@ -229,6 +233,8 @@ export function applyHostAssessmentToReportScores(input: {
   rows: Parameters<typeof hostMarksFromCbtSessions>[0];
   examinationFallback: number;
   evaluationFallback: number;
+  /** Optional 6-box only. Compulsory papers stay in host fields, not theory/assessment. */
+  mapIntoSixBox?: boolean;
 }): {
   theory: number;
   assessment: number;
@@ -238,12 +244,17 @@ export function applyHostAssessmentToReportScores(input: {
 } {
   const papers = hostMarksFromCbtSessions(input.rows);
   const host = percentsFromPapers(papers);
+  const mapIntoSixBox = input.mapIntoSixBox !== false;
   return {
     host,
     papers,
     total: hostSchoolTotal(papers),
-    theory: papers.examination?.percent ?? input.examinationFallback,
-    assessment: hostTestsCombined(papers)?.percent ?? input.evaluationFallback,
+    theory: mapIntoSixBox
+      ? papers.examination?.percent ?? input.examinationFallback
+      : input.examinationFallback,
+    assessment: mapIntoSixBox
+      ? hostTestsCombined(papers)?.percent ?? input.evaluationFallback
+      : input.evaluationFallback,
   };
 }
 

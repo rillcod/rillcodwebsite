@@ -154,5 +154,36 @@ describe("taught host assessments", () => {
       theory: 90,
       assessment: 70,
     });
+    expect(
+      applyHostAssessmentToReportScores({
+        rows: [
+          {
+            score: 90,
+            status: "passed",
+            cbt_exams: { metadata: { host_assessment: "examination" } },
+          },
+        ],
+        examinationFallback: 12,
+        evaluationFallback: 15,
+        mapIntoSixBox: false,
+      }),
+    ).toMatchObject({
+      theory: 12,
+      assessment: 15,
+      host: { first_test: null, second_test: null, examination: 90 },
+    });
+  });
+
+  it("labels a later school-test week as Second Test when First Test has already passed", () => {
+    expect(
+      hostAssessmentKindForWeek({
+        calendarRole: "school_test",
+        weekNumber: 9,
+        termStart: "2026-09-14",
+        activities: [
+          { kind: "first_test", label: "First Test", start: "2026-10-20", end: "2026-10-24" },
+        ],
+      }),
+    ).toBe("second_test");
   });
 });

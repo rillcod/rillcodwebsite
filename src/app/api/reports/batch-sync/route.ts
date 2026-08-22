@@ -12,6 +12,8 @@ import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-cours
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
+import { hostPapersComplete } from '@/lib/academic/host-marks';
+import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 
 function adminClient() {
   return createClient(
@@ -164,6 +166,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No students found for the selected class' }, { status: 404 });
   }
 
+  const schoolIds = [...new Set(students.map((row: any) => row.school_id).filter(Boolean))];
+  const standingBySchool = new Map<string, 'compulsory' | 'optional'>();
+  if (schoolIds.length > 0) {
+    const { data: standingRows } = await admin
+      .from('schools')
+      .select('id, programme_standing')
+      .in('id', schoolIds);
+    for (const row of standingRows ?? []) {
+      standingBySchool.set(
+        String((row as any).id),
+        (row as any).programme_standing === 'compulsory' ? 'compulsory' : 'optional',
+      );
+    }
+  }
+
   // 2. Fetch Global data for calculations (Assignments in this course/school)
   let assignmentQuery = admin
     .from('assignments')
@@ -227,12 +244,16 @@ export async function POST(request: NextRequest) {
       // CALCULATION LOGIC (Matching the Report Builder's 6-component WAEC pattern)
       const grades = scopedSubmissions.filter((s: any) => s.grade != null).map(assignmentPct) as number[];
       const asgnAvg = grades.length > 0 ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
+      const hostSchool = scoreAuthorityFromStanding(
+        standingBySchool.get(String(student.school_id ?? '')) ?? 'optional',
+      ) === 'host_school';
       const hostApplied = applyHostAssessmentToReportScores({
         rows: scopedCbtRows,
         examinationFallback: topCbtScore(scopedCbtRows, course_id, 'examination', programId),
         evaluationFallback: topCbtScore(scopedCbtRows, course_id, 'evaluation', programId) || asgnAvg,
+        mapIntoSixBox: !hostSchool,
       });
-      const theoryScore = hostApplied.theory;
+      const theoryScore = hostSchool ? null : hostApplied.theory;
 
       // Classwork - 10% - current proxy: graded homework/classwork average
       const classworkScore = asgnAvg;
@@ -254,7 +275,7 @@ export async function POST(request: NextRequest) {
       const attendanceScore = hasAttendanceEvidence ? evidencePercentage(attRes.data?.length || 0, sessionIds.length) : 0;
 
       // Mid-term Assessment - 15% - host First/Second Test when present
-      const assessmentScore = hostApplied.assessment;
+      const assessmentScore = hostSchool ? null : hostApplied.assessment;
 
       const policyKey = student.school_id ?? 'global';
       let effectivePolicy = policyBySchool.get(policyKey);
@@ -266,17 +287,18 @@ export async function POST(request: NextRequest) {
         });
         policyBySchool.set(policyKey, effectivePolicy);
       }
-      const overallScore = hostApplied.total
-        ? hostApplied.total.percent
+      const hostComplete = hostPapersComplete(hostApplied.papers);
+      const overallScore = hostSchool
+        ? (hostComplete ? hostApplied.total!.percent : null)
         : computeWeightedScore({
-        theory: theoryScore,
+        theory: hostApplied.theory,
         classwork: classworkScore,
         practical: practicalScore,
         assignments: assignmentScore,
         attendance: attendanceScore,
-        assessment: assessmentScore,
+        assessment: hostApplied.assessment,
       }, effectivePolicy.weights);
-      const reportGrade = getWAECGrade(overallScore).code;
+      const reportGrade = overallScore == null ? null : getWAECGrade(overallScore).code;
 
       const payload = {
         student_id: student.id,
@@ -305,12 +327,12 @@ export async function POST(request: NextRequest) {
         engagement_metrics: {
           classwork_score: classworkScore,
           assessment_score: assessmentScore,
-          assignment_evidence_missing: !hasAssignmentEvidence,
-          attendance_evidence_missing: !hasAttendanceEvidence,
-          ...(hostApplied.total
-            ? { score_authority: 'host_school', programme_standing: 'compulsory' }
-            : {}),
-          ...hostAssessmentMetricFields(hostApplied.papers),
+          assignment_evidence_missing: hostSchool ? false : !hasAssignmentEvidence,
+          attendance_evidence_missing: hostSchool ? false : !hasAttendanceEvidence,
+          score_authority: hostSchool ? 'host_school' : 'rillcod',
+          programme_standing: hostSchool ? 'compulsory' : 'optional',
+          host_review_required: hostSchool,
+          ...(hostSchool ? hostAssessmentMetricFields(hostApplied.papers) : {}),
           evidence: {
             term_id: termId,
             assignment_ids: [...relevantAssignmentIds],
@@ -342,11 +364,15 @@ export async function POST(request: NextRequest) {
         ? await admin.from('student_progress_reports').update(payload).eq('id', existing.id).select('id').single()
         : await admin.from('student_progress_reports').insert(payload).select('id').single();
       if (writeResult.error) throw writeResult.error;
-      const { data: calculation, error: calculationError } = await admin.rpc(
-        'recalculate_academic_result',
-        { p_report_id: writeResult.data.id, p_actor_id: caller.id },
-      );
-      if (calculationError) throw calculationError;
+      let calculation: unknown = { skipped: 'host_school' };
+      if (!hostSchool) {
+        const { data, error: calculationError } = await admin.rpc(
+          'recalculate_academic_result',
+          { p_report_id: writeResult.data.id, p_actor_id: caller.id },
+        );
+        if (calculationError) throw calculationError;
+        calculation = data;
+      }
       const { data: academicQuality, error: academicQualityError } = await admin.rpc(
         'evaluate_progress_report_academic_qa',
         { p_report_id: writeResult.data.id },

@@ -3,6 +3,7 @@ import {
   formatHostMark,
   hostAssessmentMetricFields,
   hostMarksFromCbtSessions,
+  hostPapersComplete,
   hostSchoolScoreboard,
   hostSchoolTotal,
   markFromEarned,
@@ -104,6 +105,15 @@ describe("host school marks", () => {
     expect(board?.complete).toBe(true);
   });
 
+  it("does not treat three placeholder rows as complete papers", () => {
+    expect(hostPapersComplete({ first_test: null, second_test: null, examination: null })).toBe(false);
+    expect(hostPapersComplete({
+      first_test: markFromEarned(14, 20),
+      second_test: markFromEarned(16, 20),
+      examination: markFromEarned(50, 60),
+    })).toBe(true);
+  });
+
   it("uses the paper’s own max from hall capture, not a default /20", () => {
     const papers = hostMarksFromCbtSessions([
       {
@@ -114,5 +124,20 @@ describe("host school marks", () => {
       },
     ]);
     expect(papers.first_test).toEqual({ earned: 24, max: 30, percent: 80 });
+  });
+
+  it("recomputes an edited result instead of trusting a stale stored total", () => {
+    const board = hostSchoolScoreboard({
+      score_authority: "host_school",
+      first_test_earned: 10,
+      first_test_max: 20,
+      second_test_earned: 15,
+      second_test_max: 20,
+      examination_earned: 45,
+      examination_max: 60,
+      host_total_earned: 95,
+      host_total_max: 100,
+    });
+    expect(board?.total).toEqual({ earned: 70, max: 100, percent: 70 });
   });
 });

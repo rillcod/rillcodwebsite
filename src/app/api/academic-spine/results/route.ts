@@ -6,7 +6,8 @@ import { normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
 import { resolveClassReportSession } from '@/lib/reports/session-labels';
-import { autoFillResultMessage } from '@/lib/reports/score';
+import { autoFillHostSchoolMessage, autoFillResultMessage } from '@/lib/reports/score';
+import { parseScoreAuthority } from '@/lib/reports/complement';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
   if (body.action === 'recalculate') {
     const reportId = typeof body.report_id === 'string' ? body.report_id : '';
     const { data: report } = await db.from('student_progress_reports')
-      .select('id,class_id,calculation_mode,is_published')
+      .select('id,class_id,calculation_mode,is_published,engagement_metrics')
       .eq('id', reportId).maybeSingle();
     if (!report) return NextResponse.json({ error: 'Result record not found' }, { status: 404 });
     if (report.is_published || report.calculation_mode === 'manual') {
@@ -117,6 +118,16 @@ export async function POST(req: NextRequest) {
     if (user.role === 'teacher') {
       const { data: klass } = await db.from('classes').select('teacher_id').eq('id', report.class_id).maybeSingle();
       if (klass?.teacher_id !== user.id) return NextResponse.json({ error: 'This result belongs to another class.' }, { status: 403 });
+    }
+    if (parseScoreAuthority(report.engagement_metrics) === 'host_school') {
+      return NextResponse.json({
+        data: {
+          report_id: reportId,
+          skipped: 'host_school',
+          calculation: { skipped: 'host_school' },
+          message: autoFillHostSchoolMessage(),
+        },
+      });
     }
     const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: reportId, p_actor_id: user.id });
     if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
@@ -262,8 +273,14 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ data: { report_id: write.data.id, calculation_mode: 'manual', message: 'Opened in Write. Auto-fill will not change these scores.' } }, { status: existing ? 200 : 201 });
   }
-  const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: write.data.id, p_actor_id: user.id });
-  if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
+  let calculation: unknown = null;
+  if (compulsorySchoolPapers) {
+    calculation = { skipped: 'host_school' };
+  } else {
+    const { data, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: write.data.id, p_actor_id: user.id });
+    if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
+    calculation = data;
+  }
   const { data: quality, error: qualityError } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: write.data.id });
   if (qualityError) return NextResponse.json({ error: qualityError.message }, { status: 400 });
   await logAudit(db as any, {
