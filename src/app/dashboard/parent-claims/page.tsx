@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import { isStaffRole } from '@/lib/dashboard/route-access';
 import { fetchActionJson } from '@/lib/async-timeout';
+import { useSearchParams } from 'next/navigation';
 
 function customerError(response: Response, error: unknown, fallback: string): string {
   return response.status < 500 && typeof error === 'string' && error.trim() ? error : fallback;
@@ -136,7 +137,11 @@ function PersonPicker({ kind, value, onChange, placeholder }: {
 
 export default function ParentClaimsAuditPage() {
   const { profile, loading: authLoading } = useAuth();
-  const [tab, setTab] = useState<'audit' | 'unlinked' | 'links'>('audit');
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const [tab, setTab] = useState<'audit' | 'unlinked' | 'links'>(
+    requestedTab === 'unlinked' || requestedTab === 'links' ? requestedTab : 'audit',
+  );
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [unlinked, setUnlinked] = useState<UnlinkedRow[]>([]);
   const [links, setLinks] = useState<LinkRow[]>([]);
@@ -149,7 +154,7 @@ export default function ParentClaimsAuditPage() {
   const [inviting, setInviting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [action, setAction] = useState('');
+  const [action, setAction] = useState(searchParams.get('action') ?? '');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [auditError, setAuditError] = useState('');

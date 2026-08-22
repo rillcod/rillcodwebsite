@@ -5303,21 +5303,27 @@ export type Database = {
       consent_responses: {
         Row: {
           form_id: string
+          id: string
           parent_id: string
           response_data: Json | null
           signed_at: string
+          student_id: string | null
         }
         Insert: {
           form_id: string
+          id?: string
           parent_id: string
           response_data?: Json | null
           signed_at?: string
+          student_id?: string | null
         }
         Update: {
           form_id?: string
+          id?: string
           parent_id?: string
           response_data?: Json | null
           signed_at?: string
+          student_id?: string | null
         }
         Relationships: [
           {
@@ -5354,6 +5360,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "consent_responses_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
           },
         ]
       }

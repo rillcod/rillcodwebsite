@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { fetchActionJson } from '@/lib/async-timeout';
+import { useSearchParams } from 'next/navigation';
 
 interface CredentialStatus {
   status: string | null; // 'created' | 'sent' | 'failed'
@@ -36,10 +37,15 @@ type FilterType = 'all' | 'not_activated' | 'activated';
 
 export default function ResendCredentialsPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<FilterType>(
+    searchParams.get('filter') === 'not_activated' || searchParams.get('filter') === 'activated'
+      ? searchParams.get('filter') as FilterType
+      : 'all',
+  );
   const [enrollType, setEnrollType] = useState<string>('all');
   const [sending, setSending] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState<Record<string, boolean>>({});
@@ -82,6 +88,11 @@ export default function ResendCredentialsPage() {
   const [mergingDupes, setMergingDupes] = useState(false);
   const [health, setHealth] = useState<Record<string, number> | null>(null);
   const [healthError, setHealthError] = useState('');
+
+  useEffect(() => {
+    const requested = searchParams.get('filter');
+    if (requested === 'not_activated' || requested === 'activated') setFilter(requested);
+  }, [searchParams]);
 
   const loadHealth = useCallback(async () => {
     setHealthError('');
@@ -467,27 +478,32 @@ export default function ResendCredentialsPage() {
               <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold"><CheckCircleIcon className="w-3.5 h-3.5" /> All clear</span>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
             {([
-              ['awaitingVerification', 'Awaiting verify'],
-              ['unonboardedPaid', 'Paid, not onboarded'],
-              ['termPaidNotOnboarded', 'Term paid, pending'],
-              ['failedEmails', 'Failed emails'],
-              ['studentsNoClass', 'No class'],
-              ['consentPendingReview', 'Consent review'],
-              ['claimDeliveryFailures24h', 'Code failed (24h)'],
-              ['claimCompletionFailures24h', 'Claim failed (24h)'],
-              ['parentsZeroChildren', 'Parents 0 kids'],
-              ['legacyCollisions', 'Legacy accounts'],
-              ['paymentsNoReceipt', 'No receipt'],
-              ['duplicatePaymentInvoices', 'Duplicate invoices'],
-            ] as [string, string][]).map(([key, label]) => {
+              ['awaitingVerification', 'Awaiting verify', '/dashboard/prospective-students'],
+              ['unonboardedPaid', 'Paid, not onboarded', '/dashboard/students/resend-credentials?filter=not_activated'],
+              ['termPaidNotOnboarded', 'Term paid, pending', '/dashboard/students/resend-credentials?filter=not_activated'],
+              ['failedEmails', 'Failed emails', '/dashboard/students/resend-credentials?filter=not_activated'],
+              ['studentsNoClass', 'No class', '/dashboard/students'],
+              ['consentPendingReview', 'Consent review', '/dashboard/consent-forms?view=needs_review'],
+              ['claimDeliveryFailures24h', 'Code failed (24h)', '/dashboard/parent-claims?tab=audit&action=code_delivery_failed'],
+              ['claimCompletionFailures24h', 'Claim failed (24h)', '/dashboard/parent-claims?tab=audit&action=completion_failed'],
+              ['parentsZeroChildren', 'Parents 0 kids', '/dashboard/parent-claims?tab=unlinked'],
+              ['legacyCollisions', 'Legacy accounts', '/dashboard/parent-claims?tab=links'],
+              ['paymentsNoReceipt', 'No receipt', '/dashboard/finance?workspace=collections&ops=approvals'],
+              ['duplicatePaymentInvoices', 'Duplicate invoices', '/dashboard/finance?workspace=invoices&ops=invoices'],
+            ] as [string, string, string][]).map(([key, label, href]) => {
               const v = health[key] ?? 0;
               return (
-                <div key={key} className={`rounded-xl border p-3 text-center ${v > 0 ? 'border-amber-500/30 bg-amber-500/10' : 'border-border bg-muted/20'}`}>
+                <Link
+                  key={key}
+                  href={href}
+                  aria-label={`${label}: ${v}. Open worklist`}
+                  className={`rounded-xl border p-3 text-center transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${v > 0 ? 'border-amber-500/30 bg-amber-500/10' : 'border-border bg-muted/20'}`}
+                >
                   <div className={`text-xl font-black ${v > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>{v}</div>
                   <div className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{label}</div>
-                </div>
+                </Link>
               );
             })}
           </div>

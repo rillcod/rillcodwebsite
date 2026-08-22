@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { externalQrPrintUrl, HD_QR_DISPLAY_PX, HD_QR_PRINT_LARGE_PX, HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
 import { downloadQrCard } from '@/lib/qr-card';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ClassPathwayPicker } from '@/components/classes/ClassPathwayPicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HdQrCode } from '@/components/qr/HdQrCode';
@@ -963,13 +963,19 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function ConsentFormsPage() {
+  const searchParams = useSearchParams();
   const { profile } = useAuth();
   const router = useRouter();
   const [forms, setForms] = useState<ConsentForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
-  const [viewFilter, setViewFilter] = useState<'all' | 'needs_review' | 'public' | 'private' | 'overdue'>('all');
+  const requestedView = searchParams.get('view');
+  const [viewFilter, setViewFilter] = useState<'all' | 'needs_review' | 'public' | 'private' | 'overdue'>(
+    requestedView === 'needs_review' || requestedView === 'public' || requestedView === 'private' || requestedView === 'overdue'
+      ? requestedView
+      : 'all',
+  );
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -1166,7 +1172,7 @@ export default function ConsentFormsPage() {
         completed = true;
       } else if (res.status === 409) {
         setForms(prev => prev.map(f => f.id === id ? { ...f, has_signed: true } : f));
-        alert('You already signed this consent form.');
+        alert('A response for this child has already been recorded on this form.');
         completed = true;
       } else {
         alert(json.error ?? 'Could not submit the consent form. Please try again.');
@@ -1716,14 +1722,14 @@ export default function ConsentFormsPage() {
                             Deadline: <strong>{new Date(readModal.due_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
                           </p>
                         )}
-                        {isParent && !readModal.has_signed && (
+                        {isParent && (
                           <button onClick={() => setRegStep('fill')} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-black rounded-xl transition-colors">
-                            I have read this — Continue to Registration →
+                            {readModal.has_signed ? 'Submit for another child →' : 'I have read this — Continue to Registration →'}
                           </button>
                         )}
                         {isParent && readModal.has_signed && (
-                          <div className="w-full py-3 bg-emerald-600/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black rounded-xl text-center text-sm">
-                            ✓ You have already signed this form
+                          <div className="w-full py-3 px-4 bg-emerald-600/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold rounded-xl text-center text-xs">
+                            A response is already recorded. Parents with another linked child may submit this form again for that child.
                           </div>
                         )}
                       </div>
@@ -2188,12 +2194,12 @@ export default function ConsentFormsPage() {
                       {/* Primary actions — wrap on mobile */}
                       <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-stretch gap-px bg-border/40">
 
-                        {isParent && !cf.has_signed && (
+                        {isParent && (
                           <button
                             onClick={() => openReadModal(cf.id)}
                             className="col-span-2 flex items-center justify-center gap-2 min-h-11 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest transition-colors"
                           >
-                            <DocumentTextIcon className="w-3.5 h-3.5" /> Read &amp; Sign
+                            <DocumentTextIcon className="w-3.5 h-3.5" /> {cf.has_signed ? 'Add another child response' : 'Read & Sign'}
                           </button>
                         )}
 

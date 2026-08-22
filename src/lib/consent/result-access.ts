@@ -27,6 +27,9 @@ export type ConsentAccessStatus = {
 const FORM_TYPE_PRIORITY = new Map([
   ['assessment', 0],
   ['registration', 1],
+  // `general` is the database-backed name for a plain consent form.
+  ['general', 2],
+  // Retain compatibility with imported records created before the DB check.
   ['consent', 2],
 ]);
 
@@ -80,26 +83,51 @@ export async function resolveRequiredConsentForm(
     [0] ?? null;
 }
 
-export async function getResultConsentAccessStatus(
+/**
+ * Returns the newest applicable form for every supported intake purpose.
+ *
+ * This is intentionally separate from `resolveRequiredConsentForm`: the latter
+ * remains the single compatibility gate used by result access, while this list
+ * powers parent worklists without unexpectedly making every published form a
+ * new blocker.
+ */
+export async function resolveRequiredConsentForms(
   admin: AnySupabase,
-  params: {
-    studentUserId: string;
-    schoolId?: string | null;
-    classId?: string | null;
-    enrollmentType?: string | null;
-    parentId?: string | null;
-  },
-): Promise<ConsentAccessStatus> {
-  const form = await resolveRequiredConsentForm(admin, {
-    schoolId: params.schoolId,
-    classId: params.classId,
-    enrollmentType: params.enrollmentType,
-  });
+  params: { schoolId?: string | null; classId?: string | null; enrollmentType?: string | null },
+): Promise<RequiredConsentForm[]> {
+  if (!params.schoolId) return [];
 
-  if (!form) {
-    return { required: false, complete: true, form: null, formUrl: null, matchedLeadId: null };
+  const { data, error } = await admin
+    .from('consent_forms')
+    .select('id, access_code, title, form_type, school_id, class_id, enrollment_type, academic_offering_id, created_at')
+    .eq('school_id', params.schoolId)
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  const expectedType = normalizeEnrollmentType(params.enrollmentType, 'school');
+  const applicable = ((data ?? []) as Array<RequiredConsentForm & { created_at?: string | null }>)
+    .filter((form) => consentFormMatchesEnrollment(form.enrollment_type, expectedType))
+    .filter((form) => FORM_TYPE_PRIORITY.has(String(form.form_type || '').toLowerCase()));
+
+  const selected = new Map<string, RequiredConsentForm>();
+  for (const formType of FORM_TYPE_PRIORITY.keys()) {
+    const form = applicable
+      .filter((candidate) => String(candidate.form_type || '').toLowerCase() === formType)
+      .slice()
+      .sort((a, b) => formRank(a, params.classId) - formRank(b, params.classId))[0];
+    if (form) selected.set(formType, form);
   }
 
+  return [...selected.values()];
+}
+
+async function getConsentAccessStatusForForm(
+  admin: AnySupabase,
+  form: RequiredConsentForm,
+  params: { studentUserId: string; parentId?: string | null },
+): Promise<ConsentAccessStatus> {
   const { data, error } = await admin
     .from('form_leads')
     .select('id, status, match_status, matched_parent_id, matched_student_id')
@@ -136,13 +164,12 @@ export async function getResultConsentAccessStatus(
   let signedInPortal = false;
   if (!matched && params.parentId) {
     const studentRowId = await resolveStudentRowId(admin, params.studentUserId);
-    const [{ data: signed }, { data: explicitLink }] = await Promise.all([
+    const [signedResult, explicitLinkResult] = await Promise.all([
       admin
         .from('consent_responses')
-        .select('form_id')
+        .select('form_id, student_id, response_data')
         .eq('form_id', form.id)
-        .eq('parent_id', params.parentId)
-        .maybeSingle(),
+        .eq('parent_id', params.parentId),
       studentRowId
         ? admin
           .from('parent_student_links')
@@ -152,7 +179,23 @@ export async function getResultConsentAccessStatus(
           .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
-    signedInPortal = Boolean(signed && explicitLink);
+    let signedRows: any[] = signedResult.data ?? [];
+    if (signedResult.error?.code === '42703' || signedResult.error?.message?.includes('student_id')) {
+      const legacyResult = await admin
+        .from('consent_responses')
+        .select('form_id, response_data')
+        .eq('form_id', form.id)
+        .eq('parent_id', params.parentId);
+      if (legacyResult.error) throw legacyResult.error;
+      signedRows = legacyResult.data ?? [];
+    } else if (signedResult.error) {
+      throw signedResult.error;
+    }
+    if ('error' in explicitLinkResult && explicitLinkResult.error) throw explicitLinkResult.error;
+    const signedForStudent = signedRows.some((response: any) =>
+      response.student_id === studentRowId || response.student_id == null,
+    );
+    signedInPortal = Boolean(signedForStudent && explicitLinkResult.data);
   }
 
   return {
@@ -162,4 +205,40 @@ export async function getResultConsentAccessStatus(
     formUrl: consentAccessUrl(appBaseUrl(), form.access_code),
     matchedLeadId: matched?.id ?? null,
   };
+}
+
+export async function getAllConsentAccessStatuses(
+  admin: AnySupabase,
+  params: {
+    studentUserId: string;
+    schoolId?: string | null;
+    classId?: string | null;
+    enrollmentType?: string | null;
+    parentId?: string | null;
+  },
+): Promise<ConsentAccessStatus[]> {
+  const forms = await resolveRequiredConsentForms(admin, params);
+  return Promise.all(forms.map((form) => getConsentAccessStatusForForm(admin, form, params)));
+}
+
+export async function getResultConsentAccessStatus(
+  admin: AnySupabase,
+  params: {
+    studentUserId: string;
+    schoolId?: string | null;
+    classId?: string | null;
+    enrollmentType?: string | null;
+    parentId?: string | null;
+  },
+): Promise<ConsentAccessStatus> {
+  const form = await resolveRequiredConsentForm(admin, {
+    schoolId: params.schoolId,
+    classId: params.classId,
+    enrollmentType: params.enrollmentType,
+  });
+
+  if (!form) {
+    return { required: false, complete: true, form: null, formUrl: null, matchedLeadId: null };
+  }
+  return getConsentAccessStatusForForm(admin, form, params);
 }

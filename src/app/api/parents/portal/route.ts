@@ -6,6 +6,8 @@ import { loadParentLearnerRosterContext, parentLearnerEnrollmentFields } from '@
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
 import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
+import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
+import { deriveFamilyLifecycle } from '@/lib/onboarding/lifecycle-state';
 
 function assertQueryResults(results: Array<{ error?: { message?: string } | null }>, label: string) {
   const failed = results.find(result => result.error);
@@ -124,6 +126,14 @@ export async function GET(req: Request) {
       if (waGroupsError) throw waGroupsError;
 
       const userIds = (children as any[]).map((c: any) => c.user_id).filter(Boolean) as string[];
+      const { data: learnerProfiles, error: learnerProfilesError } = userIds.length > 0
+        ? await admin
+          .from('portal_users')
+          .select('id, class_id, section_class, enrollment_type')
+          .in('id', userIds)
+        : { data: [], error: null };
+      if (learnerProfilesError) throw learnerProfilesError;
+      const learnerProfileById = new Map((learnerProfiles ?? []).map((item: any) => [item.id, item]));
       const { liveAcademicSession } = await import('@/lib/reports/academic-period');
       const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
       const live = liveAcademicSession();
@@ -174,7 +184,7 @@ export async function GET(req: Request) {
       ]), 'The parent summary is taking too long. Please try again.');
       assertQueryResults([attRes, invRes, certRes, gradeRes, prePortalGradeRes], 'Could not load the complete parent summary');
 
-      const results = (children as any[]).map((child: any) => {
+      const results = await Promise.all((children as any[]).map(async (child: any) => {
         const childAtt = (attRes.data ?? []).filter((a: any) =>
           a.user_id === child.user_id
           && (!liveTermId || a.term_id === liveTermId || !a.term_id),
@@ -208,21 +218,53 @@ export async function GET(req: Request) {
           studentStatus: child.status,
           rosterInactive: false,
         });
+        const unpaidInvoices = (invRes.data ?? []).filter((i: any) => i.portal_user_id === child.user_id).length;
+        const learnerProfile = learnerProfileById.get(child.user_id) as any;
+        let consentStatus;
+        let consentStatusAvailable = true;
+        try {
+          consentStatus = child.user_id
+            ? await getResultConsentAccessStatus(admin as any, {
+              studentUserId: child.user_id,
+              schoolId: child.school_id,
+              classId: learnerProfile?.class_id ?? null,
+              enrollmentType: learnerProfile?.enrollment_type ?? child.enrollment_type ?? 'school',
+              parentId: profile.id,
+            })
+            : { required: false, complete: true, form: null, formUrl: null };
+        } catch (consentError) {
+          consentStatusAvailable = false;
+          console.error('[parents/portal] consent lifecycle status failed:', {
+            studentId: child.id,
+            error: consentError,
+          });
+        }
+        const lifecycle = deriveFamilyLifecycle({
+          childId: child.id,
+          enrollmentActive: enrollment.is_enrollment_active,
+          consentRequired: consentStatus?.required,
+          consentComplete: consentStatus?.complete,
+          consentStatusAvailable,
+          consentFormUrl: consentStatus?.formUrl,
+          consentFormTitle: consentStatus?.form?.title,
+          unpaidInvoiceCount: unpaidInvoices,
+        });
 
         return {
           ...child,
           ...enrollment,
+          lifecycle,
           stats: {
             attendancePct,
             lastGrade: latestGrade,
-            unpaidInvoices: (invRes.data ?? []).filter((i: any) => i.portal_user_id === child.user_id).length,
+            unpaidInvoices,
             certificates: (certRes.data ?? []).filter((c: any) => c.portal_user_id === child.user_id).length,
             teacherName: matchedTeacher?.full_name ?? null,
             teacherPhone: matchedTeacher?.phone ?? null,
             whatsappGroupLink: matchedGroup?.link ?? null,
-          }
+          },
         };
-      });
+      }));
 
       return NextResponse.json({
         success: true,

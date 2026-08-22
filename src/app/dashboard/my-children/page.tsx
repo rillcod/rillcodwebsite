@@ -29,6 +29,22 @@ interface Child {
   user_id?: string | null;
   enrollment_label?: string;
   is_enrollment_active?: boolean;
+  lifecycle?: FamilyLifecycleState;
+}
+
+interface FamilyLifecycleState {
+  identity: 'matched';
+  claim: 'complete';
+  consent: 'not_required' | 'complete' | 'action_available' | 'status_unavailable';
+  finance: 'clear' | 'action_available';
+  access: 'available';
+  nextAction: {
+    kind: 'complete_form' | 'review_finance' | 'contact_school' | 'view_overview' | 'retry';
+    label: string;
+    description: string;
+    href: string;
+    owner: 'parent' | 'school' | 'system';
+  };
 }
 
 interface ChildStats {
@@ -88,6 +104,8 @@ export default function MyChildrenPage() {
     schoolName: string | null;
     formUrl: string | null;
     formTitle: string | null;
+    formId: string;
+    formType: string | null;
   }>>([]);
 
   useEffect(() => {
@@ -203,7 +221,7 @@ export default function MyChildrenPage() {
               </p>
               <ul className="space-y-2">
                 {pendingConsent.map(item => (
-                  <li key={item.studentUserId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <li key={`${item.studentUserId}-${item.formId}`} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <span className="text-xs font-bold text-foreground">
                       {item.childName}{item.schoolName ? ` · ${item.schoolName}` : ''}
                     </span>
@@ -319,6 +337,26 @@ export default function MyChildrenPage() {
                     ) : null}
                   </div>
                 </div>
+
+                {child.lifecycle && child.lifecycle.nextAction.kind !== 'view_overview' && (
+                  <div className={`mx-4 mb-4 rounded-xl border px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between ${
+                    child.lifecycle.nextAction.kind === 'retry'
+                      ? 'border-amber-500/30 bg-amber-500/10'
+                      : 'border-primary/20 bg-primary/5'
+                  }`}>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Next step</p>
+                      <p className="mt-0.5 text-xs text-foreground">{child.lifecycle.nextAction.description}</p>
+                    </div>
+                    <a
+                      href={child.lifecycle.nextAction.href}
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+                    >
+                      {child.lifecycle.nextAction.label}
+                      <ArrowRightIcon className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                )}
 
                 {/* Stats strip — visual ring charts */}
                 {s && (

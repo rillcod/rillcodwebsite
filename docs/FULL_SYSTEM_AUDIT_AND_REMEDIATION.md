@@ -1897,3 +1897,53 @@ Remaining proof:
   or forbidden protected-evidence deletion, and enforce the manifest in CI;
 - exercise backup/restore and account-deletion/legal-retention journeys before declaring the
   broader database-retention section complete.
+
+### 16.7 Family onboarding, consent, claim and access milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- introduced one parent-facing lifecycle state covering identity match, parent claim, optional
+  school forms, enrolment, finance attention and the next useful action; finance and optional
+  forms are explicitly unable to hide otherwise available learning records;
+- changed lifecycle failures from silent empty states into a visible retry action while preserving
+  parent access, and added compact next-step guidance to each learner card rather than another
+  full navigation tab;
+- fixed the signed-parent consent check by supplying the authenticated parent identity, so an
+  explicit parent-child link plus a recorded response no longer remains incorrectly pending;
+- separated registration, assessment and general-consent worklist items while preserving the
+  existing single compatibility gate. Publishing an additional form therefore does not silently
+  introduce a new result lock while the product is still being configured;
+- made the staff onboarding-health counters actionable. Consent review, claim delivery/completion,
+  credential, finance and legacy-account counts now open their relevant workspaces, with URL-driven
+  review filters where those workspaces support an exact server worklist;
+- added child-scoped consent responses. A parent can now submit the same form separately for two
+  linked children; the database validates the parent-child junction and school boundary, maintains
+  one response per form/parent/child, and removes anonymous access to the response table;
+- preserved existing parent-level signatures and added old-schema fallbacks to keep application
+  and migration deployment order safe. Legacy responses remain accepted rather than becoming a
+  surprise lock;
+- corrected the consent-form purpose vocabulary so the database-backed `general` type participates
+  as the ordinary consent form, alongside registration and assessment.
+
+Automated evidence:
+
+- focused onboarding/consent/UI suite: 4 files and 19 tests passed;
+- full suite: 340 files and 2,383 tests passed;
+- TypeScript: passed after the child-scoped schema and API contract change;
+- database inspection confirms unique parent-child links, form-lead child provenance, role guards,
+  consent identity guards and one-payment/one-invoice protection already exist in the committed
+  schema; the new migration extends those invariants to direct portal signatures;
+- no production build, remote push or live database mutation was performed.
+
+Remaining production proof and onboarding scope:
+
+- apply migration `20260929000092_scope_consent_signatures_to_children.sql` to a disposable database,
+  test a two-child parent, a preserved legacy signature, cross-parent rejection and cross-school
+  rejection, then apply through the controlled live migration process;
+- exercise QR, typed code, parent claim, direct portal signature, registration and assessment from
+  fresh mobile browsers and confirm the same learner/parent/form identifiers reach the audit trail;
+- validate email/WhatsApp delivery receipts and retry recovery with real provider callbacks; local
+  tests cannot prove provider acceptance or handset delivery;
+- finish exact deep-link filters for health worklists whose underlying pages currently provide only
+  the correct workspace landing, then complete retention and finance reconciliation journeys before
+  marking the entire onboarding/finance vertical closed.

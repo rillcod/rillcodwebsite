@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
+import { getAllConsentAccessStatuses } from '@/lib/consent/result-access';
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/parents/pending-consent — children linked to this parent who still need the one-time school form. */
+/** GET /api/parents/pending-consent — optional intake forms for children already linked to this parent. */
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -26,6 +26,8 @@ export async function GET() {
     schoolName: string | null;
     formUrl: string | null;
     formTitle: string | null;
+    formId: string;
+    formType: string | null;
   }> = [];
 
   for (const link of links ?? []) {
@@ -36,19 +38,22 @@ export async function GET() {
       .select('class_id, section_class, enrollment_type')
       .eq('id', s.user_id)
       .maybeSingle();
-    const consent = await getResultConsentAccessStatus(admin as any, {
+    const statuses = await getAllConsentAccessStatuses(admin as any, {
       studentUserId: s.user_id,
       schoolId: s.school_id,
       classId: pu?.class_id ?? null,
       enrollmentType: pu?.enrollment_type ?? 'school',
+      parentId: user.id,
     });
-    if (consent.required && !consent.complete) {
+    for (const consent of statuses.filter((status) => status.required && !status.complete && status.form)) {
       pending.push({
         studentUserId: s.user_id,
         childName: s.full_name ?? 'Your child',
         schoolName: s.school_name ?? null,
         formUrl: consent.formUrl,
         formTitle: consent.form?.title ?? null,
+        formId: consent.form!.id,
+        formType: consent.form!.form_type,
       });
     }
   }
