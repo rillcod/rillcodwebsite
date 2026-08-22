@@ -187,11 +187,38 @@ export async function PATCH(
     // Fetch session + its exam's school to enforce boundary
     const { data: session } = await admin
       .from('cbt_sessions')
-      .select('id, user_id, exam_id, answers, score, status, manual_scores, grading_notes, cbt_exams(school_id, created_by, class_id, passing_score, metadata)')
+      .select('id, user_id, exam_id, answers, score, status, manual_scores, grading_notes, needs_grading, cbt_exams(school_id, created_by, class_id, passing_score, metadata)')
       .eq('id', id)
       .maybeSingle();
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+    const versionResult = await admin
+      .from('cbt_sessions')
+      .select('grading_version, moderation_status')
+      .eq('id', id)
+      .maybeSingle();
+    const gradingColumnsPending = versionResult.error
+      && (versionResult.error.code === '42703'
+        || versionResult.error.code === 'PGRST204'
+        || /grading_version|moderation_status/i.test(versionResult.error.message));
+    if (versionResult.error && !gradingColumnsPending) {
+      return NextResponse.json({ error: 'The latest marking version could not be verified. Please retry.' }, { status: 503 });
+    }
+    const currentVersion = gradingColumnsPending ? null : versionResult.data?.grading_version ?? 1;
+    if (body.expected_version !== undefined) {
+      const expectedVersion = Number(body.expected_version);
+      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+        return NextResponse.json({ error: 'expected_version must be a positive integer' }, { status: 400 });
+      }
+      if (currentVersion !== null && expectedVersion !== currentVersion) {
+        return NextResponse.json({
+          error: 'This marking record changed in another session. Refresh before saving.',
+          code: 'STALE_ASSESSMENT_REVIEW',
+          current_version: currentVersion,
+        }, { status: 409 });
+      }
+    }
 
     if (caller.role === 'school' && (!caller.school_id || (session as any).cbt_exams?.school_id !== caller.school_id)) {
       return NextResponse.json(
@@ -262,15 +289,51 @@ export async function PATCH(
       allowed.manual_scores = gradeResult.manualScores;
     }
     if ('grading_notes' in body) allowed.grading_notes = body.grading_notes;
+    const moderationStatus = body.moderation_status;
+    if (moderationStatus !== undefined) {
+      if (!['unreviewed', 'reviewed', 'approved', 'returned'].includes(String(moderationStatus))) {
+        return NextResponse.json({ error: 'Unsupported moderation status' }, { status: 400 });
+      }
+      if (moderationStatus === 'approved' && (allowed.needs_grading ?? (session as any).needs_grading) === true) {
+        return NextResponse.json({ error: 'Complete all manual marking before approving this result.' }, { status: 409 });
+      }
+      allowed.moderation_status = moderationStatus;
+    }
+    const suppliedReason = typeof body.change_reason === 'string' ? body.change_reason.trim().slice(0, 500) : '';
+    allowed.grading_changed_by = caller.id;
+    allowed.grading_change_reason = suppliedReason
+      || ((session as any).score != null ? 'Teacher corrected the assessment marking' : 'Teacher completed the assessment marking');
 
-    const { data, error } = await admin
-      .from('cbt_sessions')
-      .update(allowed)
-      .eq('id', id)
-      .select('id, score, status');
+    const runUpdate = async (payload: Record<string, unknown>, version: number | null): Promise<any> => {
+      let query: any = admin.from('cbt_sessions').update(payload).eq('id', id);
+      if (version !== null) query = query.eq('grading_version', version);
+      return query
+        .select(version !== null
+          ? 'id, score, status, needs_grading, moderation_status, grading_version'
+          : 'id, score, status, needs_grading')
+        .maybeSingle();
+    };
+    let updateResult: any = await runUpdate(allowed, currentVersion);
+    const missingGradingColumns = updateResult.error
+      && (updateResult.error.code === '42703'
+        || updateResult.error.code === 'PGRST204'
+        || /grading_changed_by|grading_change_reason|moderation_status|grading_version/i.test(updateResult.error.message));
+    if (missingGradingColumns) {
+      delete allowed.grading_changed_by;
+      delete allowed.grading_change_reason;
+      delete allowed.moderation_status;
+      updateResult = await runUpdate(allowed, null);
+    }
+    const { data, error } = updateResult;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    const saved = Array.isArray(data) ? data[0] : data;
+    if (!data) {
+      return NextResponse.json({
+        error: 'This marking record changed in another session. Refresh before saving.',
+        code: 'STALE_ASSESSMENT_REVIEW',
+      }, { status: 409 });
+    }
+    const saved = data;
     await logAudit(admin as any, {
       action: 'grade_cbt_session',
       actorId: caller.id,
@@ -290,6 +353,10 @@ export async function PATCH(
         exam_id: (session as any).exam_id ?? null,
         manual_scores_changed: 'manual_scores' in body,
         grading_notes_changed: 'grading_notes' in body,
+        moderation_status: saved?.moderation_status ?? null,
+        change_reason: allowed.grading_change_reason ?? null,
+        previous_version: currentVersion,
+        grading_version: saved?.grading_version ?? null,
       },
     });
     return NextResponse.json({ data });

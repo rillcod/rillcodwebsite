@@ -3390,8 +3390,13 @@ export type Database = {
           end_time: string | null
           exam_id: string | null
           grading_notes: string | null
+          grading_change_reason: string | null
+          grading_changed_at: string | null
+          grading_changed_by: string | null
+          grading_version: number
           id: string
           manual_scores: Json | null
+          moderation_status: string
           needs_grading: boolean | null
           score: number | null
           start_time: string | null
@@ -3406,8 +3411,13 @@ export type Database = {
           end_time?: string | null
           exam_id?: string | null
           grading_notes?: string | null
+          grading_change_reason?: string | null
+          grading_changed_at?: string | null
+          grading_changed_by?: string | null
+          grading_version?: number
           id?: string
           manual_scores?: Json | null
+          moderation_status?: string
           needs_grading?: boolean | null
           score?: number | null
           start_time?: string | null
@@ -3422,8 +3432,13 @@ export type Database = {
           end_time?: string | null
           exam_id?: string | null
           grading_notes?: string | null
+          grading_change_reason?: string | null
+          grading_changed_at?: string | null
+          grading_changed_by?: string | null
+          grading_version?: number
           id?: string
           manual_scores?: Json | null
+          moderation_status?: string
           needs_grading?: boolean | null
           score?: number | null
           start_time?: string | null
@@ -3437,6 +3452,13 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "cbt_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_sessions_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
             referencedColumns: ["id"]
           },
           {

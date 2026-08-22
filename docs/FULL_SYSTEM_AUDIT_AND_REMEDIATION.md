@@ -2012,3 +2012,31 @@ Remaining assessment scope:
   moderated/published assessment evidence to the central result contribution authority;
 - run real browser/device no-network, reconnect, timer-expiry and double-submit journeys;
 - verify candidate paper/PDF output, question snapshot retention and school-paper evidence parity.
+
+### 16.10 CBT marking and moderation milestone — verified locally on 23 August 2026
+
+Implemented:
+
+- added a monotonic staff-marking version that changes only when score, manual marks, grading notes,
+  review requirement or moderation changes; learner autosave does not create false grading versions;
+- made staff marking updates atomic against the current grading version and return a stable stale-
+  review response when another reviewer saved first;
+- recorded the responsible staff member, timestamp and human-readable reason for initial marking or
+  correction;
+- added optional `unreviewed → reviewed/approved/returned` moderation state without forcing schools
+  to use moderation, and prevented approval while subjective questions still need manual marking;
+- preserved rolling-deploy compatibility until the additive migration is applied.
+
+Automated evidence:
+
+- focused CBT marking/finalization suite: 3 files and 10 tests passed;
+- full suite: 342 files and 2,393 tests passed;
+- TypeScript: passed;
+- no production build, remote push or live database mutation was performed.
+
+Remaining proof:
+
+- apply migration `20260929000094_version_cbt_grading_and_moderation.sql` to a disposable database
+  and prove concurrent correction, manual-question completion, approval and returned-review behavior;
+- send `expected_version` from long-lived staff grading canvases for explicit stale-tab protection;
+- connect approved CBT/manual-paper evidence to the shared result contribution ledger and PDF proof.
