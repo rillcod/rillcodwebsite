@@ -831,7 +831,7 @@ export default function ProjectsPage() {
                                                                 <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '18', color: catInfo.color }}>{catInfo.label}</span>
                                                                 {meta.difficulty && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[9px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
                                                                 {meta.group_activity && <span className="text-[9px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">Group</span>}
-                                                                {meta.grading_mode === 'auto' && <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" />Auto-Grade</span>}
+                                                                {(meta.grading_mode === 'guided' || meta.grading_mode === 'auto') && <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" />Guided review</span>}
                                                             </div>
 
                                                             {/* Deadline */}
@@ -1843,7 +1843,7 @@ export default function ProjectsPage() {
                                                                 <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '20', color: catInfo.color }}>{catInfo.label}</span>
                                                                 {diff && <div className="flex items-center gap-1"><div className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} /><span className={`text-[8px] font-bold ${diff.color}`}>{meta.difficulty}</span></div>}
                                                                 {meta.group_activity && <span className="text-[8px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5">👥 Group</span>}
-                                                                {meta.grading_mode === 'auto' && <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Auto</span>}
+                                                                {(meta.grading_mode === 'guided' || meta.grading_mode === 'auto') && <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5">⚡ Guided review</span>}
                                                                 {meta.grading_mode === 'rubric' && <span className="text-[8px] font-black text-primary bg-primary/10 px-1.5 py-0.5">📋 Rubric</span>}
                                                                 {tags.slice(0, 2).map((t: string) => <span key={t} className="text-[8px] text-muted-foreground border border-white/10 px-1 py-0.5">{t}</span>)}
                                                             </div>

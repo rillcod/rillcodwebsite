@@ -85,12 +85,12 @@ const GRADING_MODES = [
         color: 'border-primary/40 bg-primary/10 text-primary',
     },
     {
-        key: 'auto',
-        label: 'Auto + Manual',
+        key: 'guided',
+        label: 'Guided Teacher Review',
         icon: BoltIcon,
-        desc: 'System auto-grades on submit (completeness check). You can override.',
+        desc: 'Students get a readiness check; submissions enter your review queue for an authoritative grade.',
         color: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-        breakdown: ['+25 pts valid link', '+25 pts code >50 chars', '+25 pts file/screenshot', '+25 pts written text'],
+        breakdown: ['Checks useful links', 'Checks code evidence', 'Checks files or screenshots', 'Checks the written explanation'],
     },
     {
         key: 'rubric',
@@ -150,7 +150,7 @@ export default function NewProjectActivityPage() {
 
     // Step 2 — Submission & Grading
     const [selectedTypes, setSelectedTypes] = useState<string[]>(['link', 'code', 'text']);
-    const [gradingMode, setGradingMode]     = useState<'manual' | 'auto' | 'rubric'>('manual');
+    const [gradingMode, setGradingMode]     = useState<'manual' | 'guided' | 'rubric'>('manual');
     const [rubric, setRubric]               = useState<RubricCriterion[]>([
         { id: 'r1', name: 'Functionality', desc: 'Does the project work as required?', maxPts: 40 },
         { id: 'r2', name: 'Code Quality',  desc: 'Is the code clean and well-organized?', maxPts: 30 },
@@ -326,7 +326,7 @@ export default function NewProjectActivityPage() {
                 lesson_plan_id:   preLessonPlanId || null,
                 curriculum_week_number: preWeek ? parseInt(preWeek) : null,
                 project_template_id: preTemplateId || null,
-                grading_mode: gradingMode === 'auto' ? 'auto' : 'manual',
+                grading_mode: 'manual',
                 // use selected school if set, otherwise fall back to teacher's primary school
                 school_id:   targetSchoolId   || profile?.school_id   || null,
                 school_name: targetSchoolName || profile?.school_name  || null,
@@ -336,8 +336,15 @@ export default function NewProjectActivityPage() {
                     tags: tagList_,
                     submission_types:   selectedTypes,
                     grading_mode:       gradingMode,
-                    rubric:             gradingMode === 'rubric' ? rubric : [],
-                    auto_grade:         gradingMode === 'auto',
+                    rubric:             gradingMode === 'rubric'
+                        ? rubric.map((criterion) => ({
+                            criterion: criterion.name,
+                            description: criterion.desc,
+                            maxPoints: criterion.maxPts,
+                        }))
+                        : [],
+                    auto_grade:         false,
+                    submission_readiness: gradingMode === 'guided',
                     group_activity:     isGroup,
                     groups:             isGroup ? groups : [],
                     is_draft:           isDraft,

@@ -25,24 +25,32 @@ const IntegratedCodeRunner = dynamic(
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function autoGradeSubmission(answers: any, submissionText: string, fileUrl: string): number {
-    let score = 0;
-    if ((answers?.links || []).some((l: string) => l?.startsWith('http'))) score += 25;
-    if ((answers?.code || answers?.playground_code || '').trim().length > 50) score += 25;
-    if (fileUrl || answers?.screenshot_url) score += 25;
-    if ((submissionText || answers?.text_explanation || '').trim().length > 30) score += 25;
-    return Math.min(100, score);
+function getSubmissionReadiness(answers: any, submissionText: string, fileUrl: string) {
+    const checks = [
+        (answers?.links || []).some((link: string) => link?.startsWith('http')),
+        (answers?.code || answers?.playground_code || '').trim().length > 50,
+        Boolean(fileUrl || answers?.screenshot_url),
+        (submissionText || answers?.text_explanation || '').trim().length > 30,
+    ];
+    const completed = checks.filter(Boolean).length;
+    return { completed, total: checks.length, percent: Math.round((completed / checks.length) * 100) };
 }
 
 const LABEL = 'block text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1.5';
 const INPUT  = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-foreground placeholder-white/20 focus:outline-none focus:border-primary transition-colors';
 const TEXTAREA = `${INPUT} resize-none`;
 
-function StatusBadge({ status, grade }: { status: string; grade?: number | null }) {
+function StatusBadge({ status, grade, maxPoints = 100 }: { status: string; grade?: number | null; maxPoints?: number }) {
     if (status === 'graded') return (
         <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
-            Graded {grade != null ? `· ${grade}%` : ''}
+            Graded {grade != null ? `· ${grade}/${maxPoints} pts` : ''}
         </span>
+    );
+    if (status === 'pending_review') return (
+        <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-400 text-[10px] font-black uppercase">Awaiting review</span>
+    );
+    if (status === 'late') return (
+        <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase">Submitted late</span>
     );
     if (status === 'submitted') return (
         <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase">Submitted</span>
@@ -96,7 +104,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
     };
 
     const info = grade ? pctInfo(Number(grade), max) : null;
-    const autoEst = autoGradeSubmission(answers, sub.submission_text || '', sub.file_url || '');
+    const readiness = getSubmissionReadiness(answers, sub.submission_text || '', sub.file_url || '');
     const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url.split('?')[0]);
     const screenshotUrl = answers.screenshot_url;
 
@@ -191,7 +199,7 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                         <h2 className="text-base font-extrabold text-foreground mt-1 leading-snug">{activity?.title}</h2>
                         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                             <span>{max} pts max</span>
-                            <span>Auto-score: <span className="text-amber-600 dark:text-amber-400 font-bold">{autoEst}%</span></span>
+                            <span>Submission readiness: <span className="text-amber-600 dark:text-amber-400 font-bold">{readiness.percent}%</span></span>
                         </div>
                     </div>
                     {activity?.instructions && (
@@ -262,10 +270,10 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
                     <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                         <BoltIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         <div className="flex-1">
-                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Auto-grade Estimate</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Based on completeness of submission components</p>
+                            <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Submission readiness</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{readiness.completed} of {readiness.total} recommended evidence checks complete. This is not a grade.</p>
                         </div>
-                        <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{autoEst}%</span>
+                        <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{readiness.percent}%</span>
                     </div>
 
                     {/* Submitted links */}
@@ -566,9 +574,6 @@ export default function ProjectBuilderPage() {
 
         const submissionText = types.includes('text') ? textExplanation : '';
         const fUrl           = types.includes('file') ? fileUrl : '';
-        const autoGrade      = meta.auto_grade === true;
-        const autoScore      = autoGrade ? autoGradeSubmission(answers, submissionText, fUrl) : null;
-
         setSubmitting(true);
         setError('');
         try {
@@ -580,15 +585,15 @@ export default function ProjectBuilderPage() {
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Submission failed');
 
-            if (autoGrade && autoScore !== null) {
-                await fetch(`/api/assignments/${id}/grade`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ submission_id: j.data.id, grade: autoScore, feedback: `Auto-graded: ${autoScore}/100`, status: 'graded' }),
-                });
-            }
-
-            setSuccessMsg(autoGrade ? `Submitted & auto-graded: ${autoScore}/100! 🎉` : 'Work submitted! Awaiting teacher review.');
+            const savedGrade = Number(j.data?.grade);
+            const wasAuthoritativelyGraded = j.data?.status === 'graded'
+                && j.data?.grade != null
+                && Number.isFinite(savedGrade);
+            setSuccessMsg(wasAuthoritativelyGraded
+                ? `Work submitted and graded: ${savedGrade}/${activity?.max_points ?? 100} points.`
+                : j.data?.status === 'pending_review'
+                    ? 'Work submitted successfully and added to the teacher review queue.'
+                    : 'Work submitted successfully. Awaiting teacher review.');
             loadActivity();
         } catch (err: any) { setError(err.message); }
         finally { setSubmitting(false); }
@@ -646,13 +651,13 @@ export default function ProjectBuilderPage() {
 
     const meta              = activity.metadata || {};
     const submissionTypes: string[] = meta.submission_types || ['link', 'code', 'text'];
-    const autoGradeEnabled: boolean = meta.auto_grade === true;
+    const readinessEnabled: boolean = meta.submission_readiness === true || meta.auto_grade === true;
     const submissions: any[]        = activity.assignment_submissions || [];
     const dueDate   = activity.due_date ? new Date(activity.due_date) : null;
     const isOverdue = dueDate ? dueDate < new Date() : false;
     const category: string = meta.category || 'coding';
     const gradedCount  = submissions.filter(s => s.status === 'graded').length;
-    const pendingCount = submissions.filter(s => s.status === 'submitted').length;
+    const pendingCount = submissions.filter(s => ['submitted', 'pending_review', 'late'].includes(s.status)).length;
 
     // ── JSX ───────────────────────────────────────────────────────────────────
 
@@ -702,7 +707,7 @@ export default function ProjectBuilderPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
-                            {isStudent && mySubmission && <StatusBadge status={mySubmission.status} grade={mySubmission.grade} />}
+                            {isStudent && mySubmission && <StatusBadge status={mySubmission.status} grade={mySubmission.grade} maxPoints={activity.max_points ?? 100} />}
                             {isStaff && (
                                 <div className="flex items-center gap-3 text-[10px]">
                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">{gradedCount} graded</span>
@@ -1075,17 +1080,18 @@ export default function ProjectBuilderPage() {
                                             className={TEXTAREA} />
                                     </div>
 
-                                    {/* Auto-grade preview */}
-                                    {autoGradeEnabled && (
+                                    {/* Readiness guidance is deliberately separate from authoritative grading. */}
+                                    {readinessEnabled && (
                                         <div className="bg-emerald-500/5 border border-emerald-500/20 px-4 py-3">
-                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">⚡ Auto-Grade Preview</p>
+                                            <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Submission readiness</p>
                                             <p className="text-3xl font-black text-foreground">
-                                                {autoGradeSubmission(
+                                                {getSubmissionReadiness(
                                                     { links: links.filter(Boolean), code: editorCode, screenshot_url: screenshotUrl },
                                                     textExplanation, fileUrl
-                                                )}
-                                                <span className="text-base text-muted-foreground">/100</span>
+                                                ).percent}
+                                                <span className="text-base text-muted-foreground">%</span>
                                             </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">Checks whether useful evidence is attached. Your teacher or the assessment engine determines the grade.</p>
                                         </div>
                                     )}
 
@@ -1256,7 +1262,7 @@ export default function ProjectBuilderPage() {
                                                     : 'Not submitted'}
                                             </p>
                                         </div>
-                                        <StatusBadge status={sub.status || 'not_submitted'} grade={sub.grade} />
+                                        <StatusBadge status={sub.status || 'not_submitted'} grade={sub.grade} maxPoints={activity.max_points ?? 100} />
                                         {isExpanded ? <ChevronUpIcon className="w-4 h-4 text-primary" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
                                     </button>
 
