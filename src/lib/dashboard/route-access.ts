@@ -328,12 +328,16 @@ export function isDashboardPathBlockedForRole(
   pathname: string,
   role: UserRole | string | undefined | null
 ): boolean {
-  if (!role) return false;
-  if (role === "school") return isDashboardPathBlockedForSchool(pathname);
-  if (role === "teacher") return isDashboardPathBlockedForTeacher(pathname);
+  const path = normalizePath(pathname);
+  if (!path.startsWith("/dashboard")) return false;
+  // An authenticated user whose portal profile/role cannot be established
+  // must never inherit broad dashboard access.
+  if (!role) return true;
+  if (role === "school") return isDashboardPathBlockedForSchool(path);
+  if (role === "teacher") return isDashboardPathBlockedForTeacher(path);
   if (role === "admin") return false;
-  if (role === "student") return isDashboardPathBlockedForStudent(pathname);
-  if (role === "parent") return isDashboardPathBlockedForParent(pathname);
+  if (role === "student") return isDashboardPathBlockedForStudent(path);
+  if (role === "parent") return isDashboardPathBlockedForParent(path);
   // Unknown roles: default deny (do not inherit admin-wide access).
   return true;
 }

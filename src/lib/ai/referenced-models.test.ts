@@ -110,5 +110,5 @@ describe("the drift check can see the models it is checking", () => {
       Object.fromEntries(missed),
       "these free ids are used but invisible to the drift job — add the file to SOURCES"
     ).toEqual({});
-  });
+  }, 15_000);
 });

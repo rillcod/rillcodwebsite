@@ -7,6 +7,7 @@ type Props = {
   title?: string;
   body?: string;
   homeHref?: string;
+  actionLabel?: string;
 };
 
 /**
@@ -17,6 +18,7 @@ export default function RouteDeniedNotice({
   title = 'This area is not available for your account',
   body = 'You were redirected because this page is reserved for platform staff or a different role. Use the menu or go back to your dashboard.',
   homeHref = '/dashboard',
+  actionLabel = 'Back to dashboard',
 }: Props) {
   return (
     <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
@@ -29,9 +31,9 @@ export default function RouteDeniedNotice({
       </div>
       <Link
         href={homeHref}
-        className="text-xs font-black uppercase tracking-widest text-primary hover:text-primary underline underline-offset-4"
+        className="inline-flex min-h-11 items-center text-xs font-black uppercase tracking-widest text-primary hover:text-primary underline underline-offset-4"
       >
-        Back to dashboard
+        {actionLabel}
       </Link>
     </div>
   );

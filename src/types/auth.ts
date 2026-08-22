@@ -1,5 +1,8 @@
 // User Roles and Authentication Types
-export type UserRole = 'admin' | 'teacher' | 'student' | 'school';
+// Keep one role authority. This legacy module remains as a compatibility
+// surface for callers that have not yet moved to auth.types.
+export type { UserRole } from './auth.types';
+import type { UserRole } from './auth.types';
 
 export interface User {
   id: string;
@@ -354,4 +357,4 @@ export interface StudentAnalytics {
   date: string;
   created_at: string;
   updated_at: string;
-} 
+}

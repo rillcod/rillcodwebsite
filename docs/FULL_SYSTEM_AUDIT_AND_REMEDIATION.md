@@ -779,8 +779,8 @@ snapshots, not current certification. This register is the current product-level
 
 | ID | Priority | State | Issue | Required proof to close |
 | --- | --- | --- | --- | --- |
-| SYS-001 | P0 | Confirmed defect | Invalid refresh-token failure at production login | Clean/stale-session browser tests and role login canary pass |
-| SYS-002 | P0 | Blocked | Private role visual/E2E audit not completed | Admin, teacher, parent, student, finance route journeys pass |
+| SYS-001 | P0 | Verified locally; deployment pending | Invalid refresh-token failure at production login | Deploy and repeat stale-session production canary |
+| SYS-002 | P0 | Partially verified | Admin login/sign-out passed locally; other private role journeys remain | Teacher, partner school, parent, student, and restricted route journeys pass |
 | SYS-003 | P0 | Active work | Report authority/pathway changes are uncommitted | Focus tests, full tests, typecheck, review, commit, deploy, E2E/PDF parity |
 | SYS-004 | P0 | At risk | No verified central CSRF/origin guard | Unsafe route inventory and attack tests pass |
 | SYS-005 | P0 | At risk | No verified durable multi-instance rate limit | Shared-store concurrency and bypass tests pass |
@@ -819,7 +819,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-038 | P2 | At risk | Special-program path may duplicate main system | Shared-service E2E verification |
 | SYS-039 | P3 | Governance | Historical completion documents create stale truth | Mark historical when touched; link back to this register |
 | SYS-040 | P3 | Governance | Page ownership and task definition incomplete | Owner/role/task/status recorded for all 229 pages |
-| SYS-041 | P1 | Confirmed smell | Duplicate `UserRole` type omits `parent` in `src/types/auth.ts` | One exported role authority; compile/tests prove every consumer includes all five roles |
+| SYS-041 | P1 | Verified locally; deployment pending | Duplicate `UserRole` type omitted `parent` in `src/types/auth.ts` | Deploy and keep exhaustive role tests green |
 
 ## 8. Mandatory journey certification matrix
 
@@ -1636,3 +1636,51 @@ The role is complete only when its full primary journey and its handoffs to the 
 For example, “teacher submitted a grade” is incomplete until the result authority receives it,
 publication controls it, the permitted student/parent can see the right version, and the audit
 trail explains the change.
+
+## 16. Remediation progress evidence
+
+### 16.1 Authentication and role-entry milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- invalid/missing/already-used refresh-token classification;
+- targeted browser/server auth-artifact cleanup that preserves unrelated drafts/preferences;
+- middleware recovery from stale auth cookies with a professional login notice;
+- preservation of the original permitted dashboard destination after session expiry;
+- unconditional Supabase auth-cookie expiry on sign-out, including chunked cookies;
+- default-deny dashboard behaviour when the portal role/profile is missing;
+- one canonical five-role TypeScript authority including `parent`;
+- role-neutral password login—the account’s stored role now selects the workspace;
+- clearly labelled parent-only Google entry;
+- one semantic login H1, responsive no-overflow layout, and 44px minimum interactive controls;
+- safe missing-profile dashboard feedback and a valid return-to-login action.
+
+Local browser evidence:
+
+- a real stale refresh cookie produced the former `refresh_token_not_found` condition;
+- middleware cleared it and returned `/login?session_recovered=1`;
+- the login page showed customer-safe recovery feedback without an internal error;
+- admin password login reached `/dashboard` without role selection;
+- secure sign-out returned to a clean login with confirmation;
+- 390 × 844 and 1440 × 900 checks had no horizontal overflow, one H1, no role picker, and no
+  interactive target below 44px.
+
+Automated evidence:
+
+- focused authentication/role suite: 39 tests passed;
+- full suite: 332 files and 2,352 tests passed;
+- TypeScript: passed;
+- encoding: 2,198 files passed;
+- UI standards: 229 pages passed the current static baseline;
+- route exports: 534 route files passed.
+
+The full suite initially produced five 5-second source-scan/import timeouts under parallel load.
+All 26 affected tests passed in isolation. Only those five slow inventory tests were given a
+15-second limit, their assertions were unchanged, and the complete suite then passed.
+
+Remaining before SYS-001/SYS-002 are production-complete:
+
+- deploy through Cloudflare after the broader local work is approved;
+- repeat stale/fresh login and sign-out canaries in production;
+- certify teacher, partner-school, parent, student, expired, revoked, inactive, and cross-tenant
+  journeys with actual accounts—not UI role simulation.

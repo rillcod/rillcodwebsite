@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { isSupabaseAuthStorageKey } from '@/lib/auth/session-recovery';
 
 async function handleSignOut(req: NextRequest) {
     const cookieStore = await cookies();
@@ -31,8 +32,22 @@ async function handleSignOut(req: NextRequest) {
         }
     );
 
-    // Sign out on the server — clears session cookies
-    await supabase.auth.signOut();
+    // Ask Supabase to revoke/clear the session. An invalid or already-rotated
+    // refresh token can make this return an error, so cookie expiry below is
+    // deliberately unconditional.
+    await supabase.auth.signOut().catch(() => null);
+
+    for (const cookie of cookieStore.getAll()) {
+        if (!isSupabaseAuthStorageKey(cookie.name)) continue;
+        cookieStore.set({
+            name: cookie.name,
+            value: '',
+            path: '/',
+            maxAge: 0,
+            expires: new Date(0),
+            sameSite: 'lax',
+        });
+    }
 
     if (wantsJson) {
         return NextResponse.json({ ok: true });

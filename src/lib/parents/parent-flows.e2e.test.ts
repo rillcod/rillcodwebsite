@@ -473,5 +473,5 @@ describe('entry-point wiring smoke', () => {
     expect(typeof ensure.ensureParentPortalForStudent).toBe('function');
     expect(typeof claim.provisionParentAndLinkChild).toBe('function');
     expect(typeof finalize.finalizeStudentOnboard).toBe('function');
-  });
+  }, 15_000);
 });

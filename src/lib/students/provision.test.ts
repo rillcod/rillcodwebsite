@@ -220,5 +220,5 @@ describe('centralization smoke', () => {
     expect(typeof consent.attachConsentParentToLead).toBe('function');
     expect(typeof archive.archivePortalCredential).toBe('function');
     expect(typeof wipe.wipePortalUserCascade).toBe('function');
-  });
+  }, 15_000);
 });

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createMiddlewareSupabase } from '@/lib/supabase/middleware';
 import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
+import {
+  isInvalidRefreshTokenError,
+  isSupabaseAuthStorageKey,
+} from '@/lib/auth/session-recovery';
 
 // Simple sliding window rate limiter using request headers
 // For production, use Upstash Redis. This is an IP-based in-process limiter.
@@ -28,6 +32,30 @@ function checkRateLimit(key: string): { allowed: boolean; remaining: number; res
   record.count += 1;
   const remaining = Math.max(0, RATE_LIMIT_MAX - record.count);
   return { allowed: record.count <= RATE_LIMIT_MAX, remaining, resetAt: record.resetAt };
+}
+
+function expireSupabaseAuthCookies(
+  request: NextRequest,
+  response: NextResponse,
+): NextResponse {
+  for (const cookie of request.cookies.getAll()) {
+    if (!isSupabaseAuthStorageKey(cookie.name)) continue;
+    response.cookies.set({
+      name: cookie.name,
+      value: '',
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      sameSite: 'lax',
+    });
+  }
+  return response;
+}
+
+function copyResponseCookies(source: NextResponse, target: NextResponse): void {
+  source.cookies.getAll().forEach((cookie) => {
+    target.cookies.set(cookie.name, cookie.value);
+  });
 }
 
 export async function middleware(request: NextRequest) {
@@ -94,10 +122,32 @@ export async function middleware(request: NextRequest) {
   const { supabase, getResponse } = createMiddlewareSupabase(request);
 
   let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;
+  let authError: unknown = null;
   try {
     const result = await supabase.auth.getUser();
     user = result.data.user;
-  } catch {
+    authError = result.error;
+  } catch (error) {
+    authError = error;
+  }
+
+  if (isInvalidRefreshTokenError(authError)) {
+    const url = request.nextUrl.clone();
+    const requestedDestination = `${pathname}${request.nextUrl.search}`;
+    url.pathname = '/login';
+    url.search = '';
+    if (pathname.startsWith('/dashboard')) {
+      url.searchParams.set('redirectedFrom', requestedDestination);
+      url.searchParams.set('session_expired', '1');
+    } else {
+      url.searchParams.set('session_recovered', '1');
+    }
+    const redirectResponse = NextResponse.redirect(url);
+    copyResponseCookies(getResponse(), redirectResponse);
+    return expireSupabaseAuthCookies(request, redirectResponse);
+  }
+
+  if (authError) {
     // Network blip on mobile/PWA — do not force login for a transient failure.
     return getResponse();
   }
@@ -109,9 +159,7 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/dashboard';
     url.search = '';
     const redirectResponse = NextResponse.redirect(url);
-    getResponse().cookies.getAll().forEach((c) => {
-      redirectResponse.cookies.set(c.name, c.value);
-    });
+    copyResponseCookies(getResponse(), redirectResponse);
     return redirectResponse;
   }
 
@@ -132,9 +180,7 @@ export async function middleware(request: NextRequest) {
     url.search = '';
     url.searchParams.set('redirectedFrom', requestedDestination);
     const redirectResponse = NextResponse.redirect(url);
-    getResponse().cookies.getAll().forEach((c) => {
-      redirectResponse.cookies.set(c.name, c.value);
-    });
+    copyResponseCookies(getResponse(), redirectResponse);
     return redirectResponse;
   }
 
@@ -146,14 +192,23 @@ export async function middleware(request: NextRequest) {
       .maybeSingle();
 
     const role = row?.role;
+    if (!role) {
+      const url = request.nextUrl.clone();
+      const requestedDestination = `${pathname}${request.nextUrl.search}`;
+      url.pathname = '/login';
+      url.search = '';
+      url.searchParams.set('redirectedFrom', requestedDestination);
+      url.searchParams.set('account_error', 'profile_missing');
+      const redirectResponse = NextResponse.redirect(url);
+      copyResponseCookies(getResponse(), redirectResponse);
+      return expireSupabaseAuthCookies(request, redirectResponse);
+    }
     if (isDashboardPathBlockedForRole(pathname, role)) {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       url.search = '';
       const redirectResponse = NextResponse.redirect(url);
-      getResponse().cookies.getAll().forEach((c) => {
-        redirectResponse.cookies.set(c.name, c.value);
-      });
+      copyResponseCookies(getResponse(), redirectResponse);
       return redirectResponse;
     }
   }

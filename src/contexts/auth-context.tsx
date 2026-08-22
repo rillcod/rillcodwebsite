@@ -5,6 +5,10 @@ import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile, AuthContextType, UserRole } from '@/types';
 import { apiFetch } from '@/lib/api-fetch';
+import {
+  isInvalidRefreshTokenError,
+  recoverInvalidBrowserSession,
+} from '@/lib/auth/session-recovery';
 
 // ── "View as role" simulator ──
 // A UI-only preview tool so admins/teachers can sanity-check how the app
@@ -91,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // signingOut: blocks UI and shows feedback while cookies + local session clear.
   const [signingOut, setSigningOut] = useState(false);
   const signingOutRef = useRef(false);
+  const recoveringInvalidSessionRef = useRef(false);
 
   const mountedRef = useRef(true);
 
@@ -221,6 +226,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
+    // Supabase can retain a refresh cookie after the server has revoked or
+    // rotated the token. Detect only that terminal auth error and recover the
+    // login surface; transient network failures must not clear a valid session.
+    void supabase.auth.getSession()
+      .then(async ({ error }) => {
+        if (!isInvalidRefreshTokenError(error) || !mountedRef.current) return;
+        recoveringInvalidSessionRef.current = true;
+        await recoverInvalidBrowserSession();
+        if (!mountedRef.current) return;
+        storedUser.current = null;
+        processedUserIdRef.current = null;
+        profileFetchStartedRef.current = false;
+        profileCache.clear();
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setProfileLoading(false);
+        setIsLoading(false);
+        recoveringInvalidSessionRef.current = false;
+      })
+      .catch(() => {
+        // Network errors are recoverable and do not justify signing the user out.
+      });
+
     // Fast path: if we pre-seeded user from localStorage, kick off the
     // profile fetch immediately without waiting for onAuthStateChange.
     // Mark the fetch as started so INITIAL_SESSION doesn't duplicate it.
@@ -233,7 +262,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // after and will clear the profile if the user has changed. Avoid the nested
         // supabase.auth.getUser() call here because it can hang indefinitely and
         // prevent setProfileLoading(false) from ever being called.
-        if (mountedRef.current) {
+        if (
+          mountedRef.current &&
+          storedUser.current?.id === fastPathUserId &&
+          !recoveringInvalidSessionRef.current
+        ) {
           setProfile(p);
           setProfileLoading(false);
         }
@@ -247,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mountedRef.current) return;
         // Ignore auth events while we are intentionally signing out — otherwise
         // a late TOKEN_REFRESHED / INITIAL_SESSION can restore the session UI.
-        if (signingOutRef.current) return;
+        if (signingOutRef.current || recoveringInvalidSessionRef.current) return;
 
         // Mobile/PWA: a parallel middleware cookie refresh can rotate the refresh
         // token and briefly emit TOKEN_REFRESHED with a null session. Clearing the
@@ -334,8 +367,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isLoading) return;
     const t = window.setTimeout(() => {
       if (!mountedRef.current) return;
-      void supabase.auth.getSession().then(({ data: { session: s } }) => {
+      void supabase.auth.getSession().then(async ({ data: { session: s }, error }) => {
         if (!mountedRef.current) return;
+        if (isInvalidRefreshTokenError(error)) {
+          recoveringInvalidSessionRef.current = true;
+          await recoverInvalidBrowserSession();
+          if (!mountedRef.current) return;
+          storedUser.current = null;
+          processedUserIdRef.current = null;
+          profileFetchStartedRef.current = false;
+          profileCache.clear();
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setProfileLoading(false);
+          setIsLoading(false);
+          recoveringInvalidSessionRef.current = false;
+          return;
+        }
+        if (error) {
+          // A temporary network failure must not destroy a previously known user.
+          setIsLoading(false);
+          return;
+        }
         setSession(s);
         setUser(s?.user ?? null);
         setIsLoading(false);

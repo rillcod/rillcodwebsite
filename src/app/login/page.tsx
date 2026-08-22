@@ -3,11 +3,11 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { createClient } from '@/lib/supabase/client';
 import {
-  Mail, Lock, Eye, EyeOff, User, GraduationCap,
-  Shield, Building2, Heart, ArrowRight, Loader2,
+  Mail, Lock, Eye, EyeOff,
+  Shield, ArrowRight, Loader2,
   AlertCircle, CheckCircle2, QrCode
 } from "lucide-react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -15,20 +15,13 @@ import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
 import { readPostLoginRedirectParam } from '@/lib/auth/post-login-redirect';
+import {
+  isInvalidRefreshTokenError,
+  recoverInvalidBrowserSession,
+} from '@/lib/auth/session-recovery';
 import { PUBLIC_PAGE_ROOT, PUBLIC_SAFE_INSET } from '@/components/mobile/public-styles';
 
-const ROLES = [
-  { id: "student", icon: GraduationCap, title: "Student",  color: "text-cyan-500" },
-  { id: "teacher", icon: User,           title: "Teacher",  color: "text-violet-500" },
-  { id: "parent",  icon: Heart,          title: "Parent",   color: "text-pink-500" },
-  { id: "school",  icon: Building2,      title: "School",   color: "text-emerald-500" },
-  { id: "admin",   icon: Shield,         title: "Admin",    color: "text-blue-500" },
-] as const;
-
-type Role = "student" | "teacher" | "admin" | "school" | "parent";
-
 function LoginContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
 
@@ -42,35 +35,43 @@ function LoginContent() {
   const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]           = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [error, setError]               = useState<string | null>(null);
   const [clearingSession, setClearingSession] = useState(
     () => searchParams?.get("clear") === "1" || searchParams?.get("signed_out") === "1"
   );
-  const [signedOutNotice, setSignedOutNotice] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
-    const type = searchParams?.get("type") as Role | null;
-    if (type && ROLES.some(r => r.id === type)) setSelectedRole(type);
-
     const emailParam = searchParams?.get("email");
-    if (emailParam) setEmail(decodeURIComponent(emailParam));
+    if (emailParam) setEmail(emailParam);
 
     const oauthError = searchParams?.get("oauth_error");
     if (oauthError) {
       setError(oauthError);
-      setSelectedRole((prev) => prev ?? 'parent');
     }
 
     const clearParam = searchParams?.get("clear") === "1";
     const signedOutParam = searchParams?.get("signed_out") === "1";
+    const sessionRecoveredParam = searchParams?.get('session_recovered') === '1';
+    const sessionExpiredParam = searchParams?.get('session_expired') === '1';
+    const profileMissing = searchParams?.get('account_error') === 'profile_missing';
+
+    if (sessionRecoveredParam || sessionExpiredParam) {
+      setSessionNotice(
+        sessionExpiredParam
+          ? 'Your previous session expired safely. Sign in again to continue.'
+          : 'An expired session was cleared. You can sign in normally.',
+      );
+    }
+    if (profileMissing) {
+      setError('Your account setup could not be confirmed. Please contact your school or Rillcod support.');
+    }
 
     if (clearParam || signedOutParam) {
       setClearingSession(true);
       setEmail("");
       setPassword("");
-      setSelectedRole(null);
       setError(null);
 
       void (async () => {
@@ -93,7 +94,7 @@ function LoginContent() {
           } catch { /* ignore */ }
         } finally {
           setClearingSession(false);
-          setSignedOutNotice(true);
+          setSessionNotice('Signed out successfully.');
           window.history.replaceState({}, '', '/login');
         }
       })();
@@ -101,22 +102,30 @@ function LoginContent() {
     }
 
     // Already signed in → dashboard
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const redirectTo = readPostLoginRedirectParam(searchParams);
-        window.location.replace(redirectTo);
+    void (async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (isInvalidRefreshTokenError(sessionError)) {
+          setClearingSession(true);
+          await recoverInvalidBrowserSession();
+          setSessionNotice('Your previous session expired safely. Sign in again to continue.');
+          setClearingSession(false);
+          return;
+        }
+        if (session?.user) {
+          const redirectTo = readPostLoginRedirectParam(searchParams);
+          window.location.replace(redirectTo);
+        }
+      } catch {
+        // Keep the form available on a transient network error.
       }
-    });
+    })();
 
     if (envMissing) setError("Configuration error. Please contact support.");
   }, []); // eslint-disable-line
 
   const handleGoogleParentLogin = async () => {
     if (envMissing) return;
-    if (selectedRole !== 'parent') {
-      setError('Select Parent, then continue with Google.');
-      return;
-    }
     setGoogleLoading(true);
     setError(null);
     try {
@@ -143,7 +152,6 @@ function LoginContent() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (envMissing) return;
-    if (!selectedRole) { setError("Please choose your role above before signing in."); return; }
 
     setLoading(true);
     setError(null);
@@ -205,11 +213,6 @@ function LoginContent() {
         );
       }
 
-      if (profileData.role !== selectedRole) {
-        await supabase.auth.signOut();
-        throw new Error(`Wrong role selected. Your account is registered as "${profileData.role}". Please tap "${profileData.role}" above.`);
-      }
-
       // Audit Log
       try {
         const isNative = isCapacitorNative();
@@ -257,8 +260,6 @@ function LoginContent() {
       setLoading(false);
     }
   };
-
-  const activeRole = ROLES.find(r => r.id === selectedRole);
 
   if (clearingSession) {
     return (
@@ -318,7 +319,7 @@ function LoginContent() {
         <Link
           href={isNativeApp ? '/login' : '/'}
           aria-label={isNativeApp ? 'Rillcod portal login' : 'Rillcod home'}
-          className="flex items-center gap-2.5 group transition-transform active:scale-95"
+          className="flex min-h-11 items-center gap-2.5 group transition-transform active:scale-95"
         >
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white shadow-sm border border-black/10 p-1 flex items-center justify-center group-hover:shadow-md transition-all">
             <Image src="/images/logo.png" alt="Rillcod Technologies" width={40} height={40} className="object-contain w-full h-full" priority />
@@ -342,7 +343,7 @@ function LoginContent() {
           {!isNativeApp && (
             <Link
               href="/"
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="inline-flex min-h-11 items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <ArrowRight className="w-3.5 h-3.5 rotate-180" />
               {/* "Home" on a phone, where the header also carries the logo and
@@ -353,7 +354,7 @@ function LoginContent() {
           )}
           <Link
             href="/result-check"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/15 transition-colors"
+            className="hidden min-h-11 sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 hover:bg-amber-500/15 transition-colors"
           >
             <QrCode className="w-3.5 h-3.5" />
             <span>Check Access Card Result</span>
@@ -376,12 +377,12 @@ function LoginContent() {
               <span className="text-[9px] font-black uppercase tracking-widest">Single Sign-On Workspace</span>
             </div>
 
-            <h1 className="text-2xl xl:text-3xl font-black leading-tight tracking-tight text-foreground">
+            <h2 className="text-2xl xl:text-3xl font-black leading-tight tracking-tight text-foreground">
               Sign in to your learning & management portal
-            </h1>
+            </h2>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Select your role to access active STEM course materials, real-time attendance, CBT practicals, and institutional gradebooks.
+              Use your account once. Your workspace and permissions are selected automatically.
             </p>
 
             <div className="p-3 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm space-y-1.5">
@@ -391,7 +392,7 @@ function LoginContent() {
               </p>
               <Link
                 href="/result-check"
-                className="inline-flex items-center gap-1 text-xs font-black text-primary hover:underline pt-0.5"
+                className="inline-flex min-h-11 items-center gap-1 text-xs font-black text-primary hover:underline"
               >
                 Go to Card Result Checker →
               </Link>
@@ -400,73 +401,25 @@ function LoginContent() {
 
           {/* ── Right Form Card (Compact & Fitted) ── */}
           <div className="lg:col-span-7 w-full max-w-md mx-auto lg:max-w-none">
-            {/*
-              The heading, for the screens the side panel does not reach.
-
-              The only <h1> on this page lived inside `hidden lg:flex`, so on a
-              phone there was no heading at all — a visitor met a logo, a
-              "Secure" chip and five small icons, with nothing saying what the
-              page was for. It is also the document's only h1, so on mobile the
-              page had none, which is a problem for anyone using a screen reader.
-            */}
-            <div className="lg:hidden mb-4 text-center [@media(max-height:620px)]:mb-2 [@media(max-height:500px)]:mb-1">
+            {/* One semantic page heading. It remains available to assistive
+                technology on desktop while the visible desktop hero uses h2. */}
+            <div className="mb-4 text-center lg:sr-only [@media(max-height:620px)]:mb-2 [@media(max-height:500px)]:mb-1">
               <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight text-foreground [@media(max-height:620px)]:text-lg">
                 Sign in to your portal
               </h1>
-              {/*
-                The sentence is the first thing to go when the screen is short:
-                the role buttons directly below already say to choose a role, so
-                nothing is lost but 40px that the sign-in button needs more.
-              */}
               <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed [@media(max-height:620px)]:hidden">
-                Choose your role to reach your courses, attendance, results and reports.
+                Your account opens the correct workspace automatically.
               </p>
             </div>
 
             <div className="bg-card/95 backdrop-blur-xl border border-border rounded-3xl shadow-xl overflow-hidden">
-              
-              {/* Role Picker Segment */}
-              <div className="p-3 sm:p-4 border-b border-border/70 bg-muted/20 [@media(max-height:620px)]:p-2">
-                <div className="flex items-center justify-between mb-2 [@media(max-height:620px)]:mb-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Select Your Role</span>
-                  {activeRole && (
-                    <span className="text-[11px] font-bold text-primary flex items-center gap-1">
-                      <activeRole.icon className="w-3 h-3" />
-                      {activeRole.title} selected
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-5 gap-1.5">
-                  {ROLES.map((role) => {
-                    const Icon = role.icon;
-                    const isActive = selectedRole === role.id;
-                    return (
-                      <button
-                        key={role.id}
-                        type="button"
-                        onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
-                        aria-pressed={isActive}
-                        className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all duration-150 text-center [@media(max-height:500px)]:py-1.5 ${
-                          isActive
-                            ? 'bg-primary border-primary text-white shadow-sm scale-[1.02]'
-                            : 'bg-card border-border/80 text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 mb-0.5 ${isActive ? 'text-white' : role.color}`} />
-                        <span className="text-[10px] font-bold truncate leading-none">{role.title}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Form Area */}
               <div className="p-4 sm:p-5 sm:px-6 [@media(max-height:620px)]:p-3 [@media(max-height:500px)]:p-2.5">
-                {signedOutNotice && (
+                {sessionNotice && (
                   <div role="status" className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Signed out successfully.</p>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{sessionNotice}</p>
                   </div>
                 )}
 
@@ -497,7 +450,7 @@ function LoginContent() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="yourname@school.com"
-                        className="w-full bg-background border border-border rounded-xl pl-10 pr-3 py-2.5 text-base sm:text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground [@media(max-height:500px)]:py-2"
+                        className="min-h-11 w-full bg-background border border-border rounded-xl pl-10 pr-3 py-2.5 text-base sm:text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
                       />
                     </div>
                   </div>
@@ -510,7 +463,7 @@ function LoginContent() {
                       </label>
                       <Link
                         href="/reset-password"
-                        className="text-[11px] font-bold text-primary hover:underline transition-all"
+                        className="inline-flex min-h-11 items-center text-[11px] font-bold text-primary hover:underline transition-all"
                       >
                         Forgot password?
                       </Link>
@@ -528,14 +481,14 @@ function LoginContent() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-2.5 text-base sm:text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground [@media(max-height:500px)]:py-2"
+                        className="min-h-11 w-full bg-background border border-border rounded-xl pl-10 pr-11 py-2.5 text-base sm:text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground"
                       />
                       <button
                         type="button"
                         aria-label={showPassword ? "Hide password" : "Show password"}
                         aria-pressed={showPassword}
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                        className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                       >
                         {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
@@ -545,8 +498,8 @@ function LoginContent() {
                   {/* Sign In CTA */}
                   <button
                     type="submit"
-                    disabled={loading || googleLoading || !selectedRole}
-                    className="w-full min-h-[42px] py-2.5 bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary/95 transition-all transform active:scale-[0.99] disabled:opacity-40 flex items-center justify-center gap-2 shadow-md shadow-primary/20 mt-1 [@media(max-height:500px)]:min-h-[38px] [@media(max-height:500px)]:py-2"
+                    disabled={loading || googleLoading}
+                    className="w-full min-h-11 py-2.5 bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl hover:bg-primary/95 transition-all transform active:scale-[0.99] disabled:opacity-40 flex items-center justify-center gap-2 shadow-md shadow-primary/20 mt-1"
                   >
                     {loading ? (
                       <>
@@ -555,15 +508,15 @@ function LoginContent() {
                       </>
                     ) : (
                       <>
-                        <span>Sign In to {activeRole ? activeRole.title : 'Portal'}</span>
+                        <span>Sign In to Portal</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </>
                     )}
                   </button>
 
-                  {/* Google OAuth (Parent) */}
-                  {selectedRole === 'parent' && (
-                    <div className="space-y-2 pt-1">
+                  {/* Google OAuth is intentionally labelled parent-only; password
+                      users do not need to guess a role the account already owns. */}
+                  <div className="space-y-2 pt-1">
                       <div className="flex items-center gap-2">
                         <div className="h-px flex-1 bg-border/80" />
                         <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">or</span>
@@ -573,7 +526,7 @@ function LoginContent() {
                         type="button"
                         onClick={() => void handleGoogleParentLogin()}
                         disabled={loading || googleLoading}
-                        className="w-full min-h-[38px] py-2 bg-background border border-border text-foreground font-bold text-xs rounded-xl hover:bg-muted/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-sm"
+                        className="w-full min-h-11 py-2 bg-background border border-border text-foreground font-bold text-xs rounded-xl hover:bg-muted/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2 shadow-sm"
                       >
                         {googleLoading ? (
                           <>
@@ -588,17 +541,16 @@ function LoginContent() {
                               <path fill="#4A90E2" d="M6.6 14.2c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.4 8C2.6 9.5 2.2 11.1 2.2 12.8c0 1.7.4 3.3 1.2 4.7l3.2-2.5z" />
                               <path fill="#FBBC05" d="M12 5.8c1.4 0 2.7.5 3.7 1.4l2.8-2.8C16.8 2.8 14.6 2 12 2 8.3 2 5.1 4.2 3.4 7.5l3.2 2.5c.8-2.3 2.9-4.2 5.4-4.2z" />
                             </svg>
-                            <span>Continue with Google</span>
+                            <span>Parent sign-in with Google</span>
                           </>
                         )}
                       </button>
                     </div>
-                  )}
                 </form>
 
                 {/* Sub-links */}
                 <div className="mt-3.5 pt-2.5 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-                  <Link href="/partnership" className="hover:text-primary transition-colors font-medium">
+                  <Link href="/partnership" className="inline-flex min-h-11 items-center hover:text-primary transition-colors font-medium">
                     School Partnership
                   </Link>
                   {/*
@@ -608,11 +560,11 @@ function LoginContent() {
                     opposite edges, which left a dot stranded in open space.
                   */}
                   <span className="sm:hidden" aria-hidden>·</span>
-                  <Link href="/result-check" className="hover:text-primary transition-colors font-medium sm:hidden">
+                  <Link href="/result-check" className="min-h-11 items-center hover:text-primary transition-colors font-medium inline-flex sm:hidden">
                     Check Results
                   </Link>
                   <span className="sm:hidden" aria-hidden>·</span>
-                  <Link href="/student-registration" className="hover:text-primary transition-colors font-medium">
+                  <Link href="/student-registration" className="inline-flex min-h-11 items-center hover:text-primary transition-colors font-medium">
                     New Student Enroll
                   </Link>
                 </div>
@@ -626,9 +578,9 @@ function LoginContent() {
       <footer className="w-full max-w-5xl mx-auto py-1 flex flex-row items-center justify-between text-muted-foreground/60 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest shrink-0">
         <span>© {new Date().getFullYear()} Rillcod Technologies</span>
         <div className="flex items-center gap-3">
-          <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy</Link>
+          <Link href="/privacy-policy" className="inline-flex min-h-11 min-w-11 items-center justify-center hover:text-foreground transition-colors">Privacy</Link>
           <span>·</span>
-          <Link href="/terms-of-service" className="hover:text-foreground transition-colors">Terms</Link>
+          <Link href="/terms-of-service" className="inline-flex min-h-11 min-w-11 items-center justify-center hover:text-foreground transition-colors">Terms</Link>
         </div>
       </footer>
     </div>

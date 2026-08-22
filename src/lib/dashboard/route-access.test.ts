@@ -54,4 +54,11 @@ describe("central workspace route access", () => {
       isDashboardPathBlockedForRole("/dashboard/platform-operations", "admin")
     ).toBe(false);
   });
+
+  it("defaults unknown or missing dashboard roles to denied", () => {
+    expect(isDashboardPathBlockedForRole("/dashboard", null)).toBe(true);
+    expect(isDashboardPathBlockedForRole("/dashboard/classes", undefined)).toBe(true);
+    expect(isDashboardPathBlockedForRole("/dashboard", "legacy-super-user")).toBe(true);
+    expect(isDashboardPathBlockedForRole("/login", null)).toBe(false);
+  });
 });

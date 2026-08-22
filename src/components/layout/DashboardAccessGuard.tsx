@@ -25,6 +25,7 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
   const needsClass = !!profile && profile.role === 'student' && !profile.class_id;
   const pendingPlacement = needsSchool || needsClass;
   const structureBlocked = !!profile && (!profile.is_active || pendingPlacement);
+  const profileMissing = !loading && !profileLoading && !profile;
 
   useEffect(() => {
     if (loading || profileLoading || !profile?.id || structureBlocked) return;
@@ -84,6 +85,17 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
     lastRedirectRef.current = pathname;
     router.replace(target);
   }, [pathname, profile?.role, loading, profileLoading, router, structureBlocked]);
+
+  if (profileMissing) {
+    return (
+      <RouteDeniedNotice
+        title="Account details unavailable"
+        body="We could not safely confirm your account and permissions. Sign in again; if this continues, contact your school or Rillcod support."
+        homeHref="/login?clear=1"
+        actionLabel="Return to sign in"
+      />
+    );
+  }
 
   if (!loading && !profileLoading && structureBlocked) {
     return (
