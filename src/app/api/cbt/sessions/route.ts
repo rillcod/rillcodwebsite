@@ -88,10 +88,22 @@ async function finalizeExpiredSession(
     })
     .eq('id', existing.id)
     .eq('user_id', existing.user_id)
+    .eq('status', 'in_progress')
     .select('id, score, status, needs_grading, manual_scores, grading_notes, end_time')
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!data) {
+    const { data: finalized, error: finalizedError } = await admin
+      .from('cbt_sessions')
+      .select('id, score, status, needs_grading, manual_scores, grading_notes, end_time')
+      .eq('id', existing.id)
+      .eq('user_id', existing.user_id)
+      .maybeSingle();
+    if (finalizedError) throw new Error(finalizedError.message);
+    if (!finalized) throw new Error('The exam session is no longer available');
+    return { ...finalized, expired: true, alreadyFinalized: true };
+  }
   await logAudit(admin as any, {
     action: 'auto_finalize_expired_cbt_session',
     actorId: existing.user_id,
@@ -447,10 +459,24 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', existing.id)
       .eq('user_id', caller.id)
+      .eq('status', 'in_progress')
       .select('id, score, status, needs_grading, manual_scores, grading_notes, end_time')
-      .single();
+      .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) {
+      const { data: finalized } = await admin
+        .from('cbt_sessions')
+        .select('id, score, status, needs_grading, manual_scores, grading_notes, end_time')
+        .eq('id', existing.id)
+        .eq('user_id', caller.id)
+        .maybeSingle();
+      return NextResponse.json({
+        data: finalized,
+        alreadyFinalized: true,
+        message: 'This exam was already submitted. Your first final submission remains recorded.',
+      });
+    }
     await logAudit(admin as any, {
       action: auto_submitted ? 'auto_submit_cbt_session' : 'submit_cbt_session',
       actorId: caller.id,

@@ -1986,3 +1986,29 @@ Remaining evaluation scope:
 - complete upload checksum/scanning and durable retry receipts, then verify assignment/project parent
   notifications and result contribution end to end;
 - continue into CBT and written-exam sitting/finalization/moderation authority before SYS-008 closes.
+
+### 16.9 CBT finalization integrity milestone — verified locally on 23 August 2026
+
+Implemented:
+
+- made normal CBT submission and deadline auto-finalization conditional on the sitting still being
+  `in_progress` at the final database update, closing the race where two requests could both pass
+  an earlier status read and overwrite the result;
+- made duplicate/retried final submissions return the first durable final outcome with a clear
+  customer message instead of changing answers, score, manual-mark state or completion time;
+- kept the existing server deadline, ownership, randomized sitting, question grading and manual
+  review behavior intact.
+
+Automated evidence:
+
+- focused CBT/written-exam suite: 4 files and 12 tests passed;
+- full suite: 342 files and 2,391 tests passed;
+- TypeScript: passed;
+- no production build, remote push or live database mutation was performed.
+
+Remaining assessment scope:
+
+- add optimistic versions and correction reasons to staff CBT/manual-exam grading, then connect
+  moderated/published assessment evidence to the central result contribution authority;
+- run real browser/device no-network, reconnect, timer-expiry and double-submit journeys;
+- verify candidate paper/PDF output, question snapshot retention and school-paper evidence parity.
