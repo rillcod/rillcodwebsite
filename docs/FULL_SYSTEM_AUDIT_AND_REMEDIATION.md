@@ -62,8 +62,8 @@ The main remaining risks are:
 | Check | Current result | What it proves | What it does not prove |
 | --- | --- | --- | --- |
 | TypeScript | Pass | Current checked tree is type-correct. | Runtime data and browser flows. |
-| Vitest | 332 files discovered; latest full run passed 331 files and 2,349 tests | Covered business rules and integrations behave as asserted. | Untested paths and visual usability. |
-| Focused report tests | 35 passed | Host-paper, taught-assessment, complement, publication, and scoring rules under test. | Full browser and PDF journeys. |
+| Vitest | 333 files discovered; latest full run passed 333 files and 2,357 tests | Covered business rules, integrations, and collected TSX report rendering behave as asserted. | Untested paths and visual usability. |
+| Focused report tests | 6 files and 40 tests passed | Host-paper, taught-assessment, complement, publication, scoring, and three report-card renderers are under test. | Full browser and binary PDF journeys. |
 | ESLint | 0 errors, 7,991 warnings | No configured lint error blocks. | Warning debt is still substantial. |
 | UI standards inventory | 229 pages passed current script | Basic shell, shared control, overflow, theme, and filter conventions. | Accessibility, visual hierarchy, real tap targets, or full responsive correctness. |
 | Encoding audit | 2,195 files passed | No detected encoding corruption. | Copy quality and translation quality. |
@@ -680,6 +680,20 @@ Not verified/present in the current audit:
 - Code/dependency/container scanning
 - External error monitoring
 
+Current production dependency audit (verified with `npm audit --omit=dev --json` against the
+checked-in lockfile on 22 August 2026): **21 findings — 10 moderate, 10 high, 1 critical**.
+Confirmed production chains include Next 15.5.23 → PostCSS/Sharp, `next-pwa` → Workbox →
+`serialize-javascript`, and Capacitor CLI / `@mapbox/node-pre-gyp` → `tar`. The critical rating
+is currently carried by `tar`; the reported direct-package remediations for Next and Capacitor
+are major upgrades. Firebase Admin and Monaco chains account for additional moderate findings.
+This is live remediation debt, not merely missing dependency-update automation.
+
+The current middleware limiter is also confirmed to be a process-local `Map`, limited to
+`/api/inbox`; it resets per container/cold start and does not protect the other API families.
+Authenticated dashboard navigation also performs a `portal_users.role` lookup on every matched
+request. The database check is correct but needs a measured, invalidation-safe role/session
+strategy so security is not traded for latency.
+
 Additional inconsistency: Supabase configuration minimum password length is 6 while current app
 flows use 8. Align the platform minimum to the approved policy after verifying existing-user
 impact.
@@ -693,6 +707,10 @@ Required completion:
 - Back rate limits with a durable shared store and specific identity/IP/action keys.
 - Add secret scanning, dependency review/update automation, static code scanning, and container
   image scanning to the Cloudflare release pipeline.
+- Upgrade vulnerable dependency chains in isolated, tested steps: first resolve safe
+  non-breaking overrides/direct upgrades, then migrate Next, Capacitor, Firebase Admin, Monaco,
+  and PWA tooling with framework/native/offline regression matrices. Do not use a blind
+  `npm audit fix --force` on production.
 - Review service-role usage, signed URLs, public buckets, webhook signatures, file access, PII in
   logs, data export, deletion, and tenant isolation.
 - Run an independent penetration test before describing the system as bulletproof.
@@ -781,9 +799,9 @@ snapshots, not current certification. This register is the current product-level
 | --- | --- | --- | --- | --- |
 | SYS-001 | P0 | Verified locally; deployment pending | Invalid refresh-token failure at production login | Deploy and repeat stale-session production canary |
 | SYS-002 | P0 | Partially verified | Admin login/sign-out passed locally; other private role journeys remain | Teacher, partner school, parent, student, and restricted route journeys pass |
-| SYS-003 | P0 | Active work | Report authority/pathway changes are uncommitted | Focus tests, full tests, typecheck, review, commit, deploy, E2E/PDF parity |
+| SYS-003 | P0 | Verified locally; production proof pending | Report authority/pathway split protects compulsory papers and optional six-box results | Deploy, role E2E, and binary PDF parity |
 | SYS-004 | P0 | At risk | No verified central CSRF/origin guard | Unsafe route inventory and attack tests pass |
-| SYS-005 | P0 | At risk | No verified durable multi-instance rate limit | Shared-store concurrency and bypass tests pass |
+| SYS-005 | P0 | Confirmed defect | Limiter is a process-local `Map` and covers only `/api/inbox` | Shared-store, all-sensitive-action inventory, concurrency, and bypass tests pass |
 | SYS-006 | P0 | At risk | Financial correction/resend PDF account details | Same invoice version matches save/preview/download/resend |
 | SYS-007 | P0 | At risk | Protected evidence across 175 delete sites | Every site classified/tested; marks and posted finance immutable |
 | SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
@@ -796,11 +814,11 @@ snapshots, not current certification. This register is the current product-level
 | SYS-015 | P1 | At risk | Content types not always carried together | Unified lesson-content contract and learner publication tests |
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Confirmed gap | External error tracking/alerting absent | Release-linked errors and alerts verified |
-| SYS-018 | P1 | Confirmed gap | Dependency/code/container scanning absent | CI gates and remediation ownership active |
+| SYS-018 | P0 | Confirmed defect | 21 production dependency findings (10 high, 1 critical) and no dependency/code/container scanning gate | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | At risk | Cron operational guarantees undocumented | Job registry, run ledger, alerts, replay and overlap tests |
 | SYS-020 | P1 | At risk | WhatsApp/message failures can be swallowed | No empty catches; delivery ledger and partial-failure UI |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
-| SYS-022 | P1 | At risk | PWA stale chunks after deploy | Cache-upgrade and old-client deployment tests |
+| SYS-022 | P1 | Confirmed defect | Committed generated `public/sw.js` imports an ignored fallback and freezes a local precache manifest | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
 | SYS-023 | P2 | Confirmed UI | Public home copy “EducationAcross” | Corrected production copy |
 | SYS-024 | P2 | Confirmed a11y | Public contact fields lack programmatic labels | Accessible-name browser check passes |
 | SYS-025 | P2 | Confirmed a11y | Small public/login touch targets | 44px target audit passes |
@@ -820,6 +838,8 @@ snapshots, not current certification. This register is the current product-level
 | SYS-039 | P3 | Governance | Historical completion documents create stale truth | Mark historical when touched; link back to this register |
 | SYS-040 | P3 | Governance | Page ownership and task definition incomplete | Owner/role/task/status recorded for all 229 pages |
 | SYS-041 | P1 | Verified locally; deployment pending | Duplicate `UserRole` type omitted `parent` in `src/types/auth.ts` | Deploy and keep exhaustive role tests green |
+| SYS-042 | P1 | Verified locally | Vitest excluded `.test.tsx`; report-card PDF renderer guard never ran | TSX collection remains enabled and full CI reports 333 files including the guard |
+| SYS-043 | P1 | At risk | Dashboard middleware performs a role database read on each matched navigation | Measured latency budget and invalidation-safe role authorization with revoked/changed-role tests |
 
 ## 8. Mandatory journey certification matrix
 
@@ -1684,3 +1704,63 @@ Remaining before SYS-001/SYS-002 are production-complete:
 - repeat stale/fresh login and sign-out canaries in production;
 - certify teacher, partner-school, parent, student, expired, revoked, inactive, and cross-tenant
   journeys with actual accounts—not UI role simulation.
+
+### 16.2 Protected report/result authority milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- one explicit result authority derived from school programme standing: compulsory schools use
+  First Test + Second Test + Examination; optional schools retain the Rillcod six-box policy;
+- teacher-set paper maxima and earned marks add together without averaging percentages or
+  forcing a fixed 20 + 20 + 60 template;
+- compulsory papers no longer feed the six-box theory/assessment fields;
+- partial school papers remain draft evidence and cannot become an official 0/F9 or preserve a
+  stale prior total;
+- edited papers recompute the official total from the current three paper rows before any legacy
+  stored-total fallback;
+- partial engagement-metric saves merge with stored evidence instead of erasing other paper or
+  classroom evidence;
+- direct saves, PATCH corrections, academic-spine writes, batch preparation, Builder bulk work,
+  publication validation, parent view, and all three report-card renderers use the same pathway;
+- published and manually typed academic evidence remains protected from autofill replacement;
+- customer-facing compulsory reports show the three official papers separately from classwork,
+  assignments, projects/practical, and attendance.
+
+Test infrastructure correction:
+
+- Vitest now collects both `.test.ts` and `.test.tsx`;
+- Vitest transforms component TSX even though Next keeps JSX in `preserve` mode;
+- the previously uncollected report-card pathway test now runs four assertions across Standard,
+  Modern, Printable, and optional-path layouts.
+
+Automated evidence:
+
+- focused reporting suite: 6 files and 40 tests passed;
+- full suite: 333 files and 2,357 tests passed;
+- TypeScript: passed;
+- `git diff --check`: passed apart from line-ending notices.
+
+Remaining production proof:
+
+- run teacher/admin/parent role journeys using real compulsory and optional schools;
+- generate and semantically compare the actual downloadable/share PDF against the screen record;
+- run Cloudflare canaries after deployment. A concurrent workspace process committed this
+  milestone as `a7999058` and its Git reflog records an `origin/main` update by push; this audit
+  agent did not invoke that remote operation and will make subsequent milestone commits locally
+  only as instructed.
+
+### 16.3 Newly verified security, CI, and PWA debt — active
+
+- `npm audit --omit=dev` reproduced 21 production findings: 10 moderate, 10 high, 1 critical;
+- the TSX report renderer test was excluded by the old Vitest include glob; this is fixed locally;
+- the four reported source-scan timeout flakes were already corrected in milestone 16.1 with
+  per-test 15-second limits and unchanged assertions; the full suite is deterministic locally;
+- `public/sw.js` is a committed generated build artifact that imports an ignored
+  `fallback-*.js`; it cannot be considered reproducible from a clean checkout in its current
+  form;
+- the middleware rate limit is in-process and inbox-only;
+- dashboard route authorization performs a role lookup per navigation.
+
+These findings are now part of SYS-005, SYS-018, SYS-022, SYS-042, and SYS-043. They remain in
+the workload and will be remediated through isolated security/PWA milestones rather than an
+unreviewed forced major upgrade.
