@@ -27,12 +27,19 @@ export function normalizeGradeValueWithMax(
   return { value };
 }
 
-const ALLOWED_SUBMISSION_STATUSES = new Set(['submitted', 'late', 'pending_review', 'graded', 'missing']);
+const ALLOWED_SUBMISSION_STATUSES = new Set([
+  'draft', 'submitted', 'late', 'pending_review', 'under_review',
+  'returned_for_revision', 'resubmitted', 'graded', 'moderated',
+  'published', 'missing',
+]);
 
 export function normalizeSubmissionStatus(status: unknown): { value: string | undefined; error?: string } {
   if (status === undefined) return { value: undefined };
   if (typeof status !== 'string' || !ALLOWED_SUBMISSION_STATUSES.has(status)) {
-    return { value: undefined, error: 'status must be submitted, late, pending_review, graded, or missing' };
+    return {
+      value: undefined,
+      error: 'status must be a supported submission review state',
+    };
   }
   return { value: status };
 }

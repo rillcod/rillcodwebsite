@@ -1947,3 +1947,42 @@ Remaining production proof and onboarding scope:
 - finish exact deep-link filters for health worklists whose underlying pages currently provide only
   the correct workspace landing, then complete retention and finance reconciliation journeys before
   marking the entire onboarding/finance vertical closed.
+
+### 16.8 Submission and grading authority milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- removed the unused parallel `AssignmentsService`, including its direct grade writer and unsafe
+  “keep graded while replacing submission evidence” resubmission behavior;
+- removed legacy direct grade/update/upsert writers from the dashboard service. Learner evidence
+  now enters through the scoped assignment submission API, and teacher/project grading uses the
+  canonical assignment-submission review API;
+- introduced one additive assignment/project review lifecycle: draft, submitted/late, review,
+  returned for revision, resubmitted, graded, moderated and published. The simple submit/grade path
+  remains available, while invalid jumps such as raw submission directly to publication are denied;
+- added database-enforced transition rules and monotonic review versions, plus atomic version checks
+  in the grading API so concurrent teacher saves cannot silently overwrite one another;
+- recorded the review actor and a human-readable change reason, with safe automatic reasons for
+  initial grading and corrections; return-for-revision requires useful learner feedback;
+- made learner assignment cards explain returned and resubmitted work, provide a clear revise action,
+  and treat moderated/published scores as final outcomes; project status labels now use the same
+  lifecycle vocabulary;
+- preserved rolling-deploy compatibility: an old schema retains submitted behavior until the
+  additive migration arrives, while protected score evidence continues to block replacement.
+
+Automated evidence:
+
+- focused submission/grading/retention suite: 6 files and 26 tests passed;
+- full suite: 341 files and 2,389 tests passed;
+- TypeScript: passed;
+- no production build, remote push or live database mutation was performed.
+
+Remaining evaluation scope:
+
+- apply migration `20260929000093_unify_submission_review_lifecycle.sql` to a disposable database
+  and test simultaneous graders, return/resubmit, moderation/publication and old-schema fallback;
+- connect client `expected_version` values for long-lived grading canvases so a stale tab is rejected
+  even when its request begins after another reviewer has saved;
+- complete upload checksum/scanning and durable retry receipts, then verify assignment/project parent
+  notifications and result contribution end to end;
+- continue into CBT and written-exam sitting/finalization/moderation authority before SYS-008 closes.

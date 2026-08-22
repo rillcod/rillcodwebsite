@@ -200,11 +200,14 @@ export async function POST(
       ? new Date() > new Date(assignment.due_date)
       : false;
 
+    const desiredStatus = existingSubmissionStatus === 'returned_for_revision'
+      ? 'resubmitted'
+      : isLate ? 'late' : 'submitted';
     const upsertData: Record<string, unknown> = {
       assignment_id,
       portal_user_id: effectiveUserId,
       submitted_at:   new Date().toISOString(),
-      status:         isLate ? 'late' : 'submitted',
+      status:         desiredStatus,
       ai_suggested_grade: null,
       ai_suggested_feedback: null,
       updated_at:     new Date().toISOString(),
@@ -239,11 +242,25 @@ export async function POST(
       upsertData.answers = answers;
     }
 
-    const { data, error } = await admin
+    let submissionResult = await admin
       .from('assignment_submissions')
       .upsert(upsertData, { onConflict: 'assignment_id,portal_user_id' })
       .select()
       .single();
+
+    // Safe rolling-deploy fallback while the richer review-state constraint is
+    // waiting for its migration. The evidence is still saved and remains visibly
+    // submitted; `resubmitted` activates automatically once the DB accepts it.
+    if (submissionResult.error?.code === '23514' && desiredStatus === 'resubmitted') {
+      upsertData.status = isLate ? 'late' : 'submitted';
+      submissionResult = await admin
+        .from('assignment_submissions')
+        .upsert(upsertData, { onConflict: 'assignment_id,portal_user_id' })
+        .select()
+        .single();
+    }
+
+    const { data, error } = submissionResult;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

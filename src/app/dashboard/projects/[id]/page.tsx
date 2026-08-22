@@ -42,13 +42,22 @@ const INPUT  = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm tex
 const TEXTAREA = `${INPUT} resize-none`;
 
 function StatusBadge({ status, grade, maxPoints = 100 }: { status: string; grade?: number | null; maxPoints?: number }) {
-    if (status === 'graded') return (
+    if (['graded', 'moderated', 'published'].includes(status)) return (
         <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase">
             Graded {grade != null ? `· ${grade}/${maxPoints} pts` : ''}
         </span>
     );
     if (status === 'pending_review') return (
         <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-600 dark:text-violet-400 text-[10px] font-black uppercase">Awaiting review</span>
+    );
+    if (status === 'under_review') return (
+        <span className="px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 text-[10px] font-black uppercase">Under review</span>
+    );
+    if (status === 'returned_for_revision') return (
+        <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase">Revision requested</span>
+    );
+    if (status === 'resubmitted') return (
+        <span className="px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase">Resubmitted</span>
     );
     if (status === 'late') return (
         <span className="px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase">Submitted late</span>

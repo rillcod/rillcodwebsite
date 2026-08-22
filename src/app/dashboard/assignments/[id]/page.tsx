@@ -463,7 +463,12 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                     }`}>
                     <option value="submitted">Submitted</option>
                     <option value="pending_review">Pending Review</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="returned_for_revision">Return for Revision</option>
+                    <option value="resubmitted">Resubmitted</option>
                     <option value="graded">Graded</option>
+                    <option value="moderated">Moderated</option>
+                    <option value="published">Published</option>
                     <option value="late">Late</option>
                     <option value="missing">Missing</option>
                 </select>
@@ -870,7 +875,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         <button onClick={save} disabled={saving}
                             className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                            {saving ? 'Saving…' : 'Save Grade'}
+                            {saving ? 'Saving…' : status === 'returned_for_revision' ? 'Return with Feedback' : 'Save Review'}
                         </button>
                     </div>
 
@@ -893,8 +898,13 @@ function Badge({ status }: { status: string }) {
         late: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
         missing: 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30',
         pending_review: 'bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30',
+        under_review: 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30',
+        returned_for_revision: 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30',
+        resubmitted: 'bg-primary/20 text-primary border-primary/30',
+        moderated: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+        published: 'bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 border-emerald-600/30',
     };
-    const label = status === 'pending_review' ? 'Pending Review' : status;
+    const label = status.replaceAll('_', ' ');
     return (
         <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-muted text-muted-foreground'}`}>
             {label}
@@ -1475,12 +1485,12 @@ export default function AssignmentDetailPage() {
         ? assignment.assignment_submissions
         : [];
     const submitted = allSubs.filter((s: any) => s.status === 'submitted').length;
-    const graded = allSubs.filter((s: any) => s.status === 'graded').length;
+    const graded = allSubs.filter((s: any) => ['graded', 'moderated', 'published'].includes(s.status)).length;
     // Grade is always stored out of assignment.max_points
     const effectiveMax = assignment?.max_points ?? 100;
 
     // Only show grade once explicitly graded — prevents 0 from DB default
-    const isGraded = submission?.status === 'graded' && submission?.grade != null;
+    const isGraded = ['graded', 'moderated', 'published'].includes(submission?.status ?? '') && submission?.grade != null;
     const pct = isGraded ? Math.round((submission.grade / effectiveMax) * 100) : null;
     const letter = pct == null ? null
         : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
@@ -1953,7 +1963,7 @@ export default function AssignmentDetailPage() {
                             </div>
                         )}
 
-                        {submission?.status && ['graded', 'submitted', 'late', 'pending_review'].includes(submission.status) && !editingSubmission ? (
+                        {submission?.status && ['graded', 'moderated', 'published', 'submitted', 'late', 'pending_review', 'under_review', 'returned_for_revision', 'resubmitted'].includes(submission.status) && !editingSubmission ? (
                             <div className="space-y-4">
                                 {/* Every submitted attachment, not only the legacy primary file. */}
                                 {(Array.isArray(submission.attachments) && submission.attachments.length > 0
@@ -2011,17 +2021,21 @@ export default function AssignmentDetailPage() {
                                     </div>
                                 )}
                                 <div className="text-center py-4 text-muted-foreground text-sm border border-border rounded-xl bg-muted/10">
-                                    {submission.status === 'graded'
-                                        ? 'This assignment has been graded. No further submissions accepted.'
-                                        : 'Your assignment has been submitted and is awaiting teacher review. Grade will appear here once marked.'}
+                                    {['graded', 'moderated', 'published'].includes(submission.status)
+                                        ? 'This assignment has been graded. Your score and teacher feedback are recorded above.'
+                                        : submission.status === 'returned_for_revision'
+                                            ? 'Your teacher returned this work for revision. Review the feedback, update your evidence, and resubmit.'
+                                            : submission.status === 'resubmitted'
+                                                ? 'Your revised work is safely resubmitted and awaiting review.'
+                                                : 'Your assignment is safely stored and awaiting teacher review. Your final score will appear here once marked.'}
                                 </div>
-                                {submission.status !== 'graded' && assignment.is_active !== false && (
+                                {!['graded', 'moderated', 'published'].includes(submission.status) && assignment.is_active !== false && (
                                     <button
                                         type="button"
                                         onClick={() => { setSubmitDone(false); setEditingSubmission(true); }}
                                         className="w-full rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/15"
                                     >
-                                        Update submission before grading
+                                        {submission.status === 'returned_for_revision' ? 'Revise and resubmit' : 'Update submission before grading'}
                                     </button>
                                 )}
                             </div>

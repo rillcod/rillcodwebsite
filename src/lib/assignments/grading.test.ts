@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildAssignmentGradeTransition,
+  canTransitionAssignmentSubmission,
   computeAssignmentWeightedScore,
   gradeAssignmentAnswers,
   gradeAssignmentRubric,
 } from './grading';
+
+describe('assignment submission lifecycle', () => {
+  it('supports return and resubmission without treating either as a final grade', () => {
+    expect(canTransitionAssignmentSubmission('under_review', 'returned_for_revision')).toBe(true);
+    expect(canTransitionAssignmentSubmission('returned_for_revision', 'resubmitted')).toBe(true);
+  });
+
+  it('rejects skipping from submitted evidence directly to publication', () => {
+    expect(canTransitionAssignmentSubmission('submitted', 'published')).toBe(false);
+  });
+});
 
 describe('assignment grading policy', () => {
   it('keeps weighted contributions precise and server-derived', () => {

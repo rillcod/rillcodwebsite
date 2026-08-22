@@ -81,6 +81,32 @@ export async function PATCH(
         code: 'IMMUTABLE_SUBMISSION_EVIDENCE',
       }, { status: 409 });
     }
+    const versionResult = await admin
+      .from('assignment_submissions')
+      .select('version')
+      .eq('id', id)
+      .maybeSingle();
+    const versionColumnPending = versionResult.error
+      && (versionResult.error.code === '42703'
+        || versionResult.error.code === 'PGRST204'
+        || /version/i.test(versionResult.error.message));
+    if (versionResult.error && !versionColumnPending) {
+      return NextResponse.json({ error: 'The latest review version could not be verified. Please retry.' }, { status: 503 });
+    }
+    const currentVersion = versionColumnPending ? null : versionResult.data?.version ?? 1;
+    if (body.expected_version !== undefined) {
+      const expectedVersion = Number(body.expected_version);
+      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+        return NextResponse.json({ error: 'expected_version must be a positive integer', field: 'expected_version' }, { status: 400 });
+      }
+      if (currentVersion !== null && expectedVersion !== currentVersion) {
+        return NextResponse.json({
+          error: 'This review changed in another session. Refresh it before saving your feedback.',
+          code: 'STALE_SUBMISSION_REVIEW',
+          current_version: currentVersion,
+        }, { status: 409 });
+      }
+    }
     const assignMax = assignment?.max_points ?? 100;
     const assignWeight = assignment?.weight ?? 0;
     const rubric = Array.isArray(assignment?.metadata?.rubric) ? assignment.metadata.rubric : [];
@@ -146,6 +172,12 @@ export async function PATCH(
     if ('status' in body && statusResult.error) {
       return NextResponse.json({ error: statusResult.error, field: 'status' }, { status: 400 });
     }
+    if (statusResult.value === 'returned_for_revision' && !String(requestedFeedback ?? '').trim()) {
+      return NextResponse.json({
+        error: 'Add clear feedback so the learner knows what to revise.',
+        field: 'feedback',
+      }, { status: 400 });
+    }
 
     // ── Whitelisted update fields ──────────────────────────────────────────
     // graded_by and graded_at are NOT client-settable — always set server-side
@@ -168,16 +200,32 @@ export async function PATCH(
       return NextResponse.json({ error: transition.error, field: 'grade' }, { status: 400 });
     }
     Object.assign(allowed, transition.fields);
+    const normalizedReason = typeof body.change_reason === 'string' ? body.change_reason.trim().slice(0, 500) : '';
+    const gradeChanged = gradeWasProvided && (gradeResult.value ?? null) !== (sub.grade ?? null);
+    allowed.status_changed_by = caller.id;
+    allowed.last_change_reason = normalizedReason
+      || (gradeChanged && sub.grade != null ? 'Teacher corrected the recorded grade' : '')
+      || (transition.finalized ? 'Teacher completed the grading review' : '')
+      || (statusResult.value === 'returned_for_revision' ? 'Teacher returned the work for revision' : '')
+      || 'Teacher updated the submission review';
 
 
     // Keep submitted files after grading so the grade remains auditable.
 
-    let updateResult = await admin
-      .from('assignment_submissions')
-      .update(allowed)
-      .eq('id', id)
-      .select('id, grade, status, file_url, portal_user_id, weighted_score')
-      .single();
+    const runUpdate = async (payload: Record<string, unknown>): Promise<any> => {
+      let query: any = admin
+        .from('assignment_submissions')
+        .update(payload)
+        .eq('id', id);
+      if (currentVersion !== null) query = query.eq('version', currentVersion);
+      return query
+        .select(currentVersion !== null
+          ? 'id, grade, status, file_url, portal_user_id, weighted_score, version'
+          : 'id, grade, status, file_url, portal_user_id, weighted_score')
+        .maybeSingle();
+    };
+
+    let updateResult: any = await runUpdate(allowed);
 
     // Rolling-deploy compatibility: the final mark must never be blocked while an
     // additive migration is waiting to reach a database. The same rubric evidence
@@ -190,17 +238,33 @@ export async function PATCH(
     if (missingDetailsColumn) {
       delete allowed.grading_details;
       console.warn('[assignment-grade] rubric storage migration is pending; preserving the rubric in the audit event', { submissionId: id });
+      updateResult = await runUpdate(allowed);
+    }
+
+    const lifecycleColumnsPending = updateResult.error
+      && (updateResult.error.code === '42703'
+        || updateResult.error.code === 'PGRST204'
+        || /status_changed_by|last_change_reason|version/i.test(updateResult.error.message));
+    if (lifecycleColumnsPending) {
+      delete allowed.status_changed_by;
+      delete allowed.last_change_reason;
       updateResult = await admin
         .from('assignment_submissions')
         .update(allowed)
         .eq('id', id)
         .select('id, grade, status, file_url, portal_user_id, weighted_score')
-        .single();
+        .maybeSingle();
     }
 
     const { data, error } = updateResult;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) {
+      return NextResponse.json({
+        error: 'This review changed in another session. Refresh it before saving your feedback.',
+        code: 'STALE_SUBMISSION_REVIEW',
+      }, { status: 409 });
+    }
 
     try {
       await logAudit(admin as any, {
@@ -217,6 +281,9 @@ export async function PATCH(
           feedback_updated: 'feedback' in body || action === 'accept_ai',
           grading_source: gradingSource,
           grading_details: gradingDetails ?? null,
+          change_reason: allowed.last_change_reason ?? null,
+          previous_version: currentVersion,
+          version: 'version' in data ? data.version : null,
         },
       });
     } catch (auditError) {

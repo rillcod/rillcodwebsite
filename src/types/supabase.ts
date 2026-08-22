@@ -1753,13 +1753,17 @@ export type Database = {
           grading_details: Json | null
           grading_mode: string | null
           id: string
+          last_change_reason: string | null
           portal_user_id: string | null
           status: string | null
+          status_changed_at: string
+          status_changed_by: string | null
           student_id: string | null
           submission_text: string | null
           submitted_at: string | null
           updated_at: string | null
           user_id: string | null
+          version: number
           weighted_score: number | null
         }
         Insert: {
@@ -1776,13 +1780,17 @@ export type Database = {
           grading_details?: Json | null
           grading_mode?: string | null
           id?: string
+          last_change_reason?: string | null
           portal_user_id?: string | null
           status?: string | null
+          status_changed_at?: string
+          status_changed_by?: string | null
           student_id?: string | null
           submission_text?: string | null
           submitted_at?: string | null
           updated_at?: string | null
           user_id?: string | null
+          version?: number
           weighted_score?: number | null
         }
         Update: {
@@ -1799,13 +1807,17 @@ export type Database = {
           grading_details?: Json | null
           grading_mode?: string | null
           id?: string
+          last_change_reason?: string | null
           portal_user_id?: string | null
           status?: string | null
+          status_changed_at?: string
+          status_changed_by?: string | null
           student_id?: string | null
           submission_text?: string | null
           submitted_at?: string | null
           updated_at?: string | null
           user_id?: string | null
+          version?: number
           weighted_score?: number | null
         }
         Relationships: [
@@ -1850,6 +1862,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "academic_enrollment_pathway_issues"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "assignment_submissions_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "assignment_submissions_portal_user_id_fkey"

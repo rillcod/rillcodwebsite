@@ -25,6 +25,28 @@ const AUTO_GRADED_ASSIGNMENT_TYPES = new Set([
   'block_sequence',
 ]);
 
+const SUBMISSION_TRANSITIONS: Record<string, ReadonlySet<string>> = {
+  draft: new Set(['submitted', 'late', 'missing']),
+  submitted: new Set(['pending_review', 'under_review', 'returned_for_revision', 'graded', 'missing']),
+  late: new Set(['pending_review', 'under_review', 'returned_for_revision', 'graded', 'missing']),
+  pending_review: new Set(['under_review', 'returned_for_revision', 'graded', 'missing']),
+  under_review: new Set(['returned_for_revision', 'graded', 'missing']),
+  returned_for_revision: new Set(['resubmitted', 'submitted', 'late', 'missing']),
+  resubmitted: new Set(['pending_review', 'under_review', 'returned_for_revision', 'graded', 'missing']),
+  graded: new Set(['submitted', 'pending_review', 'returned_for_revision', 'moderated', 'published']),
+  moderated: new Set(['graded', 'published']),
+  published: new Set(['graded', 'moderated']),
+  missing: new Set(['submitted', 'late', 'resubmitted']),
+};
+
+export function canTransitionAssignmentSubmission(
+  currentStatus: string | null | undefined,
+  nextStatus: string | null | undefined,
+): boolean {
+  if (!nextStatus || nextStatus === currentStatus) return true;
+  return SUBMISSION_TRANSITIONS[currentStatus || 'draft']?.has(nextStatus) ?? false;
+}
+
 function roundToTwo(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -53,6 +75,15 @@ export function buildAssignmentGradeTransition(
   const gradeWasProvided = input.grade !== undefined;
   const effectiveGrade = gradeWasProvided ? input.grade : input.currentGrade;
   const requestedFinal = gradeWasProvided || input.status === 'graded';
+
+  const effectiveNextStatus = requestedFinal && effectiveGrade != null ? 'graded' : input.status;
+  if (!canTransitionAssignmentSubmission(input.currentStatus, effectiveNextStatus)) {
+    return {
+      fields,
+      finalized: false,
+      error: `This submission cannot move from ${input.currentStatus || 'draft'} to ${effectiveNextStatus}. Refresh the review and try again.`,
+    };
+  }
 
   if (!requestedFinal) {
     if (input.status !== undefined) fields.status = input.status;

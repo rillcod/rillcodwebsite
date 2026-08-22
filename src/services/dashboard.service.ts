@@ -651,59 +651,8 @@ export async function markNotificationRead(id: string) {
     await db().from('notifications').update({ is_read: true }).eq('id', id);
 }
 
-// ── GRADE SUBMISSION ─────────────────────────────────────────
-export async function gradeSubmission(
-    submissionId: string,
-    grade: number | null,
-    feedback: string,
-    gradedBy: string,
-) {
-    const { data, error } = await db()
-        .from('assignment_submissions')
-        .update({
-            grade,
-            feedback,
-            status: 'graded',
-            graded_by: gradedBy,
-            graded_at: new Date().toISOString(),
-        })
-        .eq('id', submissionId)
-        .select('id, grade, status');
-    if (error) throw error;
-    if (!data || data.length === 0) {
-        throw new Error('Grade could not be saved — permission denied or submission not found. Please check your account role.');
-    }
-    return data[0];
-}
-
-/**
- * Universal update for submissions — can change status, text, grade, etc.
- */
-export async function updateSubmission(
-    id: string,
-    payload: {
-        grade?: number | null;
-        feedback?: string | null;
-        status?: 'submitted' | 'graded' | 'late' | 'missing';
-        submission_text?: string | null;
-        graded_by?: string;
-    }
-) {
-    const updateData: any = { ...payload };
-    if (payload.status === 'graded' && !payload.hasOwnProperty('graded_at')) {
-        updateData.graded_at = new Date().toISOString();
-    }
-    
-    const { data, error } = await db()
-        .from('assignment_submissions')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
-}
-
+// Destructive submission cleanup is retained as a compatibility command, but
+// all score/submission writes live behind the canonical server APIs.
 export async function deleteSubmission(id: string) {
     const response = await fetch(`/api/assignment-submissions/${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -711,29 +660,4 @@ export async function deleteSubmission(id: string) {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.error || 'Submission could not be deleted.');
-}
-
-// ── SUBMIT ASSIGNMENT ─────────────────────────────────────────
-export async function submitAssignment(payload: {
-    assignment_id: string;
-    portal_user_id: string;
-    submission_text?: string;
-    file_url?: string;
-    answers?: any;
-}) {
-    const upsertData: any = {
-        ...payload,
-        submitted_at: new Date().toISOString(),
-        status: 'submitted',
-    };
-    if (payload.answers === null || payload.answers === undefined) delete upsertData.answers;
-
-    // Upsert — student can resubmit
-    const { data, error } = await db()
-        .from('assignment_submissions')
-        .upsert(upsertData, { onConflict: 'assignment_id,portal_user_id' })
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
 }
