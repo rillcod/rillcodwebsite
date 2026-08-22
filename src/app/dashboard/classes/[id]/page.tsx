@@ -107,6 +107,7 @@ export default function ClassDetailPage() {
   });
   const [manualEntry, setManualEntry] = useState(false);
   const [matrixSaving, setMatrixSaving] = useState<Record<string, boolean>>({});
+  const [matrixError, setMatrixError] = useState<string | null>(null);
 
   // Student Management State
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -2506,6 +2507,15 @@ export default function ClassDetailPage() {
                     </button>
                   </div>
                 </div>
+                {matrixError && (
+                  <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
+                    <div>
+                      <p className="font-bold">Grade was not saved</p>
+                      <p className="mt-0.5 text-xs text-rose-700/80 dark:text-rose-300/80">{matrixError} The recorded grade remains unchanged.</p>
+                    </div>
+                    <button type="button" onClick={() => setMatrixError(null)} className="shrink-0 font-black" aria-label="Dismiss grade save error">×</button>
+                  </div>
+                )}
                 {items.assignments.length === 0 ? (
                   <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <ChartBarIcon className="w-8 h-8 text-muted-foreground mb-3" />
@@ -2561,6 +2571,7 @@ export default function ClassDetailPage() {
                                         max={maxPts}
                                         defaultValue={score ?? ''}
                                         onBlur={async (e) => {
+                                          const input = e.currentTarget;
                                           const val = e.target.value;
                                           if (val === '') {
                                           } else {
@@ -2574,27 +2585,30 @@ export default function ClassDetailPage() {
                                           const numVal = val === '' ? null : Number(val);
                                           const key = `asm-${a.id}-${enr.id}`;
                                           if (numVal === score) return;
+                                          if (!sub && numVal === null) return;
 
                                           setMatrixSaving(p => ({ ...p, [key]: true }));
+                                          setMatrixError(null);
                                           try {
                                             if (sub) {
                                               const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ grade: numVal, status: numVal !== null ? 'graded' : sub.status, feedback: sub.feedback || null }),
+                                                body: JSON.stringify({ grade: numVal, feedback: sub.feedback || null }),
                                               });
-                                              if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+                                              if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
                                             } else {
                                               const res = await fetch(`/api/assignments/${a.id}/grade`, {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ student_id: enr.id, grade: numVal, status: 'graded' }),
                                               });
-                                              if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+                                              if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
                                             }
                                             await fetchData();
                                           } catch (err) {
-                                            console.error(err);
+                                            input.value = score != null ? String(score) : '';
+                                            setMatrixError(err instanceof Error ? err.message : 'The grade service could not save this change.');
                                           } finally {
                                             setMatrixSaving(p => ({ ...p, [key]: false }));
                                           }
