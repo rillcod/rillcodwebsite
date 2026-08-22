@@ -4,6 +4,12 @@ import { useCallback, useState } from 'react';
 import { ExclamationTriangleIcon, TrashIcon, XMarkIcon } from '@/lib/icons';
 
 type Counts = Record<string, number>;
+type ProtectedEvidence = Record<string, number | string> & {
+  policy: 'flexible' | 'standard' | 'strict';
+  immutable_total: number;
+  policy_total: number;
+  total: number;
+};
 
 // Danger-zone control: totally and irreversibly remove a school and everything scoped to it.
 // Flow: open → scan (preview counts) → type the school name → wipe. Admin-only surface.
@@ -11,18 +17,22 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
   const [open, setOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [counts, setCounts] = useState<Counts | null>(null);
+  const [protectedEvidence, setProtectedEvidence] = useState<ProtectedEvidence | null>(null);
+  const [canPermanentlyDelete, setCanPermanentlyDelete] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [wiping, setWiping] = useState(false);
   const [error, setError] = useState('');
 
   const openDialog = useCallback(async () => {
-    setOpen(true); setError(''); setCounts(null); setConfirmText('');
+    setOpen(true); setError(''); setCounts(null); setProtectedEvidence(null); setCanPermanentlyDelete(false); setConfirmText('');
     setScanning(true);
     try {
       const r = await fetch(`/api/schools/${school.id}/wipe`, { cache: 'no-store' });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? 'Scan failed');
       setCounts(j.counts ?? {});
+      setProtectedEvidence(j.protectedEvidence ?? null);
+      setCanPermanentlyDelete(j.canPermanentlyDelete === true);
     } catch (e: any) { setError(e.message ?? 'Scan failed'); }
     finally { setScanning(false); }
   }, [school.id]);
@@ -50,6 +60,12 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
     recordings: 'Recordings', consentForms: 'Consent forms', leads: 'Form leads',
     invoices: 'Invoices', payments: 'Payment records',
   };
+  const PROTECTED_LABELS: Record<string, string> = {
+    assignment_scores: 'Graded assignments', cbt_attempts: 'CBT attempts', progress_reports: 'Progress reports',
+    term_grades: 'Term grades', issued_invoices: 'Issued invoices', payment_transactions: 'Payment transactions',
+    legacy_payments: 'Legacy payment records', receipts: 'Receipts', consent_responses: 'Consent responses',
+  };
+  const isProtected = (protectedEvidence?.total ?? 0) > 0;
 
   return (
     <>
@@ -68,8 +84,8 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
               <div className="flex items-center gap-2">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/15"><ExclamationTriangleIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" /></span>
                 <div>
-                  <h2 className="text-base font-black text-foreground">Delete “{school.name}” forever</h2>
-                  <p className="text-[11px] text-muted-foreground">Total, irreversible removal — as though it never existed.</p>
+                  <h2 className="text-base font-black text-foreground">Permanent deletion review</h2>
+                  <p className="text-[11px] text-muted-foreground">{school.name} · protected-record safety check</p>
                 </div>
               </div>
               <button onClick={() => !wiping && setOpen(false)} className="text-muted-foreground hover:text-foreground"><XMarkIcon className="h-5 w-5" /></button>
@@ -97,8 +113,32 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
               <p className="mt-3 text-[11px] text-rose-700/90 dark:text-rose-300/90">…plus every other record keyed to this school and all its cloud files. This cannot be undone.</p>
             </div>
 
+            {isProtected && protectedEvidence ? (
+              <div role="status" className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-4">
+                <p className="text-sm font-black text-foreground">Archive required — permanent deletion is locked</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  This school has academic, finance, receipt, or consent evidence that must remain auditable. Deactivate or archive the school; its protected records and student scores will not be erased.
+                </p>
+                <ul className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                  {Object.entries(protectedEvidence)
+                    .filter(([key, value]) => !['policy', 'total', 'immutable_total', 'policy_total'].includes(key) && typeof value === 'number' && value > 0)
+                    .map(([key, value]) => (
+                      <li key={key} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-muted-foreground">{PROTECTED_LABELS[key] ?? key}</span>
+                        <span className="font-black text-foreground">{value}</span>
+                      </li>
+                    ))}
+                </ul>
+                {protectedEvidence.immutable_total === 0 && protectedEvidence.policy_total > 0 ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Current policy: <span className="font-bold text-foreground capitalize">{protectedEvidence.policy}</span>. An administrator can choose Flexible under Settings → Platform Policy → Data Cleanup & Retention for test/setup records.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             {/* Type-to-confirm */}
-            <div>
+            <div className={isProtected ? 'hidden' : undefined}>
               <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                 Type the school name to confirm
               </label>
@@ -117,10 +157,10 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
               <button onClick={() => !wiping && setOpen(false)} className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-bold text-foreground hover:bg-muted">Cancel</button>
               <button
                 onClick={wipe}
-                disabled={!nameMatches || wiping || scanning}
+                disabled={!canPermanentlyDelete || !nameMatches || wiping || scanning}
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {wiping ? 'Deleting…' : 'Delete forever'}
+                {isProtected ? 'Protected records locked' : wiping ? 'Deleting…' : 'Delete forever'}
               </button>
             </div>
           </div>

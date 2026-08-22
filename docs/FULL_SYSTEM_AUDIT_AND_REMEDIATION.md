@@ -803,7 +803,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-004 | P0 | At risk | No verified central CSRF/origin guard | Unsafe route inventory and attack tests pass |
 | SYS-005 | P0 | Confirmed defect | Limiter is a process-local `Map` and covers only `/api/inbox` | Shared-store, all-sensitive-action inventory, concurrency, and bypass tests pass |
 | SYS-006 | P0 | Locally remediated; production resend proof pending | Financial correction/resend now uses one canonical document route and a trusted issued-account snapshot | Deploy and prove the same invoice version matches save/preview/download/email/resend |
-| SYS-007 | P0 | At risk | Protected evidence across 175 delete sites | Every site classified/tested; marks and posted finance immutable |
+| SYS-007 | P0 | Partially remediated; full call-site classification pending | Student deletion and school wipe now fail closed for immutable academic/posted-finance evidence; cleanup policy remains flexible for build-time mistakes | Every remaining literal/dynamic delete site classified and database migration deployed/tested |
 | SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
 | SYS-009 | P1 | Confirmed gap | CSP and HSTS absent/unverified | Report-only observation, enforced CSP, HTTPS/HSTS verification |
 | SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
@@ -1853,3 +1853,47 @@ Remaining production proof and finance scope:
   not yet preserve the exact account version atomically at cycle creation;
 - complete reconciliation, refund/reversal/overpayment, onboarding-gate, and role-level finance
   journeys before declaring section 6.4 fully closed.
+
+### 16.6 Policy-driven protected deletion milestone — verified locally on 22 August 2026
+
+Implemented:
+
+- removed public, anonymous, and authenticated execution rights from the two `SECURITY DEFINER`
+  account/school hard-delete RPCs; only trusted server/database roles may invoke them;
+- added a database-owned `school_protected_evidence` preflight and repeated it inside
+  `hard_delete_school`, so direct RPC callers cannot bypass the record guard;
+- kept the product practical during active development with a Platform Settings cleanup policy:
+  **Flexible** (default), **Standard**, or **Strict**. Flexible permits deletion of setup mistakes,
+  narrative-only drafts, unpaid invoices, and test consent data; later policies retain more
+  operational documents;
+- made student/manual assignment scores, CBT attempts, published or scored reports, moderated term
+  grades, posted payment transactions, legacy posted payments, and receipts immutable in every
+  cleanup mode;
+- moved the school evidence check ahead of R2 deletion, preventing cloud files from disappearing
+  when the database later refuses a wipe;
+- changed the school danger-zone UI to explain the blocking evidence, distinguish an immutable
+  lock from a configurable policy lock, and direct administrators to the cleanup setting;
+- routed the old dashboard submission-delete helper through the protected API and made failed
+  registration-payment cleanup delete only still-pending, unposted transactions;
+- routed single-student deletion through the shared protected-evidence wipe command, propagated
+  RPC failures, and protected manual/weighted submissions linked through the legacy `students.id`
+  key as well as modern portal-user keys.
+
+Automated evidence so far:
+
+- focused deletion/retention/settings suite: 5 files and 18 tests passed;
+- full suite: 338 files and 2,375 tests passed;
+- TypeScript: passed;
+- direct literal-table inventory currently finds 145 database delete call sites; the prior broad
+  count of 175 included a mixture of dynamic/query variants. The remaining literal and dynamic
+  sites still require table-by-table classification before SYS-007 is closed;
+- the migration is preserved locally and has not been pushed to the live database.
+
+Remaining proof:
+
+- apply the migration to a disposable database and prove Flexible/Standard/Strict behavior with
+  scored and unscored schools, followed by a read-only production schema verification;
+- classify all remaining delete calls as ephemeral cleanup, conditional domain deletion, archive,
+  or forbidden protected-evidence deletion, and enforce the manifest in CI;
+- exercise backup/restore and account-deletion/legal-retention journeys before declaring the
+  broader database-retention section complete.

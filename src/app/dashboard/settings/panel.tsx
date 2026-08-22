@@ -3903,6 +3903,34 @@ function SettingsPageContent({
                     <div className="h-px bg-border" />
                     <div>
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">
+                        Data Cleanup & Retention
+                      </h3>
+                      <div className="max-w-xl">
+                        <label className="block text-xs font-bold mb-1.5">
+                          Cleanup Policy
+                        </label>
+                        <select
+                          value={aiSettings.data_cleanup_policy || "flexible"}
+                          onChange={(e) =>
+                            setAiSettings((current) => ({
+                              ...current,
+                              data_cleanup_policy: e.target.value,
+                            }))
+                          }
+                          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none cursor-pointer"
+                        >
+                          <option value="flexible">Flexible — best while building</option>
+                          <option value="standard">Standard — retain issued documents and consent</option>
+                          <option value="strict">Strict — maximum operational retention</option>
+                        </select>
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                          Flexible mode lets administrators remove setup mistakes, ungraded drafts, unpaid invoices, and test consent data. Student/manual scores, CBT attempts, published or scored reports, posted payments, and receipts stay protected in every mode.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-px bg-border" />
+                    <div>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">
                         Daily Academic Rules
                       </h3>
                       <div className="space-y-4">
@@ -4053,6 +4081,7 @@ function SettingsPageContent({
                               brand_primary_color: "#1A3A8F",
                               show_report_indicator: "true",
                               allow_paste_claim_students: "false",
+                              data_cleanup_policy: "flexible",
                             }));
                         }}
                         className="px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl text-sm font-bold transition-all"

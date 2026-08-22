@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { hasCbtAttemptEvidence, hasProtectedAssignmentScoreEvidence } from './record-retention';
+import {
+  hasCbtAttemptEvidence,
+  hasProtectedAssignmentScoreEvidence,
+  hasProtectedProgressReportEvidence,
+} from './record-retention';
 
 describe('academic record retention', () => {
   it('protects every persisted assignment grading signal', () => {
@@ -19,5 +23,11 @@ describe('academic record retention', () => {
     expect(hasCbtAttemptEvidence({ id: 'session-1' })).toBe(true);
     expect(hasCbtAttemptEvidence({ score: 0 })).toBe(true);
     expect(hasCbtAttemptEvidence(null)).toBe(false);
+  });
+
+  it('allows narrative report drafts but protects scored or published reports', () => {
+    expect(hasProtectedProgressReportEvidence({ is_published: false })).toBe(false);
+    expect(hasProtectedProgressReportEvidence({ overall_score: 0 })).toBe(true);
+    expect(hasProtectedProgressReportEvidence({ published_at: '2026-08-22T00:00:00Z' })).toBe(true);
   });
 });

@@ -26,6 +26,47 @@ async function countWhere(admin: ReturnType<typeof adminClient>, table: string, 
   return count ?? 0;
 }
 
+type ProtectedSchoolEvidence = {
+  policy: 'flexible' | 'standard' | 'strict';
+  assignment_scores: number;
+  cbt_attempts: number;
+  progress_reports: number;
+  term_grades: number;
+  issued_invoices: number;
+  payment_transactions: number;
+  legacy_payments: number;
+  receipts: number;
+  consent_responses: number;
+  immutable_total: number;
+  policy_total: number;
+  total: number;
+};
+
+async function loadProtectedEvidence(admin: ReturnType<typeof adminClient>, schoolId: string) {
+  const { data, error } = await (admin as any).rpc('school_protected_evidence', { p_school: schoolId });
+  if (error) throw new Error(`Protected records could not be verified: ${error.message}`);
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const value = (key: Exclude<keyof ProtectedSchoolEvidence, 'policy'>) => Math.max(0, Number(raw[key] ?? 0) || 0);
+  const policy = ['standard', 'strict'].includes(String(raw.policy))
+    ? String(raw.policy) as 'standard' | 'strict'
+    : 'flexible';
+  return {
+    policy,
+    assignment_scores: value('assignment_scores'),
+    cbt_attempts: value('cbt_attempts'),
+    progress_reports: value('progress_reports'),
+    term_grades: value('term_grades'),
+    issued_invoices: value('issued_invoices'),
+    payment_transactions: value('payment_transactions'),
+    legacy_payments: value('legacy_payments'),
+    receipts: value('receipts'),
+    consent_responses: value('consent_responses'),
+    immutable_total: value('immutable_total'),
+    policy_total: value('policy_total'),
+    total: value('total'),
+  } satisfies ProtectedSchoolEvidence;
+}
+
 // GET — non-destructive scan: what would be removed. Powers the confirmation preview.
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -35,6 +76,15 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
 
   const { data: school } = await admin.from('schools').select('id, name').eq('id', id).maybeSingle();
   if (!school) return NextResponse.json({ error: 'School not found' }, { status: 404 });
+
+  let protectedEvidence: ProtectedSchoolEvidence;
+  try {
+    protectedEvidence = await loadProtectedEvidence(admin, id);
+  } catch (error) {
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Protected records could not be verified.',
+    }, { status: 503 });
+  }
 
   // Headline categories for the preview (the wipe itself removes ALL school-scoped rows).
   const [
@@ -57,6 +107,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   return NextResponse.json({
     school: { id: school.id, name: school.name },
     counts: { students, staff, classes, cards, reports, batches, sessions, recordings, consentForms, leads, invoices, payments },
+    protectedEvidence,
+    canPermanentlyDelete: protectedEvidence.total === 0,
   });
 }
 
@@ -74,6 +126,27 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const confirmName = typeof body.confirmName === 'string' ? body.confirmName.trim() : '';
   if (confirmName.toLowerCase() !== String(school.name ?? '').trim().toLowerCase()) {
     return NextResponse.json({ error: 'Confirmation text does not match the school name.' }, { status: 400 });
+  }
+
+  // This preflight must happen before any R2 object is removed. The database
+  // repeats the same guard inside hard_delete_school so alternate callers and
+  // races cannot bypass it.
+  let protectedEvidence: ProtectedSchoolEvidence;
+  try {
+    protectedEvidence = await loadProtectedEvidence(admin, id);
+  } catch (error) {
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Protected records could not be verified.',
+    }, { status: 503 });
+  }
+  if (protectedEvidence.total > 0) {
+    return NextResponse.json({
+      error: protectedEvidence.immutable_total > 0
+        ? 'This school contains student scores, assessed work, published/scored reports, posted payments, or receipts. Archive it instead; these records cannot be erased.'
+        : `The ${protectedEvidence.policy} cleanup policy retains issued invoices or consent evidence. Change Data Cleanup & Retention in Platform Settings, or archive the school.`,
+      code: 'PROTECTED_RECORDS_PRESENT',
+      protectedEvidence,
+    }, { status: 409 });
   }
 
   // 1. Delete R2 objects first (SQL can't reach object storage) — recordings + card assets + files.

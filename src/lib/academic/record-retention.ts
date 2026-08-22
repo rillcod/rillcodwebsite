@@ -42,3 +42,25 @@ export function hasCbtAttemptEvidence(row: CbtAttemptEvidence | null | undefined
     || Boolean(row.manual_scores)
     || Boolean(row.status);
 }
+
+export type ProgressReportEvidence = {
+  is_published?: unknown;
+  published_at?: unknown;
+  overall_score?: unknown;
+  participation_score?: unknown;
+  attendance_score?: unknown;
+  theory_score?: unknown;
+  practical_score?: unknown;
+};
+
+/** Narrative-only drafts remain cleanable while published/scored reports do not. */
+export function hasProtectedProgressReportEvidence(row: ProgressReportEvidence | null | undefined): boolean {
+  if (!row) return false;
+  return row.is_published === true
+    || Boolean(row.published_at)
+    || row.overall_score != null
+    || row.participation_score != null
+    || row.attendance_score != null
+    || row.theory_score != null
+    || row.practical_score != null;
+}

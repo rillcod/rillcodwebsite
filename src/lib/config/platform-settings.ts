@@ -15,6 +15,7 @@ export const PLATFORM_CONFIGURATION_KEYS = [
   "allow_paste_claim_students",
   "lms_messaging_policy",
   "lms_attendance_threshold",
+  "data_cleanup_policy",
 ] as const;
 
 export type PlatformConfigurationKey =

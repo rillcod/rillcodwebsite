@@ -705,11 +705,12 @@ export async function updateSubmission(
 }
 
 export async function deleteSubmission(id: string) {
-    const { error } = await db()
-        .from('assignment_submissions')
-        .delete()
-        .eq('id', id);
-    if (error) throw error;
+    const response = await fetch(`/api/assignment-submissions/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || 'Submission could not be deleted.');
 }
 
 // ── SUBMIT ASSIGNMENT ─────────────────────────────────────────

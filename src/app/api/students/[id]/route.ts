@@ -6,6 +6,11 @@ import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from 
 import { getAccountValuables } from '@/lib/students/account-valuables';
 import { cleanStudentName } from '@/lib/students/clean-name';
 import { cleanGrade } from '@/lib/classes/naming';
+import { pruneRegistrationArchiveByEmails, wipePortalUserCascade } from '@/lib/students/permanent-wipe';
+import {
+  getProtectedAcademicEvidence,
+  protectedAcademicEvidenceMessage,
+} from '@/lib/students/protected-academic-evidence';
 
 function adminClient() {
     return createClient(
@@ -231,29 +236,41 @@ export async function DELETE(
     if (student?.user_id) {
         // Capture the login email first so we can purge the bulk-register archive.
         const { data: pu } = await admin.from('portal_users').select('email').eq('id', student.user_id).maybeSingle();
-        // Full wipe via the DB function: clears every FK child, the students + portal_users
-        // rows and auth.users in one shot (no hand-listed subset that can leave orphans).
-        await (admin as any).rpc('hard_delete_portal_user', { p_id: student.user_id });
-        await admin.auth.admin.deleteUser(student.user_id).catch(() => {});
+        // The shared wipe engine fails closed when any graded/manual evidence is
+        // attached and propagates database errors instead of reporting success.
+        const wipe = await wipePortalUserCascade(admin as any, student.user_id);
+        if (!wipe.ok) {
+            return NextResponse.json({
+                error: wipe.error,
+                code: 'PROTECTED_ACADEMIC_EVIDENCE',
+            }, { status: 409 });
+        }
 
         // Harmonise the bulk-register archive (keyed by email): drop this student's
         // history row and prune the batch if it becomes empty.
         const email = (pu as { email?: string } | null)?.email;
-        if (email) {
-            const { data: archRows } = await admin.from('registration_results').select('batch_id').eq('email', email);
-            const batchIds = [...new Set((archRows ?? []).map((r: any) => r.batch_id).filter(Boolean))];
-            await admin.from('registration_results').delete().eq('email', email);
-            for (const bId of batchIds) {
-                const { count } = await admin.from('registration_results').select('id', { count: 'exact', head: true }).eq('batch_id', bId);
-                if ((count ?? 0) === 0) await admin.from('registration_batches').delete().eq('id', bId);
-                else await admin.from('registration_batches').update({ student_count: count }).eq('id', bId);
-            }
+        if (email) await pruneRegistrationArchiveByEmails(admin as any, [email]);
+    } else {
+        // Pre-portal student rows can still own assignment marks through
+        // assignment_submissions.student_id. Never treat them as disposable
+        // merely because an auth/portal identity has not been created.
+        let evidence;
+        try {
+            evidence = await getProtectedAcademicEvidence(admin as any, null, [id]);
+        } catch (error) {
+            return NextResponse.json({
+                error: error instanceof Error ? error.message : 'Protected evidence could not be verified.',
+            }, { status: 503 });
         }
+        if (evidence.total > 0) {
+            return NextResponse.json({
+                error: protectedAcademicEvidenceMessage(evidence),
+                code: 'PROTECTED_ACADEMIC_EVIDENCE',
+            }, { status: 409 });
+        }
+        const { error } = await admin.from('students').delete().eq('id', id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    const { error } = await admin.from('students').delete().eq('id', id);
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Audit trail — record WHO deleted this student (non-throwing).
     await logAudit(admin as any, {

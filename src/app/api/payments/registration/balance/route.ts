@@ -274,7 +274,13 @@ export async function POST(req: NextRequest) {
 
     const paystackData = await paystackRes.json();
     if (!paystackData.status || !paystackData.data?.authorization_url) {
-      await supabase.from('payment_transactions').delete().eq('transaction_reference', reference);
+      await supabase
+        .from('payment_transactions')
+        .delete()
+        .eq('transaction_reference', reference)
+        .eq('payment_status', 'pending')
+        .is('paid_at', null)
+        .is('external_transaction_id', null);
       return NextResponse.json(
         { error: paystackData.message || 'Payment gateway did not respond. Please try again.' },
         { status: 502 },
