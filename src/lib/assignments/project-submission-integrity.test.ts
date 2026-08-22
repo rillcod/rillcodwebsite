@@ -35,6 +35,9 @@ describe('project submission and grading integrity', () => {
     expect(createProject).toContain('criterion: criterion.name');
     expect(createProject).toContain('description: criterion.desc');
     expect(createProject).toContain('maxPoints: criterion.maxPts');
+    expect(project).toContain('gradeAssignmentRubric(rubric, rubricScores, max)');
+    expect(project).toContain('payload.rubric_scores = rubricScores');
+    expect(project).toContain('/api/assignment-submissions/${sub.id}');
   });
 
   it('leaves authoritative objective auto-grading on the canonical server route', () => {

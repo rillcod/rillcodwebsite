@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { gradeAssignmentRubric } from '@/lib/assignments/grading';
 import { SyntaxHighlight } from '@/components/ui/SyntaxHighlight';
 import ActivityInstructions from '@/components/activities/ActivityInstructions';
 import {
@@ -74,10 +75,9 @@ function pctInfo(grade: number, max: number) {
     return { pct, letter, color };
 }
 
-function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
+function ProjectGradeCanvas({ sub, activity, onClose, onSaved }: {
     sub: any;
     activity: any;
-    assignmentId: string;
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -92,18 +92,23 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
     const [err, setErr] = useState('');
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [briefOpen, setBriefOpen] = useState(false);
-    const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
+    const [rubricScores, setRubricScores] = useState<Record<number, number>>(() => {
+        const saved = Array.isArray(sub.grading_details?.rubric_scores)
+            ? sub.grading_details.rubric_scores
+            : [];
+        return Object.fromEntries(saved.map((row: any) => [row.criterionIndex, row.earned]));
+    });
     const [filePreviewOpen, setFilePreviewOpen] = useState(false);
 
     const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
     const handleRubricScore = (idx: number, val: number) => {
         const updated = { ...rubricScores, [idx]: val };
         setRubricScores(updated);
-        const total = Object.values(updated).reduce((a, b) => a + b, 0);
-        setGrade(String(Math.min(total, max)));
+        const result = gradeAssignmentRubric(rubric, updated, max);
+        if (!result.error) setGrade(String(result.grade));
     };
 
-    const info = grade ? pctInfo(Number(grade), max) : null;
+    const info = grade !== '' ? pctInfo(Number(grade), max) : null;
     const readiness = getSubmissionReadiness(answers, sub.submission_text || '', sub.file_url || '');
     const isImage = sub.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url.split('?')[0]);
     const screenshotUrl = answers.screenshot_url;
@@ -111,13 +116,23 @@ function ProjectGradeCanvas({ sub, activity, assignmentId, onClose, onSaved }: {
     const save = async () => {
         const g = Number(grade);
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter 0–${max}`); return; }
+        const hasRubricScores = Object.keys(rubricScores).length > 0;
+        if (!hasRubricScores && grade === '') { setErr('Enter a grade before saving.'); return; }
+        if (hasRubricScores) {
+            const result = gradeAssignmentRubric(rubric, rubricScores, max);
+            if (result.error) { setErr(result.error); return; }
+        }
         setSaving(true); setErr('');
         try {
-            const res = await fetch(`/api/assignments/${assignmentId}/grade`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ submission_id: sub.id, grade: grade === '' ? null : g, feedback, status: 'graded' }),
+            const payload: Record<string, unknown> = { feedback, status: 'graded' };
+            if (hasRubricScores) payload.rubric_scores = rubricScores;
+            else payload.grade = g;
+            const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
             });
-            if (!res.ok) throw new Error('Grading failed');
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'Grading failed. Please try again.');
             onSaved();
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save');
@@ -669,7 +684,6 @@ export default function ProjectBuilderPage() {
                 <ProjectGradeCanvas
                     sub={gradingSubmission}
                     activity={activity}
-                    assignmentId={id}
                     onClose={() => setGradingSubmission(null)}
                     onSaved={() => { setGradingSubmission(null); setSuccessMsg('Grade saved!'); loadActivity(); }}
                 />
