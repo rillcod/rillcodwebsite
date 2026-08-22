@@ -915,6 +915,7 @@ export default function AssignmentDetailPage() {
     const [editingSubmission, setEditingSubmission] = useState(false);
     const [draftHydrated, setDraftHydrated] = useState(false);
     const [draftRestored, setDraftRestored] = useState(false);
+    const [draftWarning, setDraftWarning] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [text, setText] = useState('');
@@ -1040,6 +1041,7 @@ export default function AssignmentDetailPage() {
             setDraftRestored(true);
         } catch (draftError) {
             console.warn('[assignment-draft] saved work could not be restored', draftError);
+            setDraftWarning('This device could not restore the unfinished draft. Server-saved submissions are unchanged.');
         }
     }, [draftHydrated, draftKey, isStaff, loading, submission]);
 
@@ -1058,6 +1060,7 @@ export default function AssignmentDetailPage() {
                 }));
             } catch (draftError) {
                 console.warn('[assignment-draft] work could not be saved locally', draftError);
+                setDraftWarning('Automatic draft backup is unavailable on this device. Keep this page open and submit when ready.');
             }
         }, 400);
         return () => window.clearTimeout(timer);
@@ -1226,6 +1229,7 @@ export default function AssignmentDetailPage() {
                     localStorage.removeItem(draftKey);
                 } catch (draftError) {
                     console.warn('[assignment-draft] completed draft could not be cleared', draftError);
+                    setDraftWarning('The submission is safely stored on the server, but this device could not remove its old draft copy.');
                 }
             }
         } catch (e: any) {
@@ -1934,7 +1938,18 @@ export default function AssignmentDetailPage() {
                                     <CheckCircleIcon className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
                                 </div>
                                 <p className="text-emerald-600 dark:text-emerald-400 font-black text-base">Submission saved successfully!</p>
-                                <p className="text-emerald-600/60 dark:text-emerald-400/60 text-xs">Your teacher will review and grade your work. Check back here for your result.</p>
+                                <p className="text-emerald-600/60 dark:text-emerald-400/60 text-xs">
+                                    {submission?.status === 'graded' && submission?.grade != null
+                                        ? `This objective assessment was graded by the assessment engine: ${submission.grade}/${assignment.max_points ?? 100} points.`
+                                        : 'Your work is in the teacher review queue. Check back here for feedback and the final result.'}
+                                </p>
+                            </div>
+                        )}
+
+                        {draftWarning && (
+                            <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-200">
+                                <span>{draftWarning}</span>
+                                <button type="button" onClick={() => setDraftWarning(null)} className="shrink-0 font-black" aria-label="Dismiss draft warning">×</button>
                             </div>
                         )}
 
