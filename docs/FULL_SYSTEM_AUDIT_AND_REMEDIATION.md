@@ -2091,3 +2091,30 @@ Remaining operational work:
 - apply migration `20260929000096_version_written_exam_marking.sql` after migrations 93–95 in a disposable environment, then production through the approved migration pipeline;
 - expose expected versions and optional moderation controls in the written-review interface;
 - verify candidate paper and PDF-output parity across desktop and mobile layouts.
+
+### 16.13 Written-exam review and paper-output milestone — verified locally on 23 August 2026
+
+Implemented:
+
+- connected the staff review screen to written-exam grading versions so a stale browser cannot silently overwrite a newer review;
+- exposed optional reviewed, verified, and needs-correction states without requiring a second-review workflow for ordinary marking;
+- added a staff-only change note with human-readable audit wording while keeping it out of learner results;
+- replaced the combined print document with separate candidate and teacher copies;
+- removed answers, explanations, and the marking guide from candidate output, while clearly labelling the answer-bearing teacher copy confidential;
+- escaped exam, question, option, answer, and explanation content before placing it in a printable document;
+- retained rolling-schema compatibility in the written-attempt worklist until migration 96 is deployed;
+- improved mobile print controls and printable A4/mobile layouts with 44-pixel actions.
+
+Verification evidence:
+
+- focused examination suite: 4 files and 14 tests passed;
+- full automated suite: 345 files and 2,403 tests passed;
+- TypeScript typecheck passed;
+- candidate-output tests prove that answer evidence is absent and printable content is HTML escaped;
+- no production build, remote push, or live database migration was run.
+
+Remaining operational proof:
+
+- apply migration 96 through the approved pipeline and repeat concurrent staff-review checks against the deployed database;
+- visually inspect both browser print previews and saved PDFs on desktop and a physical mobile device;
+- connect published written results to the same immutable publication registry planned for report cards and parent sharing.

@@ -10,13 +10,27 @@ async function getHandler(_req: Request, ctx: ApiContext) {
   if (!ctx.user || !(await canReadWrittenExam(ctx.user, examId))) throw new AppError('Forbidden', 403);
 
   const db = createAdminClient();
+  const baseColumns = 'id,portal_user_id,attempt_number,status,score,total_points,percentage,started_at,submitted_at,tab_switches';
   let query = db
     .from('exam_attempts')
-    .select('id,portal_user_id,attempt_number,status,score,total_points,percentage,started_at,submitted_at,tab_switches')
+    .select(`${baseColumns},grading_version,moderation_status`)
     .eq('exam_id', examId)
     .order('started_at', { ascending: false });
   if (ctx.user.role === 'student') query = query.eq('portal_user_id', ctx.user.id);
-  const { data: attempts, error } = await query;
+  let { data: attempts, error } = await query;
+  const gradingColumnsPending = error
+    && (error.code === '42703' || error.code === 'PGRST204' || /grading_version|moderation_status/i.test(error.message));
+  if (gradingColumnsPending) {
+    let fallbackQuery = db
+      .from('exam_attempts')
+      .select(baseColumns)
+      .eq('exam_id', examId)
+      .order('started_at', { ascending: false });
+    if (ctx.user.role === 'student') fallbackQuery = fallbackQuery.eq('portal_user_id', ctx.user.id);
+    const fallback = await fallbackQuery;
+    attempts = fallback.data as typeof attempts;
+    error = fallback.error;
+  }
   if (error) throw new AppError(error.message, 500);
 
   const userIds = [...new Set((attempts ?? []).map(attempt => attempt.portal_user_id).filter(Boolean))] as string[];

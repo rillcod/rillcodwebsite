@@ -25,6 +25,9 @@ type Attempt = {
   percentage: number | null;
   submitted_at: string | null;
   tab_switches: number | null;
+  grading_version?: number | null;
+  moderation_status?: 'unreviewed' | 'reviewed' | 'approved' | 'returned' | null;
+  grading_change_reason?: string | null;
   answers: Record<string, unknown>;
   grading: { manual_scores: Record<string, number>; feedback: string | null };
   questions: Question[];
@@ -39,6 +42,8 @@ export default function WrittenAttemptReviewPage() {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [scores, setScores] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
+  const [moderationStatus, setModerationStatus] = useState<NonNullable<Attempt['moderation_status']>>('unreviewed');
+  const [changeReason, setChangeReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +61,8 @@ export default function WrittenAttemptReviewPage() {
     setAttempt(next);
     setScores(Object.fromEntries(Object.entries(next.grading?.manual_scores ?? {}).map(([questionId, score]) => [questionId, String(score)])));
     setFeedback(next.grading?.feedback ?? '');
+    setModerationStatus(next.moderation_status ?? 'unreviewed');
+    setChangeReason('');
     setError(null);
     setLoading(false);
   }, [attemptId, id]);
@@ -76,7 +83,13 @@ export default function WrittenAttemptReviewPage() {
       const response = await fetch(`/api/exams/${id}/attempts/${attemptId}/grade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scores: numericScores, feedback: feedback || null }),
+        body: JSON.stringify({
+          scores: numericScores,
+          feedback: feedback || null,
+          ...(typeof attempt?.grading_version === 'number' ? { expected_version: attempt.grading_version } : {}),
+          moderation_status: moderationStatus,
+          ...(changeReason.trim() ? { change_reason: changeReason.trim() } : {}),
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Review could not be saved.');
@@ -101,7 +114,8 @@ export default function WrittenAttemptReviewPage() {
           <p className="mt-1 text-sm text-muted-foreground">{attempt.student?.full_name || 'Learner'} · {attempt.student?.email || 'No email'}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={attempt.status === 'graded' ? 'default' : 'secondary'}>{attempt.status === 'graded' ? 'Published' : 'Needs review'}</Badge>
+          <Badge variant={attempt.status === 'graded' ? 'default' : 'secondary'}>{attempt.status === 'graded' ? 'Graded' : 'Needs review'}</Badge>
+          {attempt.moderation_status === 'approved' && <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-300">Verified</Badge>}
           {(attempt.tab_switches ?? 0) > 0 && <Badge variant="destructive">{attempt.tab_switches} tab switch{attempt.tab_switches === 1 ? '' : 'es'}</Badge>}
         </div>
       </div>
@@ -146,14 +160,31 @@ export default function WrittenAttemptReviewPage() {
         <CardHeader><CardTitle className="text-lg">Reviewer feedback</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <textarea value={feedback} onChange={event => setFeedback(event.target.value)} maxLength={5000} className="min-h-32 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder="Give concise, constructive feedback the learner can act on." />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-semibold text-foreground">
+              Review state
+              <select value={moderationStatus} onChange={event => setModerationStatus(event.target.value as NonNullable<Attempt['moderation_status']>)} className="mt-2 min-h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <option value="unreviewed">Marked — no second review</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="approved" disabled={completedManual < manualQuestions.length}>Verified and approved</option>
+                <option value="returned">Needs correction</option>
+              </select>
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">Optional quality control; normal marking remains available.</span>
+            </label>
+            <label className="text-sm font-semibold text-foreground">
+              Change note <span className="font-normal text-muted-foreground">(optional)</span>
+              <input value={changeReason} onChange={event => setChangeReason(event.target.value)} maxLength={500} className="mt-2 min-h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" placeholder={attempt.status === 'graded' ? 'Why this result is being corrected' : 'Note for the review trail'} />
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">Visible in the staff audit trail, not the learner result.</span>
+            </label>
+          </div>
           {completedManual < manualQuestions.length && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
               <ClockIcon className="mt-0.5 h-4 w-4 shrink-0" /> Progress can be saved now. The result publishes only after all {manualQuestions.length} written responses have a score, including zero where appropriate.
             </div>
           )}
           {manualQuestions.length === 0 && <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 p-3 text-sm text-muted-foreground"><ExclamationTriangleIcon className="mt-0.5 h-4 w-4" /> This paper contains no manually graded questions.</div>}
-          <Button onClick={() => void saveReview()} disabled={saving || manualQuestions.length === 0} className="w-full sm:w-auto">
-            {saving ? 'Saving review…' : completedManual === manualQuestions.length ? 'Publish final grade' : 'Save review progress'}
+          <Button onClick={() => void saveReview()} disabled={saving || manualQuestions.length === 0} className="min-h-11 w-full sm:w-auto">
+            {saving ? 'Saving review…' : completedManual === manualQuestions.length ? (attempt.status === 'graded' ? 'Save grade correction' : 'Complete marking') : 'Save review progress'}
           </Button>
         </CardContent>
       </Card>
