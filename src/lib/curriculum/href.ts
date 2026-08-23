@@ -206,6 +206,37 @@ export function buildProjectNewHref(args: {
   });
 }
 
+export function hostPaperEntryHref(args: {
+  kind: "first_test" | "second_test" | "examination";
+  examId?: string | null;
+  classId?: string | null;
+  courseId?: string | null;
+  programId?: string | null;
+  schoolId?: string | null;
+}): string {
+  const examId = String(args.examId ?? "").trim();
+  if (examId) return `/dashboard/cbt/${examId}`;
+  const title =
+    args.kind === "examination"
+      ? "Examination"
+      : args.kind === "second_test"
+        ? "Second Test"
+        : "First Test";
+  return buildCbtNewHref({
+    classId: args.classId,
+    courseId: args.courseId,
+    programId: args.programId,
+    schoolId: args.schoolId,
+    hostAssessment: args.kind,
+    title,
+    examType: args.kind === "examination" ? "examination" : "evaluation",
+  });
+}
+
+export function hostPaperEntryLabel(examId?: string | null): string {
+  return String(examId ?? "").trim() ? "Record marks" : "Open paper";
+}
+
 export function buildCbtNewHref(args: {
   classId?: string | null;
   courseId?: string | null;

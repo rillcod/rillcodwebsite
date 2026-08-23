@@ -22,6 +22,7 @@ import {
 } from '@/lib/reports/score';
 import { findCanonicalProgressReport } from '@/lib/reports/canonical-report';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
+import { mergeHostSchoolMetrics } from '@/lib/academic/host-marks';
 
 
 /**
@@ -385,10 +386,10 @@ export async function POST(request: NextRequest) {
       const storedMetrics = existingReport.engagement_metrics && typeof existingReport.engagement_metrics === 'object' && !Array.isArray(existingReport.engagement_metrics)
         ? existingReport.engagement_metrics as Record<string, unknown>
         : {};
-      updatePayload.engagement_metrics = {
-        ...storedMetrics,
-        ...(updatePayload.engagement_metrics as Record<string, unknown>),
-      } as any;
+      updatePayload.engagement_metrics = mergeHostSchoolMetrics(
+        storedMetrics,
+        updatePayload.engagement_metrics,
+      ) as any;
       if (compulsorySchoolPapers) {
         const hostResult = deriveHostSchoolReportResult(updatePayload.engagement_metrics);
         updatePayload.overall_score = hostResult?.overallScore ?? null;

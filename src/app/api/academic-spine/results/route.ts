@@ -8,6 +8,7 @@ import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/repor
 import { resolveClassReportSession } from '@/lib/reports/session-labels';
 import { autoFillHostSchoolMessage, autoFillResultMessage } from '@/lib/reports/score';
 import { parseScoreAuthority } from '@/lib/reports/complement';
+import { mergeHostSchoolMetrics } from '@/lib/academic/host-marks';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -222,7 +223,7 @@ export async function POST(req: NextRequest) {
       // Auto-fill may prepare the shared draft, but host-school test/exam
       // papers are authoritative and must be adopted in Write before release.
       host_review_required: compulsorySchoolPapers,
-    },
+    } as Record<string, unknown>,
     is_published: false,
     updated_at: new Date().toISOString(),
   };
@@ -250,6 +251,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  if (existing) {
+    payload.engagement_metrics = mergeHostSchoolMetrics(
+      existing.engagement_metrics,
+      payload.engagement_metrics,
+    );
+  }
 
   const write = existing
     ? await db.from('student_progress_reports').update(payload).eq('id', existing.id).select('id').single()

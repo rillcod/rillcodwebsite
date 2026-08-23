@@ -12,7 +12,7 @@ import { reconcileReportCourseFromClassContext } from '@/lib/reports/class-cours
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { findCanonicalProgressReport, isReusableLockedResult } from '@/lib/reports/canonical-report';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
-import { hostPapersComplete } from '@/lib/academic/host-marks';
+import { hostPapersComplete, mergeHostSchoolMetrics } from '@/lib/academic/host-marks';
 import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 
 function adminClient() {
@@ -359,6 +359,12 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      if (existing) {
+        payload.engagement_metrics = mergeHostSchoolMetrics(
+          existing.engagement_metrics,
+          payload.engagement_metrics,
+        ) as typeof payload.engagement_metrics;
+      }
 
       const writeResult = existing
         ? await admin.from('student_progress_reports').update(payload).eq('id', existing.id).select('id').single()

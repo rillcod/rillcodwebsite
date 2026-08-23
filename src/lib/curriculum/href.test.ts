@@ -8,6 +8,8 @@ import {
   buildGradesHref,
   buildAttendanceHref,
   buildCbtNewHref,
+  hostPaperEntryHref,
+  hostPaperEntryLabel,
   buildLessonNewHref,
   buildResultsHref,
   mergeAssetLaneHref,
@@ -98,6 +100,32 @@ describe("curriculum href helpers", () => {
     expect(cbtUrl.searchParams.get("sit")).toBe("print");
     expect(cbtUrl.searchParams.get("exam_type")).toBe("evaluation");
     expect(cbtUrl.searchParams.get("host_assessment")).toBe("first_test");
+  });
+
+  it("opens an existing paper and creates a missing one from Write", () => {
+    expect(
+      hostPaperEntryHref({
+        kind: "first_test",
+        examId: "exam-1",
+        classId: "cl1",
+      }),
+    ).toBe("/dashboard/cbt/exam-1");
+    const createUrl = new URL(
+      hostPaperEntryHref({
+        kind: "second_test",
+        classId: "cl1",
+        courseId: "c1",
+        programId: "p1",
+        schoolId: "s1",
+      }),
+      "https://example.com",
+    );
+    expect(createUrl.pathname).toBe("/dashboard/cbt/new");
+    expect(createUrl.searchParams.get("host_assessment")).toBe("second_test");
+    expect(createUrl.searchParams.get("class_id")).toBe("cl1");
+    expect(createUrl.searchParams.get("title")).toBe("Second Test");
+    expect(hostPaperEntryLabel("exam-1")).toBe("Record marks");
+    expect(hostPaperEntryLabel(null)).toBe("Open paper");
   });
 
   it("preserves asset lane query across steps", () => {

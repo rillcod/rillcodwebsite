@@ -147,6 +147,70 @@ export function emptyHostPaperMarks(): HostPaperMarks {
   return { first_test: null, second_test: null, examination: null };
 }
 
+export type HostPaperExamIds = Record<HostAssessmentKind, string | null>;
+
+export function emptyHostPaperExamIds(): HostPaperExamIds {
+  return { first_test: null, second_test: null, examination: null };
+}
+
+export type HostPaperExamRef = {
+  id?: unknown;
+  title?: unknown;
+  metadata?: unknown;
+  class_id?: unknown;
+  course_id?: unknown;
+  created_at?: unknown;
+  end_time?: unknown;
+};
+
+function hostPaperExamScopeRank(
+  exam: HostPaperExamRef,
+  classId?: string | null,
+  courseId?: string | null,
+): number {
+  const examClass = exam.class_id ? String(exam.class_id) : "";
+  const examCourse = exam.course_id ? String(exam.course_id) : "";
+  if (classId && courseId && examClass === classId && examCourse === courseId) return 4;
+  if (classId && examClass === classId) return 3;
+  if (courseId && examCourse === courseId) return 2;
+  return 1;
+}
+
+/** Pick the class/course paper for each host assessment. Newest wins at the same scope. */
+export function pickHostPaperExamIds(
+  exams: HostPaperExamRef[],
+  scope: { classId?: string | null; courseId?: string | null } = {},
+): HostPaperExamIds {
+  const picked = emptyHostPaperExamIds();
+  const seen = new Map<HostAssessmentKind, { id: string; rank: number; at: number }>();
+  for (const exam of exams) {
+    const kind = hostAssessmentKindFromExam(exam);
+    const id = String(exam.id ?? "").trim();
+    if (!kind || !id) continue;
+    const rank = hostPaperExamScopeRank(exam, scope.classId, scope.courseId);
+    const at =
+      new Date(String(exam.created_at ?? exam.end_time ?? 0)).getTime() || 0;
+    const previous = seen.get(kind);
+    if (previous && (previous.rank > rank || (previous.rank === rank && previous.at >= at))) {
+      continue;
+    }
+    seen.set(kind, { id, rank, at });
+    picked[kind] = id;
+  }
+  return picked;
+}
+
+export function mergeHostPaperExamIds(
+  preferred: HostPaperExamIds,
+  fallback: HostPaperExamIds,
+): HostPaperExamIds {
+  return {
+    first_test: preferred.first_test ?? fallback.first_test,
+    second_test: preferred.second_test ?? fallback.second_test,
+    examination: preferred.examination ?? fallback.examination,
+  };
+}
+
 export function hostPapersComplete(papers: HostPaperMarks): boolean {
   return Boolean(papers.first_test && papers.second_test && papers.examination);
 }
@@ -221,6 +285,63 @@ export function hostAssessmentMetricFields(papers: HostPaperMarks) {
     host_total_max: total?.max ?? null,
     host_total_percent: total?.percent ?? null,
   };
+}
+
+export const HOST_PAPER_METRIC_KEYS = [
+  'first_test_score',
+  'second_test_score',
+  'examination_score',
+  'first_test_earned',
+  'second_test_earned',
+  'examination_earned',
+  'first_test_max',
+  'second_test_max',
+  'examination_max',
+  'host_total_earned',
+  'host_total_max',
+  'host_total_percent',
+] as const;
+
+function metricsRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/** Read stored hall marks. Empty CBT / optional-evidence saves must not invent these. */
+export function hostPapersFromMetrics(metrics: unknown): HostPaperMarks {
+  const rec = metricsRecord(metrics);
+  return {
+    first_test: markFromStored(rec, 'first_test'),
+    second_test: markFromStored(rec, 'second_test'),
+    examination: markFromStored(rec, 'examination'),
+  };
+}
+
+/** Keep a stored paper unless the incoming save has a real mark for that paper. */
+export function mergeHostPaperMarks(stored: HostPaperMarks, incoming: HostPaperMarks): HostPaperMarks {
+  return {
+    first_test: incoming.first_test ?? stored.first_test,
+    second_test: incoming.second_test ?? stored.second_test,
+    examination: incoming.examination ?? stored.examination,
+  };
+}
+
+/**
+ * Classwork, assignments and projects may change. First Test, Second Test and
+ * Examination stay unless this save actually carries a mark for that paper.
+ */
+export function mergeHostSchoolMetrics(stored: unknown, incoming: unknown): Record<string, unknown> {
+  const storedRec = metricsRecord(stored);
+  const incomingRec = metricsRecord(incoming);
+  const merged = { ...storedRec, ...incomingRec };
+  if (parseScoreAuthority(merged) !== 'host_school') return merged;
+
+  const papers = mergeHostPaperMarks(hostPapersFromMetrics(storedRec), hostPapersFromMetrics(incomingRec));
+  for (const key of HOST_PAPER_METRIC_KEYS) {
+    delete merged[key];
+  }
+  return { ...merged, ...hostAssessmentMetricFields(papers) };
 }
 
 function markFromStored(

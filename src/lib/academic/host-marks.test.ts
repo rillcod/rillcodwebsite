@@ -4,10 +4,15 @@ import {
   hostAssessmentMetricFields,
   hostMarksFromCbtSessions,
   hostPapersComplete,
+  hostPapersFromMetrics,
   hostSchoolScoreboard,
   hostSchoolTotal,
   markFromEarned,
+  mergeHostPaperExamIds,
+  mergeHostPaperMarks,
+  mergeHostSchoolMetrics,
   parseHallMarkInput,
+  pickHostPaperExamIds,
 } from "./host-marks";
 
 describe("host school marks", () => {
@@ -124,6 +129,108 @@ describe("host school marks", () => {
       },
     ]);
     expect(papers.first_test).toEqual({ earned: 24, max: 30, percent: 80 });
+  });
+
+  it("keeps stored hall marks when optional evidence is saved without papers", () => {
+    const stored = {
+      score_authority: "host_school",
+      ...hostAssessmentMetricFields({
+        first_test: markFromEarned(15, 20),
+        second_test: markFromEarned(18, 20),
+        examination: markFromEarned(57, 60),
+      }),
+      classwork_score: 40,
+    };
+    const merged = mergeHostSchoolMetrics(stored, {
+      score_authority: "host_school",
+      classwork_score: 88,
+      assessment_score: null,
+      first_test_earned: null,
+      first_test_max: null,
+      second_test_earned: null,
+      examination_earned: null,
+      host_total_earned: null,
+    });
+    expect(merged.classwork_score).toBe(88);
+    expect(hostSchoolScoreboard(merged)?.total).toEqual({ earned: 90, max: 100, percent: 90 });
+    expect(hostPapersFromMetrics(merged)).toEqual({
+      first_test: markFromEarned(15, 20),
+      second_test: markFromEarned(18, 20),
+      examination: markFromEarned(57, 60),
+    });
+  });
+
+  it("adopts a real incoming paper without clearing the other two", () => {
+    const stored = hostAssessmentMetricFields({
+      first_test: markFromEarned(10, 20),
+      second_test: markFromEarned(12, 20),
+      examination: markFromEarned(40, 60),
+    });
+    const incoming = hostAssessmentMetricFields({
+      first_test: markFromEarned(18, 20),
+      second_test: null,
+      examination: null,
+    });
+    expect(mergeHostPaperMarks(hostPapersFromMetrics(stored), hostPapersFromMetrics(incoming))).toEqual({
+      first_test: markFromEarned(18, 20),
+      second_test: markFromEarned(12, 20),
+      examination: markFromEarned(40, 60),
+    });
+  });
+
+  it("does not invent host papers on an optional Rillcod report", () => {
+    const merged = mergeHostSchoolMetrics(
+      { classwork_score: 70 },
+      { score_authority: "rillcod", classwork_score: 80 },
+    );
+    expect(merged).toEqual({ score_authority: "rillcod", classwork_score: 80 });
+    expect(merged.first_test_earned).toBeUndefined();
+  });
+
+  it("picks the class and course paper over a leftover course-only exam", () => {
+    const ids = pickHostPaperExamIds(
+      [
+        {
+          id: "old-first",
+          metadata: { host_assessment: "first_test" },
+          course_id: "course-1",
+          created_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "class-first",
+          metadata: { host_assessment: "first_test" },
+          class_id: "class-1",
+          course_id: "course-1",
+          created_at: "2026-01-02T00:00:00.000Z",
+        },
+        {
+          id: "exam-1",
+          title: "Coding Examination",
+          class_id: "class-1",
+          course_id: "course-1",
+          created_at: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+      { classId: "class-1", courseId: "course-1" },
+    );
+    expect(ids).toEqual({
+      first_test: "class-first",
+      second_test: null,
+      examination: "exam-1",
+    });
+  });
+
+  it("fills a missing paper id from session fallback without replacing a class paper", () => {
+    expect(
+      mergeHostPaperExamIds(
+        { first_test: "class-first", second_test: null, examination: null },
+        { first_test: "session-first", second_test: "session-second", examination: null },
+      ),
+    ).toEqual({
+      first_test: "class-first",
+      second_test: "session-second",
+      examination: null,
+    });
   });
 
   it("recomputes an edited result instead of trusting a stale stored total", () => {

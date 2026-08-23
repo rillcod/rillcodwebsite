@@ -15,6 +15,7 @@ import { deriveHostSchoolReportResult, deriveProgressReportResult, touchesProgre
 import { parseScoreAuthority } from '@/lib/reports/complement';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 import { publishedProgressReportEditIssue } from '@/lib/reports/publication';
+import { mergeHostSchoolMetrics } from '@/lib/academic/host-marks';
 import {
   loadCleanupPolicy,
   mayHardDeleteRebuildableContent,
@@ -163,7 +164,7 @@ export async function PATCH(
     allowed.calculation_mode = 'manual';
     const mergedMetrics =
       allowed.engagement_metrics && typeof allowed.engagement_metrics === 'object' && !Array.isArray(allowed.engagement_metrics)
-        ? { ...((currentReport as any)?.engagement_metrics ?? {}), ...allowed.engagement_metrics }
+        ? mergeHostSchoolMetrics((currentReport as any)?.engagement_metrics, allowed.engagement_metrics)
         : (currentReport as any)?.engagement_metrics;
     if ('engagement_metrics' in allowed) allowed.engagement_metrics = mergedMetrics;
     if (parseScoreAuthority(mergedMetrics) === 'host_school') {

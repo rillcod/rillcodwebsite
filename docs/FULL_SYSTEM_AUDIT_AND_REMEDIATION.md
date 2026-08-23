@@ -492,11 +492,12 @@ Required completion:
 - Test no network, reconnect, timeout, duplicate submit, invalid question, manual marking,
   moderation, correction, publication, and report rendering.
 
-### 6.9 Results, report builder, school reports, publish/share/autofill — **Active uncommitted work; E2E unverified**
+### 6.9 Results, report builder, school reports, publish/share/autofill — **Active; SYS-014 walked locally; complement entry walked locally**
 
-Current uncommitted implementation work separates compulsory host papers from optional Rillcod
-six-box evidence and includes focused tests. It must be preserved, reviewed, type-checked, tested,
-committed, and deployed as its own milestone.
+Host papers stay on the same Rillcod progress report as classwork, assignments and projects.
+Write, Auto-fill and Publish land on one row via `findCanonicalProgressReport`. A published
+row is locked; corrections unpublish in Publish & Share and edit that same row. That is the
+current correction model — not a second versioned-row table.
 
 Required completion:
 
@@ -505,17 +506,42 @@ Required completion:
   edit/validate → preview → publish → share.
 - Autofill is optional and must show source/provenance. It must never overwrite a manual score
   silently.
-- **User-reported re-verification:** the start of the school report builder could restore a
-  class without its programme, leaving the course list empty. Programme is remembered and
-  filled first; course stays programme-scoped. Confirm in the browser that a refresh still
-  lets a teacher pick programme, then course, then start grading.
+- **User-reported re-verification (walked 23 August 2026, local admin session):** Write start
+  is programme then course. A Christ the Redeem Teen Dev class filled Teen Developers →
+  Python for Beginners and Start grading opened the roster. Refresh restored that class,
+  programme, course, and the open learner (`Session restored`). Switching programme changes
+  the course list. Persist no longer writes an empty seat before restore. Autofill, after
+  the account finished loading, listed 58 classes; Abundant Grace Teen Dev offered only
+  Python for Beginners, four learners, and Fill from class work. Typed/published copy is
+  present. Scores were not written. Production deploy is still outstanding.
 - Returning to a learner must restore current draft state without duplicating reports.
+  POST `/api/progress-reports` retargets `findCanonicalProgressReport` when `existing_id` is
+  missing. Browser return-to-learner without a second row is still to walk.
 - Switching Rillcod optional evidence on/off must not alter compulsory host-school marks.
-- Publication produces an immutable version; a correction creates a traceable new version.
-- Share links require scoped token, revocation, expiry policy, access audit, and no wider learner
-  disclosure.
-- Verify parent-results, result-check, school-report verification, PDF, print, email/share,
-  unpublished access, corrected version, and revoked link.
+  `mergeHostSchoolMetrics` now keeps stored First/Second/Exam papers when classwork or an
+  empty CBT snapshot is saved. Write hydrate also prefers stored hall marks over empty CBT.
+  Unit-tested. A hide/show toggle and a second “One total” calculator were rejected — they
+  made Write look like a rival system.
+- Compulsory Write now has a real entry path, not a dead-end “entered on the paper” note.
+  Each First / Second / Exam row links to the existing hall-mark surface (`/dashboard/cbt/{id}`
+  or `buildCbtNewHref` with `host_assessment`). Classwork, assignments and projects stay
+  visible and enterable on Write beside that paper total. Walked 23 August 2026 as admin on
+  Gabus High Teen Dev JSS 1–3 (`programme_standing=compulsory`): Start grading opened Abolo
+  Chukwuzite Antonia; Write showed **Open paper** (no papers exist yet) and **Enter classwork,
+  assignments and projects**; First Test opened `/dashboard/cbt/new?host_assessment=first_test`
+  titled First Test. Saving classwork on a row that already has hall marks was not re-walked
+  here — that merge is unit-tested only.
+- Publication produces an immutable family-visible record. Correction is unpublish, then edit
+  the same row. Do not invent a parallel version table unless product asks for it.
+  Walked 23 August 2026 as admin: Publish showed 898 students / 523 published / 39 drafts
+  for 2025/2026 Third Term. Opening Aghafedo Elliot showed **Unpublish to edit**.
+- Share and verify already use `/result-check/{verification_code}` plus access-card codes,
+  public DTOs, access audit, unpublished filter (`is_published = true`), and card
+  revoke/expiry. Do not add a second progress-report share-token system.
+  Walked: parent-results refuses staff; result-check gate loads; a bogus `RPT-` code
+  returns 404. Live published-code open, revoked card, PDF/print totals, and email/share
+  still required. The opened Publish card did not print the `RPT-` code in page text
+  (QR only), so that live check was not completed in this pass.
 - PDFs must match visible totals, labels, pathway rules, organization identity, and publication
   version.
 
@@ -811,7 +837,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
 | SYS-012 | P1 | At risk | Large academic/lesson/report/settings pages | Vertical service/component split and performance baselines |
 | SYS-013 | P1 | User-reported | AI generation fails and prior content is hard to find | Durable job, retry, persistence, provenance, discovery tests |
-| SYS-014 | P1 | Locally remediated; browser proof pending | Report writer start could restore a class without its programme, which left the course list empty. Programme is remembered and filled first; course stays programme-scoped | Fresh/return/manual/autofill browser flows pass |
+| SYS-014 | P1 | Locally walked | Persist no longer wipes programme on remount. Walked as admin: Write class→programme→course→start and refresh restore; Autofill after account load listed 58 classes, Abundant Grace Teen Dev offered only Python, four learners, Fill from class work, no score writes | Production deploy |
 | SYS-015 | P1 | At risk | Content types not always carried together | Unified lesson-content contract and learner publication tests |
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |

@@ -66,7 +66,8 @@ import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/
 import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
-import { emptyHostPaperMarks, formatHostMark, hostPapersComplete, type HostMark, type HostPaperMarks } from '@/lib/academic/host-marks';
+import { emptyHostPaperExamIds, emptyHostPaperMarks, formatHostMark, hostPaperLabel, hostPapersComplete, hostPapersFromMetrics, hostSchoolTotal, mergeHostPaperExamIds, mergeHostPaperMarks, pickHostPaperExamIds, type HostAssessmentKind, type HostMark, type HostPaperExamIds, type HostPaperMarks } from '@/lib/academic/host-marks';
+import { hostPaperEntryHref, hostPaperEntryLabel } from '@/lib/curriculum/href';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -783,6 +784,7 @@ function ReportBuilderInner() {
         hostTotal: null as number | null,
         hostPapers: emptyHostPaperMarks() as HostPaperMarks,
         hostTotalMark: null as HostMark | null,
+        hostPaperExamIds: emptyHostPaperExamIds() as HostPaperExamIds,
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -2040,7 +2042,7 @@ function ReportBuilderInner() {
                     .eq('status', 'graded');
 
             // 2. Fetch all 4 data sources in parallel
-            const [attRes, subResRaw, allAssignmentsRaw, cbtAllRes, labRes, portfolioRes] = await withTimeout(Promise.all([
+            const [attRes, subResRaw, allAssignmentsRaw, cbtAllRes, labRes, portfolioRes, examRes] = await withTimeout(Promise.all([
                 // Attendance (for reference)
                 sessionIds.length > 0
                     ? (() => {
@@ -2060,15 +2062,28 @@ function ReportBuilderInner() {
                       })()
                     : { data: [] },
                 // All CBT sessions with exam metadata for type splitting
-                db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
+                db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(id, title, class_id, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
                 // Lab projects (feeds Project Engagement)
                 db.from('lab_projects').select('id').eq('user_id', s.id),
                 // Portfolio projects (feeds Project Engagement)
                 db.from('portfolio_projects').select('id').eq('user_id', s.id),
-            ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
+                targetClassId || evidenceCourseId
+                    ? (() => {
+                        let q = db.from('cbt_exams').select('id, title, metadata, class_id, course_id, program_id, term_id, created_at');
+                        if (targetClassId && evidenceCourseId) {
+                            q = q.or(`class_id.eq.${targetClassId},course_id.eq.${evidenceCourseId}`) as any;
+                        } else if (targetClassId) {
+                            q = q.eq('class_id', targetClassId) as any;
+                        } else {
+                            q = q.eq('course_id', evidenceCourseId) as any;
+                        }
+                        return q;
+                    })()
+                    : { data: [] },
+            ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
 
             const { filterByAssignmentSession } = await import('@/lib/assignments/session');
-            const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
+            const { loadAcademicTermBounds, filterCbtByAcademicTerm, filterCbtExamsByAcademicTerm } = await import('@/lib/cbt/session');
             const termBounds = await loadAcademicTermBounds(db as any, targetTermId);
             const subRes = {
               data: filterByAssignmentSession((subResRaw.data ?? []) as any[], targetTermId, {
@@ -2102,6 +2117,30 @@ function ReportBuilderInner() {
                 evaluationFallback,
                 mapIntoSixBox: statsAuthority !== 'host_school',
             });
+            const hostPapers = mergeHostPaperMarks(hostPapersFromMetrics(existingMetrics), hostApplied.papers);
+            const hostTotal = hostSchoolTotal(hostPapers);
+            const hostPaperExamIds = mergeHostPaperExamIds(
+                pickHostPaperExamIds(
+                    filterCbtExamsByAcademicTerm(
+                        (examRes.data || []) as any[],
+                        targetTermId,
+                        termBounds,
+                        { includeUntagged: true },
+                    ),
+                    { classId: targetClassId, courseId: evidenceCourseId },
+                ),
+                pickHostPaperExamIds(
+                    scopedCbt.map((row: any) => ({
+                        id: row?.cbt_exams?.id,
+                        title: row?.cbt_exams?.title,
+                        metadata: row?.cbt_exams?.metadata,
+                        class_id: row?.cbt_exams?.class_id,
+                        course_id: row?.cbt_exams?.course_id,
+                        end_time: row?.end_time,
+                    })),
+                    { classId: targetClassId, courseId: evidenceCourseId },
+                ),
+            );
             const cbtScore = hostApplied.theory;
             const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
@@ -2128,12 +2167,13 @@ function ReportBuilderInner() {
                 assignmentPct,
                 projects: projectCount,
                 pendingCbt,
-                firstTest: hostApplied.host.first_test,
-                secondTest: hostApplied.host.second_test,
-                examination: hostApplied.host.examination,
-                hostTotal: hostApplied.total?.percent ?? null,
-                hostPapers: hostApplied.papers,
-                hostTotalMark: hostApplied.total,
+                firstTest: hostPapers.first_test?.percent ?? null,
+                secondTest: hostPapers.second_test?.percent ?? null,
+                examination: hostPapers.examination?.percent ?? null,
+                hostTotal: hostTotal?.percent ?? null,
+                hostPapers,
+                hostTotalMark: hostTotal,
+                hostPaperExamIds,
             });
 
             // Never auto-fill a typed, published, or specifically opened prior report.
@@ -2216,11 +2256,24 @@ function ReportBuilderInner() {
         ? studentStats.hostTotal
         : rawOverallScore;
     const hostPaperRows = reportScoreAuthority === 'host_school'
-        ? [
-            { label: 'First Test', mark: studentStats.hostPapers.first_test },
-            { label: 'Second Test', mark: studentStats.hostPapers.second_test },
-            { label: 'Examination', mark: studentStats.hostPapers.examination },
-        ]
+        ? (['first_test', 'second_test', 'examination'] as HostAssessmentKind[]).map((kind) => {
+            const examId = studentStats.hostPaperExamIds[kind];
+            return {
+                kind,
+                label: hostPaperLabel(kind),
+                mark: studentStats.hostPapers[kind],
+                examId,
+                href: hostPaperEntryHref({
+                    kind,
+                    examId,
+                    classId: sessionConfig.class_id,
+                    courseId: sessionConfig.course_id,
+                    programId: sessionProgramId,
+                    schoolId: sessionConfig.school_id,
+                }),
+                action: hostPaperEntryLabel(examId),
+            };
+        })
         : [];
 
     // ── WAEC grade code (A1–F9) for display and save ─────────────────────────
@@ -4252,7 +4305,7 @@ function ReportBuilderInner() {
                                     title="Scores"
                                     description={
                                         reportScoreAuthority === 'host_school'
-                                            ? 'First Test, Second Test and Examination are entered on that paper (Record hall marks). Write reads them. Classwork, assignments and projects sit beside them.'
+                                            ? 'Record First Test, Second Test and Examination on the paper. Enter classwork, assignments and projects here. One picture — papers add together; classwork sits beside that total.'
                                             : 'Grade here first. Assignments are not attendance.'
                                     }
                                 >
@@ -4262,11 +4315,19 @@ function ReportBuilderInner() {
                                     <div className="space-y-2">
                                         {reportScoreAuthority === 'host_school' ? (
                                             <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-2 space-y-2">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-sky-800 dark:text-sky-300">First Test, Second Test and Examination — entered on the paper, not here</p>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-sky-800 dark:text-sky-300">First Test, Second Test and Examination</p>
                                                 {hostPaperRows.map((row) => (
-                                                    <div key={row.label} className="flex items-center justify-between text-sm">
+                                                    <div key={row.kind} className="flex items-center justify-between gap-2 text-sm">
                                                         <span className="text-[11px] font-bold text-foreground">{row.label}</span>
-                                                        <span className="font-black tabular-nums">{row.mark ? formatHostMark(row.mark) : '—'}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-black tabular-nums">{row.mark ? formatHostMark(row.mark) : '—'}</span>
+                                                            <Link
+                                                                href={row.href}
+                                                                className="inline-flex min-h-8 items-center rounded-lg border border-sky-500/40 bg-background px-2 py-1 text-[10px] font-black uppercase tracking-wider text-sky-800 dark:text-sky-300"
+                                                            >
+                                                                {row.action}
+                                                            </Link>
+                                                        </div>
                                                     </div>
                                                 ))}
                                                 <div className="flex items-center justify-between border-t border-sky-500/20 pt-1.5">
@@ -4275,7 +4336,6 @@ function ReportBuilderInner() {
                                                         {formatHostMark(studentStats.hostTotalMark)}
                                                     </span>
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground">If a mark is missing, open that First Test, Second Test or Examination paper and record the hall mark there.</p>
                                             </div>
                                         ) : (
                                         <div className="rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-2 text-[10px] text-muted-foreground">
@@ -4316,7 +4376,10 @@ function ReportBuilderInner() {
                                         </div>
                                         )}
                                         {reportScoreAuthority === 'host_school' && (
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-1">Classwork, assignments and projects</p>
+                                            <div className="pt-1">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Enter classwork, assignments and projects</p>
+                                                <p className="text-[10px] text-muted-foreground">Type or slide these here. They sit beside the paper total and are not mixed into it.</p>
+                                            </div>
                                         )}
                                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                         {(
@@ -4409,7 +4472,7 @@ function ReportBuilderInner() {
                                             </div>
                                         </div>
 
-                                        {/* Dynamic Weighted Contribution Progress Bar */}
+                                        {reportScoreAuthority !== 'host_school' && (
                                         <div className="mt-1 space-y-1 rounded-lg border border-border bg-muted/20 px-2 py-1.5">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Weights</span>
@@ -4424,6 +4487,7 @@ function ReportBuilderInner() {
                                                 <div className="h-full bg-rose-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.assessment_score)) || 0) * effectiveWeighting.weights.assessment}%` }} title={`Assessment: ${Math.round((parseInt(String(form.assessment_score)) || 0) * effectiveWeighting.weights.assessment)}%`} />
                                             </div>
                                         </div>
+                                        )}
                                     </div>
                                     )}
                                 </EvidenceEditorPanel>
