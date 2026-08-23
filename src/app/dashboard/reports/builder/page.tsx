@@ -3447,7 +3447,7 @@ function ReportBuilderInner() {
                                 <p className="min-w-0 flex-1 text-muted-foreground">
                                     <strong className="text-foreground">Published and locked.</strong> Families see this version. Unpublish it before correcting scores or comments.
                                 </p>
-                                <Link href={returnToResultsHref} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-3 font-black text-white">
+                                <Link href={returnToResultsHref} className="inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-600 px-3 font-black text-black">
                                     Open Publish &amp; Share
                                 </Link>
                             </div>
@@ -4038,7 +4038,7 @@ function ReportBuilderInner() {
                                 <p className="min-w-0 flex-1">
                                     This published report is read-only. To correct it, open Publish &amp; Share, choose <strong className="text-foreground">Unpublish to edit</strong>, then return here. The same report record is reused.
                                 </p>
-                                <Link href={returnToResultsHref} className="flex-shrink-0 rounded-lg bg-amber-600 px-2.5 py-1.5 font-black text-white">Open Publish</Link>
+                                <Link href={returnToResultsHref} className="flex-shrink-0 rounded-lg bg-amber-600 px-2.5 py-1.5 font-black text-black">Open Publish</Link>
                             </div>
                         )}
                         {duplicateWarning === 'new-term' && (
@@ -4651,7 +4651,7 @@ function ReportBuilderInner() {
                                                 onClick={() => setForm(f => ({ ...f, proficiency_level: p }))}
                                                 className={`min-h-11 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-xl ${
                                                     form.proficiency_level === p
-                                                        ? p === 'advanced' ? 'bg-emerald-600 border-emerald-500 text-white'
+                                                        ? p === 'advanced' ? 'bg-emerald-600 border-emerald-500 text-black'
                                                             : p === 'intermediate' ? 'bg-primary border-primary text-white'
                                                             : 'bg-slate-600 border-slate-500 text-white'
                                                         : 'bg-card border-border text-muted-foreground hover:bg-muted'
@@ -5221,10 +5221,10 @@ function ReportBuilderInner() {
                                         }
                                     } finally { setIsSharingPdf(false); }
                                 }}
-                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-lg shadow-green-900/30 transition-all"
+                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-black text-xs font-black rounded-xl shadow-lg shadow-green-900/30 transition-all"
                             >
                                 {isSharingPdf
-                                    ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ? <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                     : <WhatsAppIcon className="w-3.5 h-3.5" />}
                                 <span className="hidden sm:inline">{isSharingPdf ? 'Preparing…' : 'Share'}</span>
                             </button>

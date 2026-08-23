@@ -76,6 +76,11 @@ jobs:
       - name: Accessibility gate
         run: npm run audit:a11y
 
+      # White text on a mid-tone fill reads at about 3:1 in daylight. Ratchets on
+      # the existing backlog: fails only when the count goes up. See SYS-024.
+      - name: Contrast gate
+        run: npm run audit:contrast
+
       - name: Typecheck
         run: npm run typecheck
 

@@ -61,7 +61,8 @@
     "check:writes": "tsx scripts/check-write-constraints.ts",
     "check:pages": "tsx scripts/check-page-fit.ts",
     "check:routes": "node scripts/check-route-exports.mjs",
-    "audit:a11y": "node scripts/audit-accessibility.mjs"
+    "audit:a11y": "node scripts/audit-accessibility.mjs",
+    "audit:contrast": "node scripts/audit-contrast.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",
