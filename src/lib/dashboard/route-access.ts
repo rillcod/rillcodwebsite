@@ -132,6 +132,43 @@ const SCHOOL_PLATFORM_PREFIXES: string[] = [
   "/dashboard/subscriptions",
   "/dashboard/generate-content",
   "/dashboard/certificates/management",
+
+  /*
+   * Everything below closed a gap found by comparing this list against the school
+   * sidebar: 55 route groups were reachable with no row pointing at them.
+   *
+   * Students and parents are governed by allow-lists, so a new route is denied
+   * until someone grants it. Partner schools are governed by this deny-list, so a
+   * new route is *granted* until someone remembers to deny it — on a product where
+   * one partner school must never see another's data. `/dashboard/engagement` was
+   * denied while `/dashboard/engage` was not, which is what that failure mode looks
+   * like in practice.
+   */
+
+  // Platform operations and cross-tenant records. `crm` was already denied;
+  // customer-book is the same contact book under a different route.
+  "/dashboard/customer-book",
+  "/dashboard/office",
+  "/dashboard/cases",
+  "/dashboard/accountability",
+  "/dashboard/email-log",
+  "/dashboard/moderation",
+  "/dashboard/overview",
+  "/dashboard/engage",
+
+  // A family's own screens. A partner school has its own reporting on the same
+  // learners; these are the parent's personal views of their own child and their
+  // own invoices, and are not a school surface.
+  "/dashboard/my-children",
+  "/dashboard/my-payments",
+  "/dashboard/parent-results",
+  "/dashboard/parent-grades",
+  "/dashboard/parent-attendance",
+  "/dashboard/parent-certificates",
+  "/dashboard/parent-path-progress",
+  "/dashboard/parent-invoices",
+  "/dashboard/parent-feedback",
+  "/dashboard/parent-card",
 ];
 
 /** Lesson/course/CBT editors — partner schools monitor clients; content authoring stays with platform staff / teachers. */
@@ -207,8 +244,17 @@ const STUDENT_ALLOWED_EXACT = new Set([
   "/dashboard/grades/waec",
 ]);
 
+/** Take a published lesson. The list, create and edit routes stay blocked. */
+function isStudentLessonTakePath(path: string): boolean {
+  return /^\/dashboard\/lessons\/[^/]+$/.test(path);
+}
+
 function isStudentAllowedPath(path: string): boolean {
   if (STUDENT_ALLOWED_EXACT.has(path)) return true;
+  if (isStudentLessonTakePath(path)) return true;
+  if (path === "/dashboard/assignments/new" || path.startsWith("/dashboard/assignments/new/"))
+    return false;
+  if (/^\/dashboard\/assignments\/[^/]+\/edit$/.test(path)) return false;
   // Block CBT create/edit while allowing /dashboard/cbt for taking exams
   if (path === "/dashboard/cbt/new" || path.startsWith("/dashboard/cbt/new/"))
     return false;
