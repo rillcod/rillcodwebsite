@@ -1,0 +1,101 @@
+name: Security scan
+
+# The three scanning gaps SYS-018 names, in one workflow: code scanning,
+# dependency advisories, and the container image the Cloudflare deploy ships.
+#
+# Deliberately separate from ci.yml. That workflow gates the deploy — the
+# Cloudflare job keys off its conclusion — so a new upstream advisory published
+# overnight must not be able to block a release on its own. This one reports.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Advisories land after code does. Monday morning, before the week's work.
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      # No build step: the JS/TS analyser reads source directly, and a full
+      # Next build here would double the cost of ci.yml for no extra coverage.
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      # Production tree first and strictest: this is what reaches users. Both
+      # trees were at zero when this gate was added, so any finding here is new.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: Audit full dependency tree
+        run: npm audit --audit-level=high
+
+  container:
+    name: Container image scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The deployed artefact is the container, not the repository. A base image
+    # can pick up a CVE with no change to this codebase at all.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the deploy image
+        run: docker build -f Dockerfile.cf -t rillcod-scan-target:${{ github.sha }} .
+
+      # Trivy is installed from its own release rather than pulled in as a
+      # marketplace action, so this step depends on a version that can be
+      # checked here rather than on a tag resolved at run time.
+      - name: Install Trivy
+        env:
+          TRIVY_VERSION: 0.58.1
+        run: |
+          curl -fsSL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          sudo mv trivy /usr/local/bin/
+          trivy --version
+
+      - name: Scan for OS and library vulnerabilities
+        run: |
+          trivy image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --format table \
+            "rillcod-scan-target:${{ github.sha }}"

@@ -1,0 +1,46 @@
+version: 2
+
+# The dependency tree is currently clean (npm audit reports zero findings for both
+# the full and production trees). It got there by hand, after an audit found 21
+# advisories including a critical one in `tar`. Nothing was watching it in between.
+# This is what keeps it clean without another manual sweep.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Security fixes are what this is for. Routine version churn on a tree this size
+    # produces more review load than it repays, so the noisiest majors are grouped
+    # and the rest arrive as ordinary weekly PRs that CI has to pass anyway.
+    groups:
+      production-patches:
+        applies-to: version-updates
+        dependency-type: production
+        update-types:
+          - patch
+      development:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Next, React and Capacitor majors are coordinated upgrades, not drive-by PRs.
+      # Next 15 to 16 alone silently disabled the lint gate and needed a config
+      # rewrite; it is not something to merge from a bot PR.
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+      - dependency-name: "@capacitor/*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

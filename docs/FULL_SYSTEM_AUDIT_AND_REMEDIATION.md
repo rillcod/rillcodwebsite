@@ -82,7 +82,7 @@ Production pages were inspected at a 390 × 844 mobile viewport.
 
 | Route | Evidence |
 | --- | --- |
-| `/` | No horizontal overflow and no missing image alt text detected. Confirmed copy defect: “EducationAcross” lacks a space. Contact fields use placeholders without programmatic labels. Carousel controls, indicators, social icons, and footer links include sub-44px targets. |
+| `/` | No horizontal overflow and no missing image alt text detected. The “EducationAcross” report was a **false positive**: the heading carries a real `<br />` between “STEM Education” and “Across Africa”, so it renders correctly. Only `textContent` joins them, because `<br>` contributes no whitespace to it. Contact fields use placeholders without programmatic labels. Carousel controls, indicators, social icons, and footer links include sub-44px targets. |
 | `/consent` | No horizontal overflow; form reference is labelled; initial primary control was not undersized. |
 | `/student-registration` | No horizontal overflow; clear “Enrol a learner” entry; initial screen had no immediate field-level defect. The complete journey remains unverified. |
 | `/login` | No horizontal overflow and form fields are labelled. Desktop and mobile headings both remain in the DOM, producing duplicate H1 semantics. Several links and the password-visibility control are undersized. |
@@ -612,7 +612,6 @@ Required completion:
 
 Required completion:
 
-- Fix “EducationAcross” spacing.
 - Add programmatic labels to contact fields.
 - Raise all public touch targets to the product standard.
 - Remove duplicate login H1 semantics.
@@ -814,12 +813,12 @@ snapshots, not current certification. This register is the current product-level
 | SYS-015 | P1 | At risk | Content types not always carried together | Unified lesson-content contract and learner publication tests |
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Confirmed gap | External error tracking/alerting absent | Release-linked errors and alerts verified |
-| SYS-018 | P0 | Dependency tree remediated; CI security gate pending | Full and production npm audits now report zero findings; dependency/code/container scanning still needs a required CI gate | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
+| SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | At risk | Cron operational guarantees undocumented | Job registry, run ledger, alerts, replay and overlap tests |
 | SYS-020 | P1 | At risk | WhatsApp/message failures can be swallowed | No empty catches; delivery ledger and partial-failure UI |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
-| SYS-023 | P2 | Confirmed UI | Public home copy “EducationAcross” | Corrected production copy |
+| SYS-023 | P2 | **Withdrawn — false positive** | “EducationAcross” is a `textContent` artifact of a real `<br />` in `src/components/landing/About.tsx`; the rendered copy is correct | None. Re-verified 23 August 2026. A scan reading `textContent` must not treat a `<br>` join as a copy defect |
 | SYS-024 | P2 | Confirmed a11y | Public contact fields lack programmatic labels | Accessible-name browser check passes |
 | SYS-025 | P2 | Confirmed a11y | Small public/login touch targets | 44px target audit passes |
 | SYS-026 | P2 | Confirmed a11y | Duplicate login H1 semantics | One exposed document H1 |
@@ -828,7 +827,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-029 | P2 | At risk | Horizontal-scroll fallback on 46 pages | Mobile task review and justified table exceptions |
 | SYS-030 | P2 | At risk | 22 empty catches | Expected fallback/metric, retry UI, or typed error |
 | SYS-031 | P2 | At risk | 2,761 `any` escapes | Remove at authority boundaries first; type budget trends down |
-| SYS-032 | P2 | At risk | Password minimum differs between Supabase and app | One documented and enforced password policy |
+| SYS-032 | P2 | Config aligned; hosted project setting pending | `supabase/config.toml` raised from 6 to 8, matching the 8-character minimum the application already enforces in signup, reset, parent provisioning and settings. The hosted project’s own Auth setting lives in the dashboard, not this file | Set the linked project’s minimum password length to 8, then confirm a 7-character password is refused through a hosted reset link and not only by the app form |
 | SYS-033 | P2 | Partially remediated | Platform Operations now owns traffic/origin controls and optional accountability class repair with audit evidence; the full policy reader/writer map remains incomplete | Complete one-authority inventory and remove or redirect remaining duplicate settings |
 | SYS-034 | P2 | At risk | Learner-progress route overlap/noise | Unique task map, merge true duplicates, central read model |
 | SYS-035 | P2 | At risk | Class roster and path visibility can compete | One roster with scoped visibility controls |
@@ -988,14 +987,18 @@ not the total absence of domain code.
 These are confirmed code/repository gaps; an external infrastructure control could exist, but it
 is not connected or provable from the application:
 
-- enforced Content Security Policy;
-- configured HTTP Strict Transport Security;
-- a clearly centralized state-changing-request origin/CSRF guard;
+- an **enforced** Content Security Policy. A report-only policy and a sanitized
+  observation ledger now exist; nothing is blocked yet, so this stays absent until the
+  observations justify enforcement;
 - external error aggregation/release tracking such as Sentry or an OpenTelemetry exporter;
-- dependency update automation such as Dependabot/Renovate;
-- an automated code-scanning workflow;
-- an automated container vulnerability scanning gate;
 - a browser accessibility gate using axe or an equivalent engine.
+
+Two entries were removed from this list on 23 August 2026 because they are no longer
+absent. HSTS is configured for production responses in `next.config.ts`. A centralized
+origin guard for state-changing requests exists at the common API boundary
+(`evaluateMutationOrigin`, with off/observe/enforce modes); it defaults to
+non-blocking observation, which is a deployment decision tracked by SYS-004, not a
+missing control.
 
 ### 12.4 Operational claims still unverified
 
