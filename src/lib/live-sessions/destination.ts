@@ -14,6 +14,25 @@ export function isLiveKitUrl(url?: string | null): boolean {
   return !!url && /^livekit:[a-z0-9-]+$/i.test(url.trim());
 }
 
+/**
+ * The school's own Jitsi classroom, on the account in JAAS_APP_ID.
+ *
+ * Distinct from `isJitsiUrl`, which matches the free public meet.jit.si server. That
+ * one is what the LiveKit failure screens fall back to, and it has no access control
+ * at all: the room name is derived from the session id, so anyone who can guess or
+ * is passed the link walks into a class of children. This scheme routes to the
+ * authenticated tenant instead, where a signed token decides who gets in and who
+ * moderates.
+ */
+export function isJaasUrl(url?: string | null): boolean {
+  return !!url && /^jaas:[a-z0-9-]+$/i.test(url.trim());
+}
+
+/** Either of the classrooms we host ourselves, as opposed to an external link. */
+export function isInternalClassroomUrl(url?: string | null): boolean {
+  return isLiveKitUrl(url) || isJaasUrl(url);
+}
+
 /** One destination contract for create, edit, start, and join. */
 export function normalizeLiveSessionUrl(
   value: unknown,
@@ -22,8 +41,10 @@ export function normalizeLiveSessionUrl(
   if (value == null || String(value).trim() === '') return null;
   const raw = String(value).trim();
 
-  if (raw.toLowerCase().startsWith('livekit:')) {
-    if (!options.allowInternal || !options.sessionId || raw !== `livekit:${options.sessionId}`) {
+  const lowered = raw.toLowerCase();
+  if (lowered.startsWith('livekit:') || lowered.startsWith('jaas:')) {
+    const scheme = lowered.startsWith('jaas:') ? 'jaas' : 'livekit';
+    if (!options.allowInternal || !options.sessionId || raw !== `${scheme}:${options.sessionId}`) {
       throw new LiveSessionDestinationError('The secure classroom address is not valid for this session.');
     }
     return raw;

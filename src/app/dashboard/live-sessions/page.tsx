@@ -15,9 +15,14 @@ import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile
 import BodyPortal from '@/components/ui/BodyPortal';
 import LiveMeetingBoundary from '@/components/live-session/LiveMeetingBoundary';
 import { toast } from 'sonner';
-import { isJitsiUrl, isLiveKitUrl, normalizeLiveSessionUrl } from '@/lib/live-sessions/destination';
+import { isJitsiUrl, isLiveKitUrl, isJaasUrl, isInternalClassroomUrl, normalizeLiveSessionUrl } from '@/lib/live-sessions/destination';
 
 // Dynamic import — loads LiveKit CSS only on client, avoids SSR flash
+const JaaSMeeting = dynamic(
+  () => import('@/components/live-session/JaaSMeeting'),
+  { ssr: false },
+);
+
 const LiveKitMeeting = dynamic(
   () => import('@/components/live-session/LiveKitMeeting'),
   { ssr: false, loading: () => (
@@ -922,8 +927,8 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onStopSerie
   onAttendance: (s: LiveSession) => void;
   onQA: (s: LiveSession) => void;
 }) {
-  const isInApp = isJitsiUrl(session.session_url) || isLiveKitUrl(session.session_url) || (!session.session_url && session.platform === 'other');
-  const platKey = (isJitsiUrl(session.session_url) || isLiveKitUrl(session.session_url)) ? 'jitsi' : session.platform;
+  const isInApp = isJitsiUrl(session.session_url) || isInternalClassroomUrl(session.session_url) || (!session.session_url && session.platform === 'other');
+  const platKey = (isJitsiUrl(session.session_url) || isInternalClassroomUrl(session.session_url)) ? 'jitsi' : session.platform;
   const platCfg = PLATFORM_CONFIG[platKey] ?? PLATFORM_CONFIG.other;
   const statusCfg = STATUS_CONFIG[session.status];
   const countdown = getCountdown(session.scheduled_at);
@@ -1803,7 +1808,7 @@ export default function LiveSessionsPage() {
       toast.error(err?.message ?? 'This classroom link is not valid.');
       return false;
     }
-    const externalWindow = !isLiveKitUrl(resolvedUrl) && !isJitsiUrl(resolvedUrl)
+    const externalWindow = !isInternalClassroomUrl(resolvedUrl) && !isJitsiUrl(resolvedUrl)
       ? window.open('', '_blank')
       : null;
     if (externalWindow) externalWindow.opener = null;
@@ -1813,7 +1818,7 @@ export default function LiveSessionsPage() {
       const joinPayload = await joinResponse.json().catch(() => ({}));
       if (!joinResponse.ok) throw new Error(joinPayload.error || 'You could not join this session.');
 
-      if (isLiveKitUrl(resolvedUrl) || isJitsiUrl(resolvedUrl)) {
+      if (isInternalClassroomUrl(resolvedUrl) || isJitsiUrl(resolvedUrl)) {
         const session = sessions.find(s => s.id === id) ?? null;
         if (!session) throw new Error('This session is no longer in your live-session list.');
         setJitsiSession({ ...session, session_url: resolvedUrl });
@@ -2010,7 +2015,15 @@ export default function LiveSessionsPage() {
           onClose={() => setRecordingSession(null)}
         />
       )}
-      {jitsiSession && (
+      {jitsiSession && isJaasUrl(jitsiSession.session_url) && (
+        <JaaSMeeting
+          key={jitsiSession.id}
+          sessionId={jitsiSession.id}
+          sessionTitle={jitsiSession.title}
+          onClose={closeMeeting}
+        />
+      )}
+      {jitsiSession && !isJaasUrl(jitsiSession.session_url) && (
         <LiveMeetingBoundary key={jitsiSession.id} sessionId={jitsiSession.id} sessionTitle={jitsiSession.title} onClose={closeMeeting}>
           <LiveKitMeeting
             sessionId={jitsiSession.id}
