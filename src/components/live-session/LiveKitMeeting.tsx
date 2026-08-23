@@ -11,6 +11,7 @@ import type { RoomOptions, RoomConnectOptions } from 'livekit-client';
 import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
 import HostControls from './HostControls';
+import ConserveMinutes from './ConserveMinutes';
 import BodyPortal, { useOverlayScrollLock } from '@/components/ui/BodyPortal';
 import {
   CONNECT_DEADLINE_MS,
@@ -258,6 +259,18 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
     recordLeave();
     onCloseRef.current();
   }, [recordLeave, clearTimers]);
+
+  /**
+   * A seat released for costing minutes while serving nobody. Routed through the
+   * same path as pressing Leave, so the auto-rejoin budget is not spent trying to
+   * reconnect a seat we deliberately gave up — which would burn more minutes than
+   * it saved.
+   */
+  const handleConserve = useCallback((reason: string) => {
+    if (exitedRef.current) return;
+    setError(reason);
+    handleClose();
+  }, [handleClose]);
 
   const handleConnected = useCallback(() => {
     intentionalUnmountRef.current = false;
@@ -605,6 +618,9 @@ function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProp
           <VideoConference />
           <ConnectionStateToast />
           {isModerator && <HostControls sessionId={sessionId} />}
+          {/* Releases a seat nobody is being served by. A child, not a prop, so the
+              connection setup above is untouched. */}
+          <ConserveMinutes isModerator={isModerator} onConserve={handleConserve} />
         </LiveKitRoom>
       </div>
     </div>
