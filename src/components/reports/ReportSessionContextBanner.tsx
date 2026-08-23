@@ -66,66 +66,106 @@ export function ReportSessionContextBanner({
       ? reportLabel
       : working || '— set term and year —';
 
-  return (
-    <div className="space-y-2">
-      <div className="rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 sm:px-4">
-        <p className="text-[10px] font-black uppercase tracking-wider text-primary">
-          {primaryTitle}
-        </p>
-        <p className="mt-0.5 text-sm font-black text-foreground">{primaryValue}</p>
-        {context === 'write' && reportLabel && reportDiffersFromWorking ? (
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Opened report on file: <span className="font-semibold text-foreground">{reportLabel}</span>.
-            Scores save to the session above unless you change it.
-          </p>
-        ) : null}
-      </div>
+  /**
+   * Everything except the session itself is a note, not a task.
+   *
+   * These used to render as up to four stacked blocks. On a phone that filled the
+   * screen before the teacher could reach a single score, and a wall of banners is
+   * read as noise, so the one line that matters — which term this saves to — was
+   * lost among the ones that do not. The session stays in view; the rest collapse
+   * behind a count.
+   *
+   * A native details/summary rather than component state: it works before hydration,
+   * is reachable by keyboard, and this banner is rendered on several screens that
+   * should not each carry their own toggle.
+   */
+  const notes: Array<{ key: string; label: string; body: React.ReactNode }> = [];
 
-      {classDiffersFromWorking ? (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 sm:px-4">
-          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-200">
-            {SESSION_SCOPE.classAssignment} (different)
-          </p>
-          <p className="mt-0.5 text-xs leading-5 text-amber-950 dark:text-amber-50">
-            This class is now assigned to <span className="font-bold">{classLabel}</span>.
-            That does <span className="font-bold">not</span> change documents already saved for{' '}
-            <span className="font-bold">{working || 'another term'}</span>.
-          </p>
-        </div>
-      ) : null}
+  if (context === 'write' && reportLabel && reportDiffersFromWorking) {
+    notes.push({
+      key: 'open-report',
+      label: 'Open report on file',
+      body: (
+        <>
+          <span className="font-semibold text-foreground">{reportLabel}</span>. Scores save to the
+          session above unless you change it.
+        </>
+      ),
+    });
+  }
 
-      {context === 'publish' && rosterLabel ? (
-        <div className={`rounded-xl border px-3 py-2.5 sm:px-4 ${
-          rosterDiffersFromReport && reportLabel
-            ? 'border-sky-500/25 bg-sky-500/5'
-            : 'border-border bg-muted/20'
-        }`}>
-          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-            {SESSION_SCOPE.working} (roster filter)
-          </p>
-          <p className="mt-0.5 text-xs leading-5 text-foreground">
-            {rosterDiffersFromReport && reportLabel ? (
-              <>
-                List filtered to <span className="font-bold">{rosterLabel}</span>, but this learner&apos;s
-                open report is <span className="font-bold">{reportLabel}</span>.
-                Use the term switcher above the report to open a different document.
-              </>
-            ) : (
-              <>
-                Learner list filtered to <span className="font-bold">{rosterLabel}</span>.
-              </>
-            )}
-          </p>
-        </div>
-      ) : null}
+  if (classDiffersFromWorking) {
+    notes.push({
+      key: 'class-session',
+      label: `${SESSION_SCOPE.classAssignment} (different)`,
+      body: (
+        <>
+          This class is now assigned to <span className="font-bold">{classLabel}</span>. That does{' '}
+          <span className="font-bold">not</span> change documents already saved for{' '}
+          <span className="font-bold">{working || 'another term'}</span>.
+        </>
+      ),
+    });
+  }
 
-      {showCalendarNow && workingDiffersFromCalendar && context !== 'publish' ? (
-        <p className="text-[11px] leading-5 text-muted-foreground px-1">
-          {SESSION_SCOPE.calendar}: <span className="font-semibold text-foreground">{calendarLabel}</span>.
+  if (context === 'publish' && rosterLabel) {
+    notes.push({
+      key: 'roster',
+      label: `${SESSION_SCOPE.working} (roster filter)`,
+      body: rosterDiffersFromReport && reportLabel ? (
+        <>
+          List filtered to <span className="font-bold">{rosterLabel}</span>, but this learner&apos;s open
+          report is <span className="font-bold">{reportLabel}</span>. Use the term switcher above the
+          report to open a different document.
+        </>
+      ) : (
+        <>Learner list filtered to <span className="font-bold">{rosterLabel}</span>.</>
+      ),
+    });
+  }
+
+  if (showCalendarNow && workingDiffersFromCalendar && context !== 'publish') {
+    notes.push({
+      key: 'calendar',
+      label: SESSION_SCOPE.calendar,
+      body: (
+        <>
+          <span className="font-semibold text-foreground">{calendarLabel}</span>.
           {context === 'autofill'
             ? ' New auto-fill drafts follow the class session above, not the calendar.'
             : ' You can still write for another term — check the session line above before saving.'}
-        </p>
+        </>
+      ),
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5 sm:px-4">
+      <p className="text-[10px] font-black uppercase tracking-wider text-primary">
+        {primaryTitle}
+      </p>
+      <p className="mt-0.5 text-sm font-black text-foreground">{primaryValue}</p>
+
+      {notes.length > 0 ? (
+        <details className="group mt-1.5">
+          <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground">
+            <span
+              aria-hidden
+              className="inline-block transition-transform group-open:rotate-90"
+            >
+              ›
+            </span>
+            {notes.length === 1 ? '1 note about this session' : `${notes.length} notes about this session`}
+          </summary>
+          <div className="mt-1.5 space-y-1.5 border-l-2 border-primary/20 pl-3">
+            {notes.map((note) => (
+              <p key={note.key} className="text-[11px] leading-5 text-muted-foreground">
+                <span className="font-black uppercase tracking-wider text-foreground/70">{note.label}:</span>{' '}
+                {note.body}
+              </p>
+            ))}
+          </div>
+        </details>
       ) : null}
     </div>
   );
