@@ -2359,7 +2359,18 @@ function SettingsPageContent({
                                               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                                                 {humaniseKey(key)}
                                               </label>
-                                              {isBool(value) ? (
+                                              {key === "api_origin_guard_mode" ? (
+                                                <select
+                                                  value={String(value ?? "observe")}
+                                                  disabled={opsReadonly || profile?.role !== "admin"}
+                                                  onChange={(e) => updateOpsValue(sectionId, key, e.target.value)}
+                                                  className="min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+                                                >
+                                                  <option value="observe">Observe only</option>
+                                                  <option value="enforce">Enforce</option>
+                                                  <option value="off">Off</option>
+                                                </select>
+                                              ) : isBool(value) ? (
                                                 <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background">
                                                   <span className="text-xs font-bold text-foreground">
                                                     {value ? "On" : "Off"}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   hasCbtAttemptEvidence,
+  hasLearnerAssignmentEvidence,
   hasProtectedAssignmentScoreEvidence,
   hasProtectedProgressReportEvidence,
 } from './record-retention';
@@ -17,6 +18,14 @@ describe('academic record retention', () => {
 
   it('allows only an ungraded submission draft to remain removable', () => {
     expect(hasProtectedAssignmentScoreEvidence({ status: 'submitted', grade: null, weighted_score: null })).toBe(false);
+  });
+
+  it('protects submitted learner work before it receives a score', () => {
+    expect(hasLearnerAssignmentEvidence({ submitted_at: '2026-08-23T10:00:00Z' })).toBe(true);
+    expect(hasLearnerAssignmentEvidence({ submission_text: 'My answer' })).toBe(true);
+    expect(hasLearnerAssignmentEvidence({ answers: { q1: 'A' } })).toBe(true);
+    expect(hasLearnerAssignmentEvidence({ status: 'submitted' })).toBe(true);
+    expect(hasLearnerAssignmentEvidence({ status: 'draft' })).toBe(false);
   });
 
   it('treats any CBT session as learner evidence', () => {

@@ -3,9 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { programIdForCourse } from '@/lib/assignments/visibility';
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
-import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
+import {
+  hasLearnerAssignmentEvidence,
+  hasProtectedAssignmentScoreEvidence,
+} from '@/lib/academic/record-retention';
 import { logAudit } from '@/lib/audit/log';
 import { isAutoGradableAssignmentQuestion } from '@/lib/assignments/grading';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,7 +180,6 @@ export async function PATCH(
 
   const { id } = await context.params;
   const admin = adminClient();
-
   const { data: existing } = await admin
     .from('assignments')
     .select('created_by, school_id, title, is_active, term_id, class_id, academic_offering_id, offering_period_id')
@@ -326,18 +333,23 @@ export async function DELETE(
 
   const { data: scoredSubmissions, error: scoreLookupError } = await admin
     .from('assignment_submissions')
-    .select('grade,weighted_score,graded_at,graded_by,grading_mode,status')
+    .select('id,submission_text,file_url,submitted_at,answers,grade,weighted_score,graded_at,graded_by,grading_mode,status')
     .eq('assignment_id', id)
     .limit(500);
   if (scoreLookupError) return NextResponse.json({ error: scoreLookupError.message }, { status: 500 });
-  if ((scoredSubmissions ?? []).some(hasProtectedAssignmentScoreEvidence)) {
+  if ((scoredSubmissions ?? []).some(hasLearnerAssignmentEvidence)) {
     return NextResponse.json({
-      error: 'This assignment contains graded learner records and cannot be deleted. Deactivate it instead.',
+      error: 'This assignment contains learner submissions and cannot be deleted. Deactivate it instead; submitted work and scores stay protected.',
       code: 'PROTECTED_ACADEMIC_EVIDENCE',
     }, { status: 409 });
   }
 
-  // Only ungraded drafts can reach this point. Scored evidence is retained above.
+  const cleanupPolicy = await loadCleanupPolicy(admin as any);
+  if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
+  }
+
+  // Only unused drafts can reach this point. Learner work and scores are retained above.
   await admin.from('assignment_submissions').delete().eq('assignment_id', id);
 
   const { error } = await admin.from('assignments').delete().eq('id', id);

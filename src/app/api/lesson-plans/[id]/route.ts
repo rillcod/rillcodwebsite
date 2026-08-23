@@ -5,6 +5,14 @@ import { canAccessLessonScope } from "../authz";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { canonicalPlanCurriculum } from "@/lib/curriculum/official-direction";
 import { parseAutoGenerateSettings } from "@/lib/academic/auto-generate-settings";
+import { hasLearnerAssignmentEvidence } from "@/lib/academic/record-retention";
+import { logAudit } from "@/lib/audit/log";
+import { requireSupabaseWrite } from "@/lib/supabase/require-result";
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from "@/lib/operations/cleanup-policy";
 
 export const dynamic = "force-dynamic";
 import { getProgressionTermStatus } from "@/lib/progression/termStatus";
@@ -382,7 +390,7 @@ export async function DELETE(
 
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
-    .select("id, school_id, created_by, lessons!lessons_lesson_plan_id_fkey(school_id, created_by)")
+    .select("id, school_id, created_by, lessons!lessons_lesson_plan_id_fkey(id, school_id, created_by)")
     .eq("id", id)
     .maybeSingle();
   if (existingErr || !existingPlan)
@@ -407,19 +415,213 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Cascade both canonical columns and the legacy metadata mirror.
-  await db
-    .from("lessons")
-    .delete()
-    .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+  const cleanupPolicy = await loadCleanupPolicy(db as any);
+  if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
+  }
 
-  await db
+  // Migration 100 makes the complete cleanup one database transaction. Keep the
+  // explicit fallback below during rolling deployment, but prefer the atomic path.
+  const atomic = await (db as any).rpc('delete_lesson_plan_preserving_learner_work', {
+    p_plan_id: id,
+    p_actor_id: user.id,
+  });
+  if (!atomic.error) {
+    const preserved = Number(atomic.data?.preserved_learner_assignments || 0);
+    const removed = Number(atomic.data?.removed_unused_assignments || 0);
+    const preservedWritten = Number(atomic.data?.preserved_written_exams || 0);
+    const preservedCbt = Number(atomic.data?.preserved_cbt_exams || 0);
+    const preservedTotal = preserved + preservedWritten + preservedCbt;
+    await logAudit(db as any, {
+      action: 'delete_lesson_plan_keep_learner_work',
+      actorId: user.id,
+      resourceType: 'lesson_plan',
+      resourceId: id,
+      newValue: preservedTotal > 0
+        ? `Deleted the lesson plan and kept ${preservedTotal} assessment${preservedTotal === 1 ? '' : 's'} with learner work`
+        : 'Deleted the lesson plan and its unused generated assignment drafts',
+      newValues: {
+        preserved_learner_assignments: preserved,
+        preserved_written_exams: preservedWritten,
+        preserved_cbt_exams: preservedCbt,
+        removed_unused_assignments: removed,
+        atomic: true,
+      },
+    });
+    return NextResponse.json({
+      success: true,
+      preserved_learner_assignments: preserved,
+      preserved_written_exams: preservedWritten,
+      preserved_cbt_exams: preservedCbt,
+      removed_unused_assignments: removed,
+    });
+  }
+  const atomicCode = String(atomic.error?.code || '');
+  const atomicMessage = String(atomic.error?.message || '');
+  const missingAtomicFunction = atomicCode === 'PGRST202'
+    || atomicCode === '42883'
+    || /delete_lesson_plan_preserving_learner_work.*(schema cache|does not exist|not find)/i.test(atomicMessage);
+  if (!missingAtomicFunction) {
+    console.error('[lesson-plan-delete] atomic cleanup failed', atomic.error);
+    const status = atomicCode === '42501' ? 403 : atomicCode === 'P0002' ? 404 : 500;
+    return NextResponse.json({
+      error: status === 403
+        ? 'You do not have permission to remove this lesson plan.'
+        : status === 404
+          ? 'Lesson plan not found.'
+          : 'The lesson plan could not be removed safely. Nothing was deleted.',
+    }, { status });
+  }
+
+  const lessonRows = Array.isArray((existingPlan as any).lessons)
+    ? (existingPlan as any).lessons
+    : (existingPlan as any).lessons ? [(existingPlan as any).lessons] : [];
+  const lessonIds = lessonRows.map((row: any) => String(row.id || '')).filter(Boolean);
+  const assignmentFilters = [
+    `lesson_plan_id.eq.${id}`,
+    `metadata->>lesson_plan_id.eq.${id}`,
+    ...(lessonIds.length > 0 ? [`lesson_id.in.(${lessonIds.join(',')})`] : []),
+  ];
+  const { data: linkedAssignments, error: assignmentError } = await (db as any)
     .from("assignments")
-    .delete()
-    .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+    .select("id,title,metadata,lesson_id,lesson_plan_id")
+    .or(assignmentFilters.join(','));
+  if (assignmentError) {
+    console.error('[lesson-plan-delete] linked assignment lookup failed', assignmentError);
+    return NextResponse.json({ error: 'The lesson plan could not be checked safely. Nothing was deleted.' }, { status: 500 });
+  }
+
+  const assignmentIds = (linkedAssignments ?? []).map((row: any) => String(row.id)).filter(Boolean);
+  const { data: submissions, error: submissionError } = assignmentIds.length > 0
+    ? await (db as any).from('assignment_submissions')
+        .select('id,assignment_id,submission_text,file_url,submitted_at,answers,grade,weighted_score,graded_at,graded_by,grading_mode,status')
+        .in('assignment_id', assignmentIds)
+    : { data: [], error: null };
+  if (submissionError) {
+    console.error('[lesson-plan-delete] learner evidence lookup failed', submissionError);
+    return NextResponse.json({ error: 'Learner work could not be checked safely. Nothing was deleted.' }, { status: 500 });
+  }
+
+  const protectedAssignmentIds = new Set(
+    (submissions ?? [])
+      .filter(hasLearnerAssignmentEvidence)
+      .map((row: any) => String(row.assignment_id)),
+  );
+  const protectedAssignments = (linkedAssignments ?? []).filter((row: any) => protectedAssignmentIds.has(String(row.id)));
+  const disposableAssignmentIds = assignmentIds.filter((assignmentId: string) => !protectedAssignmentIds.has(assignmentId));
+
+  // Preserve learner work as a standalone class assignment while allowing the
+  // rebuildable plan and its generated drafts to be cleared.
+  for (const assignment of protectedAssignments) {
+    const metadata = { ...asObject(assignment.metadata) };
+    delete metadata.lesson_plan_id;
+    await requireSupabaseWrite(
+      (db as any).from('assignments').update({
+        lesson_plan_id: null,
+        lesson_id: null,
+        metadata: toJson(metadata),
+        updated_at: new Date().toISOString(),
+      }).eq('id', assignment.id),
+      `preserve learner assignment ${assignment.id}`,
+    );
+  }
+
+  if (disposableAssignmentIds.length > 0) {
+    await requireSupabaseWrite(
+      (db as any).from('assignment_submissions').delete().in('assignment_id', disposableAssignmentIds),
+      'remove unused assignment drafts',
+    );
+    await requireSupabaseWrite(
+      (db as any).from('assignments').delete().in('id', disposableAssignmentIds),
+      'remove assignments without learner work',
+    );
+  }
+
+  // Rolling-deploy fallback for assessment content. Attempts are learner
+  // evidence: detach their assessment from the plan; delete only unused drafts.
+  const preserveAssessments = async (
+    table: 'exams' | 'cbt_exams',
+    attemptsTable: 'exam_attempts' | 'cbt_sessions',
+  ): Promise<{ preserved: number; removed: number }> => {
+    const { data: assessments, error: assessmentsError } = await (db as any)
+      .from(table)
+      .select('id,metadata')
+      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+    if (assessmentsError) throw new Error(`Could not verify ${table}`);
+    const ids = (assessments ?? []).map((row: any) => String(row.id)).filter(Boolean);
+    if (ids.length === 0) return { preserved: 0, removed: 0 };
+    const { data: attempts, error: attemptsError } = await (db as any)
+      .from(attemptsTable)
+      .select('exam_id')
+      .in('exam_id', ids);
+    if (attemptsError) throw new Error(`Could not verify learner attempts for ${table}`);
+    const protectedIds = new Set((attempts ?? []).map((row: any) => String(row.exam_id)));
+    for (const assessment of assessments ?? []) {
+      if (!protectedIds.has(String(assessment.id))) continue;
+      const metadata = { ...asObject(assessment.metadata) };
+      delete metadata.lesson_plan_id;
+      await requireSupabaseWrite(
+        (db as any).from(table).update({
+          lesson_plan_id: null,
+          lesson_id: null,
+          metadata: toJson(metadata),
+          updated_at: new Date().toISOString(),
+        }).eq('id', assessment.id),
+        `preserve learner attempts for ${assessment.id}`,
+      );
+    }
+    const disposable = ids.filter((assessmentId: string) => !protectedIds.has(assessmentId));
+    if (disposable.length > 0) {
+      await requireSupabaseWrite(
+        (db as any).from(table).delete().in('id', disposable),
+        `remove unused ${table}`,
+      );
+    }
+    return { preserved: protectedIds.size, removed: disposable.length };
+  };
+
+  let writtenFallback: { preserved: number; removed: number };
+  let cbtFallback: { preserved: number; removed: number };
+  try {
+    [writtenFallback, cbtFallback] = await Promise.all([
+      preserveAssessments('exams', 'exam_attempts'),
+      preserveAssessments('cbt_exams', 'cbt_sessions'),
+    ]);
+  } catch (assessmentError) {
+    console.error('[lesson-plan-delete] assessment preservation failed', assessmentError);
+    return NextResponse.json({
+      error: 'Learner assessment attempts could not be checked safely. The lesson plan was not removed.',
+    }, { status: 500 });
+  }
+
+  await requireSupabaseWrite(
+    (db as any).from("lessons").delete().or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+    'remove lesson plan content',
+  );
 
   const { error } = await db.from("lesson_plans").delete().eq("id", id);
   if (error)
     return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  await logAudit(db as any, {
+    action: 'delete_lesson_plan_keep_learner_work',
+    actorId: user.id,
+    resourceType: 'lesson_plan',
+    resourceId: id,
+    oldValues: {
+      linked_assignments: assignmentIds.length,
+      preserved_learner_assignments: protectedAssignmentIds.size,
+      preserved_written_exams: writtenFallback.preserved,
+      preserved_cbt_exams: cbtFallback.preserved,
+    },
+    newValue: protectedAssignmentIds.size > 0
+      ? `Deleted the lesson plan and kept ${protectedAssignmentIds.size} assignment${protectedAssignmentIds.size === 1 ? '' : 's'} with learner work`
+      : 'Deleted the lesson plan and its unused generated assignment drafts',
+  });
+  return NextResponse.json({
+    success: true,
+    preserved_learner_assignments: protectedAssignmentIds.size,
+    preserved_written_exams: writtenFallback.preserved,
+    preserved_cbt_exams: cbtFallback.preserved,
+    removed_unused_assignments: disposableAssignmentIds.length,
+  });
 }

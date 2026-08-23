@@ -374,12 +374,19 @@ type LessonPlanOperations = {
     year_number: number;
     term_number: number;
     week_number: number;
+    session_number: number;
     topic: string;
     release_status: "pending" | "draft" | "partial" | "released";
+    prepared_count: number;
+    total_count: 5;
+    missing_assets: string[];
+    held_assets: string[];
     lessons_total: number;
     lessons_published: number;
     assignments_total: number;
     assignments_active: number;
+    projects_total: number;
+    projects_active: number;
     slides_total: number;
     slides_public: number;
     flashcards_total: number;
@@ -387,6 +394,15 @@ type LessonPlanOperations = {
     latest_release_at: string | null;
     history: Array<{ type: string; at: string; status: string }>;
   }>;
+  generation: {
+    available: boolean;
+    state: "idle" | "running" | "healthy" | "attention";
+    message: string;
+    week: number | null;
+    session: number | null;
+    failedTypes: string[];
+    lastAttemptAt: string | null;
+  };
   analytics: {
     summary: {
       total_records: number;
@@ -2854,6 +2870,34 @@ export default function LessonPlanDetailPage() {
                   {opsError && (
                     <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300">{opsError}</p>
                   )}
+                  {operations?.generation?.available &&
+                    ["running", "attention"].includes(operations.generation.state) && (
+                      <div className={`mt-4 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                        operations.generation.state === "attention"
+                          ? "border-amber-500/30 bg-amber-500/10"
+                          : "border-primary/25 bg-primary/5"
+                      }`}>
+                        <div>
+                          <p className="text-xs font-black text-foreground">
+                            {operations.generation.week
+                              ? `Week ${operations.generation.week} · Class ${operations.generation.session ?? 1}`
+                              : "Teaching package"}
+                          </p>
+                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                            {operations.generation.message}
+                          </p>
+                        </div>
+                        {operations.generation.state === "attention" && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("plan")}
+                            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-background px-4 text-xs font-black text-foreground"
+                          >
+                            Review and retry
+                          </button>
+                        )}
+                      </div>
+                    )}
                   {!opsLoading && !opsError && !operations?.release_board.length && (
                     <p className="mt-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
                       No teaching weeks are ready yet. Return to Plan &amp; teach to prepare the first complete package.
@@ -2864,7 +2908,7 @@ export default function LessonPlanDetailPage() {
                       <div key={row.key} className="rounded-xl border border-border bg-background p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Week {row.week_number}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Week {row.week_number} · Class {row.session_number}</p>
                             <p className="mt-1 truncate text-sm font-black text-foreground">{row.topic}</p>
                           </div>
                           <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${
@@ -2879,10 +2923,18 @@ export default function LessonPlanDetailPage() {
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
                           <span>{row.lessons_published}/{row.lessons_total} lessons live</span>
-                          <span>{row.assignments_active}/{row.assignments_total} tasks live</span>
+                          <span>{row.assignments_active}/{row.assignments_total} assignments live</span>
+                          <span>{row.projects_active}/{row.projects_total} projects live</span>
                           <span>{row.slides_public}/{row.slides_total} slide decks live</span>
                           <span>{row.flashcards_public}/{row.flashcards_total} card decks live</span>
                         </div>
+                        {(row.missing_assets.length > 0 || row.held_assets.length > 0) && (
+                          <p className="mt-3 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">
+                            {row.prepared_count}/{row.total_count} prepared
+                            {row.missing_assets.length > 0 ? ` · Add ${row.missing_assets.join(", ")}` : ""}
+                            {row.held_assets.length > 0 ? ` · Release ${row.held_assets.join(", ")}` : ""}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -3170,7 +3222,7 @@ export default function LessonPlanDetailPage() {
                                   <div>
                                     <p className="text-xs font-black text-card-foreground">
                                       Y{row.year_number} T{row.term_number} W
-                                      {row.week_number}
+                                      {row.week_number} · Class {row.session_number}
                                     </p>
                                     <p className="text-sm text-card-foreground/80 mt-1">
                                       {row.topic}
@@ -3190,7 +3242,7 @@ export default function LessonPlanDetailPage() {
                                     {row.release_status}
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-xs">
                                   <div className="rounded-xl border border-white/[0.08] px-3 py-2">
                                     Lessons {row.lessons_published}/
                                     {row.lessons_total}
@@ -3199,7 +3251,20 @@ export default function LessonPlanDetailPage() {
                                     Assignments {row.assignments_active}/
                                     {row.assignments_total}
                                   </div>
-                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2 sm:col-span-2">
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2">
+                                    Projects {row.projects_active}/
+                                    {row.projects_total}
+                                  </div>
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2">
+                                    Slides {row.slides_public}/{row.slides_total}
+                                  </div>
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2">
+                                    Flashcards {row.flashcards_public}/{row.flashcards_total}
+                                  </div>
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2">
+                                    Prepared {row.prepared_count}/{row.total_count}
+                                  </div>
+                                  <div className="rounded-xl border border-white/[0.08] px-3 py-2 sm:col-span-3">
                                     Latest{" "}
                                     {row.latest_release_at
                                       ? new Date(

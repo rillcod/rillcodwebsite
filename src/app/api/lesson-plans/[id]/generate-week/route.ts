@@ -19,9 +19,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   canGenerateForClass,
   currentDeliveryWeek,
-  generatePlanWeek,
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
+import { generateTrackedPlanWeek } from '@/lib/academic/tracked-week-generation';
 import { parseAutoGenerateSettings } from '@/lib/academic/auto-generate-settings';
 import { parseRequestSession } from '@/lib/academic/session-identity';
 import { extractCronSecret } from '@/lib/server/cron-auth';
@@ -113,14 +113,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const autoPublish =
     (body as any).auto_publish === true || settings.auto_publish === true;
 
-  const outcome = await generatePlanWeek({
+  const { outcome, runId } = await generateTrackedPlanWeek({
+    db,
     planId,
+    classId: plan.class_id ?? null,
     week,
     session,
     types: (body as any).types ?? settings.types,
     cookie: req.headers.get('cookie') ?? undefined,
     cronSecret: extractCronSecret(req) || undefined,
     autoPublish,
+    source: 'teacher',
+    actorId: user.id,
   });
 
   const notified = await notifyWeekReady(db, {
@@ -142,6 +146,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       skipped: outcome.skipped,
       byType: outcome.byType,
       failedTypes: outcome.failedTypes,
+      generationRunId: runId,
       auto_publish: autoPublish,
       notified,
     },

@@ -8,6 +8,11 @@ import {
 } from '@/lib/cbt/visibility';
 import { hasCbtAttemptEvidence } from '@/lib/academic/record-retention';
 import { logAudit } from '@/lib/audit/log';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -382,6 +387,11 @@ export async function DELETE(
         error: 'This exam contains learner attempts and cannot be deleted. Deactivate it to preserve assessment records.',
         code: 'PROTECTED_ACADEMIC_EVIDENCE',
       }, { status: 409 });
+    }
+
+    const cleanupPolicy = await loadCleanupPolicy(admin as any);
+    if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+      return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
     }
 
     const { error } = await admin.from('cbt_exams').delete().eq('id', id);

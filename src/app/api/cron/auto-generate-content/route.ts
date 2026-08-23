@@ -5,9 +5,12 @@ import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
 import {
   currentDeliveryWeek,
-  generatePlanWeek,
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
+import {
+  generateTrackedPlanWeek,
+  markInterruptedTeachingGenerationRuns,
+} from '@/lib/academic/tracked-week-generation';
 import {
   parseAutoGenerateSettings,
   weeksToGenerateForPlan,
@@ -57,6 +60,7 @@ async function handleRequest(req: NextRequest) {
   }
 
   const db = adminClient();
+  const interruptedRunsRecovered = await markInterruptedTeachingGenerationRuns(db);
 
   // No base URL here on purpose. The sweep used to reach its own generator routes
   // over HTTP, which meant guessing which deployment it was running in —
@@ -280,13 +284,16 @@ async function handleRequest(req: NextRequest) {
 
       for (const meeting of targetMeetings) {
         if (Date.now() > DEADLINE) { stoppedEarly = true; break; }
-        const outcome = await generatePlanWeek({
+        const { outcome } = await generateTrackedPlanWeek({
+          db,
           planId: plan.id,
+          classId: plan.class_id ?? null,
           week: meeting.week,
           session: meeting.session,
           types: ags.types,
           cronSecret,
           autoPublish: ags.auto_publish,
+          source: 'cron',
         });
         generated += outcome.generated;
         skipped += outcome.skipped;
@@ -333,6 +340,7 @@ async function handleRequest(req: NextRequest) {
   }
 
   return NextResponse.json({
+    interrupted_runs_recovered: interruptedRunsRecovered,
     processed: results.filter((r) => r.status === 'ok').length,
     failed: results.filter((r) => r.status === 'error').length,
     skipped: results.filter((r) => r.status === 'skipped').length,

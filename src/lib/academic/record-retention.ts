@@ -1,4 +1,9 @@
 export type AssignmentScoreEvidence = {
+  id?: unknown;
+  submission_text?: unknown;
+  file_url?: unknown;
+  submitted_at?: unknown;
+  answers?: unknown;
   grade?: unknown;
   weighted_score?: unknown;
   graded_at?: unknown;
@@ -6,6 +11,25 @@ export type AssignmentScoreEvidence = {
   grading_mode?: unknown;
   status?: unknown;
 };
+
+/**
+ * Submitted learner work is irreplaceable even before a teacher records a mark.
+ * Empty setup rows may still be cleaned; answers, files, text, a submission stamp,
+ * or a submitted/graded state must be retained and corrected through workflow.
+ */
+export function hasLearnerAssignmentEvidence(row: AssignmentScoreEvidence | null | undefined): boolean {
+  if (!row) return false;
+  const answers = row.answers;
+  const hasAnswers = Array.isArray(answers)
+    ? answers.length > 0
+    : Boolean(answers && typeof answers === 'object' && Object.keys(answers as object).length > 0);
+  return hasProtectedAssignmentScoreEvidence(row)
+    || Boolean(row.submitted_at)
+    || Boolean(typeof row.submission_text === 'string' && row.submission_text.trim())
+    || Boolean(row.file_url)
+    || hasAnswers
+    || ['submitted', 'graded', 'returned', 'approved'].includes(String(row.status ?? '').toLowerCase());
+}
 
 /**
  * A submission becomes an academic record as soon as a mark or grading stamp

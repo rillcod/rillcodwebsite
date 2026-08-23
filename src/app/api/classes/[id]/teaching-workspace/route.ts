@@ -942,15 +942,19 @@ export async function POST(
     const autoGenerate = parseAutoGenerateSettings(
       planMeta?.metadata?.auto_generate_settings
     );
-    const { generatePlanWeek } = await import("@/lib/academic/week-generation");
-    const result = await generatePlanWeek({
+    const { generateTrackedPlanWeek } = await import("@/lib/academic/tracked-week-generation");
+    const { outcome: result, runId } = await generateTrackedPlanWeek({
+      db,
       planId: String(body.lesson_plan_id),
+      classId: id,
       week,
       session,
       autoPublish: autoGenerate.auto_publish,
       cookie: req.headers.get("cookie") || undefined,
+      source: "teacher",
+      actorId: user.id,
     });
-    return NextResponse.json({ data: result });
+    return NextResponse.json({ data: { ...result, generationRunId: runId } });
   }
 
   return NextResponse.json(

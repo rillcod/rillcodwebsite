@@ -14,7 +14,7 @@ import Link from "next/link";
 
 type AuditRow = {
   id: string;
-  lesson_plan_id: string;
+  lesson_plan_id: string | null;
   school_id: string | null;
   actor_id: string | null;
   actor_role: string | null;
@@ -26,6 +26,11 @@ type AuditRow = {
   before_state: Record<string, unknown> | null;
   after_state: Record<string, unknown> | null;
   created_at: string;
+  actor_name?: string | null;
+  school_name?: string | null;
+  plan_label?: string | null;
+  student_name?: string | null;
+  course_title?: string | null;
 };
 
 const TERM_LABELS: Record<number, string> = {
@@ -52,6 +57,26 @@ const ACTION_LABELS: Record<
     label: "Term Change",
     desc: "A term or year status was updated.",
     color: "text-blue-600 dark:text-blue-400 bg-blue-400/5 border-blue-400/20",
+  },
+  curriculum_level_promote: {
+    label: "Advanced curriculum level",
+    desc: "Moved a learner to the next curriculum level.",
+    color: "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20",
+  },
+  curriculum_level_repeat: {
+    label: "Continued current level",
+    desc: "Kept a learner on the current curriculum level for the next term.",
+    color: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20",
+  },
+  curriculum_level_complete: {
+    label: "Completed curriculum track",
+    desc: "Recorded completion of the learner's curriculum track.",
+    color: "text-primary bg-primary/10 border-primary/20",
+  },
+  curriculum_level_withdraw: {
+    label: "Left curriculum track",
+    desc: "Closed the learner's curriculum-level enrollment without changing class placement.",
+    color: "text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/20",
   },
 };
 
@@ -139,8 +164,8 @@ function AuditTrailContent({ embedded = false }: { embedded?: boolean }) {
               </h1>
             </div>
             <p className="text-xl text-muted-foreground leading-relaxed italic max-w-2xl">
-              A complete record of important changes made to your platform —
-              manual unlocks, locked edits, and term status updates.
+              A clear record of curriculum decisions, manual unlocks, locked
+              edits, and term status updates.
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -155,6 +180,10 @@ function AuditTrailContent({ embedded = false }: { embedded?: boolean }) {
                 <option value="override_unlock">Manual Unlocks</option>
                 <option value="week_edit_while_locked">Locked Edits</option>
                 <option value="term_status_change">Term / Year Changes</option>
+                <option value="curriculum_level_promote">Curriculum Advances</option>
+                <option value="curriculum_level_repeat">Curriculum Repeats</option>
+                <option value="curriculum_level_complete">Track Completions</option>
+                <option value="curriculum_level_withdraw">Track Withdrawals</option>
               </select>
             </div>
             <button
@@ -176,7 +205,7 @@ function AuditTrailContent({ embedded = false }: { embedded?: boolean }) {
       <div className="space-y-10 relative before:absolute before:left-[1.75rem] sm:before:left-[2.25rem] before:top-4 before:bottom-4 before:w-px before:bg-border/60">
         {rows.map((row) => {
           const meta = ACTION_LABELS[row.action_type] || {
-            label: row.action_type,
+            label: row.action_type.replace(/_/g, " "),
             desc: "An administrative action was recorded.",
             color: "text-muted-foreground bg-muted/10 border-border",
           };
@@ -233,21 +262,29 @@ function AuditTrailContent({ embedded = false }: { embedded?: boolean }) {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground italic flex-wrap">
                       Changed by:{" "}
                       <span className="font-black text-foreground uppercase tracking-widest not-italic">
-                        {row.actor_role || "System"}
+                        {row.actor_name || row.actor_role || "System"}
                       </span>
-                      {row.school_id && (
+                      {row.school_name && (
                         <>
                           <span className="opacity-30">·</span> School:{" "}
                           <span className="font-bold text-foreground opacity-100">
-                            {row.school_id}
+                            {row.school_name}
                           </span>
                         </>
                       )}
-                      {row.lesson_plan_id && (
+                      {row.plan_label && (
                         <>
                           <span className="opacity-30">·</span> Plan:{" "}
                           <span className="font-bold text-foreground opacity-100">
-                            {row.lesson_plan_id}
+                            {row.plan_label}
+                          </span>
+                        </>
+                      )}
+                      {row.student_name && (
+                        <>
+                          <span className="opacity-30">·</span> Learner:{" "}
+                          <span className="font-bold text-foreground opacity-100">
+                            {row.student_name}
                           </span>
                         </>
                       )}

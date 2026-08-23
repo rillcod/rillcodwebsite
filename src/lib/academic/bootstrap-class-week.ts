@@ -6,10 +6,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { parseAutoGenerateSettings, weeksToGenerateForPlan } from './auto-generate-settings';
 import {
   currentDeliveryWeek,
-  generatePlanWeek,
   notifyWeekReady,
   type WeekGenerationOutcome,
 } from './week-generation';
+import { generateTrackedPlanWeek } from './tracked-week-generation';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 
 export async function bootstrapClassTeachingWeek(
@@ -70,14 +70,17 @@ export async function bootstrapClassTeachingWeek(
     process.env.BILLING_CRON_SECRET ??
     undefined;
 
-  const outcome = await generatePlanWeek({
+  const { outcome } = await generateTrackedPlanWeek({
+    db,
     planId: String(plan.id),
+    classId: plan.class_id ?? null,
     week,
     session: 1,
     types: ags.types,
     cronSecret,
     cookie: opts?.cookie,
     autoPublish: false,
+    source: 'bootstrap',
   });
 
   await notifyWeekReady(db, {

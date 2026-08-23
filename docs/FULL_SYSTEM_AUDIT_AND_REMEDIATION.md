@@ -800,12 +800,12 @@ snapshots, not current certification. This register is the current product-level
 | SYS-001 | P0 | Verified locally; deployment pending | Invalid refresh-token failure at production login | Deploy and repeat stale-session production canary |
 | SYS-002 | P0 | Partially verified | Admin login/sign-out passed locally; other private role journeys remain | Teacher, partner school, parent, student, and restricted route journeys pass |
 | SYS-003 | P0 | Verified locally; production proof pending | Report authority/pathway split protects compulsory papers and optional six-box results | Deploy, role E2E, and binary PDF parity |
-| SYS-004 | P0 | At risk | No verified central CSRF/origin guard | Unsafe route inventory and attack tests pass |
-| SYS-005 | P0 | Confirmed defect | Limiter is a process-local `Map` and covers only `/api/inbox` | Shared-store, all-sensitive-action inventory, concurrency, and bypass tests pass |
+| SYS-004 | P0 | Partially remediated; observation and route inventory pending | Common API boundary now has settings-based off/observe/enforce origin decisions with same-origin, native, configured-origin, and non-browser handling; default is non-blocking observation | Review observations, inventory direct unsafe routes and signed exemptions, then pass same-site/cross-site/native/webhook/cron attack tests before enforcement |
+| SYS-005 | P0 | Partially remediated; shared-store deployment proof pending | Central wrapper and sensitive public routes use the Upstash-aware limiter; reads no longer consume write capacity, authenticated writers use per-user/per-feature counters, and the policy is administrator-configurable. Direct-route inventory and shared-store production proof remain | Configure the shared store, finish all-sensitive-action inventory, then pass concurrency, school-NAT, disable/tune, and bypass tests |
 | SYS-006 | P0 | Locally remediated; production resend proof pending | Financial correction/resend now uses one canonical document route and a trusted issued-account snapshot | Deploy and prove the same invoice version matches save/preview/download/email/resend |
-| SYS-007 | P0 | Partially remediated; full call-site classification pending | Student deletion and school wipe now fail closed for immutable academic/posted-finance evidence; cleanup policy remains flexible for build-time mistakes | Every remaining literal/dynamic delete site classified and database migration deployed/tested |
+| SYS-007 | P0 | Partially remediated; full call-site classification pending | Student/school cleanup, assignment and submission drafts, CBT drafts, report drafts, curricula, lessons, lesson plans, consent forms, and classes now distinguish configurable cleanup from immutable learner/finance evidence; Flexible remains the build default | Deploy/test migrations 100–101 and classify every remaining literal/dynamic delete site |
 | SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
-| SYS-009 | P1 | Confirmed gap | CSP and HSTS absent/unverified | Report-only observation, enforced CSP, HTTPS/HSTS verification |
+| SYS-009 | P1 | Partially remediated; observation/deployment proof pending | CSP report-only policy, sanitized observation ledger, Operations Health summary, and production HSTS are implemented locally; CSP is deliberately not enforced yet | Apply migration 99, deploy, inspect real browser/native violations, tighten directives, then enforce CSP and verify HTTPS/HSTS |
 | SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
 | SYS-012 | P1 | At risk | Large academic/lesson/report/settings pages | Vertical service/component split and performance baselines |
@@ -829,7 +829,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-030 | P2 | At risk | 22 empty catches | Expected fallback/metric, retry UI, or typed error |
 | SYS-031 | P2 | At risk | 2,761 `any` escapes | Remove at authority boundaries first; type budget trends down |
 | SYS-032 | P2 | At risk | Password minimum differs between Supabase and app | One documented and enforced password policy |
-| SYS-033 | P2 | At risk | Settings/policies duplicated or unclear | One authority per configuration and reader/writer map |
+| SYS-033 | P2 | Partially remediated | Platform Operations now owns traffic/origin controls and optional accountability class repair with audit evidence; the full policy reader/writer map remains incomplete | Complete one-authority inventory and remove or redirect remaining duplicate settings |
 | SYS-034 | P2 | At risk | Learner-progress route overlap/noise | Unique task map, merge true duplicates, central read model |
 | SYS-035 | P2 | At risk | Class roster and path visibility can compete | One roster with scoped visibility controls |
 | SYS-036 | P2 | At risk | Customer errors can expose internal concepts | Public error-code/message contract and UX review |
@@ -2147,3 +2147,215 @@ Remaining production/device proof:
 - test camera and microphone permission denial/recovery, poor network, duplicate devices, Jitsi backup, iOS/Android backgrounding, and physical-device safe-area controls;
 - split the oversized live-session page into independently loaded list, scheduling, moderation, attendance, replay, and classroom modules and establish production bundle/interaction budgets;
 - verify Cloudflare LiveKit secrets, websocket reachability, TURN connectivity, webhook delivery, recording storage, and alerting in the deployed environment.
+
+### 16.15 Unified teaching-package operations milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- repaired a positional parallel-query defect that labelled slide rows as assignments, flashcard rows as slides, and assignment rows as flashcards on the lesson-plan operations board;
+- replaced that separate readiness calculation with the same five-asset contract used by the class teaching workspace: lesson, slides, flashcards, assignment, and project;
+- kept year, term, curriculum week, and class-meeting identity together so repeated Week 1 records and multiple meetings in one week do not collapse;
+- separated projects from ordinary assignments in both the API response and teacher interface;
+- made slide visibility require both a public slide deck and a live lesson, preventing a private deck from being reported as learner-visible;
+- added clear 5-item preparation, missing-item, and held-for-release feedback to the weekly visibility interface;
+- added focused guards for query-result meaning, five-asset mapping, private slides, multi-meeting weeks, and repeated week numbers across terms.
+
+Verification evidence:
+
+- TypeScript typecheck passed;
+- `git diff --check` passed (line-ending conversion notices only);
+- focused test files were added, but Vitest could not start because the Windows sandbox returned `spawn EPERM`; the required elevated rerun was then blocked by the desktop approval service usage limit. These tests are **not** claimed as passed;
+- no production build, remote push, live database mutation, or credential transmission was performed.
+
+Remaining verification and content-delivery work:
+
+- run the focused academic package tests and full suite as soon as the local execution approval service is available;
+- exercise the authenticated teacher operations board against a migrated database and verify all five generated items, partial failure, exact missing-type retry, release, learner discovery, and return-to-edit behaviour;
+- make generation attempts durable and observable across request interruption so automatic repair can resume an incomplete package without depending on a browser response;
+- complete learner progress/evidence alignment and split the oversized lesson-plan and class-workspace clients into focused, independently loaded surfaces.
+
+### 16.16 Durable teaching-generation lifecycle milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- added a non-blocking database lifecycle for every package attempt, scoped by lesson plan, class, curriculum week, and class meeting;
+- routed teacher preparation, class-workspace preparation, special-programme launch, first-week school bootstrap, and scheduled generation through one tracked wrapper;
+- records requested content types, generated/skipped counts, per-type outcomes, failed types, source, actor, start, heartbeat, and completion without storing prompts or exposing provider diagnostics to customers;
+- converts abandoned running attempts to interrupted after 20 minutes during the next scheduled sweep, preventing a permanent false “still preparing” state;
+- keeps rolling deployments safe: if migration 97 is not present yet, tracking logs a server-side code and generation continues normally;
+- added a professional operations summary for running, successful, partial, failed, and interrupted preparation with explicit safe-retry wording;
+- retry remains idempotent through the existing generators: completed items are retained and only missing work is produced;
+- generation history cascades only with a deleted lesson plan and never locks content, scores, learner answers, submissions, or report evidence.
+
+Verification evidence:
+
+- TypeScript typecheck passed after every generation entry path was moved to the tracked wrapper;
+- source search confirms direct production calls now remain only inside the wrapper (tests and comments excluded);
+- focused status and customer-feedback guards were added but could not be executed because the Vitest approval block recorded in 16.15 is still active; they are **not** claimed as passed;
+- migration `20260929000097_track_teaching_package_generation.sql` was created but not applied to the live database;
+- no production build, remote push, live database mutation, or credential transmission was performed.
+
+Remaining operational proof:
+
+- apply migrations 93–97 in order through the approved database pipeline, regenerate database types, and rerun schema drift;
+- run focused and full tests when local execution approval is restored;
+- verify success, one-type failure, browser interruption, stale-run recovery, safe retry, cron retry, and teacher-facing feedback against a disposable then deployed database;
+- add retention settings for operational attempt history if volume requires it; do not hard-code restrictive retention while the product is still being built.
+
+### 16.17 Learner progress and curriculum-decision milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- removed hard-coded skill radar values, unsupported “top 15%” ranking, fixed “Diamond tier” wording, and assignment-title keyword guesses from the customer learner overview;
+- stopped presenting the legacy `enrollments.progress_pct` field as authoritative curriculum completion; week delivery remains visible in Teaching coverage and the learner path;
+- labels the overview as assignment evidence and explains exactly which graded submissions contribute to its average and which submitted items still await review;
+- uses the shared WAEC `A1…F9` grading authority instead of a separate A/B/C/D/F display;
+- repaired WAEC failure-code recognition in promotion intelligence so `F9`/`E8` cannot bypass the configured curriculum-advance policy;
+- made automated curriculum suggestions use published current-term reports and central promotion settings; missing or draft evidence produces “Review evidence,” never a default promotion;
+- kept teacher decisions liberal: promote, repeat, complete, and withdraw remain manual choices, with an optional 2,000-character reason rather than a hard evidence lock;
+- replaced service-role close-then-insert writes with one atomic database function that verifies admin/teacher scope, handles an existing destination enrollment safely, and rolls back the whole transition on failure;
+- corrected final-level promotion to complete the current track instead of leaving a `promoted` row with no destination;
+- added a dedicated curriculum-decision audit and merged it into the existing academic history with human learner, actor, school, course, and teaching-plan labels rather than customer-visible UUIDs;
+- separated curriculum-level movement from class-grade promotion and preserved reports, submissions, learner answers, grading, and scores unchanged.
+
+Verification evidence:
+
+- TypeScript typecheck passed after the complete learner-progress and decision change set;
+- focused guards were added for absent/draft evidence, settings thresholds, WAEC codes, final-level completion, atomic writes, teacher scope, optional next-term requirements, and human activity history;
+- those tests remain unexecuted because the Vitest approval block recorded in 16.15 is still active and are **not** claimed as passed;
+- migrations `20260929000098_atomic_curriculum_level_decisions.sql` was created but not applied;
+- no production build, remote push, live database mutation, score mutation, or credential transmission was performed.
+
+Remaining operational proof:
+
+- apply migrations 97–98 after the earlier academic migrations in a disposable database, regenerate types, and prove atomic promote/repeat/complete/withdraw including concurrent clicks and existing next-level enrollment;
+- run focused/full automated tests and authenticated mobile/desktop journeys when execution approval is restored;
+- verify multi-school teacher scope, school-role read-only history, optional notes, current-term matching, published/draft report handling, and class-grade/curriculum-level separation with realistic records;
+- decide whether attendance should join curriculum recommendations per school policy; do not silently add a new hard gate while the product is still being configured.
+
+### 16.18 Configurable traffic protection and operational visibility milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- removed the duplicate inbox-only middleware `Map`, which counted every read and could block an entire school sharing one internet address;
+- retained the existing shared Upstash-aware limiter as the central implementation and changed the common API wrapper to count state-changing requests only;
+- keys authenticated write protection by user and feature family, while unauthenticated sensitive routes continue to use IP plus route-specific policies;
+- protects the direct inbox send, email, and contact mutations through the same configurable policy rather than recreating another limiter;
+- added administrator-owned Platform Settings for on/off, writes-per-window, and window length, with deliberately generous bounded defaults and a one-minute read cache;
+- made missing or unreadable settings fall back to a usable default rather than locking staff out during a rolling deployment or database interruption;
+- corrected the operations-settings interface contract: teachers and schools can inspect platform policy but only administrators are offered a working save path;
+- records human-readable audit evidence when platform operations settings change;
+- surfaces whether cross-instance shared protection is actually configured in Operations Health, without showing secrets or internal provider details to customers;
+- added one request-origin decision to the common API boundary with administrator-controlled off, observe, and enforce modes; observation is the safe default while the app is still being built;
+- permits same-origin browser work, Capacitor/Ionic native origins, explicitly configured origins, and server-to-server clients without browser provenance while identifying explicit cross-site browser writes;
+- enforcement returns one professional recovery message and never exposes the observed origin or internal policy details to customers;
+- added focused source guards for safe methods, route-family identity, defaults, tunability, and the administrator off switch.
+
+Verification evidence:
+
+- TypeScript typecheck passed for the initial policy refactor; a final rerun covers the Operations Health display and direct inbox integrations;
+- `git diff --check` passed (line-ending conversion notices only);
+- focused tests were added but remain unexecuted because the Vitest approval block recorded in 16.15 is still active; they are **not** claimed as passed;
+- no production build, remote push, live database mutation, or credential transmission was performed.
+
+Remaining proof and coverage:
+
+- configure valid `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Cloudflare, then confirm Operations Health reports shared protection;
+- inventory the remaining direct state-changing routes that do not use the common wrapper or an explicit custom limit, prioritising authentication, file upload, messaging, payment initiation, parent claim, and bulk administration;
+- review origin observations before changing the default from `observe` to `enforce`; explicitly certify native, webhook, cron, signed public, and local-development request paths first;
+- run multi-instance concurrency, shared-school-network, administrator disable/tune, retry-header, and Redis-outage fallback tests;
+- keep deletion and correction workflows available and reversible where business rules allow; rate protection is an abuse brake, not a substitute for authorization, confirmation, audit, or settings-based lifecycle policy.
+
+### 16.19 Settings-based accountability correction milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- stopped the Accountability page from rewriting every mismatched student profile class merely because an administrator opened the page;
+- retained the active current-term roster as class-placement authority and kept the exact-count one-click repair available;
+- added `accountability_auto_fix_class_mismatch` to Platform Settings, defaulting off; when enabled, the existing once-per-visit repair remains available as an explicit administrator policy;
+- shows whether automatic class repair is on or off beside the mismatch action so an administrator can understand why work did or did not run;
+- made an unreadable or malformed setting fail safely to off without hiding the mismatch or blocking manual correction;
+- added human audit labels for successful, partial, and failed class alignment and for Platform Operations setting changes;
+- replaced activity-trail database diagnostics with professional retry messages while retaining diagnostics in server logs.
+
+Verification evidence and remaining proof:
+
+- final TypeScript rerun covers the settings payload, optional page automation, visible status, and human audit labels;
+- no score, report, submission, answer, assessment evidence, or learner activity was changed;
+- focused tests remain blocked as recorded in 16.15 and are not claimed as passed;
+- verify setting off/on, conflicting rosters, concurrent roster changes, partial repair, audit wording, and return-to-page behavior against a disposable migrated database.
+
+### 16.20 CSP observation and production transport-header milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- added a Content Security Policy in report-only mode so browser, PWA, LiveKit, payment, PDF, and native compatibility can be measured before enforcement;
+- added production HSTS for one year without `includeSubDomains` or preload while every subdomain is still being certified;
+- created a rate-limited CSP reporting endpoint that always responds safely and never blocks the page being observed;
+- sanitizes document, source, and blocked URLs before persistence, removing credentials, query strings, fragments, request payloads, referrers, cookies, account ids, and customer identifiers;
+- added migration `20260929000099_record_security_observations.sql` with an admin-readable, service-written observation ledger and useful recent/directive indexes;
+- added a human Operations Health summary for setup pending, zero recent conflicts, or observed conflicts and their most common directives; the interface clearly says nothing is blocked;
+- added focused sanitization guards for legacy CSP and Reporting API payload shapes.
+
+Verification evidence and remaining proof:
+
+- TypeScript and diff checks are rerun after the complete header/reporting change set;
+- focused CSP tests were authored but cannot currently execute because of the approval block recorded in 16.15; they are not claimed as passed;
+- migration 99 was created but not applied, no production build was run, and no remote push occurred;
+- after deployment, inspect at least seven days of desktop, Android, iOS/PWA, LiveKit, Paystack, PDF/print, public form, and admin observations; narrow broad report-only sources before changing to enforced CSP;
+- verify HSTS on the Cloudflare response and certify subdomains before considering `includeSubDomains` or preload.
+
+### 16.21 Settings-based academic cleanup and evidence retention milestone — typechecked locally on 23 August 2026
+
+Implemented:
+
+- made the existing Platform Settings cleanup choice operational across rebuildable assignments,
+  empty submission placeholders, unused CBT exams, unscored report drafts, curriculum drafts,
+  lessons, lesson plans, consent forms, and classes instead of leaving it as descriptive UI only;
+- kept **Flexible** as the missing-setting and build-stage default; **Standard** still allows ordinary
+  draft/content cleanup but retains issued consent responses, while **Strict** holds hard deletion of
+  rebuildable records until an administrator changes the setting;
+- kept irreplaceable evidence outside the configurable switch: learner text/files/answers,
+  submissions, assignment/manual scores, CBT sessions, written-exam attempts, published or scored
+  reports, term grades, and central assessment evidence cannot be opened by selecting Flexible;
+- changed lesson-plan deletion to one database transaction that removes unused generated teaching
+  drafts but detaches assignments, written exams, and CBT exams that already contain learner work;
+- retained a rolling-deployment fallback with the same learner-evidence behavior while migration 100
+  is pending, and records human-readable preserved/removed counts in the audit trail;
+- fixed class deletion's partial-write defect: the previous route cleared student class fields before
+  knowing whether the class delete would succeed. Migration 101 now performs scope recheck,
+  evidence preflight, roster-label cleanup, and class deletion atomically;
+- made the class rolling fallback delete the class before clearing stale text labels and fail closed
+  when academic evidence cannot be verified, so a linked teaching plan no longer leaves students
+  silently detached after a refused delete;
+- made consent deletion inspect signed-response count first. Standard/Strict retain issued responses;
+  Flexible permits intentional build/test cleanup, while empty draft forms remain easy to remove;
+- moved all cleanup-policy decisions after authentication, record lookup, and school/teacher scope
+  checks, preventing policy information from leaking to an out-of-scope caller;
+- kept customer errors professional and stable while logging database codes only on the server.
+
+Verification evidence:
+
+- TypeScript passed for the complete settings/retention/class transaction change set;
+- `git diff --check` passed before the final class/consent additions and is rerun for final handoff;
+- focused source guards cover policy parsing, build-friendly defaults, issued-record behavior, learner
+  submission evidence, and the lesson-plan atomic retention contract, but Vitest remains unable to
+  start under the approval limitation recorded in 16.15; these tests are **not** claimed as passed;
+- migrations `20260929000100_delete_lesson_plan_preserve_learner_work.sql` and
+  `20260929000101_delete_rebuildable_class_atomically.sql` were created but not applied;
+- no production build, live database mutation, remote push, score mutation, or credential
+  transmission was performed.
+
+Remaining proof and scope:
+
+- apply migrations 100–101 to a disposable database and prove rollback, actor/school scope,
+  Flexible/Standard/Strict behavior, concurrent deletion, missing-function rolling fallback, and
+  every protected evidence type before deploying;
+- complete table-by-table classification of the remaining delete inventory. Current source search
+  still finds delete operations across CRM, communication, live-session, timetable, programme,
+  certificate, portfolio, parent-link, newsletter, file, and ephemeral-token domains; they are not
+  silently declared safe by this milestone;
+- add explicit archive/retire alternatives where a still-issued operational record currently offers
+  only hard delete, prioritising programme, certificate, class-session, and consent lifecycle UI;
+- after build data is cleared, switch production from Flexible to Standard and reserve temporary
+  Flexible use for an administrator-supervised cleanup window with an audit reason.

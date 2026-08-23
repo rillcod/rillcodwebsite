@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { evaluateAndTrackMessage } from '@/lib/communication/abusePolicy';
 import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
 import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
+import { rateLimitproxy } from '@/proxies/rateLimit.proxy';
 
 function adminClient() {
   return createClient(
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest) {
     const supabaseServer = await createServerClient();
     const { data: { user }, error: authErr } = await supabaseServer.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const limited = await rateLimitproxy(req, user.id);
+    if (limited) return limited;
 
     const body = await req.json();
     const { conversation_id, message, use_template, template_name, template_variables } = body;

@@ -140,18 +140,33 @@ export function flashcardVisibility(deck: {
   return deck.is_public === false ? "held" : "live";
 }
 
-/** Slides follow their lesson: if the lesson is held, slides are held too. */
+/**
+ * Slides need both release gates: the deck itself must be public and its
+ * lesson must be live. Older decks have no explicit flag, so null keeps the
+ * legacy behaviour and follows the lesson.
+ */
 export function slidesVisibility(
-  slideDeck: unknown,
+  slideDeck: {
+    id?: unknown;
+    is_public?: boolean | null;
+    curriculum_week_number?: unknown;
+    metadata?: Record<string, unknown> | null;
+  } | null | undefined,
   lesson: { status?: string | null } | null | undefined
 ): AssetVisibility {
   if (!slideDeck) return "missing";
+  if (slideDeck.is_public === false) return "held";
   return lessonVisibility(lesson);
 }
 
 export function buildWeekVisibility(input: {
   lesson?: { status?: string | null } | null;
-  slides?: unknown;
+  slides?: {
+    id?: unknown;
+    is_public?: boolean | null;
+    curriculum_week_number?: unknown;
+    metadata?: Record<string, unknown> | null;
+  } | null;
   flashcards?: { is_public?: boolean | null } | null;
   assignment?: { is_active?: boolean | null } | null;
   project?: { is_active?: boolean | null } | null;

@@ -33,7 +33,9 @@ const FAIL_GRADES = new Set(['F', 'E', 'U']);
 
 function letterFails(grade: string | null | undefined): boolean {
   if (!grade) return false;
-  const g = grade.trim().toUpperCase().split(/[\s(/]/)[0];
+  const token = grade.trim().toUpperCase().split(/[\s(/]/)[0];
+  // WAEC values are A1…F9; legacy records may contain only the letter.
+  const g = token.match(/^[A-Z]+/)?.[0] ?? token;
   return FAIL_GRADES.has(g);
 }
 

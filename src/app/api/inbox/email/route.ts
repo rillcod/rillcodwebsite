@@ -6,6 +6,7 @@ import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-trans
 import { missingCustomerTags } from '@/lib/api-guards';
 import { SMTP_FROM_EMAIL, brandContact } from '@/config/brand';
 import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
+import { rateLimitproxy } from '@/proxies/rateLimit.proxy';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const limited = await rateLimitproxy(req, user.id);
+  if (limited) return limited;
 
   const admin = createAdminClient() as any;
   const { data: profile, error: profileError } = await admin.from('portal_users')

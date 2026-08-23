@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { RateLimitError } from '@/lib/errors';
 import { resolveUpstashConfig } from '@/lib/redis-config';
+import {
+    isSafeApiMethod,
+    loadTrafficControls,
+    mutationRouteFamily,
+} from '@/lib/operations/traffic-controls';
 
 // Memory store fallback for edge if Upstash Redis is not available
 // In Edge functions, memory might not be completely shared, but it works well enough
@@ -116,14 +121,23 @@ export async function checkCustomRateLimit(config: RateLimitConfig): Promise<voi
 
 // ── Global IP-based rate limit (existing behaviour) ───────────────────────────
 
-export async function rateLimitproxy(req: NextRequest) {
-    // Simple sliding window or fixed window rate limiter
-    const ip = getClientIp(req);
-    const key = `rate-limit:${ip}`;
+export async function rateLimitproxy(req: NextRequest, authenticatedUserId?: string) {
+    // Public verification and registration routes use checkCustomRateLimit with
+    // their own tighter policy. The shared wrapper protects writes only, so
+    // polling/read-heavy dashboards and schools behind one NAT are not blocked.
+    if (isSafeApiMethod(req.method)) return null;
 
-    // Limit: 100 requests per 60 seconds
-    const windowTimeMs = 60 * 1000;
-    const maxRequests = 100;
+    const controls = await loadTrafficControls();
+    if (!controls.api_mutation_rate_limit_enabled) return null;
+
+    const identity = authenticatedUserId
+        ? `user:${authenticatedUserId}`
+        : `ip:${getClientIp(req)}`;
+    const family = mutationRouteFamily(req.nextUrl.pathname);
+    const key = `rl:mutation:${family}:${identity}`;
+    const windowSeconds = controls.api_mutation_window_seconds;
+    const windowTimeMs = windowSeconds * 1000;
+    const maxRequests = controls.api_mutation_requests_per_window;
 
     // Try Upstash Redis first when configured
     const redis = getRedisClient();
@@ -131,7 +145,7 @@ export async function rateLimitproxy(req: NextRequest) {
         try {
             const currentCount = await redis.incr(key);
             if (currentCount === 1) {
-                await redis.expire(key, 60);
+                await redis.expire(key, windowSeconds);
             }
 
             const headers = new Headers();
@@ -141,7 +155,13 @@ export async function rateLimitproxy(req: NextRequest) {
             if (currentCount > maxRequests) {
                 return NextResponse.json(
                     { error: 'Too many requests, please try again later' },
-                    { status: 429, headers }
+                    {
+                        status: 429,
+                        headers: {
+                            ...Object.fromEntries(headers.entries()),
+                            'Retry-After': String(Math.max(1, await redis.ttl(key))),
+                        },
+                    }
                 );
             }
 
@@ -172,7 +192,8 @@ export async function rateLimitproxy(req: NextRequest) {
                 headers: {
                     'X-RateLimit-Limit': maxRequests.toString(),
                     'X-RateLimit-Remaining': '0',
-                    'X-RateLimit-Reset': String(Math.ceil((record.resetTime - now) / 1000))
+                    'X-RateLimit-Reset': String(Math.ceil(record.resetTime / 1000)),
+                    'Retry-After': String(Math.max(1, Math.ceil((record.resetTime - now) / 1000))),
                 }
             }
         );

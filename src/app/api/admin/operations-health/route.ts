@@ -12,6 +12,8 @@ import {
 import { fanoutOriginCandidates } from '@/lib/server/cron-fanout';
 import { logAudit } from '@/lib/audit/log';
 import { requireSupabaseWrite } from '@/lib/supabase/require-result';
+import { loadTrafficControls } from '@/lib/operations/traffic-controls';
+import { resolveUpstashConfig } from '@/lib/redis-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,6 +126,37 @@ async function waitingOnYou(db: any) {
   ].filter((row) => row.count === null || row.count > 0);
 }
 
+async function securityObservationHealth(db: any) {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await db.from('security_observations')
+      .select('effective_directive,violated_directive,blocked_origin,observed_at')
+      .eq('kind', 'csp')
+      .gte('observed_at', since)
+      .order('observed_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    const rows = data ?? [];
+    const byDirective = new Map<string, number>();
+    for (const row of rows) {
+      const label = String(row.effective_directive || row.violated_directive || 'Other policy');
+      byDirective.set(label, (byDirective.get(label) || 0) + 1);
+    }
+    return {
+      available: true,
+      last24Hours: rows.length,
+      latestAt: rows[0]?.observed_at ?? null,
+      topDirectives: [...byDirective.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([directive, count]) => ({ directive, count })),
+    };
+  } catch (error) {
+    console.warn('[operations-health] security observation summary unavailable', error);
+    return { available: false, last24Hours: 0, latestAt: null, topDirectives: [] };
+  }
+}
+
 async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -143,7 +176,7 @@ export async function GET() {
   }
   if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
-  const [health, deadLetters, history, financeFailures, generationIncidents, fanout] = await Promise.all([
+  const [health, deadLetters, history, financeFailures, generationIncidents, fanout, trafficControls] = await Promise.all([
     actor.db.from('cron_job_health').select('*').order('job_name'),
     actor.db.from('notification_dead_letters').select('*').in('status', ['pending', 'retrying']).order('created_at', { ascending: false }).limit(100),
     actor.db.from('cron_run_history').select('*').order('created_at', { ascending: false }).limit(100),
@@ -170,6 +203,7 @@ export async function GET() {
       .from('app_settings')
       .select('key,value,updated_at')
       .like('key', 'cron_%_last_%fanout'),
+    loadTrafficControls(actor.db),
   ]);
 
   const firstError = health.error || deadLetters.error || history.error || financeFailures.error || generationIncidents.error || fanout.error;
@@ -194,6 +228,15 @@ export async function GET() {
     financeFailures: currentFinanceIncidents(financeFailures.data ?? []).slice(0, 25),
     generationIncidents: incidents,
     fanout: summariseFanoutState(fanout.data ?? []),
+    trafficProtection: {
+      ...trafficControls,
+      sharedStoreConfigured: Boolean(resolveUpstashConfig(
+        process.env.UPSTASH_REDIS_REST_URL,
+        process.env.UPSTASH_REDIS_REST_TOKEN,
+        'operations-health',
+      )),
+    },
+    securityObservations: await securityObservationHealth(actor.db),
     waiting: await waitingOnYou(actor.db),
     cronPaths: CRON_PATHS,
     generatedAt: new Date().toISOString(),

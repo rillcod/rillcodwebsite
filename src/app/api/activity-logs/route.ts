@@ -25,8 +25,9 @@ export async function GET(request: Request) {
   try {
     actor = await requireStaff();
   } catch (error) {
+    console.error('[activity-logs] staff access lookup failed', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Staff access lookup failed' },
+      { error: 'The activity trail could not be opened right now. Please try again.' },
       { status: 500 },
     );
   }
@@ -47,8 +48,9 @@ export async function GET(request: Request) {
     try {
       teacherSchoolIds = await getTeacherSchoolIds(actor.id, actor.school_id, db as any);
     } catch (error) {
+      console.error('[activity-logs] teacher scope lookup failed', error);
       return NextResponse.json(
-        { error: `Teacher activity scope failed: ${error instanceof Error ? error.message : String(error)}` },
+        { error: 'Your school activity scope could not be verified. Please try again.' },
         { status: 500 },
       );
     }
@@ -91,8 +93,9 @@ export async function GET(request: Request) {
       .range(offset, offset + limit - 1),
   ]);
   if (countResult.error || rowsResult.error) {
+    console.error('[activity-logs] query failed', countResult.error || rowsResult.error);
     return NextResponse.json(
-      { error: countResult.error?.message || rowsResult.error?.message || 'Log query failed' },
+      { error: 'The activity trail could not be loaded right now. Please try again.' },
       { status: 500 },
     );
   }

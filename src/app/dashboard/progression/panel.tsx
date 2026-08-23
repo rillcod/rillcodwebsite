@@ -37,6 +37,11 @@ import {
   parseCanonicalTermLabel,
 } from "@/lib/reports/session-scope";
 import { rollRosterSessionIfStale } from "@/lib/reports/session-workflows";
+import {
+  DEFAULT_PROMOTION_RULES,
+  type PromotionRules,
+} from "@/lib/progression/promotion-intelligence";
+import { recommendCurriculumDecision } from "@/lib/progression/curriculum-decision-recommendation";
 
 type TermOption = {
   value: string;
@@ -162,43 +167,6 @@ const DECISION_META: Record<
   },
 };
 
-function getSmartRecommendation(
-  grade: string | undefined,
-  hasNextLevel: boolean
-): { decision: PromotionDecision; label: string; desc: string; cls: string } {
-  if (!grade) {
-    return {
-      decision: "promote",
-      label: "Promote",
-      desc: "No grade available yet. Suggest default promotion.",
-      cls: "text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
-    };
-  }
-  const g = grade.toUpperCase().trim();
-  if (g === "F" || g === "E") {
-    return {
-      decision: "repeat",
-      label: "Repeat",
-      desc: `Grade is ${g}. Academic review recommended. Suggest repeating.`,
-      cls: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20",
-    };
-  }
-  if (!hasNextLevel) {
-    return {
-      decision: "complete",
-      label: "Complete Track",
-      desc: `Grade is ${g}. Student is at the final level. Suggest graduation.`,
-      cls: "text-primary bg-primary/10 border-primary/20",
-    };
-  }
-  return {
-    decision: "promote",
-    label: "Promote",
-    desc: `Grade is ${g}. Academic good standing. Suggest promoting.`,
-    cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  };
-}
-
 export default function ProgressionPage({
   embedded = false,
 }: { embedded?: boolean } = {}) {
@@ -242,13 +210,26 @@ export default function ProgressionPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [decisionNote, setDecisionNote] = useState("");
+  const [promotionRules, setPromotionRules] = useState<PromotionRules>(
+    DEFAULT_PROMOTION_RULES
+  );
 
   // Load programs for filter
   useEffect(() => {
     if (!profile || !isStaff) return;
-    fetch("/api/programs?is_active=true")
-      .then((r) => r.json())
-      .then((j) => setPrograms(j.data ?? []));
+    Promise.all([
+      fetch("/api/programs?is_active=true").then((r) => r.json()),
+      fetch("/api/progression/operations-settings", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => ({ data: {} })),
+    ]).then(([programsJson, settingsJson]) => {
+      setPrograms(programsJson.data ?? []);
+      const configured = settingsJson.data?.["lms.ops.promotion"];
+      if (configured && typeof configured === "object") {
+        setPromotionRules({ ...DEFAULT_PROMOTION_RULES, ...configured });
+      }
+    });
   }, [profile?.id]); // eslint-disable-line
 
   useEffect(() => {
@@ -306,6 +287,7 @@ export default function ProgressionPage({
         setEnrollments(rows);
         setDecisions({});
         setSubmitted([]);
+        setDecisionNote("");
 
         // Load progress reports to provide smart recommendations
         const studentIds = rows.map((r) => r.student_id).filter(Boolean);
@@ -441,6 +423,7 @@ export default function ProgressionPage({
         body: JSON.stringify({
           decision: decisions[enroll.id],
           next_term_label: next,
+          teacher_notes: decisionNote.trim() || undefined,
         }),
       });
       if (res.ok) {
@@ -622,11 +605,12 @@ export default function ProgressionPage({
                   pending.forEach((e) => {
                     const course = (e as any).courses;
                     const report = reports[e.student_id];
-                    const rec = getSmartRecommendation(
-                      report?.overall_grade,
-                      !!course?.next_course_id
+                    const rec = recommendCurriculumDecision(
+                      report,
+                      !!course?.next_course_id,
+                      promotionRules,
                     );
-                    all[e.id] = rec.decision;
+                    if (rec.decision) all[e.id] = rec.decision;
                   });
                   setDecisions(all);
                 }}
@@ -716,9 +700,10 @@ export default function ProgressionPage({
               const decision = decisions[enrollment.id];
 
               const report = reports[enrollment.student_id];
-              const rec = getSmartRecommendation(
-                report?.overall_grade,
-                !!course?.next_course_id
+              const rec = recommendCurriculumDecision(
+                report,
+                !!course?.next_course_id,
+                promotionRules,
               );
 
               return (
@@ -806,14 +791,22 @@ export default function ProgressionPage({
                     <div
                       className={`flex items-start gap-2.5 p-3 rounded-2xl border text-[11px] leading-relaxed font-semibold transition-all ${
                         decision ? "opacity-40" : ""
-                      } ${rec.cls}`}
+                      } ${
+                        rec.tone === "advance"
+                          ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                          : rec.tone === "complete"
+                            ? "text-primary bg-primary/10 border-primary/20"
+                            : rec.tone === "hold"
+                              ? "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20"
+                              : "text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20"
+                      }`}
                     >
                       <SparklesIcon className="w-4 h-4 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-black uppercase tracking-wider block text-[9px] mb-0.5">
                           Academic Auditor Suggestion
                         </span>
-                        {rec.desc}
+                        {rec.description}
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -932,6 +925,26 @@ export default function ProgressionPage({
           </div>
         )}
       </div>
+
+      {canPromote && decidedCount > 0 && (
+        <div className="mx-4 rounded-2xl border border-border bg-card p-4">
+          <label htmlFor="curriculum-decision-note" className="text-xs font-black text-foreground">
+            Decision note <span className="font-medium text-muted-foreground">(optional)</span>
+          </label>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Add one short reason when these decisions need context. It is kept in the academic activity trail and does not change any score.
+          </p>
+          <textarea
+            id="curriculum-decision-note"
+            value={decisionNote}
+            onChange={(event) => setDecisionNote(event.target.value.slice(0, 2000))}
+            rows={2}
+            placeholder="Example: Reviewed the published term report and practical portfolio with the class teacher."
+            className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+          />
+          <p className="mt-1 text-right text-[10px] text-muted-foreground">{decisionNote.length}/2,000</p>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

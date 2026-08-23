@@ -85,9 +85,10 @@ export async function GET() {
   let peopleRes: { data: any[]; error: { message: string } | null };
   let backlogRes: Awaited<ReturnType<typeof db.rpc>>;
   let liveRoleRes: { data: Array<{ role: string }> | null; error: { message: string } | null };
+  let settingsRes: { data: { value?: string | null } | null; error: { message: string } | null };
 
   try {
-    [coverageRes, peopleRes, backlogRes, liveRoleRes] = await Promise.race([
+    [coverageRes, peopleRes, backlogRes, liveRoleRes, settingsRes] = await Promise.race([
       Promise.all([
         db.rpc('get_academic_coverage' as never),
         // Page past the 1000-row PostgREST cap so the census matches the DB.
@@ -102,6 +103,10 @@ export async function GET() {
             .eq('is_deleted', false)
             .range(from, to),
         ),
+        db.from('app_settings')
+          .select('value')
+          .eq('key', 'lms.ops.permissions')
+          .maybeSingle(),
       ]),
       timeout(RPC_TIMEOUT_MS),
     ]);
@@ -128,8 +133,18 @@ export async function GET() {
   const dataQualityWarnings: string[] = [];
   if (backlogRes.error) dataQualityWarnings.push(`Report backlog unavailable: ${backlogRes.error.message}`);
   if (liveRoleRes.error) dataQualityWarnings.push(`Live account census unavailable: ${liveRoleRes.error.message}`);
+  if (settingsRes.error) dataQualityWarnings.push('Accountability automation settings could not be read. Automatic repair is safely off.');
   if (liveTotal !== null && liveTotal !== people.length) {
     dataQualityWarnings.push(`The accountability cache contains ${people.length} people while the live account source contains ${liveTotal}. Refresh the cache before acting on totals.`);
+  }
+  let accountabilityAutoFix = false;
+  if (!settingsRes.error && settingsRes.data?.value) {
+    try {
+      const configured = JSON.parse(settingsRes.data.value) as Record<string, unknown>;
+      accountabilityAutoFix = configured.accountability_auto_fix_class_mismatch === true;
+    } catch {
+      dataQualityWarnings.push('Accountability automation settings are invalid. Automatic repair is safely off.');
+    }
   }
 
   return NextResponse.json(
@@ -148,6 +163,9 @@ export async function GET() {
         complete: dataQualityWarnings.length === 0,
         warnings: dataQualityWarnings,
         checked_at: new Date().toISOString(),
+      },
+      automation: {
+        auto_fix_class_mismatch: accountabilityAutoFix,
       },
     },
     NO_STORE,

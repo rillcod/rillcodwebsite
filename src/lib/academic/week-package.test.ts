@@ -123,6 +123,15 @@ describe("visibility", () => {
     expect(summary.heldCount).toBe(5);
   });
 
+  it("keeps a private slide deck held even when its lesson is live", () => {
+    const visibility = buildWeekVisibility({
+      lesson: { status: "active" },
+      slides: { is_public: false },
+    });
+    expect(visibility.lesson).toBe("live");
+    expect(visibility.slides).toBe("held");
+  });
+
   it("orders classroom actions prepare → release → teach → done", () => {
     const presence = {
       lesson: true,

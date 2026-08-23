@@ -15,6 +15,11 @@ import { deriveHostSchoolReportResult, deriveProgressReportResult, touchesProgre
 import { parseScoreAuthority } from '@/lib/reports/complement';
 import { loadEffectiveScoreWeights } from '@/lib/grading-scheme';
 import { publishedProgressReportEditIssue } from '@/lib/reports/publication';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 function adminClient() {
   return createClient<Database>(
@@ -337,6 +342,10 @@ export async function DELETE(
       error: 'This report has recorded scores. Unpublish to correct it, or archive the learner. Recorded scores cannot be deleted.',
       code: 'PROTECTED_ACADEMIC_EVIDENCE',
     }, { status: 409 });
+  }
+  const cleanupPolicy = await loadCleanupPolicy(admin as any);
+  if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
   }
   const { error } = await admin
     .from('student_progress_reports')

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,7 +90,6 @@ export async function PATCH(
 
     const { id } = await context.params;
     const admin = adminClient();
-
     const { data: existing } = await admin.from('lessons').select('school_id, created_by').eq('id', id).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
 
@@ -170,6 +174,11 @@ export async function DELETE(
     const canManage = await callerCanManageLesson(caller, existing.school_id, existing.created_by);
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
+    }
+
+    const cleanupPolicy = await loadCleanupPolicy(admin as any);
+    if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+      return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
     }
 
     const { error } = await admin

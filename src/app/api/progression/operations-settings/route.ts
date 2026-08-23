@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
+import {
+  clearTrafficControlsCache,
+  DEFAULT_TRAFFIC_CONTROLS,
+  validateTrafficControls,
+} from '@/lib/operations/traffic-controls';
 
 function adminClient() {
   return createSupabase(
@@ -37,6 +43,9 @@ const DEFAULTS: Record<SettingsKey, Record<string, unknown>> = {
     teacher_can_override_locked_progression: false,
     school_can_export_csv: true,
     grade_override_requires_reason: true,
+    // Class rosters remain the authority, but visiting an admin page must not
+    // silently rewrite profile placement unless the administrator chooses it.
+    accountability_auto_fix_class_mismatch: false,
   },
   'lms.ops.approvals': {
     lesson_publish_needs_approval: false,
@@ -85,6 +94,7 @@ const DEFAULTS: Record<SettingsKey, Record<string, unknown>> = {
     duplicate_marker_block: true,
     weekly_backup_export: true,
     audit_retention_days: 365,
+    ...DEFAULT_TRAFFIC_CONTROLS,
   },
   'lms.ops.pwa': {
     force_update_banner: true,
@@ -141,7 +151,7 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ data: payload, readonly: caller.role === 'school' });
+  return NextResponse.json({ data: payload, readonly: caller.role !== 'admin' });
 }
 
 export async function PUT(req: NextRequest) {
@@ -155,6 +165,10 @@ export async function PUT(req: NextRequest) {
   const promotionError = validatePromotionSettings(settings['lms.ops.promotion']);
   if (promotionError) {
     return NextResponse.json({ error: promotionError }, { status: 400 });
+  }
+  const trafficError = validateTrafficControls(settings['lms.ops.integrity']);
+  if (trafficError) {
+    return NextResponse.json({ error: trafficError }, { status: 400 });
   }
   const rows = SETTINGS_KEYS
     .filter((key) => typeof settings[key] === 'object' && settings[key] !== null)
@@ -172,6 +186,29 @@ export async function PUT(req: NextRequest) {
     .from('app_settings')
     .upsert(rows, { onConflict: 'key' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  clearTrafficControlsCache();
+  await logAudit(adminClient() as any, {
+    action: 'update_platform_operations_settings',
+    actorId: caller.id,
+    resourceType: 'app_settings',
+    newValue: `Updated ${rows.length} platform operations setting section${rows.length === 1 ? '' : 's'}`,
+    newValues: {
+      sections: rows.map((row) => row.key),
+      traffic_controls: settings['lms.ops.integrity']
+        ? {
+            api_mutation_rate_limit_enabled: settings['lms.ops.integrity'].api_mutation_rate_limit_enabled,
+            api_mutation_requests_per_window: settings['lms.ops.integrity'].api_mutation_requests_per_window,
+            api_mutation_window_seconds: settings['lms.ops.integrity'].api_mutation_window_seconds,
+            api_origin_guard_mode: settings['lms.ops.integrity'].api_origin_guard_mode,
+            // Record that an allowlist changed, not its deployment details.
+            additional_allowed_origins_configured: Boolean(
+              String(settings['lms.ops.integrity'].api_additional_allowed_origins ?? '').trim(),
+            ),
+          }
+        : undefined,
+    },
+  });
 
   return NextResponse.json({ success: true });
 }

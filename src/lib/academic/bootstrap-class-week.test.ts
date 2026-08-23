@@ -17,7 +17,11 @@ const { generatePlanWeek, notifyWeekReady, updateSpy, planRef } = vi.hoisted(() 
   planRef: { current: null as Record<string, unknown> | null },
 }));
 
-vi.mock('./week-generation', () => ({
+// Only the two generators are stubbed. Everything else — normaliseTypes and the
+// content-type constants the tracked-generation wrapper reads — must stay real, or
+// this mock silently breaks every time that module gains a helper.
+vi.mock('./week-generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./week-generation')>()),
   generatePlanWeek,
   notifyWeekReady,
   currentDeliveryWeek: () => 1,

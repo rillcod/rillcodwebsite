@@ -102,6 +102,7 @@ type Props = {
   setPollInterval: (n: number) => void;
   onRefresh: (force?: boolean) => void;
   onSyncClasses: () => void;
+  autoClassRepairEnabled?: boolean;
   generatedBy?: string;
 };
 
@@ -123,6 +124,7 @@ export default function AccountabilityDashboard({
   setPollInterval,
   onRefresh,
   onSyncClasses,
+  autoClassRepairEnabled = false,
   generatedBy,
 }: Props) {
   const [tab, setTab] = useState<AccountabilityTab>('overview');
@@ -518,6 +520,11 @@ export default function AccountabilityDashboard({
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Open a problem list, fix wrong classes, or message parents.
                       </p>
+                      {analytics.mismatchCount > 0 && (
+                        <p className="mt-1 text-[11px] font-bold text-muted-foreground">
+                          Automatic class repair is {autoClassRepairEnabled ? 'on' : 'off'} in Platform Settings.
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {selectedIds.size > 0 ? (

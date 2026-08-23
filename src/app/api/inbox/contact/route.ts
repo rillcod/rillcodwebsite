@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { rateLimitproxy } from '@/proxies/rateLimit.proxy';
 
 async function callerProfile() {
   const supabase = await createClient();
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
   try {
     const caller = await callerProfile();
     if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const limited = await rateLimitproxy(request, caller.id);
+    if (limited) return limited;
     const body = await request.json();
     const phone = cleanPhone(body.phone);
     const name = String(body.full_name ?? '').trim().slice(0, 100);
@@ -53,6 +56,8 @@ export async function PATCH(request: NextRequest) {
   try {
     const caller = await callerProfile();
     if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const limited = await rateLimitproxy(request, caller.id);
+    if (limited) return limited;
     const body = await request.json();
     const admin = createAdminClient() as any;
     const name = body.full_name === undefined ? undefined : String(body.full_name).trim().slice(0, 100);

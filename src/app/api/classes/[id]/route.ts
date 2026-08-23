@@ -3,6 +3,12 @@ import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { bandForGrade, buildClassName, cleanClassName } from '@/lib/classes/naming';
+import { hasLearnerAssignmentEvidence } from '@/lib/academic/record-retention';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 function adminClient() {
   return createClient(
@@ -62,6 +68,53 @@ async function callerCanManageClass(caller: Caller, classSchoolId: string | null
     return !!ts;
   }
   return false;
+}
+
+async function classHasProtectedAcademicEvidence(admin: ReturnType<typeof adminClient>, classId: string) {
+  const [assignments, cbtExams, writtenExams, reports, termGrades, evidence] = await Promise.all([
+    admin.from('assignments').select('id').eq('class_id', classId),
+    admin.from('cbt_exams').select('id').eq('class_id', classId),
+    admin.from('exams').select('id').eq('class_id', classId),
+    admin.from('student_progress_reports')
+      .select('is_published,calculation_mode,theory_score,practical_score,attendance_score,participation_score,overall_score')
+      .eq('class_id', classId),
+    admin.from('enrollment_term_grades').select('id', { count: 'exact', head: true }).eq('class_id', classId),
+    admin.from('academic_assessment_evidence').select('id', { count: 'exact', head: true }).eq('class_id', classId),
+  ]);
+  const lookupError = [assignments.error, cbtExams.error, writtenExams.error, reports.error, termGrades.error, evidence.error]
+    .find(Boolean);
+  if (lookupError) throw lookupError;
+
+  const assignmentIds = (assignments.data ?? []).map((row) => row.id);
+  const cbtExamIds = (cbtExams.data ?? []).map((row) => row.id);
+  const writtenExamIds = (writtenExams.data ?? []).map((row) => row.id);
+  const [submissions, cbtAttempts, writtenAttempts] = await Promise.all([
+    assignmentIds.length
+      ? admin.from('assignment_submissions')
+        .select('id,submission_text,file_url,submitted_at,answers,grade,weighted_score,graded_at,graded_by,grading_mode,status')
+        .in('assignment_id', assignmentIds)
+      : Promise.resolve({ data: [], error: null }),
+    cbtExamIds.length
+      ? admin.from('cbt_sessions').select('id').in('exam_id', cbtExamIds).limit(1)
+      : Promise.resolve({ data: [], error: null }),
+    writtenExamIds.length
+      ? admin.from('exam_attempts').select('id').in('exam_id', writtenExamIds).limit(1)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const evidenceError = [submissions.error, cbtAttempts.error, writtenAttempts.error].find(Boolean);
+  if (evidenceError) throw evidenceError;
+
+  const reportHasEvidence = (reports.data ?? []).some((report: any) =>
+    report.is_published === true
+    || report.calculation_mode === 'manual'
+    || [report.theory_score, report.practical_score, report.attendance_score, report.participation_score, report.overall_score]
+      .some((score) => score != null));
+  return (submissions.data ?? []).some(hasLearnerAssignmentEvidence)
+    || (cbtAttempts.data?.length ?? 0) > 0
+    || (writtenAttempts.data?.length ?? 0) > 0
+    || reportHasEvidence
+    || (termGrades.count ?? 0) > 0
+    || (evidence.count ?? 0) > 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -272,22 +325,85 @@ export async function DELETE(
     );
   }
 
-  // Clear class_id and section_class on all students in this class before deleting
-  await admin
-    .from('portal_users')
-    .update({ class_id: null, section_class: null })
-    .eq('class_id', id)
-    .eq('role', 'student');
+  const cleanupPolicy = await loadCleanupPolicy(admin as any);
+  if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
+  }
 
-  const { error } = await admin.from('classes').delete().eq('id', id);
+  // Prefer the database transaction: it repeats actor/school checks and rolls
+  // student roster cleanup back if any class dependency refuses deletion.
+  const atomic = await (admin as any).rpc('delete_rebuildable_class', {
+    p_class_id: id,
+    p_actor_id: caller.id,
+  });
+  let detachedStudents = 0;
+  if (!atomic.error) {
+    detachedStudents = Number(atomic.data?.detached_students ?? 0);
+  } else {
+    const code = String(atomic.error.code ?? '');
+    const message = String(atomic.error.message ?? '');
+    if (message.includes('PROTECTED_ACADEMIC_EVIDENCE')) {
+      return NextResponse.json({
+        error: 'This class contains learner submissions, attempts, reports, term grades, or assessment evidence. Keep the class as a historical record instead of deleting it.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
+    }
+    if (code === '42501') return NextResponse.json({ error: 'Access denied' }, { status: 403 });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const functionUnavailable = ['PGRST202', '42883'].includes(code)
+      || message.toLowerCase().includes('could not find the function')
+      || message.toLowerCase().includes('does not exist');
+    if (!functionUnavailable) {
+      console.error('[classes.delete] atomic cleanup failed', { classId: id, code });
+      return NextResponse.json({
+        error: code === '23503'
+          ? 'This class is still used by a teaching plan or another operational record. Remove or move that draft first.'
+          : 'The class could not be removed safely. Nothing was changed; please retry.',
+      }, { status: code === '23503' ? 409 : 500 });
+    }
+
+    // Rolling-deployment fallback. Read evidence first, delete the class before
+    // touching student labels, and rely on the existing FK to clear class_id.
+    // This avoids the former half-detached roster when the class delete failed.
+    try {
+      if (await classHasProtectedAcademicEvidence(admin, id)) {
+        return NextResponse.json({
+          error: 'This class contains learner submissions, attempts, reports, term grades, or assessment evidence. Keep the class as a historical record instead of deleting it.',
+          code: 'PROTECTED_ACADEMIC_EVIDENCE',
+        }, { status: 409 });
+      }
+    } catch (e: any) {
+      console.error('[classes.delete] evidence preflight failed', { classId: id, code: e?.code });
+      return NextResponse.json({ error: 'Academic records could not be verified. Nothing was deleted; please retry.' }, { status: 503 });
+    }
+
+    const { data: roster } = await admin.from('portal_users').select('id').eq('class_id', id).eq('role', 'student');
+    const { error: deleteError } = await admin.from('classes').delete().eq('id', id);
+    if (deleteError) {
+      return NextResponse.json({
+        error: deleteError.code === '23503'
+          ? 'This class is still used by a teaching plan or another operational record. Remove or move that draft first.'
+          : 'The class could not be removed safely. Nothing was changed; please retry.',
+      }, { status: deleteError.code === '23503' ? 409 : 500 });
+    }
+    const rosterIds = (roster ?? []).map((student) => student.id);
+    detachedStudents = rosterIds.length;
+    if (rosterIds.length > 0) {
+      const { error: labelError } = await admin.from('portal_users')
+        .update({ section_class: null })
+        .in('id', rosterIds)
+        .eq('role', 'student');
+      if (labelError) console.error('[classes.delete] stale class label cleanup failed', { classId: id, code: labelError.code });
+    }
+  }
+
   await logAudit(admin as any, {
     action: 'delete_class',
     actorId: caller.id,
     resourceType: 'class',
     resourceId: id,
     oldValue: (cls as any)?.name ?? null,
+    newValues: { detached_students: detachedStudents, atomic: !atomic.error },
   });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, detached_students: detachedStudents });
 }

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { forceDeleteCurriculumDraft } from "@/lib/curriculum/force-delete-draft";
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from "@/lib/operations/cleanup-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -330,6 +335,14 @@ export async function DELETE(
         holding_classes: classNames,
         only_draft_plans: livePlans.length === 0 && draftPlans.length > 0,
       },
+      { status: 409 }
+    );
+  }
+
+  const cleanupPolicy = await loadCleanupPolicy(admin);
+  if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json(
+      { error: STRICT_CLEANUP_MESSAGE, code: "STRICT_RETENTION" },
       { status: 409 }
     );
   }

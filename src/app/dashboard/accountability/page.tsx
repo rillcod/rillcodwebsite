@@ -27,6 +27,7 @@ export default function AccountabilityPage() {
       source: string;
     } | null;
     data_quality?: { complete: boolean; warnings: string[]; checked_at: string };
+    automation?: { auto_fix_class_mismatch: boolean };
   } | null>(null);
   const canViewAccountability = roleHasCapability(profile?.role, 'view_accountability');
   const [exceptionTotals, setExceptionTotals] = useState<Partial<Record<StudentExceptionKind, number>> | null>(null);
@@ -111,9 +112,16 @@ export default function AccountabilityPage() {
     if (canViewAccountability) void load();
   }, [canViewAccountability, load]);
 
-  // Once per visit: if anyone has the wrong class on their account, fix it automatically.
+  // Optional once-per-visit repair. It defaults off: opening an accountability
+  // page should inspect records, not silently rewrite them.
   useEffect(() => {
-    if (autoSynced.current || loading || syncingClasses || !data?.people?.length) return;
+    if (
+      !data?.automation?.auto_fix_class_mismatch
+      || autoSynced.current
+      || loading
+      || syncingClasses
+      || !data?.people?.length
+    ) return;
     const mismatches = data.people.filter((p) => (p.flags ?? []).includes('class_mismatch')).length;
     if (mismatches <= 0) return;
     autoSynced.current = true;
@@ -175,6 +183,7 @@ export default function AccountabilityPage() {
       setPollInterval={setPollInterval}
       onRefresh={(force) => void load(!!force)}
       onSyncClasses={() => void handleSyncClasses()}
+      autoClassRepairEnabled={data?.automation?.auto_fix_class_mismatch === true}
       generatedBy={profile.full_name || profile.email || 'Admin'}
     />
   );

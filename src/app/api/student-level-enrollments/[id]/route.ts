@@ -35,110 +35,52 @@ export async function PATCH(
   const body: PromotionPayload = await req.json();
   const { decision, next_term_label, teacher_notes } = body;
 
-  if (!decision || !next_term_label) {
-    return NextResponse.json({ error: 'decision and next_term_label are required' }, { status: 400 });
+  if (!decision || !['promote', 'repeat', 'complete', 'withdraw'].includes(decision)) {
+    return NextResponse.json({ error: 'Choose a valid curriculum decision' }, { status: 400 });
+  }
+  if (['promote', 'repeat'].includes(decision) && !String(next_term_label ?? '').trim()) {
+    return NextResponse.json({ error: 'Choose the next term for this decision' }, { status: 400 });
+  }
+  if (String(teacher_notes ?? '').length > 2000) {
+    return NextResponse.json({ error: 'Decision note must be 2,000 characters or fewer' }, { status: 400 });
   }
 
-  const db = adminClient();
-
-  // Load current enrollment + course chain
-  const { data: enrollment, error: loadErr } = await db
-    .from('student_level_enrollments')
-    .select('*, courses!course_id(id, title, level_order, next_course_id, program_id, school_id)')
-    .eq('id', id)
-    .single();
-
-  if (loadErr || !enrollment) {
-    return NextResponse.json({ error: 'Enrollment not found' }, { status: 404 });
-  }
-  if (enrollment.status !== 'active') {
-    return NextResponse.json({ error: 'Enrollment is not active' }, { status: 409 });
-  }
-
-  const course: any = enrollment.courses;
-
-  // ── Apply decision ────────────────────────────────────────────────────────
-  if (decision === 'withdraw') {
-    const { error } = await db
-      .from('student_level_enrollments')
-      .update({ status: 'withdrawn', updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: { decision, enrollment_id: id } });
-  }
-
-  if (decision === 'complete') {
-    const { error } = await db
-      .from('student_level_enrollments')
-      .update({ status: 'completed', updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: { decision, enrollment_id: id } });
-  }
-
-  if (decision === 'repeat') {
-    // Close current, open a new enrollment at the same course next term
-    await db.from('student_level_enrollments')
-      .update({ status: 'repeated', updated_at: new Date().toISOString() })
-      .eq('id', id);
-
-    const { data: newEnroll, error } = await db
-      .from('student_level_enrollments')
-      .insert({
-        student_id:  enrollment.student_id,
-        course_id:   enrollment.course_id,
-        school_id:   enrollment.school_id,
-        program_id:  enrollment.program_id,
-        cohort_year: enrollment.cohort_year,
-        term_label:  next_term_label,
-        start_week:  1,
-        status:      'active',
-      })
-      .select()
-      .single();
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: { decision, new_enrollment: newEnroll } });
-  }
-
-  if (decision === 'promote') {
-    const nextCourseId: string | null = course?.next_course_id ?? null;
-
-    // Close current enrollment
-    await db.from('student_level_enrollments')
-      .update({
-        status:       'promoted',
-        promoted_to:  nextCourseId,
-        updated_at:   new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    if (!nextCourseId) {
-      // No next level defined — mark completed instead
-      return NextResponse.json({
-        data: { decision: 'completed_track', message: 'No next level — student has completed the full track' }
-      });
+  const { data, error } = await (adminClient() as any).rpc(
+    'process_student_level_decision',
+    {
+      p_enrollment_id: id,
+      p_decision: decision,
+      p_next_term_label: String(next_term_label ?? '').trim(),
+      p_actor_id: caller.id,
+      p_teacher_notes: String(teacher_notes ?? '').trim() || null,
+    },
+  );
+  if (error) {
+    console.error('[curriculum-level-decision] atomic transition failed', {
+      code: error.code ?? null,
+      enrollmentId: id,
+      actorId: caller.id,
+    });
+    const message = String(error.message ?? '');
+    if (error.code === 'PGRST202' || /process_student_level_decision/i.test(message)) {
+      return NextResponse.json(
+        { error: 'Curriculum decisions are being updated. Try again shortly; no learner record was changed.' },
+        { status: 503 },
+      );
     }
-
-    // Open new enrollment at next level
-    const { data: newEnroll, error } = await db
-      .from('student_level_enrollments')
-      .insert({
-        student_id:  enrollment.student_id,
-        course_id:   nextCourseId,
-        school_id:   enrollment.school_id,
-        program_id:  enrollment.program_id,
-        cohort_year: enrollment.cohort_year,
-        term_label:  next_term_label,
-        start_week:  1,
-        status:      'active',
-      })
-      .select()
-      .single();
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: { decision, new_enrollment: newEnroll } });
+    if (/no longer active/i.test(message)) {
+      return NextResponse.json({ error: 'This learner path was already changed. Refresh before continuing.' }, { status: 409 });
+    }
+    if (/cannot change|active teacher|administrator/i.test(message)) {
+      return NextResponse.json({ error: 'You do not have access to change this learner path.' }, { status: 403 });
+    }
+    if (/not found/i.test(message)) {
+      return NextResponse.json({ error: 'Curriculum enrollment not found.' }, { status: 404 });
+    }
+    return NextResponse.json(
+      { error: 'The curriculum decision was not saved. No learner record was changed.' },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({ error: 'Invalid decision' }, { status: 400 });
+  return NextResponse.json({ data });
 }

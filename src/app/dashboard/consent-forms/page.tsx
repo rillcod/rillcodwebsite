@@ -1015,6 +1015,7 @@ export default function ConsentFormsPage() {
   // Delete
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // Public link / QR
   const [togglingPublicId, setTogglingPublicId] = useState<string | null>(null);
@@ -1207,12 +1208,20 @@ export default function ConsentFormsPage() {
 
   async function deleteForm(id: string) {
     setDeletingId(id);
+    setDeleteError('');
     try {
       const res = await fetch(`/api/consent-forms/${id}`, { method: 'DELETE' });
-      if (res.ok) setForms(prev => prev.filter(f => f.id !== id));
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(json.error ?? 'The form could not be deleted. Nothing was changed; please retry.');
+        return;
+      }
+      setForms(prev => prev.filter(f => f.id !== id));
+      setConfirmDeleteId(null);
+    } catch {
+      setDeleteError('The form could not be deleted because the connection was interrupted. Nothing was changed; please retry.');
     } finally {
       setDeletingId(null);
-      setConfirmDeleteId(null);
     }
   }
 
@@ -1934,11 +1943,16 @@ export default function ConsentFormsPage() {
                   </div>
                   <div>
                     <h3 className="font-black">Delete Form?</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">Deletes all responses and leads. Cannot be undone.</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">Removes this form and linked build/test entries. Standard and Strict settings retain submitted records. This cannot be undone.</p>
                   </div>
                 </div>
+                {deleteError && (
+                  <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {deleteError}
+                  </p>
+                )}
                 <div className="flex gap-3">
-                  <button onClick={() => setConfirmDeleteId(null)} className="flex-1 py-2.5 border border-border text-muted-foreground font-bold rounded-xl text-sm hover:bg-muted transition-colors">Cancel</button>
+                  <button onClick={() => { setConfirmDeleteId(null); setDeleteError(''); }} className="flex-1 py-2.5 border border-border text-muted-foreground font-bold rounded-xl text-sm hover:bg-muted transition-colors">Cancel</button>
                   <button
                     onClick={() => deleteForm(confirmDeleteId)}
                     disabled={deletingId === confirmDeleteId}

@@ -5,6 +5,7 @@ import { errorHandler } from '@/proxies/error.proxy';
 import { withLogging } from '@/proxies/logging.proxy';
 import { AppError, AuthenticationError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import { evaluateMutationOrigin, isSafeApiMethod, loadTrafficControls } from '@/lib/operations/traffic-controls';
 
 export interface ApiContext {
     params: any | Promise<any>; // Support Next.js 15 async params while satisfying the required constraint
@@ -39,17 +40,8 @@ export function withApiProxy(
         let status = 200;
 
         try {
-            // 1. Rate Limiting
-            if (options.rateLimit !== false) {
-                const rateLimitRes = await rateLimitproxy(req);
-                if (rateLimitRes) {
-                    status = rateLimitRes.status;
-                    withLogging(req, startTime, status);
-                    return rateLimitRes;
-                }
-            }
-
-            // 2. Auth & Tenant Proxy
+            // 1. Auth & Tenant Proxy. Resolve the caller before traffic control
+            // so a whole school sharing one public IP does not share one counter.
             if (options.requireAuth || options.requireTenant || options.roles) {
                 let authRes = NextResponse.next();
                 authRes = await tenantproxy(req, authRes);
@@ -79,7 +71,41 @@ export function withApiProxy(
                 };
             }
 
-            // 3. Execute Handler
+            // 2. Configurable browser-origin protection. Observation is the
+            // default while native/public traffic is being verified.
+            if (!isSafeApiMethod(req.method)) {
+                const controls = await loadTrafficControls();
+                const origin = evaluateMutationOrigin(req, controls);
+                if (!origin.accepted && controls.api_origin_guard_mode !== 'off') {
+                    logger.warn('API_ORIGIN_GUARD', {
+                        mode: controls.api_origin_guard_mode,
+                        userId: ctx.user?.id,
+                        method: req.method,
+                        url: req.nextUrl.pathname,
+                        observedOrigin: origin.origin,
+                    });
+                    if (controls.api_origin_guard_mode === 'enforce') {
+                        const response = NextResponse.json(
+                            { error: 'This request could not be verified. Refresh the page and try again.' },
+                            { status: 403 },
+                        );
+                        withLogging(req, startTime, 403, ctx.user?.id, ctx.user?.tenantId);
+                        return response;
+                    }
+                }
+            }
+
+            // 3. Configurable write-burst protection. Safe reads do not count.
+            if (options.rateLimit !== false) {
+                const rateLimitRes = await rateLimitproxy(req, ctx.user?.id);
+                if (rateLimitRes) {
+                    status = rateLimitRes.status;
+                    withLogging(req, startTime, status, ctx.user?.id, ctx.user?.tenantId);
+                    return rateLimitRes;
+                }
+            }
+
+            // 4. Execute Handler
             const resolvedParams = await ctx.params;
             const resolvedCtx = { ...ctx, params: resolvedParams };
             const response = await handler(req, resolvedCtx);

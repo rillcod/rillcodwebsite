@@ -74,6 +74,21 @@ type FanoutSummary = {
   allUnreachable: boolean;
 };
 
+type TrafficProtection = {
+  api_mutation_rate_limit_enabled: boolean;
+  api_mutation_requests_per_window: number;
+  api_mutation_window_seconds: number;
+  sharedStoreConfigured: boolean;
+  api_origin_guard_mode: 'off' | 'observe' | 'enforce';
+};
+
+type SecurityObservations = {
+  available: boolean;
+  last24Hours: number;
+  latestAt: string | null;
+  topDirectives: Array<{ directive: string; count: number }>;
+};
+
 // Labels live in the cron registry alongside the schedule, so a new job is named once.
 const friendlyJob = cronLabel;
 
@@ -108,6 +123,8 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
   const [generationIncidents, setGenerationIncidents] = useState<GenerationIncident[]>([]);
   const [fanout, setFanout] = useState<FanoutSummary | null>(null);
   const [waiting, setWaiting] = useState<WaitingRow[]>([]);
+  const [trafficProtection, setTrafficProtection] = useState<TrafficProtection | null>(null);
+  const [securityObservations, setSecurityObservations] = useState<SecurityObservations | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -124,6 +141,8 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       setGenerationIncidents(json.generationIncidents ?? []);
       setFanout(json.fanout ?? null);
       setWaiting(json.waiting ?? []);
+      setTrafficProtection(json.trafficProtection ?? null);
+      setSecurityObservations(json.securityObservations ?? null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load operations health.');
     } finally {
@@ -228,6 +247,71 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
           </div>
         ))}
       </div>
+
+      {trafficProtection ? (
+        <section className={`rounded-2xl border p-5 ${
+          !trafficProtection.api_mutation_rate_limit_enabled
+            ? 'border-amber-500/40 bg-amber-500/5'
+            : trafficProtection.sharedStoreConfigured
+              ? 'border-emerald-500/30 bg-emerald-500/5'
+              : 'border-amber-500/40 bg-amber-500/5'
+        }`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-black">API write protection</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {!trafficProtection.api_mutation_rate_limit_enabled
+                  ? 'Turned off by an administrator. Normal work remains available.'
+                  : trafficProtection.sharedStoreConfigured
+                    ? `Shared protection is active: ${trafficProtection.api_mutation_requests_per_window} writes per ${trafficProtection.api_mutation_window_seconds} seconds, per user and feature area.`
+                    : 'Protection is active per app instance, but no shared counter is configured. Normal work is not blocked; coordinated abuse protection is weaker across multiple instances.'}
+              </p>
+              <p className="mt-2 text-xs font-bold text-foreground">
+                Browser request checks: {trafficProtection.api_origin_guard_mode === 'enforce'
+                  ? 'Enforced'
+                  : trafficProtection.api_origin_guard_mode === 'observe'
+                    ? 'Observation only — nothing is blocked'
+                    : 'Off'}
+              </p>
+            </div>
+            <Link
+              href="/dashboard/settings?tab=lms-config"
+              className="inline-flex min-h-11 shrink-0 touch-manipulation items-center rounded-xl border border-border px-4 py-2 text-sm font-black"
+            >
+              Change settings
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {securityObservations ? (
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-black">Browser security observations</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {!securityObservations.available
+                  ? 'Observation storage is awaiting setup. No customer work is blocked.'
+                  : securityObservations.last24Hours === 0
+                    ? 'No browser policy conflicts were recorded in the last 24 hours. The policy is still observation-only.'
+                    : `${securityObservations.last24Hours} policy conflict${securityObservations.last24Hours === 1 ? '' : 's'} were observed in the last 24 hours. Nothing was blocked.`}
+              </p>
+              {securityObservations.topDirectives.length > 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Most common: {securityObservations.topDirectives
+                    .map((row) => `${row.directive.replace(/-/g, ' ')} (${row.count})`)
+                    .join(', ')}
+                </p>
+              ) : null}
+            </div>
+            {securityObservations.latestAt ? (
+              <span className="shrink-0 text-xs font-bold text-muted-foreground">
+                Latest {new Date(securityObservations.latestAt).toLocaleString()}
+              </span>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {/*
         Placed above the machine panels on purpose. Everything below this is the

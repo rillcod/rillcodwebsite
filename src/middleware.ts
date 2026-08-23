@@ -7,33 +7,6 @@ import {
   isSupabaseAuthStorageKey,
 } from '@/lib/auth/session-recovery';
 
-// Simple sliding window rate limiter using request headers
-// For production, use Upstash Redis. This is an IP-based in-process limiter.
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX = 60; // 60 requests per minute per IP for inbox APIs
-
-// In-memory store (resets on cold start — acceptable for edge protection)
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-function getRateLimitKey(req: NextRequest): string {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown';
-  return `inbox:${ip}`;
-}
-
-function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const record = rateLimitStore.get(key);
-  if (!record || record.resetAt <= now) {
-    rateLimitStore.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
-  }
-  record.count += 1;
-  const remaining = Math.max(0, RATE_LIMIT_MAX - record.count);
-  return { allowed: record.count <= RATE_LIMIT_MAX, remaining, resetAt: record.resetAt };
-}
-
 function expireSupabaseAuthCookies(
   request: NextRequest,
   response: NextResponse,
@@ -61,35 +34,6 @@ function copyResponseCookies(source: NextResponse, target: NextResponse): void {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  let rateLimitHeaders: Record<string, string> | null = null;
-
-  // Apply rate limiting only to inbox API routes
-  if (pathname.startsWith('/api/inbox')) {
-    const key = getRateLimitKey(request);
-    const { allowed, remaining, resetAt } = checkRateLimit(key);
-
-    if (!allowed) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': String(RATE_LIMIT_MAX),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil(resetAt / 1000)),
-            'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)),
-          },
-        }
-      );
-    }
-
-    rateLimitHeaders = {
-      'X-RateLimit-Limit': String(RATE_LIMIT_MAX),
-      'X-RateLimit-Remaining': String(remaining),
-      'X-RateLimit-Reset': String(Math.ceil(resetAt / 1000)),
-    };
-  }
-
   const host = request.headers.get('host');
   const userAgent = request.headers.get('user-agent') || '';
 
@@ -112,11 +56,7 @@ export async function middleware(request: NextRequest) {
   const requiresAuthCheck = pathname.startsWith('/dashboard') || pathname === '/login';
 
   if (!requiresAuthCheck) {
-    const res = NextResponse.next();
-    if (rateLimitHeaders) {
-      Object.entries(rateLimitHeaders).forEach(([k, v]) => res.headers.set(k, v));
-    }
-    return res;
+    return NextResponse.next();
   }
 
   const { supabase, getResponse } = createMiddlewareSupabase(request);
@@ -213,16 +153,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const response = getResponse();
-  if (rateLimitHeaders) {
-    Object.entries(rateLimitHeaders).forEach(([k, v]) => response.headers.set(k, v));
-  }
-  return response;
+  return getResponse();
 }
 
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
-    '/api/inbox/:path*',
   ],
 };

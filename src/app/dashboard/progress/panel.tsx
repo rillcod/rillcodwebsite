@@ -6,25 +6,18 @@ import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChartBarIcon,
-  AcademicCapIcon,
   CheckCircleIcon,
   ClockIcon,
   TrophyIcon,
   BookOpenIcon,
   ClipboardDocumentCheckIcon,
   ArrowTrendingUpIcon,
-  StarIcon,
   ExclamationTriangleIcon,
-  SparklesIcon,
   BuildingOfficeIcon,
 } from "@/lib/icons";
+import { getWAECGrade } from "@/lib/grading";
 import { brandContact } from "@/config/brand";
 import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   ResponsiveContainer,
   Tooltip as ReTooltip,
   LineChart,
@@ -179,7 +172,7 @@ export default function ProgressPage({
           const enrQuery = supabase
             .from("enrollments")
             .select(
-              `id, status, grade, progress_pct, enrollment_date, user_id,
+              `id, status, grade, enrollment_date, user_id,
                 programs ( id, name, difficulty_level, duration_weeks ),
                 enrollment_term_grades ( term_id, grade, notes )`
             )
@@ -272,7 +265,7 @@ export default function ProgressPage({
             supabase
               .from("enrollments")
               .select(
-                `id, status, grade, progress_pct, enrollment_date,
+                `id, status, grade, enrollment_date,
                 programs ( id, name, difficulty_level, duration_weeks ),
                 enrollment_term_grades ( term_id, grade, notes )`
               )
@@ -421,63 +414,10 @@ export default function ProgressPage({
   const completed = activeSubs.filter((s) => s.status === "graded").length;
   const pending = activeSubs.filter((s) => s.status === "submitted").length;
 
-  // ── Skill Analysis ────────────────────────────────────────
-  const skillsConfig = [
-    {
-      name: "Logic",
-      keywords: ["logic", "math", "algorithm", "loop", "condition"],
-    },
-    {
-      name: "Design",
-      keywords: ["css", "style", "design", "ui", "ux", "color", "layout"],
-    },
-    {
-      name: "Dev Ops",
-      keywords: ["deploy", "git", "terminal", "shell", "cloud"],
-    },
-    {
-      name: "Execution",
-      keywords: ["build", "create", "dev", "app", "coding"],
-    },
-    {
-      name: "Problem Solving",
-      keywords: ["debug", "fix", "challenge", "error", "refactor"],
-    },
-  ];
-
-  const skillData = skillsConfig.map((skill) => {
-    const relevantSubs = graded.filter((s) => {
-      const title = (s.assignments?.title || "").toLowerCase();
-      return skill.keywords.some((k) => title.includes(k));
-    });
-    const avg = relevantSubs.length
-      ? Math.round(
-          relevantSubs.reduce(
-            (a, s) => a + (s.grade / (s.assignments?.max_points ?? 100)) * 100,
-            0
-          ) / relevantSubs.length
-        )
-      : 0;
-    return { subject: skill.name, A: avg || 0, fullMark: 100 };
-  });
-
-  // If no specific skill data, provide default starter data for UI
-  const hasSkillData = skillData.some((d) => d.A > 0);
-  const displaySkillData = hasSkillData
-    ? skillData
-    : [
-        { subject: "Logic", A: 45, fullMark: 100 },
-        { subject: "Design", A: 30, fullMark: 100 },
-        { subject: "Dev Ops", A: 20, fullMark: 100 },
-        { subject: "Execution", A: 50, fullMark: 100 },
-        { subject: "Problem Solving", A: 40, fullMark: 100 },
-      ];
-
   // ── Color helpers ─────────────────────────────────────────
   const pctColor = (p: number) =>
     p >= 70 ? "#10b981" : p >= 50 ? "#f59e0b" : "#ef4444";
-  const letter = (p: number) =>
-    p >= 90 ? "A" : p >= 80 ? "B" : p >= 70 ? "C" : p >= 60 ? "D" : "F";
+  const assignmentGrade = avgScore == null ? null : getWAECGrade(avgScore);
 
   if (authLoading || loading)
     return (
@@ -809,7 +749,7 @@ export default function ProgressPage({
         {/* Score ring + stats (student) */}
         {!isStaff && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Ring & Mastery Chart */}
+            {/* Current graded assignment evidence */}
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-card shadow-sm border border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -mr-12 -mt-12" />
@@ -829,63 +769,14 @@ export default function ProgressPage({
                         className="text-sm font-bold mt-1"
                         style={{ color: pctColor(avgScore) }}
                       >
-                        {letter(avgScore)}
+                        {assignmentGrade?.code}
                       </span>
                     )}
                   </div>
                 </div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">
-                  Cumulative Mastery
+                  Graded assignment average
                 </p>
-              </div>
-
-              <div className="bg-card shadow-sm border border-border rounded-xl p-4 h-[280px]">
-                <div className="flex items-center gap-2 mb-2 px-2">
-                  <SparklesIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    Skill Mastery
-                  </span>
-                </div>
-                <div className="h-[220px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart
-                      cx="50%"
-                      cy="50%"
-                      outerRadius="70%"
-                      data={displaySkillData}
-                    >
-                      <PolarGrid stroke="#ffffff10" />
-                      <PolarAngleAxis
-                        dataKey="subject"
-                        tick={{
-                          fill: "#ffffff40",
-                          fontSize: 10,
-                          fontWeight: 700,
-                        }}
-                      />
-                      <Radar
-                        name="Skills"
-                        dataKey="A"
-                        stroke="#8b5cf6"
-                        strokeWidth={2}
-                        fill="#8b5cf6"
-                        fillOpacity={0.6}
-                      />
-                      <ReTooltip
-                        contentStyle={{
-                          backgroundColor: "#0f0f1a",
-                          border: "1px solid #ffffff10",
-                          borderRadius: "12px",
-                        }}
-                        itemStyle={{
-                          color: "#fff",
-                          fontSize: "10px",
-                          fontWeight: "bold",
-                        }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
               </div>
             </div>
 
@@ -959,24 +850,21 @@ export default function ProgressPage({
                 ))}
               </div>
 
-              {/* Weekly Trend Placeholder or Insight */}
+              {/* Evidence-bounded guidance; never invent rank or mastery. */}
               <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-xl p-6 sm:p-8 flex items-center gap-6">
                 <div className="shrink-0 p-4 bg-primary/20 rounded-xl text-primary">
                   <ArrowTrendingUpIcon className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-lg font-black text-foreground italic tracking-tight">
-                    Performance Insight
+                    What this summary means
                   </h4>
                   <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                    Based on your recent scores in{" "}
-                    <span className="text-primary font-bold">
-                      Coding & Logic
-                    </span>
-                    , you are performing in the{" "}
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">top 15%</span>{" "}
-                    of your class. Keep up the consistent effort to reach
-                    Diamond tier!
+                    {graded.length === 0
+                      ? "No graded assignment evidence is available yet. Submitted work will appear here after teacher review."
+                      : pending > 0
+                        ? `The average uses ${graded.length} graded submission${graded.length === 1 ? "" : "s"}. ${pending} submitted item${pending === 1 ? " is" : "s are"} still awaiting review and do not affect it yet.`
+                        : `The average uses ${graded.length} graded submission${graded.length === 1 ? "" : "s"}. Published report results below remain the official term record.`}
                   </p>
                 </div>
               </div>
@@ -1051,7 +939,6 @@ export default function ProgressPage({
             <div className="divide-y divide-white/5">
               {activeEnr.slice(0, 100).map((e: any) => {
                 const prog = e.programs;
-                const pct = e.progress_pct ?? 0;
                 return (
                   <div
                     key={e.id}
@@ -1066,17 +953,9 @@ export default function ProgressPage({
                           {e.portal_users.full_name}
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="flex-1 h-2 bg-card shadow-sm rounded-full overflow-hidden">
-                          <div
-                            style={{ width: `${pct}%` }}
-                            className="h-2 bg-primary rounded-full transition-all duration-500"
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-8 text-right">
-                          {pct}%
-                        </span>
-                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                        Curriculum completion is shown in Teaching coverage and the learner&apos;s learning path, where it is calculated from recorded week delivery.
+                      </p>
                     </div>
                     <div className="flex-shrink-0 text-right">
                       <span
@@ -1227,7 +1106,7 @@ export default function ProgressPage({
                             className="font-extrabold text-lg"
                             style={{ color: pctColor(pct) }}
                           >
-                            {letter(pct)}
+                            {getWAECGrade(pct).code}
                           </span>
                           <p className="text-xs text-muted-foreground">
                             {s.grade}/{max}

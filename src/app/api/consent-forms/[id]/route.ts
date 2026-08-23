@@ -5,6 +5,14 @@ import { canAccessSchool } from '@/lib/auth/school-scope';
 import { listLeadChildLinksForLeads, syncLeadChildrenFromParentOwnership } from '@/lib/consent/lead-child-links';
 
 import { resolveConsentGateway } from '@/lib/consent/pathway-gateway';
+import { logAudit } from '@/lib/audit/log';
+import {
+  ISSUED_RECORD_RETENTION_MESSAGE,
+  loadCleanupPolicy,
+  mayHardDeleteIssuedOperationalRecord,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -218,7 +226,49 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { error } = await supabase.from('consent_forms').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  const admin = adminClient();
+  const [responsesResult, leadsResult, cleanupPolicy] = await Promise.all([
+    admin.from('consent_responses').select('id', { count: 'exact', head: true }).eq('form_id', id),
+    admin.from('form_leads').select('id', { count: 'exact', head: true }).eq('form_id', id),
+    loadCleanupPolicy(admin as any),
+  ]);
+  const preflightError = responsesResult.error || leadsResult.error;
+  if (preflightError) {
+    console.error('[consent-form.delete] record preflight failed', { formId: id, code: preflightError.code });
+    return NextResponse.json({ error: 'Consent records could not be verified. Nothing was deleted; please retry.' }, { status: 503 });
+  }
+  const responseCount = responsesResult.count ?? 0;
+  const leadCount = leadsResult.count ?? 0;
+  const issuedRecordCount = responseCount + leadCount;
+  if (issuedRecordCount > 0 && !mayHardDeleteIssuedOperationalRecord(cleanupPolicy)) {
+    return NextResponse.json({
+      error: ISSUED_RECORD_RETENTION_MESSAGE,
+      code: 'ISSUED_RECORD_RETENTION',
+      response_count: responseCount,
+      lead_count: leadCount,
+    }, { status: 409 });
+  }
+  if (issuedRecordCount === 0 && !mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
+  }
+
+  const { data: deleted, error } = await admin.from('consent_forms').delete().eq('id', id).select('id').maybeSingle();
+  if (error) {
+    console.error('[consent-form.delete] delete failed', { formId: id, code: error.code });
+    return NextResponse.json({
+      error: error.code === '23503'
+        ? 'This form is still linked to an onboarding record. Move or archive that record before deleting the form.'
+        : 'The consent form could not be deleted safely. Nothing was changed; please retry.',
+    }, { status: error.code === '23503' ? 409 : 500 });
+  }
+  if (!deleted) return NextResponse.json({ error: 'Consent form was not deleted. Please refresh and retry.' }, { status: 409 });
+  await logAudit(admin as any, {
+    action: 'delete_consent_form',
+    actorId: user.id,
+    resourceType: 'consent_form',
+    resourceId: id,
+    oldValues: { response_count: responseCount, lead_count: leadCount, cleanup_policy: cleanupPolicy },
+    newValue: 'Deleted consent form through the configured cleanup policy',
+  });
+  return NextResponse.json({ success: true, removed_responses: responseCount, removed_leads: leadCount });
 }

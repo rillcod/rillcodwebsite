@@ -12,7 +12,8 @@ import {
   type BridgeOfferingResult,
 } from '@/lib/special-programs/bridge-offering';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
-import { currentDeliveryWeek, generatePlanWeek, notifyWeekReady } from '@/lib/academic/week-generation';
+import { currentDeliveryWeek, notifyWeekReady } from '@/lib/academic/week-generation';
+import { generateTrackedPlanWeek } from '@/lib/academic/tracked-week-generation';
 import {
   notifyAdminTeachingLaunch,
   writeTeachingLaunchStatus,
@@ -229,14 +230,18 @@ export async function launchSpecialProgramTeaching(input: {
     // Fast launch: one class meeting only (Week N · Class 1). The rest of the
     // week and later weeks keep flowing via cron / teacher AI — one meeting at
     // a time so the model does not run out of context.
-    const outcome = await generatePlanWeek({
+    const { outcome } = await generateTrackedPlanWeek({
+      db,
       planId,
+      classId: plan.class_id ?? null,
       week,
       session: 1,
       types: ags.types,
       cookie: input.cookie,
       cronSecret: input.cronSecret,
       autoPublish: false,
+      source: 'bootstrap',
+      actorId: input.createdBy,
     });
 
     // When the engine produces nothing, leave the week to the AI week generator

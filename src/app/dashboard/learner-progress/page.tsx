@@ -59,8 +59,8 @@ type ViewId =
 const VIEWS = [
   {
     id: "overview" as const,
-    label: "Learner overview",
-    purpose: "Scores, submissions and current evidence",
+    label: "Assignment overview",
+    purpose: "Graded assignments, pending review and published reports",
     icon: ChartBarIcon,
     roles: ["admin", "teacher", "school"],
   },
@@ -95,7 +95,7 @@ const VIEWS = [
   {
     id: "history" as const,
     label: "Change history",
-    purpose: "Who changed academic records and rules",
+    purpose: "Human-readable curriculum decisions and rule changes",
     icon: ClipboardDocumentListIcon,
     roles: ["admin"],
   },

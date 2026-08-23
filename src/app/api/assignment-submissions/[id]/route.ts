@@ -1,5 +1,8 @@
 import { denyIfMissingCapability } from '@/lib/auth/capabilities';
-import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
+import {
+  hasLearnerAssignmentEvidence,
+  hasProtectedAssignmentScoreEvidence,
+} from '@/lib/academic/record-retention';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -9,6 +12,11 @@ import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 import { buildAssignmentGradeTransition, gradeAssignmentRubric } from '@/lib/assignments/grading';
 import { logAudit } from '@/lib/audit/log';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -348,7 +356,7 @@ export async function DELETE(
 
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignment_id, grade, weighted_score, graded_at, graded_by, grading_mode, status, assignments(school_id, created_by, class_id, metadata)')
+      .select('id, assignment_id, submission_text, file_url, submitted_at, answers, grade, weighted_score, graded_at, graded_by, grading_mode, status, assignments(school_id, created_by, class_id, metadata)')
       .eq('id', id)
       .maybeSingle();
 
@@ -363,11 +371,16 @@ export async function DELETE(
       );
     }
 
-    if (hasProtectedAssignmentScoreEvidence(sub)) {
+    if (hasLearnerAssignmentEvidence(sub)) {
       return NextResponse.json({
-        error: 'This submission contains a recorded score and cannot be deleted. Correct the grade through the grading workflow.',
+        error: 'This learner has submitted work here, so it cannot be deleted. Return or correct it through the review workflow; submitted work and scores stay protected.',
         code: 'PROTECTED_ACADEMIC_EVIDENCE',
       }, { status: 409 });
+    }
+
+    const cleanupPolicy = await loadCleanupPolicy(admin as any);
+    if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+      return NextResponse.json({ error: STRICT_CLEANUP_MESSAGE, code: 'STRICT_RETENTION' }, { status: 409 });
     }
 
     const { error } = await admin.from('assignment_submissions').delete().eq('id', id);

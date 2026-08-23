@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { extractLessonPlanOperationWeeks, metadataMatchesWeek } from '@/lib/progression/lessonPlanOperation';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { buildLessonPlanReleaseBoard } from '@/lib/academic/lesson-plan-release-board';
+import { summarizeTeachingGenerationRuns } from '@/lib/academic/tracked-week-generation';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +33,8 @@ type PackageAssetRow = {
   curriculum_week_number: number | null;
   session_number: number | null;
   is_public: boolean | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   metadata: Dict | null;
 };
 type PerformanceRow = {
@@ -50,24 +55,6 @@ type AuditRow = {
   reason: string | null;
   created_at: string;
 };
-
-function asObject(value: unknown): Dict {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Dict)
-    : {};
-}
-
-function getYearTermWeek(week: Dict) {
-  const syllabusRef = asObject(week.syllabus_ref);
-  const year = Number(syllabusRef.year_number ?? 1);
-  const term = Number(syllabusRef.term_number ?? 1);
-  const weekNumber = Number(week.week ?? syllabusRef.week_number ?? 0);
-  return {
-    year: Number.isFinite(year) && year > 0 ? year : 1,
-    term: Number.isFinite(term) && term > 0 ? term : 1,
-    week: Number.isFinite(weekNumber) && weekNumber > 0 ? weekNumber : 0,
-  };
-}
 
 export async function GET(
   _req: Request,
@@ -105,9 +92,9 @@ export async function GET(
   const [
     scheduleRes,
     lessonsRes,
-    assignmentsRes,
     slidesRes,
     flashcardsRes,
+    assignmentsRes,
     performanceRes,
     auditRes,
   ] = await Promise.all([
@@ -129,12 +116,12 @@ export async function GET(
       : Promise.resolve({ data: [], error: null }),
     (supabase as any)
       .from('lesson_materials')
-      .select('id,curriculum_week_number,session_number,is_public,metadata')
+      .select('id,lesson_id,curriculum_week_number,session_number,is_public,created_at,metadata')
       .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
       .eq('file_type', 'slide-deck'),
     (supabase as any)
       .from('flashcard_decks')
-      .select('id,curriculum_week_number,session_number,is_public,metadata')
+      .select('id,lesson_id,curriculum_week_number,session_number,is_public,updated_at,metadata')
       .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
     plan.course_id
       ? (() => {
@@ -179,88 +166,31 @@ export async function GET(
   const performanceRows = (performanceRes.data ?? []) as PerformanceRow[];
   const auditRows = (auditRes.data ?? []) as AuditRow[];
 
-  const releaseBoard = weeks.map((rawWeek) => {
-    const week = asObject(rawWeek);
-    const ref = getYearTermWeek(week);
-    const lessons = lessonRows.filter((row) => {
-      const metadata = asObject(row.metadata);
-      return metadataMatchesWeek({
-        ...metadata,
-        week_number: row.curriculum_week_number ?? metadata.week_number,
-        session_number: row.session_number ?? metadata.session_number,
-      }, week, ref.year, ref.term);
-    });
-    const assignments = assignmentRows.filter((row) => {
-      const metadata = asObject(row.metadata);
-      return metadataMatchesWeek({
-        ...metadata,
-        week_number: row.curriculum_week_number ?? metadata.week_number,
-        session_number: row.session_number ?? metadata.session_number,
-      }, week, ref.year, ref.term);
-    });
-    const slides = slideRows.filter((row) => {
-      const metadata = asObject(row.metadata);
-      return metadataMatchesWeek({
-        ...metadata,
-        week_number: row.curriculum_week_number ?? metadata.week_number,
-        session_number: row.session_number ?? metadata.session_number,
-      }, week, ref.year, ref.term);
-    });
-    const flashcards = flashcardRows.filter((row) => {
-      const metadata = asObject(row.metadata);
-      return metadataMatchesWeek({
-        ...metadata,
-        week_number: row.curriculum_week_number ?? metadata.week_number,
-        session_number: row.session_number ?? metadata.session_number,
-      }, week, ref.year, ref.term);
-    });
-    const publishedLessons = lessons.filter((row) => ['active', 'published'].includes(row.status ?? '')).length;
-    const activeAssignments = assignments.filter((row) => row.is_active === true).length;
-    const publicSlides = slides.filter((row) => row.is_public === true).length;
-    const publicFlashcards = flashcards.filter((row) => row.is_public === true).length;
-    const totalItems = lessons.length + assignments.length + slides.length + flashcards.length;
-    const releasedItems = publishedLessons + activeAssignments + publicSlides + publicFlashcards;
-    const status =
-      totalItems === 0 ? 'pending'
-        : releasedItems === 0 ? 'draft'
-        : releasedItems === totalItems ? 'released'
-        : 'partial';
-    const history = [
-      ...lessons
-        .filter((row) => row.updated_at)
-        .map((row) => ({
-          type: 'lesson',
-          at: row.updated_at as string,
-          status: row.status,
-        })),
-      ...assignments
-        .filter((row) => row.updated_at)
-        .map((row) => ({
-          type: row.assignment_type as string,
-          at: row.updated_at as string,
-          status: row.is_active ? 'active' : 'draft',
-        })),
-    ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-
-    return {
-      key: `y${ref.year}t${ref.term}w${ref.week}`,
-      year_number: ref.year,
-      term_number: ref.term,
-      week_number: ref.week,
-      topic: typeof week.topic === 'string' ? week.topic : `Week ${ref.week}`,
-      release_status: status,
-      lessons_total: lessons.length,
-      lessons_published: publishedLessons,
-      assignments_total: assignments.length,
-      assignments_active: activeAssignments,
-      slides_total: slides.length,
-      slides_public: publicSlides,
-      flashcards_total: flashcards.length,
-      flashcards_public: publicFlashcards,
-      latest_release_at: history[0]?.at ?? null,
-      history: history.slice(0, 5),
-    };
+  const releaseBoard = buildLessonPlanReleaseBoard({
+    planWeeks: weeks,
+    lessons: lessonRows,
+    assignments: assignmentRows.filter((row) => row.assignment_type !== 'project'),
+    projects: assignmentRows.filter((row) => row.assignment_type === 'project'),
+    slideDecks: slideRows,
+    flashcardDecks: flashcardRows,
   });
+  const trackingDb = createAdminClient() as any;
+  const generationRes = await trackingDb
+    .from('teaching_generation_runs')
+    .select('status,curriculum_week_number,session_number,failed_types,started_at,completed_at')
+    .eq('lesson_plan_id', id)
+    .order('started_at', { ascending: false })
+    .limit(20);
+  if (generationRes.error && !['42P01', '42703'].includes(generationRes.error.code ?? '')) {
+    console.warn('[lesson-plan-operations] generation tracking unavailable', {
+      code: generationRes.error.code ?? null,
+      planId: id,
+    });
+  }
+  const generationSummary = summarizeTeachingGenerationRuns(
+    generationRes.data ?? [],
+    !generationRes.error,
+  );
 
   const analyticsSummary = (() => {
     const total = performanceRows.length;
@@ -338,6 +268,7 @@ export async function GET(
     data: {
       schedule: scheduleRes.data ?? null,
       release_board: releaseBoard,
+      generation: generationSummary,
       analytics: {
         summary: analyticsSummary,
         terms: analyticsTerms,
