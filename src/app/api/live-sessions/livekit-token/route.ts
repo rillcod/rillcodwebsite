@@ -15,6 +15,7 @@ import {
   ensureLiveKitRoom,
   roomNameForSession,
 } from '@/lib/live-sessions/livekit-server';
+import { checkLiveKitJoinCapacity } from '@/lib/live-sessions/capacity';
 
 /** Browser client needs ws(s):// — tolerate http(s):// or a bare host in env. */
 function clientLiveKitUrl(url: string) {
@@ -110,10 +111,25 @@ export async function POST(req: NextRequest) {
     });
 
     const token = await at.toJwt();
+    const url = clientLiveKitUrl(LIVEKIT_URL);
+
+    // A minted token proves nothing about whether LiveKit will accept the join:
+    // signing happens here, with no network involved. When the account is out of
+    // connection minutes LiveKit refuses the browser's join with a 429 that the
+    // client SDK retries silently, so the class sits on "Connecting…" and no part of
+    // our own system reports a failure. Ask once, briefly, so the teacher is told.
+    //
+    // Fail-open by construction: anything short of an explicit capacity refusal
+    // returns not-blocked, so this can add an explanation but never cause an outage.
+    const capacity = await checkLiveKitJoinCapacity({ wsUrl: url, token });
+    if (capacity.blocked) {
+      console.error('[livekit] join refused for capacity', { roomName, identity });
+      return NextResponse.json({ error: capacity.message }, { status: 503 });
+    }
 
     return NextResponse.json({
       token,
-      url: clientLiveKitUrl(LIVEKIT_URL),
+      url,
       roomName,
       isModerator,
       displayName,

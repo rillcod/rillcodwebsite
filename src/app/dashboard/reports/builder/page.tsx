@@ -24,7 +24,6 @@ import {
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
-import { coursesVisibleForReportPicker } from '@/lib/reports/builder-course-picker';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -56,6 +55,13 @@ import { ManualProtectionBanner, AutoFillStatusBanner, AutoFillEditConfirmDialog
 import { formatClassRowOptionLabel, ReportSessionContextBanner } from '@/components/reports/ReportSessionContextBanner';
 import { resolveSmartWorkingSession, classSessionFromTerms, sessionFromReport, liveSessionLike } from '@/lib/reports/session-scope';
 import { resolveWriteHydrateSession } from '@/lib/reports/session-workflows';
+import {
+    canPersistWriterSession,
+    coursesForProgramme,
+    parseWriterSession,
+    serializeWriterSession,
+    writerSessionStorageKey,
+} from '@/lib/reports/writer-start';
 import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
@@ -575,7 +581,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
     programLocked?: boolean;
 }) {
     const star = prominent ? ' *' : '';
-    const programmeCourses = coursesVisibleForReportPicker(courses, programId, courseId);
+    const programmeCourses = coursesForProgramme(courses, programId);
     const lockProgramme = programLocked && !!programId;
     return (
         <>
@@ -598,11 +604,10 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
             <Field label={`Course${star}`}>
                 <select
                     value={courseId}
-                    disabled={programmeCourses.length === 0}
+                    disabled={!programId || programmeCourses.length === 0}
                     onChange={e => {
                         const cId = e.target.value;
                         const c = courses.find(x => x.id === cId);
-                        if (c?.program_id) setProgramId(c.program_id);
                         set(s => {
                             const suggestedMilestones = getMilestoneSuggestions(c?.title || '').slice(0, 2);
                             return {
@@ -613,8 +618,8 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                             };
                         });
                     }}
-                    className={INPUT + (programmeCourses.length === 0 ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
-                    <option value="">{programmeCourses.length ? 'Select a course…' : 'No courses available'}</option>
+                    className={INPUT + ((!programId || programmeCourses.length === 0) ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
+                    <option value="">{!programId ? '— pick a programme first —' : programmeCourses.length ? 'Select a course…' : 'No courses in this programme'}</option>
                     {programmeCourses.map(c => (
                         <option key={c.id} value={c.id}>
                             {c.title}{c.is_active === false ? ' (Inactive / historical)' : ''}
@@ -622,7 +627,6 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                     ))}
                 </select>
                 {lockProgramme && <p className="mt-1.5 text-[10px] text-muted-foreground">Programme comes from the selected class. Choose the course being graded here.</p>}
-                {!programId && !lockProgramme && <p className="mt-1.5 text-[10px] text-muted-foreground">Pick a course even if the programme has not filled in yet.</p>}
             </Field>
         </>
     );
@@ -679,6 +683,7 @@ function ReportBuilderInner() {
     const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
     const [draftedIds, setDraftedIds] = useState<Set<string>>(new Set());
     const [resumedSession, setResumedSession] = useState(false);
+    const [hydratedProfileId, setHydratedProfileId] = useState<string | null>(null);
     const [storageWarning, setStorageWarning] = useState<string | null>(null);
     const [showHiddenStudents, setShowHiddenStudents] = useState(false);
     const [wipingStudentId, setWipingStudentId] = useState<string | null>(null);
@@ -922,38 +927,29 @@ function ReportBuilderInner() {
     // ── Restore session config from localStorage + init date ──────────────────
     useEffect(() => {
         if (typeof window === 'undefined' || !profile?.id) return;
-        const storageKey = `rillcod_report_session_${profile.id}`;
-        try {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                const parsed = JSON.parse(saved) as Partial<SessionConfig> & {
-                    _step?: string; _sessionDone?: boolean;
-                    _selectedStudentId?: string; _currentStudentIdx?: number;
-                    _courseConfirmationKey?: string;
-                    _periodUnlocked?: boolean;
-                    _programId?: string;
-                };
-                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, _periodUnlocked, _programId, ...config } = parsed;
-                setCourseConfirmationKey(_courseConfirmationKey || '');
-                if (typeof _programId === 'string' && _programId) setSessionProgramId(_programId);
-                setSessionConfig(s => ({ ...s, ...config }));
-                if (_periodUnlocked) setPeriodUnlocked(true);
-                
-                // If a specific student was requested via URL, do not restore the stale session state
-                if (!prefStudentId) {
-                    if (_step && _step !== 'session') {
-                        setResumedSession(true);
-                        setStep(_step as any);
-                        if (_sessionDone) setSessionDone(true);
-                    }
-                    if (_selectedStudentId) {
-                        pendingRestoreStudentId.current = _selectedStudentId;
-                        pendingRestoreStudentIdx.current = _currentStudentIdx ?? -1;
-                    }
+        const storageKey = writerSessionStorageKey(profile.id);
+        const parsed = parseWriterSession(localStorage.getItem(storageKey));
+        if (!parsed.ok) {
+            setStorageWarning(parsed.warning || 'Your previous position in the report writer could not be restored. Server-saved report drafts are unchanged.');
+        } else if (parsed.snapshot) {
+            const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, _periodUnlocked, _programId } = parsed.snapshot;
+            setCourseConfirmationKey(typeof _courseConfirmationKey === 'string' ? _courseConfirmationKey : '');
+            if (typeof _programId === 'string' && _programId) setSessionProgramId(_programId);
+            setSessionConfig(s => ({ ...s, ...parsed.config } as SessionConfig));
+            if (_periodUnlocked) setPeriodUnlocked(true);
+
+            // If a specific student was requested via URL, do not restore the stale session state
+            if (!prefStudentId) {
+                if (_step && _step !== 'session') {
+                    setResumedSession(true);
+                    setStep(_step as any);
+                    if (_sessionDone) setSessionDone(true);
+                }
+                if (_selectedStudentId) {
+                    pendingRestoreStudentId.current = String(_selectedStudentId);
+                    pendingRestoreStudentIdx.current = typeof _currentStudentIdx === 'number' ? _currentStudentIdx : -1;
                 }
             }
-        } catch {
-            setStorageWarning('Your previous position in the report writer could not be restored. Server-saved report drafts are unchanged.');
         }
         // Default the academic session (Sept–Aug Nigerian calendar) and the current
         // term when none is set, so school reports always carry a session/term and a
@@ -973,14 +969,7 @@ function ReportBuilderInner() {
             // Locked period = "follow current". Roll only when saved identity is BEHIND live
             // (Second→Third same year, or prior year). Future / next-year First is untouched.
             // Deliberate backfill (period unlocked) must survive a browser refresh.
-            const savedUnlocked = (() => {
-                try {
-                    const raw = localStorage.getItem(`rillcod_report_session_${profile.id}`);
-                    if (!raw) return false;
-                    const parsed = JSON.parse(raw) as { _periodUnlocked?: boolean };
-                    return Boolean(parsed._periodUnlocked);
-                } catch { return false; }
-            })();
+            const savedUnlocked = Boolean(parseWriterSession(localStorage.getItem(writerSessionStorageKey(profile.id))).snapshot?._periodUnlocked);
             const stale = !savedUnlocked && isStaleAcademicSession(s.report_term, s.report_period, live.termLabel, live.periodLabel);
             return {
                 ...s,
@@ -989,6 +978,7 @@ function ReportBuilderInner() {
                 report_term: stale ? live.termLabel : (s.report_term || live.termLabel),
             };
         });
+        setHydratedProfileId(profile.id);
     }, [profile?.id, prefStudentId, prefReportId, prefReportTerm, prefReportPeriod]);
 
 
@@ -1007,7 +997,7 @@ function ReportBuilderInner() {
             setDynamicSuggestions(null);
             return;
         }
-        
+
         let cancelled = false;
         async function fetchDynamicSuggestions() {
             try {
@@ -1015,7 +1005,7 @@ function ReportBuilderInner() {
                 if (!res.ok) throw new Error('Failed to fetch curricula');
                 const json = await res.json();
                 if (cancelled) return;
-                
+
                 const list = json.data || [];
                 const topicsSet = new Set<string>();
                 list.forEach((curriculum: any) => {
@@ -1029,7 +1019,7 @@ function ReportBuilderInner() {
                         });
                     });
                 });
-                
+
                 const uniqueTopics = Array.from(topicsSet);
                 if (uniqueTopics.length > 0) {
                     const modules = uniqueTopics;
@@ -1041,13 +1031,13 @@ function ReportBuilderInner() {
             } catch (err) {
                 console.error('Failed to fetch dynamic module suggestions:', err);
             }
-            
+
             try {
                 const res = await fetch(`/api/lessons?course_id=${courseId}`);
                 if (!res.ok) throw new Error('Failed to fetch lessons');
                 const json = await res.json();
                 if (cancelled) return;
-                
+
                 const list = json.data || [];
                 const topicsSet = new Set<string>();
                 const sortedLessons = list.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -1056,7 +1046,7 @@ function ReportBuilderInner() {
                         topicsSet.add(lesson.title.trim());
                     }
                 });
-                
+
                 const uniqueTopics = Array.from(topicsSet);
                 if (uniqueTopics.length > 0) {
                     const modules = uniqueTopics;
@@ -1068,12 +1058,12 @@ function ReportBuilderInner() {
             } catch (err) {
                 console.error('Failed to fetch dynamic lesson suggestions:', err);
             }
-            
+
             if (!cancelled) {
                 setDynamicSuggestions(null);
             }
         }
-        
+
         fetchDynamicSuggestions();
         return () => { cancelled = true; };
     }, [sessionConfig.course_id]);
@@ -1164,10 +1154,9 @@ function ReportBuilderInner() {
 
     // ── Persist session config + navigation state to localStorage ────────────
     useEffect(() => {
-        if (typeof window === 'undefined' || !profile?.id) return;
-        const storageKey = `rillcod_report_session_${profile.id}`;
+        if (typeof window === 'undefined' || !canPersistWriterSession(hydratedProfileId, profile?.id)) return;
         try {
-            localStorage.setItem(storageKey, JSON.stringify({
+            localStorage.setItem(writerSessionStorageKey(profile!.id), serializeWriterSession({
                 ...sessionConfig,
                 _step: step,
                 _sessionDone: sessionDone,
@@ -1180,7 +1169,7 @@ function ReportBuilderInner() {
         } catch {
             setStorageWarning('This browser could not remember your current place. Save the report draft before leaving this page.');
         }
-    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, periodUnlocked, sessionProgramId, profile?.id]);
+    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, periodUnlocked, sessionProgramId, profile?.id, hydratedProfileId]);
 
     useEffect(() => {
         if (sessionProgramId || !sessionConfig.course_id || courses.length === 0) return;
@@ -1606,27 +1595,25 @@ function ReportBuilderInner() {
 
     // Sync course selection when courses load or class is selected
     useEffect(() => {
-        if (!sessionConfig.class_id || sessionConfig.course_id || courses.length === 0 || teacherClasses.length === 0) return;
-        
+        if (!sessionConfig.class_id || courses.length === 0 || teacherClasses.length === 0) return;
+
         const matchingClass = teacherClasses.find(c => c.id === sessionConfig.class_id);
         if (!matchingClass) return;
 
         const linkedCourse = resolveLinkedCourseForClass(matchingClass, courses);
         const programId = matchingClass.program_id || linkedCourse?.program_id || '';
+        if (programId && !sessionProgramId) setSessionProgramId(programId);
+        if (sessionConfig.course_id || !linkedCourse) return;
 
-        if (linkedCourse) {
-            const courseName = linkedCourse.title || '';
-            const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
-            
-            setSessionProgramId(programId);
-            setSessionConfig(current => ({
-                ...current,
-                course_id: linkedCourse.id,
-                course_name: linkedCourse.title || '',
-                learning_milestones: current.learning_milestones.length === 0 ? suggestedMilestones : current.learning_milestones,
-            }));
-        }
-    }, [courses, teacherClasses, sessionConfig.class_id, sessionConfig.course_id]);
+        const courseName = linkedCourse.title || '';
+        const suggestedMilestones = getMilestoneSuggestions(courseName).slice(0, 2);
+        setSessionConfig(current => ({
+            ...current,
+            course_id: linkedCourse.id,
+            course_name: linkedCourse.title || '',
+            learning_milestones: current.learning_milestones.length === 0 ? suggestedMilestones : current.learning_milestones,
+        }));
+    }, [courses, teacherClasses, sessionConfig.class_id, sessionConfig.course_id, sessionProgramId]);
 
     // Keep sessionConfig.term_id in sync with the chosen report_term + academic year so
     // coverage filters and "Start Grading" don't stay pinned to an old class term_id.
@@ -3669,14 +3656,16 @@ function ReportBuilderInner() {
                         {(() => {
                             const ctx = sessionConfig.school_section;
                             const periodReady = !!ctx && (isSchoolSection(ctx)
-                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.course_id)
-                                : !!(sessionConfig.course_duration && sessionConfig.course_id));
+                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionProgramId && sessionConfig.course_id)
+                                : !!(sessionConfig.course_duration && sessionProgramId && sessionConfig.course_id));
                             const missing = !ctx
                                 ? 'Choose a report context above'
                                 : !sessionConfig.school_name && !sessionConfig.class_id
                                     ? 'Select school and class / section above'
                                 : !sessionConfig.class_id
                                     ? 'Select a class / section from the dropdown'
+                                : !sessionProgramId
+                                    ? 'Pick a programme first, then the course'
                                 : !sessionConfig.course_id
                                     ? 'Select or wait for the course to load for this class'
                                 : !isSchoolSection(ctx) && !sessionConfig.course_duration

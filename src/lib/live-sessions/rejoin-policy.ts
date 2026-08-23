@@ -34,7 +34,7 @@ export const CONNECT_DEADLINE_MS = 15_000;
  * `removed from this session` must stay in step with LIVE_SESSION_REMOVED_MESSAGE in
  * `authz.ts`: that is the 403 the token route returns to someone the host kicked.
  */
-const FATAL_JOIN_ERROR = /not open|unauthorized|forbidden|no longer active|session not found|not configured|credential|LiveKit is not|removed from this session/i;
+const FATAL_JOIN_ERROR = /not open|unauthorized|forbidden|no longer active|session not found|not configured|credential|LiveKit is not|removed from this session|reached its monthly limit/i;
 
 export function isFatalJoinError(message?: string | null): boolean {
   return typeof message === 'string' && FATAL_JOIN_ERROR.test(message);
