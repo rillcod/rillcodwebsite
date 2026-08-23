@@ -377,7 +377,7 @@ export function CertificateCard({ cert }: CertificateProps) {
                     <button
                         onClick={handleDownload}
                         disabled={isDownloading}
-                        className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-gradient-to-r from-primary to-amber-500 hover:from-primary hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white text-[11px] font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:shadow-[0_0_40px_rgba(249,115,22,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+                        className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-gradient-to-r from-primary to-amber-700 hover:from-primary hover:to-amber-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white text-[11px] font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:shadow-[0_0_40px_rgba(249,115,22,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
                     >
                         {isDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <DownloadCloud className="w-5 h-5" />}
                         {isDownloading ? 'Generating PDF...' : 'Download High-Res PDF'}

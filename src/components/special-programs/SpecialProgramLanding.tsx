@@ -206,7 +206,7 @@ if (isNativeApp) {
               <div className="pt-2">
                 <a
                   href="#register"
-                  className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-orange-500/20 hover:opacity-95 transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-amber-700 via-orange-700 to-orange-700 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-orange-500/20 hover:opacity-95 transition-all"
                 >
                   Secure a seat
                   <ArrowRight className="w-4 h-4" />
@@ -1007,7 +1007,7 @@ if (isNativeApp) {
             </div>
             <a
               href="#register"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white text-[11px] font-black uppercase tracking-[0.18em] rounded-xl shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all shrink-0"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-700 via-orange-700 to-orange-700 text-white text-[11px] font-black uppercase tracking-[0.18em] rounded-xl shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all shrink-0"
             >
               Secure a seat
               <ArrowRight className="w-4 h-4" />

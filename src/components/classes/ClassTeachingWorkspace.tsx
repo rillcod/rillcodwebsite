@@ -1075,7 +1075,7 @@ export function ClassTeachingWorkspace({
                           project: resumeWeek.weekMeta.project,
                         })
                       }
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 px-4 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-500 px-4 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       <SparklesIcon className="h-4 w-4" />
                       {resumeWeek.recommendedAction === "refresh"

@@ -540,7 +540,7 @@ export default function GradingQueuePage() {
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 border border-amber-500/30 text-white shadow-xl shadow-amber-500/25 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-700 to-orange-700 border border-amber-500/30 text-white shadow-xl shadow-amber-500/25 flex items-center justify-center shrink-0">
               <ClipboardDocumentCheckIcon className="w-6 h-6 text-white" />
             </div>
             <div>

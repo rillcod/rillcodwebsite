@@ -372,7 +372,7 @@ export default function EditLessonPage() {
                         )}
                         <button
                             onClick={() => setShowPreview(true)}
-                            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-violet-900/30 transition-all min-h-[44px]"
+                            className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-violet-900/30 transition-all min-h-[44px]"
                             title="Preview as a student — see the live rendered lesson before saving"
                         >
                             <Eye className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>

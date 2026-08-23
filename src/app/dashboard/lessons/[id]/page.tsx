@@ -6099,7 +6099,7 @@ export default function LessonDetailPage() {
                             <button
                               onClick={handleGenerateAssignment}
                               disabled={generatingAssignment}
-                              className="px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95 flex items-center gap-2"
+                              className="px-6 py-3 bg-gradient-to-r from-amber-700 to-amber-700 hover:from-amber-800 hover:to-amber-800 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95 flex items-center gap-2"
                             >
                               {generatingAssignment ? (
                                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -6216,7 +6216,7 @@ export default function LessonDetailPage() {
                           <button
                             onClick={handleGenerateFlashcards}
                             disabled={generatingFlashcards}
-                            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
+                            className="px-6 py-3 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
                           >
                             {generatingFlashcards ? (
                               <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />

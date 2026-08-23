@@ -615,7 +615,7 @@ export default function StudioUI(p: StudioUIProps) {
                   ))}
                 </div>
                 <button onClick={generateWithAI} disabled={isAIGenerating || !aiPrompt.trim()}
-                  className="w-full h-12 bg-gradient-to-r from-primary to-pink-600 hover:from-primary hover:to-pink-500 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation">
+                  className="w-full h-12 bg-gradient-to-r from-primary to-pink-600 hover:from-primary hover:to-pink-700 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation">
                   {isAIGenerating ? <><ArrowPathIcon className="w-4 h-4 animate-spin" />Generating…</> : <><SparklesIcon className="w-4 h-4" />Generate Code</>}
                 </button>
               </div>

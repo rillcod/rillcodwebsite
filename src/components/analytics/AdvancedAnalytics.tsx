@@ -253,7 +253,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-green-700 to-green-700 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-800 dark:text-green-100">Completion Rate</p>
@@ -264,7 +264,7 @@ export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalytics
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-purple-700 to-purple-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-800 dark:text-purple-100">Average Score</p>

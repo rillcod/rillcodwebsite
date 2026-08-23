@@ -106,6 +106,13 @@ function walk(dir, out = []) {
 /** One quoted class string, where a bg and a text colour would sit together. */
 const CLASS_STRING = /(?:className|class)\s*=\s*[{]?\s*[`'"]([^`'"]{0,600})[`'"]/g;
 const BG = /(?:^|\s|:)bg-([a-z]+)-(\d{3})\b/g;
+/**
+ * Gradient stops, which this originally ignored — so a button painted
+ * `from-amber-500 to-orange-500` with white text passed while a flat
+ * `bg-amber-500` failed, despite being the same colour under the text. Fourteen
+ * were hiding in that gap, the worst at 1.72:1.
+ */
+const STOP = /(?:^|\s|:)(?:from|via|to)-([a-z]+)-(\d{3})\b/g;
 
 const findings = [];
 
@@ -115,15 +122,19 @@ for (const file of walk(ROOT)) {
     const classes = match[1];
     if (!/\btext-white\b/.test(classes)) continue;
 
-    for (const bg of classes.matchAll(BG)) {
-      const [, hue, shade] = bg;
+    const seen = [
+      ...[...classes.matchAll(BG)].map(([, hue, shade]) => [`bg-${hue}-${shade}`, hue, shade]),
+      ...[...classes.matchAll(STOP)].map(([m, hue, shade]) => [m.trim(), hue, shade]),
+    ];
+
+    for (const [token, hue, shade] of seen) {
       const ratio = contrastWithWhite(`${hue}-${shade}`);
       if (!Number.isFinite(ratio) || ratio >= AA_NORMAL) continue;
       const line = src.slice(0, match.index).split('\n').length;
       findings.push({
         file: path.relative(process.cwd(), file).replace(/\\/g, '/'),
         line,
-        token: `bg-${hue}-${shade}`,
+        token,
         ratio: ratio.toFixed(2),
       });
     }

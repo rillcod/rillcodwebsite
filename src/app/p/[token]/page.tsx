@@ -318,7 +318,7 @@ export default function PublicDocumentPage({
       {/* ── Top Executive Sticky Header ── */}
       <header className="sticky top-0 z-40 bg-card/95 border-b border-border backdrop-blur-md px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-primary flex items-center justify-center text-white font-black text-base shadow-md shadow-primary/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-700 to-primary flex items-center justify-center text-white font-black text-base shadow-md shadow-primary/20">
             R
           </div>
           <div>

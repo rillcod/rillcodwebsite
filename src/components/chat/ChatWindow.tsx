@@ -86,7 +86,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
 
     return (
         <Card className="flex flex-col h-[600px] w-full max-w-md shadow-2xl rounded-2xl overflow-hidden border-none animate-in slide-in-from-bottom-5 duration-300">
-            <CardHeader className="bg-gradient-to-r from-teal-600 to-primary text-white p-4 flex flex-row items-center justify-between">
+            <CardHeader className="bg-gradient-to-r from-teal-700 to-primary text-white p-4 flex flex-row items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="relative">
                         <Avatar className="w-10 h-10 border-2 border-border">
