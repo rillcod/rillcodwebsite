@@ -9,6 +9,7 @@ import {
 import { notifySessionLive } from '@/lib/live-sessions/notify';
 import { ensureLiveKitRoom } from '@/lib/live-sessions/livekit-server';
 import { recordCompletedLiveTeaching } from '@/lib/live-sessions/teaching-delivery';
+import { LiveSessionDestinationError, normalizeLiveSessionUrl } from '@/lib/live-sessions/destination';
 
 // Auto-log a completed session to CRM interactions for the school and attendees
 async function autoLogCRM(session: any, staffName: string) {
@@ -69,6 +70,14 @@ export async function PATCH(
   for (const f of fields) {
     if (body[f] !== undefined) allowed[f] = body[f];
   }
+  if (body.session_url !== undefined) {
+    try {
+      allowed.session_url = normalizeLiveSessionUrl(body.session_url, { sessionId: id, allowInternal: true });
+    } catch (error) {
+      const message = error instanceof LiveSessionDestinationError ? error.message : 'The classroom link is invalid.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
   if (caller.role === 'school') {
     allowed.school_id = caller.school_id;
   }
@@ -121,6 +130,12 @@ export async function PATCH(
       notes: data.notes,
       actorId: caller.id,
     });
+    if (teachingDelivery.status === 'failed') {
+      console.error('[live-sessions] teaching delivery record failed', {
+        sessionId: data.id,
+        error: teachingDelivery.error,
+      });
+    }
   }
 
   // Push + in-app notification when session goes live
@@ -135,8 +150,8 @@ export async function PATCH(
     ...(teachingDelivery ? { teaching_delivery: teachingDelivery } : {}),
     ...(teachingDelivery?.status === 'failed'
       ? {
-          warning:
-            `The live class was completed, but teaching delivery could not be recorded: ${teachingDelivery.error}`,
+          warning: 'The live class ended, but its teaching record needs attention in the class workspace.',
+          warning_code: 'TEACHING_DELIVERY_RECORD_FAILED',
         }
       : {}),
   });

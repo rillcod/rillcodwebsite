@@ -13,6 +13,9 @@ import RecurrenceFields, { blankRecurrence, type RecurrenceForm, type TermOption
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 import BodyPortal from '@/components/ui/BodyPortal';
+import LiveMeetingBoundary from '@/components/live-session/LiveMeetingBoundary';
+import { toast } from 'sonner';
+import { isJitsiUrl, isLiveKitUrl, normalizeLiveSessionUrl } from '@/lib/live-sessions/destination';
 
 // Dynamic import — loads LiveKit CSS only on client, avoids SSR flash
 const LiveKitMeeting = dynamic(
@@ -33,9 +36,6 @@ import {
 } from '@/lib/icons';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function isJitsiUrl(url?: string | null) { return !!url && url.includes('meet.jit.si'); }
-function isLiveKitUrl(url?: string | null) { return !!url && url.startsWith('livekit:'); }
 
 function getYouTubeId(url: string) {
   const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -1414,19 +1414,11 @@ function SessionModal({ initial, isEdit, schools, programs, terms, canGlobal, sa
   );
 }
 
-// ─── Auto-Join Toast (external sessions) ─────────────────────────────────────
+// ─── Live invitation (learner chooses when media starts) ─────────────────────
 
 function AutoJoinToast({ session, onJoin, onDismiss }: {
   session: LiveSession; onJoin: () => void; onDismiss: () => void;
 }) {
-  const [secs, setSecs] = useState(8);
-
-  useEffect(() => {
-    if (secs <= 0) { onJoin(); return; }
-    const t = setTimeout(() => setSecs(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [secs, onJoin]);
-
   return (
     <motion.div
       initial={{ y: 80, opacity: 0 }}
@@ -1443,10 +1435,10 @@ function AutoJoinToast({ session, onJoin, onDismiss }: {
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Session is Live!</p>
+          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Session is live</p>
           <p className="text-xs font-bold text-foreground truncate mt-0.5">{session.title}</p>
           <p className="text-[9px] text-muted-foreground mt-0.5">
-            Joining automatically in <span className="text-emerald-600 dark:text-emerald-400 font-black">{secs}s</span>
+            Join when you are ready. Your attendance starts only after you enter.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1595,27 +1587,14 @@ export default function LiveSessionsPage() {
           // ── Auto-join when a session flips to "live" ──────────────────────
           const wasLive = payload.old?.status === 'live';
           const nowLive = updated.status === 'live';
-          if (!wasLive && nowLive && updated.session_url) {
-            // Record attendance silently
-            fetch(`/api/live-sessions/${updated.id}/join`, { method: 'POST' }).catch(() => {});
-
-            if (isJitsiUrl(updated.session_url) || isLiveKitUrl(updated.session_url)) {
-              // Room is created server-side on go-live — students can enter immediately.
-              if (profile.role === 'student') {
-                setSessions(prev => {
-                  const full = prev.find(s => s.id === updated.id);
-                  if (full) setJitsiSession({ ...full, ...updated });
-                  return prev;
-                });
-              }
-            } else {
-              // External URL: show dismissible toast with countdown
-              setSessions(prev => {
-                const full = prev.find(s => s.id === updated.id);
-                if (full) setAutoJoinToast({ ...full, ...updated });
-                return prev;
-              });
-            }
+          if (!wasLive && nowLive && profile.role === 'student') {
+            // A live signal is an invitation, not attendance. Wait for the learner's
+            // explicit Join action before opening media or recording attendance.
+            setSessions(prev => {
+              const full = prev.find(s => s.id === updated.id);
+              if (full) setAutoJoinToast({ ...full, ...updated });
+              return prev;
+            });
           }
         } else if (payload.eventType === 'INSERT') {
           loadData(); // need host/program joins
@@ -1787,49 +1766,67 @@ export default function LiveSessionsPage() {
   async function handleStart(session: LiveSession) {
     try {
       // Mark as live — LiveKit room is created on-demand via token
-      await fetch(`/api/live-sessions/${session.id}`, {
+      const response = await fetch(`/api/live-sessions/${session.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'live', session_url: `livekit:${session.id}` }),
       });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'The session could not be started.');
       // Open the meeting immediately for the host
       const s = { ...session, session_url: `livekit:${session.id}` };
       setJitsiSession(s);
-    } catch (err: any) { alert(err?.message ?? 'Failed to start session'); }
+    } catch (err: any) { toast.error(err?.message ?? 'The session could not be started.'); }
   }
 
   async function handleEnd(session: LiveSession) {
     if (!confirm('End this session and mark it as completed?')) return;
     try {
-      await fetch(`/api/live-sessions/${session.id}`, {
+      const response = await fetch(`/api/live-sessions/${session.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'completed' }),
       });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'The session could not be ended.');
+      if (payload.warning) toast.warning('The session ended, but its teaching record needs attention in the class workspace.');
       // Close Jitsi if open
       if (jitsiSession?.id === session.id) setJitsiSession(null);
-    } catch (err: any) { alert(err?.message ?? 'Failed to end session'); }
+    } catch (err: any) { toast.error(err?.message ?? 'The session could not be ended.'); }
   }
 
-  async function handleJoin(id: string, url: string | null) {
-    // Record attendance silently
-    try { await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' }); } catch { /* silent */ }
+  async function handleJoin(id: string, url: string | null): Promise<boolean> {
+    let resolvedUrl: string;
+    try {
+      resolvedUrl = normalizeLiveSessionUrl(url || `livekit:${id}`, { sessionId: id, allowInternal: true })!;
+    } catch (err: any) {
+      toast.error(err?.message ?? 'This classroom link is not valid.');
+      return false;
+    }
+    const externalWindow = !isLiveKitUrl(resolvedUrl) && !isJitsiUrl(resolvedUrl)
+      ? window.open('', '_blank')
+      : null;
+    if (externalWindow) externalWindow.opener = null;
 
-    // If no URL, use LiveKit
-    const resolvedUrl = url || `livekit:${id}`;
+    try {
+      const joinResponse = await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' });
+      const joinPayload = await joinResponse.json().catch(() => ({}));
+      if (!joinResponse.ok) throw new Error(joinPayload.error || 'You could not join this session.');
 
-    if (isLiveKitUrl(resolvedUrl) || isJitsiUrl(resolvedUrl)) {
-      const session = sessions.find(s => s.id === id) ?? null;
-      if (!url && session) {
-        fetch(`/api/live-sessions/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_url: resolvedUrl }),
-        }).catch(() => {});
+      if (isLiveKitUrl(resolvedUrl) || isJitsiUrl(resolvedUrl)) {
+        const session = sessions.find(s => s.id === id) ?? null;
+        if (!session) throw new Error('This session is no longer in your live-session list.');
+        setJitsiSession({ ...session, session_url: resolvedUrl });
+      } else if (!externalWindow) {
+        throw new Error('Allow pop-ups to open this external classroom.');
+      } else {
+        externalWindow.location.href = resolvedUrl;
       }
-      setJitsiSession(session ? { ...session, session_url: resolvedUrl } : null);
-    } else {
-      window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
+      return true;
+    } catch (err: any) {
+      if (externalWindow && !externalWindow.closed) externalWindow.close();
+      toast.error(err?.message ?? 'You could not join this session.');
+      return false;
     }
   }
 
@@ -2014,11 +2011,13 @@ export default function LiveSessionsPage() {
         />
       )}
       {jitsiSession && (
-        <LiveKitMeeting
-          sessionId={jitsiSession.id}
-          sessionTitle={jitsiSession.title}
-          onClose={closeMeeting}
-        />
+        <LiveMeetingBoundary key={jitsiSession.id} sessionId={jitsiSession.id} sessionTitle={jitsiSession.title} onClose={closeMeeting}>
+          <LiveKitMeeting
+            sessionId={jitsiSession.id}
+            sessionTitle={jitsiSession.title}
+            onClose={closeMeeting}
+          />
+        </LiveMeetingBoundary>
       )}
 
       {/* ── Auto-join toast for external sessions ── */}
@@ -2027,8 +2026,8 @@ export default function LiveSessionsPage() {
           <AutoJoinToast
             session={autoJoinToast}
             onJoin={() => {
-              window.open(autoJoinToast.session_url!, '_blank', 'noopener,noreferrer');
-              setAutoJoinToast(null);
+              void handleJoin(autoJoinToast.id, autoJoinToast.session_url)
+                .then(joined => { if (joined) setAutoJoinToast(null); });
             }}
             onDismiss={() => setAutoJoinToast(null)}
           />

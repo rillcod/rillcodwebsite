@@ -2118,3 +2118,32 @@ Remaining operational proof:
 - apply migration 96 through the approved pipeline and repeat concurrent staff-review checks against the deployed database;
 - visually inspect both browser print previews and saved PDFs on desktop and a physical mobile device;
 - connect published written results to the same immutable publication registry planned for report cards and parent sharing.
+
+### 16.14 Live-class entry and recovery milestone — verified locally on 23 August 2026
+
+Implemented:
+
+- changed realtime “session is live” handling from unsolicited full-screen media entry to a learner-controlled invitation; attendance begins only after the learner selects Join and the server accepts it;
+- made start, end, and join UI transitions conditional on successful API responses instead of opening or closing a classroom after a refused request;
+- removed the participant-side attempt to rewrite a missing session URL and kept the host/server as the session authority;
+- added one client/server destination contract that permits secure provider links, local development URLs, and only the exact internal LiveKit room for the current session;
+- rejected executable, insecure remote, mismatched internal, and credential-bearing classroom destinations;
+- added a live-classroom error boundary so a failed or stale media chunk cannot crash the dashboard, with professional reload, backup-room, and return actions;
+- kept `@livekit/components-react` out of production barrel rewriting because it is an isolated dynamic client chunk with stylesheet side effects;
+- replaced the raw teaching-delivery database error returned after session completion with a stable staff message and server-side diagnostic code/log;
+- retained existing reconnect, duplicate-device, removal, late-join, host-end, and attendance-delivery protections.
+
+Verification evidence:
+
+- focused live-class suite: 6 files and 54 tests passed;
+- full automated suite: 347 files and 2,409 tests passed;
+- TypeScript typecheck passed;
+- local signed-out route returned HTTP 200 with no browser warning, runtime overlay, or client console error after recompilation;
+- no production build, remote push, live database mutation, or credential transmission was performed.
+
+Remaining production/device proof:
+
+- repeat authenticated admin host/start/end, teacher host, student invitation/join/reconnect, removal/readmission, attendance, recording, and delivery-evidence journeys after deployment;
+- test camera and microphone permission denial/recovery, poor network, duplicate devices, Jitsi backup, iOS/Android backgrounding, and physical-device safe-area controls;
+- split the oversized live-session page into independently loaded list, scheduling, moderation, attendance, replay, and classroom modules and establish production bundle/interaction budgets;
+- verify Cloudflare LiveKit secrets, websocket reachability, TURN connectivity, webhook delivery, recording storage, and alerting in the deployed environment.

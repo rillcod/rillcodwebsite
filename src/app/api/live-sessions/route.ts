@@ -9,6 +9,7 @@ import {
   resolveStudentSchoolId,
 } from '@/lib/live-sessions/authz';
 import { notifySessionScheduled } from '@/lib/live-sessions/notify';
+import { LiveSessionDestinationError, normalizeLiveSessionUrl } from '@/lib/live-sessions/destination';
 
 // GET /api/live-sessions — list all sessions (role-filtered)
 export async function GET(_request: NextRequest) {
@@ -71,6 +72,14 @@ export async function POST(request: NextRequest) {
   } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+
+  let normalizedSessionUrl: string | null;
+  try {
+    normalizedSessionUrl = normalizeLiveSessionUrl(session_url);
+  } catch (error) {
+    const message = error instanceof LiveSessionDestinationError ? error.message : 'The classroom link is invalid.';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
   const admin = adminClient();
 
@@ -141,7 +150,7 @@ export async function POST(request: NextRequest) {
       title: title.trim(),
       description: description?.trim() || null,
       platform: platform ?? 'zoom',
-      session_url: session_url?.trim() || null,
+      session_url: normalizedSessionUrl,
       scheduled_at,
       duration_minutes: Number(duration_minutes) || 60,
       school_id: resolvedSchoolId,

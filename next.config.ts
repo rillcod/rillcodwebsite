@@ -68,7 +68,8 @@ const nextConfig: NextConfig = {
     ...(isProduction ? {
       optimizePackageImports: [
         '@supabase/supabase-js',
-        '@livekit/components-react',
+        // LiveKit is loaded as an isolated client chunk and imports stylesheet side effects.
+        // Keep it out of barrel rewriting so its component factories remain in one graph.
         '@radix-ui/react-alert-dialog',
         '@radix-ui/react-avatar',
         '@radix-ui/react-dialog',
