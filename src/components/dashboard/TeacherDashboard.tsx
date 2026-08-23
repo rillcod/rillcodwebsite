@@ -1,15 +1,14 @@
 'use client';
 
 import {
-  UserGroupIcon, AcademicCapIcon, BookOpenIcon,
-  ClipboardDocumentListIcon, ArrowRightIcon, ArrowPathIcon,
-  UserPlusIcon, ClipboardDocumentCheckIcon, DocumentChartBarIcon,
-  CogIcon
+  AcademicCapIcon,
+  ArrowRightIcon,
+  ArrowPathIcon,
+  CogIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
-import { SparkCard, GaugeBar, CHART_COLORS } from '@/components/charts';
 
-interface DashStats { label: string; value: string | number; icon: any; gradient: string }
+interface DashStats { label: string; value: string | number; icon: any; gradient: string; href?: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
 interface QuickAction { name: string; href: string; icon: any; desc: string }
 interface Slot { id: string; start_time: string; subject: string; room: string | null; school_name?: string }
@@ -26,41 +25,65 @@ interface TeacherDashboardProps {
 }
 
 export default function TeacherDashboard({ profile, stats, activities, upcomingSlots, teacherActionCenter, quickActions, dataLoading, onRefresh }: TeacherDashboardProps) {
+  const pending = (teacherActionCenter?.ungradedAssignments ?? 0) + (teacherActionCenter?.ungradedExams ?? 0);
+
   return (
     <div className="space-y-6">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {quickActions.map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40"
+          >
+            <span>
+              <span className="block text-sm font-black text-foreground">{action.name}</span>
+              <span className="block text-xs text-muted-foreground">{action.desc}</span>
+            </span>
+            <ArrowRightIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Link>
+        ))}
+      </div>
 
       {/* Stats Grid */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your numbers</p>
           <button onClick={onRefresh} disabled={dataLoading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-xl transition-all disabled:opacity-40">
             <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-6">
           {dataLoading
-            ? Array.from({ length: 4 }).map((_, i) => (
+            ? Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl animate-pulse">
                 <div className="h-10 w-10 bg-muted rounded-xl mb-4" />
                 <div className="h-8 bg-muted rounded w-1/2 mb-2" />
                 <div className="h-4 bg-card shadow-sm rounded w-2/3" />
               </div>
             ))
-            : stats.map(({ label, value, icon: Icon, gradient }) => (
-              <div key={label} className="bg-card shadow-sm border border-border border-t-2 border-t-brand-red-600 rounded-xl p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
-                <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-                <div className="flex items-start justify-between mb-5 relative z-10">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
-                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
+            : stats.map(({ label, value, icon: Icon, gradient, href }) => {
+              const inner = (
+                <>
+                  <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+                  <div className="flex items-start justify-between mb-5 relative z-10">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
+                    </div>
                   </div>
-                  <span className="text-[8px] sm:text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em] bg-brand-red-600/5 px-2 py-0.5 rounded-full border border-brand-red-600/20">Live</span>
-                </div>
-                <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
-              </div>
-            ))}
+                  <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
+                </>
+              );
+              const cls = "bg-card shadow-sm border border-border border-t-2 border-t-brand-red-600 rounded-xl p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden block";
+              return href ? (
+                <Link key={label} href={href} className={cls}>{inner}</Link>
+              ) : (
+                <div key={label} className={cls}>{inner}</div>
+              );
+            })}
         </div>
       </div>
 
@@ -73,7 +96,9 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Teacher Workspace</p>
-                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Center</h2>
+                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">
+                  {pending > 0 ? `${pending} to mark` : 'Nothing to mark'}
+                </h2>
               </div>
               <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-xl ${(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 animate-pulse'
@@ -126,57 +151,16 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
         </div>
       )}
 
-      {/* Student Registration Hub */}
-      <div className="bg-card border border-border rounded-xl p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
-        <div className="relative z-10">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.4em]">Students</p>
-              <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Register Students</h2>
-            </div>
-            <Link href="/dashboard/students"
-              className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-emerald-500/40 rounded-xl transition-all flex items-center gap-1.5">
-              <UserGroupIcon className="w-3.5 h-3.5" /> View All Students
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link href="/dashboard/students/bulk-register"
-              className="group flex flex-col gap-3 p-5 bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl transition-all">
-              <div className="w-10 h-10 bg-emerald-500/20 flex items-center justify-center rounded-xl">
-                <UserGroupIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-foreground">Bulk Register</p>
-                <p className="text-xs text-muted-foreground mt-1">Paste a list of student names — fastest for a whole class</p>
-              </div>
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-auto">Start →</span>
-            </Link>
-            <Link href="/dashboard/students/bulk-register?tab=single"
-              className="group flex flex-col gap-3 p-5 bg-card border border-border hover:border-emerald-500/30 rounded-xl transition-all">
-              <div className="w-10 h-10 bg-muted flex items-center justify-center rounded-xl">
-                <UserPlusIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-foreground">Single Student</p>
-                <p className="text-xs text-muted-foreground mt-1">Fill in a form for one student — name, class, school</p>
-              </div>
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
-            </Link>
-            <Link href="/dashboard/students/import"
-              className="group flex flex-col gap-3 p-5 bg-card border border-border hover:border-emerald-500/30 rounded-xl transition-all">
-              <div className="w-10 h-10 bg-muted flex items-center justify-center rounded-xl">
-                <ClipboardDocumentCheckIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
-              </div>
-              <div>
-                <p className="text-sm font-black text-foreground">Import CSV</p>
-                <p className="text-xs text-muted-foreground mt-1">Upload a spreadsheet — best for large batches with full details</p>
-              </div>
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
-            </Link>
-          </div>
-        </div>
-      </div>
+      <Link
+        href="/dashboard/students"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 hover:border-primary/40"
+      >
+        <span>
+          <span className="block text-sm font-black text-foreground">Add or find students</span>
+          <span className="block text-xs text-muted-foreground">Register a class list, or open a student.</span>
+        </span>
+        <ArrowRightIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
 
       {/* Main Grid: Activity + Sidebar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

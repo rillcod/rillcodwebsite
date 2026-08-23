@@ -40,11 +40,21 @@ const PATH_LABELS: Record<string, string> = {
   '/dashboard/academic/results': 'Auto-fill',
 };
 
+const STUDENT_PATH_LABELS: Record<string, string> = {
+  '/dashboard/results': 'My Report Card',
+  '/dashboard/finance': 'My Fees',
+  '/dashboard/grades': 'My Grades',
+  '/dashboard/assignments': 'My Work',
+};
+
 export default function DesktopTopNavbar() {
   const pathname = usePathname() || '/dashboard';
   const { profile } = useAuth();
   const currentLabel =
-    PATH_LABELS[pathname] || pathname.split('/').pop()?.replace(/-/g, ' ') || 'Dashboard';
+    (profile?.role === 'student' && STUDENT_PATH_LABELS[pathname])
+    || PATH_LABELS[pathname]
+    || pathname.split('/').pop()?.replace(/-/g, ' ')
+    || 'Dashboard';
 
   return (
     <header className="hidden md:flex items-center justify-between px-6 lg:px-10 py-3 bg-card/95 backdrop-blur-xl border-b border-border/80 sticky top-0 z-40">

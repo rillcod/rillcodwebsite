@@ -17,6 +17,31 @@ describe("central workspace route access", () => {
     expect(
       isDashboardPathBlockedForStudent("/dashboard/platform-operations")
     ).toBe(true);
+    expect(isDashboardPathBlockedForStudent("/dashboard/academic/build")).toBe(
+      true
+    );
+    expect(isDashboardPathBlockedForStudent("/dashboard/lessons")).toBe(true);
+    expect(
+      isDashboardPathBlockedForStudent("/dashboard/lessons/abc/edit")
+    ).toBe(true);
+    expect(isDashboardPathBlockedForStudent("/dashboard/lessons/abc")).toBe(
+      false
+    );
+    expect(isDashboardPathBlockedForStudent("/dashboard/learning")).toBe(false);
+    expect(isDashboardPathBlockedForStudent("/dashboard/assignments")).toBe(
+      false
+    );
+    expect(isDashboardPathBlockedForStudent("/dashboard/assignments/new")).toBe(
+      true
+    );
+    expect(isDashboardPathBlockedForStudent("/dashboard/grading")).toBe(true);
+    expect(isDashboardPathBlockedForStudent("/dashboard/settings")).toBe(true);
+    expect(isDashboardPathBlockedForStudent("/dashboard/leaderboard")).toBe(
+      true
+    );
+    expect(isDashboardPathBlockedForStudent("/dashboard/courses/abc")).toBe(
+      true
+    );
   });
 
   it("lets partner schools monitor learner progress but not platform or safety administration", () => {
@@ -41,6 +66,10 @@ describe("central workspace route access", () => {
     expect(
       isDashboardPathBlockedForTeacher("/dashboard/platform-operations")
     ).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/crm")).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/cases")).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/records")).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/classes")).toBe(false);
   });
 
   it("keeps the consolidated workspaces available to administrators", () => {

@@ -37,12 +37,14 @@ const QUICK_ACTIONS = {
   // methods, and grading cards carrying the actual outstanding counts. Repeating
   // them as bare tiles added a second, worse copy of both.
   teacher: [
-    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
-    { name: 'Publish', href: '/dashboard/results', icon: DocumentChartBarIcon, desc: 'Write scores, then publish report cards' },
-    { name: 'Classes & Rosters', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your teaching classes' },
+    { name: 'Open My Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Teach this week' },
+    { name: 'Mark work', href: '/dashboard/grading', icon: ClipboardDocumentListIcon, desc: 'Grade what is waiting' },
+    { name: 'Write reports', href: '/dashboard/reports/builder', icon: DocumentChartBarIcon, desc: 'Type scores, then publish' },
   ],
   student: [
-    { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs & lessons' },
+    { name: 'Continue learning', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'Open your next lesson' },
+    { name: 'My assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'Work that is due' },
+    { name: 'My grades', href: '/dashboard/grades', icon: ChartBarIcon, desc: 'See your scores' },
   ],
   school: [
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled school students' },
@@ -347,10 +349,9 @@ function transformStatsForAdmin(stats: any) {
 function transformStatsForTeacher(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'My Classes', value: stats.classes || 0, icon: BookOpenIcon, gradient: 'from-primary to-primary' },
-    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
-    { label: 'Pending Grading', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary' },
-    { label: 'Avg Class Perf', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
+    { label: 'My Classes', value: stats.classes || 0, icon: BookOpenIcon, gradient: 'from-primary to-primary', href: '/dashboard/classes' },
+    { label: 'Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary', href: '/dashboard/students' },
+    { label: 'To mark', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary', href: '/dashboard/grading' },
   ];
 }
 

@@ -1,8 +1,6 @@
-import Link from 'next/link';
 import {
   AcademicCapIcon,
   BanknotesIcon,
-  ArrowLeftIcon,
   ArrowRightIcon,
   BookOpenIcon,
   CalendarDaysIcon,
@@ -16,6 +14,11 @@ import {
   UserGroupIcon,
 } from '@/lib/icons';
 import { LANES, stagesInLane } from '@/lib/academic/lanes';
+import {
+  AcademicGuideCtas,
+  AcademicGuideFooter,
+  AcademicGuideHeaderBack,
+} from '@/components/academic/AcademicGuideCtas';
 
 const PATHWAYS = [
   {
@@ -70,41 +73,14 @@ export default function AcademicOfficeGuidePage() {
   return (
     <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8 mobile-page-root">
       <header className="rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-violet-500/5 p-6 sm:p-8">
-        <Link href="/dashboard/academic" className="inline-flex items-center gap-2 text-sm font-bold text-primary">
-          <ArrowLeftIcon className="h-4 w-4" /> Back to Academic Office
-        </Link>
+        <AcademicGuideHeaderBack />
         <div className="mt-6 max-w-4xl">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Simple user guide</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">How the Academic Office works</h1>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground sm:text-4xl">How teaching follows the curriculum</h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            Build the official curriculum once. Teachers deliver it class by class. Start with an action below — read the detail only if you need it.
+            The official weeks are written once. Teachers deliver them class by class. Start with an action below — read the detail only if you need it.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/dashboard/classes"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground"
-            >
-              Open My Classes <ArrowRightIcon className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/dashboard/lesson-plans"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
-            >
-              New teaching plan
-            </Link>
-            <Link
-              href="/dashboard/academic/build"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
-            >
-              Build curriculum
-            </Link>
-            <Link
-              href="/dashboard/academic/rollout"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
-            >
-              Roll out / make official
-            </Link>
-          </div>
+          <AcademicGuideCtas />
         </div>
       </header>
 
@@ -203,10 +179,7 @@ export default function AcademicOfficeGuidePage() {
         <div className="flex gap-3"><CalendarDaysIcon className="mt-1 h-6 w-6 shrink-0 text-amber-700 dark:text-amber-300" /><div><h2 className="text-xl font-black text-foreground">Real timing example</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">A school can begin with <strong className="text-foreground">Third Term 2025/2026 - Programme Year 1 - Entry Week 3</strong>. The system records the real starting point without renaming it First Term or changing the curriculum sequence.</p></div></div>
       </section>
 
-      <footer className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
-        <div><p className="font-black text-foreground">Ready to work?</p><p className="mt-1 text-sm text-muted-foreground">Return to the Academic Office or manage independent learning pathways.</p></div>
-        <div className="flex flex-col gap-2 sm:flex-row"><Link href="/dashboard/academic" className="rounded-xl border border-border px-4 py-3 text-center text-sm font-bold text-foreground">Academic Office</Link><Link href="/dashboard/academic/pathways" className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground">Learning pathways</Link></div>
-      </footer>
+      <AcademicGuideFooter />
     </main>
   );
-}
+}

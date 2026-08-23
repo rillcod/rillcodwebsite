@@ -148,7 +148,7 @@ export async function GET() {
       title: ex.title,
       course_title: courseTitle[ex.course_id],
       reason: `Exam available${courseTitle[ex.course_id] ? ` — ${courseTitle[ex.course_id]}` : ''}`,
-      href: `/dashboard/exams/${ex.id}`,
+      href: `/dashboard/cbt/${ex.id}`,
       priority: 90,
     });
   }

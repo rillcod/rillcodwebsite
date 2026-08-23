@@ -2323,10 +2323,12 @@ export default function FinancePage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-            Finance Center
+            {profile.role === 'student' ? 'My Fees' : 'Finance Center'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {profile.role === 'teacher'
+            {profile.role === 'student'
+              ? 'See what you owe and pay from here.'
+              : profile.role === 'teacher'
               ? 'Today = payment status overview · Invoices = scoped records'
               : profile.role === 'school'
               ? 'Today = what needs action · Reports = summary & statements · Invoices = bills & payment proof'

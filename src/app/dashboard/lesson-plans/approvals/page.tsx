@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { ArrowPathIcon, CheckIcon, DocumentTextIcon } from '@/lib/icons';
+import { ApprovalGateNav } from '@/components/academic/ApprovalGateNav';
 
 type DraftPlan = {
   id: string;
@@ -148,11 +149,14 @@ export default function PlanApprovalsPage() {
     <div className="space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Office</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Approvals</p>
           <h1 className="text-lg font-black tracking-tight text-foreground">Approve teaching plans</h1>
           <p className="mt-1 text-xs text-muted-foreground">
             A class can only generate its weeks once its plan is published. Review, then publish.
           </p>
+          <div className="mt-3">
+            <ApprovalGateNav current="plans" />
+          </div>
         </div>
         <button
           onClick={() => void load()}

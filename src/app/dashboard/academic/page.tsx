@@ -251,14 +251,18 @@ export default function AcademicSpinePage() {
       : 0;
 
   const glance = [
-    {
-      label: "Certified",
-      value:
-        overview != null
-          ? `${overview.certified_courses}/${overview.central_courses}`
-          : "—",
-      href: "/dashboard/academic/rollout",
-    },
+    ...(isAdmin
+      ? [
+          {
+            label: "Certified",
+            value:
+              overview != null
+                ? `${overview.certified_courses}/${overview.central_courses}`
+                : "—",
+            href: "/dashboard/academic/rollout",
+          },
+        ]
+      : []),
     {
       label: "Assigned",
       value: String(totals.assigned_directions ?? 0),
@@ -283,9 +287,13 @@ export default function AcademicSpinePage() {
       className={`mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}
     >
       <MobilePageHero
-        badge="Academic Office"
-        title="Curriculum"
-        description="Write it, certify it, give it to schools — then teach from each class."
+        badge={isAdmin ? "Academic Office" : "Teaching"}
+        title={isAdmin ? "Curriculum" : "What to teach"}
+        description={
+          isAdmin
+            ? "Write it, certify it, give it to schools — then teach from each class."
+            : "Open a class. The official weeks are already there."
+        }
         icon={AcademicCapIcon}
         stats={
           isAdmin
@@ -492,16 +500,16 @@ export default function AcademicSpinePage() {
                     {lane.summary}
                   </p>
                   <div className="mt-4">
-                    {statuses.length > 0 ? (
+                    {isAdmin && statuses.length > 0 ? (
                       <StageList statuses={statuses} lane={laneId} />
                     ) : !isAdmin ? (
                       <ol className="space-y-2" role="list">
                         {(laneId === "asset"
                           ? [
                               {
-                                label: "Curriculum",
+                                label: "Official curriculum",
                                 href: "/dashboard/academic/build",
-                                purpose: "Read what the class should teach.",
+                                purpose: "See the weeks classes teach.",
                               },
                             ]
                           : [

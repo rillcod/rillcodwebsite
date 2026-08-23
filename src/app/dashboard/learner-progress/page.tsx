@@ -76,21 +76,21 @@ const VIEWS = [
     label: "Promotion decisions",
     purpose: "Curriculum track advance · class grade moves use Class → Roster",
     icon: RocketLaunchIcon,
-    roles: ["admin", "teacher"],
+    roles: ["admin"],
   },
   {
     id: "insights" as const,
     label: "Learning insights",
     purpose: "Patterns and topics needing attention",
     icon: ArrowTrendingUpIcon,
-    roles: ["admin", "teacher"],
+    roles: ["admin"],
   },
   {
     id: "projects" as const,
     label: "Projects & activities",
     purpose: "Practical evidence of learning",
     icon: BookOpenIcon,
-    roles: ["admin", "teacher"],
+    roles: ["admin"],
   },
   {
     id: "history" as const,
@@ -104,14 +104,14 @@ const VIEWS = [
     label: "Academic rules",
     purpose: "Term, promotion and delivery settings",
     icon: Cog6ToothIcon,
-    roles: ["admin", "teacher"],
+    roles: ["admin"],
   },
   {
     id: "templates" as const,
     label: "Teaching templates",
     purpose: "Reusable teaching patterns and materials",
     icon: BookOpenIcon,
-    roles: ["admin", "teacher"],
+    roles: ["admin"],
   },
 ];
 
@@ -170,11 +170,16 @@ function LearnerProgressOfficePageContent() {
     <main className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="mx-auto max-w-[96rem] space-y-4 px-3 py-4 sm:space-y-5 sm:px-6 sm:py-5">
         <MobilePageHero
-          badge="Academic Office"
-          title="Learner Progress"
-          description="One flow from teaching evidence to learner outcomes and term decisions."
+          badge={role === "teacher" ? "Teaching" : "Academic Office"}
+          title={role === "teacher" ? "Class progress" : "Learner Progress"}
+          description={
+            role === "teacher"
+              ? "What was taught, and what still needs a mark or a report."
+              : "One flow from teaching evidence to learner outcomes and term decisions."
+          }
           icon={ChartBarIcon}
         >
+          {role !== "teacher" && (
           <ol
             className="mt-4 hidden gap-2 text-xs sm:grid sm:grid-cols-5"
             aria-label="Academic progress flow"
@@ -197,6 +202,7 @@ function LearnerProgressOfficePageContent() {
               </li>
             ))}
           </ol>
+          )}
         </MobilePageHero>
 
         {/* Mobile: thumb-friendly horizontal strip */}

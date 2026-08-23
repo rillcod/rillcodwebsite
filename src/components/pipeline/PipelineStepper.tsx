@@ -16,6 +16,7 @@
  */
 
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
 import {
   BookOpenIcon,
   ClipboardDocumentListIcon,
@@ -76,6 +77,11 @@ function buildHref(step: PipelineStep, p: PipelineStepperProps): string {
 }
 
 export default function PipelineStepper(props: PipelineStepperProps) {
+  const { profile } = useAuth();
+  // Teachers teach from the class. This strip is Academic Office chrome and
+  // sent them into Build / lesson-plans / a second unscoped lesson list.
+  if (profile?.role === 'teacher') return null;
+
   const { current, courseTitle, className = '' } = props;
   const currentIdx = ORDER.indexOf(current);
 
@@ -181,13 +187,12 @@ export default function PipelineStepper(props: PipelineStepperProps) {
         Swipe to see connected teaching tools
       </p>
 
-      {/* Learning-system link — visible on sm+ */}
       <p className="hidden sm:block mt-2 text-[10px] text-muted-foreground">
         <Link
-          href="/dashboard/academic"
-          className="inline-flex items-center gap-1 text-cyan-600/90 dark:text-cyan-400/90 hover:underline font-bold"
+          href={props.classId ? `/dashboard/classes/${props.classId}` : "/dashboard/classes"}
+          className="inline-flex items-center gap-1 text-primary hover:underline font-bold"
         >
-          Return to the Academic Office flow
+          {props.classId ? "Back to this class" : "Back to classes"}
         </Link>
       </p>
     </nav>

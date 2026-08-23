@@ -1586,7 +1586,7 @@ tbody tr:hover{background:#f3f4f6}
                         from="results"
                     />
                 ) : !isStaff ? (
-                    <h1 className="text-lg font-extrabold tracking-tight">Publish &amp; Share</h1>
+                    <h1 className="text-lg font-extrabold tracking-tight">My Report Card</h1>
                 ) : null}
 
                 {isStaff && staffPeriodReady ? (
@@ -1649,7 +1649,7 @@ tbody tr:hover{background:#f3f4f6}
                                 <span className="text-muted-foreground">{stats.none} new</span>
                             </div>
                         ) : !isStaff ? (
-                            <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">Publish &amp; Share</h1>
+                            <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">My Report Card</h1>
                         ) : null}
                     </div>
 
@@ -2572,7 +2572,11 @@ tbody tr:hover{background:#f3f4f6}
                                         </Link>
                                     )}
                                     {!isEditor && (
-                                        <p className="text-xs text-muted-foreground">No report has been published for this student yet.</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {isStaff
+                                                ? 'No report has been published for this student yet.'
+                                                : 'Your report card has not been published yet.'}
+                                        </p>
                                     )}
                                 </div>
                             )

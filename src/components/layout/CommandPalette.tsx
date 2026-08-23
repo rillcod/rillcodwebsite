@@ -27,6 +27,8 @@ import {
   BanknotesIcon,
   ClipboardDocumentListIcon,
   TrophyIcon,
+  CalendarDaysIcon,
+  UserIcon,
 } from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -80,10 +82,12 @@ const PAGE_ITEMS_BY_ROLE: Record<string, PageItem[]> = {
     { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
     { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
     { name: 'CBT Exams', href: '/dashboard/cbt', icon: CommandLineIcon },
-    { name: 'Path Progress', href: '/dashboard/path-progress', icon: ChartBarIcon },
-    { name: 'Certificates', href: '/dashboard/certificates', icon: TrophyIcon },
-    { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
-    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+    { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+    { name: 'Grades', href: '/dashboard/grades', icon: ChartBarIcon },
+    { name: 'My Report Card', href: '/dashboard/results', icon: TrophyIcon },
+    { name: 'My Fees', href: '/dashboard/finance', icon: BanknotesIcon },
+    { name: 'Messages', href: '/dashboard/inbox', icon: EnvelopeIcon },
+    { name: 'My Profile', href: '/dashboard/profile', icon: UserIcon },
   ],
   parent: [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -92,7 +96,7 @@ const PAGE_ITEMS_BY_ROLE: Record<string, PageItem[]> = {
     { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentListIcon },
     { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
     { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
-    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+    { name: 'My Profile', href: '/dashboard/profile', icon: UserIcon },
   ],
 };
 
@@ -183,7 +187,13 @@ export default function CommandPalette() {
           <MagnifyingGlassIcon className="w-5 h-5 text-primary shrink-0" />
           <CommandInput
             value={query}
-            placeholder="Search pages, lessons, classes, or students"
+            placeholder={
+              canRosterSearch
+                ? 'Search pages, lessons, classes, or students'
+                : profile.role === 'student'
+                  ? 'Search pages or lessons'
+                  : 'Search pages'
+            }
             className="flex-1 min-w-0 bg-transparent border-none text-foreground placeholder:text-muted-foreground text-base font-medium h-11 outline-none"
             onValueChange={setQuery}
           />
@@ -262,11 +272,20 @@ export default function CommandPalette() {
               </div>
               <span className="text-sm font-semibold">Open inbox</span>
             </CommandItem>
-            <CommandItem onSelect={() => goTo('/dashboard/settings')} className={itemClassName}>
+            <CommandItem
+              onSelect={() => goTo(
+                profile?.role === 'student' || profile?.role === 'parent'
+                  ? '/dashboard/profile'
+                  : '/dashboard/settings'
+              )}
+              className={itemClassName}
+            >
               <div className="w-9 h-9 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
                 <CogIcon className="w-4.5 h-4.5" />
               </div>
-              <span className="text-sm font-semibold">Account settings</span>
+              <span className="text-sm font-semibold">
+                {profile?.role === 'student' || profile?.role === 'parent' ? 'My Profile' : 'Account settings'}
+              </span>
             </CommandItem>
           </CommandGroup>
         </CommandList>

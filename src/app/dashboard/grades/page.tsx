@@ -1153,6 +1153,14 @@ export default function GradesPage() {
                         </h1>
                         <p className="text-muted-foreground text-sm mt-1">
                             {isStaff ? 'Official record of all graded student work, term totals, WAEC letter grades, and report card exports.' : 'Your official scores, feedback and term progress.'}
+                            {!isStaff && (
+                              <>
+                                {' '}
+                                <Link href="/dashboard/grades/waec" className="font-bold text-primary hover:underline">
+                                  How these grades are calculated
+                                </Link>
+                              </>
+                            )}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 flex-shrink-0">

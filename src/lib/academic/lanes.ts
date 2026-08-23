@@ -256,6 +256,34 @@ export function navigationStepsInLane(lane: LaneId): LaneNavigationStep[] {
 }
 
 /**
+ * Navigation steps a role may see in a lane. A step appears if the role is an
+ * actor or observer on at least one of its stages. Teachers therefore see
+ * Build (they may read the official weeks) and never Rollout.
+ */
+export function navigationStepsForRole(
+  lane: LaneId,
+  role: AcademicRole | null | undefined
+): LaneNavigationStep[] {
+  if (!role) return [];
+  const visibleIds = new Set(visibleForRole(role).map((s) => s.id));
+  return navigationStepsInLane(lane).filter((step) =>
+    step.stageIds.some((id) => visibleIds.has(id))
+  );
+}
+
+/**
+ * The Overview / Build / Rollout strip is Academic Office work. Only a role
+ * that acts on the curriculum asset lane should see it. Teachers and schools
+ * may read official weeks, but they must never be offered that stepper.
+ */
+export function canSeeAssetLaneChrome(
+  role: AcademicRole | null | undefined
+): boolean {
+  if (!role) return false;
+  return stepsForRole(role).some((s) => s.lane === "asset");
+}
+
+/**
  * Stages a role may act on, in lane order. Observers are deliberately
  * excluded: a teacher must never be offered a publish or rollout control,
  * and this is the single place that rule is enforced.

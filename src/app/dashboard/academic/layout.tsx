@@ -3,8 +3,9 @@ import { Suspense } from "react";
 
 /**
  * Every Academic route shares this shell. LaneChrome draws the curriculum lane
- * stepper on the stage pages and nothing on the home, guide or results, so the
- * order shown always comes from src/lib/academic/lanes.ts.
+ * stepper for Academic Office roles only. Teachers and schools see the page
+ * itself — never Overview / Build / Rollout. Order still comes from
+ * src/lib/academic/lanes.ts.
  */
 export default function AcademicLayout({
   children,

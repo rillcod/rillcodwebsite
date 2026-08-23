@@ -737,51 +737,23 @@ export default function DashboardNavigation() {
         return filterEntries([
           { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
 
-          { divider: true, label: "Learning" },
+          { divider: true, label: "Classwork" },
           {
             name: "Learning Center",
             href: "/dashboard/learning",
             icon: RocketLaunchIcon,
           },
           {
-            name: "Learning Slides",
-            href: "/dashboard/slides",
-            icon: PresentationChartLineIcon,
+            name: "Assignments",
+            href: "/dashboard/assignments",
+            icon: ClipboardDocumentListIcon,
           },
-          { name: "Flashcards", href: "/dashboard/flashcards", icon: BoltIcon },
-          { name: "Library", href: "/dashboard/library", icon: ArchiveBoxIcon },
-          {
-            name: "Code Playground",
-            href: "/dashboard/playground",
-            icon: CodeBracketIcon,
-          },
+          { name: "CBT Exams", href: "/dashboard/cbt", icon: CommandLineIcon },
           {
             name: "Live Sessions",
             href: "/dashboard/live-sessions",
             icon: VideoCameraIcon,
           },
-
-          { divider: true, label: "Assignments & Exams" },
-          {
-            name: "Assignments",
-            href: "/dashboard/assignments",
-            icon: ClipboardDocumentListIcon,
-          },
-          { name: "Projects", href: "/dashboard/projects", icon: SparklesIcon },
-          { name: "CBT Exams", href: "/dashboard/cbt", icon: CommandLineIcon },
-
-          { divider: true, label: "Community" },
-          {
-            name: "Practice & Community",
-            href: "/dashboard/activity-hub",
-            icon: SparklesIcon,
-          },
-          {
-            name: "Study Groups",
-            href: "/dashboard/study-groups",
-            icon: UserGroupIcon,
-          },
-          { name: "Showcase", href: "/dashboard/showcase", icon: SignalIcon },
 
           { divider: true, label: "Schedule" },
           {
@@ -795,65 +767,33 @@ export default function DashboardNavigation() {
             icon: ClipboardDocumentCheckIcon,
           },
 
-          { divider: true, label: "My Progress" },
-          {
-            name: "Path Progress",
-            href: "/dashboard/path-progress",
-            icon: BookOpenIcon,
-          },
+          { divider: true, label: "Results" },
           { name: "Grades", href: "/dashboard/grades", icon: ChartBarIcon },
-          {
-            name: "How Grading Works",
-            href: "/dashboard/grades/waec",
-            icon: DocumentTextIcon,
-          },
           {
             name: "My Report Card",
             href: "/dashboard/results",
             icon: DocumentChartBarIcon,
           },
-          {
-            name: "Certificates",
-            href: "/dashboard/certificates",
-            icon: TrophyIcon,
-          },
-          {
-            name: "My Portfolio",
-            href: "/dashboard/portfolio",
-            icon: AcademicCapIcon,
-          },
 
-          { divider: true, label: "Account" },
-          {
-            name: "My Access Card",
-            href: "/dashboard/my-card",
-            icon: CreditCardIcon,
-          },
+          { divider: true, label: "School" },
           { name: "My Fees", href: "/dashboard/finance", icon: CreditCardIcon },
           {
             name: "Messages",
             href: "/dashboard/inbox",
             icon: ChatBubbleLeftRightIcon,
           },
-          {
-            name: "Support",
-            href: "/dashboard/support",
-            icon: QuestionMarkCircleIcon,
-          },
+
+          { divider: true, label: "Account" },
           {
             name: "Notifications",
             href: "/dashboard/notifications",
             icon: BellIcon,
           },
           {
-            name: "Newsletters",
-            href: "/dashboard/newsletters",
-            icon: DocumentTextIcon,
+            name: "Support",
+            href: "/dashboard/support",
+            icon: QuestionMarkCircleIcon,
           },
-          // /dashboard/settings is the platform administration panel — school
-          // setup, grading rules, user permissions — and route-access blocks it
-          // for students, so this row bounced them straight back out. Their
-          // account page is /dashboard/profile.
           {
             name: "My Profile",
             href: "/dashboard/profile",
@@ -1093,7 +1033,7 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
 
   const bottomNavByRole: Record<string, string[]> = {
-    student: ["Dashboard", "Learning Center", "Assignments", "Path Progress"],
+    student: ["Dashboard", "Learning Center", "Assignments", "Grades"],
     school: ["Dashboard", "Classes", "Finance Center", "WhatsApp Inbox"],
     admin: ["Dashboard", "Office Center", "Records", "Write"],
     teacher: ["Dashboard", "My Classes", "Grading Queue", "Curriculum"],

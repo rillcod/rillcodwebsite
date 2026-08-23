@@ -8,7 +8,6 @@ import { withTimeout } from '@/lib/async-timeout';
 import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
 import ClassReplays from '@/components/live-session/ClassReplays';
 import Link from 'next/link';
-import { buildCurriculumHref } from '@/lib/curriculum/href';
 import {
   RocketLaunchIcon, BookOpenIcon, ClockIcon,
   AcademicCapIcon, PlayCircleIcon, CheckBadgeIcon,
@@ -468,12 +467,10 @@ export default function StudentLearningPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-2 flex-wrap">
           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest shrink-0">Jump to:</span>
           {[
-            { label: 'Lessons',     href: '/dashboard/lessons',     icon: '📖' },
-            { label: 'Assignments', href: '/dashboard/assignments',  icon: '📋' },
-            { label: 'CBT Exams',   href: '/dashboard/cbt',          icon: '🎯' },
-            { label: 'Flashcards',  href: '/dashboard/flashcards',   icon: '🎴' },
-            { label: 'Projects',    href: '/dashboard/projects',     icon: '🚀' },
-            { label: 'Certificates',href: '/dashboard/certificates', icon: '🎓' },
+            { label: 'Assignments', href: '/dashboard/assignments', icon: '📋' },
+            { label: 'CBT Exams',   href: '/dashboard/cbt',         icon: '🎯' },
+            { label: 'Timetable',   href: '/dashboard/timetable',   icon: '📅' },
+            { label: 'Grades',      href: '/dashboard/grades',      icon: '📊' },
           ].map(({ label, href, icon }) => (
             <Link key={label} href={href}
               className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border rounded-full transition-all">
@@ -690,9 +687,6 @@ export default function StudentLearningPage() {
                   <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {isKids ? '🗺️ My Learning Path' : 'Your Lessons'}
                   </h2>
-                  <Link href="/dashboard/lessons" className="text-xs font-bold text-primary hover:text-primary transition-colors">
-                    View all →
-                  </Link>
                 </div>
 
                 <div className="bg-card border border-border p-6 overflow-x-auto">
@@ -760,9 +754,9 @@ export default function StudentLearningPage() {
                       <div className="w-6 h-6 rounded-xl bg-muted border border-border flex items-center justify-center text-[10px]">🔒</div>
                       <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Locked Milestone</span>
                     </div>
-                    <Link href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
+                    <Link href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/learning'}
                       className="ml-auto px-5 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all">
-                      {nextLesson ? 'Continue Learning' : 'Browse Lessons'}
+                      {nextLesson ? 'Continue Learning' : 'Open Learning Center'}
                     </Link>
                   </div>
                 </div>
@@ -810,10 +804,9 @@ export default function StudentLearningPage() {
                                 </p>
                               </div>
                             </div>
-                            <Link href={buildCurriculumHref({ programId: prog.id })}
-                              className="text-[10px] font-black text-brand-red-600 hover:text-primary uppercase tracking-widest transition-colors">
-                              View Syllabus →
-                            </Link>
+                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                              {courses.length} course{courses.length === 1 ? '' : 's'}
+                            </span>
                           </div>
 
                           {/* Courses grid */}
@@ -827,8 +820,13 @@ export default function StudentLearningPage() {
                                 const total = c.lessons?.length || 0;
                                 const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
                                 const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                                const nextInCourse = (c.lessons || []).find((l: any) => !completedLessonIds.has(l.id))
+                                  ?? (c.lessons || [])[0];
+                                const courseHref = nextInCourse
+                                  ? `/dashboard/lessons/${nextInCourse.id}`
+                                  : '/dashboard/learning';
                                 return (
-                                  <Link key={c.id} href={`/dashboard/courses/${c.id}`}
+                                  <Link key={c.id} href={courseHref}
                                     className="bg-card p-5 hover:bg-muted/30 transition-all flex flex-col gap-3">
                                     <div className="flex items-start justify-between gap-2">
                                       <p className="text-sm font-black leading-tight">{c.title}</p>

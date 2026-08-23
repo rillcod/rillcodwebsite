@@ -66,7 +66,6 @@ import { hostPaperLabel } from "@/lib/academic/host-marks";
 import { pickTimetableSessionForMeeting, schoolCalendarDate } from "@/lib/timetable/sessions-from-slots";
 import { createClient } from "@/lib/supabase/client";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
-import PipelineStepper from "@/components/pipeline/PipelineStepper";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
 
 type Props = {
@@ -660,19 +659,6 @@ export function ClassTeachingWorkspace({
 
   return (
     <div className="space-y-4">
-      {courseId && (
-        <PipelineStepper
-          current="plans"
-          courseId={courseId}
-          programId={data?.class?.program_id}
-          classId={classId}
-          lessonPlanId={plan?.id}
-          courseTitle={
-            (data?.courses || []).find((c: any) => c.id === courseId)?.title
-          }
-        />
-      )}
-
       {isSpecialProgram && data?.class?.academic_offerings ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4">
           <div className="flex items-center gap-3">
@@ -738,20 +724,27 @@ export function ClassTeachingWorkspace({
               )}
             </div>
           </div>
-          {canEdit && courseId && planStage?.state !== "blocked" && (
+          {canEdit && courseId && planStage?.state !== "blocked" && !plan && (
             <button
               disabled={busy}
               onClick={() =>
                 void act({ action: "ensure_plan", course_id: courseId })
               }
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
-              title={
-                plan
-                  ? "Re-resolves the official edition for this class. Weeks, lessons and delivery records are not rewritten."
-                  : undefined
-              }
             >
-              {plan ? "Refresh academic direction" : "Start teaching plan"}
+              Start teaching plan
+            </button>
+          )}
+          {canEdit && courseId && plan && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void act({ action: "ensure_plan", course_id: courseId })
+              }
+              className="text-xs font-bold text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
+              title="Re-reads the official weeks for this class. Lessons already taught stay as they are."
+            >
+              Refresh official weeks
             </button>
           )}
         </div>
@@ -893,8 +886,7 @@ export function ClassTeachingWorkspace({
           </div>
           <p className="mt-3 text-base font-black">No teaching plan yet</p>
           <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
-            The plan inherits the official curriculum edition assigned to this class.
-            Click below to generate and sync your weekly syllabus.
+            This starts the week list for this class from the official curriculum.
           </p>
           {canEdit && (
             <button
@@ -914,9 +906,9 @@ export function ClassTeachingWorkspace({
       {plan && (
         <>
           {/* Interactive Metric Cards */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-3 gap-2">
             <StatCard
-              label="Curriculum Weeks"
+              label="Weeks"
               value={weekRows.length}
               subtext={`${weeksFullyLive} live`}
               accent="primary"
@@ -924,38 +916,20 @@ export function ClassTeachingWorkspace({
               isActive={weekFilter === "all"}
             />
             <StatCard
-              label="Delivered"
+              label="Taught"
               value={weeksTaught}
-              subtext={`${Math.round((weeksTaught / (weekRows.length || 1)) * 100)}% taught`}
+              subtext={`${Math.round((weeksTaught / (weekRows.length || 1)) * 100)}%`}
               accent="emerald"
               onClick={() => setWeekFilter("taught")}
               isActive={weekFilter === "taught"}
             />
             <StatCard
-              label="Needs Work"
+              label="Needs work"
               value={weeksNeedingWork}
-              subtext="Prep / Release"
+              subtext="Prep or release"
               accent="amber"
               onClick={() => setWeekFilter("todo")}
               isActive={weekFilter === "todo"}
-            />
-            <StatCard
-              label="Slide Decks"
-              value={data.slide_decks?.length || 0}
-              subtext="Visual teaching"
-              accent="violet"
-            />
-            <StatCard
-              label="Flashcards"
-              value={data.flashcard_decks?.length || 0}
-              subtext="Active recall"
-              accent="cyan"
-            />
-            <StatCard
-              label="Projects & Assg."
-              value={(data.projects?.length || 0) + (data.assignments?.length || 0)}
-              subtext="Coursework"
-              accent="rose"
             />
           </div>
 

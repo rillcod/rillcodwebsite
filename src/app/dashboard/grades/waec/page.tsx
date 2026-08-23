@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
 import {
   AcademicCapIcon, ChartBarIcon, CheckCircleIcon,
   ExclamationTriangleIcon, ArrowLeftIcon, SparklesIcon,
@@ -60,6 +61,8 @@ function GradeBadge({ grade }: { grade: WAECGrade }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function WAECGradingPage() {
+  const { profile } = useAuth();
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
   const [activeTab, setActiveTab] = useState<'calculator' | 'scale' | 'activity' | 'motivation'>('calculator');
   const [scores, setScores] = useState<ScoreComponents>({
     theory: 70,
@@ -111,20 +114,28 @@ export default function WAECGradingPage() {
             </Link>
             <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Assessment Policy</span>
           </div>
-          <h1 className="text-2xl font-black">Grading & Evaluation Guide</h1>
+          <h1 className="text-2xl font-black">
+            {isStaff ? 'Grading & Evaluation Guide' : 'How your grades are calculated'}
+          </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            One calculation policy for assignments, projects, evaluations, CBT, gradebook, and reports.
+            {isStaff
+              ? 'One calculation policy for assignments, projects, evaluations, CBT, gradebook, and reports.'
+              : 'This is how assignment, test, and exam scores become the grade you see.'}
           </p>
-          <p className="text-[11px] font-bold text-primary mt-1">
-            Current default: {policyName}. Scoped school, course, term, and pathway policies apply automatically in official results.
-          </p>
+          {isStaff && (
+            <p className="text-[11px] font-bold text-primary mt-1">
+              Current default: {policyName}. Scoped school, course, term, and pathway policies apply automatically in official results.
+            </p>
+          )}
         </div>
-        <Link
-          href="/dashboard/grading"
-          className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/30 text-sm font-bold transition-all text-muted-foreground hover:text-foreground"
-        >
-          <ChartBarIcon className="w-4 h-4 text-primary" /> Open Grading Queue
-        </Link>
+        {isStaff && (
+          <Link
+            href="/dashboard/grading"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/30 text-sm font-bold transition-all text-muted-foreground hover:text-foreground"
+          >
+            <ChartBarIcon className="w-4 h-4 text-primary" /> Open Grading Queue
+          </Link>
+        )}
       </div>
 
       {/* Tabs */}

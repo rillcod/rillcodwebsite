@@ -4944,10 +4944,10 @@ export default function LessonDetailPage() {
             "Unable to load lesson content. Please check your connection or contact support."}
         </p>
         <Link
-          href="/dashboard/lessons"
+          href={profile?.role === "student" ? "/dashboard/learning" : "/dashboard/lessons"}
           className="px-6 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold"
         >
-          Back to Lessons
+          {profile?.role === "student" ? "Back to Learning Center" : "Back to Lessons"}
         </Link>
       </div>
     );

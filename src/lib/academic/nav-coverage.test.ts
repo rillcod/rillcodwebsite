@@ -34,6 +34,47 @@ describe("navigation covers the academic lanes", () => {
     }
   });
 
+  it("keeps Academic Office stepper rows out of the teacher sidebar", () => {
+    const start = NAV.indexOf('case "teacher":');
+    const end = NAV.indexOf('case "student":');
+    const block = NAV.slice(start, end);
+    expect(block).not.toContain("/dashboard/academic/rollout");
+    expect(block).not.toContain("0 · Overview");
+    expect(block).not.toContain("2 · Rollout");
+    expect(block).not.toContain("Approve Teaching Plans");
+    expect(block).not.toContain("Approve AI Drafts");
+    expect(block).toContain('name: "My Classes"');
+    expect(block).toContain('name: "Curriculum"');
+    expect(block).toContain('name: "Approvals"');
+    expect(block).not.toContain("/dashboard/crm");
+    expect(block).not.toContain("/dashboard/finance");
+    expect(block).not.toContain("/dashboard/card-studio");
+    expect(block).not.toContain("/dashboard/parent-claims");
+    expect(block).not.toContain("/dashboard/cases");
+    expect(block).not.toContain('href: "/dashboard/approvals"');
+    expect(block).not.toContain("/dashboard/records");
+    expect(block).not.toContain("/dashboard/school-reports");
+  });
+
+  it("keeps the student sidebar on the daily learner loop", () => {
+    const start = NAV.indexOf('case "student":');
+    const end = NAV.indexOf('case "school":');
+    const block = NAV.slice(start, end);
+    expect(block).toContain('name: "Learning Center"');
+    expect(block).toContain('name: "Assignments"');
+    expect(block).toContain('name: "CBT Exams"');
+    expect(block).toContain('name: "Grades"');
+    expect(block).toContain('name: "My Report Card"');
+    expect(block).not.toContain("/dashboard/academic/build");
+    expect(block).not.toContain("/dashboard/grading");
+    expect(block).not.toContain("/dashboard/leaderboard");
+    expect(block).not.toContain("/dashboard/lessons");
+    expect(block).not.toContain('href: "/dashboard/settings"');
+    expect(block).not.toContain("/dashboard/activity-hub");
+    expect(block).not.toContain("/dashboard/study-groups");
+    expect(block).not.toContain("/dashboard/path-progress");
+  });
+
   it("keeps the renamed routes out of the navigation", () => {
     for (const legacy of [
       "/dashboard/academic-spine",

@@ -36,6 +36,7 @@ import {
   type PendingWeek,
 } from "@/lib/academic/pending-approval";
 import { teachingMeetingLabel } from "@/lib/academic/session-identity";
+import { ApprovalGateNav } from "@/components/academic/ApprovalGateNav";
 
 function pendingKey(row: { planId: string; week: number; session?: number | null }) {
   return pendingWeekKey(row);
@@ -246,14 +247,17 @@ export default function ContentApprovalsPage() {
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
             <SparklesIcon className="h-3.5 w-3.5" />
-            Teaching Engine & Approval Hub
+            Approvals
           </p>
           <h1 className="mt-1 text-2xl font-black text-foreground">
-            This week&apos;s AI teaching drafts
+            This week&apos;s teaching drafts
           </h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-            Materials prepare automatically overnight and wait here. Review a meeting, preview its curriculum details & assignments, then release live to your classroom.
+            Prepared weeks wait here. Read a meeting, then release it to the class.
           </p>
+          <div className="mt-3">
+            <ApprovalGateNav current="weeks" />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {filteredWeeks.length > 0 && (

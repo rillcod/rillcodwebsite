@@ -3,11 +3,10 @@
 
 import { useAuth } from '@/contexts/auth-context';
 import {
-  BookOpenIcon, TrophyIcon, StarIcon, RocketLaunchIcon,
-  SparklesIcon, FireIcon, BoltIcon, CheckBadgeIcon,
+  BookOpenIcon, RocketLaunchIcon,
+  SparklesIcon, CheckBadgeIcon,
   ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon,
-  ArchiveBoxIcon, CommandLineIcon, UserGroupIcon, ChatBubbleLeftRightIcon,
-  ArrowRightIcon,
+  ArchiveBoxIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -380,11 +379,9 @@ export default function StudentDashboard() {
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Your Progress</h2>
-                  {data.lmsSettings.lms_gamification_enabled !== 'false' && (
-                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
-                      Leaderboard Position: {data.leaderboardRank ? `#${data.leaderboardRank}` : 'Not ranked yet'}
-                    </p>
-                  )}
+                  <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                    {data.lessonsDone} lesson{data.lessonsDone === 1 ? '' : 's'} completed
+                  </p>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center">
@@ -483,22 +480,14 @@ export default function StudentDashboard() {
           in two of them. One grid, each destination once. */}
       <div className="space-y-3">
         <h2 className="px-1 text-sm font-black uppercase tracking-widest text-muted-foreground">
-          Everything in one place
+          What to do now
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-            { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
-            { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-            { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
-            { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-            { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-            { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
-            { href: '/dashboard/vault', icon: ArchiveBoxIcon, label: 'My Saved Work', color: 'bg-fuchsia-600/10 border-fuchsia-600/20 text-fuchsia-600 dark:text-fuchsia-400 hover:border-fuchsia-500/40' },
-            { href: '/dashboard/engage', icon: ChatBubbleLeftRightIcon, label: 'Community Feed', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
-            { href: '/dashboard/missions', icon: RocketLaunchIcon, label: 'Practice Quests', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/40' },
-            { href: '/dashboard/protocol', icon: CommandLineIcon, label: 'Skill Challenges', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
-            { href: '/dashboard/study-groups', icon: UserGroupIcon, label: 'Study Groups', color: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:border-amber-500/40' },
+            { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Continue learning', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'My assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400 hover:border-cyan-500/40' },
+            { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'CBT Exams', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+            { href: '/dashboard/grades', icon: CheckBadgeIcon, label: 'My grades', color: 'bg-brand-red-600/10 border-brand-red-600/20 text-brand-red-600 dark:text-brand-red-500 hover:border-brand-red-600/40' },
           ].map(({ href, icon: Icon, label, color }) => (
             <Link key={href} href={href}
               className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>

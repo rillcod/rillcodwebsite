@@ -3,13 +3,25 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircleIcon } from "@/lib/icons";
+import { useAuth } from "@/contexts/auth-context";
 import { mergeAssetLaneHref } from "@/lib/curriculum/href";
-import { LANES, navigationStepsInLane, type LaneId, type StageId } from "@/lib/academic/lanes";
+import {
+  LANES,
+  canSeeAssetLaneChrome,
+  navigationStepsInLane,
+  type AcademicRole,
+  type LaneId,
+  type StageId,
+} from "@/lib/academic/lanes";
 
 /**
  * One stepper for a lane, built from the kernel. Any page inside a lane mounts
  * this instead of writing its own stage list, so the order and wording can
  * never disagree between screens.
+ *
+ * Teachers and schools never see the asset-lane strip. It is Academic Office
+ * work (Overview / Build / Rollout), and offering it made the curriculum
+ * pages look like an admin console.
  */
 export function LaneChrome({
   lane,
@@ -18,8 +30,13 @@ export function LaneChrome({
   lane: LaneId;
   current?: StageId;
 }) {
+  const { profile, loading } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  if (loading) return null;
+  if (lane === "asset" && !canSeeAssetLaneChrome(profile?.role as AcademicRole | undefined)) {
+    return null;
+  }
   const stages = navigationStepsInLane(lane);
 
   const activeIndex = (() => {

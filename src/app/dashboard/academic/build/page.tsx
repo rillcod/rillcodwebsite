@@ -794,6 +794,13 @@ export default function CurriculumPage() {
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
+  // Teachers and partner schools may read official weeks. They must not land
+  // in the authoring builder — that is Academic Office work.
+  const isCurriculumReader = isTeacher || isSchool;
+  const viewMode: "roster" | "inspector" | "builder" =
+    isCurriculumReader && curriculumViewMode === "builder"
+      ? "roster"
+      : curriculumViewMode;
 
   useEffect(() => {
     if (!selectedCourse || learnerMode || isSchool) return;
@@ -3933,13 +3940,26 @@ export default function CurriculumPage() {
         {/* Header — wraps gracefully on mobile */}
         <div className="shrink-0 border-b border-border bg-card z-20">
           <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
-            <p className="text-sm font-black text-foreground">Curriculum</p>
+            <p className="text-sm font-black text-foreground">
+              {isCurriculumReader ? "Official curriculum" : "Curriculum"}
+            </p>
             <p className="hidden text-xs text-muted-foreground md:block">
-              Write the week plan here. Publish on Rollout. Teach from Classes.
+              {isCurriculumReader
+                ? "These are the weeks classes teach. Open a class to deliver them."
+                : "Write the week plan here. Publish on Rollout. Teach from Classes."}
             </p>
             <div className="flex-1 hidden md:block" />
 
-            {["admin", "teacher", "school"].includes(profile?.role || "") && (
+            {isCurriculumReader && (
+              <Link
+                href="/dashboard/classes"
+                className="rounded-xl bg-primary px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary-foreground"
+              >
+                Open My Classes
+              </Link>
+            )}
+
+            {isAdmin && (
               <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-background p-1 my-1 md:my-0">
                 <button
                   type="button"
@@ -3996,21 +4016,33 @@ export default function CurriculumPage() {
         {showHelp && (
           <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-3">
             <p className="mx-auto max-w-[1800px] text-sm text-muted-foreground">
-              Build the weeks here → publish on{" "}
-              <Link href="/dashboard/academic/rollout" className="font-bold text-primary hover:underline">
-                Rollout
-              </Link>{" "}
-              → teach from{" "}
-              <Link href="/dashboard/classes" className="font-bold text-primary hover:underline">
-                Classes
-              </Link>
-              .
+              {isCurriculumReader ? (
+                <>
+                  This list is the official weeks. Teach them from{" "}
+                  <Link href="/dashboard/classes" className="font-bold text-primary hover:underline">
+                    My Classes
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  Build the weeks here → publish on{" "}
+                  <Link href="/dashboard/academic/rollout" className="font-bold text-primary hover:underline">
+                    Rollout
+                  </Link>{" "}
+                  → teach from{" "}
+                  <Link href="/dashboard/classes" className="font-bold text-primary hover:underline">
+                    Classes
+                  </Link>
+                  .
+                </>
+              )}
             </p>
           </div>
         )}
 
         {/* View Mode 1: Master Curriculum Roster */}
-        {curriculumViewMode === "roster" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
+        {viewMode === "roster" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
           <div className="p-4 sm:p-6 max-w-[1800px] mx-auto w-full">
             <MasterCurriculumRoster
               curricula={allCurricula}
@@ -4042,7 +4074,7 @@ export default function CurriculumPage() {
         )}
 
         {/* View Mode 2: Building Block Inspector */}
-        {curriculumViewMode === "inspector" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
+        {viewMode === "inspector" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
           <div className="p-4 sm:p-6 max-w-[1800px] mx-auto w-full">
             <CurriculumBuildingBlockInspector
               programs={programs}
@@ -4058,7 +4090,7 @@ export default function CurriculumPage() {
         )}
 
         {/* View Mode 3: Traditional Builder & Generator View */}
-        {(curriculumViewMode === "builder" || !["admin", "teacher", "school"].includes(profile?.role || "")) && (
+        {(viewMode === "builder" || learnerMode) && (
           <div className="flex flex-col md:flex-row flex-1 min-h-0 w-full">
           {/* ── Mobile scope bar — not sticky. Sticky top-0 pinned under the fixed
              app header (and fought LaneChrome), so the curriculum title looked

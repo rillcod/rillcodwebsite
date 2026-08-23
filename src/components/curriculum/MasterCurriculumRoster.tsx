@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   TrashIcon, EyeSlashIcon, MagnifyingGlassIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
@@ -422,7 +423,7 @@ export function MasterCurriculumRoster({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/30">
                 <SparklesIcon className="w-3 h-3 animate-pulse" />
-                Curriculum management
+                {isAdmin ? 'Curriculum management' : 'Official curricula'}
               </span>
               <span className="text-xs font-bold text-muted-foreground bg-background/60 px-3 py-1 rounded-full border border-border">
                 {curricula.length === 1 ? '1 curriculum' : `${curricula.length} curricula`}
@@ -432,7 +433,9 @@ export function MasterCurriculumRoster({
               Curricula
             </h1>
             <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-              Review saved curricula, publication status, and where each one is in use.
+              {isAdmin
+                ? 'Review saved curricula, publication status, and where each one is in use.'
+                : 'These are the official weeks your classes teach. Open a course to see the topics, then teach from My Classes.'}
             </p>
           </div>
 
@@ -489,6 +492,7 @@ export function MasterCurriculumRoster({
             />
           </div>
 
+          {isAdmin && (
           <div className="flex items-center gap-1 bg-background/80 border border-border rounded-xl p-1 shadow-inner">
             <button
               type="button"
@@ -524,6 +528,7 @@ export function MasterCurriculumRoster({
               Hidden ({curricula.filter((c) => !c.is_visible_to_school).length})
             </button>
           </div>
+          )}
 
           {isAdmin && selectedIds.length > 0 && (
             <button
@@ -728,12 +733,14 @@ export function MasterCurriculumRoster({
                   <div className="p-5 pl-7 space-y-4">
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
+                        {isAdmin && (
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(item.id)}
                           className="mt-1 rounded border-border accent-primary w-4 h-4"
                         />
+                        )}
 
                         <div className="space-y-1.5 min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
@@ -770,6 +777,7 @@ export function MasterCurriculumRoster({
                               </span>
                             )}
 
+                            {isAdmin && (
                             <button
                               type="button"
                               onClick={() => handleToggleVisibility(item)}
@@ -782,6 +790,7 @@ export function MasterCurriculumRoster({
                               <span className={`w-2 h-2 rounded-full ${isVisible ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
                               {isVisible ? 'Schools can see this' : 'Hidden from schools'}
                             </button>
+                            )}
                           </div>
 
                           <h3 className="text-lg font-black text-foreground tracking-tight truncate">
@@ -805,6 +814,7 @@ export function MasterCurriculumRoster({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+                        {isAdmin ? (
                         <button
                           type="button"
                           onClick={() => onSelectCurriculum(item)}
@@ -812,6 +822,15 @@ export function MasterCurriculumRoster({
                         >
                           <BookOpenIcon className="w-3.5 h-3.5" /> Inspect Syllabus
                         </button>
+                        ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(item.id)}
+                          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                        >
+                          <BookOpenIcon className="w-3.5 h-3.5" /> See weeks
+                        </button>
+                        )}
 
                         <button
                           type="button"
@@ -865,8 +884,8 @@ export function MasterCurriculumRoster({
                                 <p className="text-xs font-bold text-foreground truncate">
                                   {(t.weeks ?? []).length} weeks planned
                                 </p>
-                                <div className="text-[11px] text-muted-foreground space-y-1 pt-1 border-t border-border/40 max-h-24 overflow-y-auto custom-scrollbar">
-                                  {(t.weeks ?? []).slice(0, 4).map((w: any) => (
+                                <div className={`text-[11px] text-muted-foreground space-y-1 pt-1 border-t border-border/40 overflow-y-auto custom-scrollbar ${isAdmin ? 'max-h-24' : 'max-h-80'}`}>
+                                  {(isAdmin ? (t.weeks ?? []).slice(0, 4) : (t.weeks ?? [])).map((w: any) => (
                                     <p key={w.week} className="truncate">
                                       <span className="font-bold text-foreground">W{w.week}:</span> {w.topic || w.type}
                                     </p>
@@ -875,6 +894,14 @@ export function MasterCurriculumRoster({
                               </div>
                             ))}
                           </div>
+                          {!isAdmin && (
+                            <Link
+                              href="/dashboard/classes"
+                              className="inline-flex text-xs font-bold text-primary hover:underline"
+                            >
+                              Teach these weeks from My Classes
+                            </Link>
+                          )}
                         </div>
 
                         {/* Same list, two meanings. On a published curriculum these are the classes

@@ -7,6 +7,9 @@ const classPage = read('src/app/dashboard/classes/[id]/page.tsx');
 const academicOffice = read('src/app/dashboard/academic/page.tsx');
 const flashcards = read('src/app/dashboard/flashcards/page.tsx');
 const teachingTools = read('src/components/pipeline/PipelineStepper.tsx');
+const teachingWorkspace = read('src/components/classes/ClassTeachingWorkspace.tsx');
+const laneChrome = read('src/components/academic/LaneChrome.tsx');
+const academicGuide = read('src/app/dashboard/academic/guide/page.tsx');
 
 describe('central teacher workspace UX', () => {
   // Records used to hide behind a collapsed panel that told teachers to "keep this closed
@@ -36,6 +39,14 @@ describe('central teacher workspace UX', () => {
     expect(teachingTools).not.toContain('Step {step.number}');
   });
 
+  it('does not put Academic Office tabs on the class teaching page', () => {
+    expect(teachingWorkspace).not.toContain('<PipelineStepper');
+    expect(laneChrome).toContain('canSeeAssetLaneChrome');
+    expect(academicGuide).toContain('<AcademicGuideCtas');
+    expect(academicGuide).not.toContain('Roll out / make official');
+    expect(teachingTools).toContain("profile?.role === 'teacher'");
+  });
+
   // The order of the page is the point: what to do next, then the curriculum
   // lanes that carry the work, then optional tools, and only then the admin-only
   // exceptions. Anchored on ids rather than visible copy — the headings were
@@ -48,10 +59,11 @@ describe('central teacher workspace UX', () => {
     const exceptions = academicOffice.lastIndexOf('<AcademicExceptionsWorkspace');
     expect(nextAction).toBeGreaterThan(-1);
     expect(curriculum).toBeGreaterThan(-1);
+    expect(academicOffice).toContain("What to teach");
     expect(tools).toBeGreaterThan(-1);
     expect(exceptions).toBeGreaterThan(-1);
     expect(nextAction).toBeLessThan(curriculum);
     expect(curriculum).toBeLessThan(tools);
     expect(tools).toBeLessThan(exceptions);
   });
-});
+});
