@@ -58,7 +58,7 @@ export default function Footer() {
 
             <div className="flex items-center gap-3">
                {footerSocialLinks.map((s) => (
-                 <Link key={s.name} href={s.href} aria-label={s.name} target="_blank" rel="noreferrer" className="w-10 h-10 border border-border flex items-center justify-center rounded-xl hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
+                 <Link key={s.name} href={s.href} aria-label={s.name} target="_blank" rel="noreferrer" className="w-11 h-11 border border-border flex items-center justify-center rounded-xl hover:bg-muted hover:border-primary transition-all text-muted-foreground hover:text-primary shadow-sm">
                     <s.icon className="w-4 h-4" />
                  </Link>
                ))}
@@ -68,10 +68,10 @@ export default function Footer() {
           {/* Links Grid */}
           <div className="space-y-6 lg:col-span-3 xl:col-span-2">
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Main Hub</h4>
-              <ul className="space-y-4">
+              <ul className="space-y-0">
                 {quickLinks.map((l) => (
                    <li key={l.name}>
-                     <Link href={l.href} className="text-xs text-muted-foreground hover:text-primary transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
+                     <Link href={l.href} className="inline-flex items-center min-h-11 text-xs text-muted-foreground hover:text-primary transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
                    </li>
                 ))}
               </ul>
@@ -80,10 +80,10 @@ export default function Footer() {
           {/* Legal */}
           <div className="hidden space-y-6 xl:col-span-2 xl:block">
               <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] opacity-60">Legal</h4>
-              <ul className="space-y-4">
+              <ul className="space-y-0">
                 {legalLinks.map((l) => (
                    <li key={l.name}>
-                     <Link href={l.href} className="text-xs text-muted-foreground hover:text-primary transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
+                     <Link href={l.href} className="inline-flex items-center min-h-11 text-xs text-muted-foreground hover:text-primary transition-colors uppercase font-bold tracking-widest">{l.name}</Link>
                    </li>
                 ))}
               </ul>
@@ -130,7 +130,7 @@ export default function Footer() {
            
            <div className="flex items-center gap-4">
               {legalLinks.map((l) => (
-                <Link key={l.name} href={l.href} className="text-[9px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest transition-colors">{l.name}</Link>
+                <Link key={l.name} href={l.href} className="inline-flex items-center min-h-11 text-[9px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest transition-colors">{l.name}</Link>
               ))}
            </div>
            <div className="flex items-center gap-6 px-6 py-2 bg-muted border border-border rounded-xl shadow-sm">
