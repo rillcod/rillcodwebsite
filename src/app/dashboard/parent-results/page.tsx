@@ -232,6 +232,18 @@ function ParentResultsContent() {
         {pageCopy.parentNotice ? (
           <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">{pageCopy.parentNotice}</p>
         ) : null}
+        {/*
+          The grading guide used to be its own row in the parent sidebar, which put
+          a reference page beside the five screens a parent actually visits. It
+          belongs here instead: this is where a parent reads "B3" and wonders what
+          it means.
+        */}
+        <a
+          href="/dashboard/grades/waec"
+          className="mt-2 inline-flex min-h-9 items-center text-xs font-bold text-primary underline-offset-4 hover:underline"
+        >
+          What do these grades mean?
+        </a>
       </div>
 
       {/* Child Selector */}

@@ -160,7 +160,22 @@ export default function SupportPage() {
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6 mobile-page-root">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Support Tickets</h1>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Support Tickets</h1>
+          {/*
+            Share Feedback was a separate parent sidebar row next to Support, which
+            is two doors onto "I want to tell you something". Support is the one a
+            parent looks for; feedback lives behind it rather than beside it.
+          */}
+          {profile?.role === 'parent' ? (
+            <a
+              href="/dashboard/parent-feedback"
+              className="mt-1 inline-flex min-h-9 items-center text-xs font-bold text-primary underline-offset-4 hover:underline"
+            >
+              Share feedback about a class instead
+            </a>
+          ) : null}
+        </div>
         <button
           onClick={() => setShowForm(v => !v)}
           className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold min-h-[44px] sm:min-h-0 mobile-page-root"

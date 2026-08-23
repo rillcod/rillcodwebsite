@@ -628,16 +628,13 @@ export default function DashboardNavigation() {
         ]);
 
       // ─────────────────────────────────────────────────────────────────────────
-      // TEACHER — Teaches classes, creates content, grades, tracks campus students.
+      // TEACHER — One class at a time. Teach, mark, write the report, talk to
+      // the family. Office, CRM, finance, card studio, registration queues and
+      // student-game surfaces stay off this map even when the route still exists.
       // ─────────────────────────────────────────────────────────────────────────
       case "teacher":
         return filterEntries([
           { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-          {
-            name: "Help Requests",
-            href: "/dashboard/cases",
-            icon: ChatBubbleLeftEllipsisIcon,
-          },
 
           { divider: true, label: "Teaching" },
           {
@@ -646,63 +643,21 @@ export default function DashboardNavigation() {
             icon: UserGroupIcon,
           },
           {
-            name: "Teaching Plans",
-            href: "/dashboard/lesson-plans",
-            icon: ClipboardDocumentListIcon,
-          },
-          // A plan is a draft until someone publishes it, and only then can its
-          // class generate anything. That gate had no screen — it was a small
-          // button at the foot of each plan's own page, so approving thirty-two
-          // plans meant thirty-two visits. "Approve AI Drafts" below is a
-          // different gate on a different object (week content, not the plan),
-          // which made this one harder to find rather than easier.
-          {
-            name: "Approve Teaching Plans",
-            href: "/dashboard/lesson-plans/approvals",
-            icon: ClipboardDocumentCheckIcon,
-          },
-          // AI-prepared weeks wait here until a teacher reads and releases them.
-          // Without a way in, content held back for approval is indistinguishable
-          // from content that was never generated.
-          {
-            name: "Approve AI Drafts",
+            name: "Approvals",
             href: "/dashboard/teaching/approvals",
             icon: ClipboardDocumentCheckIcon,
           },
-          {
-            name: "Learner Progress",
-            href: "/dashboard/learner-progress",
-            icon: ChartBarIcon,
-          },
-          // One academic entry, not three. "Academic Overview" and "Teaching
-          // Resources" both landed on /dashboard/academic — the second one on an
-          // anchor — so the same page occupied three sidebar rows. Every academic
-          // page mounts LaneChrome, whose step 0 links Overview, so the builder
-          // stays the way in and Overview is one click from it.
           {
             name: "Curriculum",
             href: "/dashboard/academic/build",
             icon: BookOpenIcon,
           },
           {
-            name: "Guide",
-            href: "/dashboard/academic/guide",
-            icon: DocumentTextIcon,
-          },
-          // Library is the one shared shelf that is NOT reached through a class.
-          // Its tabs are all / this school / global and it filters on school_id,
-          // so it holds material across every class a teacher teaches — and it
-          // appears nowhere in the class workspace.
-          //
-          // Lessons, assignments and tests deliberately do NOT sit here. They
-          // belong to a class and are reached through it: My Classes → a class →
-          // Teaching or Assessment. Listing them again at top level would offer a
-          // second, unscoped route to the same work.
-          {
             name: "Library",
             href: "/dashboard/library",
             icon: ArchiveBoxIcon,
           },
+
           { divider: true, label: "Schedule" },
           {
             name: "Timetable",
@@ -721,21 +676,11 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Assessment" },
-          // No Assignments or Tests entry here on purpose. Both are authored
-          // against a class and are reached through one — My Classes → a class →
-          // Assessment, which carries the assignments and cbt tabs. A top-level
-          // link would be a second route to the same work with none of the class
-          // scoping, and the cross-class list it lands on answers a question a
-          // teacher is not asking.
           {
             name: "Grading Queue",
             href: "/dashboard/grading",
             icon: ClipboardDocumentCheckIcon,
           },
-          // The Gradebook page carries a staff tab bar across Grading Queue,
-          // Gradebook and Grading Guide, so the guide does not need a third
-          // sidebar row of its own. Students keep theirs — that tab bar is
-          // isStaff-gated, so for them the sidebar is the only route to it.
           {
             name: "Gradebook & Reports",
             href: "/dashboard/grades",
@@ -744,74 +689,15 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "People" },
           {
-            name: "Records",
-            href: "/dashboard/records",
-            icon: ClipboardDocumentListIcon,
-          },
-          {
             name: "Students",
             href: "/dashboard/students",
             icon: UserGroupIcon,
           },
-          {
-            name: "Approvals",
-            href: "/dashboard/approvals",
-            icon: ClipboardDocumentCheckIcon,
-          },
-          {
-            name: "Resend Credentials",
-            href: "/dashboard/students/resend-credentials",
-            icon: EnvelopeIcon,
-          },
           { name: "Parents", href: "/dashboard/parents", icon: UserPlusIcon },
-
-          { divider: true, label: "Ops" },
           {
-            name: "Finance Center",
-            href: "/dashboard/finance",
-            icon: BanknotesIcon,
-          },
-          {
-            name: "Card Studio",
-            href: "/dashboard/card-studio",
-            icon: CreditCardIcon,
-          },
-          {
-            name: "Study Groups",
-            href: "/dashboard/study-groups",
-            icon: UserGroupIcon,
-          },
-          {
-            name: "Gamification",
-            href: "/dashboard/gamification",
-            icon: FireIcon,
-          },
-
-          { divider: true, label: "Engagement" },
-          {
-            name: "Class Engagement",
-            href: "/dashboard/engagement",
-            icon: BoltIcon,
-          },
-          {
-            name: "Practice & Community",
-            href: "/dashboard/activity-hub",
-            icon: SparklesIcon,
-          },
-          {
-            name: "Showcase Board",
-            href: "/dashboard/showcase",
-            icon: SignalIcon,
-          },
-          {
-            name: "Leaderboard",
-            href: "/dashboard/leaderboard",
-            icon: TrophyIcon,
-          },
-          {
-            name: "Code Playground",
-            href: "/dashboard/playground",
-            icon: CodeBracketIcon,
+            name: "Inbox",
+            href: "/dashboard/inbox",
+            icon: ChatBubbleLeftRightIcon,
           },
 
           { divider: true, label: "Reports" },
@@ -829,50 +715,6 @@ export default function DashboardNavigation() {
             name: "Auto-fill",
             href: "/dashboard/academic/results",
             icon: DocumentChartBarIcon,
-          },
-          {
-            name: "School Reports",
-            href: "/dashboard/school-reports",
-            icon: PresentationChartLineIcon,
-          },
-          {
-            name: "Certificates",
-            href: "/dashboard/certificates/management",
-            icon: TrophyIcon,
-          },
-
-          { divider: true, label: "More" },
-          {
-            name: "Consent Forms",
-            href: "/dashboard/consent-forms",
-            icon: ClipboardDocumentCheckIcon,
-          },
-          {
-            name: "Parent QR Claims",
-            href: "/dashboard/parent-claims",
-            icon: ShieldCheckIcon,
-          },
-          {
-            name: "WhatsApp Inbox",
-            href: "/dashboard/inbox",
-            icon: ChatBubbleLeftRightIcon,
-          },
-          {
-            name: "WhatsApp Groups",
-            href: "/dashboard/whatsapp-groups",
-            icon: ChatBubbleLeftRightIcon,
-          },
-
-          { divider: true, label: "CRM" },
-          {
-            name: "Customer Retention",
-            href: "/dashboard/crm",
-            icon: UserPlusIcon,
-          },
-          {
-            name: "Contact Directory",
-            href: "/dashboard/customer-book",
-            icon: ClipboardDocumentListIcon,
           },
 
           { divider: true, label: "Account" },
@@ -1195,16 +1037,6 @@ export default function DashboardNavigation() {
             href: "/dashboard/parent-certificates",
             icon: TrophyIcon,
           },
-          {
-            name: "Grading Guide",
-            href: "/dashboard/grades/waec",
-            icon: DocumentTextIcon,
-          },
-          {
-            name: "Access Cards",
-            href: "/dashboard/my-card",
-            icon: CreditCardIcon,
-          },
 
           { divider: true, label: "Finance" },
           {
@@ -1213,26 +1045,23 @@ export default function DashboardNavigation() {
             icon: CreditCardIcon,
           },
 
-          { divider: true, label: "More" },
-          {
-            name: "WhatsApp Inbox",
-            href: "/dashboard/inbox",
-            icon: ChatBubbleLeftRightIcon,
-          },
-          {
-            name: "Share Feedback",
-            href: "/dashboard/parent-feedback",
-            icon: ChatBubbleLeftEllipsisIcon,
-          },
-          {
-            name: "Support",
-            href: "/dashboard/support",
-            icon: QuestionMarkCircleIcon,
-          },
+          { divider: true, label: "Account & help" },
           {
             name: "Consent Forms",
             href: "/dashboard/consent-forms",
             icon: ClipboardDocumentCheckIcon,
+          },
+          {
+            // "WhatsApp Inbox" is what we call this internally. To a parent it
+            // reads as a staff tool, and the page is their own message thread.
+            name: "Messages",
+            href: "/dashboard/inbox",
+            icon: ChatBubbleLeftRightIcon,
+          },
+          {
+            name: "Access Card",
+            href: "/dashboard/my-card",
+            icon: CreditCardIcon,
           },
           {
             name: "Notifications",
@@ -1240,9 +1069,9 @@ export default function DashboardNavigation() {
             icon: BellIcon,
           },
           {
-            name: "Newsletters",
-            href: "/dashboard/newsletters",
-            icon: DocumentTextIcon,
+            name: "Support",
+            href: "/dashboard/support",
+            icon: QuestionMarkCircleIcon,
           },
           // Parents are on an allow-list that does not include
           // /dashboard/settings, so this row bounced them too.

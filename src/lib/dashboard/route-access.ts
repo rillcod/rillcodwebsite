@@ -265,7 +265,12 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   "/dashboard/parent-attendance",
   "/dashboard/parent-certificates",
   "/dashboard/parent-path-progress",
+  // Reached from the report card ("What do these grades mean?"), not the sidebar —
+  // a reference page does not belong beside the screens a parent visits daily.
   "/dashboard/grades/waec",
+  // Deliberately unlinked. /dashboard/parent-card is a redirect to my-card kept for
+  // links already sent to families; it must stay allow-listed or those bookmarks
+  // land on access-denied instead of redirecting. Do not remove it as dead code.
   "/dashboard/parent-card",
   "/dashboard/my-card",
   "/dashboard/finance",
@@ -316,6 +321,12 @@ const TEACHER_DENIED_PREFIXES: string[] = [
   "/dashboard/analytics",
   "/dashboard/activity-logs",
   "/dashboard/teachers",
+  "/dashboard/cases",
+  "/dashboard/crm",
+  "/dashboard/customer-book",
+  "/dashboard/parent-claims",
+  "/dashboard/school-reports",
+  "/dashboard/records",
 ];
 
 export function isDashboardPathBlockedForTeacher(pathname: string): boolean {
