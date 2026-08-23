@@ -1864,13 +1864,6 @@ export type Database = {
             referencedColumns: ["student_id"]
           },
           {
-            foreignKeyName: "assignment_submissions_status_changed_by_fkey"
-            columns: ["status_changed_by"]
-            isOneToOne: false
-            referencedRelation: "portal_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "assignment_submissions_portal_user_id_fkey"
             columns: ["portal_user_id"]
             isOneToOne: false
@@ -1887,6 +1880,34 @@ export type Database = {
           {
             foreignKeyName: "assignment_submissions_portal_user_id_fkey"
             columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "assignment_submissions_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "assignment_submissions_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_submissions_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_submissions_status_changed_by_fkey"
+            columns: ["status_changed_by"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
@@ -3389,10 +3410,10 @@ export type Database = {
           deadline: string | null
           end_time: string | null
           exam_id: string | null
-          grading_notes: string | null
           grading_change_reason: string | null
           grading_changed_at: string | null
           grading_changed_by: string | null
+          grading_notes: string | null
           grading_version: number
           id: string
           manual_scores: Json | null
@@ -3410,10 +3431,10 @@ export type Database = {
           deadline?: string | null
           end_time?: string | null
           exam_id?: string | null
-          grading_notes?: string | null
           grading_change_reason?: string | null
           grading_changed_at?: string | null
           grading_changed_by?: string | null
+          grading_notes?: string | null
           grading_version?: number
           id?: string
           manual_scores?: Json | null
@@ -3431,10 +3452,10 @@ export type Database = {
           deadline?: string | null
           end_time?: string | null
           exam_id?: string | null
-          grading_notes?: string | null
           grading_change_reason?: string | null
           grading_changed_at?: string | null
           grading_changed_by?: string | null
+          grading_notes?: string | null
           grading_version?: number
           id?: string
           manual_scores?: Json | null
@@ -3458,8 +3479,29 @@ export type Database = {
             foreignKeyName: "cbt_sessions_grading_changed_by_fkey"
             columns: ["grading_changed_by"]
             isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "cbt_sessions_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_sessions_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
             referencedRelation: "portal_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_sessions_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
           {
             foreignKeyName: "cbt_sessions_user_id_fkey"
@@ -7861,8 +7903,29 @@ export type Database = {
             foreignKeyName: "exam_attempts_grading_changed_by_fkey"
             columns: ["grading_changed_by"]
             isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "exam_attempts_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_attempts_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
             referencedRelation: "portal_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_attempts_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
           {
             foreignKeyName: "exam_attempts_portal_user_id_fkey"
@@ -16406,6 +16469,51 @@ export type Database = {
         }
         Relationships: []
       }
+      security_observations: {
+        Row: {
+          blocked_origin: string | null
+          column_number: number | null
+          disposition: string | null
+          document_path: string | null
+          effective_directive: string | null
+          id: string
+          kind: string
+          line_number: number | null
+          observed_at: string
+          source_path: string | null
+          status_code: number | null
+          violated_directive: string | null
+        }
+        Insert: {
+          blocked_origin?: string | null
+          column_number?: number | null
+          disposition?: string | null
+          document_path?: string | null
+          effective_directive?: string | null
+          id?: string
+          kind: string
+          line_number?: number | null
+          observed_at?: string
+          source_path?: string | null
+          status_code?: number | null
+          violated_directive?: string | null
+        }
+        Update: {
+          blocked_origin?: string | null
+          column_number?: number | null
+          disposition?: string | null
+          document_path?: string | null
+          effective_directive?: string | null
+          id?: string
+          kind?: string
+          line_number?: number | null
+          observed_at?: string
+          source_path?: string | null
+          status_code?: number | null
+          violated_directive?: string | null
+        }
+        Relationships: []
+      }
       session_recordings: {
         Row: {
           class_id: string | null
@@ -16928,6 +17036,155 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_level_decision_audit: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          course_id: string | null
+          created_at: string
+          decision: string
+          enrollment_id: string | null
+          id: string
+          previous_status: string
+          previous_term_label: string
+          resulting_course_id: string | null
+          resulting_enrollment_id: string | null
+          resulting_status: string
+          resulting_term_label: string | null
+          school_id: string | null
+          student_id: string
+          teacher_notes: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          course_id?: string | null
+          created_at?: string
+          decision: string
+          enrollment_id?: string | null
+          id?: string
+          previous_status: string
+          previous_term_label: string
+          resulting_course_id?: string | null
+          resulting_enrollment_id?: string | null
+          resulting_status: string
+          resulting_term_label?: string | null
+          school_id?: string | null
+          student_id: string
+          teacher_notes?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          course_id?: string | null
+          created_at?: string
+          decision?: string
+          enrollment_id?: string | null
+          id?: string
+          previous_status?: string
+          previous_term_label?: string
+          resulting_course_id?: string | null
+          resulting_enrollment_id?: string | null
+          resulting_status?: string
+          resulting_term_label?: string | null
+          school_id?: string | null
+          student_id?: string
+          teacher_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_level_decision_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "student_level_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_resulting_course_id_fkey"
+            columns: ["resulting_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_resulting_enrollment_id_fkey"
+            columns: ["resulting_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "student_level_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_level_decision_audit_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
         ]
       }
@@ -18907,6 +19164,133 @@ export type Database = {
           },
         ]
       }
+      teaching_generation_runs: {
+        Row: {
+          by_type: Json
+          class_id: string | null
+          completed_at: string | null
+          curriculum_week_number: number
+          error_summary: string | null
+          failed_types: string[]
+          generated_count: number
+          id: string
+          last_heartbeat_at: string
+          lesson_plan_id: string
+          requested_types: string[]
+          retry_of: string | null
+          session_number: number
+          skipped_count: number
+          source: string
+          started_at: string
+          started_by: string | null
+          status: string
+        }
+        Insert: {
+          by_type?: Json
+          class_id?: string | null
+          completed_at?: string | null
+          curriculum_week_number: number
+          error_summary?: string | null
+          failed_types?: string[]
+          generated_count?: number
+          id?: string
+          last_heartbeat_at?: string
+          lesson_plan_id: string
+          requested_types?: string[]
+          retry_of?: string | null
+          session_number?: number
+          skipped_count?: number
+          source: string
+          started_at?: string
+          started_by?: string | null
+          status?: string
+        }
+        Update: {
+          by_type?: Json
+          class_id?: string | null
+          completed_at?: string | null
+          curriculum_week_number?: number
+          error_summary?: string | null
+          failed_types?: string[]
+          generated_count?: number
+          id?: string
+          last_heartbeat_at?: string
+          lesson_plan_id?: string
+          requested_types?: string[]
+          retry_of?: string | null
+          session_number?: number
+          skipped_count?: number
+          source?: string
+          started_at?: string
+          started_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teaching_generation_runs_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "academic_lesson_plan_source_issues"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_term_teaching_progress"
+            referencedColumns: ["lesson_plan_id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_lesson_plan_id_fkey"
+            columns: ["lesson_plan_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_retry_of_fkey"
+            columns: ["retry_of"]
+            isOneToOne: false
+            referencedRelation: "teaching_generation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teaching_generation_runs_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       term_schedules: {
         Row: {
           cadence_days: number
@@ -20534,6 +20918,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_lesson_plan_preserving_learner_work: {
+        Args: { p_actor_id: string; p_plan_id: string }
+        Returns: Json
+      }
+      delete_rebuildable_class: {
+        Args: { p_actor_id: string; p_class_id: string }
+        Returns: Json
+      }
       discard_partnership_agreement: { Args: { p_id: string }; Returns: Json }
       discard_withdrawn_partnership_agreements: {
         Args: { p_school_id: string }
@@ -20759,6 +21151,16 @@ export type Database = {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
       }
+      process_student_level_decision: {
+        Args: {
+          p_actor_id: string
+          p_decision: string
+          p_enrollment_id: string
+          p_next_term_label: string
+          p_teacher_notes?: string
+        }
+        Returns: Json
+      }
       publish_academic_assessment_scheme: {
         Args: {
           p_academic_term_id?: string
@@ -20899,6 +21301,7 @@ export type Database = {
         }
         Returns: number
       }
+      school_protected_evidence: { Args: { p_school: string }; Returns: Json }
       settle_billing_cycle_payment_atomic: {
         Args: {
           p_actor_id?: string
