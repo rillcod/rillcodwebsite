@@ -21142,6 +21142,15 @@ export type Database = {
         Args: { days: number[] }
         Returns: boolean
       }
+      merge_duplicate_classes: {
+        Args: {
+          p_actor_id: string
+          p_section_label?: string
+          p_source_class_id: string
+          p_survivor_class_id: string
+        }
+        Returns: Json
+      }
       merge_my_metadata: {
         Args: { increment_keys?: string[]; patch?: Json; stamp_login?: boolean }
         Returns: Json

@@ -270,7 +270,7 @@ function ClassHealPageInner() {
       if (!res.ok) throw new Error(j.error || 'Fix failed');
       setMsg({
         type: 'ok',
-        text: `Naming updated — ${j.renamed} renamed${j.termsSet ? `, ${j.termsSet} term set` : ''}${merge ? `, ${j.merged} merged` : ''}${j.skipped ? `, ${j.skipped} left as-is` : ''}${j.conflicts ? `, ${j.conflicts} duplicate conflict(s) left` : ''}${j.needsReview?.length ? `, ${j.needsReview.length} need review` : ''}.`,
+        text: `Naming updated — ${j.renamed} renamed${j.termsSet ? `, ${j.termsSet} term set` : ''}${merge ? `, ${j.merged} merged` : ''}${j.mergeFailed ? `, ${j.mergeFailed} merge(s) left untouched` : ''}${j.skipped ? `, ${j.skipped} left as-is` : ''}${j.conflicts ? `, ${j.conflicts} duplicate conflict(s) left` : ''}${j.needsReview?.length ? `, ${j.needsReview.length} need review` : ''}${j.mergeBlockedReason ? ` ${j.mergeBlockedReason}` : ''}.`,
       });
       await scanNames();
       await load();
@@ -553,7 +553,7 @@ function ClassHealPageInner() {
                         className="rounded border-border shrink-0 mt-0.5"
                       />
                       <div className="min-w-0 flex-1 space-y-1">
-                        <span className={`inline-block px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
+                        <span className={`inline-block px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider ${c.action === 'merge' || c.action === 'conflict' || c.action === 'merge_failed' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
                         <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2 min-w-0">
                           <span className="text-muted-foreground line-through break-words sm:truncate">{c.from}</span>
                           <span className="text-muted-foreground/50 hidden sm:inline shrink-0">→</span>
@@ -1914,7 +1914,7 @@ function ClassHealPageInner() {
         {/* ── Orphan classes ────────────────────────────────────── */}
         {(data?.orphanClasses.length ?? 0) > 0 && (
           <Section title="Empty Classes" count={data!.orphanClasses.length}
-            description="Classes with no students and no lesson plans. Safe to delete.">
+            description="Classes with no students, teaching plans, assignments, exams, or reports. The same evidence-safe delete as class cleanup.">
             <div className="space-y-2">
               {data!.orphanClasses.map(c => (
                 <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-muted/40 rounded-xl border border-border">

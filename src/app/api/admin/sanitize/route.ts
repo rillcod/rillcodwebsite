@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   const purgeHollowAccounts = body.purge_hollow_accounts !== false;
   const minAgeDays = typeof body.min_age_days === 'number' && body.min_age_days > 0 ? body.min_age_days : 120;
   const db = createAdminClient();
-  const purgeOpts = { dryRun, purgeEmptyClasses, purgeHollowAccounts, minAgeDays };
+  const purgeOpts = { actorId: actor.id, dryRun, purgeEmptyClasses, purgeHollowAccounts, minAgeDays };
 
   if (mode === 'inspect') {
     const debris = await inspectDebris(db, { minAgeDays });

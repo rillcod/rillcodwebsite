@@ -126,10 +126,15 @@ export default function ProgramsPage() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete program "${name}"? This will delete all associated courses.`)) return;
+    if (!confirm(`Remove programme "${name}"? Test and unused records can be cleared. If learners already have scores on it, it will only be turned off.`)) return;
     try {
       const res = await fetch(`/api/programs/${id}`, { method: 'DELETE' });
-      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed to delete');
+      if (j.retired) {
+        setPrograms(prev => prev.map(p => p.id === id ? { ...p, is_active: false } : p));
+        return;
+      }
       setPrograms(prev => prev.filter(p => p.id !== id));
     } catch (e: any) {
       alert(e.message);

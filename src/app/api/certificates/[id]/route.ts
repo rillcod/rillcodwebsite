@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { certificateService } from '@/services/certificate.service';
 import { AppError } from '@/lib/errors';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { certificateIsRevoked, certificateWasAwarded } from '@/lib/academic/record-retention';
+import {
+  ISSUED_RECORD_RETENTION_MESSAGE,
+  loadCleanupPolicy,
+  mayHardDeleteIssuedOperationalRecord,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 async function getScopedSchoolIds(user: ApiContext['user']) {
     const { createClient } = await import('@/lib/supabase/server');
@@ -115,18 +124,40 @@ async function deleteHandler(req: Request, ctx: ApiContext) {
     
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
-    const { data: cert } = await supabase.from('certificates').select('metadata').eq('id', certId).single();
+    const { data: cert } = await supabase.from('certificates')
+        .select('metadata, portal_user_id, verification_code, pdf_url, certificate_number, issued_date, completion_status')
+        .eq('id', certId)
+        .single();
     if (!cert) throw new AppError('Certificate not found', 404);
     if (role !== 'admin') {
         const scoped = await getScopedSchoolIds(ctx.user);
         const certSchool = ((cert.metadata as Record<string, unknown> | null)?.school_id as string | undefined) || null;
         if (!certSchool || !scoped.includes(certSchool)) throw new AppError('Unauthorized', 403);
     }
-    
+
+    const cleanupPolicy = await loadCleanupPolicy(createAdminClient() as any);
+    if (certificateWasAwarded(cert) && !mayHardDeleteIssuedOperationalRecord(cleanupPolicy)) {
+        if (!certificateIsRevoked(cert)) {
+            const { error: revokeError } = await supabase.from('certificates')
+                .update({ completion_status: 'revoked' })
+                .eq('id', certId);
+            if (revokeError) throw new AppError('The certificate could not be revoked. Please retry.', 500);
+            return NextResponse.json({
+                success: true,
+                revoked: true,
+                message: 'Certificate revoked. The record stays so the award can still be traced.',
+            });
+        }
+        throw new AppError(ISSUED_RECORD_RETENTION_MESSAGE, 409);
+    }
+    if (!certificateWasAwarded(cert) && !mayHardDeleteRebuildableContent(cleanupPolicy)) {
+        throw new AppError(STRICT_CLEANUP_MESSAGE, 409);
+    }
+
     const { error } = await supabase.from('certificates').delete().eq('id', certId);
-    if (error) throw new AppError(error.message, 500);
-    
-    return NextResponse.json({ success: true, message: 'Certificate revoked and deleted' });
+    if (error) throw new AppError('The certificate could not be removed safely. Please retry.', 500);
+
+    return NextResponse.json({ success: true, message: 'Certificate removed' });
 }
 
 export const GET = withApiProxy(getHandler);

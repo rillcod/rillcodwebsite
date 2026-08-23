@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  ISSUED_RECORD_RETENTION_MESSAGE,
+  loadCleanupPolicy,
+  mayHardDeleteIssuedOperationalRecord,
+} from '@/lib/operations/cleanup-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,7 +142,31 @@ export async function DELETE(
     );
   }
 
+  const { count: attendanceCount, error: attendanceError } = await admin
+    .from('attendance')
+    .select('id', { count: 'exact', head: true })
+    .eq('session_id', id);
+  if (attendanceError) {
+    console.error('[class-sessions.delete] attendance preflight failed', { sessionId: id, code: attendanceError.code });
+    return NextResponse.json({ error: 'Attendance could not be verified. Nothing was deleted; please retry.' }, { status: 503 });
+  }
+  if ((attendanceCount ?? 0) > 0) {
+    const cleanupPolicy = await loadCleanupPolicy(admin as any);
+    if (!mayHardDeleteIssuedOperationalRecord(cleanupPolicy)) {
+      return NextResponse.json({
+        error: ISSUED_RECORD_RETENTION_MESSAGE,
+        code: 'ISSUED_RECORD_RETENTION',
+      }, { status: 409 });
+    }
+  }
+
   const { error } = await admin.from('class_sessions').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({
+      error: error.code === '23503'
+        ? 'This session already has attendance marks. Keep it as the classroom register.'
+        : 'The session could not be removed. Please retry.',
+    }, { status: error.code === '23503' ? 409 : 500 });
+  }
   return NextResponse.json({ success: true });
 }

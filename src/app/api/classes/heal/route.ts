@@ -4,6 +4,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { fixedBand, parseBandLabel, canonicalTier, inferProgramme, buildClassName, bandForGrade, type BandGranularity } from '@/lib/classes/naming';
 import { cleanStudentName, nameNeedsCleaning, duplicateNameKey, namesAreNearDuplicate, nameLooksIncomplete } from '@/lib/students/clean-name';
 import { wipePortalUserCascade } from '@/lib/students/permanent-wipe';
+import { deleteRebuildableClass } from '@/lib/operations/delete-rebuildable-class';
+import { mergeDuplicateClasses } from '@/lib/operations/merge-duplicate-classes';
 
 function adminClient() {
   return createClient(
@@ -546,12 +548,24 @@ export async function GET(req: NextRequest) {
     .from('lesson_plans')
     .select('class_id')
     .not('class_id', 'is', null);
+  const [{ data: classAssignments }, { data: classCbt }, { data: classExams }, { data: classReports }] = await Promise.all([
+    db.from('assignments').select('class_id').not('class_id', 'is', null),
+    db.from('cbt_exams').select('class_id').not('class_id', 'is', null),
+    db.from('exams').select('class_id').not('class_id', 'is', null),
+    db.from('student_progress_reports').select('class_id').not('class_id', 'is', null),
+  ]);
 
   const classHasStudents = new Set((classStudentCounts ?? []).map((r: any) => r.class_id));
-  const classHasLessons = new Set((classLessonPlanCounts ?? []).map((r: any) => r.class_id));
+  const classHasAcademicWork = new Set([
+    ...(classLessonPlanCounts ?? []).map((r: any) => r.class_id),
+    ...(classAssignments ?? []).map((r: any) => r.class_id),
+    ...(classCbt ?? []).map((r: any) => r.class_id),
+    ...(classExams ?? []).map((r: any) => r.class_id),
+    ...(classReports ?? []).map((r: any) => r.class_id),
+  ]);
 
   const orphanClasses = (emptyClasses ?? []).filter(
-    (c: any) => !classHasStudents.has(c.id) && !classHasLessons.has(c.id),
+    (c: any) => !classHasStudents.has(c.id) && !classHasAcademicWork.has(c.id),
   );
 
   // 6. Teachers whose classes reference a school_id not in their teacher_schools table.
@@ -1351,9 +1365,18 @@ export async function POST(req: NextRequest) {
 
   if (action === 'delete_class') {
     if (!deleteClassId) return NextResponse.json({ error: 'deleteClassId required' }, { status: 400 });
-    const { error } = await db.from('classes').delete().eq('id', deleteClassId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true });
+    const removed = await deleteRebuildableClass({
+      admin: db as any,
+      classId: deleteClassId,
+      actorId: caller.id,
+    });
+    if (!removed.ok) {
+      return NextResponse.json(
+        { error: removed.error, code: removed.code },
+        { status: removed.status },
+      );
+    }
+    return NextResponse.json({ success: true, detached_students: removed.detachedStudents, atomic: removed.atomic });
   }
 
   // Backfill placement fields on EXISTING classes so they participate in band-coverage
@@ -1397,8 +1420,9 @@ export async function POST(req: NextRequest) {
   // Thoroughly scan EVERY class, compute its canonical "School · Programme · Band" name, and
   // rename non-conforming ones (fixing free-typed teacher names) — the "fix naming once and
   // for all" pass. dryRun=true previews without writing. mergeDuplicates=true collapses two
-  // classes that resolve to the same canonical name (moves students/lessons to the survivor,
-  // deletes the empty duplicate); otherwise duplicates are reported as conflicts.
+  // classes that resolve to the same canonical name through merge_duplicate_classes (moves
+  // roster and learner work onto the survivor, then deletes only the empty shell); otherwise
+  // duplicates are reported as conflicts. A failed pair is left untouched.
   if (action === 'canonicalize_class_names') {
     const dryRun = body.dryRun === true;
     const mergeDuplicates = body.mergeDuplicates === true;
@@ -1464,7 +1488,8 @@ export async function POST(req: NextRequest) {
       arr.push(x);
     }
 
-    let renamed = 0, merged = 0, conflicts = 0, termsSet = 0, skipped = 0;
+    let renamed = 0, merged = 0, conflicts = 0, termsSet = 0, skipped = 0, mergeFailed = 0;
+    let mergeBlockedReason: string | null = null;
     const changes: Array<{ id: string; from: string; to: string; action: string }> = [];
     const now = new Date().toISOString();
 
@@ -1498,7 +1523,11 @@ export async function POST(req: NextRequest) {
               // Keep student section_class in sync when the class is renamed.
               if (needsRename) {
                 await db.from('portal_users').update({ section_class: canonical, updated_at: now }).eq('class_id', c.id);
-                await db.from('students').update({ section_class: canonical }).eq('class_id', c.id);
+                const { data: roster } = await db.from('portal_users').select('id').eq('class_id', c.id).eq('role', 'student');
+                const rosterIds = (roster ?? []).map((row: { id: string }) => row.id);
+                if (rosterIds.length) {
+                  await db.from('students').update({ current_class: canonical, section: canonical }).in('user_id', rosterIds);
+                }
               }
             }
             if (needsRename) renamed++;
@@ -1508,10 +1537,19 @@ export async function POST(req: NextRequest) {
           changes.push({ id: c.id, from: c.name, to: canonical, action: 'merge' });
           if (!allow(c.id)) { skipped++; continue; }
           if (!dryRun) {
-            await db.from('portal_users').update({ class_id: survivor.c.id, section_class: canonical, updated_at: now }).eq('class_id', c.id);
-            await db.from('students').update({ class_id: survivor.c.id, section_class: canonical }).eq('class_id', c.id);
-            try { await db.from('lesson_plans').update({ class_id: survivor.c.id }).eq('class_id', c.id); } catch { /* best-effort */ }
-            await db.from('classes').delete().eq('id', c.id);
+            const moved = await mergeDuplicateClasses({
+              admin: db as any,
+              sourceClassId: c.id,
+              survivorClassId: survivor.c.id,
+              actorId: caller.id,
+              sectionLabel: canonical,
+            });
+            if (!moved.ok) {
+              changes[changes.length - 1].action = 'merge_failed';
+              mergeFailed++;
+              if (!mergeBlockedReason) mergeBlockedReason = moved.error;
+              continue;
+            }
           }
           merged++;
         } else {
@@ -1527,6 +1565,8 @@ export async function POST(req: NextRequest) {
       scanned: computed.length,
       renamed,
       merged,
+      mergeFailed,
+      mergeBlockedReason,
       conflicts,
       termsSet,
       skipped,

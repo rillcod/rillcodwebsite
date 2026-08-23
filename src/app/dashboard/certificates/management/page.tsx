@@ -281,14 +281,17 @@ export default function CertificateManagement() {
     };
 
     const handleAction = async (id: string, action: 'publish' | 'delete') => {
-        const confirmMsg = action === 'delete' ? 'Permanently delete this certificate? This cannot be undone.' : 'Publish this certificate? The student will be able to see it.';
+        const confirmMsg = action === 'delete' ? 'Remove this certificate? Test awards can be cleared while cleanup is Flexible.' : 'Publish this certificate? The student will be able to see it.';
         if (!confirm(confirmMsg)) return;
 
         try {
             const method = action === 'delete' ? 'DELETE' : 'PATCH';
             const res = await fetch(`/api/certificates/${id}`, { method });
             if (res.ok) {
-                toast.success(action === 'delete' ? 'Certificate deleted' : 'Certificate published');
+                const payload = await res.json().catch(() => ({}));
+                toast.success(action === 'delete'
+                    ? (payload.revoked ? 'Certificate revoked' : 'Certificate removed')
+                    : 'Certificate published');
                 fetchCertificates();
                 if (viewingCert?.id === id) setViewingCert(null);
             } else {
@@ -452,7 +455,7 @@ export default function CertificateManagement() {
                                             {canManage && (
                                                 <button onClick={() => handleAction(cert.id, 'delete')}
                                                     className="flex items-center gap-1.5 px-3 py-2 bg-red-950/15 border border-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-all text-[10px] font-bold flex-1 justify-center">
-                                                    <TrashIcon className="w-3.5 h-3.5" /> Delete
+                                                    <TrashIcon className="w-3.5 h-3.5" /> Remove
                                                 </button>
                                             )}
                                         </div>
@@ -525,9 +528,9 @@ export default function CertificateManagement() {
                                                             )}
                                                             {canManage && (
                                                                 <button
-                                                                    onClick={() => handleAction(cert.id, 'delete')}
-                                                                    className="p-2.5 bg-red-950/10 border border-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                                                                    title="Delete"
+                                                                onClick={() => handleAction(cert.id, 'delete')}
+                                                                className="p-2.5 bg-red-950/10 border border-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                                                                title="Remove"
                                                                 >
                                                                     <TrashIcon className="w-4 h-4" />
                                                                 </button>

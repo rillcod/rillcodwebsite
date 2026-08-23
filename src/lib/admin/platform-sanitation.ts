@@ -11,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { wipePortalUserCascade, prepareRoleSpecificWipe, pruneRegistrationArchiveByEmails } from '@/lib/students/permanent-wipe';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { assignmentAssetKind, findOrphanedAssets, findOrphanedLessonChildren } from '@/lib/academic/content-inventory';
+import { deleteRebuildableClass } from '@/lib/operations/delete-rebuildable-class';
 
 export type HollowAccount = {
   id: string;
@@ -152,14 +153,31 @@ async function collectDisconnectedLinks(db: SupabaseClient) {
 
 async function collectEmptyClasses(db: SupabaseClient) {
   const { data: allClasses } = await db.from('classes').select('id, name, school_id, created_at');
-  const { data: userClasses } = await db
-    .from('portal_users')
-    .select('class_id')
-    .eq('role', 'student')
-    .eq('is_deleted', false)
-    .not('class_id', 'is', null);
-  const activeClassIds = new Set((userClasses ?? []).map((u: any) => u.class_id));
-  return (allClasses ?? []).filter((c: any) => !activeClassIds.has(c.id));
+  const used = new Set<string>();
+  const mark = (rows: Array<{ class_id?: string | null }> | null | undefined) => {
+    for (const row of rows ?? []) {
+      if (row.class_id) used.add(row.class_id);
+    }
+  };
+  const [userClasses, plans, assignments, cbt, exams, reports, grades, evidence] = await Promise.all([
+    db.from('portal_users').select('class_id').eq('role', 'student').eq('is_deleted', false).not('class_id', 'is', null),
+    db.from('lesson_plans').select('class_id').not('class_id', 'is', null),
+    db.from('assignments').select('class_id').not('class_id', 'is', null),
+    db.from('cbt_exams').select('class_id').not('class_id', 'is', null),
+    db.from('exams').select('class_id').not('class_id', 'is', null),
+    db.from('student_progress_reports').select('class_id').not('class_id', 'is', null),
+    db.from('enrollment_term_grades').select('class_id').not('class_id', 'is', null),
+    db.from('academic_assessment_evidence').select('class_id').not('class_id', 'is', null),
+  ]);
+  mark(userClasses.data);
+  mark(plans.data);
+  mark(assignments.data);
+  mark(cbt.data);
+  mark(exams.data);
+  mark(reports.data);
+  mark(grades.data);
+  mark(evidence.data);
+  return (allClasses ?? []).filter((c: any) => !used.has(c.id));
 }
 
 async function collectStaleUnpaidStudents(db: SupabaseClient) {
@@ -472,6 +490,7 @@ async function wipeAccount(db: SupabaseClient, userId: string): Promise<boolean>
 export async function runPurge(
   db: SupabaseClient,
   opts: {
+    actorId?: string;
     purgeEmptyClasses?: boolean;
     purgeHollowAccounts?: boolean;
     dryRun?: boolean;
@@ -598,11 +617,15 @@ export async function runPurge(
     if (deletedUserIds.includes(id)) purged.deleted_accounts += 1;
     if (hollowIds.includes(id)) purged.hollow_accounts += 1;
   }
-  if (emptyClassIds.length) {
-    await chunk(emptyClassIds, async (batch) => {
-      const { error } = await db.from('classes').delete().in('id', batch);
-      if (!error) purged.empty_classes += batch.length;
-    });
+  if (emptyClassIds.length && opts.actorId) {
+    for (const classId of emptyClassIds) {
+      const removed = await deleteRebuildableClass({
+        admin: db as any,
+        classId,
+        actorId: opts.actorId,
+      });
+      if (removed.ok) purged.empty_classes += 1;
+    }
   }
 
   return { dry_run: false, would_purge, purged };

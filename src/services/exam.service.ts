@@ -1,6 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, NotFoundError } from '@/lib/errors';
 import type { Database } from '@/types/supabase';
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from '@/lib/operations/cleanup-policy';
 
 export interface ExamInput {
     course_id: string;
@@ -152,6 +157,10 @@ export class ExamService {
         if (attemptError) throw new AppError(attemptError.message, 500);
         if ((count ?? 0) > 0) {
             throw new AppError('This exam has learner attempts and cannot be deleted. Deactivate it instead.', 409);
+        }
+        const cleanupPolicy = await loadCleanupPolicy(supabase as any);
+        if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+            throw new AppError(STRICT_CLEANUP_MESSAGE, 409);
         }
         const { error } = await supabase.from('exams').delete().eq('id', id);
         if (error) throw new AppError(error.message, 400);

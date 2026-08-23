@@ -505,8 +505,9 @@ Required completion:
   edit/validate → preview → publish → share.
 - Autofill is optional and must show source/provenance. It must never overwrite a manual score
   silently.
-- **User-reported re-verification:** the start of the school report builder can be stale and
-  manual curriculum selection may fail to load, while later draft stages work better.
+- **User-reported re-verification:** the start of the school report builder could restore a
+  class without its programme, locking the course list. Course pick now works before the
+  programme fills; confirm in the browser that a refresh still lets a teacher start grading.
 - Returning to a learner must restore current draft state without duplicating reports.
 - Switching Rillcod optional evidence on/off must not alter compulsory host-school marks.
 - Publication produces an immutable version; a correction creates a traceable new version.
@@ -802,14 +803,14 @@ snapshots, not current certification. This register is the current product-level
 | SYS-004 | P0 | Partially remediated; observation and route inventory pending | Common API boundary now has settings-based off/observe/enforce origin decisions with same-origin, native, configured-origin, and non-browser handling; default is non-blocking observation | Review observations, inventory direct unsafe routes and signed exemptions, then pass same-site/cross-site/native/webhook/cron attack tests before enforcement |
 | SYS-005 | P0 | Partially remediated; shared-store deployment proof pending | Central wrapper and sensitive public routes use the Upstash-aware limiter; reads no longer consume write capacity, authenticated writers use per-user/per-feature counters, and the policy is administrator-configurable. Direct-route inventory and shared-store production proof remain | Configure the shared store, finish all-sensitive-action inventory, then pass concurrency, school-NAT, disable/tune, and bypass tests |
 | SYS-006 | P0 | Locally remediated; production resend proof pending | Financial correction/resend now uses one canonical document route and a trusted issued-account snapshot | Deploy and prove the same invoice version matches save/preview/download/email/resend |
-| SYS-007 | P0 | Partially remediated; full call-site classification pending | Student/school cleanup, assignment and submission drafts, CBT drafts, report drafts, curricula, lessons, lesson plans, consent forms, and classes now distinguish configurable cleanup from immutable learner/finance evidence; Flexible remains the build default | Deploy/test migrations 100–101 and classify every remaining literal/dynamic delete site |
+| SYS-007 | P0 | Class merge/delete verified against the live schema; remaining call sites unclassified | Atomic `merge_duplicate_classes` and `delete_rebuildable_class` are applied and live (migrations 100–102). **Verified against the live database, not by reading the SQL**: all 32 foreign keys referencing `classes` are accounted for by the merge — none cascades without being re-pointed first — and the four learner-evidence tables (`academic_assessment_evidence`, `exams`, `student_progress_reports`, `student_transfer_requests`) are ON DELETE RESTRICT, so the database itself refuses to drop a class while evidence exists. The four deletes inside the merge are conditional dedupe (`and exists (…)`), removing a source row only where an equivalent survivor row already exists. The `students.class_id` write is guarded by a table-and-column check, which matters because that column does not exist on this database; `current_class`, `section` and `user_id` do | Classify the remaining literal and dynamic delete sites outside the class/lesson-plan paths, and exercise a real merge and a real class delete against a disposable database before trusting either in production |
 | SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
 | SYS-009 | P1 | Partially remediated; observation/deployment proof pending | CSP report-only policy, sanitized observation ledger, Operations Health summary, and production HSTS are implemented locally; CSP is deliberately not enforced yet | Apply migration 99, deploy, inspect real browser/native violations, tighten directives, then enforce CSP and verify HTTPS/HSTS |
 | SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
 | SYS-012 | P1 | At risk | Large academic/lesson/report/settings pages | Vertical service/component split and performance baselines |
 | SYS-013 | P1 | User-reported | AI generation fails and prior content is hard to find | Durable job, retry, persistence, provenance, discovery tests |
-| SYS-014 | P1 | User-reported | Report builder start/manual curriculum loading unreliable | Fresh/return/manual/autofill browser flows pass |
+| SYS-014 | P1 | Locally remediated; browser proof pending | Report writer start could restore a class without its programme, which locked the course list and blocked Start grading. Course pick now works before programme fills, the chosen course stays visible, and a vanished class returns to the start screen | Fresh/return/manual/autofill browser flows pass |
 | SYS-015 | P1 | At risk | Content types not always carried together | Unified lesson-content contract and learner publication tests |
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Confirmed gap | External error tracking/alerting absent | Release-linked errors and alerts verified |
@@ -2335,7 +2336,21 @@ Implemented:
   Flexible permits intentional build/test cleanup, while empty draft forms remain easy to remove;
 - moved all cleanup-policy decisions after authentication, record lookup, and school/teacher scope
   checks, preventing policy information from leaking to an out-of-scope caller;
-- kept customer errors professional and stable while logging database codes only on the server.
+- kept customer errors professional and stable while logging database codes only on the server;
+- routed System Health empty-class purge and Classes Heal `delete_class` through the same
+  `deleteRebuildableClass` command, so those admin tools can no longer bypass evidence preflight
+  or detach a roster before the class row is gone. Inspect lists now exclude classes that still
+  hold plans, assignments, exams, or reports;
+- closed Classes Heal duplicate-merge's half-write: the previous path moved students, then tried
+  to delete the leftover shell. Migration 102 now moves roster, teaching records, and learner
+  evidence onto the survivor in one transaction and deletes only the empty shell. If the command
+  is not deployed yet, Heal fails that pair closed instead of repeating the sequential write;
+- kept programme, certificate, and class-session cleanup usable during build: **Flexible**
+  (the default) still clears test programmes, test certificates, and test registers. A
+  programme is only turned off when it already holds learner scores or attempts. Standard
+  and Strict revoke or retain issued records instead of hard-deleting them;
+- stopped curriculum force-cleanup from wiping learner submissions, attempts, or week scores,
+  while unused generated drafts remain cleanable.
 
 Verification evidence:
 
@@ -2344,21 +2359,21 @@ Verification evidence:
 - focused source guards cover policy parsing, build-friendly defaults, issued-record behavior, learner
   submission evidence, and the lesson-plan atomic retention contract, but Vitest remains unable to
   start under the approval limitation recorded in 16.15; these tests are **not** claimed as passed;
-- migrations `20260929000100_delete_lesson_plan_preserve_learner_work.sql` and
-  `20260929000101_delete_rebuildable_class_atomically.sql` were created but not applied;
+- migrations `20260929000100_delete_lesson_plan_preserve_learner_work.sql`,
+  `20260929000101_delete_rebuildable_class_atomically.sql`, and
+  `20260929000102_merge_duplicate_classes_atomically.sql` were created but not applied;
 - no production build, live database mutation, remote push, score mutation, or credential
   transmission was performed.
 
 Remaining proof and scope:
 
-- apply migrations 100–101 to a disposable database and prove rollback, actor/school scope,
-  Flexible/Standard/Strict behavior, concurrent deletion, missing-function rolling fallback, and
-  every protected evidence type before deploying;
+- apply migrations 100–102 to a disposable database and prove rollback, actor/school scope,
+  Flexible/Standard/Strict behavior, concurrent deletion, missing-function rolling fallback,
+  every protected evidence type, and duplicate-class merge before deploying;
 - complete table-by-table classification of the remaining delete inventory. Current source search
-  still finds delete operations across CRM, communication, live-session, timetable, programme,
-  certificate, portfolio, parent-link, newsletter, file, and ephemeral-token domains; they are not
-  silently declared safe by this milestone;
-- add explicit archive/retire alternatives where a still-issued operational record currently offers
-  only hard delete, prioritising programme, certificate, class-session, and consent lifecycle UI;
+  still finds delete operations across CRM, communication, live-session, timetable, portfolio,
+  parent-link, newsletter, file, and ephemeral-token domains; they are not silently declared
+  safe by this milestone. Programme, certificate, class-session, and consent now have a retire
+  or retain path instead of only hard delete;
 - after build data is cleared, switch production from Flexible to Standard and reserve temporary
   Flexible use for an administrator-supervised cleanup window with an audit reason.

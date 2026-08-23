@@ -10,6 +10,11 @@ import {
   consolidateSameScopeCurricula,
   forceDeleteCurriculumDraft,
 } from "@/lib/curriculum/force-delete-draft";
+import {
+  loadCleanupPolicy,
+  mayHardDeleteRebuildableContent,
+  STRICT_CLEANUP_MESSAGE,
+} from "@/lib/operations/cleanup-policy";
 
 function adminClient() {
   return createClient(
@@ -1253,6 +1258,13 @@ export async function DELETE(req: NextRequest) {
   }
 
   const admin = adminClient();
+  const cleanupPolicy = await loadCleanupPolicy(admin as any);
+  if (!mayHardDeleteRebuildableContent(cleanupPolicy)) {
+    return NextResponse.json(
+      { error: STRICT_CLEANUP_MESSAGE, code: "STRICT_RETENTION" },
+      { status: 409 }
+    );
+  }
   const force = url.searchParams.get("force") === "1";
 
   if (force) {

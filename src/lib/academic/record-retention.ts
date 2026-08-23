@@ -77,6 +77,28 @@ export type ProgressReportEvidence = {
   practical_score?: unknown;
 };
 
+export type CertificateAwardEvidence = {
+  portal_user_id?: unknown;
+  verification_code?: unknown;
+  pdf_url?: unknown;
+  certificate_number?: unknown;
+  issued_date?: unknown;
+  completion_status?: unknown;
+};
+
+export function certificateWasAwarded(row: CertificateAwardEvidence | null | undefined): boolean {
+  if (!row) return false;
+  return Boolean(row.portal_user_id)
+    || Boolean(row.verification_code)
+    || Boolean(row.pdf_url)
+    || Boolean(row.certificate_number)
+    || Boolean(row.issued_date);
+}
+
+export function certificateIsRevoked(row: CertificateAwardEvidence | null | undefined): boolean {
+  return String(row?.completion_status ?? '').toLowerCase() === 'revoked';
+}
+
 /** Narrative-only drafts remain cleanable while published/scored reports do not. */
 export function hasProtectedProgressReportEvidence(row: ProgressReportEvidence | null | undefined): boolean {
   if (!row) return false;

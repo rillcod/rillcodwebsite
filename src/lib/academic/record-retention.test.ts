@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  certificateIsRevoked,
+  certificateWasAwarded,
   hasCbtAttemptEvidence,
   hasLearnerAssignmentEvidence,
   hasProtectedAssignmentScoreEvidence,
@@ -38,5 +40,12 @@ describe('academic record retention', () => {
     expect(hasProtectedProgressReportEvidence({ is_published: false })).toBe(false);
     expect(hasProtectedProgressReportEvidence({ overall_score: 0 })).toBe(true);
     expect(hasProtectedProgressReportEvidence({ published_at: '2026-08-22T00:00:00Z' })).toBe(true);
+  });
+
+  it('treats a numbered or student-linked certificate as awarded, and revoked as withdrawn not missing', () => {
+    expect(certificateWasAwarded({ certificate_number: 'RC-1' })).toBe(true);
+    expect(certificateWasAwarded({})).toBe(false);
+    expect(certificateIsRevoked({ completion_status: 'revoked' })).toBe(true);
+    expect(certificateIsRevoked({ completion_status: 'issued' })).toBe(false);
   });
 });

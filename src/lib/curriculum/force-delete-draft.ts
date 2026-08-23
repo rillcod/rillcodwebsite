@@ -7,7 +7,12 @@
  * plan children via admin RPCs / manual deletes.
  */
 
+import { hasLearnerAssignmentEvidence } from "@/lib/academic/record-retention";
+
 type AdminClient = any;
+
+const CURRICULUM_LEARNER_WORK_MESSAGE =
+  "This curriculum still holds learner submissions, attempts, or week scores. Those records stay. Remove unused drafts, or withdraw the edition.";
 
 export type TeachingOrphanCounts = {
   lesson_plans: number;
@@ -37,12 +42,60 @@ async function step(
   return { ok: true };
 }
 
+async function refuseIfPlansHoldLearnerWork(
+  admin: AdminClient,
+  planIds: string[]
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (planIds.length === 0) return { ok: true };
+
+  const [assignments, exams, cbtExams, weekScores, evidence] = await Promise.all([
+    admin.from("assignments").select("id").in("lesson_plan_id", planIds),
+    admin.from("exams").select("id").in("lesson_plan_id", planIds),
+    admin.from("cbt_exams").select("id").in("lesson_plan_id", planIds),
+    admin.from("curriculum_week_performance").select("id", { count: "exact", head: true }).in("lesson_plan_id", planIds),
+    admin.from("academic_assessment_evidence").select("id", { count: "exact", head: true }).in("lesson_plan_id", planIds),
+  ]);
+  const lookupError = [assignments.error, exams.error, cbtExams.error, weekScores.error, evidence.error].find(Boolean);
+  if (lookupError) return { ok: false, error: lookupError.message };
+
+  if ((weekScores.count ?? 0) > 0 || (evidence.count ?? 0) > 0) {
+    return { ok: false, error: CURRICULUM_LEARNER_WORK_MESSAGE };
+  }
+
+  const assignmentIds = (assignments.data ?? []).map((row: { id: string }) => row.id);
+  const examIds = (exams.data ?? []).map((row: { id: string }) => row.id);
+  const cbtIds = (cbtExams.data ?? []).map((row: { id: string }) => row.id);
+  const [submissions, attempts, sessions] = await Promise.all([
+    assignmentIds.length
+      ? admin.from("assignment_submissions")
+        .select("id,submission_text,file_url,submitted_at,answers,grade,weighted_score,graded_at,graded_by,grading_mode,status")
+        .in("assignment_id", assignmentIds)
+      : Promise.resolve({ data: [], error: null }),
+    examIds.length
+      ? admin.from("exam_attempts").select("id").in("exam_id", examIds).limit(1)
+      : Promise.resolve({ data: [], error: null }),
+    cbtIds.length
+      ? admin.from("cbt_sessions").select("id").in("exam_id", cbtIds).limit(1)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const evidenceError = [submissions.error, attempts.error, sessions.error].find(Boolean);
+  if (evidenceError) return { ok: false, error: evidenceError.message };
+  if ((submissions.data ?? []).some(hasLearnerAssignmentEvidence)
+    || (attempts.data?.length ?? 0) > 0
+    || (sessions.data?.length ?? 0) > 0) {
+    return { ok: false, error: CURRICULUM_LEARNER_WORK_MESSAGE };
+  }
+  return { ok: true };
+}
+
 /** Delete every teaching artifact that would block deleting these plans. */
 async function cascadeDeleteLessonPlans(
   admin: AdminClient,
   planIds: string[]
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (planIds.length === 0) return { ok: true };
+  const blocked = await refuseIfPlansHoldLearnerWork(admin, planIds);
+  if (!blocked.ok) return blocked;
 
   const childDeletes: Array<{ table: string; column: string }> = [
     { table: "assignments", column: "lesson_plan_id" },
@@ -177,6 +230,8 @@ export async function forceDeleteCurriculumDraft(
 
   const plans = holdingPlans ?? [];
   const allPlanIds = plans.map((p: { id: string }) => p.id);
+  const blocked = await refuseIfPlansHoldLearnerWork(admin, allPlanIds);
+  if (!blocked.ok) return blocked;
 
   const trackErr = await step("Clear week tracking for draft", () =>
     admin.from("curriculum_week_tracking").delete().eq("curriculum_id", id)

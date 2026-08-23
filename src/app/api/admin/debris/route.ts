@@ -35,7 +35,7 @@ export async function DELETE(req: Request) {
     url.searchParams.get('type') === 'all';
 
   const db = createAdminClient();
-  const result = await runPurge(db, { dryRun, purgeEmptyClasses });
+  const result = await runPurge(db, { actorId: actor.id, dryRun, purgeEmptyClasses });
 
   if (dryRun) {
     return NextResponse.json({

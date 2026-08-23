@@ -24,6 +24,7 @@ import {
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
+import { coursesVisibleForReportPicker } from '@/lib/reports/builder-course-picker';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -574,13 +575,14 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
     programLocked?: boolean;
 }) {
     const star = prominent ? ' *' : '';
-    const programmeCourses = courses.filter(c => c.program_id === programId);
+    const programmeCourses = coursesVisibleForReportPicker(courses, programId, courseId);
+    const lockProgramme = programLocked && !!programId;
     return (
         <>
             <Field label={`Programme${star}`}>
                 <select
                     value={programId}
-                    disabled={programLocked}
+                    disabled={lockProgramme}
                     onChange={e => {
                         const pid = e.target.value;
                         setProgramId(pid);
@@ -588,7 +590,7 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                         const currentCourse = courses.find(c => c.id === courseId);
                         if (currentCourse?.program_id !== pid) set(s => ({ ...s, course_id: '', course_name: '' }));
                     }}
-                    className={INPUT + (programLocked ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
+                    className={INPUT + (lockProgramme ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
                     <option value="">Select a programme…</option>
                     {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -596,10 +598,11 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
             <Field label={`Course${star}`}>
                 <select
                     value={courseId}
-                    disabled={!programId || programmeCourses.length === 0}
+                    disabled={programmeCourses.length === 0}
                     onChange={e => {
                         const cId = e.target.value;
                         const c = courses.find(x => x.id === cId);
+                        if (c?.program_id) setProgramId(c.program_id);
                         set(s => {
                             const suggestedMilestones = getMilestoneSuggestions(c?.title || '').slice(0, 2);
                             return {
@@ -610,15 +613,16 @@ function ProgramCourseFields({ programs, courses, programId, setProgramId, cours
                             };
                         });
                     }}
-                    className={INPUT + ((!programId || programmeCourses.length === 0) ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
-                    <option value="">{!programId ? '— pick a programme first —' : programmeCourses.length ? 'Select a course…' : 'No courses in this programme'}</option>
+                    className={INPUT + (programmeCourses.length === 0 ? ' opacity-60 bg-muted cursor-not-allowed' : '')}>
+                    <option value="">{programmeCourses.length ? 'Select a course…' : 'No courses available'}</option>
                     {programmeCourses.map(c => (
                         <option key={c.id} value={c.id}>
                             {c.title}{c.is_active === false ? ' (Inactive / historical)' : ''}
                         </option>
                     ))}
                 </select>
-                {programLocked && <p className="mt-1.5 text-[10px] text-muted-foreground">Programme comes from the selected class. Choose the course being graded here.</p>}
+                {lockProgramme && <p className="mt-1.5 text-[10px] text-muted-foreground">Programme comes from the selected class. Choose the course being graded here.</p>}
+                {!programId && !lockProgramme && <p className="mt-1.5 text-[10px] text-muted-foreground">Pick a course even if the programme has not filled in yet.</p>}
             </Field>
         </>
     );
@@ -927,9 +931,11 @@ function ReportBuilderInner() {
                     _selectedStudentId?: string; _currentStudentIdx?: number;
                     _courseConfirmationKey?: string;
                     _periodUnlocked?: boolean;
+                    _programId?: string;
                 };
-                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, _periodUnlocked, ...config } = parsed;
+                const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, _courseConfirmationKey, _periodUnlocked, _programId, ...config } = parsed;
                 setCourseConfirmationKey(_courseConfirmationKey || '');
+                if (typeof _programId === 'string' && _programId) setSessionProgramId(_programId);
                 setSessionConfig(s => ({ ...s, ...config }));
                 if (_periodUnlocked) setPeriodUnlocked(true);
                 
@@ -1169,11 +1175,27 @@ function ReportBuilderInner() {
                 _currentStudentIdx: currentStudentIdx,
                 _courseConfirmationKey: courseConfirmationKey,
                 _periodUnlocked: periodUnlocked,
+                _programId: sessionProgramId,
             }));
         } catch {
             setStorageWarning('This browser could not remember your current place. Save the report draft before leaving this page.');
         }
-    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, periodUnlocked, profile?.id]);
+    }, [sessionConfig, step, sessionDone, selectedStudent?.id, currentStudentIdx, courseConfirmationKey, periodUnlocked, sessionProgramId, profile?.id]);
+
+    useEffect(() => {
+        if (sessionProgramId || !sessionConfig.course_id || courses.length === 0) return;
+        const linked = courses.find((course) => course.id === sessionConfig.course_id);
+        if (linked?.program_id) setSessionProgramId(linked.program_id);
+    }, [courses, sessionConfig.course_id, sessionProgramId]);
+
+    useEffect(() => {
+        if (!sessionDone || !sessionConfig.class_id || teacherClasses.length === 0) return;
+        if (teacherClasses.some((row) => row.id === sessionConfig.class_id)) return;
+        setSessionDone(false);
+        setStep('session');
+        setSelectedStudent(null);
+        setExistingReport(null);
+    }, [sessionDone, sessionConfig.class_id, teacherClasses]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
     useEffect(() => {

@@ -866,10 +866,11 @@ export default function ClassDetailPage() {
   // It had no callers.
 
   const deleteSession = async (sessId: string) => {
-    if (!confirm('Permanently delete this session record?')) return;
+    if (!confirm('Remove this session? Test registers can be cleared while cleanup is Flexible.')) return;
     try {
       const res = await fetch(`/api/class-sessions/${sessId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Delete failed');
       await fetchData();
     } catch (e: any) {
       alert(e.message);
