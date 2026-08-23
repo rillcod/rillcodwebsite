@@ -66,3 +66,31 @@ describe('a seat that stops serving anyone is actually released', () => {
     expect(handler.slice(0, 400)).toMatch(/handleClose\s*\(/);
   });
 });
+
+/**
+ * Idle release is only one way out. Closing the tab is how nearly every class
+ * actually ends, and because disconnectOnPageLeave is false the library does not
+ * handle it either — so without these the common case still leaks.
+ */
+describe('every way out of a class releases the seat', () => {
+  it('disconnects when the page is really going away', () => {
+    expect(conserver, 'no pagehide handler: closing the tab holds the seat').toMatch(
+      /addEventListener\(\s*['"]pagehide['"]/,
+    );
+  });
+
+  it('does not disconnect a page kept in the back/forward cache', () => {
+    // event.persisted means it may be restored — that is the app-switch case.
+    expect(conserver).toMatch(/persisted/);
+  });
+
+  it('disconnects on unmount, so leaving the meeting screen does not leave a seat', () => {
+    const cleanup = conserver.slice(conserver.indexOf('return () => {'));
+    expect(cleanup).toMatch(/room\.disconnect\s*\(/);
+  });
+
+  it('removes the listeners it added, so a rejoin does not stack them', () => {
+    expect(conserver).toMatch(/removeEventListener\(\s*['"]pagehide['"]/);
+    expect(conserver).toMatch(/removeEventListener\(\s*['"]visibilitychange['"]/);
+  });
+});

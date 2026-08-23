@@ -92,10 +92,42 @@ export default function ConserveMinutes({
       onConserveRef.current(decision.reason);
     };
 
+    /**
+     * Closing the tab is how nearly every class actually ends, and nothing was
+     * telling LiveKit about it. `disconnectOnPageLeave: false` disables the
+     * library's own handling — deliberately, so an app switch does not eject a
+     * phone — which left no path at all for a genuine departure. Every participant
+     * of every session held a seat until the server timed them out.
+     *
+     * `pagehide` separates the two cases in a way `visibilitychange` cannot.
+     * `persisted: true` means the page went into the back/forward cache and may be
+     * restored, which is the app-switch case and must be left alone. `persisted:
+     * false` means it is really going: closed, or navigated away.
+     */
+    const onPageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) return;
+      if (firedRef.current) return;
+      firedRef.current = true;
+      try {
+        void room.disconnect();
+      } catch {
+        /* the page is going anyway */
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+
     const timer = setInterval(tick, CONSERVATION_TICK_MS);
     return () => {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', markVisibility);
+      window.removeEventListener('pagehide', onPageHide);
+      // Unmounting is itself a departure — leaving the meeting screen must not
+      // leave a seat running behind it.
+      try {
+        if (room.state !== 'disconnected') void room.disconnect();
+      } catch {
+        /* already gone */
+      }
     };
   }, [room]);
 
