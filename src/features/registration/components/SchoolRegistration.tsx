@@ -6,15 +6,34 @@ import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
 const STATES = ['Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'];
 
+/**
+ * Same wiring as the learner enrolment form: the control arrives as children, so the
+ * id is generated here and injected, and the caption points at it. The rejection
+ * message is joined through aria-describedby and marks the field aria-invalid, so a
+ * school being told why its application failed hears it rather than only seeing it.
+ */
 function Field({ label, icon: Icon, error, children }: { label: string; icon?: any; error?: string; children: React.ReactNode }) {
+    const generatedId = React.useId();
+    const child = React.isValidElement(children) ? children : null;
+    const childId = (child?.props as { id?: string } | undefined)?.id;
+    const fieldId = childId ?? generatedId;
+    const errorId = `${fieldId}-error`;
+    const labelled = child && !childId
+        ? React.cloneElement(child as React.ReactElement<{ id?: string; 'aria-invalid'?: boolean; 'aria-describedby'?: string }>, {
+            id: fieldId,
+            'aria-invalid': error ? true : undefined,
+            'aria-describedby': error ? errorId : undefined,
+        })
+        : children;
+
     return (
         <div className="space-y-2">
-            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
+            <label htmlFor={fieldId} className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
             <div className="relative group">
                 {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10" />}
-                {children}
+                {labelled}
             </div>
-            {error && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1">{error}</p>}
+            {error && <p id={errorId} className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1">{error}</p>}
         </div>
     );
 }

@@ -93,13 +93,28 @@ const NIGERIAN_STATES = [
 ];
 
 // ─── Shared helpers ────────────────────────────────────────────────
+/**
+ * The caption sat next to the control with nothing joining them, so every field on
+ * the enrolment form announced as an unlabelled edit box and the caption was not a
+ * click target. The control is passed in as children, so the id is generated here
+ * and injected into it rather than repeated at eighteen call sites — a call site
+ * that already sets its own id keeps it.
+ */
 function Field({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) {
+  const generatedId = React.useId();
+  const child = React.isValidElement(children) ? children : null;
+  const childId = (child?.props as { id?: string } | undefined)?.id;
+  const fieldId = childId ?? generatedId;
+  const labelled = child && !childId
+    ? React.cloneElement(child as React.ReactElement<{ id?: string }>, { id: fieldId })
+    : children;
+
   return (
     <div className="space-y-2">
-      <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
+      <label htmlFor={fieldId} className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
       <div className="relative group">
         {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none z-10" />}
-        {children}
+        {labelled}
       </div>
     </div>
   );
