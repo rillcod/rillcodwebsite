@@ -360,10 +360,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (existing) {
+        // mergeHostSchoolMetrics returns a loose record by design — it merges
+        // whatever host paper fields are present. The payload field is structurally
+        // typed, so the widening has to go through unknown.
         payload.engagement_metrics = mergeHostSchoolMetrics(
           existing.engagement_metrics,
           payload.engagement_metrics,
-        ) as typeof payload.engagement_metrics;
+        ) as unknown as typeof payload.engagement_metrics;
       }
 
       const writeResult = existing

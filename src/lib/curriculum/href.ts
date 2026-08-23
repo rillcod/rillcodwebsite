@@ -206,6 +206,24 @@ export function buildProjectNewHref(args: {
   });
 }
 
+export function hostPaperDatasheetHref(args: {
+  kind: "first_test" | "second_test" | "examination";
+  classId: string;
+  courseId?: string | null;
+  programId?: string | null;
+  schoolId?: string | null;
+  studentId?: string | null;
+  from?: string | null;
+}): string {
+  return withQuery(`/dashboard/classes/${args.classId}/papers/${args.kind}`, {
+    course_id: args.courseId,
+    program_id: args.programId,
+    school_id: args.schoolId,
+    student_id: args.studentId,
+    from: args.from,
+  });
+}
+
 export function hostPaperEntryHref(args: {
   kind: "first_test" | "second_test" | "examination";
   examId?: string | null;
@@ -213,7 +231,21 @@ export function hostPaperEntryHref(args: {
   courseId?: string | null;
   programId?: string | null;
   schoolId?: string | null;
+  studentId?: string | null;
+  from?: string | null;
 }): string {
+  const classId = String(args.classId ?? "").trim();
+  if (classId) {
+    return hostPaperDatasheetHref({
+      kind: args.kind,
+      classId,
+      courseId: args.courseId,
+      programId: args.programId,
+      schoolId: args.schoolId,
+      studentId: args.studentId,
+      from: args.from,
+    });
+  }
   const examId = String(args.examId ?? "").trim();
   if (examId) return `/dashboard/cbt/${examId}`;
   const title =
@@ -233,8 +265,8 @@ export function hostPaperEntryHref(args: {
   });
 }
 
-export function hostPaperEntryLabel(examId?: string | null): string {
-  return String(examId ?? "").trim() ? "Record marks" : "Open paper";
+export function hostPaperEntryLabel(_examId?: string | null): string {
+  return "See paper";
 }
 
 export function buildCbtNewHref(args: {

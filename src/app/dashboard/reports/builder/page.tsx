@@ -2270,6 +2270,8 @@ function ReportBuilderInner() {
                     courseId: sessionConfig.course_id,
                     programId: sessionProgramId,
                     schoolId: sessionConfig.school_id,
+                    studentId: selectedStudent?.id,
+                    from: 'write',
                 }),
                 action: hostPaperEntryLabel(examId),
             };
@@ -4305,7 +4307,7 @@ function ReportBuilderInner() {
                                     title="Scores"
                                     description={
                                         reportScoreAuthority === 'host_school'
-                                            ? 'Record First Test, Second Test and Examination on the paper. Enter classwork, assignments and projects here. One picture — papers add together; classwork sits beside that total.'
+                                            ? 'See each school paper on its datasheet. Enter classwork here. Papers add together; classwork sits beside that total.'
                                             : 'Grade here first. Assignments are not attendance.'
                                     }
                                 >
@@ -4314,23 +4316,28 @@ function ReportBuilderInner() {
                                     ) : (
                                     <div className="space-y-2">
                                         {reportScoreAuthority === 'host_school' ? (
-                                            <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-2 space-y-2">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-sky-800 dark:text-sky-300">First Test, Second Test and Examination</p>
+                                            <div className="overflow-hidden rounded-xl border border-border bg-card">
+                                                <div className="border-b border-border px-3 py-2.5">
+                                                    <p className="text-[11px] font-black uppercase tracking-widest text-foreground">School papers</p>
+                                                    <p className="mt-0.5 text-[11px] text-muted-foreground">See the paper and the class mark sheet. Do not type these marks here.</p>
+                                                </div>
+                                                <div className="divide-y divide-border">
                                                 {hostPaperRows.map((row) => (
-                                                    <div key={row.kind} className="flex items-center justify-between gap-2 text-sm">
-                                                        <span className="text-[11px] font-bold text-foreground">{row.label}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-black tabular-nums">{row.mark ? formatHostMark(row.mark) : '—'}</span>
-                                                            <Link
-                                                                href={row.href}
-                                                                className="inline-flex min-h-8 items-center rounded-lg border border-sky-500/40 bg-background px-2 py-1 text-[10px] font-black uppercase tracking-wider text-sky-800 dark:text-sky-300"
-                                                            >
-                                                                {row.action}
-                                                            </Link>
+                                                    <div key={row.kind} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-bold text-foreground">{row.label}</p>
+                                                            <p className="text-xs tabular-nums text-muted-foreground">{row.mark ? formatHostMark(row.mark) : 'No mark yet'}</p>
                                                         </div>
+                                                        <Link
+                                                            href={row.href}
+                                                            className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-border bg-background px-3 text-xs font-black uppercase tracking-wider"
+                                                        >
+                                                            {row.action}
+                                                        </Link>
                                                     </div>
                                                 ))}
-                                                <div className="flex items-center justify-between border-t border-sky-500/20 pt-1.5">
+                                                </div>
+                                                <div className="flex items-center justify-between border-t border-border bg-muted/30 px-3 py-2.5">
                                                     <span className="text-[11px] font-black uppercase tracking-widest">Total</span>
                                                     <span className="text-base font-black tabular-nums">
                                                         {formatHostMark(studentStats.hostTotalMark)}

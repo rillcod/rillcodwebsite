@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -28,10 +28,12 @@ import {
   markFromPercent,
   parsePaperMarkAnswers,
 } from '@/lib/academic/host-marks';
+import { hostPaperDatasheetHref } from '@/lib/curriculum/href';
 
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };
   const searchParams = useSearchParams();
+  const router = useRouter();
   const classId = searchParams?.get('class_id');
   const { profile, loading: authLoading } = useAuth();
   const [exam, setExam] = useState<any>(null);
@@ -55,6 +57,20 @@ export default function ExamDetailPage() {
   const role = profile?.role ?? '';
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
   const canManageExam = role === 'admin' || role === 'teacher';
+
+  useEffect(() => {
+    if (!exam) return;
+    const kind = hostAssessmentKindFromExam(exam);
+    const meta = exam.metadata && typeof exam.metadata === 'object' ? exam.metadata : {};
+    const paperClass = exam.class_id || meta.target_class_id || classId;
+    if (kind && paperClass) {
+      router.replace(hostPaperDatasheetHref({
+        kind,
+        classId: String(paperClass),
+        courseId: exam.course_id,
+      }));
+    }
+  }, [exam, classId, router]);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -153,6 +169,14 @@ export default function ExamDetailPage() {
   const hostMeta = exam.metadata && typeof exam.metadata === 'object' ? exam.metadata : {};
   const hostKind = hostAssessmentKindFromExam(exam);
   const paperName = hostKind ? hostPaperLabel(hostKind) : 'paper';
+  const hostClassId = exam.class_id || hostMeta.target_class_id || classId;
+  if (hostKind && hostClassId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   const derivedHallMax = hostMaxFromExam({ metadata: hostMeta, cbt_questions: questions }) || totalPoints || 100;
   const hallMax = Math.max(1, parseInt(paperOutOf, 10) || derivedHallMax);
   const showHallMarks = isStaff && (

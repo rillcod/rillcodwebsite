@@ -8,6 +8,7 @@ import {
   buildGradesHref,
   buildAttendanceHref,
   buildCbtNewHref,
+  hostPaperDatasheetHref,
   hostPaperEntryHref,
   hostPaperEntryLabel,
   buildLessonNewHref,
@@ -102,18 +103,22 @@ describe("curriculum href helpers", () => {
     expect(cbtUrl.searchParams.get("host_assessment")).toBe("first_test");
   });
 
-  it("opens an existing paper and creates a missing one from Write", () => {
+  it("opens the class paper datasheet from Write, not the CBT builder", () => {
     expect(
       hostPaperEntryHref({
         kind: "first_test",
         examId: "exam-1",
         classId: "cl1",
+        courseId: "c1",
+        from: "write",
+        studentId: "stu-1",
       }),
-    ).toBe("/dashboard/cbt/exam-1");
+    ).toBe(
+      "/dashboard/classes/cl1/papers/first_test?course_id=c1&student_id=stu-1&from=write",
+    );
     const createUrl = new URL(
       hostPaperEntryHref({
         kind: "second_test",
-        classId: "cl1",
         courseId: "c1",
         programId: "p1",
         schoolId: "s1",
@@ -122,10 +127,15 @@ describe("curriculum href helpers", () => {
     );
     expect(createUrl.pathname).toBe("/dashboard/cbt/new");
     expect(createUrl.searchParams.get("host_assessment")).toBe("second_test");
-    expect(createUrl.searchParams.get("class_id")).toBe("cl1");
-    expect(createUrl.searchParams.get("title")).toBe("Second Test");
-    expect(hostPaperEntryLabel("exam-1")).toBe("Record marks");
-    expect(hostPaperEntryLabel(null)).toBe("Open paper");
+    expect(hostPaperEntryLabel("exam-1")).toBe("See paper");
+    expect(hostPaperEntryLabel(null)).toBe("See paper");
+    expect(
+      hostPaperDatasheetHref({
+        kind: "examination",
+        classId: "cl1",
+        courseId: "c1",
+      }),
+    ).toBe("/dashboard/classes/cl1/papers/examination?course_id=c1");
   });
 
   it("preserves asset lane query across steps", () => {

@@ -19,7 +19,8 @@ import {
   openCbtPrintWindow,
 } from '@/lib/cbt/print-utils';
 import { hostAssessmentKindFromExam, parseHostAssessmentKind } from '@/lib/academic/taught-assessment';
-import { paperTotalFromQuestions, SUGGESTED_HOST_PAPER_MAX } from '@/lib/academic/host-marks';
+import { hostPaperLabel, paperTotalFromQuestions, SUGGESTED_HOST_PAPER_MAX } from '@/lib/academic/host-marks';
+import { hostPaperDatasheetHref } from '@/lib/curriculum/href';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import {
@@ -515,7 +516,21 @@ export default function NewExamPage() {
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create exam'); }
 
-      router.push(classId ? `/dashboard/classes/${classId}?operation=assessment` : '/dashboard/cbt');
+      const kind = preHostAssessment || hostAssessmentKindFromExam({ title: form.title });
+      router.push(
+        kind && classId
+          ? hostPaperDatasheetHref({
+              kind,
+              classId,
+              courseId: form.course_id || preCourseId,
+              programId: form.program_id || preProgramId,
+              schoolId: form.school_id || preSchoolId,
+              from: 'write',
+            })
+          : classId
+            ? `/dashboard/classes/${classId}?operation=assessment`
+            : '/dashboard/cbt',
+      );
     } catch (e: any) {
       setError(e.message ?? 'Failed to create exam');
     } finally {
@@ -570,18 +585,24 @@ export default function NewExamPage() {
     <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
       <div className={`${isMinimal ? 'w-full' : 'max-w-4xl mx-auto'} space-y-6`}>
         {!isMinimal && (
-          <Link href="/dashboard/cbt" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeftIcon className="w-4 h-4" /> Back to CBT
+          <Link href={hostKind && classId ? hostPaperDatasheetHref({ kind: hostKind, classId, courseId: form.course_id || preCourseId, from: 'write' }) : '/dashboard/cbt'} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeftIcon className="w-4 h-4" /> {hostKind ? `Back to ${hostPaperLabel(hostKind)}` : 'Back to CBT'}
           </Link>
         )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{isMinimal ? 'Add Context' : 'New Exam'}</span>
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{hostKind ? 'School paper' : isMinimal ? 'Add Context' : 'New Exam'}</span>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Create assessment</h1>
-            {!isMinimal && <p className="text-muted-foreground text-sm mt-1">Build, review, and publish one class-ready assessment.</p>}
+            <h1 className="text-3xl font-extrabold tracking-tight">{hostKind ? `Prepare ${hostPaperLabel(hostKind)}` : 'Create assessment'}</h1>
+            {!isMinimal && (
+              <p className="text-muted-foreground text-sm mt-1">
+                {hostKind
+                  ? 'Generate this paper from what the class has already been taught. Then return to the datasheet to print it and enter hall marks.'
+                  : 'Build, review, and publish one class-ready assessment.'}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {questions.some(q => q.question_text.trim()) && (
@@ -615,7 +636,7 @@ export default function NewExamPage() {
             )}
             <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating...' : (isMinimal ? 'CREATE' : (form.is_active ? 'PUBLISH ASSESSMENT' : 'SAVE DRAFT'))}
+              {saving ? 'Saving…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (isMinimal ? 'CREATE' : (form.is_active ? 'PUBLISH ASSESSMENT' : 'SAVE DRAFT'))}
             </button>
           </div>
         </div>
@@ -631,11 +652,11 @@ export default function NewExamPage() {
           <div className="flex items-start gap-3">
             <SparklesIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div>
-              <p className="text-xs font-bold text-foreground">Smart draft prepared</p>
+              <p className="text-xs font-bold text-foreground">{hostKind ? `${hostPaperLabel(hostKind)} from taught weeks` : 'Smart draft prepared'}</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                {examSuggestion.label}: {aiMcqCount || 0} objective + {aiTheoryCount || 0} written questions,
-                {' '}{form.duration_minutes} minutes, {form.passing_score}% pass mark.
-                {className ? ` Linked to ${className}.` : ''} Official report contribution follows the active academic grading scheme.
+                {hostKind
+                  ? `Questions should come only from weeks this class has already been taught.${className ? ` Linked to ${className}.` : ''} After you save, the datasheet is where you print the paper and enter hall marks.`
+                  : `${examSuggestion.label}: ${aiMcqCount || 0} objective + ${aiTheoryCount || 0} written questions, ${form.duration_minutes} minutes, ${form.passing_score}% pass mark.${className ? ` Linked to ${className}.` : ''} Official report contribution follows the active academic grading scheme.`}
               </p>
             </div>
           </div>
@@ -866,7 +887,7 @@ export default function NewExamPage() {
             </div>
 
             {/* Exam Type — critical for score routing */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid grid-cols-2 gap-3 ${hostKind ? 'hidden' : ''}`}>
               <button type="button"
                 onClick={() => handleExamTypeChange('examination')}
                 className={`flex items-start gap-3 rounded-xl px-4 py-3 border text-left transition-all ${form.exam_type === 'examination' ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-card border-border hover:border-indigo-500/30'}`}>

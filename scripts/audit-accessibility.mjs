@@ -28,8 +28,14 @@ const ROOT = path.join(process.cwd(), 'src');
 /**
  * Controls without a programmatic name, as of 23 August 2026.
  * Lower this as the backlog is paid down. Never raise it.
+ *
+ * Was 1553. Dropped to 1304 not by fixing 249 controls but by teaching this
+ * scanner that a control nested inside a <label> is already labelled. Those were
+ * this gate's own false positives — accessible markup it was reporting as broken,
+ * which is worse than missing a defect because it sends people to change working
+ * code and teaches them to distrust the gate.
  */
-const BASELINE = 1553;
+const BASELINE = 1304;
 
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
@@ -46,6 +52,29 @@ const CONTROL = /<(input|textarea|select)\b([^>]*?)\/?>/gis;
 // A control of these types is named by its own value or nothing at all.
 const UNNAMEABLE_TYPE = /type=\s*["'](hidden|submit|button|image)["']/i;
 
+/**
+ * Character ranges covered by a <label>…</label> element.
+ *
+ * A control nested inside a label is labelled by it — that is implicit labelling,
+ * and it needs no htmlFor or id at all. Reporting those was this scanner's own
+ * false-positive class: it flagged perfectly accessible markup and would have sent
+ * someone to "fix" it. Nesting labels is invalid HTML, so a simple depth-free scan
+ * of open and close tags is sufficient.
+ */
+function labelRanges(src) {
+  const ranges = [];
+  const open = /<label\b[^>]*>/gi;
+  let match;
+  while ((match = open.exec(src))) {
+    const close = src.indexOf('</label>', match.index);
+    if (close === -1) continue;
+    ranges.push([match.index, close]);
+  }
+  return ranges;
+}
+
+const insideAny = (ranges, index) => ranges.some(([start, end]) => index > start && index < end);
+
 function scan() {
   let total = 0;
   let unnamed = 0;
@@ -56,6 +85,7 @@ function scan() {
     const htmlFors = new Set(
       [...src.matchAll(/htmlFor=\{?["'`]([^"'`}]+)/g)].map((m) => m[1]),
     );
+    const wrappingLabels = labelRanges(src);
 
     for (const match of src.matchAll(CONTROL)) {
       const attrs = match[2] || '';
@@ -72,7 +102,9 @@ function scan() {
         /aria-label\s*=/.test(attrs) ||
         /aria-labelledby\s*=/.test(attrs) ||
         (idMatch ? htmlFors.has(idMatch[1]) : false) ||
-        (dynamicId && htmlFors.size > 0);
+        (dynamicId && htmlFors.size > 0) ||
+        // Nested inside a <label>, which names it without needing an id.
+        insideAny(wrappingLabels, match.index);
 
       if (!named) {
         unnamed += 1;
