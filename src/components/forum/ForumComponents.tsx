@@ -118,7 +118,7 @@ export function DiscussionReply({ reply, isAccepted = false }: { reply: any, isA
                             <span className="text-xs font-bold text-foreground/80 dark:text-slate-200">{reply.author_name}</span>
                             <span className="text-[10px] text-muted-foreground/70 font-bold uppercase">{formatDistanceToNow(new Date(reply.created_at))} ago</span>
                         </div>
-                        {isAccepted && <Badge className="bg-green-500 text-white text-[8px] font-black uppercase px-2 h-4">Accepted Answer</Badge>}
+                        {isAccepted && <Badge className="bg-green-700 text-white text-[8px] font-black uppercase px-2 h-4">Accepted Answer</Badge>}
                     </div>
                     <div className="text-sm text-muted-foreground dark:text-muted-foreground/70 leading-relaxed prose dark:prose-invert whitespace-pre-wrap">
                         {renderContentWithMentions(reply.content)}

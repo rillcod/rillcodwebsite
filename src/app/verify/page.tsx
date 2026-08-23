@@ -28,7 +28,7 @@ export default function VerifyLandingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col font-sans selection:bg-violet-500/30 public-page-root overflow-x-clip">
+        <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col font-sans selection:bg-violet-700/30 public-page-root overflow-x-clip">
 
             {/* Dynamic Background Elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">

@@ -825,7 +825,7 @@ export default function ApprovalsPage() {
                                     Cancel
                                 </button>
                                 <button onClick={recordManualPayment} disabled={paying}
-                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2">
+                                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2">
                                     {paying ? 'Processing…' : 'Confirm Payment & Admit'}
                                 </button>
                             </div>
@@ -1023,7 +1023,7 @@ export default function ApprovalsPage() {
                                                 {s.status === 'unpaid' && (
                                                     <button onClick={() => { setPayModal(s); setPayAmount(''); setPayRef(''); setPayFile(null); setPayMethod('cash'); }} disabled={acting === s.id}
                                                         title="Upload proof of a physical / bank payment and admit this student"
-                                                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 shadow-sm border border-amber-500/30">
+                                                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 shadow-sm border border-amber-500/30">
                                                         💵 Record Payment &amp; Admit
                                                     </button>
                                                 )}

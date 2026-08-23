@@ -276,7 +276,7 @@ export default function CommunicationReportsPage({
                         type="button"
                         onClick={() => updateStatus(row.id, "closed")}
                         disabled={savingId === row.id}
-                        className="px-8 py-3.5 text-xs font-black uppercase tracking-[0.2em] bg-emerald-600 text-white rounded-2xl hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-[0_20px_50px_rgba(16,185,129,0.2)]"
+                        className="px-8 py-3.5 text-xs font-black uppercase tracking-[0.2em] bg-emerald-700 text-white rounded-2xl hover:bg-emerald-800 disabled:opacity-50 transition-all shadow-[0_20px_50px_rgba(16,185,129,0.2)]"
                       >
                         Finalize Case
                       </button>

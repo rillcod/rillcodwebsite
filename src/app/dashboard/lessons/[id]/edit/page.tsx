@@ -673,7 +673,7 @@ export default function EditLessonPage() {
                             type="button"
                             onClick={handleSave}
                             disabled={saving}
-                            className={`${MOBILE_TOUCH_BTN} flex-[1.4] bg-cyan-600 text-white shadow-lg disabled:opacity-60`}
+                            className={`${MOBILE_TOUCH_BTN} flex-[1.4] bg-cyan-700 text-white shadow-lg disabled:opacity-60`}
                         >
                             {saving ? (
                                 <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

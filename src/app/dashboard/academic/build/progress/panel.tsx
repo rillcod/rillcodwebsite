@@ -602,7 +602,7 @@ export default function CurriculumProgressPage({
               )}
               <button
                 onClick={exportDataToCsv}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold rounded-lg transition-all whitespace-nowrap ml-auto"
+                className="flex items-center gap-2 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-all whitespace-nowrap ml-auto"
                 title="Export delivery progress to CSV"
               >
                 <svg

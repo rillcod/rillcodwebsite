@@ -409,7 +409,7 @@ export function ReceiptBuilderPanel() {
               disabled={
                 !form.payer_name || form.items.every((i) => i.unit_price === 0) || saving
               }
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest rounded-md shadow"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white font-black text-xs uppercase tracking-widest rounded-md shadow"
             >
               <ReceiptPercentIcon className="w-4 h-4" /> Print Receipt
             </button>

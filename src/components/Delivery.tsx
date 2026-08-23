@@ -87,7 +87,7 @@ const Delivery: React.FC = () => {
             <div className="mt-8">
               <a
                 href="#student-registration"
-                className="inline-flex items-center justify-center px-6 py-3 bg-emerald-600 text-white text-lg font-bold rounded-full shadow-md hover:bg-emerald-700 transform transition-all duration-300 hover:scale-105"
+                className="inline-flex items-center justify-center px-6 py-3 bg-emerald-700 text-white text-lg font-bold rounded-full shadow-md hover:bg-emerald-700 transform transition-all duration-300 hover:scale-105"
               >
                 Register Your Child
               </a>

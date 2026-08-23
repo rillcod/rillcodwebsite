@@ -137,7 +137,7 @@ export default function StudioUI(p: StudioUIProps) {
               <span className="hidden sm:inline">{isSaving ? 'Saving…' : 'Save'}</span>
             </button>
             {assignmentId && profile?.role === 'student' && !assignmentSubmitted && mySubmission?.status !== 'graded' && (
-              <button onClick={submitToAssignment} disabled={submittingAssignment || !code.trim()} className="flex items-center gap-1 px-2 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg text-[9px] font-black transition-all touch-manipulation">
+              <button onClick={submitToAssignment} disabled={submittingAssignment || !code.trim()} className="flex items-center gap-1 px-2 py-1.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white rounded-lg text-[9px] font-black transition-all touch-manipulation">
                 {submittingAssignment ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpTrayIcon className="w-3.5 h-3.5" />}
                 <span className="hidden sm:inline">Submit</span>
               </button>
@@ -147,7 +147,7 @@ export default function StudioUI(p: StudioUIProps) {
                 <CheckCircleIcon className="w-3 h-3" /><span className="hidden sm:inline">{mySubmission?.status === 'graded' ? 'Graded' : 'Submitted'}</span>
               </div>
             )}
-            <button onClick={runCode} disabled={running || lang === 'scratch'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-wide transition-all shadow-lg shadow-emerald-900/30 active:scale-95 touch-manipulation">
+            <button onClick={runCode} disabled={running || lang === 'scratch'} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-wide transition-all shadow-lg shadow-emerald-900/30 active:scale-95 touch-manipulation">
               {running ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PlayIcon className="w-4 h-4" />}
               <span className="hidden sm:inline">{running ? '…' : 'Run'}</span>
             </button>

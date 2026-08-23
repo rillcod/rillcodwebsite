@@ -210,7 +210,7 @@ export default function SlideViewer({
           </button>
           <span className="text-[11px] font-black text-muted-foreground tabular-nums">{total ? i + 1 : 0} / {total}</span>
           <button onClick={next} disabled={total === 0 || i === total - 1}
-            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 rounded-lg disabled:opacity-30 transition-all">Next</button>
+            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-700 rounded-lg disabled:opacity-30 transition-all">Next</button>
         </div>
       </div>
     </div>

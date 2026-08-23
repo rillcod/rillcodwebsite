@@ -158,7 +158,7 @@ export default function SchoolWipeButton({ school, onWiped }: { school: { id: st
               <button
                 onClick={wipe}
                 disabled={!canPermanentlyDelete || !nameMatches || wiping || scanning}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isProtected ? 'Protected records locked' : wiping ? 'Deleting…' : 'Delete forever'}
               </button>

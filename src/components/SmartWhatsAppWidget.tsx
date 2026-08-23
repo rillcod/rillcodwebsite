@@ -381,7 +381,7 @@ export default function SmartWhatsAppWidget() {
                 <button
                   type="button"
                   onClick={chatNow}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-colors"
                 >
                   <MessageCircle className="w-4 h-4" />
                   Chat now on WhatsApp
@@ -412,7 +412,7 @@ export default function SmartWhatsAppWidget() {
           setIsOpen((v) => !v);
           if (!isOpen) setStep(loadWaIntakeDraft()?.parentName ? "details" : "intent");
         }}
-        className="flex items-center justify-center w-12 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-lg border border-emerald-700/40 transition-transform hover:scale-105"
+        className="flex items-center justify-center w-12 h-12 bg-emerald-700 hover:bg-emerald-800 text-white rounded-full shadow-lg border border-emerald-700/40 transition-transform hover:scale-105"
         aria-label={isOpen ? "Close assist" : "Open Rillcod Assist"}
         aria-expanded={isOpen}
       >

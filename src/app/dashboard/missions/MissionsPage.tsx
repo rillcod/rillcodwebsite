@@ -1877,7 +1877,7 @@ export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                           {!isCompleted && (
                             <button
                               onClick={() => markComplete(mission.id)}
-                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] ml-auto"
+                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-700/20 border border-emerald-500/50 hover:bg-emerald-800 text-emerald-600 dark:text-emerald-400 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] ml-auto"
                             >
                               <CheckBadgeIcon className="w-5 h-5" />
                               Submit Solution (+{mission.xp} XP)

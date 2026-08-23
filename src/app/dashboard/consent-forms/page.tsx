@@ -1806,7 +1806,7 @@ export default function ConsentFormsPage() {
                           <button
                             onClick={() => signForm(readModal.id)}
                             disabled={signingId === readModal.id || !regData.child_name.trim() || !regData.child_age || !regData.child_class.trim() || !regData.program_category || !regData.parent_name.trim() || !regData.parent_whatsapp.trim() || !regData.consent_acknowledged}
-                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-colors"
+                            className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-colors"
                           >
                             {signingId === readModal.id ? 'Submitting…' : '✅ Submit Registration & Sign'}
                           </button>
@@ -2211,7 +2211,7 @@ export default function ConsentFormsPage() {
                         {isParent && (
                           <button
                             onClick={() => openReadModal(cf.id)}
-                            className="col-span-2 flex items-center justify-center gap-2 min-h-11 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest transition-colors"
+                            className="col-span-2 flex items-center justify-center gap-2 min-h-11 px-3 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black uppercase tracking-widest transition-colors"
                           >
                             <DocumentTextIcon className="w-3.5 h-3.5" /> {cf.has_signed ? 'Add another child response' : 'Read & Sign'}
                           </button>

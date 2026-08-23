@@ -154,7 +154,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
                     <Button
                         onClick={handleSend}
                         disabled={!inputText.trim()}
-                        className="w-10 h-10 rounded-full bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-500/20 shrink-0"
+                        className="w-10 h-10 rounded-full bg-teal-700 hover:bg-teal-700 text-white shadow-md shadow-teal-500/20 shrink-0"
                     >
                         <Send className="w-4 h-4 ml-0.5" />
                     </Button>

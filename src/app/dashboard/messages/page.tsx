@@ -236,7 +236,7 @@ export default function MessagesPage() {
             </p>
             <Link
               href="/dashboard/inbox"
-              className="inline-flex px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest"
+              className="inline-flex px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-widest"
             >
               Open Guarded Inbox
             </Link>

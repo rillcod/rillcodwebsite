@@ -506,7 +506,7 @@ export default function TakeExamPage() {
               type="button"
               onClick={() => handleSubmit(false)}
               disabled={submitting}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
             >
               {submitting ? '…' : 'Submit'}
             </button>

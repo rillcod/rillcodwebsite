@@ -159,7 +159,7 @@ export function AutomationControlsPanel({ embedded = false }: Props) {
             href={channels.manualWhatsAppUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-3 inline-flex min-h-11 touch-manipulation items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white"
+            className="mt-3 inline-flex min-h-11 touch-manipulation items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-black text-white"
           >
             Open manual WhatsApp: 08116600091
           </a>

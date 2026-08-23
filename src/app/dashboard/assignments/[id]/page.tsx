@@ -474,7 +474,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                 </select>
                 {err && <p className="text-xs text-rose-600 dark:text-rose-400 hidden md:block max-w-[140px] truncate">{err}</p>}
                 <button onClick={save} disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                     <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save Grade'}</span>
                 </button>
@@ -873,7 +873,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                     {/* Mobile save button */}
                     <div className="md:hidden">
                         <button onClick={save} disabled={saving}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                             {saving ? 'Saving…' : status === 'returned_for_revision' ? 'Return with Feedback' : 'Save Review'}
                         </button>
@@ -1566,7 +1566,7 @@ export default function AssignmentDetailPage() {
                             </button>
                             <button onClick={sendAssignmentByEmail}
                                 disabled={!emailTo.trim() || emailSending}
-                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
+                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
                                 {emailSending
                                     ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
                                     : <>Send PDF</>}
@@ -2285,7 +2285,7 @@ export default function AssignmentDetailPage() {
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img src={s.url} alt={`Snapshot ${i + 1}`} className="w-full max-h-40 object-contain bg-black/20 rounded-lg" />
                                                             <button type="button" onClick={() => removeSnapshot(i)}
-                                                                className="absolute top-1.5 right-1.5 px-2 py-1 bg-rose-500/80 hover:bg-rose-500 text-white text-[10px] font-black uppercase rounded-lg transition-colors">Remove</button>
+                                                                className="absolute top-1.5 right-1.5 px-2 py-1 bg-rose-700/80 hover:bg-rose-800 text-white text-[10px] font-black uppercase rounded-lg transition-colors">Remove</button>
                                                         </div>
                                                         <input type="text" value={s.caption} maxLength={200}
                                                             onChange={e => updateSnapCaption(i, e.target.value)}

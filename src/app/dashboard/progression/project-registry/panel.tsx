@@ -699,7 +699,7 @@ export default function ProjectRegistryPage({
           <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-[4rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-10 sm:p-16 shadow-[0_50px_150px_rgba(0,0,0,0.5)] relative animate-in zoom-in-95 duration-500">
             <button
               onClick={() => setShowCreate(false)}
-              className="absolute top-10 right-10 p-4 rounded-full bg-muted/50 hover:bg-rose-500 hover:text-white transition-all duration-500 group"
+              className="absolute top-10 right-10 p-4 rounded-full bg-muted/50 hover:bg-rose-700 hover:text-white transition-all duration-500 group"
             >
               <XMarkIcon className="w-6 h-6 group-hover:rotate-90 transition-transform" />
             </button>
@@ -872,7 +872,7 @@ export default function ProjectRegistryPage({
           <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-[4rem] w-full max-w-3xl p-10 sm:p-16 shadow-2xl relative animate-in zoom-in-95 duration-500">
             <button
               onClick={() => setEditing(null)}
-              className="absolute top-10 right-10 p-4 rounded-full bg-muted/50 hover:bg-rose-500 hover:text-white transition-all duration-500 group"
+              className="absolute top-10 right-10 p-4 rounded-full bg-muted/50 hover:bg-rose-700 hover:text-white transition-all duration-500 group"
             >
               <XMarkIcon className="w-6 h-6 group-hover:rotate-90 transition-transform" />
             </button>

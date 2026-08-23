@@ -331,7 +331,7 @@ export default function IntegratedCodeRunner({
                 <button
                   onClick={runCode}
                   disabled={running}
-                  className="flex min-h-9 items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 active:scale-95 shrink-0"
+                  className="flex min-h-9 items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 active:scale-95 shrink-0"
                 >
                   {running ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PlayIcon className="w-3.5 h-3.5" />}
                   {lang === 'html' ? 'Preview' : 'Run'}

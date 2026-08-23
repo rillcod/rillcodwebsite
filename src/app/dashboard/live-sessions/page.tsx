@@ -527,7 +527,7 @@ function RoomsModal({ session, canManage, onClose }: {
                 <button
                   onClick={createRoom}
                   disabled={saving}
-                  className="min-h-11 flex-1 py-2.5 text-xs font-black bg-purple-600 hover:bg-purple-500 text-white transition-all disabled:opacity-50"
+                  className="min-h-11 flex-1 py-2.5 text-xs font-black bg-purple-600 hover:bg-purple-700 text-white transition-all disabled:opacity-50"
                 >
                   {saving ? 'Creating…' : 'Create Room'}
                 </button>
@@ -540,7 +540,7 @@ function RoomsModal({ session, canManage, onClose }: {
           <div className="p-4 border-t border-white/[0.06] flex-shrink-0">
             <button
               onClick={() => setCreating(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black uppercase tracking-widest transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-widest transition-all"
             >
               <PlusIcon className="w-4 h-4" /> Add Room
             </button>
@@ -802,7 +802,7 @@ function QAModal({ session, canManage, userId, onClose }: {
                         autoFocus
                         className="flex-1 px-3 py-2 bg-white/[0.03] border border-emerald-500/30 text-xs text-foreground placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-all"
                       />
-                      <button onClick={() => answer(q.id)} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                      <button onClick={() => answer(q.id)} className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-black uppercase tracking-widest transition-all">
                         Answer
                       </button>
                       <button onClick={() => { setAnswering(null); setAnswerText(''); }} className="px-3 py-2 bg-white/5 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black transition-all">
@@ -1060,7 +1060,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onStopSerie
             {session.status === 'scheduled' && (
               <button
                 onClick={() => onStart(session)}
-                className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-emerald-900/40 relative overflow-hidden group/start"
+                className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-emerald-900/40 relative overflow-hidden group/start"
               >
                 <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover/start:translate-x-full transition-transform duration-500" />
                 <SignalIcon className="w-4 h-4 relative z-10" />
@@ -1449,7 +1449,7 @@ function AutoJoinToast({ session, onJoin, onDismiss }: {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={onJoin}
-            className="min-h-11 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all"
+            className="min-h-11 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-black uppercase tracking-widest transition-all"
           >
             Join Now
           </button>

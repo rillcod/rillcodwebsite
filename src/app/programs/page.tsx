@@ -197,7 +197,7 @@ export default function ProgramsPage() {
                 <div className="pt-2">
                   <Link
                     href={cta.href}
-                    className="inline-flex items-center justify-center px-8 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 min-h-[44px]"
+                    className="inline-flex items-center justify-center px-8 py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 min-h-[44px]"
                   >
                     Register for Cohort
                   </Link>

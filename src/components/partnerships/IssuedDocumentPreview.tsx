@@ -434,7 +434,7 @@ export function IssuedDocumentPreview({
                 onClick={() => setShowEmailField((v) => !v)}
                 disabled={sending || saving}
                 aria-expanded={showEmailField}
-                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold"
+                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold"
               >
                 {sending ? (
                   <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -587,7 +587,7 @@ export function IssuedDocumentPreview({
                 <button
                   type="submit"
                   disabled={sending}
-                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black"
+                  className="flex-1 sm:flex-none min-h-[44px] px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black"
                 >
                   {sending ? "Sending…" : "Send"}
                 </button>
@@ -686,7 +686,7 @@ export function IssuedDocumentPreview({
                 type="button"
                 onClick={() => setShowEmailField(true)}
                 disabled={sending || saving}
-                className="min-h-[48px] rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50"
+                className="min-h-[48px] rounded-xl bg-emerald-700 text-white text-xs font-bold disabled:opacity-50"
               >
                 Send
               </button>

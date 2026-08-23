@@ -363,7 +363,7 @@ function ClassHealPageInner() {
             <button
               type="button"
               onClick={() => setTab('cleanup')}
-              className="flex items-center gap-2 px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition"
+              className="flex items-center gap-2 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition"
               title="Open debris cleanup — dry-run or full sanitation (repair + purge)"
             >
               <TrashIcon className="w-4 h-4 shrink-0" /> Full sanitation
@@ -380,20 +380,20 @@ function ClassHealPageInner() {
                 onClick={() => applyAction('auto_align_by_reports', [])}
                 disabled={working || loading || !data}
                 title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
-                className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
                 <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align
               </button>
               <button
                 onClick={() => applyAction('safe_auto_repair', [])}
                 disabled={working || loading || totalIssues === 0}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                className="flex items-center gap-2 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
                 <CheckCircleIcon className="w-4 h-4 shrink-0" /> Auto-Repair
               </button>
               <button
                 onClick={() => applyAction('seal_structure_backfill', [])}
                 disabled={working || loading || !data}
                 title="Backfill school from class/children/teacher assignments, then deactivate any active account still missing required structure."
-                className="flex items-center gap-2 px-3 py-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+                className="flex items-center gap-2 px-3 py-2 bg-amber-700 hover:bg-amber-700 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
                 <CheckCircleIcon className="w-4 h-4 shrink-0" /> Seal Structure
               </button>
               <button onClick={load} disabled={working || loading}
@@ -498,7 +498,7 @@ function ClassHealPageInner() {
                     <button
                       onClick={() => fixNames(true)}
                       disabled={namingBusy || namingSelected.size === 0}
-                      className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
+                      className="w-full sm:w-auto px-3 py-2.5 sm:py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
                     >
                       Fix selected + merge dupes
                     </button>
@@ -690,7 +690,7 @@ function ClassHealPageInner() {
                   } catch { /* ignore */ }
                   setAuditLoading(false);
                 }}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
               >
                 {auditLoading ? <ArrowPathIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Run Audit'}
               </button>
@@ -752,7 +752,7 @@ function ClassHealPageInner() {
                         <button
                           disabled={working}
                           onClick={() => applyAction('sync_teacher_schools', [], { teacherId: auditTeacherId })}
-                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
                         >
                           Fix Link
                         </button>
@@ -972,7 +972,7 @@ function ClassHealPageInner() {
                                 } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
                                 finally { setWorking(false); }
                               }}
-                              className="w-full sm:w-auto px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
+                              className="w-full sm:w-auto px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
                             >
                               Restore All ({school.displaced_students.length}) →
                             </button>
@@ -1002,7 +1002,7 @@ function ClassHealPageInner() {
                                 setMsg({ type: 'err', text: e.message });
                               } finally { setWorking(false); }
                             }}
-                            className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
+                            className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
                           >
                             Move Selected →
                           </button>
@@ -1168,7 +1168,7 @@ function ClassHealPageInner() {
                   setMsg({ type: 'err', text: e.message });
                 } finally { setWorking(false); }
               }}
-              className="w-full sm:w-auto px-5 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+              className="w-full sm:w-auto px-5 py-2.5 bg-sky-700 hover:bg-sky-800 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
             >
               Claim Class →
             </button>
@@ -1213,7 +1213,7 @@ function ClassHealPageInner() {
                   } catch { /* ignore */ }
                   setClassAuditLoading(false);
                 }}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-orange-700 hover:bg-orange-800 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
               >
                 {classAuditLoading ? <ArrowPathIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Analyze Class'}
               </button>
@@ -1304,7 +1304,7 @@ function ClassHealPageInner() {
                           setMsg({ type: 'err', text: e.message });
                         } finally { setDraining(false); }
                       }}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
                     >
                       {draining && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
                       Drain All Misplaced ({classAuditData.misplaced.filter(s => s.dest_class_id).length}) →
@@ -1425,7 +1425,7 @@ function ClassHealPageInner() {
               <button
                 disabled={working}
                 onClick={() => applyAction('sync_teacher_schools', [], {})}
-                className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
               >
                 <CheckCircleIcon className="w-4 h-4" /> Fix All Missing Links
               </button>
@@ -1444,7 +1444,7 @@ function ClassHealPageInner() {
                   <button
                     disabled={working}
                     onClick={() => applyAction('sync_teacher_schools', [], { teacherId: m.teacher_id })}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
                   >
                     Fix
                   </button>
@@ -1612,7 +1612,7 @@ function ClassHealPageInner() {
               <button
                 onClick={() => applyAction('seal_structure_backfill', [])}
                 disabled={working || loading}
-                className="flex items-center gap-2 px-3 py-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition"
+                className="flex items-center gap-2 px-3 py-2 bg-amber-700 hover:bg-amber-700 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition"
               >
                 <CheckCircleIcon className="w-4 h-4 shrink-0" /> Seal Structure
               </button>
@@ -1734,7 +1734,7 @@ function ClassHealPageInner() {
                           <button
                             disabled={working}
                             onClick={() => applyAction('assign_school', [s.id], { schoolId: chosenSchool })}
-                            className="px-3 py-1.5 bg-sky-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                            className="px-3 py-1.5 bg-sky-700 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
                           >
                             Assign School Only
                           </button>
@@ -1744,7 +1744,7 @@ function ClassHealPageInner() {
                           <button
                             disabled={working}
                             onClick={() => applyAction('sync_from_registry', [s.id])}
-                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                            className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
                           >
                             Sync from Registry
                           </button>
@@ -1813,7 +1813,7 @@ function ClassHealPageInner() {
                 <button
                   disabled={!noClassProgramme || selNoClass.size === 0 || working}
                   onClick={() => applyAction('create_and_assign_placement', Array.from(selNoClass), { programme: noClassProgramme })}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
                   Create &amp; assign standard class
                 </button>
               </div>
@@ -1857,7 +1857,7 @@ function ClassHealPageInner() {
                             <button
                               disabled={selMismatched.size === 0 || working}
                               onClick={() => applyAction('align_to_class_school', Array.from(selMismatched))}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
+                              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
                               Align to Class School
                             </button>
                             <button
@@ -2128,7 +2128,7 @@ function ClassHealPageInner() {
                         setShowTransfer(false);
                       } finally { setTxSending(false); }
                     }}
-                    className="flex-1 py-3 rounded-xl text-sm font-black bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 transition flex items-center justify-center gap-2">
+                    className="flex-1 py-3 rounded-xl text-sm font-black bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-40 transition flex items-center justify-center gap-2">
                     {txSending ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     {txSending ? 'Transferring…' : `Transfer ${txSelected.size} Student${txSelected.size !== 1 ? 's' : ''}`}
                   </button>

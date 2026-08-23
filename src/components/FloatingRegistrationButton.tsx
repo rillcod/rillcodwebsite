@@ -23,7 +23,7 @@ export default function FloatingRegistrationButton() {
         <div className="absolute bottom-16 right-0 mb-2 space-y-2">
           <Link
             href={STUDENT_REGISTRATION_PATH}
-            className="group flex items-center bg-green-600 text-white px-4 py-3 rounded-full shadow-lg hover:bg-green-700 transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
+            className="group flex items-center bg-green-700 text-white px-4 py-3 rounded-full shadow-lg hover:bg-green-700 transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
             onClick={() => setIsOpen(false)}
           >
             <AcademicCapIcon className="w-5 h-5 mr-2" />

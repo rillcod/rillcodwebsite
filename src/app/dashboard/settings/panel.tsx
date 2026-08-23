@@ -2874,7 +2874,7 @@ function SettingsPageContent({
                           }));
                           setShowAddTemplate(true);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all shrink-0"
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-800 transition-all shrink-0"
                       >
                         <PlusIcon className="w-3.5 h-3.5" /> Add Template
                       </button>
@@ -3423,7 +3423,7 @@ function SettingsPageContent({
                                                                                 purging ===
                                                                                 row.id
                                                                               }
-                                                                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/5 text-rose-600/70 dark:text-rose-400/70 hover:bg-rose-500 hover:text-white active:scale-90 disabled:opacity-40 transition-all"
+                                                                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-700/5 text-rose-600/70 dark:text-rose-400/70 hover:bg-rose-800 hover:text-white active:scale-90 disabled:opacity-40 transition-all"
                                                                               title="Delete"
                                                                             >
                                                                               <TrashIcon className="w-3.5 h-3.5" />
@@ -3472,7 +3472,7 @@ function SettingsPageContent({
                         </div>
                         <button
                           onClick={() => setShowAddTemplate(false)}
-                          className="p-2 rounded-lg bg-muted/50 hover:bg-rose-500 hover:text-white transition-all shrink-0"
+                          className="p-2 rounded-lg bg-muted/50 hover:bg-rose-700 hover:text-white transition-all shrink-0"
                         >
                           <XMarkIcon className="w-4 h-4" />
                         </button>
@@ -3692,7 +3692,7 @@ function SettingsPageContent({
                             !templateForm.topic ||
                             !templateForm.program_id
                           }
-                          className="w-full py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-emerald-600 transition-all"
+                          className="w-full py-3 bg-emerald-700 text-white rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-emerald-800 transition-all"
                         >
                           {templateBusy ? "Saving…" : "Save Template"}
                         </button>
@@ -4343,7 +4343,7 @@ function SettingsPageContent({
                         </Link>
                         <Link
                           href="/dashboard/classes/heal?tab=cleanup"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-500 transition"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-rose-700 transition"
                         >
                           Open full sanitation →
                         </Link>

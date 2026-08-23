@@ -864,7 +864,7 @@ export default function WeekAIGenerator({
                     type="button"
                     onClick={publishAndRun}
                     disabled={publishing}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-500 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 py-2.5 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-800 disabled:opacity-50"
                   >
                     {publishing ? (
                       <>

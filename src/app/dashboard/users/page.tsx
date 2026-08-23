@@ -505,7 +505,7 @@ export default function UsersPage() {
                             {createSuccess.password && (
                                 <button
                                     onClick={() => void navigator.clipboard.writeText(`${createSuccess.email}\n${createSuccess.password}`)}
-                                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white"
+                                    className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white"
                                 >
                                     Copy credentials
                                 </button>

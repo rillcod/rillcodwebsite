@@ -804,7 +804,7 @@ export function ClassTeachingWorkspace({
               type="button"
               disabled={busy}
               onClick={() => void confirmPendingRelease()}
-              className="rounded-xl bg-orange-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+              className="rounded-xl bg-orange-700 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
             >
               Confirm release
             </button>
@@ -1025,7 +1025,7 @@ export function ClassTeachingWorkspace({
                           },
                         })
                       }
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-700 hover:bg-orange-800 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       <RocketLaunchIcon className="h-4 w-4" />
                       Release {teachingMeetingLabel(
@@ -1814,7 +1814,7 @@ export function ClassTeachingWorkspace({
                                   },
                                 })
                               }
-                              className="inline-flex min-h-10 flex-1 sm:flex-initial items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-500 px-4 py-2 text-xs font-black text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
+                              className="inline-flex min-h-10 flex-1 sm:flex-initial items-center justify-center gap-2 rounded-xl bg-orange-700 hover:bg-orange-800 px-4 py-2 text-xs font-black text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
                             >
                               <RocketLaunchIcon className="h-4 w-4" />
                               Release to Class

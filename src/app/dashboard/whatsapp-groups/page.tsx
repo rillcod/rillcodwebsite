@@ -947,7 +947,7 @@ export default function WhatsAppGroupsPage() {
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">Audit Gaps</span>
                 {gaps.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white font-black text-[9px] flex items-center justify-center animate-pulse">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-700 text-white font-black text-[9px] flex items-center justify-center animate-pulse">
                     {gaps.length}
                   </span>
                 )}

@@ -5437,7 +5437,7 @@ export default function CurriculumPage() {
                               curriculumId: curriculum.id,
                               courseId: curriculum.course_id,
                             })}
-                            className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
+                            className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-800 sm:px-3.5 sm:py-1.5 sm:text-[10px]"
                           >
                             <RocketLaunchIcon className="h-3.5 w-3.5" />
                             {officialStatus.release ? "Manage rollout" : "Publish"}

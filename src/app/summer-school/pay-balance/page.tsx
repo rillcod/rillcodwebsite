@@ -504,7 +504,7 @@ export default function PayBalancePage() {
                   uploadingReceipt ||
                   (paymentMethod === "bank_transfer" && !bankTransferReady)
                 }
-                className="w-full flex items-center justify-center gap-2 py-3.5 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-colors disabled:opacity-50 cursor-pointer shadow-md"
+                className="w-full flex items-center justify-center gap-2 py-3.5 bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-800 transition-colors disabled:opacity-50 cursor-pointer shadow-md"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

@@ -203,7 +203,7 @@ export default function PopupNotificationContainer() {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold"
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-700 text-white text-xs rounded-full flex items-center justify-center font-bold"
                   >
                     {stats.unread > 9 ? '9+' : stats.unread}
                   </motion.div>

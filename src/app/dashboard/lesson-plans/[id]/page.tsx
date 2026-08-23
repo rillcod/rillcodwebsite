@@ -3934,7 +3934,7 @@ export default function LessonPlanDetailPage() {
                               type="button"
                               onClick={() => previewProgressionBuilder()}
                               disabled={generating !== null}
-                              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Run Preview
                             </button>
@@ -4178,7 +4178,7 @@ export default function LessonPlanDetailPage() {
                               disabled={
                                 generating !== null || hasBlockingPreflight
                               }
-                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-cyan-700 hover:bg-cyan-800 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate{" "}
                               {selectedScopeConfig.title}
@@ -4243,7 +4243,7 @@ export default function LessonPlanDetailPage() {
                                 type="button"
                                 onClick={activateTermSchedule}
                                 disabled={scheduleSaving}
-                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50"
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50"
                               >
                                 {scheduleSaving
                                   ? "Activating..."
@@ -4253,7 +4253,7 @@ export default function LessonPlanDetailPage() {
                                 type="button"
                                 onClick={releaseProgressionWeek}
                                 disabled={releaseSaving}
-                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white disabled:opacity-50"
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-700 text-white disabled:opacity-50"
                               >
                                 {releaseSaving
                                   ? `Releasing W${progressionWeek}...`
@@ -4326,7 +4326,7 @@ export default function LessonPlanDetailPage() {
                                 type="button"
                                 onClick={() => updateTermStatus("locked")}
                                 disabled={statusSaving}
-                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
+                                className="px-3 py-2.5 text-xs font-black rounded-2xl bg-amber-700 hover:bg-amber-800 text-white disabled:opacity-50"
                               >
                                 Set Locked
                               </button>
@@ -4370,7 +4370,7 @@ export default function LessonPlanDetailPage() {
                             <button
                               onClick={() => bulkGenerate("projects")}
                               disabled={generating !== null}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate
                               Projects
@@ -4385,7 +4385,7 @@ export default function LessonPlanDetailPage() {
                             <button
                               onClick={() => bulkGenerate("flashcards")}
                               disabled={generating !== null}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
+                              className="flex items-center gap-2 px-4 py-2.5 bg-yellow-700 hover:bg-yellow-800 disabled:opacity-50 text-white text-sm font-black rounded-2xl transition-all"
                             >
                               <SparklesIcon className="w-4 h-4" /> Generate
                               Flashcards
@@ -4935,7 +4935,7 @@ export default function LessonPlanDetailPage() {
               </button>
               <button
                 onClick={executeProgressionGeneration}
-                className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-xl min-h-[44px] transition-all"
+                className="flex-1 py-3 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl min-h-[44px] transition-all"
               >
                 Confirm & Generate
               </button>
@@ -6080,7 +6080,7 @@ export default function LessonPlanDetailPage() {
                 </button>
                 <button
                   onClick={confirmOverride}
-                  className="flex-1 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl transition-all"
+                  className="flex-1 py-4 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-2xl transition-all"
                 >
                   Confirm Override
                 </button>

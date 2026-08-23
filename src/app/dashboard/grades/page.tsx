@@ -1129,7 +1129,7 @@ export default function GradesPage() {
                             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
                             <ClipboardDocumentCheckIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> 1. Grading Queue (Pending Work)
                         </Link>
-                        <span className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-black shadow-sm">
+                        <span className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-700 text-white text-xs sm:text-sm font-black shadow-sm">
                             <ChartBarIcon className="w-4 h-4" /> 2. Master Gradebook &amp; Outcomes
                         </span>
                         <Link href="/dashboard/grades/waec"

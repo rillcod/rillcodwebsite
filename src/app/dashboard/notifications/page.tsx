@@ -451,7 +451,7 @@ export default function NotificationsPage() {
               {selectedNotifications.size > 0 && (
                 <button
                   onClick={deleteSelected}
-                  className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
                 >
                   <TrashIcon className="w-4 h-4" />
                   Delete ({selectedNotifications.size})
@@ -461,7 +461,7 @@ export default function NotificationsPage() {
               {stats.unread > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium transition-colors"
                 >
                   <CheckCircleIcon className="w-4 h-4" />
                   Mark All Read

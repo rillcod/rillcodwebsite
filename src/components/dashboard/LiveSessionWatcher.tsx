@@ -185,7 +185,7 @@ function LiveAlertToast({
           <div className="flex items-center gap-2 mt-3">
             <button
               onClick={onJoin}
-              className="flex min-h-11 items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-xl active:scale-95"
+              className="flex min-h-11 items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-xl active:scale-95"
             >
               {isInApp
                 ? <VideoCameraIcon className="w-3.5 h-3.5" />

@@ -781,7 +781,7 @@ function AttendanceContent() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
               <CalendarDaysIcon className="w-4 h-4" /> Timetable
             </Link>
-            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-black">
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-700 text-white text-sm font-black">
               <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
             </span>
           </div>
@@ -865,7 +865,7 @@ function AttendanceContent() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
               <CalendarDaysIcon className="w-4 h-4" /> Timetable
             </Link>
-            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-black">
+            <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-700 text-white text-sm font-black">
               <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
             </span>
           </div>
@@ -1141,7 +1141,7 @@ function AttendanceContent() {
                             className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
                           <div className="flex gap-2">
                             <button onClick={markQrStudent}
-                              className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold transition-all">
+                              className="flex-1 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all">
                               ✓ Confirm Attendance
                             </button>
                             <button onClick={() => { setQrStudent(null); setQrMsg(''); }}

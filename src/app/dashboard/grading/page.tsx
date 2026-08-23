@@ -777,7 +777,7 @@ export default function GradingQueuePage() {
 
                           {/* Saved flash */}
                           {isSaved && (
-                            <div className="flex items-center gap-2 bg-emerald-600 px-5 py-2.5 text-white text-xs font-black">
+                            <div className="flex items-center gap-2 bg-emerald-700 px-5 py-2.5 text-white text-xs font-black">
                               <CheckCircleIcon className="w-4 h-4" />
                               Grade saved successfully — moving to next…
                             </div>
@@ -955,7 +955,7 @@ export default function GradingQueuePage() {
                                 <button
                                   onClick={() => void doGrade(sub.id, 'accept_ai')}
                                   disabled={isSaving}
-                                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black text-white hover:bg-emerald-500 disabled:opacity-40 transition-colors shadow-sm shadow-emerald-500/20"
+                                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-xs font-black text-white hover:bg-emerald-800 disabled:opacity-40 transition-colors shadow-sm shadow-emerald-500/20"
                                 >
                                   <StarIcon className="w-4 h-4" />
                                   {isSaving ? 'Saving…' : `Accept AI · ${sub.ai_suggested_grade}/${maxPts}`}
@@ -1052,7 +1052,7 @@ export default function GradingQueuePage() {
                           <p className="text-xs font-bold text-foreground">{attempt.exam?.title || 'Written examination'}</p>
                           <p className="mt-1 text-[11px] text-muted-foreground">{attempt.exam?.courses?.title || 'Course'}{attempt.submitted_at ? ` · Submitted ${fmtDate(attempt.submitted_at)}` : ''}</p>
                         </div>
-                        <Link href={`/dashboard/exams/${attempt.exam_id}/attempts/${attempt.id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-blue-500">
+                        <Link href={`/dashboard/exams/${attempt.exam_id}/attempts/${attempt.id}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-blue-700">
                           Review & Grade <ArrowRightIcon className="h-3.5 w-3.5" />
                         </Link>
                       </div>
@@ -1152,7 +1152,7 @@ export default function GradingQueuePage() {
                               <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">#{i + 1}</span>
                               <Link
                                 href={`/dashboard/cbt/${session.exam_id}/sessions/${session.id}/grade`}
-                                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white hover:bg-violet-500 transition-colors"
+                                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white hover:bg-violet-700 transition-colors"
                               >
                                 Review & Grade <ArrowRightIcon className="w-3.5 h-3.5" />
                               </Link>

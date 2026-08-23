@@ -742,7 +742,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     <button
                       onClick={() => markPaid(inv)}
                       disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-md"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-md"
                       title="Mark as paid (manual)"
                     >
                       <CheckBadgeIcon className="w-3 h-3" /> Paid

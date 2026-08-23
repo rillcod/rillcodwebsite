@@ -160,7 +160,7 @@ export default function SlideDeckManager({
                     <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => move(i, -1)} disabled={i === 0} className="w-6 h-6 flex items-center justify-center bg-black/70 text-foreground text-xs rounded disabled:opacity-30">↑</button>
                       <button onClick={() => move(i, 1)} disabled={i === slides.length - 1} className="w-6 h-6 flex items-center justify-center bg-black/70 text-foreground text-xs rounded disabled:opacity-30">↓</button>
-                      <button onClick={() => remove(i)} className="w-6 h-6 flex items-center justify-center bg-rose-500/80 hover:bg-rose-500 text-white rounded"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => remove(i)} className="w-6 h-6 flex items-center justify-center bg-rose-700/80 hover:bg-rose-800 text-white rounded"><TrashIcon className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 ))}

@@ -786,7 +786,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
          {paymentRef ? (
            <p className="text-[11px] font-mono text-muted-foreground/80 mb-8 break-all">Payment reference: <span className="text-foreground">{paymentRef}</span></p>
          ) : null}
-         <button onClick={() => { window.location.href = isNativeApp ? '/login' : '/'; }} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">{isNativeApp ? 'Continue to sign in' : 'Return to Home'}</button>
+         <button onClick={() => { window.location.href = isNativeApp ? '/login' : '/'; }} className="px-10 py-5 bg-emerald-700 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-800 transition-all">{isNativeApp ? 'Continue to sign in' : 'Return to Home'}</button>
       </div>
     );
   }
@@ -918,7 +918,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
             </div>
             <Link
               href={specialCta.registerHref}
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-colors"
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 shadow-lg shadow-amber-500/20 transition-colors"
             >
               {specialCta.button_label || 'View special programme'} <ArrowRight className="w-3.5 h-3.5" />
             </Link>

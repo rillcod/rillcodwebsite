@@ -3304,7 +3304,7 @@ function CanvaRenderer({
                   <a
                     href={block.url}
                     target="_blank"
-                    className="relative z-10 w-full sm:w-auto px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95"
+                    className="relative z-10 w-full sm:w-auto px-8 py-4 bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95"
                   >
                     Download Now
                   </a>
@@ -3500,7 +3500,7 @@ function CanvaRenderer({
                           </div>
                           <Link
                             href={`/dashboard/assignments/${matchedAssignment.id}`}
-                            className="w-full sm:w-auto text-center px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest transition-all rounded-xl shadow-lg hover:shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto text-center px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest transition-all rounded-xl shadow-lg hover:shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2"
                           >
                             <RocketLaunchIcon className="w-4 h-4" /> Go to
                             Submission Portal
@@ -3672,7 +3672,7 @@ function CanvaRenderer({
                         }}
                         className="flex items-start gap-4 p-4 bg-muted/30 border border-border hover:border-emerald-500/20 hover:bg-emerald-500/5 transition-all group"
                       >
-                        <div className="shrink-0 w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        <div className="shrink-0 w-7 h-7 bg-emerald-700/20 border border-emerald-500/30 flex items-center justify-center text-[11px] font-black text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-800 group-hover:text-white transition-colors">
                           {idx + 1}
                         </div>
                         <BlockMarkdown
@@ -5620,7 +5620,7 @@ export default function LessonDetailPage() {
                             {deckMat.title}
                           </p>
                         </div>
-                        <span className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-cyan-600 group-hover:bg-cyan-500 rounded-xl transition-all shrink-0">
+                        <span className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-cyan-700 group-hover:bg-cyan-800 rounded-xl transition-all shrink-0">
                           Open
                         </span>
                       </button>
@@ -5803,7 +5803,7 @@ export default function LessonDetailPage() {
                                 !newResource.title.trim() ||
                                 !newResource.file_url.trim()
                               }
-                              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all"
+                              className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all"
                             >
                               {savingResource ? "Adding…" : "Add Resource"}
                             </button>
@@ -5938,7 +5938,7 @@ export default function LessonDetailPage() {
                                     })
                                   }
                                   disabled={!hasContent}
-                                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl transition-all"
+                                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 rounded-xl transition-all"
                                 >
                                   View Slides
                                 </button>
@@ -6060,7 +6060,7 @@ export default function LessonDetailPage() {
                               lessonId: lesson.id,
                               week: lesson.curriculum_week_number,
                             })}
-                            className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-amber-500"
+                            className="flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-amber-800"
                           >
                             <PlusIcon className="h-3.5 w-3.5" /> Assignment
                           </Link>
@@ -6185,7 +6185,7 @@ export default function LessonDetailPage() {
                         <button
                           onClick={handleGenerateFlashcards}
                           disabled={generatingFlashcards}
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
                         >
                           {generatingFlashcards ? (
                             <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -6259,7 +6259,7 @@ export default function LessonDetailPage() {
                               <div className="flex items-center gap-2 w-full mt-2 relative z-10">
                                 <Link
                                   href={`/dashboard/flashcards/${deck.id}/review`}
-                                  className="flex-1 text-center py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest transition-all rounded-xl shadow-lg active:scale-95 flex items-center justify-center gap-1.5"
+                                  className="flex-1 text-center py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest transition-all rounded-xl shadow-lg active:scale-95 flex items-center justify-center gap-1.5"
                                 >
                                   <ArrowPathIcon className="w-3.5 h-3.5" />{" "}
                                   Study Deck
@@ -6373,7 +6373,7 @@ export default function LessonDetailPage() {
                     href={`/dashboard/lessons/${nextLesson.id}${
                       classId ? `?class_id=${classId}` : ""
                     }`}
-                    className={`${MOBILE_TOUCH_BTN} min-w-0 flex-1 bg-cyan-600 text-white shadow-lg`}
+                    className={`${MOBILE_TOUCH_BTN} min-w-0 flex-1 bg-cyan-700 text-white shadow-lg`}
                   >
                     <span className="truncate">Next lesson</span>
                     <ChevronRightIcon className="h-4 w-4 shrink-0" />

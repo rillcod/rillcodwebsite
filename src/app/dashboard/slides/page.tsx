@@ -132,7 +132,7 @@ export default function SlidesCatalogPage() {
                         </div>
                         <button onClick={() => hasContent && setViewer({ slides: d.slides, pdf: d.pdf, title: deck.title, lessonId: deck.lesson_id })}
                           disabled={!hasContent}
-                          className="mt-auto px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl transition-all">
+                          className="mt-auto px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-40 rounded-xl transition-all">
                           View Slides
                         </button>
                       </div>

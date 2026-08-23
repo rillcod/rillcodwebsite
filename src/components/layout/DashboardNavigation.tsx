@@ -276,7 +276,7 @@ export default function DashboardNavigation() {
                 void signOut();
               }}
               disabled={signingOut}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white text-xs sm:text-sm font-bold rounded-xl border border-rose-500/20 transition-all disabled:opacity-60"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-rose-700/10 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white text-xs sm:text-sm font-bold rounded-xl border border-rose-500/20 transition-all disabled:opacity-60"
             >
               <ArrowRightOnRectangleIcon className="w-4 h-4" />
               Sign out

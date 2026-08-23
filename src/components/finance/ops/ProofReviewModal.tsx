@@ -227,7 +227,7 @@ export function ProofReviewModal({
                             <button
                               onClick={() => handleReview(proof.id, 'rejected')}
                               disabled={acting}
-                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                             >
                               Reject
                             </button>

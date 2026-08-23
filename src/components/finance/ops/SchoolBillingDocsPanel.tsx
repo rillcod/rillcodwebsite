@@ -1658,7 +1658,7 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               <button
                 onClick={createInvoiceFromRoster}
                 disabled={creatingInvoice}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition-colors"
               >
                 {creatingInvoice
                   ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />

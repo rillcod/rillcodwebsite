@@ -760,7 +760,7 @@ export function SignatureModal({
               type="button"
               onClick={submit}
               disabled={!canSubmit}
-              className="flex items-center justify-center gap-2 min-h-[48px] px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:hover:bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-950/50 transition-all"
+              className="flex items-center justify-center gap-2 min-h-[48px] px-5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 disabled:hover:bg-emerald-800 text-white text-sm font-bold shadow-lg shadow-emerald-950/50 transition-all"
             >
               {submitting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
               {submitting ? "Executing…" : "Confirm & Execute Agreement"}

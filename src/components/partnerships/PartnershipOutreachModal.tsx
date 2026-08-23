@@ -265,7 +265,7 @@ export function PartnershipOutreachModal({ school, latestDoc, isOpen, onClose }:
               type="button"
               disabled={sending}
               onClick={handleSendEmail}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black shadow-md transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black shadow-md transition-all"
             >
               <PaperAirplaneIcon className="w-3.5 h-3.5" />
               <span>{sending ? "Dispatching..." : "Send via SendPulse Email"}</span>

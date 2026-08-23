@@ -20,60 +20,76 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Pairs failing WCAG AA for normal text, as of 23 August 2026. Never raise this.
+ * Zero, and it stays zero. Never raise this.
  *
- * 293 is what the first correct run found, after the report writer's four were
- * fixed. Most are the same two shapes repeated: `bg-emerald-600` at 3.65:1 and
- * `bg-amber-600` at 3.20:1, each usually with a `hover:` one shade lighter that is
- * worse still — around 2.5:1 — so these buttons get harder to read at the moment
- * the pointer is on them.
+ * The backlog was 293 pairs: mostly `bg-emerald-600` at 3.67:1 and `bg-amber-600`
+ * at 3.19:1, each usually with a `hover:` one shade lighter and worse still —
+ * around 2.4:1 — so the buttons got harder to read at the moment the pointer was
+ * on them.
  *
- * Not every one is a straight swap to text-black: where the failing token sits
- * behind a `hover:` and the resting fill is dark, white is right at rest. Those
- * need reading, not a bulk replace, which is why this ratchets rather than blocks.
+ * They were cleared by deepening the fill rather than switching to black text.
+ * Every failing hue passes with white at -700, so `bg-emerald-600
+ * hover:bg-emerald-500` became `bg-emerald-700 hover:bg-emerald-800`: the same
+ * button, one step deeper, white text kept. A hover that landed on the new base
+ * colour went deeper again, because a hover that matches the resting state stops
+ * reading as a hover.
  */
-const BASELINE = 293;
+const BASELINE = 0;
 
 const ROOT = path.join(process.cwd(), 'src');
 const AA_NORMAL = 4.5;
 
-/** Tailwind v4 default palette, the shades where white text is a judgement call. */
-const PALETTE = {
-  slate: { 400: '#90a1b9', 500: '#62748e', 600: '#45556c' },
-  gray: { 400: '#99a1af', 500: '#6a7282', 600: '#4a5565' },
-  zinc: { 400: '#9f9fa9', 500: '#71717b', 600: '#52525c' },
-  red: { 400: '#ff6467', 500: '#fb2c36', 600: '#e7000b' },
-  orange: { 400: '#ff8904', 500: '#ff6900', 600: '#f54a00' },
-  amber: { 400: '#ffb900', 500: '#fe9a00', 600: '#e17100' },
-  yellow: { 400: '#fdc700', 500: '#f0b100', 600: '#d08700' },
-  lime: { 400: '#9ae600', 500: '#7ccf00', 600: '#5ea500' },
-  green: { 400: '#05df72', 500: '#00c951', 600: '#00a63e' },
-  emerald: { 400: '#00d492', 500: '#00bc7d', 600: '#009966' },
-  teal: { 400: '#00d5be', 500: '#00bba7', 600: '#009689' },
-  cyan: { 400: '#00d3f2', 500: '#00b8db', 600: '#0092b8' },
-  sky: { 400: '#00bcff', 500: '#00a6f4', 600: '#0084d1' },
-  blue: { 400: '#51a2ff', 500: '#2b7fff', 600: '#155dfc' },
-  violet: { 400: '#a684ff', 500: '#8e51ff', 600: '#7f22fe' },
-  fuchsia: { 400: '#e12afb', 500: '#c800de', 600: '#a800b7' },
-  pink: { 400: '#fb64b6', 500: '#f6339a', 600: '#e60076' },
-  rose: { 400: '#ff637e', 500: '#ff2056', 600: '#ec003f' },
-};
-
-const channel = (v) => {
-  const c = v / 255;
-  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-};
-
-function luminance(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return 0.2126 * channel((n >> 16) & 255)
-    + 0.7152 * channel((n >> 8) & 255)
-    + 0.0722 * channel(n & 255);
+/**
+ * The palette is read from the installed Tailwind rather than copied here.
+ *
+ * A hand-kept table was wrong twice over: the hex values were remembered rather
+ * than looked up, and it was missing hues entirely — violet, purple and indigo
+ * buttons were failing and going unreported because they were not in the list.
+ * Tailwind 4 ships oklch, so this reads theme.css and converts.
+ */
+const THEME_PATH = path.join(process.cwd(), 'node_modules', 'tailwindcss', 'theme.css');
+const PALETTE = new Map();
+if (fs.existsSync(THEME_PATH)) {
+  const theme = fs.readFileSync(THEME_PATH, 'utf8');
+  for (const m of theme.matchAll(/--color-([a-z]+)-(\d{2,3}):\s*oklch\(([\d.]+)%\s+([\d.]+)\s+([\d.]+)\)/g)) {
+    PALETTE.set(`${m[1]}-${m[2]}`, { L: +m[3] / 100, C: +m[4], H: +m[5] });
+  }
 }
 
-function contrastWithWhite(hex) {
-  const l = luminance(hex);
-  return (1.05) / (l + 0.05);
+/**
+ * WCAG relative luminance from oklch, via oklab and linear-light sRGB. Luminance
+ * is a weighted sum of the linear channels, so no gamma step is needed — and
+ * forgetting one is exactly how the first version of this reported ratios below
+ * 1:1, which is not a possible contrast ratio.
+ */
+function luminanceFromOklch({ L, C, H }) {
+  const h = (H * Math.PI) / 180;
+  const a = C * Math.cos(h);
+  const b = C * Math.sin(h);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+  return 0.2126 * clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s)
+    + 0.7152 * clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s)
+    + 0.0722 * clamp(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s);
+}
+
+function contrastWithWhite(token) {
+  const color = PALETTE.get(token);
+  if (!color) return Infinity;
+  return 1.05 / (luminanceFromOklch(color) + 0.05);
+}
+
+// The arithmetic is checked on every run. White must be 1:1 against itself and
+// black 21:1 — a gate whose maths nobody verified is not evidence.
+{
+  const white = 1.05 / (luminanceFromOklch({ L: 1, C: 0, H: 0 }) + 0.05);
+  const black = 1.05 / (luminanceFromOklch({ L: 0, C: 0, H: 0 }) + 0.05);
+  if (Math.abs(white - 1) > 0.02 || Math.abs(black - 21) > 0.2) {
+    console.error(`[contrast] self-check failed: white=${white.toFixed(2)} black=${black.toFixed(2)}`);
+    process.exit(1);
+  }
 }
 
 function walk(dir, out = []) {
@@ -101,10 +117,8 @@ for (const file of walk(ROOT)) {
 
     for (const bg of classes.matchAll(BG)) {
       const [, hue, shade] = bg;
-      const hex = PALETTE[hue]?.[shade];
-      if (!hex) continue;
-      const ratio = contrastWithWhite(hex);
-      if (ratio >= AA_NORMAL) continue;
+      const ratio = contrastWithWhite(`${hue}-${shade}`);
+      if (!Number.isFinite(ratio) || ratio >= AA_NORMAL) continue;
       const line = src.slice(0, match.index).split('\n').length;
       findings.push({
         file: path.relative(process.cwd(), file).replace(/\\/g, '/'),

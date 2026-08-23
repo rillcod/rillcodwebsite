@@ -2012,7 +2012,7 @@ export default function CardStudioPage() {
                 <button onClick={()=>setDesignSelectedIds(new Set())} className="px-2 py-1.5 bg-background hover:bg-muted border border-border text-[9px] font-black uppercase text-muted-foreground hover:text-foreground transition-all rounded">✗ Clear</button>
                 {designSelectedIds.size>0&&(
                   <button onClick={()=>printDesignCards(designStudents.filter(s=>designSelectedIds.has(s.id)))}
-                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase transition-all rounded">
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[9px] font-black uppercase transition-all rounded">
                     <PrinterIcon className="w-3 h-3"/> Print {designSelectedIds.size}
                   </button>
                 )}
@@ -2517,7 +2517,7 @@ export default function CardStudioPage() {
             {cardType === 'student' && filteredRosterRows.length > 0 && (
               <>
                 <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-lg transition-colors shadow">
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-700 text-white hover:bg-emerald-800 rounded-lg transition-colors shadow">
                   <PrinterIcon className="w-3 h-3"/> Print All Classes
                 </button>
                 <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
@@ -2707,7 +2707,7 @@ export default function CardStudioPage() {
                     <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
                       <button type="button" disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}
                         onClick={() => void printSelectedRosterGrades()}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide bg-emerald-600 text-white hover:bg-emerald-500 rounded-md disabled:opacity-40">
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide bg-emerald-700 text-white hover:bg-emerald-800 rounded-md disabled:opacity-40">
                         <PrinterIcon className="w-3 h-3"/> Print{selectedRosterGrades.size > 0 ? ` (${selectedRosterGrades.size})` : ''}
                       </button>
                       <button type="button" disabled={selectedRosterGrades.size === 0 || rosterSchoolRequired}

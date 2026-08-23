@@ -358,7 +358,7 @@ export default function FlashcardDeckPage() {
                   Cancel
                 </button>
                 <button onClick={savePresEdit} disabled={presSaving || !presEditForm.front.trim() || !presEditForm.back.trim()}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+                  className="flex-1 py-3 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-black rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
                   {presSaving ? <><ArrowPathIcon className="w-4 h-4 animate-spin" />Saving…</> : <><CheckCircleIcon className="w-4 h-4" />Save Card</>}
                 </button>
               </div>
@@ -566,7 +566,7 @@ export default function FlashcardDeckPage() {
                       <div className="flex gap-2">
                         <button onClick={() => setEditingCard(null)} className="flex-1 py-2 bg-muted text-muted-foreground text-xs font-black rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
                         <button onClick={saveEdit} disabled={saving || !editForm.front.trim() || !editForm.back.trim()}
-                          className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-colors">
+                          className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black rounded-xl transition-colors">
                           {saving ? 'Saving…' : 'Save'}
                         </button>
                       </div>

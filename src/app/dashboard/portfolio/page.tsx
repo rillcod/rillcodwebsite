@@ -369,7 +369,7 @@ function DrawingCanvas() {
               Eraser
             </button>
             <button onClick={clearCanvas} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-background border border-border transition-all">Reset</button>
-            <button onClick={downloadCanvas} className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 transition-all" title="Archive Illustration">
+            <button onClick={downloadCanvas} className="p-2 bg-emerald-700/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-800 hover:text-white border border-emerald-500/20 transition-all" title="Archive Illustration">
               <ArrowDownTrayIcon className="w-4 h-4" />
             </button>
           </div>
@@ -648,7 +648,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
               </button>
             )}
             {onDelete && (
-              <button onClick={onDelete} disabled={saving} className="p-2 bg-rose-500/80 backdrop-blur-md text-white hover:bg-rose-500 transition-colors">
+              <button onClick={onDelete} disabled={saving} className="p-2 bg-rose-700/80 backdrop-blur-md text-white hover:bg-rose-800 transition-colors">
                 <TrashIcon className="w-4 h-4" />
               </button>
             )}

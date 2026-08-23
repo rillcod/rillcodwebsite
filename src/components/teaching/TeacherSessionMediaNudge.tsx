@@ -155,7 +155,7 @@ export function TeacherSessionMediaNudge({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/40 transition-all min-h-[44px] cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:scale-95 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/40 transition-all min-h-[44px] cursor-pointer"
               >
                 <CameraIcon className="h-4 w-4 shrink-0" />
                 <span>Snap / Pick 1 Photo or Clip</span>
@@ -252,7 +252,7 @@ export function TeacherSessionMediaNudge({
                   type="button"
                   onClick={handleUpload}
                   disabled={uploading}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/40 transition-all disabled:opacity-50 min-h-[44px]"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/40 transition-all disabled:opacity-50 min-h-[44px]"
                 >
                   {uploading ? (
                     <>

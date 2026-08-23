@@ -187,7 +187,7 @@ function VideoGenerator({ lessonTitle, onInsert }: any) {
           <div className="aspect-video rounded-xl overflow-hidden border border-border">
             <iframe src={embedUrl} className="w-full h-full" allowFullScreen title={result.title} />
           </div>
-          <button onClick={() => onInsert(result.url)} className="w-full py-2 bg-cyan-600 text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Video</button>
+          <button onClick={() => onInsert(result.url)} className="w-full py-2 bg-cyan-700 text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Video</button>
         </div>
       )}
       {!result && (
@@ -396,7 +396,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
         <button
           onClick={() => send(input)}
           disabled={loading || !input.trim()}
-          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl transition-colors"
+          className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-xl transition-colors"
         >
           <SparklesIcon className="w-3.5 h-3.5" />
         </button>

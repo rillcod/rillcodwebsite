@@ -291,7 +291,7 @@ export function DocPreviewModal({
               <button
                 onClick={sendReminder}
                 disabled={anyBusy}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
               >
                 {busy === 'remind' ? (
                   <ArrowPathIcon className="w-4 h-4 animate-spin" />

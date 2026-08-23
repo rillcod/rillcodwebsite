@@ -156,7 +156,7 @@ export function TermInvoicePayPanel({
             type="button"
             disabled={paystackLoading}
             onClick={() => void initiatePaystack()}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-black uppercase tracking-wide rounded-lg transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-emerald-700 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-black uppercase tracking-wide rounded-lg transition-colors"
           >
             <CreditCardIcon className="w-3.5 h-3.5" />
             {paystackLoading ? 'Loading…' : 'Pay via Paystack'}

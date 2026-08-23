@@ -528,7 +528,7 @@ export function SchoolReportBuilderCanvas({
                         : 'Complete required checklist items first'
                   }
                   onClick={() => void publishReport()}
-                  className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                  className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
                   {working === 'published'
                     ? 'Publishing…'

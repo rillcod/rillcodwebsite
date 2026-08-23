@@ -116,7 +116,7 @@ export default function NameHealthPanel() {
         <button
           onClick={runScan}
           disabled={busy === 'scan'}
-          className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 flex-shrink-0"
+          className="px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 flex-shrink-0"
         >
           {busy === 'scan' ? 'Scanning…' : 'Scan now'}
         </button>
@@ -234,7 +234,7 @@ export default function NameHealthPanel() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => merge(key, g, false)} disabled={busy !== null}
-                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-lg disabled:opacity-40">
+                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-lg disabled:opacity-40">
                         {busy === key ? 'Merging…' : 'Merge (keep records)'}
                       </button>
                       <button onClick={() => { if (confirm('Hard-delete the non-kept account(s) entirely? This cannot be undone.')) merge(key, g, true); }} disabled={busy !== null}

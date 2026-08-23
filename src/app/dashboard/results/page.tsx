@@ -2453,7 +2453,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     </button>
                                                     <button onClick={sendReportByEmail}
                                                         disabled={!emailShareTo.trim() || emailShareSending}
-                                                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
+                                                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
                                                         {emailShareSending
                                                             ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
                                                             : <>Send PDF</>}

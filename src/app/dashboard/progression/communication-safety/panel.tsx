@@ -95,7 +95,7 @@ export default function CommunicationSafetyPage({
           </div>
           <Link
             href="/dashboard/learner-safety?view=cases"
-            className="px-10 py-5 text-xs font-black tracking-[0.2em] rounded-[2rem] bg-rose-500 text-white shadow-[0_20px_50px_rgba(244,63,94,0.3)] hover:scale-[1.05] active:scale-[0.98] transition-all flex items-center gap-3 shrink-0"
+            className="px-10 py-5 text-xs font-black tracking-[0.2em] rounded-[2rem] bg-rose-700 text-white shadow-[0_20px_50px_rgba(244,63,94,0.3)] hover:scale-[1.05] active:scale-[0.98] transition-all flex items-center gap-3 shrink-0"
           >
             Open safety cases
           </Link>

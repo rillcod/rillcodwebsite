@@ -403,7 +403,7 @@ export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
                                       {status !== 'completed' && (
                                         <button
                                           onClick={() => markModuleComplete(module.id)}
-                                          className="flex items-center gap-2 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] ml-auto hover:scale-105 transition-transform"
+                                          className="flex items-center gap-2 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest bg-emerald-700 text-white rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] ml-auto hover:scale-105 transition-transform"
                                         >
                                           <CheckBadgeIcon className="w-4 h-4" />
                                           Complete Module

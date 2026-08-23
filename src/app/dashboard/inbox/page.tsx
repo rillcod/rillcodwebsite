@@ -1951,7 +1951,7 @@ export default function UnifiedInbox() {
                         </button>
                         {contact.phone && (
                           <button onClick={() => { setActiveContact(null); openWhatsAppConversation(contact); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black rounded-full transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black rounded-full transition-colors">
                             <MessageSquare className="w-3 h-3" /> WhatsApp
                           </button>
                         )}
@@ -2102,7 +2102,7 @@ export default function UnifiedInbox() {
                 {activeConv.type === 'students' && isTeacher && !activeConv.assigned_staff_id && (
                   <button
                     onClick={() => assignToMe(activeConv.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white text-[11px] font-black rounded-lg transition-all border border-emerald-500/20"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700/20 hover:bg-emerald-800 text-emerald-600 dark:text-emerald-400 hover:text-white text-[11px] font-black rounded-lg transition-all border border-emerald-500/20"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
                     Claim Chat
@@ -2425,7 +2425,7 @@ export default function UnifiedInbox() {
                         href={waFallbackUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black rounded-full transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-black rounded-full transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" /> Open WhatsApp
                       </a>

@@ -589,7 +589,7 @@ export function MasterCurriculumRoster({
               <button
                 type="button"
                 onClick={() => setShowPurgeModal(true)}
-                className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-amber-600 text-white rounded-xl hover:bg-amber-700"
+                className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-amber-700 text-white rounded-xl hover:bg-amber-700"
               >
                 Clear leftovers
               </button>
@@ -827,7 +827,7 @@ export function MasterCurriculumRoster({
                             <button
                               type="button"
                               onClick={() => handleUnpublish(item.id)}
-                              className="px-3 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white border border-amber-500/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
+                              className="px-3 py-2 bg-amber-700/10 text-amber-700 dark:text-amber-400 hover:bg-amber-800 hover:text-white border border-amber-500/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1"
                               title="Unpublish & Retire this official release"
                             >
                               <EyeSlashIcon className="w-3.5 h-3.5" /> Unpublish
@@ -837,7 +837,7 @@ export function MasterCurriculumRoster({
                               type="button"
                               onClick={() => handleDeleteItem(item.id)}
                               disabled={deletingId === item.id}
-                              className="p-2.5 bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
+                              className="p-2.5 bg-rose-700/10 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
                               title="Delete this curriculum"
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -1053,7 +1053,7 @@ export function MasterCurriculumRoster({
                 type="button"
                 onClick={handlePurgeDebris}
                 disabled={purgeConfirm.trim() !== 'PURGE' || isProcessingBulk}
-                className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl"
+                className="flex-1 py-3 bg-amber-700 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider rounded-xl"
               >
                 {isProcessingBulk ? 'Purging…' : 'Confirm Purge'}
               </button>

@@ -3241,7 +3241,7 @@ Yusuf Ibrahim SS1A`}
                           <button
                             disabled={!batchAssignClass || loadingHistory}
                             onClick={() => handleBatchAssignClass(batch.id)}
-                            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                            className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
                           >
                             {loadingHistory ? 'Assigning…' : 'Assign Now'}
                           </button>

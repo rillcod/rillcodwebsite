@@ -275,7 +275,7 @@ export default function LessonPreviewModal({
                   <Sparkles className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
                   <p className="text-sm text-muted-foreground">No lesson content yet.</p>
                   {onRegenerate && (
-                    <button onClick={onRegenerate} className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-black uppercase tracking-widest min-h-[44px]">
+                    <button onClick={onRegenerate} className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-black uppercase tracking-widest min-h-[44px]">
                       <Sparkles className="w-3.5 h-3.5" /> Generate with AI
                     </button>
                   )}

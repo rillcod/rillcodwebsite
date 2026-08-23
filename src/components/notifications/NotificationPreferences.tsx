@@ -388,7 +388,7 @@ export default function NotificationPreferences() {
                 }
               });
             }}
-            className="flex items-center justify-center gap-2 p-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
+            className="flex items-center justify-center gap-2 p-3 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium transition-colors"
           >
             <BellIcon className="w-4 h-4" />
             Enable All
@@ -402,7 +402,7 @@ export default function NotificationPreferences() {
                 }
               });
             }}
-            className="flex items-center justify-center gap-2 p-3 bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+            className="flex items-center justify-center gap-2 p-3 bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
           >
             <XMarkIcon className="w-4 h-4" />
             Disable All

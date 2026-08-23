@@ -441,7 +441,7 @@ export default function PublicDocumentPage({
           {canSign && (
             <button
               onClick={() => setShowSignModal(true)}
-              className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-lg shadow-emerald-950/30 transition-all hover:scale-[1.03]"
+              className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black shadow-lg shadow-emerald-950/30 transition-all hover:scale-[1.03]"
             >
               <CheckCircleIcon className="w-4 h-4" /> Accept &amp; Sign MoU
             </button>
@@ -499,7 +499,7 @@ export default function PublicDocumentPage({
               <button
                 onClick={handleDownloadPdf}
                 disabled={savingPdf}
-                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-60 shadow-md"
+                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-800 disabled:opacity-60 shadow-md"
               >
                 <ArrowDownTrayIcon className="h-3.5 w-3.5" />
                 <span>Download executed copy</span>
@@ -518,7 +518,7 @@ export default function PublicDocumentPage({
               </div>
               <button
                 onClick={() => setShowSignModal(true)}
-                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/30 transition-all hover:bg-emerald-500"
+                className="hidden sm:flex items-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-950/30 transition-all hover:bg-emerald-800"
               >
                 <CheckCircleIcon className="w-4 h-4" /> Accept &amp; Sign MoU
               </button>
@@ -545,7 +545,7 @@ export default function PublicDocumentPage({
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-500 shadow-md"
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-800 shadow-md"
                 >
                   Message us
                 </a>
@@ -718,7 +718,7 @@ export default function PublicDocumentPage({
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center gap-2"
+              className="shrink-0 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition-all shadow-md flex items-center gap-2"
             >
               <CheckCircleIcon className="w-4 h-4" />
               <span>Message us</span>
@@ -780,7 +780,7 @@ export default function PublicDocumentPage({
             <button
               type="button"
               onClick={() => setShowSignModal(true)}
-              className="flex-1 h-11 px-4 rounded-xl bg-emerald-600 text-white text-xs font-black active:scale-95 transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 h-11 px-4 rounded-xl bg-emerald-700 text-white text-xs font-black active:scale-95 transition-all flex items-center justify-center gap-1.5"
             >
               <CheckCircleIcon className="w-4 h-4" /> Sign
             </button>

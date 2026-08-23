@@ -414,7 +414,7 @@ export default function CoursesPage() {
             </div>
             <button
               onClick={() => setBulkFixOpen(true)}
-              className="flex-shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors"
+              className="flex-shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors"
             >
               Fix All →
             </button>

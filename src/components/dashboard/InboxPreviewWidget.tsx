@@ -206,9 +206,9 @@ export default function InboxPreviewWidget() {
           </div>
         </div>
         <Link href={inboxHref}
-          className="relative flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-lg shadow-emerald-950/20">
+          className="relative flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-lg shadow-emerald-950/20">
           {totalUnread > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full px-1 shadow-md">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-700 text-white text-[9px] font-black flex items-center justify-center rounded-full px-1 shadow-md">
               {totalUnread > 99 ? '99+' : totalUnread}
             </span>
           )}

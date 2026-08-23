@@ -374,7 +374,7 @@ export default function FlashcardsPage() {
                           <>
                             <button
                               onClick={() => openBuilder(deck.id)}
-                              className="flex-1 flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-xl transition-colors"
+                              className="flex-1 flex items-center justify-center gap-2 py-3 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl transition-colors"
                             >
                               <DocumentTextIcon className="w-4 h-4" />
                               Builder

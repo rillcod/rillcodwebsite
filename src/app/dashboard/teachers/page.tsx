@@ -1273,7 +1273,7 @@ function AdminTeacherView() {
                   );
                   setCredentials(null);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition-all"
               >
                 <ClipboardIcon className="w-4 h-4" /> Copy & Close
               </button>
@@ -1850,7 +1850,7 @@ function AdminTeacherView() {
                 <button
                   type="submit"
                   disabled={resetting || resetPw.length < 8}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-700 hover:bg-amber-800 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {resetting ? (
                     <ArrowPathIcon className="w-4 h-4 animate-spin" />

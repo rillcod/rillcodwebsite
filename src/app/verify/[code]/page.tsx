@@ -199,7 +199,7 @@ export default function VerifyCodePage() {
                   <div className="flex flex-col md:flex-row items-center justify-center gap-4">
                     <Link
                       href="/verify"
-                      className="px-8 py-3.5 bg-violet-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-violet-500 transition-all shadow-lg shadow-violet-900/20 active:scale-95 text-center"
+                      className="px-8 py-3.5 bg-violet-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-violet-700 transition-all shadow-lg shadow-violet-900/20 active:scale-95 text-center"
                     >
                       Verify Another Code
                     </Link>

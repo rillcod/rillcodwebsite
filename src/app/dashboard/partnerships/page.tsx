@@ -797,7 +797,7 @@ export default function PartnershipsPage() {
                             <Link
                               key={h.href}
                               href={h.href}
-                              className="flex min-h-[48px] items-center justify-center px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+                              className="flex min-h-[48px] items-center justify-center px-4 rounded-xl bg-emerald-700 text-white text-xs font-bold"
                             >
                               {h.label}
                             </Link>

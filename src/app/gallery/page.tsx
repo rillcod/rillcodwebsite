@@ -407,7 +407,7 @@ export default function GalleryPage() {
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-950/40 transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black shadow-md shadow-emerald-950/40 transition-all"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Share on WhatsApp</span>

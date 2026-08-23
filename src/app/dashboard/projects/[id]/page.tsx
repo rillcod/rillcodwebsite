@@ -207,7 +207,7 @@ function ProjectGradeCanvas({ sub, activity, onClose, onSaved }: {
                 </div>
                 {err && <p className="text-xs text-rose-600 dark:text-rose-400 hidden md:block max-w-[120px] truncate">{err}</p>}
                 <button onClick={save} disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold rounded-lg text-sm transition-all flex-shrink-0">
                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                     <span className="hidden sm:inline">{saving ? 'Saving…' : 'Save Grade'}</span>
                 </button>
@@ -443,7 +443,7 @@ function ProjectGradeCanvas({ sub, activity, onClose, onSaved }: {
                     {/* Mobile save */}
                     <div className="md:hidden pb-8">
                         <button onClick={save} disabled={saving}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                             {saving ? 'Saving…' : 'Save Grade'}
                         </button>

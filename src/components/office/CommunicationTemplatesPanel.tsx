@@ -320,7 +320,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                         type="button"
                         disabled={saving === latest.id}
                         onClick={() => void request({ action: 'approve', versionId: latest.id }, latest.id)}
-                        className="min-h-11 touch-manipulation rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                        className="min-h-11 touch-manipulation rounded-lg bg-emerald-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                       >
                         Approve v{latest.version_number}
                       </button>

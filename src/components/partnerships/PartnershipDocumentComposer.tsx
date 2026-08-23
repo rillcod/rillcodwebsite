@@ -797,7 +797,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             <button
               onClick={() => void issue(false)}
               disabled={issuing || previewing || mouBlocked || discarding}
-              className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-black bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
             >
               {issuing ? (
                 <ArrowPathIcon className="w-4 h-4 animate-spin" />

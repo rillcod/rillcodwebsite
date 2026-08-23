@@ -329,7 +329,7 @@ export function ClassPromotionPanel({
                     || (plan.has_programme_bridge && !programmeBridgeConfirmed)
                   }
                   onClick={() => void applyPromotion()}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white disabled:opacity-50"
                 >
                   {applying ? (
                     <ArrowPathIcon className="h-4 w-4 animate-spin" />

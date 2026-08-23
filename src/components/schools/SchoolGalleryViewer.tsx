@@ -190,7 +190,7 @@ export function SchoolGalleryViewer({
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-black text-white shadow-md transition-all active:scale-95 min-h-[38px]"
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-black text-white shadow-md transition-all active:scale-95 min-h-[38px]"
           >
             <PlusIcon className="h-4 w-4" />
             <span>Add Photo / Video</span>
@@ -388,7 +388,7 @@ export function SchoolGalleryViewer({
                   href={activeMedia.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 sm:flex-initial rounded-xl bg-emerald-600/25 border border-emerald-500/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors text-center"
+                  className="flex-1 sm:flex-initial rounded-xl bg-emerald-700/25 border border-emerald-500/40 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-800 hover:text-white transition-colors text-center"
                 >
                   Full Asset ↗
                 </a>
@@ -397,7 +397,7 @@ export function SchoolGalleryViewer({
                   type="button"
                   onClick={() => handleDeleteMedia(activeMedia.id)}
                   disabled={deletingId === activeMedia.id}
-                  className="flex items-center justify-center gap-1 rounded-xl bg-red-500/15 border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white transition-colors"
+                  className="flex items-center justify-center gap-1 rounded-xl bg-red-700/15 border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-600 hover:text-white transition-colors"
                   title="Delete media from gallery"
                 >
                   {deletingId === activeMedia.id ? (
@@ -559,7 +559,7 @@ export function SchoolGalleryViewer({
                   <button
                     type="submit"
                     disabled={!uploadFile || isUploading}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 text-xs font-black text-white shadow-md transition-all disabled:opacity-50 min-h-[38px]"
+                    className="flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2 text-xs font-black text-white shadow-md transition-all disabled:opacity-50 min-h-[38px]"
                   >
                     {isUploading ? (
                       <>

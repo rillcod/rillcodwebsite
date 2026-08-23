@@ -607,7 +607,7 @@ export function ApprovalsPanel() {
             <button
               onClick={verifyManualPayment}
               disabled={manualBusy}
-              className="md:w-44 inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md"
+              className="md:w-44 inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md"
             >
               {manualBusy ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
               Verify
@@ -765,7 +765,7 @@ function TxList({
                   <button
                     disabled={busyId === tx.id}
                     onClick={() => onApprove(tx.id)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                   >
                     <CheckCircleIcon className="w-3 h-3" /> Approve
                   </button>

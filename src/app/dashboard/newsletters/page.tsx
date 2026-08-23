@@ -939,7 +939,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                   <p className="text-[11px] text-primary font-medium">In-app: recipients see it on next login{sendEmail ? '; email is best-effort' : ''}.</p>
                 </div>
                 <button onClick={handlePush} disabled={pushing}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/40 disabled:opacity-50">
+                  className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/40 disabled:opacity-50">
                   {pushing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SpeakerWaveIcon className="w-5 h-5" />}
                   {scheduleFor ? 'Schedule Newsletter' : 'Confirm & Push Newsletter'}
                 </button>

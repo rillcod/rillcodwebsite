@@ -260,7 +260,7 @@ export default function ContentApprovalsPage() {
             <button
               onClick={() => void releaseAll()}
               disabled={loading || bulkBusy}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:opacity-50"
             >
               🚀 Release All ({filteredWeeks.length})
             </button>
@@ -429,7 +429,7 @@ export default function ContentApprovalsPage() {
                     <button
                       onClick={() => void release(row)}
                       disabled={busy}
-                      className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 shadow-sm"
+                      className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 shadow-sm"
                     >
                       {busy ? (
                         <>
