@@ -164,7 +164,10 @@ export const Navigation = () => {
       if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
         navigator.vibrate(ms);
       }
-    } catch {}
+    } catch {
+      // Haptics are decorative and throw on iOS Safari and under some permission
+      // policies. Nothing about navigation depends on the buzz landing.
+    }
   };
 
   return (

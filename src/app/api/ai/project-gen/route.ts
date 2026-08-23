@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
         const data = JSON.parse(jsonMatch[0]);
         return NextResponse.json({ data, model: geminiResult.model, source: 'gemini' });
       }
-    } catch {}
+    } catch {
+      // Model output is not guaranteed to be JSON. Falling through to the next
+      // provider is the designed behaviour, not a swallowed error.
+    }
   }
 
   // ── 2. OpenRouter fallback ──────────────────────────────────────────────────

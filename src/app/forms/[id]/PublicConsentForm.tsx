@@ -196,7 +196,10 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
       if (saved.children)   { setChildren(saved.children); setChildCount(saved.children.length); }
       if (saved.data)       setData(prev => ({ ...prev, ...saved.data, consent_acknowledged: false }));
       setRestored(true);
-    } catch {}
+    } catch {
+      // A blocked or corrupt draft simply means no restore. The parent still gets a
+      // usable blank form, which is the safe outcome on a public page.
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -206,6 +209,10 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
     if (step === 'thanks') return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
+      // Every localStorage touch in this file is guarded and deliberately silent.
+      // This is a public page: storage throws outright in private mode and wherever
+      // site data is blocked, and a parent filling in a consent form must never be
+      // shown an error about a draft-saving convenience.
       try { localStorage.setItem(LS_KEY, JSON.stringify({ children, data })); } catch {}
     }, 600);
   // eslint-disable-next-line react-hooks/exhaustive-deps

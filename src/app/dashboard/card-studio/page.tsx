@@ -1077,12 +1077,19 @@ export default function CardStudioPage() {
   const loadDbCards = useCallback(async (type: CardType) => {
     try {
       const res = await fetch(`/api/cards?holder_type=${type}&slim=true`,{cache:'no-store'});
-      if(!res.ok) return;
+      if(!res.ok){
+        console.error('[card-studio] saved card lookup rejected', { type, status: res.status });
+        return;
+      }
       const json = await res.json();
       const map = new Map<string,DbCard>();
       for(const c of json.data??[]) if(c.holder_id && !map.has(c.holder_id)) map.set(c.holder_id,c);
       setDbCardsMap(map);
-    } catch {}
+    } catch (error) {
+      // Without this trace an unreachable card service is indistinguishable from a
+      // studio that legitimately has no saved cards.
+      console.error('[card-studio] saved card lookup failed', { type, error });
+    }
   },[]);
 
   const loadRecords = useCallback(async (type: CardType, hiddenOnly = showHiddenAccounts) => {

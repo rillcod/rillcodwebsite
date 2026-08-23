@@ -295,8 +295,14 @@ export default function WhatsAppGroupsPage() {
       if (res.ok) {
         const json = await res.json();
         setClasses(json.data ?? []);
+      } else {
+        console.error('[whatsapp] class list request failed', { status: res.status });
       }
-    } catch {}
+    } catch (error) {
+      // An empty class picker and a failed class request look identical on screen.
+      // Leave a diagnosable trace rather than presenting "no classes" as fact.
+      console.error('[whatsapp] class list unreachable', error);
+    }
   }
 
   function applyTpl(tpl: NewsletterTpl) {
@@ -328,6 +334,8 @@ export default function WhatsAppGroupsPage() {
   }
 
   function loadTemplates() {
+    // localStorage throws outright in private mode and when site data is blocked,
+    // and a corrupt value is not worth a message. No templates is a correct result.
     try { setTemplates(JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]')); } catch {}
   }
 
@@ -356,7 +364,11 @@ export default function WhatsAppGroupsPage() {
       const res  = await fetch('/api/assignments?limit=40&is_active=true', { cache: 'no-store' });
       const json = await res.json();
       setAssignments(json.data ?? []);
-    } catch {}
+    } catch (error) {
+      // Same reasoning as the class list: "no assignments" must not be the way a
+      // failed request presents itself.
+      console.error('[whatsapp] assignment list unreachable', error);
+    }
     finally { setAssignLoading(false); }
   }
 
@@ -397,19 +409,43 @@ export default function WhatsAppGroupsPage() {
     const targets = groups.filter(g => pusherGroups.has(g.id) && g.status === 'active' && g.link);
     if (targets.length === 0) { showToast('No active groups with a valid link selected', 'err'); setPusherSending(false); return; }
     showToast(`✓ Message copied! Opening ${targets.length} group${targets.length !== 1 ? 's' : ''} — paste in each`, 'ok');
+    // Same contract as broadcastToSelected: stamp the row only when the ledger
+    // confirms the record, and name the groups that were not recorded.
+    const unrecorded: string[] = [];
     for (let i = 0; i < targets.length; i++) {
       try {
         await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
         window.open(targets[i].link, '_blank', 'noopener,noreferrer');
-        await fetch('/api/whatsapp-groups/broadcasts', {
+        const res = await fetch('/api/whatsapp-groups/broadcasts', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ group_id: targets[i].id, message: pusherMsg.trim() }),
-        }).catch(() => {});
-        setGroups(prev => prev.map(g => g.id === targets[i].id ? { ...g, last_broadcast_at: new Date().toISOString() } : g));
-      } catch {}
+        });
+        if (!res.ok) {
+          console.error('[whatsapp] broadcast ledger rejected the record', {
+            groupId: targets[i].id, status: res.status,
+          });
+          unrecorded.push(targets[i].name);
+          continue;
+        }
+        const at = new Date().toISOString();
+        setGroups(prev => prev.map(g => g.id === targets[i].id ? { ...g, last_broadcast_at: at } : g));
+      } catch (error) {
+        console.error('[whatsapp] could not open or record a broadcast target', {
+          groupId: targets[i].id, error,
+        });
+        unrecorded.push(targets[i].name);
+      }
     }
     setPusherSending(false);
     setShowPusher(false);
+    if (unrecorded.length > 0) {
+      const named = unrecorded.slice(0, 3).join(', ');
+      const rest = unrecorded.length > 3 ? ` and ${unrecorded.length - 3} more` : '';
+      showToast(
+        `${unrecorded.length} of ${targets.length} not recorded in broadcast history: ${named}${rest}`,
+        'err',
+      );
+    }
     setMessage(pusherMsg);
   }
 
@@ -526,25 +562,50 @@ export default function WhatsAppGroupsPage() {
   }
 
   // ── Send logic ────────────────────────────────────────────────────────────
-  async function logBroadcast(groupId: string) {
-    if (!message.trim()) return;
+  /**
+   * Records one broadcast in the ledger. Returns whether the ledger actually took it.
+   *
+   * This used to swallow the failure and stamp last_broadcast_at regardless, so a
+   * failed POST still rendered "broadcast just now" — and the stamp then vanished on
+   * the next load, because the server had never recorded it. The row is only stamped
+   * when the ledger confirms it, and the caller is told when it did not.
+   */
+  async function logBroadcast(groupId: string): Promise<boolean> {
+    if (!message.trim()) return false;
     try {
-      await fetch('/api/whatsapp-groups/broadcasts', {
+      const res = await fetch('/api/whatsapp-groups/broadcasts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ group_id: groupId, message: message.trim() }),
       });
-    } catch {}
-    setGroups(prev => prev.map(g => g.id === groupId
-      ? { ...g, last_broadcast_at: new Date().toISOString() } : g));
-    if (activeGroup?.id === groupId) setActiveGroup(a => a ? { ...a, last_broadcast_at: new Date().toISOString() } : a);
+      if (!res.ok) {
+        console.error('[whatsapp] broadcast ledger rejected the record', {
+          groupId, status: res.status,
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('[whatsapp] broadcast ledger unreachable', { groupId, error });
+      return false;
+    }
+    const at = new Date().toISOString();
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, last_broadcast_at: at } : g));
+    if (activeGroup?.id === groupId) setActiveGroup(a => a ? { ...a, last_broadcast_at: at } : a);
+    return true;
   }
 
   async function sendToGroup(group: Group) {
     if (!group.link) { showToast('This group has no link set', 'err'); return; }
     if (message.trim()) await navigator.clipboard?.writeText(message).catch(() => {});
     setTimeout(() => window.open(group.link, '_blank', 'noopener,noreferrer'), 60);
-    await logBroadcast(group.id);
-    showToast(`✓ Message copied! Opening "${group.name}" — paste and send`);
+    const logged = await logBroadcast(group.id);
+    // The group still opened, so say so — but do not let an unrecorded broadcast
+    // look identical to a recorded one.
+    showToast(
+      logged || !message.trim()
+        ? `✓ Message copied! Opening "${group.name}" — paste and send`
+        : `Opening "${group.name}" — but this send was not recorded in the broadcast history`,
+      logged || !message.trim() ? 'ok' : 'err',
+    );
   }
 
   async function broadcastToSelected() {
@@ -555,14 +616,31 @@ export default function WhatsAppGroupsPage() {
     const targets = groups.filter(g => selected.has(g.id) && g.link);
     if (targets.length === 0) { showToast('No selected groups have a valid link', 'err'); setSending(false); return; }
     showToast(`✓ Message copied! Opening ${targets.length} group${targets.length > 1 ? 's' : ''} — paste in each`, 'ok');
+    // A broadcast across many groups partly fails all the time — a popup blocker
+    // stops one window, one ledger write is rejected. Swallowing that reported a
+    // clean send for every group. Track which names did not make it and say so.
+    const unrecorded: string[] = [];
     for (let i = 0; i < targets.length; i++) {
       try {
         await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
         window.open(targets[i].link, '_blank', 'noopener,noreferrer');
-        await logBroadcast(targets[i].id);
-      } catch {}
+        if (!(await logBroadcast(targets[i].id))) unrecorded.push(targets[i].name);
+      } catch (error) {
+        console.error('[whatsapp] could not open or record a broadcast target', {
+          groupId: targets[i].id, error,
+        });
+        unrecorded.push(targets[i].name);
+      }
     }
     setSending(false);
+    if (unrecorded.length > 0) {
+      const named = unrecorded.slice(0, 3).join(', ');
+      const rest = unrecorded.length > 3 ? ` and ${unrecorded.length - 3} more` : '';
+      showToast(
+        `${unrecorded.length} of ${targets.length} not recorded in broadcast history: ${named}${rest}`,
+        'err',
+      );
+    }
   }
 
   // ── Templates ─────────────────────────────────────────────────────────────

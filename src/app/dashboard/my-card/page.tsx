@@ -417,7 +417,11 @@ export default function MyCardPage() {
           const cards = cardJson.data ?? [];
           setMyCard(cards.find((c: DbCard) => c.status === 'active') ?? cards[0] ?? null);
         }
-      } catch {} finally { setLoading(false); }
+      } catch (error) {
+        // A learner seeing an empty card page deserves a diagnosable cause; silence
+        // here made a failed fetch look like "you have no card".
+        console.error('[my-card] card or settings load failed', error);
+      } finally { setLoading(false); }
     };
     fetchAll();
   }, [profile?.id]); // eslint-disable-line

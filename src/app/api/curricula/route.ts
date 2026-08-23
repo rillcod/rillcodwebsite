@@ -489,6 +489,12 @@ function buildCurriculumPrompt(
   }
 }
 
+/**
+ * Three ways a model returns JSON: bare, inside a fenced code block, or wrapped in
+ * prose. Each parse below is a strategy that is expected to fail so the next one can
+ * run. The empty catches are the ladder, not swallowed errors; a payload none of them
+ * can read falls out of the bottom and is handled by the caller.
+ */
 function safeParseJSON(raw: string): any {
   try {
     return JSON.parse(raw);

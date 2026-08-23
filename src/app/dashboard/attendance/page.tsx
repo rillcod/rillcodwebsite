@@ -683,7 +683,11 @@ function AttendanceContent() {
               return;
             }
           }
-        } catch (_) { }
+        } catch {
+          // One undecodable video frame is the normal case while the learner lines
+          // the code up. The loop has to survive it — a thrown frame must not be
+          // what ends scanning.
+        }
         scanLoopRef.current = requestAnimationFrame(tick);
       };
       scanLoopRef.current = requestAnimationFrame(tick);

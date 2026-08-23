@@ -442,7 +442,10 @@ function SettingsPageContent({
     try {
       const s = localStorage.getItem("rillcod_notif_prefs");
       if (s) return JSON.parse(s);
-    } catch {}
+    } catch {
+      // Unreadable or blocked storage falls through to the defaults below, which
+      // is the same state a first-time visitor gets.
+    }
     return {
       assignments: true,
       grades: true,

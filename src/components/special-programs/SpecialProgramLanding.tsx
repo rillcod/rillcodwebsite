@@ -115,7 +115,9 @@ export default function SpecialProgramLanding({ page }: Props) {
           paymentVerified: true,
         });
         setIsSuccess(true);
-        try { localStorage.removeItem(lsKey); } catch { }
+        // Guarded and silent by design: clearing a saved draft is a convenience, and
+        // blocked site data must not surface as an error on a public landing page.
+        try { localStorage.removeItem(lsKey); } catch {}
         const onboard = await ensureSummerPaymentOnboarded(reference);
         if (!onboard.ok) {
           toast.message("Payment confirmed. Portal access email may take a few minutes.");
