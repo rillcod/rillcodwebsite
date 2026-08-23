@@ -1,13 +1,18 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypeScript from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+/**
+ * eslint-config-next 16 ships flat config natively.
+ *
+ * Until then this file reached it through FlatCompat.extends(), which is the
+ * eslintrc-to-flat shim. Against v16 that shim walks the config object and
+ * JSON.stringifies it to validate, and v16's react plugin references itself —
+ * so every lint run died with "Converting circular structure to JSON" before a
+ * single rule ran. The Lint CI step went from 0 errors to not executing at all.
+ *
+ * These two entry points are already flat-config arrays, so they are spread
+ * directly. The rule decisions below are unchanged.
+ */
 
 /**
  * Rillcod ESLint policy
@@ -21,25 +26,40 @@ const compat = new FlatCompat({
  * in the editor.
  */
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextCoreWebVitals,
+  ...nextTypeScript,
   {
+    // Flat config resolves a rule's plugin from the config objects that match the
+    // same files. eslint-config-next registers react/react-hooks/@next under a
+    // js+ts glob and @typescript-eslint under a ts-only one, so these two blocks
+    // are scoped to match. An unscoped block asks for react rules on files where
+    // that plugin was never registered, which is a hard error, not a warning.
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
-      // Noisy/legacy — downgraded to warn (3000+ occurrences baseline)
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          ignoreRestSiblings: true,
-        },
-      ],
-      "@typescript-eslint/ban-ts-comment": "warn",
-      "@typescript-eslint/no-require-imports": "warn",
       "react/no-unescaped-entities": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "@next/next/no-img-element": "warn",
+
+      /**
+       * React Compiler rules, new in eslint-plugin-react-hooks 6 (arrived with
+       * the Next 16 upgrade). They default to ERROR and found 527 pre-existing
+       * occurrences on their first run — no code changed, the ruleset did.
+       *
+       * Downgraded to warn under the same policy as the type-hygiene rules
+       * above: a legacy backlog this size is cleaned up incrementally, not by
+       * blocking every build until it is done. They stay visible in the editor
+       * and in CI output. rules-of-hooks stays an ERROR below — that one
+       * catches real bugs rather than missed compiler optimisations.
+       *
+       * Backlog at time of upgrade: set-state-in-effect 356, immutability 49,
+       * purity 42, preserve-manual-memoization 34, refs 32, static-components 14.
+       */
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/static-components": "warn",
 
       /**
        * Hand-rolled modals.
@@ -69,9 +89,30 @@ const eslintConfig = [
       // Real bugs — keep as errors
       "prefer-const": "error",
       "react-hooks/rules-of-hooks": "error",
+      "react/no-children-prop": "error",
+    },
+  },
+  {
+    // The @typescript-eslint rules, scoped to where that plugin is registered.
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      // Noisy/legacy — downgraded to warn (3000+ occurrences baseline)
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+
+      // Real bugs — keep as errors
       "@typescript-eslint/no-unused-expressions": "error",
       "@typescript-eslint/no-non-null-asserted-optional-chain": "error",
-      "react/no-children-prop": "error",
     },
   },
   {
