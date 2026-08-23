@@ -11,6 +11,9 @@ type Actor = NonNullable<ApiContext['user']>;
 const manualGradeSchema = z.object({
   scores: z.record(z.string(), z.number().finite().min(0)),
   feedback: z.string().trim().max(5000).nullable().optional(),
+  expected_version: z.number().int().positive().optional(),
+  change_reason: z.string().trim().max(500).optional(),
+  moderation_status: z.enum(['unreviewed', 'reviewed', 'approved', 'returned']).optional(),
 }).strict();
 
 export async function applyManualWrittenGrade(actor: Actor, examId: string, attemptId: string, rawBody: unknown) {
@@ -24,7 +27,12 @@ export async function applyManualWrittenGrade(actor: Actor, examId: string, atte
   if (error) throw new AppError(error.message, 500);
   if (!attempt) throw new NotFoundError('Exam attempt not found');
 
-  const result = await gradingService.manualGrade(attemptId, parsed.data.scores, parsed.data.feedback ?? null);
+  const result = await gradingService.manualGrade(attemptId, parsed.data.scores, parsed.data.feedback ?? null, {
+    actorId: actor.id,
+    expectedVersion: parsed.data.expected_version,
+    changeReason: parsed.data.change_reason,
+    moderationStatus: parsed.data.moderation_status,
+  });
   await logAudit(db as any, {
     action: result.grade.status === 'graded' ? 'finalize_written_exam_grade' : 'save_written_exam_review',
     actorId: actor.id,
@@ -45,10 +53,20 @@ export async function applyManualWrittenGrade(actor: Actor, examId: string, atte
       manual_questions_scored: Object.keys(result.grade.manualScores).length,
       manual_questions_total: result.grade.manualQuestionIds.length,
       feedback_updated: parsed.data.feedback !== undefined,
+      moderation_status: result.moderationStatus,
+      change_reason: result.changeReason,
+      previous_version: result.previousVersion,
+      grading_version: result.gradingVersion,
     },
   });
   return {
     message: result.grade.status === 'graded' ? 'Grade published and student notified' : 'Review progress saved',
-    data: { status: result.grade.status, score: result.grade.score, percentage: result.grade.percentage },
+    data: {
+      status: result.grade.status,
+      score: result.grade.score,
+      percentage: result.grade.percentage,
+      moderation_status: result.moderationStatus,
+      grading_version: result.gradingVersion,
+    },
   };
 }

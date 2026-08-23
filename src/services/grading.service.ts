@@ -115,7 +115,17 @@ export class GradingService {
         }
     }
 
-    async manualGrade(attemptId: string, rawScores: Record<string, unknown>, feedback: string | null) {
+    async manualGrade(
+        attemptId: string,
+        rawScores: Record<string, unknown>,
+        feedback: string | null,
+        options: {
+            actorId?: string;
+            expectedVersion?: number;
+            changeReason?: string;
+            moderationStatus?: 'unreviewed' | 'reviewed' | 'approved' | 'returned';
+        } = {},
+    ) {
         const supabase = createAdminClient();
         const { data: attempt, error: attemptError } = await supabase
             .from('exam_attempts')
@@ -128,6 +138,21 @@ export class GradingService {
         if (!attempt.exam_id) throw new NotFoundError('Exam not found for this attempt');
         if (!['submitted', 'graded'].includes(attempt.status ?? '')) {
             throw new AppError('Only submitted exams can be manually graded', 409);
+        }
+
+        const versionResult = await supabase
+            .from('exam_attempts')
+            .select('grading_version, moderation_status')
+            .eq('id', attemptId)
+            .maybeSingle();
+        const gradingColumnsPending = versionResult.error
+            && (versionResult.error.code === '42703'
+                || versionResult.error.code === 'PGRST204'
+                || /grading_version|moderation_status/i.test(versionResult.error.message));
+        if (versionResult.error && !gradingColumnsPending) throw new AppError(versionResult.error.message, 500);
+        const previousVersion = gradingColumnsPending ? null : versionResult.data?.grading_version ?? 1;
+        if (options.expectedVersion !== undefined && previousVersion !== null && options.expectedVersion !== previousVersion) {
+            throw new AppError('This written-exam review changed in another session. Refresh before saving.', 409, true, { code: 'STALE_ASSESSMENT_REVIEW' });
         }
 
         const questions = await questionService.listQuestions(attempt.exam_id);
@@ -152,21 +177,44 @@ export class GradingService {
         }
         const normalizedFeedback = feedback?.trim() || previous.feedback;
         const storedAnswers = withWrittenGradingMetadata(answers, grade, normalizedFeedback);
-        const { data: updated, error: updateError } = await supabase
-            .from('exam_attempts')
-            .update({
+        if (options.moderationStatus === 'approved' && grade.status !== 'graded') {
+            throw new AppError('Complete all manual marking before approving this result.', 409);
+        }
+        const changeReason = options.changeReason?.trim()
+            || (attempt.score != null ? 'Teacher corrected the written-exam marking' : 'Teacher completed the written-exam marking');
+        const updateFields: Record<string, unknown> = {
                 answers: storedAnswers as Json,
                 score: grade.score,
                 total_points: grade.totalPoints,
                 percentage: grade.percentage,
                 status: grade.status,
-            })
-            .eq('id', attemptId)
-            .in('status', ['submitted', 'graded'])
-            .select()
-            .maybeSingle();
+                grading_changed_by: options.actorId ?? null,
+                grading_change_reason: changeReason,
+                ...(options.moderationStatus ? { moderation_status: options.moderationStatus } : {}),
+        };
+        const runUpdate = async (payload: Record<string, unknown>, version: number | null): Promise<any> => {
+            let query: any = (supabase as any)
+                .from('exam_attempts')
+                .update(payload)
+                .eq('id', attemptId)
+                .in('status', ['submitted', 'graded']);
+            if (version !== null) query = query.eq('grading_version', version);
+            return query.select().maybeSingle();
+        };
+        let updateResult: any = await runUpdate(updateFields, previousVersion);
+        const missingGradingColumns = updateResult.error
+            && (updateResult.error.code === '42703'
+                || updateResult.error.code === 'PGRST204'
+                || /grading_changed_by|grading_change_reason|moderation_status|grading_version/i.test(updateResult.error.message));
+        if (missingGradingColumns) {
+            delete updateFields.grading_changed_by;
+            delete updateFields.grading_change_reason;
+            delete updateFields.moderation_status;
+            updateResult = await runUpdate(updateFields, null);
+        }
+        const { data: updated, error: updateError } = updateResult;
         if (updateError) throw new AppError(updateError.message, 500);
-        if (!updated) throw new AppError('The exam attempt changed while it was being graded', 409);
+        if (!updated) throw new AppError('This written-exam review changed in another session. Refresh before saving.', 409, true, { code: 'STALE_ASSESSMENT_REVIEW' });
 
         if (grade.status === 'graded' && attempt.portal_user_id) {
             const exam = (attempt as any).exams;
@@ -179,6 +227,10 @@ export class GradingService {
             previousStatus: attempt.status,
             grade,
             feedback: normalizedFeedback,
+            moderationStatus: updated.moderation_status ?? options.moderationStatus ?? versionResult.data?.moderation_status ?? 'unreviewed',
+            changeReason,
+            previousVersion,
+            gradingVersion: updated.grading_version ?? null,
         };
     }
 }

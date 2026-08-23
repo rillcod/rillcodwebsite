@@ -2069,3 +2069,25 @@ Remaining evaluation/result scope:
 - add equivalent version/moderation/correction authority for written `exam_attempts`;
 - verify the weighting policy that turns named evidence into report components, then complete
   candidate-paper/PDF and parent publication journeys.
+### 16.12 Written-exam marking authority milestone — verified locally on 23 August 2026
+
+Implemented:
+
+- applied the same monotonic marking version, actor/reason trace, and optional moderation state to written exam attempts;
+- rejected stale concurrent saves while retaining server-owned, idempotent question scoring;
+- prevented approval until manual marking is complete;
+- mapped approved attempts to moderated central academic evidence while preserving learner answers and scores;
+- retained old-schema compatibility for rolling deployment.
+
+Verification evidence:
+
+- focused written-exam and evidence checks: 4 files, 13 tests passed;
+- full automated suite: 344 files, 2,399 tests passed;
+- TypeScript typecheck passed;
+- no production build, remote push, or live database migration was run.
+
+Remaining operational work:
+
+- apply migration `20260929000096_version_written_exam_marking.sql` after migrations 93–95 in a disposable environment, then production through the approved migration pipeline;
+- expose expected versions and optional moderation controls in the written-review interface;
+- verify candidate paper and PDF-output parity across desktop and mobile layouts.

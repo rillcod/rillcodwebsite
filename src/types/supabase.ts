@@ -7794,7 +7794,12 @@ export type Database = {
           attempt_number: number | null
           created_at: string | null
           exam_id: string | null
+          grading_change_reason: string | null
+          grading_changed_at: string | null
+          grading_changed_by: string | null
+          grading_version: number
           id: string
+          moderation_status: string
           percentage: number | null
           portal_user_id: string | null
           score: number | null
@@ -7809,7 +7814,12 @@ export type Database = {
           attempt_number?: number | null
           created_at?: string | null
           exam_id?: string | null
+          grading_change_reason?: string | null
+          grading_changed_at?: string | null
+          grading_changed_by?: string | null
+          grading_version?: number
           id?: string
+          moderation_status?: string
           percentage?: number | null
           portal_user_id?: string | null
           score?: number | null
@@ -7824,7 +7834,12 @@ export type Database = {
           attempt_number?: number | null
           created_at?: string | null
           exam_id?: string | null
+          grading_change_reason?: string | null
+          grading_changed_at?: string | null
+          grading_changed_by?: string | null
+          grading_version?: number
           id?: string
+          moderation_status?: string
           percentage?: number | null
           portal_user_id?: string | null
           score?: number | null
@@ -7840,6 +7855,13 @@ export type Database = {
             columns: ["exam_id"]
             isOneToOne: false
             referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_attempts_grading_changed_by_fkey"
+            columns: ["grading_changed_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
             referencedColumns: ["id"]
           },
           {
