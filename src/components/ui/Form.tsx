@@ -1,9 +1,34 @@
 // @refresh reset
 'use client';
 
-import React, { useState, forwardRef } from 'react';
+import React, { useState, forwardRef, useId } from 'react';
 import { ExclamationTriangleIcon } from '@/lib/icons';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+
+/**
+ * Shared field wiring for every control in this file.
+ *
+ * These primitives rendered a <label> next to a control with nothing joining them:
+ * no htmlFor, no id. A visible caption is not an accessible name, so a screen
+ * reader announced most of the product's fields as an unlabelled edit box, and the
+ * caption was not a click target either. Because these are the shared primitives,
+ * that one omission accounted for the bulk of the unnamed controls in the codebase.
+ *
+ * An explicitly passed id always wins, so existing call sites that already pair a
+ * label keep their own value. Errors and helper text are joined through
+ * aria-describedby, and aria-invalid marks the field itself, so the reason a field
+ * was rejected is announced rather than only shown.
+ */
+function useFieldIds(providedId: string | undefined, error?: string, helperText?: string) {
+  const generated = useId();
+  const id = providedId ?? generated;
+  const errorId = `${id}-error`;
+  const helperId = `${id}-helper`;
+  const describedBy = [error ? errorId : null, helperText && !error ? helperId : null]
+    .filter(Boolean)
+    .join(' ') || undefined;
+  return { id, errorId, helperId, describedBy };
+}
 
 // Input component
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -16,10 +41,11 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, leftIcon, rightIcon, className = '', ...props }, ref) => {
+    const { id, errorId, helperId, describedBy } = useFieldIds(props.id, error, helperText);
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
+          <label htmlFor={id} className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             {label}
           </label>
         )}
@@ -34,17 +60,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={`
-              w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary 
+              w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary
               bg-background text-foreground transition-all duration-200
               ${leftIcon ? 'pl-10' : ''}
               ${rightIcon ? 'pr-10' : ''}
-              ${error 
-                ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500' 
+              ${error
+                ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
                 : 'border-border border-border'
               }
               ${className}
             `}
             {...props}
+            id={id}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
           />
           {rightIcon && (
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -55,13 +84,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <div className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+          <div id={errorId} className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
             <ExclamationTriangleIcon className="h-4 w-4" />
             <span>{error}</span>
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
+          <p id={helperId} className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -81,10 +110,11 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, error, helperText, className = '', ...props }, ref) => {
+    const { id, errorId, helperId, describedBy } = useFieldIds(props.id, error, helperText);
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
+          <label htmlFor={id} className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             {label}
           </label>
         )}
@@ -100,15 +130,18 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             ${className}
           `}
           {...props}
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
         />
         {error && (
-          <div className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+          <div id={errorId} className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
             <ExclamationTriangleIcon className="h-4 w-4" />
             <span>{error}</span>
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
+          <p id={helperId} className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -129,10 +162,11 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, helperText, options, className = '', ...props }, ref) => {
+    const { id, errorId, helperId, describedBy } = useFieldIds(props.id, error, helperText);
     return (
       <div className="space-y-1">
         {label && (
-          <label className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
+          <label htmlFor={id} className="block text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
             {label}
           </label>
         )}
@@ -148,6 +182,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ${className}
           `}
           {...props}
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
         >
           {options.map((option) => (
             <option
@@ -160,13 +197,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ))}
         </select>
         {error && (
-          <div className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+          <div id={errorId} className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
             <ExclamationTriangleIcon className="h-4 w-4" />
             <span>{error}</span>
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
+          <p id={helperId} className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -186,6 +223,7 @@ export interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElemen
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   ({ label, error, helperText, className = '', ...props }, ref) => {
+    const { id, errorId, helperId, describedBy } = useFieldIds(props.id, error, helperText);
     return (
       <div className="space-y-1">
         <div className="flex items-center space-x-2">
@@ -199,21 +237,24 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
               ${className}
             `}
             {...props}
+            id={id}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
           />
           {label && (
-            <label className="text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
+            <label htmlFor={id} className="text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
               {label}
             </label>
           )}
         </div>
         {error && (
-          <div className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+          <div id={errorId} className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
             <ExclamationTriangleIcon className="h-4 w-4" />
             <span>{error}</span>
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
+          <p id={helperId} className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}
@@ -233,6 +274,7 @@ export interface RadioProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 export const Radio = forwardRef<HTMLInputElement, RadioProps>(
   ({ label, error, helperText, className = '', ...props }, ref) => {
+    const { id, errorId, helperId, describedBy } = useFieldIds(props.id, error, helperText);
     return (
       <div className="space-y-1">
         <div className="flex items-center space-x-2">
@@ -246,21 +288,24 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(
               ${className}
             `}
             {...props}
+            id={id}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
           />
           {label && (
-            <label className="text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
+            <label htmlFor={id} className="text-sm font-medium text-foreground/80 dark:text-muted-foreground/50">
               {label}
             </label>
           )}
         </div>
         {error && (
-          <div className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+          <div id={errorId} className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
             <ExclamationTriangleIcon className="h-4 w-4" />
             <span>{error}</span>
           </div>
         )}
         {helperText && !error && (
-          <p className="text-sm text-muted-foreground dark:text-muted-foreground/70">
+          <p id={helperId} className="text-sm text-muted-foreground dark:text-muted-foreground/70">
             {helperText}
           </p>
         )}

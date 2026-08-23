@@ -819,9 +819,9 @@ snapshots, not current certification. This register is the current product-level
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
 | SYS-023 | P2 | **Withdrawn — false positive** | “EducationAcross” is a `textContent` artifact of a real `<br />` in `src/components/landing/About.tsx`; the rendered copy is correct | None. Re-verified 23 August 2026. A scan reading `textContent` must not treat a `<br>` join as a copy defect |
-| SYS-024 | P2 | Confirmed a11y | Public contact fields lack programmatic labels | Accessible-name browser check passes |
+| SYS-024 | P1 | Far larger than recorded; entry points fixed, backlog gated | Recorded as a contact-form defect. A full scan found **1,553 of 1,668 form controls (93%) with no programmatic accessible name** across 214 files. The public contact form is fixed, and all five shared primitives in `src/components/ui/Form.tsx` (Input, Textarea, Select, Checkbox, Radio) now pair label and control through `useId` and wire `aria-invalid`/`aria-describedby`, which fixes every consumer of those components at once. Raised to P1: this is the product's largest single WCAG 1.3.1/4.1.2 exposure, not a cosmetic one | Pay the 1,553 down against the ratchet in `npm run audit:a11y`, worst files first, then confirm with a real browser accessible-name check |
 | SYS-025 | P2 | Confirmed a11y | Small public/login touch targets | 44px target audit passes |
-| SYS-026 | P2 | Confirmed a11y | Duplicate login H1 semantics | One exposed document H1 |
+| SYS-026 | P2 | Verified fixed | `src/app/login/page.tsx` now exposes exactly one `<h1>`; the desktop panel heading is an `<h2>`. Re-verified 23 August 2026 | Deploy and confirm one exposed document H1 in a browser |
 | SYS-027 | P2 | At risk | 146 pages with raw buttons, 114 raw inputs | Design-system exception or migration per occurrence |
 | SYS-028 | P2 | At risk | Tiny text on 136 pages | Readability review and token enforcement |
 | SYS-029 | P2 | At risk | Horizontal-scroll fallback on 46 pages | Mobile task review and justified table exceptions |
@@ -832,7 +832,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-034 | P2 | At risk | Learner-progress route overlap/noise | Unique task map, merge true duplicates, central read model |
 | SYS-035 | P2 | At risk | Class roster and path visibility can compete | One roster with scoped visibility controls |
 | SYS-036 | P2 | At risk | Customer errors can expose internal concepts | Public error-code/message contract and UX review |
-| SYS-037 | P2 | At risk | No enforced accessibility browser gate | axe/browser gate plus manual audit |
+| SYS-037 | P2 | Static gate enforced in CI; browser gate still absent | `npm run audit:a11y` runs as a required CI step. It is a ratchet: it fails when the count of unlabelled controls rises above the committed baseline, so the backlog can only be paid down. It was tested against a deliberate regression and exits 1, rather than being assumed to work — the lint gate had silently stopped executing for an entire dependency upgrade | A static scan cannot compute an accessibility tree. A real axe/browser run against a deployed build is still required for contrast, focus order, reflow and announcement |
 | SYS-038 | P2 | At risk | Special-program path may duplicate main system | Shared-service E2E verification |
 | SYS-039 | P3 | Governance | Historical completion documents create stale truth | Mark historical when touched; link back to this register |
 | SYS-040 | P3 | Governance | Page ownership and task definition incomplete | Owner/role/task/status recorded for all 229 pages |

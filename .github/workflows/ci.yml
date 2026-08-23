@@ -70,6 +70,12 @@ jobs:
       - name: UI standards audit
         run: npm run audit:ui
 
+      # Ratchet, not a wall: fails when the count of form controls with no
+      # programmatic accessible name goes UP. The existing backlog is the
+      # baseline, so it can only be paid down. See SYS-024 and SYS-037.
+      - name: Accessibility gate
+        run: npm run audit:a11y
+
       - name: Typecheck
         run: npm run typecheck
 

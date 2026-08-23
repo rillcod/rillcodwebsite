@@ -111,16 +111,22 @@ const Contact: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                    <div className="grid md:grid-cols-2 gap-8">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Your Name</label>
+                        {/* htmlFor/id, because a label that only sits next to an input is
+                            not attached to it. Without the pair a screen reader falls back
+                            to the placeholder, and a placeholder is not an accessible name —
+                            it disappears the moment the field has any content. */}
+                        <label htmlFor="contact-name" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Your Name</label>
                         <input
+                          id="contact-name"
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Full Name / School Name"
                           className="w-full bg-background border border-border px-6 py-5 rounded-xl text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
                         />
                       </div>
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
+                        <label htmlFor="contact-email" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Email Address</label>
                         <input
+                          id="contact-email"
                           type="email" name="email" value={formData.email} onChange={handleChange} required
                           placeholder="your@email.com"
                           className="w-full bg-background border border-border px-6 py-5 rounded-xl text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner"
@@ -129,8 +135,9 @@ const Contact: React.FC = () => {
                    </div>
 
                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Your Message</label>
+                      <label htmlFor="contact-message" className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Your Message</label>
                       <textarea
+                        id="contact-message"
                         name="message" value={formData.message} onChange={handleChange} required rows={5}
                         placeholder="Tell us about your school or request..."
                         className="w-full bg-background border border-border px-6 py-5 rounded-xl text-foreground font-bold focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/30 shadow-inner resize-none italic"
