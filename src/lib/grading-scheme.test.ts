@@ -24,6 +24,17 @@ describe('published grading scheme selection', () => {
     expect(resolved.weights.theory).toBe(0.3);
   });
 
+  it('matches the database precedence when scope counts tie', () => {
+    const resolved = resolveEffectiveScoreWeights([
+      { id: 'course', name: 'Course', course_id: 'c1', components },
+      { id: 'school', name: 'School', school_id: 's1', components: { ...components, theory: 30, practical: 15 } },
+      { id: 'term', name: 'Term', academic_term_id: 't1', components },
+    ], { schoolId: 's1', courseId: 'c1', termId: 't1' });
+
+    expect(resolved.scheme?.id).toBe('school');
+    expect(resolved.weights.theory).toBe(0.3);
+  });
+
   it('falls back to the canonical default when no policy matches', () => {
     const resolved = resolveEffectiveScoreWeights([
       { id: 'other', name: 'Other', school_id: 's2', components },

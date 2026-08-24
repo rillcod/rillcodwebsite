@@ -25,6 +25,19 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
+function calculationFailure(error: { message?: string | null }) {
+  if (/No active assessment weighting scheme/i.test(error.message ?? '')) {
+    return NextResponse.json({
+      error: 'Automatic results need an active weighting rule. Ask an administrator to publish one in Academic Office.',
+      code: 'ASSESSMENT_SCHEME_REQUIRED',
+      action_url: '/dashboard/academic/weights',
+    }, { status: 409 });
+  }
+  return NextResponse.json({
+    error: error.message || 'The result could not be calculated from current class evidence.',
+  }, { status: 400 });
+}
+
 export async function GET() {
   const user = await actor();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -131,7 +144,7 @@ export async function POST(req: NextRequest) {
       });
     }
     const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: reportId, p_actor_id: user.id });
-    if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
+    if (calculationError) return calculationFailure(calculationError);
     const { data: quality, error: qualityError } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: reportId });
     if (qualityError) return NextResponse.json({ error: qualityError.message }, { status: 400 });
     await logAudit(db as any, {
@@ -285,7 +298,7 @@ export async function POST(req: NextRequest) {
     calculation = { skipped: 'host_school' };
   } else {
     const { data, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: write.data.id, p_actor_id: user.id });
-    if (calculationError) return NextResponse.json({ error: calculationError.message, detail: calculationError.details }, { status: 400 });
+    if (calculationError) return calculationFailure(calculationError);
     calculation = data;
   }
   const { data: quality, error: qualityError } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: write.data.id });

@@ -78,11 +78,17 @@ export function selectEffectiveGradingScheme(
     .filter((scheme) => matches(scheme.academic_term_id, context.termId))
     .filter((scheme) => matches(scheme.academic_offering_id, context.academicOfferingId))
     .sort((left, right) => {
-      const specificity = (scheme: PublishedGradingScheme) => [
-        scheme.academic_offering_id, scheme.school_id, scheme.course_id, scheme.academic_term_id,
-      ].filter(Boolean).length;
+      // Must match recalculate_academic_result exactly: offering → school →
+      // course → term, then newest policy. A preview must never select a
+      // different rule from the database calculation.
+      const specificity = (scheme: PublishedGradingScheme) =>
+        (scheme.academic_offering_id ? 8 : 0)
+        + (scheme.school_id ? 4 : 0)
+        + (scheme.course_id ? 2 : 0)
+        + (scheme.academic_term_id ? 1 : 0);
       return specificity(right) - specificity(left)
-        || String(right.updated_at ?? '').localeCompare(String(left.updated_at ?? ''));
+        || String(right.updated_at ?? '').localeCompare(String(left.updated_at ?? ''))
+        || String(right.id).localeCompare(String(left.id));
     })[0] ?? null;
 }
 

@@ -2849,3 +2849,63 @@ Verification and deployment boundary:
   attempts and no metadata-only class targets;
 - migrations 107 and 108 are local and have not been applied to production. No class, programme,
   account, score, attempt, report, finance record, database row or remote branch was changed.
+
+### 16.30 One grading policy and complete central-result consumption — verified locally on 24 August 2026
+
+Confirmed calculation and UX defects:
+
+- written-exam attempts were correctly synchronized into `academic_assessment_evidence`, but the one
+  official `recalculate_academic_result` function read CBT evidence only for **Theory / examination**.
+  A fully graded written paper therefore could not contribute to an automatic report;
+- component availability was tested against any assessment using the course. A paper for another
+  class or reporting period could make the current learner appear to be missing evidence and block
+  publication;
+- the database calculator stored classwork and mid-term component rows but did not copy their scores
+  into `engagement_metrics`, which is where Write, preview, PDF and report-card components read them.
+  It also did not refresh `overall_grade`. The calculated total and visible six-component breakdown
+  could therefore disagree until a teacher resaved the report;
+- database policy precedence ranked offering, school, course and term. The TypeScript preview counted
+  scopes equally, so two matching one-scope policies could preview different weights from the database;
+- the Academic weighting page claimed automatic results would fall back to built-in defaults when no
+  active rule existed, while the database correctly refused to calculate. Non-admin staff could also
+  edit the form and discover their lack of permission only after pressing Publish;
+- free-form per-assessment relative weights were cast directly in SQL. A malformed legacy metadata
+  value could fail the full result calculation instead of falling back safely.
+
+Implemented one deterministic path:
+
+- migration `20260929000109_include_written_exams_in_central_results.sql` replaces the central
+  calculator. Theory now combines eligible graded/moderated CBT examination evidence and written-exam
+  evidence. Practice and unresolved attempts remain `recorded` and cannot enter this query;
+- expected evidence is scoped to the report's exact class, course, academic offering and reporting
+  period. Active definitions create an expectation; historical/deactivated assessments still count
+  when graded evidence already exists. Another class can no longer block this report;
+- classwork, ordinary assignments, projects/practicals, weekly practicals, attendance and mid-term
+  evaluation keep their distinct components and all consume the same central evidence lifecycle;
+- the calculator now updates theory, practical, assignment and attendance legacy columns, stores
+  classwork and mid-term values in `engagement_metrics`, snapshots the selected weights/scheme, and
+  updates both `overall_score` and the WAEC `overall_grade` in one locked report transaction;
+- policy selection now agrees across TypeScript and PostgreSQL: offering (8), school (4), course (2),
+  term (1), then newest update and stable ID. Invalid legacy policies are ignored by both the scheme
+  API and calculator; new rows remain protected by the database 100% constraint;
+- `safe_assessment_weight` accepts only positive finite numeric relative weights up to 100 and uses 1
+  for missing or malformed legacy metadata. It affects only averaging inside a component; the six
+  official component percentages still come from the published central scheme. Evidence marked
+  graded without a numeric percentage is treated as missing instead of silently contributing zero;
+- if no active valid policy exists, Auto-fill returns a professional
+  `ASSESSMENT_SCHEME_REQUIRED` response and the Academic Office destination without database details.
+  The weights page now says automatic results pause, loads the actual active global rule into the
+  form, lets an administrator copy an existing rule as a draft, and is visibly read-only for teachers
+  and school staff.
+
+Verification and deployment boundary:
+
+- five focused suites passed: 5 files and 27 tests covering calculator authority, policy precedence,
+  evidence lifecycle and report score behavior. A final four-suite run also kept the report-card PDF
+  pathway guard green after the weighting-page changes;
+- the linked Supabase dry run completed without writes and lists migration 109 after migrations
+  103–108. This verifies linked ordering/readiness; it does not claim the pending SQL was applied;
+- the live aggregate audit contains no written-exam attempts, so no live result was recalculated or
+  changed. Migration 109 is local and not active in production;
+- no source assignment mark, CBT score, written answer/score, manual report, published report,
+  database row, finance record or remote branch was changed.

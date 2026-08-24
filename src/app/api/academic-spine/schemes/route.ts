@@ -31,7 +31,10 @@ export async function GET() {
   }
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+  return NextResponse.json({
+    data: (data ?? []).filter((scheme: { components?: unknown }) =>
+      scoreWeightsFromPublishedComponents(scheme.components)),
+  });
 }
 
 export async function POST(req: NextRequest) {
