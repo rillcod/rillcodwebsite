@@ -6380,6 +6380,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_job_leases: {
+        Row: {
+          claimed_at: string
+          job_name: string
+          lease_until: string
+          run_id: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string
+          job_name: string
+          lease_until: string
+          run_id: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string
+          job_name?: string
+          lease_until?: string
+          run_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cron_run_history: {
         Row: {
           created_at: string
@@ -20732,6 +20756,10 @@ export type Database = {
         Returns: boolean
       }
       check_timetable_conflicts: { Args: { p_slot: Json }; Returns: Json }
+      claim_cron_job_run: {
+        Args: { p_job_name: string; p_lease_seconds?: number; p_run_id: string }
+        Returns: boolean
+      }
       claim_whatsapp_outbox: {
         Args: { p_limit?: number }
         Returns: {
@@ -21257,6 +21285,14 @@ export type Database = {
         Args: { p_actor_id?: string; p_report_id: string }
         Returns: Json
       }
+      recalculate_academic_result_guarded: {
+        Args: {
+          p_actor_id: string
+          p_expected_updated_at: string
+          p_report_id: string
+        }
+        Returns: Json
+      }
       recalculate_traceable_progress_report: {
         Args: { p_actor_id?: string; p_report_id: string }
         Returns: Json
@@ -21280,6 +21316,10 @@ export type Database = {
       }
       refresh_accountability_cache: { Args: never; Returns: string }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
+      release_cron_job_run: {
+        Args: { p_job_name: string; p_run_id: string }
+        Returns: boolean
+      }
       release_prepared_week_atomic: {
         Args: {
           p_lesson_plan_id: string
@@ -21310,6 +21350,7 @@ export type Database = {
         }
         Returns: number
       }
+      safe_assessment_weight: { Args: { p_metadata: Json }; Returns: number }
       school_protected_evidence: { Args: { p_school: string }; Returns: Json }
       settle_billing_cycle_payment_atomic: {
         Args: {

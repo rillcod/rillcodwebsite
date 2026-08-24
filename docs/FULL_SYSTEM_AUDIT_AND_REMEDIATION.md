@@ -836,13 +836,13 @@ snapshots, not current certification. This register is the current product-level
 | SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
 | SYS-012 | P1 | At risk | Large academic/lesson/report/settings pages | Vertical service/component split and performance baselines |
-| SYS-013 | P1 | Locally remediated; deployment and interruption proof pending | The tracked generator now inventories the exact plan/week/session, reuses existing content, repairs only missing or safely stale generated items, preserves teacher-customized work, and declines a concurrent duplicate run | Apply migration 103, deploy, then prove interrupted-run recovery and browser discovery against production-like data |
+| SYS-013 | P1 | Database migration applied; application deployment and interruption proof pending | The tracked generator now inventories the exact plan/week/session, reuses existing content, repairs only missing or safely stale generated items, preserves teacher-customized work, and declines a concurrent duplicate run. Migration 103 is live | Deploy the application code, then prove interrupted-run recovery and browser discovery against production-like data |
 | SYS-014 | P1 | Locally walked | Persist no longer wipes programme on remount. Walked as admin: Write class→programme→course→start and refresh restore; Autofill after account load listed 58 classes, Abundant Grace Teen Dev offered only Python, four learners, Fill from class work, no score writes | Production deploy |
 | SYS-015 | P1 | Locally remediated; learner publication E2E pending | The weekly preparation and approval flow treats lesson, slides, practice cards, assignment, and project as one package; completeness is visible and partial sharing is an explicit teacher choice | Prove teacher approval and learner visibility for all five content kinds in role E2E |
 | SYS-016 | P1 | Locally remediated; fresh-browser and provider proof pending | One lifecycle now orders enrolment, optional forms, finance attention and record access; parent routes share one active-account gate, optional-form failures remain visible without becoming report locks, and query failures no longer appear as empty families | Deploy, then exercise QR, typed reference, claim, direct signature, registration, assessment, finance and report return from fresh mobile browsers; prove provider delivery and migration 92 on a disposable database |
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |
 | SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
-| SYS-019 | P1 | Locally remediated; migration/deployment proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented locally | Apply migration 112, deploy, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
+| SYS-019 | P1 | Database lease applied; application deployment and operational proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented. Migration 112 is live | Deploy the application code, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
 | SYS-020 | P1 | Broadcast truthfulness fixed; provider delivery ledger still absent | The group broadcast surface stamped `last_broadcast_at` whether or not the ledger POST succeeded, so a failed record still rendered "broadcast just now" and the stamp then disappeared on reload. All four broadcast paths now stamp only on a confirmed 2xx, and both multi-group paths name the groups that were not recorded instead of reporting a clean send. Load failures for classes and assignments are traced rather than presenting as "none" | Provider-side delivery ledger (recipient, consent, channel, provider ID, accepted/sent/delivered/failed timestamps) is still missing; this covers our own record, not WhatsApp's |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
@@ -1968,9 +1968,9 @@ Automated evidence:
 
 Remaining production proof and onboarding scope:
 
-- apply migration `20260929000092_scope_consent_signatures_to_children.sql` to a disposable database,
-  test a two-child parent, a preserved legacy signature, cross-parent rejection and cross-school
-  rejection, then apply through the controlled live migration process;
+- migration `20260929000092_scope_consent_signatures_to_children.sql` is now recorded in the live
+  migration ledger. Still test a two-child parent, a preserved legacy signature, cross-parent
+  rejection and cross-school rejection through fresh-browser production verification;
 - exercise QR, typed code, parent claim, direct portal signature, registration and assessment from
   fresh mobile browsers and confirm the same learner/parent/form identifiers reach the audit trail;
 - validate email/WhatsApp delivery receipts and retry recovery with real provider callbacks; local
@@ -3217,8 +3217,41 @@ Regression and database-contract evidence:
   evidence, reports, invoices, learner scores and every other persisted record. No live database write,
   provider delivery or remote push was performed.
 
-Remaining production proof is deliberately not called complete: deploy these local commits, apply and
-test the earlier child-scoped consent migration through the controlled process, then exercise QR, typed
-reference, claim, portal signature, registration, assessment, finance attention, sign-out/sign-in and
-published-report return from clean mobile browsers. Real email/WhatsApp acceptance and handset delivery
-also require provider receipts; local tests cannot prove them.
+Remaining production proof is deliberately not called complete: deploy these local commits, then test
+the now-live child-scoped consent migration by exercising QR, typed reference, claim, portal signature,
+registration, assessment, finance attention, sign-out/sign-in and published-report return from clean
+mobile browsers. Real email/WhatsApp acceptance and handset delivery also require provider receipts;
+local tests cannot prove them.
+
+### 16.36 Live database migration and generated-type synchronization — verified on 24 August 2026
+
+Applied state:
+
+- the preflight migration-ledger comparison showed local and live history identical through version
+  102, with exactly versions 103–112 pending and no remote-only or out-of-order migration;
+- a linked `db push --dry-run --include-all` named those same ten files and no others. The controlled
+  live push then applied versions 103, 104, 105, 106, 107, 108, 109, 110, 111 and 112 in order with no
+  refusal;
+- the post-push ledger comparison now shows every local migration through 112 paired with the same
+  live version. There is no remaining local/live migration-history gap;
+- `src/types/supabase.ts` was regenerated from the migrated linked schema. Its checked-in contract now
+  includes `cron_job_leases`, `claim_cron_job_run`, `release_cron_job_run`,
+  `recalculate_academic_result_guarded` and `safe_assessment_weight`;
+- migration data work was limited to the intended compatibility/safety updates: stale running
+  generation records are closed, academic-evidence context and result eligibility are backfilled, and
+  protective functions/triggers are installed. No learner-entered submission, answer, manual score,
+  published report, invoice, payment, consent response or parent link was deleted.
+
+Post-migration proof:
+
+- the live-schema audit checked 1,737 distinct application queries and the upgraded database accepted
+  every query;
+- 21 focused files and 103 tests passed across teaching-generation recovery, assessment context,
+  assignment and written-exam result eligibility, programme/class evidence retention, central result
+  calculation, score-write protection, report publishing and scheduled-job overlap;
+- the complete suite then passed 385 files and 2,644 tests with no failed or skipped test file;
+- the complete repository TypeScript check passed against the regenerated 710 KB live-schema type
+  definition;
+- the application still requires Cloudflare deployment before production containers consume the new
+  code paths. Database support is live now; browser/device/provider behavior remains a separate
+  deployment verification boundary.
