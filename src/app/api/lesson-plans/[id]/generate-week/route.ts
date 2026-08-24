@@ -22,6 +22,7 @@ import {
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
 import { generateTrackedPlanWeek } from '@/lib/academic/tracked-week-generation';
+import { resolveGenerationRepairTypes } from '@/lib/academic/generation-repair';
 import { parseAutoGenerateSettings } from '@/lib/academic/auto-generate-settings';
 import { parseRequestSession } from '@/lib/academic/session-identity';
 import { extractCronSecret } from '@/lib/server/cron-auth';
@@ -34,21 +35,15 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id: planId } = await context.params;
-
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
+async function loadGenerationAccess(planId: string, userId: string) {
   const db = createAdminClient() as any;
   const { data: profile } = await db
     .from('portal_users')
     .select('id, role, is_active, is_deleted')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle();
   if (!profile?.is_active || profile.is_deleted) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return { error: 'Unauthorized', status: 401 } as const;
   }
 
   const { data: plan } = await db
@@ -56,7 +51,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     .select('id, class_id, term_start, status, metadata, academic_offering_periods:offering_period_id(starts_on)')
     .eq('id', planId)
     .maybeSingle();
-  if (!plan) return NextResponse.json({ error: 'Teaching plan not found.' }, { status: 404 });
+  if (!plan) {
+    return { error: 'Teaching plan not found.', status: 404 } as const;
+  }
 
   const { data: klass } = plan.class_id
     ? await db
@@ -68,12 +65,100 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         .maybeSingle()
     : { data: null };
 
-  if (!canGenerateForClass({ id: user.id, role: profile.role }, klass)) {
-    return NextResponse.json(
-      { error: 'You can only generate content for your own class.' },
-      { status: 403 },
-    );
+  if (!canGenerateForClass({ id: userId, role: profile.role }, klass)) {
+    return {
+      error: 'You can only generate content for your own class.',
+      status: 403,
+    } as const;
   }
+
+  return { db, profile, plan, klass } as const;
+}
+
+/**
+ * Read the durable state after a browser reconnects. This endpoint never starts
+ * or retries AI work; it tells the client whether the original request is still
+ * running and which content remains missing.
+ */
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id: planId } = await context.params;
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const access = await loadGenerationAccess(planId, user.id);
+  if ('error' in access) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
+
+  const requestedWeek = Number(req.nextUrl.searchParams.get('week'));
+  const week = Number.isFinite(requestedWeek) && requestedWeek > 0
+    ? Math.floor(requestedWeek)
+    : 1;
+  const requestedSession = Number(req.nextUrl.searchParams.get('session'));
+  const session = Number.isFinite(requestedSession) && requestedSession > 0
+    ? Math.floor(requestedSession)
+    : 1;
+  const afterRaw = req.nextUrl.searchParams.get('after');
+  const after = afterRaw && Number.isFinite(Date.parse(afterRaw))
+    ? new Date(Date.parse(afterRaw) - 5_000).toISOString()
+    : null;
+
+  let runQuery = access.db
+    .from('teaching_generation_runs')
+    .select(
+      'id,status,generated_count,skipped_count,by_type,failed_types,started_at,completed_at,last_heartbeat_at',
+    )
+    .eq('lesson_plan_id', planId)
+    .eq('curriculum_week_number', week)
+    .eq('session_number', session);
+  if (after) runQuery = runQuery.gte('started_at', after);
+
+  const [{ data: run, error: runError }, repair] = await Promise.all([
+    runQuery
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    resolveGenerationRepairTypes({
+      db: access.db,
+      planId,
+      week,
+      session,
+    }),
+  ]);
+
+  const missingTypes = repair?.typesToRun ?? [];
+  return NextResponse.json({
+    available: !runError,
+    planId,
+    week,
+    session,
+    status: run?.status ?? 'idle',
+    generationRunId: run?.id ?? null,
+    generated: Number(run?.generated_count) || 0,
+    skipped: Number(run?.skipped_count) || 0,
+    byType: run?.by_type ?? {},
+    failedTypes: Array.isArray(run?.failed_types) ? run.failed_types : [],
+    missingTypes,
+    complete: repair !== null && missingTypes.length === 0,
+    startedAt: run?.started_at ?? null,
+    completedAt: run?.completed_at ?? null,
+    lastHeartbeatAt: run?.last_heartbeat_at ?? null,
+  });
+}
+
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id: planId } = await context.params;
+
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const access = await loadGenerationAccess(planId, user.id);
+  if ('error' in access) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
+  }
+  const { db, plan, klass } = access;
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const requestedWeek = Number((body as any).week);

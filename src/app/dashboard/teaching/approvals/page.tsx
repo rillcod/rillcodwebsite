@@ -36,6 +36,8 @@ import {
   type PendingWeek,
 } from "@/lib/academic/pending-approval";
 import { teachingMeetingLabel } from "@/lib/academic/session-identity";
+import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
+import type { WeekContentType } from "@/lib/academic/auto-generate-settings";
 import { ApprovalGateNav } from "@/components/academic/ApprovalGateNav";
 
 function pendingKey(row: { planId: string; week: number; session?: number | null }) {
@@ -78,7 +80,7 @@ const ITEM_META: Record<
   },
 };
 
-const GENERATION_TYPE: Record<PendingApprovalItem["kind"], string> = {
+const GENERATION_TYPE: Record<PendingApprovalItem["kind"], WeekContentType> = {
   lesson: "lessons",
   slides: "slides",
   flashcards: "flashcards",
@@ -174,17 +176,13 @@ export default function ContentApprovalsPage() {
     const key = pendingKey(row);
     setPreparing(key);
     try {
-      const res = await fetch(`/api/lesson-plans/${row.planId}/generate-week`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          week: row.week,
-          session: row.session,
-          types: row.missingKinds.map((kind) => GENERATION_TYPE[kind]),
-        }),
+      const json = await requestTrackedWeekGeneration({
+        planId: row.planId,
+        week: row.week,
+        session: row.session,
+        types: row.missingKinds.map((kind) => GENERATION_TYPE[kind]),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      if (!json.success) {
         throw new Error(json.error ?? "Could not prepare the missing items");
       }
       if (json.alreadyRunning === true) {

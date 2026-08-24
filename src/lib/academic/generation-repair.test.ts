@@ -98,12 +98,14 @@ describe("smart teaching-package repair", () => {
   });
 
   it("routes teacher bulk generation through the tracked per-meeting authority", () => {
-    expect(planEditor).toContain(
-      "body: JSON.stringify({ week: week.week, session, types: [type] })"
-    );
+    expect(planEditor).toContain("requestTrackedWeekGeneration({");
+    expect(planEditor).toContain("types: [type]");
     expect(planEditor).toContain(
       "No duplicate AI run was started."
     );
     expect(planEditor).not.toContain("dry_run: false");
+    expect(planEditor).not.toContain(
+      "fetch(`/api/lesson-plans/${id}/generate-week`"
+    );
   });
 });

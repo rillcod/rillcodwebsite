@@ -57,6 +57,7 @@ import {
   expandPlanWeeksForMeetings,
 } from "@/lib/academic/school-programme-standing";
 import { WEEK_CONTENT_TYPES } from "@/lib/academic/auto-generate-settings";
+import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
 import {
   hostAssessmentSit,
   isHostAssessmentWeek,
@@ -319,31 +320,24 @@ export function ClassTeachingWorkspace({
             target.meetingsInWeek
           )} · ${index + 1} of ${targets.length}…`,
         });
-        const response = await fetch(
-          `/api/lesson-plans/${plan.id}/generate-week`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              week: target.week,
-              session: target.session,
-              // The primary teacher action always prepares the complete
-              // package. Type-level repair remains available in Advanced.
-              types: WEEK_CONTENT_TYPES,
-            }),
-          }
-        );
-        const result = await response.json().catch(() => ({}));
+        const result = await requestTrackedWeekGeneration({
+          planId: plan.id,
+          week: target.week,
+          session: target.session,
+          // The primary teacher action always prepares the complete package.
+          // Type-level repair remains available in Advanced.
+          types: WEEK_CONTENT_TYPES,
+        });
         if (result.alreadyRunning === true) alreadyRunning += 1;
         generated += Number(result.generated) || 0;
         skipped += Number(result.skipped) || 0;
-        if (!response.ok || result.success === false) {
+        if (result.success === false) {
           failures.push(
             `${teachingMeetingLabel(
               target.week,
               target.session,
               target.meetingsInWeek
-            )}: ${result.error || "package generation did not finish"}`
+              )}: ${result.error || "package generation did not finish"}`
           );
           continue;
         }

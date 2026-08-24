@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { currentTermWeek } from "@/lib/academic/delivery-calendar";
+import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
 
 type Props = {
   planId: string;
@@ -65,17 +66,20 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
     setBusy(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/lesson-plans/${planId}/generate-week`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ week }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      const body = await requestTrackedWeekGeneration({ planId, week });
+      if (!body.success) {
         setMessage({
           tone: "error",
           text: body?.error || "Could not prepare this week. Please try again.",
         });
+        return;
+      }
+      if (body.alreadyRunning) {
+        setMessage({
+          tone: "ok",
+          text: `Week ${week} is still being prepared safely. Saved items will appear as they finish; no second AI run was started.`,
+        });
+        await loadProgress();
         return;
       }
       const made = Number(body?.generated ?? 0);
@@ -89,8 +93,14 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
           : `Week ${week} already had everything it needs — nothing new to prepare.`,
       });
       await loadProgress();
-    } catch {
-      setMessage({ tone: "error", text: "Could not reach the server. Please try again." });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "The connection was interrupted. Saved items are safe; refresh before retrying.",
+      });
     } finally {
       setBusy(false);
     }

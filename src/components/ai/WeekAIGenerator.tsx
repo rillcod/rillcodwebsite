@@ -22,6 +22,7 @@ import {
 } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
+import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
 import { useOverlayScrollLock } from "@/components/ui/BodyPortal";
 import {
   SparklesIcon,
@@ -78,7 +79,13 @@ interface Props {
   onClose: () => void;
 }
 
-type StepState = "pending" | "active" | "done" | "skipped" | "error";
+type StepState =
+  | "pending"
+  | "active"
+  | "continuing"
+  | "done"
+  | "skipped"
+  | "error";
 
 interface StepStatus {
   lesson: StepState;
@@ -107,6 +114,7 @@ interface Result {
 function humanStepState(state: StepState): string {
   if (state === "done") return "Ready";
   if (state === "active") return "Working…";
+  if (state === "continuing") return "Continuing safely";
   if (state === "error") return "Needs a retry";
   if (state === "skipped") return "Already there";
   return "Waiting";
@@ -132,6 +140,8 @@ function StepRow({
           ? "bg-emerald-500/10 border-emerald-500/20"
           : state === "active"
           ? "bg-primary/10 border-primary/30 ring-2 ring-primary/20"
+          : state === "continuing"
+          ? "bg-amber-500/10 border-amber-500/30"
           : state === "error"
           ? "bg-rose-500/10 border-rose-500/20"
           : state === "skipped"
@@ -153,13 +163,19 @@ function StepRow({
               ? "text-rose-700 dark:text-rose-300"
               : state === "active"
               ? "text-foreground"
+              : state === "continuing"
+              ? "text-amber-700 dark:text-amber-300"
               : "text-muted-foreground"
           }`}
         >
           {label}
         </p>
         <p className="text-[10px] text-muted-foreground/80">
-          {state === "active" ? "In progress right now" : sub}
+          {state === "active"
+            ? "In progress right now"
+            : state === "continuing"
+            ? "The server is keeping the saved work"
+            : sub}
         </p>
       </div>
       <div className="shrink-0 text-right">
@@ -168,6 +184,11 @@ function StepRow({
         )}
         {state === "active" && (
           <ArrowPathIcon className="ml-auto w-4 h-4 text-primary animate-spin" />
+        )}
+        {state === "continuing" && (
+          <span className="text-[9px] font-bold text-amber-700 dark:text-amber-300">
+            {humanStepState(state)}
+          </span>
         )}
         {state === "error" && (
           <XMarkIcon className="ml-auto w-4 h-4 text-rose-600 dark:text-rose-400" />
@@ -474,6 +495,7 @@ export default function WeekAIGenerator({
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectionUnknown, setConnectionUnknown] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [result, setResult] = useState<Result>({ skipped: [] });
@@ -537,7 +559,11 @@ export default function WeekAIGenerator({
   const stepProgress = (() => {
     const values = Object.values(status);
     const finished = values.filter(
-      (s) => s === "done" || s === "skipped" || s === "error"
+      (s) =>
+        s === "done" ||
+        s === "skipped" ||
+        s === "error" ||
+        s === "continuing"
     ).length;
     const activeBoost = values.some((s) => s === "active") ? 0.35 : 0;
     return ((finished + activeBoost) / values.length) * 100;
@@ -562,6 +588,7 @@ export default function WeekAIGenerator({
     setRunning(true);
     setDone(false);
     setError(null);
+    setConnectionUnknown(false);
     setBlocked(null);
     setLog([]);
     setLiveMessage("Getting ready for this week…");
@@ -602,27 +629,27 @@ export default function WeekAIGenerator({
       setStep("project", "active");
 
       const sessionVal = Number((week as any)?.session ?? (week as any)?.session_number ?? 0);
-      const genRes = await fetch(`/api/lesson-plans/${planId}/generate-week`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          week: week.week,
-          ...(sessionVal > 0 ? { session: Math.floor(sessionVal) } : {}),
-        }),
+      const genJson = await requestTrackedWeekGeneration({
+        planId,
+        week: week.week,
+        session: sessionVal > 0 ? Math.floor(sessionVal) : 1,
       });
-      const genJson = await genRes.json().catch(() => ({}));
-      if (!genRes.ok) {
-        throw new Error(genJson.error || "Week preparation failed");
+      if (genJson.connectionRecovered) {
+        addLog(
+          genJson.alreadyRunning
+            ? "The connection was restored. Preparation is still running safely in the background."
+            : "The connection was restored and the saved preparation result was recovered."
+        );
       }
       if (genJson.alreadyRunning === true) {
         addLog(
           "This week is already being prepared. Saved items will appear as they finish; a second generation was not started."
         );
-        setStep("lesson", "skipped");
-        setStep("slides", "skipped");
-        setStep("flashcard", "skipped");
-        setStep("assignment", "skipped");
-        setStep("project", "skipped");
+        setStep("lesson", "continuing");
+        setStep("slides", "continuing");
+        setStep("flashcard", "continuing");
+        setStep("assignment", "continuing");
+        setStep("project", "continuing");
         setDone(true);
         setLiveMessage("Preparation is already running safely.");
         onDone?.({});
@@ -751,13 +778,27 @@ export default function WeekAIGenerator({
         projectId: verified.projectId,
       });
     } catch (e: any) {
-      setError(e.message);
-      addLog(`Something went wrong: ${e.message}`);
-      setStep("lesson", "error");
-      setStep("slides", "error");
-      setStep("flashcard", "error");
-      setStep("assignment", "error");
-      setStep("project", "error");
+      const message =
+        e?.message ||
+        "The connection was interrupted. Saved items are safe; refresh this week before retrying.";
+      setError(message);
+      addLog(`Preparation needs attention: ${message}`);
+      if (e?.connectionInterrupted === true) {
+        setConnectionUnknown(true);
+        setLiveMessage("The connection ended; preparation may still be continuing safely.");
+        setStep("lesson", "continuing");
+        setStep("slides", "continuing");
+        setStep("flashcard", "continuing");
+        setStep("assignment", "continuing");
+        setStep("project", "continuing");
+        onDone?.({});
+      } else {
+        setStep("lesson", "error");
+        setStep("slides", "error");
+        setStep("flashcard", "error");
+        setStep("assignment", "error");
+        setStep("project", "error");
+      }
     } finally {
       setRunning(false);
     }
@@ -938,7 +979,9 @@ export default function WeekAIGenerator({
               events={log}
               liveMessage={
                 done
-                  ? "This week’s package is ready for you to review."
+                  ? Object.values(status).some((state) => state === "continuing")
+                    ? "Preparation is continuing safely. Saved items will appear as they finish."
+                    : "This week’s package is ready for you to review."
                   : liveMessage
               }
               progress={done ? 100 : stepProgress}
@@ -1060,8 +1103,8 @@ export default function WeekAIGenerator({
           )}
 
           {error && (
-            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3.5">
-              <p className="text-xs font-semibold leading-5 text-rose-600 dark:text-rose-400">
+            <div className={`rounded-2xl border px-4 py-3.5 ${connectionUnknown ? "border-amber-500/30 bg-amber-500/10" : "border-rose-500/20 bg-rose-500/10"}`}>
+              <p className={`text-xs font-semibold leading-5 ${connectionUnknown ? "text-amber-700 dark:text-amber-300" : "text-rose-600 dark:text-rose-400"}`}>
                 {error}
               </p>
             </div>
@@ -1094,7 +1137,7 @@ export default function WeekAIGenerator({
           )}
           {(done || error) && (
             <>
-              {error && (
+              {error && !connectionUnknown && (
                 <button
                   type="button"
                   onClick={run}

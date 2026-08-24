@@ -2484,3 +2484,47 @@ Verification and boundaries:
   journey), `5dc2406d` (missing-only generation and approval), and `ed8d6579` (single class-plan
   creation authority for teachers and automation), plus `ce9f6c11` (teacher bulk actions routed
   through tracked repair).
+
+### 16.23 Week-generator connection recovery milestone — typechecked locally on 24 August 2026
+
+Confirmed failure mechanism:
+
+- preparing one complete week is a long request because the central server path may prepare five
+  content kinds in sequence. A browser, proxy, or changing mobile connection can end that request
+  after the server has already claimed the run and saved some or all content;
+- the main generator sheet previously converted that transport error into five red failures and
+  exposed the browser wording “Failed to fetch”. Other week-generation buttons used their own
+  success/error interpretation, so the same durable server run could look different by screen;
+- immediately pressing Try again was unsafe UX: the server might still be working, and the teacher
+  could not distinguish a disconnected browser from a failed AI engine.
+
+Implemented:
+
+- added a read-only `GET /api/lesson-plans/[id]/generate-week` handshake. It applies the same
+  teacher/admin and class ownership guard as generation, reads the durable run for the exact
+  plan/week/session, and inventories which package types are still missing. It never starts AI work;
+- recovery status is limited to the request's start window so an old successful run cannot be
+  mistaken for the request whose connection just ended;
+- added one client authority, `requestTrackedWeekGeneration`, for the generator sheet, class
+  workspace, This Week panel, approval repair, complete-package action, and type-level bulk action;
+- when the POST connection ends, the client performs only short read-only status checks. A running
+  claim is shown as continuing safely, a completed result is recovered, and neither case starts a
+  second paid generation request;
+- if both the generation connection and status reads remain unavailable, the interface says that
+  preparation may still be running and saved items are safe. All five cards show **Continuing
+  safely**, and the immediate Try again action is withheld until the teacher refreshes the week;
+- authoritative API refusals such as an unpublished plan or an out-of-scope class remain visible and
+  are not disguised as connection recovery.
+
+Verification and boundaries:
+
+- four focused suites passed: 4 files and 16 tests, including dropped-POST recovery, delayed run
+  claim, successful saved-result recovery, authoritative HTTP refusal, unavailable status, all
+  customer entry-point routing, missing-only repair, and concurrent-run protection;
+- `npm run typecheck` passed;
+- browser visual proof was attempted. The existing local Next development process was registered on
+  port 3000 but did not answer within 20 seconds, and Next refused a second server because PID 17724
+  already owned the workspace. The process was not terminated without the user's direction, so no
+  visual interaction is claimed;
+- no database migration, production build, score/evidence mutation, or remote push was performed in
+  this milestone.

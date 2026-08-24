@@ -42,6 +42,7 @@ import {
   parseAutoGenerateSettings,
   type AutoGenerateSettings,
 } from "@/lib/academic/auto-generate-settings";
+import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import {
   buildAddLessonQueryFromCurriculum,
@@ -1299,19 +1300,15 @@ export default function LessonPlanDetailPage() {
           total: weeks.length,
           status: `Week ${week.week}${session > 1 ? ` · Session ${session}` : ""}: preparing all learning content`,
         });
-        const response = await fetch(`/api/lesson-plans/${id}/generate-week`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            week: week.week,
-            session,
-            types: WEEK_CONTENT_TYPES,
-          }),
+        const result = await requestTrackedWeekGeneration({
+          planId: id,
+          week: week.week,
+          session,
+          types: WEEK_CONTENT_TYPES,
         });
-        const result = await response.json().catch(() => ({}));
         generated += Number(result.generated) || 0;
         skipped += Number(result.skipped) || 0;
-        if (!response.ok || result.success === false) {
+        if (result.success === false) {
           failures.push(`Week ${week.week}: ${result.error || "package generation did not finish"}`);
         } else if (Array.isArray(result.failedTypes) && result.failedTypes.length > 0) {
           failures.push(`Week ${week.week}: ${result.failedTypes.join(", ")} still need attention`);
@@ -1376,19 +1373,19 @@ export default function LessonPlanDetailPage() {
           total: weeks.length,
           status: `Week ${week.week}${session > 1 ? ` · Session ${session}` : ""}: checking existing ${type}`,
         });
-        const response = await fetch(`/api/lesson-plans/${id}/generate-week`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ week: week.week, session, types: [type] }),
+        const result = await requestTrackedWeekGeneration({
+          planId: id,
+          week: week.week,
+          session,
+          types: [type],
         });
-        const result = await response.json().catch(() => ({}));
         if (result.alreadyRunning === true) {
           alreadyRunning++;
           continue;
         }
         generated += Number(result.generated) || 0;
         skipped += Number(result.skipped) || 0;
-        if (!response.ok || result.success === false) {
+        if (result.success === false) {
           failures.push(
             `Week ${week.week}: ${result.error || `${type} did not finish`}`
           );
