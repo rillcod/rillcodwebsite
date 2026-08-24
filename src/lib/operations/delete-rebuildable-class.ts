@@ -113,6 +113,9 @@ export async function deleteRebuildableClass(input: {
     .eq('role', 'student');
   const { error: deleteError } = await input.admin.from('classes').delete().eq('id', input.classId);
   if (deleteError) {
+    if (deleteError.message?.includes('PROTECTED_ACADEMIC_EVIDENCE')) {
+      return { ok: false, status: 409, error: PROTECTED_CLASS_DELETE_MESSAGE, code: 'PROTECTED_ACADEMIC_EVIDENCE' };
+    }
     return {
       ok: false,
       status: deleteError.code === '23503' ? 409 : 500,
@@ -144,9 +147,9 @@ export async function classHasProtectedAcademicEvidence(
   classId: string,
 ): Promise<boolean> {
   const [assignments, cbtExams, writtenExams, reports, termGrades, evidence] = await Promise.all([
-    admin.from('assignments').select('id').eq('class_id', classId),
-    admin.from('cbt_exams').select('id').eq('class_id', classId),
-    admin.from('exams').select('id').eq('class_id', classId),
+    admin.from('assignments').select('id').or(`class_id.eq.${classId},metadata->>target_class_id.eq.${classId}`),
+    admin.from('cbt_exams').select('id').or(`class_id.eq.${classId},metadata->>target_class_id.eq.${classId}`),
+    admin.from('exams').select('id').or(`class_id.eq.${classId},metadata->>target_class_id.eq.${classId}`),
     admin.from('student_progress_reports')
       .select('is_published,calculation_mode,theory_score,practical_score,attendance_score,participation_score,overall_score')
       .eq('class_id', classId),

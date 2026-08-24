@@ -83,6 +83,21 @@ async function main() {
     missingByType[type] = (missingByType[type] ?? 0) + 1;
   }
 
+  const legacyMetadataTargets = [
+    ...submissions.map((row) => ({
+      evidence_type: 'assignment_submission',
+      parent: row.assignment_id ? maps.assignment_submission.get(row.assignment_id) : null,
+    })),
+    ...cbtSessions.map((row) => ({
+      evidence_type: 'cbt_session',
+      parent: row.exam_id ? maps.cbt_session.get(row.exam_id) : null,
+    })),
+    ...examAttempts.map((row) => ({
+      evidence_type: 'exam_attempt',
+      parent: row.exam_id ? maps.exam_attempt.get(row.exam_id) : null,
+    })),
+  ].filter((row) => !row.parent?.class_id && typeof row.parent?.metadata?.target_class_id === 'string');
+
   const relevant = evidence.filter((row) => row.evidence_type in maps);
   const resultRelevant = relevant.filter((row) => {
     if (row.evidence_type === 'assignment_submission') {
@@ -150,6 +165,7 @@ async function main() {
   console.log(`Source-context drift by type: ${JSON.stringify(grouped(drifted, () => true))}`);
   console.log(`Orphaned by type: ${JSON.stringify(grouped(orphaned, () => true))}`);
   console.log(`Missing evidence by type: ${JSON.stringify(missingByType)}`);
+  console.log(`Legacy metadata-only class targets by type: ${JSON.stringify(grouped(legacyMetadataTargets, () => true))}`);
   console.log('');
 
   const actionableOrphans = orphaned.filter(row => row.context_status !== 'legacy_unscoped');

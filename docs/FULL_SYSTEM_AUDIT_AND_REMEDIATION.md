@@ -2794,3 +2794,58 @@ Verification and deployment boundary:
 - the production evidence audit was aggregate-only and read-only. Migration 106 is local and has not
   been applied to production. No database row, learner attempt, answer, score, feedback, moderation,
   report, finance record or remote branch was changed in this milestone.
+
+### 16.29 Class, programme and account-retention agreement — verified locally and audited live read-only on 24 August 2026
+
+Confirmed retention gaps:
+
+- class deletion already protected assignment submissions, CBT sittings, written attempts, scored or
+  manual reports, moderated term grades and central evidence in both the application preflight and
+  atomic database function;
+- programme deletion did not have the same coverage. Its learner-work check ran only when at least
+  one class row still existed and then inspected those classes. Course/programme-scoped submissions,
+  attempts or reports could be missed after a class was removed or when legacy work had never gained
+  a class link;
+- a second legacy shape stores an exact class only as `metadata.target_class_id`. The class preflight
+  queried only the canonical `class_id`, so an old metadata-targeted assessment needed an additional
+  compatibility guard until staff resolves it;
+- account cleanup now protects written attempts, but report drafts explicitly authored in manual mode
+  also need retention even when every numeric score is still empty. Manual mode represents a human
+  academic decision, not disposable generated content.
+
+Implemented agreement and fail-closed behavior:
+
+- programme evidence is now checked directly through programme, course, class and enrollment
+  identities. Protected sources include submitted assignment work, CBT sessions, written attempts,
+  published/manual/scored reports, enrollment term grades and central assessment evidence. Empty
+  assessment definitions remain rebuildable and do not falsely lock development cleanup;
+- the programme API no longer gates that check on `usage.classes > 0`. When learner work exists it
+  retires the programme (`is_active=false`) instead of deleting it. A foreign-key or database
+  retention race also converges on the same professional retire response and an auditable reason;
+- migration `20260929000107_protect_programmes_with_learner_evidence.sql` adds the matching database
+  backstop. Direct SQL cannot delete a programme while those learner records survive, even if an
+  application path is stale;
+- the class preflight now resolves both canonical `class_id` and exact legacy
+  `metadata.target_class_id` for assignments, CBT and written exams. Migration
+  `20260929000108_protect_legacy_class_target_evidence.sql` adds a complementary class-delete trigger;
+  because it runs inside the atomic delete transaction, any earlier roster detach is rolled back when
+  protected legacy evidence is found;
+- account/report retention now treats `calculation_mode=manual` as protected progress-report evidence.
+  Every evidence lookup fails closed: a database inspection error returns a retryable professional
+  message and performs no delete;
+- the aggregate production audit now reports metadata-only class targets separately. The live
+  read-only run found zero such targets, so migration 108 is preventive rather than a claim that live
+  learner rows were repaired.
+
+Verification and deployment boundary:
+
+- three focused suites passed: 3 files and 12 tests covering programme evidence without a class,
+  written attempts, empty definitions, query failure, manual reports, legacy metadata targets and
+  application/database policy agreement;
+- the linked Supabase dry run completed without writes and confirmed migrations 103 through 108 as
+  the ordered pending set;
+- the live aggregate evidence totals remain unchanged: 57 rows, 49 CBT and two assignment rows still
+  unresolved, four orphaned legacy assignment rows preserved, no missing source evidence, no written
+  attempts and no metadata-only class targets;
+- migrations 107 and 108 are local and have not been applied to production. No class, programme,
+  account, score, attempt, report, finance record, database row or remote branch was changed.

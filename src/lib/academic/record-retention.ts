@@ -92,6 +92,7 @@ export function hasWrittenExamAttemptEvidence(
 }
 
 export type ProgressReportEvidence = {
+  calculation_mode?: unknown;
   is_published?: unknown;
   published_at?: unknown;
   overall_score?: unknown;
@@ -127,6 +128,7 @@ export function certificateIsRevoked(row: CertificateAwardEvidence | null | unde
 export function hasProtectedProgressReportEvidence(row: ProgressReportEvidence | null | undefined): boolean {
   if (!row) return false;
   return row.is_published === true
+    || String(row.calculation_mode ?? '').toLowerCase() === 'manual'
     || Boolean(row.published_at)
     || row.overall_score != null
     || row.participation_score != null

@@ -32,6 +32,7 @@ describe('protected academic evidence checks', () => {
           { id: 'report-1', is_published: true },
           { id: 'report-2', overall_score: 0 },
           { id: 'report-3', theory_score: 42 },
+          { id: 'report-4', calculation_mode: 'manual' },
           { id: 'report-draft', is_published: false },
         ],
         error: null,
@@ -46,9 +47,9 @@ describe('protected academic evidence checks', () => {
       assignmentScores: 2,
       cbtScores: 1,
       writtenExamAttempts: 1,
-      progressReports: 3,
+      progressReports: 4,
       moderatedTermGrades: 0,
-      total: 7,
+      total: 8,
     });
   });
 

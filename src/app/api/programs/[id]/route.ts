@@ -250,7 +250,7 @@ export async function DELETE(
     let hasLearnerWork = false;
     try {
       usage = await loadProgrammeOperationalUse(db as any, id);
-      hasLearnerWork = usage.classes > 0 && await programmeHasProtectedLearnerWork(db as any, id);
+      hasLearnerWork = await programmeHasProtectedLearnerWork(db as any, id);
     } catch (cause: any) {
       console.error('[programs.delete] use preflight failed', { programId: id, code: cause?.code });
       return NextResponse.json({ error: 'Programme records could not be verified. Nothing was changed; please retry.' }, { status: 503 });
@@ -290,11 +290,26 @@ export async function DELETE(
     const { error } = await db.from('programs').delete().eq('id', id);
     if (error) {
       console.error('[programs.delete] delete failed', { programId: id, code: error.code });
+      const protectedDelete = error.code === '23503'
+        || error.message?.includes('PROTECTED_PROGRAMME_EVIDENCE');
+      if (protectedDelete) {
+        const { error: retireError } = await db.from('programs').update({ is_active: false }).eq('id', id);
+        if (retireError) {
+          return NextResponse.json({ error: 'The programme could not be turned off. Please retry.' }, { status: 500 });
+        }
+        await logAudit(db as any, {
+          action: 'program.retire_after_delete_guard',
+          actorId: caller.id,
+          resourceType: 'programs',
+          resourceId: id,
+          oldValues: existing,
+          newValues: { is_active: false, reason: 'protected_operational_record' },
+        });
+        return NextResponse.json({ success: true, retired: true, message: PROGRAMME_RETIRED_MESSAGE });
+      }
       return NextResponse.json({
-        error: error.code === '23503'
-          ? PROGRAMME_RETIRED_MESSAGE
-          : 'The programme could not be removed safely. Nothing was changed; please retry.',
-      }, { status: error.code === '23503' ? 409 : 500 });
+        error: 'The programme could not be removed safely. Nothing was changed; please retry.',
+      }, { status: 500 });
     }
 
     await logAudit(db as any, {
