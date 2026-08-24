@@ -35,6 +35,22 @@ describe('linked learner attendance', () => {
     });
   });
 
+  it('credits late attendance and removes excused sessions from the denominator', () => {
+    expect(resolveLinkedLearnerAttendance([], ['present', 'late', 'absent', 'excused'])).toEqual({
+      rate: 66.7,
+      source: 'manual_roll',
+      recordCount: 4,
+    });
+  });
+
+  it('does not describe an entirely excused roll as zero attendance', () => {
+    expect(resolveLinkedLearnerAttendance([], ['excused', 'excused'])).toEqual({
+      rate: null,
+      source: 'manual_roll',
+      recordCount: 2,
+    });
+  });
+
   it('uses sparse session roll when no score-entry backfill exists', () => {
     expect(resolveLinkedLearnerAttendance([], ['present', 'absent'], { minRollRecords: 3 })).toEqual({
       rate: 50,

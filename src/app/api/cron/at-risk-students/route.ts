@@ -7,6 +7,7 @@ import { cronInterval } from '@/lib/operations/cron-registry';
 import { fanoutCrons } from '@/lib/server/cron-fanout';
 import { loadTermWindow } from '@/lib/notifications/term-window';
 import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -203,13 +204,11 @@ async function handleRequest(req: NextRequest) {
 
   const activeIds = new Set((activityRes.data ?? []).map((r: any) => r.portal_user_id));
 
-  const attAgg: Record<string, { present: number; total: number }> = {};
+  const attAgg: Record<string, string[]> = {};
   for (const a of ((attendanceRes.data ?? []) as any[]).filter((row) =>
     !liveTermId || row.term_id === liveTermId || !row.term_id,
   )) {
-    (attAgg[a.student_id] ??= { present: 0, total: 0 });
-    attAgg[a.student_id].total += 1;
-    if (a.status === 'present') attAgg[a.student_id].present += 1;
+    (attAgg[a.student_id] ??= []).push(a.status);
   }
 
   // 3. Score each student.
@@ -226,9 +225,12 @@ async function handleRequest(req: NextRequest) {
     }
     if (!activeIds.has(s.id)) { score += 2; reasons.push('No lesson activity in 14 days'); }
     const att = attAgg[s.id];
-    if (att && att.total > 0) {
-      const rate = Math.round((att.present / att.total) * 100);
-      if (rate < 60) { score += 1; reasons.push(`Low attendance (${rate}%)`); }
+    if (att && att.length > 0) {
+      const measuredRate = measuredAttendancePercentage(att);
+      if (measuredRate != null) {
+        const rate = Math.round(measuredRate);
+        if (rate < 60) { score += 1; reasons.push(`Low attendance (${rate}%)`); }
+      }
     }
 
     if (score >= 2) {

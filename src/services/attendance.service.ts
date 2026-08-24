@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 export interface AttendanceInput {
     session_id: string;
@@ -167,11 +168,11 @@ export class AttendanceService {
             return 0;
         }
 
-        const total = sessionIds.length;
-        // 'present' and 'late' usually count towards presence, 'excused' might not be a pure absence but let's just count present + late
-        const presentCount = attendances.filter(a => a.status === 'present' || a.status === 'late').length;
-
-        return Math.round((presentCount / total) * 100) || 0;
+        const measuredAttendance = measuredAttendancePercentage(
+            attendances.map(a => a.status),
+            sessionIds.length,
+        );
+        return measuredAttendance == null ? 0 : Math.round(measuredAttendance);
     }
 }
 

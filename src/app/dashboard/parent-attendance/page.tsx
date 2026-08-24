@@ -5,6 +5,7 @@ import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardDocumentCheckIcon, AcademicCapIcon } from '@/lib/icons';
 import { toast } from 'sonner';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 interface Child { id: string; full_name: string; school_name: string | null }
 interface AttendanceRecord {
@@ -127,13 +128,14 @@ function AttendanceRing({ pct }: { pct: number }) {
 function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
   const weeks = useMemo(() => {
     // Build a map of week → counts
-    const map: Record<string, { present: number; absent: number; late: number; key: string }> = {};
+    const map: Record<string, { present: number; absent: number; late: number; excused: number; key: string }> = {};
     records.forEach(r => {
       const k = isoWeekKey(r.date);
-      if (!map[k]) map[k] = { present: 0, absent: 0, late: 0, key: k };
+      if (!map[k]) map[k] = { present: 0, absent: 0, late: 0, excused: 0, key: k };
       if (r.status === 'present') map[k].present++;
       else if (r.status === 'absent') map[k].absent++;
       else if (r.status === 'late') map[k].late++;
+      else if (r.status === 'excused') map[k].excused++;
     });
 
     // Sort by key desc, take last 8, then reverse to chronological
@@ -147,7 +149,7 @@ function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
 
   if (weeks.length === 0) return null;
 
-  const maxTotal = Math.max(...weeks.map(w => w.present + w.absent + w.late), 1);
+  const maxTotal = Math.max(...weeks.map(w => w.present + w.absent + w.late + w.excused), 1);
 
   return (
     <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
@@ -160,6 +162,7 @@ function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
           { label: 'Present', color: 'bg-emerald-500' },
           { label: 'Absent', color: 'bg-rose-500' },
           { label: 'Late', color: 'bg-amber-500' },
+          { label: 'Excused', color: 'bg-primary' },
         ].map(({ label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span className={`w-2.5 h-2.5 rounded-sm ${color}`} />
@@ -169,11 +172,11 @@ function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
       </div>
       <div className="space-y-2.5">
         {weeks.map((w, idx) => {
-          const total = w.present + w.absent + w.late;
+          const total = w.present + w.absent + w.late + w.excused;
           const pPct = total > 0 ? (w.present / maxTotal) * 100 : 0;
           const aPct = total > 0 ? (w.absent / maxTotal) * 100 : 0;
           const lPct = total > 0 ? (w.late / maxTotal) * 100 : 0;
-          const barPct = (total / maxTotal) * 100;
+          const ePct = total > 0 ? (w.excused / maxTotal) * 100 : 0;
           return (
             <div key={w.key} className="flex items-center gap-3">
               <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground w-8 shrink-0 text-right">
@@ -200,6 +203,13 @@ function WeeklyBreakdownChart({ records }: { records: AttendanceRecord[] }) {
                     className="h-full bg-amber-500 transition-all duration-500"
                     style={{ width: `${lPct}%` }}
                     title={`Late: ${w.late}`}
+                  />
+                )}
+                {w.excused > 0 && (
+                  <div
+                    className="h-full bg-primary transition-all duration-500"
+                    style={{ width: `${ePct}%` }}
+                    title={`Excused: ${w.excused}`}
                   />
                 )}
               </div>
@@ -274,7 +284,8 @@ function ParentAttendanceContent() {
   const absentCount = records.filter(r => r.status === 'absent').length;
   const lateCount = records.filter(r => r.status === 'late').length;
   const excusedCount = records.filter(r => r.status === 'excused').length;
-  const attendancePct = records.length > 0 ? Math.round((presentCount / records.length) * 100) : null;
+  const measuredAttendance = measuredAttendancePercentage(records.map(r => r.status));
+  const attendancePct = measuredAttendance == null ? null : Math.round(measuredAttendance);
 
   const filteredRecords = statusFilter === 'all'
     ? records
@@ -345,16 +356,17 @@ function ParentAttendanceContent() {
                       <div className="text-[9px] text-muted-foreground">
                         {attendancePct >= 80 ? 'Excellent attendance' : attendancePct >= 60 ? 'Needs improvement' : 'Poor attendance'}
                       </div>
+                      <div className="text-[9px] text-muted-foreground">Late counts as attended; excused days are not counted against the learner.</div>
                     </div>
 
                     {/* Present */}
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Present</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">On time</span>
                       </div>
                       <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{presentCount}</div>
-                      <div className="text-[9px] text-muted-foreground">days attended</div>
+                      <div className="text-[9px] text-muted-foreground">days present on time</div>
                     </div>
 
                     {/* Absent */}
@@ -374,7 +386,7 @@ function ParentAttendanceContent() {
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Late</span>
                       </div>
                       <div className="text-3xl font-black text-amber-600 dark:text-amber-400">{lateCount}</div>
-                      <div className="text-[9px] text-muted-foreground">days late</div>
+                      <div className="text-[9px] text-muted-foreground">days late · included in attendance</div>
                     </div>
 
                     {/* Excused */}

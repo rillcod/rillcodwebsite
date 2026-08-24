@@ -59,6 +59,21 @@ export function attendanceRate(
     attended,
     counted,
     excused,
-    percentage: counted > 0 ? Math.round((attended / counted) * 10000) / 100 : 0,
+    // Defensive cap: historical duplicate rows must not produce a public rate
+    // above 100 while their source data is being reconciled.
+    percentage: counted > 0 ? Math.min(100, Math.round((attended / counted) * 10000) / 100) : 0,
   };
+}
+
+/**
+ * Public percentage when at least one session can fairly be measured.
+ * `null` means "not measured", not zero attendance (for example, every
+ * recorded session was excused).
+ */
+export function measuredAttendancePercentage(
+  statuses: (string | null | undefined)[],
+  heldSessions?: number
+): number | null {
+  const summary = attendanceRate(statuses, heldSessions);
+  return summary.counted > 0 ? summary.percentage : null;
 }

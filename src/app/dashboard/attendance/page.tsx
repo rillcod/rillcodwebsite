@@ -16,6 +16,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import { buildSessionSuggestion, reusePreviousAttendanceStatuses, sortSessionsNewestFirst } from '@/lib/attendance/predictive-entry';
+import { attendanceRate } from '@/lib/attendance/policy';
 import { pickTimetableSessionForMeeting, schoolCalendarDate } from '@/lib/timetable/sessions-from-slots';
 
 // Extract a scannable student code from a QR value. Handles the current card URL
@@ -342,15 +343,16 @@ function AttendanceContent() {
     const rows = students.map(student => {
       const studentRecords = fullAttendanceData.filter(d => d.user_id === student.id);
       const total = sessions.length;
-      const present = studentRecords.filter(r => r.status === 'present').length;
-      const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+      const summary = attendanceRate(studentRecords.map(r => r.status), total);
+      const rate = summary.counted > 0 ? Math.round(summary.percentage) : null;
+      const rateColor = rate == null ? '#64748b' : rate >= 75 ? '#10b981' : '#f43f5e';
 
       return `
         <tr>
           <td><strong>${student.full_name}</strong><br/><small>${student.email}</small></td>
           <td style="text-align:center">${total}</td>
-          <td style="text-align:center; color: #10b981;">${present}</td>
-          <td style="text-align:center; font-weight: bold; color: ${rate >= 75 ? '#10b981' : '#f43f5e'};">${rate}%</td>
+          <td style="text-align:center; color: #10b981;">${summary.attended}</td>
+          <td style="text-align:center; font-weight: bold; color: ${rateColor};">${rate == null ? 'Not measured' : `${rate}%`}</td>
         </tr>
       `;
     }).join('');
@@ -374,7 +376,7 @@ function AttendanceContent() {
       </head>
       <body>
         <div class="header">
-          <div class="brand">RILLCOD <span>ACADEMY</span></div>
+          <div class="brand">RILLCOD <span>TECHNOLOGIES</span></div>
           <h1>Attendance Summary Report</h1>
           <p>Class: ${clsName} | Generated: ${new Date().toLocaleDateString()}</p>
         </div>
@@ -383,7 +385,7 @@ function AttendanceContent() {
             <tr>
               <th>Student Name</th>
               <th style="text-align:center">Sessions</th>
-              <th style="text-align:center">Present</th>
+              <th style="text-align:center">Attended</th>
               <th style="text-align:center">Attendance %</th>
             </tr>
           </thead>
@@ -409,10 +411,17 @@ function AttendanceContent() {
     const rows = students.map(student => {
       const att = attendance[student.id] ?? { status: 'present', notes: '' };
       const cfg = STATUS_CONFIG[att.status] ?? STATUS_CONFIG.present;
+      const statusColor = att.status === 'present'
+        ? '#10b981'
+        : att.status === 'late'
+          ? '#d97706'
+          : att.status === 'excused'
+            ? '#2563eb'
+            : '#f43f5e';
       return `
         <tr>
           <td><strong>${student.full_name}</strong><br/><small>${student.email}</small></td>
-          <td style="text-align:center; font-weight: bold; color: ${att.status === 'present' ? '#10b981' : '#f43f5e'}; text-transform: uppercase; font-size: 11px;">${cfg.label}</td>
+          <td style="text-align:center; font-weight: bold; color: ${statusColor}; text-transform: uppercase; font-size: 11px;">${cfg.label}</td>
           <td>${att.notes || '—'}</td>
         </tr>
       `;
@@ -437,7 +446,7 @@ function AttendanceContent() {
       </head>
       <body>
         <div class="header">
-          <div class="brand">RILLCOD <span>ACADEMY</span></div>
+          <div class="brand">RILLCOD <span>TECHNOLOGIES</span></div>
           <h1>Session Attendance Report</h1>
           <p>Class: ${clsName} | Topic: ${currentSession.topic || '—'} | Date: ${new Date(currentSession.session_date).toLocaleDateString()}</p>
         </div>
@@ -770,8 +779,9 @@ function AttendanceContent() {
 
   // ── STUDENT VIEW ─────────────────────────────────────────────────────────
   if (!isStaff) {
-    const present = myAttendance.filter(a => a.status === 'present').length;
-    const rate = myAttendance.length ? Math.round((present / myAttendance.length) * 100) : 0;
+    const myAttendanceSummary = attendanceRate(myAttendance.map(a => a.status));
+    const present = myAttendanceSummary.attended;
+    const rate = myAttendanceSummary.counted > 0 ? Math.round(myAttendanceSummary.percentage) : null;
     return (
       <div className="min-h-screen bg-background text-foreground mobile-page-root">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -795,8 +805,8 @@ function AttendanceContent() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Total Sessions', value: myAttendance.length, color: 'text-teal-600 dark:text-teal-400' },
-              { label: 'Present', value: present, color: 'text-emerald-600 dark:text-emerald-400' },
-              { label: 'Attendance Rate', value: `${rate}%`, color: rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' },
+              { label: 'Attended', value: present, color: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Attendance Rate', value: rate == null ? 'Not measured' : `${rate}%`, color: rate == null ? 'text-muted-foreground' : rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' },
             ].map(s => (
               <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl text-center">
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
@@ -1281,17 +1291,17 @@ function AttendanceContent() {
                   const absent = vals.filter((a: any) => a.status === 'absent').length;
                   const late = vals.filter((a: any) => a.status === 'late').length;
                   const excused = vals.filter((a: any) => a.status === 'excused').length;
-                  const total = vals.length;
-                  const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+                  const summary = attendanceRate(vals.map((a: any) => a.status));
+                  const rate = summary.counted > 0 ? Math.round(summary.percentage) : null;
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-5 border-b border-border">
                       <div className="bg-background border border-border p-3">
-                        <p className={`text-xl font-black ${rate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : rate >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate}%</p>
+                        <p className={`text-xl font-black ${rate == null ? 'text-muted-foreground' : rate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : rate >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate == null ? 'Not measured' : `${rate}%`}</p>
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Attendance Rate</p>
                       </div>
                       <div className="bg-background border border-border p-3">
                         <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{present}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Present</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">On time</p>
                       </div>
                       <div className="bg-background border border-border p-3">
                         <div className="flex items-center gap-1.5">
@@ -1388,8 +1398,8 @@ function AttendanceContent() {
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Student Information</th>
-                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Present</th>
-                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Late/Excused</th>
+                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Attended</th>
+                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Late / Excused</th>
                     <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Attendance %</th>
                     <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Status</th>
                   </tr>
@@ -1397,11 +1407,10 @@ function AttendanceContent() {
                 <tbody className="divide-y divide-border">
                   {students.map(student => {
                     const studentRecords = fullAttendanceData.filter(d => d.user_id === student.id);
-                    const present = studentRecords.filter(r => r.status === 'present').length;
-                    const late = studentRecords.filter(r => r.status === 'late' || r.status === 'excused').length;
-                    const absenteeism = studentRecords.filter(r => r.status === 'absent').length;
-                    const total = sessions.length;
-                    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+                    const summary = attendanceRate(studentRecords.map(r => r.status), sessions.length);
+                    const late = studentRecords.filter(r => r.status === 'late').length;
+                    const excused = studentRecords.filter(r => r.status === 'excused').length;
+                    const rate = summary.counted > 0 ? Math.round(summary.percentage) : null;
 
                     return (
                       <tr key={student.id} className="hover:bg-muted/30 transition-colors">
@@ -1410,23 +1419,25 @@ function AttendanceContent() {
                           <div className="text-[10px] text-muted-foreground font-medium">{student.email}</div>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{present}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{summary.attended}</span>
                           <span className="text-muted-foreground mx-1">/</span>
-                          <span className="text-muted-foreground">{total}</span>
+                          <span className="text-muted-foreground">{summary.counted}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className="text-amber-600 dark:text-amber-400 font-bold">{late}</span>
+                          <span className="text-amber-600 dark:text-amber-400 font-bold" title={`${late} late, ${excused} excused`}>{late} / {excused}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex flex-col items-center gap-1.5">
-                            <span className={`text-sm font-black ${rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate}%</span>
+                            <span className={`text-sm font-black ${rate == null ? 'text-muted-foreground' : rate >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{rate == null ? 'Not measured' : `${rate}%`}</span>
                             <div className="w-16 h-1 bg-card shadow-sm rounded-full overflow-hidden">
-                              <div className={`h-full ${rate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
+                              <div className={`h-full ${rate != null && rate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate ?? 0}%` }} />
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {rate >= 75 ? (
+                          {rate == null ? (
+                            <span className="px-2 py-1 bg-muted text-muted-foreground text-[10px] font-black uppercase rounded-xl border border-border">Not measured</span>
+                          ) : rate >= 75 ? (
                             <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase rounded-xl border border-emerald-500/20">Good Standing</span>
                           ) : rate >= 50 ? (
                             <span className="px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase rounded-xl border border-amber-500/20">At Risk</span>

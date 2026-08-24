@@ -10,6 +10,7 @@ import { getParentLinkScope } from '@/lib/parents/links';
 import { resolveOptedInUsers } from '@/lib/notifications/opt-in';
 import { loadTermWindow } from '@/lib/notifications/term-window';
 import { optionalStudentPortalUserId, studentDisplayName } from '@/lib/supabase/id-contract';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,9 +128,10 @@ async function handleRequest(req: NextRequest) {
         continue;
       }
 
-      const attendanceRate = attendance.data?.length
-        ? Math.round((attendance.data.filter((a: { status: string }) => a.status === 'present').length / attendance.data.length) * 100)
-        : null;
+      const measuredAttendance = measuredAttendancePercentage(
+        attendance.data?.map((a: { status: string }) => a.status) ?? [],
+      );
+      const attendanceRate = measuredAttendance == null ? null : Math.round(measuredAttendance);
       const xp = (points.data ?? []).reduce((s: number, p: { points?: number }) => s + (Number(p.points) || 0), 0);
 
       studentSummaries.push({

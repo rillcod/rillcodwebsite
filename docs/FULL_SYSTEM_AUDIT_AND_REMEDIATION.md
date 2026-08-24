@@ -3049,3 +3049,59 @@ Verification and deployment boundary:
   Migration 111 remains local/pending and is not active in production;
 - no learner score, source evidence, report row, ownership, family message, finance record, database
   row or remote branch was changed while verifying this milestone.
+
+### 16.33 One attendance policy across teaching, reporting and automation — verified locally on 24 August 2026
+
+Confirmed cross-system defects:
+
+- the shared policy already defined **present + late = attended**, **excused = removed from the
+  denominator**, and **absent = missed**, but only some consumers used it. The main Attendance page,
+  Parent attendance, Parent portal, school overview, leaderboard, school report book, promotion
+  evidence, weekly family summary, at-risk automation and the attendance service each retained a
+  separate formula or label;
+- several paths credited only `present`, while others credited `present` and `late` but still divided
+  by excused sessions. The same learner could therefore have different percentages in the report
+  book, family portal, promotion decision, leaderboard and school dashboard;
+- an entirely excused roll appeared as 0% in customer screens and could be classified as poor,
+  critical or at risk even though the policy says those sessions must not count against the learner;
+- the parent activity feed described every non-present status as **Missed**, including late arrivals
+  and authorised absences. Weekly parent charts omitted excused days, and attendance printouts still
+  carried the obsolete **Rillcod Academy** name;
+- historical duplicate attendance records could produce a public percentage above 100 when the
+  number of attended rows exceeded the held-session denominator.
+
+Implemented one product-wide interpretation:
+
+- all ten major consumers now call `src/lib/attendance/policy.ts`; no dashboard, report or scheduled
+  risk/summary flow in this set keeps an independent percentage formula. The central SQL calculator
+  already mirrors the same present/late/excused rule and remains the official automatic-result path;
+- the policy now distinguishes **not measured** from a real 0%. All-excused or empty evidence stays
+  neutral: it cannot trigger a low-attendance risk reason, reduce a promotion recommendation, lower
+  a school average or be presented to a family as failure. A recorded absence remains a genuine 0%;
+- school averages use measured learners only. Distribution charts and tables expose **Not measured**
+  separately from **Low**, exports preserve that wording, and leaderboard XP treats unmeasured
+  attendance as no bonus without publishing a false 0% claim;
+- report-book attendance now credits late arrival and removes excused sessions from its denominator.
+  If the roll contains only excused sessions, a valid published result-entry backfill may still be
+  used; otherwise attendance remains null instead of fabricating a score;
+- parent activity uses **Attended**, **Attended late**, **Excused — not counted against attendance**
+  and **Missed**. The parent dashboard explains the rule and shows excused days in the weekly chart;
+- teacher/session views use **Attended** for attendance credit and **On time** for the exact present
+  count. Late and excused breakdowns remain visible without being confused with failure. Print
+  reports now use **Rillcod Technologies** and distinct status colours;
+- public percentages are capped defensively at 100 while historical duplicate source rows are
+  reconciled. The cap does not mutate or hide source evidence; exact counts remain available for
+  diagnosis;
+- `policy-consumers.test.ts` is an architecture regression guard over the ten product surfaces, in
+  addition to behavioral policy and school-report tests. A later isolated percentage formula or
+  obsolete print brand will fail the focused gate instead of silently drifting.
+
+Verification and deployment boundary:
+
+- the final focused run passed 6 files and 48 tests covering shared policy behavior, consumer
+  adoption, all-excused neutrality, report population/fallback and promotion intelligence;
+- `npm run typecheck` passed. Targeted ESLint completed with zero errors (existing warnings remain in
+  legacy large pages), and `git diff --check` passed;
+- this milestone requires no database migration and performed no production read/write. It changes
+  interpretation and presentation only: no attendance row, learner score, report, promotion decision,
+  message, finance record, database row or remote branch was changed during verification.

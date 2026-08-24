@@ -3,6 +3,7 @@ import {
   attendanceRate,
   countsAsAttended,
   isExcluded,
+  measuredAttendancePercentage,
 } from "./policy";
 
 describe("attendance policy", () => {
@@ -51,5 +52,14 @@ describe("attendance policy", () => {
     expect(countsAsAttended("holiday")).toBe(false);
     expect(countsAsAttended(null)).toBe(false);
     expect(countsAsAttended(undefined)).toBe(false);
+  });
+
+  it("never exposes a percentage above 100 for duplicate historical records", () => {
+    expect(attendanceRate(["present", "present"], 1).percentage).toBe(100);
+  });
+
+  it("distinguishes no measurable attendance from zero attendance", () => {
+    expect(measuredAttendancePercentage(["excused"])).toBeNull();
+    expect(measuredAttendancePercentage(["absent"])).toBe(0);
   });
 });

@@ -8,6 +8,7 @@ import {
   TrophyIcon, StarIcon, BoltIcon, FireIcon,
   AcademicCapIcon, ClipboardDocumentCheckIcon, SparklesIcon,
 } from '@/lib/icons';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 interface LeaderEntry {
   id: string;
@@ -20,7 +21,7 @@ interface LeaderEntry {
   badge: string;
   submissions: number;
   avgGrade: number;
-  attendance: number;
+  attendance: number | null;
 }
 
 const LEVELS = [
@@ -111,14 +112,14 @@ export default function LeaderboardPage() {
       const submitted = mySubs.filter(x => x.status === 'submitted' || x.status === 'graded').length;
 
       const myAtt = att.filter(x => x.user_id === s.id);
-      const present = myAtt.filter(x => x.status === 'present' || x.status === 'late').length;
-      const attendance = myAtt.length ? Math.round((present / myAtt.length) * 100) : 0;
+      const measuredAttendance = measuredAttendancePercentage(myAtt.map(x => x.status));
+      const attendance = measuredAttendance == null ? null : Math.round(measuredAttendance);
 
       // XP formula: 10 per submission + grade bonus + attendance bonus
       const xp = Math.round(
         submitted * 10 +
         avgGrade * 2 +
-        attendance * 0.5
+        (attendance ?? 0) * 0.5
       );
 
       const lvl = getLevel(xp);
@@ -180,7 +181,7 @@ export default function LeaderboardPage() {
               </span>
             </div>
             <XPBar xp={myEntry.xp} level={getLevel(myEntry.xp)} />
-            <p className="text-muted-foreground text-xs mt-1">{myEntry.xp} XP · {myEntry.submissions} submissions · {myEntry.attendance}% attendance</p>
+            <p className="text-muted-foreground text-xs mt-1">{myEntry.xp} XP · {myEntry.submissions} submissions · {myEntry.attendance == null ? 'attendance not measured' : `${myEntry.attendance}% attendance`}</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-black text-yellow-600 dark:text-yellow-400">{myEntry.xp} XP</p>

@@ -5,6 +5,7 @@ import {
   type PromotionEvidence,
   type PromotionRules,
 } from '@/lib/progression/promotion-intelligence';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 export type PromotionSettings = PromotionRules & {
   young_to_teen_exit_grade?: YoungToTeenExitGrade;
@@ -109,21 +110,21 @@ export async function loadPromotionEvidenceByStudent(
   }
   const { data: attRows } = await attQuery;
 
-  const attByUser = new Map<string, { present: number; total: number }>();
+  const attByUser = new Map<string, string[]>();
   for (const row of attRows ?? []) {
     const uid = row.user_id as string;
     if (termId && row.term_id && row.term_id !== termId) continue;
-    const bucket = attByUser.get(uid) ?? { present: 0, total: 0 };
-    bucket.total += 1;
-    if (String(row.status).toLowerCase() === 'present') bucket.present += 1;
+    const bucket = attByUser.get(uid) ?? [];
+    bucket.push(String(row.status).toLowerCase());
     attByUser.set(uid, bucket);
   }
-  for (const [uid, bucket] of attByUser) {
+  for (const [uid, statuses] of attByUser) {
     const cur = out.get(uid);
     if (!cur) continue;
+    const measuredAttendance = measuredAttendancePercentage(statuses);
     out.set(uid, {
       ...cur,
-      attendance_pct: bucket.total > 0 ? Math.round((bucket.present / bucket.total) * 100) : null,
+      attendance_pct: measuredAttendance == null ? null : Math.round(measuredAttendance),
     });
   }
 

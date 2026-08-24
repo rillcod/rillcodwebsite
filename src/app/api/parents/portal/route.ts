@@ -8,6 +8,7 @@ import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
 import { deriveFamilyLifecycle } from '@/lib/onboarding/lifecycle-state';
+import { countsAsAttended, isExcluded, measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 function assertQueryResults(results: Array<{ error?: { message?: string } | null }>, label: string) {
   const failed = results.find(result => result.error);
@@ -189,8 +190,8 @@ export async function GET(req: Request) {
           a.user_id === child.user_id
           && (!liveTermId || a.term_id === liveTermId || !a.term_id),
         );
-        const present = childAtt.filter((a: any) => a.status === 'present').length;
-        const attendancePct = childAtt.length > 0 ? Math.round((present / childAtt.length) * 100) : null;
+        const measuredAttendance = measuredAttendancePercentage(childAtt.map((a: any) => a.status));
+        const attendancePct = measuredAttendance == null ? null : Math.round(measuredAttendance);
 
         const childClass = (child.current_class || child.section || child.grade_level || '').toLowerCase().replace(/\s+/g, '');
         const schoolTeachers = child.school_name ? (teachersBySchool[child.school_name] ?? []) : [];
@@ -609,8 +610,21 @@ export async function GET(req: Request) {
       scopedAtt.forEach((r: any) => {
         const date = r.class_sessions?.session_date ?? r.created_at?.slice(0, 10) ?? '';
         const cls = r.class_sessions?.classes?.name ?? r.class_sessions?.topic ?? 'STEM session';
-        if (r.status === 'present') events.push({ id: r.id, type: 'attendance', title: `Attended: ${cls}`, detail: null, date, icon: '✅', color: 'emerald' });
-        else events.push({ id: r.id, type: 'absence', title: `Missed: ${cls}`, detail: null, date, icon: '❌', color: 'rose' });
+        if (countsAsAttended(r.status)) {
+          events.push({
+            id: r.id,
+            type: 'attendance',
+            title: r.status === 'late' ? `Attended late: ${cls}` : `Attended: ${cls}`,
+            detail: null,
+            date,
+            icon: r.status === 'late' ? '🕒' : '✅',
+            color: r.status === 'late' ? 'amber' : 'emerald',
+          });
+        } else if (isExcluded(r.status)) {
+          events.push({ id: r.id, type: 'attendance_excused', title: `Excused: ${cls}`, detail: 'Not counted against attendance', date, icon: 'ℹ️', color: 'primary' });
+        } else {
+          events.push({ id: r.id, type: 'absence', title: `Missed: ${cls}`, detail: null, date, icon: '❌', color: 'rose' });
+        }
       });
 
       scopedSubs.forEach((r: any) => {

@@ -14,6 +14,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DonutChart as RechartDonut, HorizontalBarChart, SparkCard, CHART_COLORS } from '@/components/charts';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 interface StudentRow {
   id: string;
@@ -22,7 +23,7 @@ interface StudentRow {
   section_class: string | null;
   is_active: boolean;
   avgGrade: number;
-  attendance: number;
+  attendance: number | null;
   submissions: number;
 }
 
@@ -199,8 +200,8 @@ export default function SchoolOverviewPage() {
         : 0;
 
       const myAtt = (attRows ?? []).filter(x => x.user_id === s.id);
-      const present = myAtt.filter(x => x.status === 'present' || x.status === 'late').length;
-      const attendance = myAtt.length ? Math.round((present / myAtt.length) * 100) : 0;
+      const measuredAttendance = measuredAttendancePercentage(myAtt.map(x => x.status));
+      const attendance = measuredAttendance == null ? null : Math.round(measuredAttendance);
 
       return {
         id: s.id,
@@ -215,7 +216,10 @@ export default function SchoolOverviewPage() {
     });
 
     const avgScore = rows.length ? rows.reduce((a, r) => a + r.avgGrade, 0) / rows.length : 0;
-    const avgAttendance = rows.length ? rows.reduce((a, r) => a + r.attendance, 0) / rows.length : 0;
+    const measuredAttendance = rows.flatMap(r => r.attendance == null ? [] : [r.attendance]);
+    const avgAttendance = measuredAttendance.length
+      ? measuredAttendance.reduce((sum, value) => sum + value, 0) / measuredAttendance.length
+      : 0;
 
     setStats({ total: totalCount, active: approvedCount, avgScore, avgAttendance });
     setStudents(rows);
@@ -237,7 +241,7 @@ export default function SchoolOverviewPage() {
         s.full_name,
         s.section_class ?? '—',
         `${s.avgGrade.toFixed(0)}%`,
-        `${s.attendance}%`,
+        s.attendance == null ? 'Not measured' : `${s.attendance}%`,
         s.submissions,
       ]),
       styles: { fontSize: 9 },
@@ -252,7 +256,7 @@ export default function SchoolOverviewPage() {
       s.email.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === 'grade') return b.avgGrade - a.avgGrade;
-      if (sortBy === 'attendance') return b.attendance - a.attendance;
+      if (sortBy === 'attendance') return (b.attendance ?? -1) - (a.attendance ?? -1);
       return a.full_name.localeCompare(b.full_name);
     });
 
@@ -304,7 +308,7 @@ export default function SchoolOverviewPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <SparkCard label="Total Students"   value={stats.total}                         subValue={`${stats.active} active`}      color={CHART_COLORS.primary}  icon={UserGroupIcon}            sparkData={[stats.total - 5, stats.total - 3, stats.total - 1, stats.total]} />
         <SparkCard label="Avg Score"        value={`${stats.avgScore.toFixed(0)}%`}     subValue="This academic session"        color={CHART_COLORS.amber}   icon={TrophyIcon}               sparkData={[40, 55, stats.avgScore * 0.8, stats.avgScore * 0.9, stats.avgScore]} />
-        <SparkCard label="Avg Attendance"   value={`${stats.avgAttendance.toFixed(0)}%`} subValue="Present rate"                 color={CHART_COLORS.emerald} icon={ClipboardDocumentCheckIcon} sparkData={[60, 70, stats.avgAttendance * 0.85, stats.avgAttendance]} />
+        <SparkCard label="Avg Attendance"   value={`${stats.avgAttendance.toFixed(0)}%`} subValue="Measured learners only"       color={CHART_COLORS.emerald} icon={ClipboardDocumentCheckIcon} sparkData={[60, 70, stats.avgAttendance * 0.85, stats.avgAttendance]} />
         <SparkCard label="Active Learners"  value={stats.active}                        subValue="Portal students"               color={CHART_COLORS.blue}    icon={AcademicCapIcon}          sparkData={[stats.active - 3, stats.active - 1, stats.active]} />
       </div>
 
@@ -333,10 +337,10 @@ export default function SchoolOverviewPage() {
           <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Attendance Distribution</p>
           <RechartDonut
             data={[
-              { label: 'High (75+)', color: CHART_COLORS.blue,   value: students.filter(s => s.attendance >= 75).length },
-              { label: 'Mid (50–74)', color: CHART_COLORS.violet, value: students.filter(s => s.attendance >= 50 && s.attendance < 75).length },
-              { label: 'Low (<50)',  color: CHART_COLORS.primary, value: students.filter(s => s.attendance > 0 && s.attendance < 50).length },
-              { label: 'No Record', color: '#374151',             value: students.filter(s => s.attendance === 0).length },
+              { label: 'High (75+)', color: CHART_COLORS.blue,   value: students.filter(s => s.attendance != null && s.attendance >= 75).length },
+              { label: 'Mid (50–74)', color: CHART_COLORS.violet, value: students.filter(s => s.attendance != null && s.attendance >= 50 && s.attendance < 75).length },
+              { label: 'Low (<50)',  color: CHART_COLORS.primary, value: students.filter(s => s.attendance != null && s.attendance < 50).length },
+              { label: 'Not measured', color: '#374151',          value: students.filter(s => s.attendance == null).length },
             ]}
             centerLabel="Avg Attend"
             centerValue={`${stats.avgAttendance.toFixed(0)}%`}
@@ -442,8 +446,8 @@ export default function SchoolOverviewPage() {
                   <td className="px-5 py-3 text-muted-foreground">{s.section_class ?? '—'}</td>
                   <td className="px-5 py-3 text-center"><ScoreBadge score={s.avgGrade} /></td>
                   <td className="px-5 py-3 text-center">
-                    <span className={`text-xs font-bold ${s.attendance >= 75 ? 'text-emerald-600 dark:text-emerald-400' : s.attendance >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                      {s.attendance}%
+                    <span className={`text-xs font-bold ${s.attendance == null ? 'text-muted-foreground' : s.attendance >= 75 ? 'text-emerald-600 dark:text-emerald-400' : s.attendance >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {s.attendance == null ? 'Not measured' : `${s.attendance}%`}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-center text-muted-foreground">{s.submissions}</td>

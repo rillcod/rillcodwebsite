@@ -1,4 +1,5 @@
-import { average, percentage } from './calculations';
+import { average } from './calculations';
+import { measuredAttendancePercentage } from '@/lib/attendance/policy';
 
 import {
   resolveProgressReportCourseEvidence,
@@ -224,9 +225,9 @@ export function indexAttendanceByPortalUser(
   return map;
 }
 
-function attendanceRateFromRoll(statuses: string[]): number {
-  const present = statuses.filter((status) => ['present', 'late'].includes(status)).length;
-  return percentage(present, statuses.length);
+function attendanceRateFromRoll(statuses: string[]): number | null {
+  const measuredAttendance = measuredAttendancePercentage(statuses);
+  return measuredAttendance == null ? null : Math.round(measuredAttendance * 10) / 10;
 }
 
 /**
@@ -244,9 +245,10 @@ export function resolveLinkedLearnerAttendance(
 ): AttendanceEvidence {
   const minRoll = Math.max(1, options?.minRollRecords ?? 3);
 
-  if (attendanceStatuses.length >= minRoll) {
+  const rollRate = attendanceRateFromRoll(attendanceStatuses);
+  if (attendanceStatuses.length >= minRoll && rollRate != null) {
     return {
-      rate: attendanceRateFromRoll(attendanceStatuses),
+      rate: rollRate,
       source: 'manual_roll',
       recordCount: attendanceStatuses.length,
     };
@@ -263,7 +265,7 @@ export function resolveLinkedLearnerAttendance(
 
   if (attendanceStatuses.length > 0) {
     return {
-      rate: attendanceRateFromRoll(attendanceStatuses),
+      rate: rollRate,
       source: 'manual_roll',
       recordCount: attendanceStatuses.length,
     };
