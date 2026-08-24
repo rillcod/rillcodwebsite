@@ -436,7 +436,7 @@ function LessonPlansPageInner() {
       return;
     }
     if (!form.class_id) {
-      toast.error("Select the class before creating a lesson plan");
+      toast.error("Select the class before creating its class plan");
       return;
     }
     if (!form.term_start || !form.term_end) {
@@ -480,7 +480,7 @@ function LessonPlansPageInner() {
         const j = await res.json();
         throw new Error(j.error);
       }
-      toast.success("Lesson plan created");
+      toast.success("Class plan created");
       setShowForm(false);
       resetForm();
       load();
@@ -980,7 +980,7 @@ function LessonPlansPageInner() {
                 Academic Office
               </span>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tight">
-                Lesson Plans
+                Class Plans
               </h1>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">
                 {filterCourseId
@@ -1026,7 +1026,7 @@ function LessonPlansPageInner() {
 
         <div className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Pick a class and course, then tap <span className="font-bold text-foreground">New Plan</span>. Teach from your class page after it is published.
+            Pick a class and course, then tap <span className="font-bold text-foreground">New Plan</span>. The class plan expands the approved curriculum into weekly teaching packages.
           </p>
           <button
             type="button"
@@ -1060,15 +1060,15 @@ function LessonPlansPageInner() {
 
         {/* Filters */}
         <AcademicSessionScopeStrip
-          purpose="Lesson plans"
+          purpose="Class plans"
           workingSession={workingLessonSession}
           classSession={filteredClassSession}
-          hint="New plans save to the term you pick in the form. Filtering by term chip only narrows the list — it does not change a class's assignment."
+          hint="Each class keeps its assigned term or delivery period. The filters only help you find the right class plan; they never create another copy or reassign the class."
         />
         <div className="flex flex-wrap gap-3 items-center bg-card border border-border p-3 rounded-lg">
           <div className="relative flex-1 min-w-[220px]">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input aria-label="Search lesson plans"
+            <input aria-label="Search class plans"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by course, class, or term…"
@@ -1332,7 +1332,7 @@ function LessonPlansPageInner() {
           <div className="py-20 flex flex-col items-center justify-center bg-card border border-border rounded-lg text-center px-6">
             <DocumentTextIcon className="w-10 h-10 text-muted-foreground/20 mb-4" />
             <h3 className="text-lg font-bold text-foreground mb-1">
-              No lesson plans found
+              No class plans found
             </h3>
             <p className="text-muted-foreground text-sm max-w-sm mb-6">
               Try adjusting your filters, or create your first plan for this
@@ -1382,10 +1382,10 @@ function LessonPlansPageInner() {
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
                 <h3 className="text-base font-black text-foreground">
-                  New Lesson Plan
+                  New Class Plan
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Choose the course, term, and class for this plan
+                  Choose the teaching context. The approved curriculum supplies the direction.
                 </p>
               </div>
               <button
@@ -1430,7 +1430,7 @@ function LessonPlansPageInner() {
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Term
+                  School term
                 </label>
                 <select
                   value={form.term}
@@ -1452,7 +1452,7 @@ function LessonPlansPageInner() {
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Class
+                  Class to teach
                 </label>
                 <select
                   value={form.class_id}
@@ -1462,7 +1462,7 @@ function LessonPlansPageInner() {
                   }}
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                 >
-                  <option value="">— All classes —</option>
+                  <option value="">— Select a class —</option>
                   {formClasses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {formatClassRowOptionLabel(c)}

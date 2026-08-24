@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 const builder = read("src/app/dashboard/academic/build/page.tsx");
 const classWorkspace = read("src/components/classes/ClassTeachingWorkspace.tsx");
+const classPlanList = read("src/app/dashboard/lesson-plans/page.tsx");
+const classPlanRoute = read("src/app/api/lesson-plans/route.ts");
 
 describe("curriculum to class-plan workflow UX", () => {
   it("returns staff to the exact saved curriculum location", () => {
@@ -35,5 +37,22 @@ describe("curriculum to class-plan workflow UX", () => {
     }
     expect(classWorkspace).toContain("Prepare this week");
     expect(classWorkspace).toContain("Share with students?");
+  });
+
+  it("presents the legacy lesson-plan list as class planning", () => {
+    expect(classPlanList).toContain("Class Plans");
+    expect(classPlanList).toContain("New Class Plan");
+    expect(classPlanList).toContain(
+      "The class plan expands the approved curriculum into weekly teaching packages."
+    );
+    expect(classPlanList).not.toContain("New Lesson Plan");
+  });
+
+  it("creates one plan through the database identity authority", () => {
+    expect(classPlanRoute).toContain('"ensure_class_teaching_plan"');
+    expect(classPlanRoute).toContain("p_academic_term_id: canonicalTermId");
+    expect(classPlanRoute).toContain("p_offering_period_id: canonicalTermId");
+    expect(classPlanRoute).toContain("if (!ensuredPlan.created)");
+    expect(classPlanRoute).toContain("existing_id: ensuredPlan.plan_id");
   });
 });

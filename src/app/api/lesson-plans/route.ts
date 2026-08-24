@@ -278,6 +278,7 @@ export async function POST(request: Request) {
 
     // The class owns the canonical academic term; callers cannot create a parallel term identity.
     let canonicalTermId: string | null = term_id || null;
+    let canonicalOfferingPeriodId: string | null = null;
     let classOfferingId: string | null = null;
     let classAcademicTerm: AcademicTermContext | null = null;
     // Ensure selected class belongs to the chosen school scope.
@@ -285,7 +286,7 @@ export async function POST(request: Request) {
       const { data: klass } = await db
         .from("classes")
         .select(
-          "id, school_id, program_id, teacher_id, term_id, academic_offering_id, academic_terms(academic_year,term_number,term_label)"
+          "id, school_id, program_id, teacher_id, term_id, offering_period_id, academic_offering_id, academic_terms(academic_year,term_number,term_label)"
         )
         .eq("id", class_id)
         .maybeSingle();
@@ -300,6 +301,7 @@ export async function POST(request: Request) {
         program_id: string | null;
         teacher_id: string | null;
         term_id: string | null;
+        offering_period_id: string | null;
       };
       const classContext = classRow as typeof classRow & {
         academic_offering_id: string | null;
@@ -320,6 +322,7 @@ export async function POST(request: Request) {
         );
       }
       canonicalTermId = classRow.term_id || canonicalTermId;
+      canonicalOfferingPeriodId = classRow.offering_period_id || null;
       const classSchoolId = classRow.school_id;
       if (!targetSchoolId && classSchoolId) {
         targetSchoolId = classSchoolId;
@@ -415,6 +418,16 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
+    if (!officialDirection.source_curriculum_id) {
+      return NextResponse.json(
+        {
+          error:
+            "The approved curriculum direction is incomplete. Ask the Academic Office to repair its source before creating a class plan.",
+        },
+        { status: 409 }
+      );
+    }
+    const sourceCurriculumId = officialDirection.source_curriculum_id;
     let duplicateQuery = db
       .from("lesson_plans")
       .select("id")
@@ -422,6 +435,11 @@ export async function POST(request: Request) {
       .eq("class_id", class_id);
     if (canonicalTermId)
       duplicateQuery = duplicateQuery.eq("term_id", canonicalTermId);
+    else if (canonicalOfferingPeriodId)
+      duplicateQuery = duplicateQuery.eq(
+        "offering_period_id",
+        canonicalOfferingPeriodId
+      );
     else if (term) duplicateQuery = duplicateQuery.eq("term", term);
     if (targetSchoolId) {
       duplicateQuery = duplicateQuery.eq(
@@ -487,30 +505,73 @@ export async function POST(request: Request) {
         }),
       };
     }
+    const parsedSessions = Number(sessions_per_week);
+    const effectiveSessions = Number.isFinite(parsedSessions)
+      ? Math.max(1, Math.floor(parsedSessions))
+      : 1;
+    // The database function owns plan identity and takes an advisory lock.
+    // This closes the check-then-insert race that could create two plans when
+    // automation and a teacher opened the same class at the same time. It also
+    // keys special programmes by their delivery period instead of a loose term
+    // label, so school and special-programme plans use the same authority.
+    const { data: ensured, error: ensureError } = await db.rpc(
+      "ensure_class_teaching_plan",
+      {
+        p_class_id: class_id,
+        p_course_id: course_id,
+        p_curriculum_version_id: sourceCurriculumId,
+        p_actor_id: user.id,
+        p_academic_term_id: canonicalTermId ?? undefined,
+        p_offering_period_id: canonicalTermId
+          ? undefined
+          : canonicalOfferingPeriodId ?? undefined,
+        p_sessions_per_week: effectiveSessions,
+      }
+    );
+    if (ensureError) {
+      return NextResponse.json(
+        { error: "The class plan could not be created. Refresh and try again." },
+        { status: 400 }
+      );
+    }
+    const ensuredPlan = ensured as unknown as {
+      plan_id: string;
+      created: boolean;
+    };
+    if (!ensuredPlan.created) {
+      return NextResponse.json(
+        {
+          error:
+            "A class plan already exists for this class, course, and teaching period.",
+          existing_id: ensuredPlan.plan_id,
+        },
+        { status: 409 }
+      );
+    }
+
     const { data, error } = await db
       .from("lesson_plans")
-      .insert({
-        course_id: course_id || null,
-        class_id: class_id || null,
-        school_id: targetSchoolId,
-        term: term || null,
-        term_id: canonicalTermId,
-        term_start: term_start || null,
-        term_end: term_end || null,
-        sessions_per_week: sessions_per_week ? Number(sessions_per_week) : null,
+      .update({
         curriculum_release_id: officialDirection.id,
-        curriculum_version_id: officialDirection.source_curriculum_id,
+        curriculum_version_id: sourceCurriculumId,
         plan_data: autoPlanData,
         status: status ?? "draft",
         version: version ?? 1,
-        created_by: user.id,
         updated_at: new Date().toISOString(),
       })
+      .eq("id", ensuredPlan.plan_id)
       .select()
       .single();
 
     if (error)
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        {
+          error:
+            "The class plan was created, but its curriculum could not be attached. Reopen the class to repair it.",
+          existing_id: ensuredPlan.plan_id,
+        },
+        { status: 500 }
+      );
     return NextResponse.json({ data }, { status: 201 });
   }
 
