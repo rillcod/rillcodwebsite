@@ -2528,3 +2528,58 @@ Verification and boundaries:
   visual interaction is claimed;
 - no database migration, production build, score/evidence mutation, or remote push was performed in
   this milestone.
+
+### 16.24 One evaluation-to-result authority milestone — verified locally on 24 August 2026
+
+Confirmed product and data-flow defect:
+
+- Gradebook exposed a second **Batch-Sync Reports** builder alongside the central Academic
+  **Auto-fill** workspace. The older client did not send the selected `class_id`, carried its own
+  term/course form, and wrote report drafts through a separate API implementation;
+- that retired API averaged all graded assignment submissions into classwork, also derived the
+  assignment component from completion count, and converted the number of lab projects into a
+  practical mark. One piece of work could therefore influence more than one component, while three
+  ungraded projects could appear as 100% practical evidence;
+- Write repeated part of that proxy behavior: when a score field was blank it silently filled marks
+  from CBT, submission/attendance counts, and project count. It also retained an unreferenced bulk
+  builder with the same competing formulas, despite the visible product already using Auto-fill;
+- the database's canonical `recalculate_academic_result` function already has the correct separation:
+  classwork assignments, ordinary assignments, project/practical evidence, CBT examination,
+  CBT evaluation, and attendance are classified once and weighted by the active scheme. The modern
+  Academic Auto-fill API also supplies `academic_offering_id` and `offering_period_id`, which that
+  calculator requires. The duplication was above this sound database authority, not a need for a
+  second scoring model.
+
+Implemented:
+
+- Gradebook is now the one place to review and mark learner work. Its result action is the plainly
+  labelled **Prepare results** link and carries the current class/course filters into Academic
+  Auto-fill;
+- Academic Auto-fill remains the one place to prepare one learner or a whole class, protect typed and
+  published reports, distinguish compulsory host-school papers from the optional Rillcod evidence
+  path, and invoke the central evidence calculator;
+- removed the old modal, its session helpers, its 422-line calculation/write implementation, and the
+  obsolete session tests. The old API address remains only as a non-writing HTTP 410 compatibility
+  boundary so a stale client receives a professional **Open Auto-fill** destination instead of a
+  silent failure or a competing report write;
+- removed Write's unused bulk result builder and stopped Write from silently converting activity
+  statistics into official scores. Write still shows counts and averages as teacher context, hydrates
+  real saved Auto-fill evidence, and protects typed/published rows; a new typed report starts blank;
+- added a permanent architecture guard proving that Gradebook cannot call the retired endpoint, the
+  compatibility endpoint cannot touch reports or invoke calculation, and central Auto-fill carries
+  the academic offering/period keys and calls `recalculate_academic_result`;
+- repaired the CI bootstrap test double after tracked generation recovery added its own database
+  update. Lesson-plan publish updates and generation-run recovery updates are now observed separately,
+  so the tests still prove that draft plans publish once and already-published plans are left alone.
+  The reported Docker `/.next/static` and `/.next/standalone` errors were downstream of the failed test
+  gate: the Next build artifacts had not been created, rather than the container paths changing.
+
+Verification and boundaries:
+
+- the two previously failing bootstrap cases now pass;
+- 5 focused suites and 40 tests passed, covering bootstrap generation, one result authority, session
+  workflow, session architecture, and the report-card pathway rendering guard;
+- `npm run typecheck` passed after restoring the non-writing compatibility module expected by Next's
+  generated route validator;
+- no student mark, manual result, submission, report, database row, or schema was changed. No
+  production build, deployment, or remote push was performed in this milestone.

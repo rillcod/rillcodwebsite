@@ -21,7 +21,7 @@ export const SESSION_SCOPE = {
   document: 'Saved document session',
   /** Publish roster / grades filter */
   working: 'Working session',
-  /** Auto-fill / batch-sync target */
+  /** Auto-fill target */
   evidence: 'Evidence session',
 } as const;
 

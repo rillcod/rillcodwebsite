@@ -10,10 +10,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * because the generators refuse to run against a draft.
  */
 
-const { generatePlanWeek, notifyWeekReady, updateSpy, planRef } = vi.hoisted(() => ({
+const { generatePlanWeek, notifyWeekReady, planUpdateSpy, trackingUpdateSpy, planRef } = vi.hoisted(() => ({
   generatePlanWeek: vi.fn(),
   notifyWeekReady: vi.fn(),
-  updateSpy: vi.fn(),
+  planUpdateSpy: vi.fn(),
+  trackingUpdateSpy: vi.fn(),
   planRef: { current: null as Record<string, unknown> | null },
 }));
 
@@ -38,10 +39,11 @@ vi.mock('@/lib/supabase/admin', () => {
   };
   return {
     createAdminClient: () => ({
-      from: () => ({
+      from: (table: string) => ({
         ...read,
         update: (patch: Record<string, unknown>) => {
-          updateSpy(patch);
+          if (table === 'lesson_plans') planUpdateSpy(patch);
+          else trackingUpdateSpy(patch);
           return { eq: async () => ({ error: null }) };
         },
       }),
@@ -93,8 +95,8 @@ describe('bootstrapClassTeachingWeek', () => {
   it('publishes the plan first, because generators refuse a draft', async () => {
     await bootstrapClassTeachingWeek('class-1');
 
-    expect(updateSpy).toHaveBeenCalledTimes(1);
-    expect(updateSpy.mock.calls[0][0]).toMatchObject({ status: 'published' });
+    expect(planUpdateSpy).toHaveBeenCalledTimes(1);
+    expect(planUpdateSpy.mock.calls[0][0]).toMatchObject({ status: 'published' });
   });
 
   it('leaves an already-published plan alone', async () => {
@@ -102,7 +104,7 @@ describe('bootstrapClassTeachingWeek', () => {
 
     await bootstrapClassTeachingWeek('class-1');
 
-    expect(updateSpy).not.toHaveBeenCalled();
+    expect(planUpdateSpy).not.toHaveBeenCalled();
     expect(generatePlanWeek).toHaveBeenCalledTimes(1);
   });
 
@@ -123,14 +125,14 @@ describe('bootstrapClassTeachingWeek', () => {
 
     await expect(bootstrapClassTeachingWeek('class-1')).resolves.toBeNull();
     expect(generatePlanWeek).not.toHaveBeenCalled();
-    expect(updateSpy).not.toHaveBeenCalled();
+    expect(planUpdateSpy).not.toHaveBeenCalled();
   });
 
   it('does not publish a plan that has no weeks to teach', async () => {
     planRef.current = { ...PLAN, plan_data: { weeks: [] } };
 
     await expect(bootstrapClassTeachingWeek('class-1')).resolves.toBeNull();
-    expect(updateSpy).not.toHaveBeenCalled();
+    expect(planUpdateSpy).not.toHaveBeenCalled();
     expect(generatePlanWeek).not.toHaveBeenCalled();
   });
 

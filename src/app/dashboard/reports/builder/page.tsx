@@ -63,7 +63,7 @@ import {
     writerSessionStorageKey,
 } from '@/lib/reports/writer-start';
 import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
-import { automaticResultHasNoEvidence, isLockedLearnerResult, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
+import { automaticResultHasNoEvidence, isUnsetScore, parseOptionalScore, parseScoreForDisplay, scoreFieldToFormValue } from '@/lib/reports/score';
 import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
 import { emptyHostPaperExamIds, emptyHostPaperMarks, formatHostMark, hostPaperLabel, hostPapersComplete, hostPapersFromMetrics, hostSchoolTotal, mergeHostPaperExamIds, mergeHostPaperMarks, pickHostPaperExamIds, type HostAssessmentKind, type HostMark, type HostPaperExamIds, type HostPaperMarks } from '@/lib/academic/host-marks';
@@ -882,10 +882,8 @@ function ReportBuilderInner() {
     const [milestoneInput, setMilestoneInput] = useState('');
     const [showMilestoneSuggestions, setShowMilestoneSuggestions] = useState(false);
     const [forceCertificate, setForceCertificate] = useState(false);
-    const [isBulkBuilding, setIsBulkBuilding] = useState(false);
     const [reportStyle, setReportStyle] = useState<'standard'|'modern'|'printable'>('modern');
     const [modernTemplateId, setModernTemplateId] = useState<'industrial'|'executive'|'futuristic'>('industrial');
-    const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
     const [previewScale, setPreviewScale] = useState(0.85);
     const previewContainerRef = useRef<HTMLDivElement>(null);
     const pdfRef = useRef<HTMLDivElement>(null);
@@ -1947,12 +1945,6 @@ function ReportBuilderInner() {
 
         const existingMetrics = (hydratedReport as any)?.engagement_metrics ?? {};
         const noAutoEvidence = hydratedReport ? automaticResultHasNoEvidence(hydratedReport) : false;
-        const theoryBlank = isUnsetScore(hydratedReport?.theory_score);
-        const practicalBlank = isUnsetScore(hydratedReport?.practical_score);
-        const attendanceBlank = isUnsetScore(hydratedReport?.attendance_score);
-        const participationBlank = isUnsetScore(hydratedReport?.participation_score);
-        const classworkBlank = isUnsetScore(existingMetrics.classwork_score);
-        const assessmentBlank = isUnsetScore(existingMetrics.assessment_score);
         const savedClasswork  = scoreFieldToFormValue(existingMetrics.classwork_score);
         const savedAssessment = scoreFieldToFormValue(existingMetrics.assessment_score);
         const savedTheory        = scoreFieldToFormValue(hydratedReport?.theory_score);
@@ -2153,8 +2145,6 @@ function ReportBuilderInner() {
             // Evaluation score = best CBT score where exam_type = 'evaluation'
             const evalScore = hostApplied.assessment;
             const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
-            // Project Engagement: every 3 projects = 100% (capped at 100)
-            const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
 
             setStudentStats({
                 attendance: attRes.data?.length || 0,
@@ -2176,23 +2166,9 @@ function ReportBuilderInner() {
                 hostPaperExamIds,
             });
 
-            // Never auto-fill a typed, published, or specifically opened prior report.
-            // Typed 0 is a real score — only fill when the field was never stored.
-            const lockedResult = !!(hydratedReport && isLockedLearnerResult(hydratedReport));
-            if (!keepRequestedSession && !lockedResult) {
-                const attPct = sessionIds.length > 0
-                    ? Math.min(100, Math.round(((attRes.data?.length || 0) / sessionIds.length) * 100))
-                    : 0;
-                setForm(f => ({
-                    ...f,
-                    ...(statsAuthority !== 'host_school' && cbtScore > 0 && theoryBlank           ? { theory_score:        String(cbtScore) }     : {}),
-                    ...(assignmentAvg > 0 && classworkBlank   ? { classwork_score:     String(assignmentAvg) } : {}),
-                    ...(projectPct > 0 && practicalBlank      ? { practical_score:     String(projectPct) }   : {}),
-                    ...(assignmentPct > 0 && attendanceBlank  ? { attendance_score:    String(assignmentPct) }: {}),
-                    ...(attPct > 0 && participationBlank      ? { participation_score: String(attPct) }       : {}),
-                    ...(statsAuthority !== 'host_school' && evalScore > 0 && assessmentBlank      ? { assessment_score:    String(evalScore) }    : {}),
-                }));
-            }
+            // Statistics assist the teacher, but Write never converts activity
+            // counts into marks. Academic Auto-fill owns evidence calculation;
+            // a new typed report deliberately starts blank.
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
         }
@@ -2488,203 +2464,6 @@ function ReportBuilderInner() {
     })();
     const reportIsPublished = Boolean(existingReport?.is_published);
     const canPublishReport = !reportIsPublished && publishQualityIssues.length === 0;
-
-    // ── Bulk Build: Process all students in current view ─────────────────────
-    const handleBulkBuild = async () => {
-        if (filteredStudents.length === 0) return;
-        if (!confirm(`Are you sure you want to automatically generate reports for ${filteredStudents.length} students? This will overwrite individual drafts.`)) return;
-
-        setIsBulkBuilding(true);
-        setBulkProgress({ current: 0, total: filteredStudents.length });
-        const db = createClient();
-
-        try {
-            // Find current program ID from course
-            const { data: courseData } = await withTimeout(
-                db.from('courses').select('program_id').eq('id', sessionConfig.course_id).single(),
-                { data: null, error: null },
-                'bulk course lookup',
-            );
-            const programId = courseData?.program_id;
-
-            for (let i = 0; i < filteredStudents.length; i++) {
-                const s = filteredStudents[i];
-                setBulkProgress({ current: i + 1, total: filteredStudents.length });
-
-                // 1. Fetch Stats (Attendance, Assignments, CBT)
-                const studentSchoolId = s.school_id;
-                const studentClassName = (s as any).section_class;
-                let targetClassId = (s as any).class_id || sessionConfig.class_id || null;
-                let targetTermId: string | null = sessionConfig.term_id || null;
-                if (!targetClassId && studentClassName) {
-                    const { data: clsData } = await withTimeout(
-                        db.from('classes').select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle(),
-                        { data: null, error: null },
-                        'bulk class lookup',
-                    );
-                    targetClassId = clsData?.id;
-                    if (!targetTermId) targetTermId = (clsData as any)?.term_id ?? null;
-                } else if (targetClassId && !targetTermId) {
-                    const { data: clsData } = await withTimeout(
-                        db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle(),
-                        { data: null, error: null },
-                        'bulk class term lookup',
-                    );
-                    targetTermId = (clsData as any)?.term_id ?? null;
-                }
-                let sessionQuery = targetClassId ? db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true) : null;
-                if (sessionQuery && targetTermId) sessionQuery = sessionQuery.eq('term_id', targetTermId);
-                const { data: sessions } = sessionQuery
-                    ? await withTimeout(sessionQuery, { data: [], error: null }, 'bulk class sessions')
-                    : { data: [] };
-                const sessionIds = sessions?.map((x: any) => x.id) || [];
-                const bulkSubmissionsQuery = sessionConfig.course_id
-                    ? db.from('assignment_submissions')
-                        .select('id, grade, status, assignments!inner(course_id, max_points, term_id)')
-                        .eq('portal_user_id', s.id)
-                        .eq('status', 'graded')
-                        .eq('assignments.course_id', sessionConfig.course_id)
-                    : db.from('assignment_submissions')
-                        .select('id, grade, status, assignments(max_points, term_id)')
-                        .eq('portal_user_id', s.id)
-                        .eq('status', 'graded');
-
-                const [attRes, subResRaw, allAsgnRaw, cbtRes, labRes, portfolioRes] = await withTimeout(Promise.all([
-                    sessionIds.length > 0 ? (() => {
-                        let q = db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present');
-                        if (targetTermId) q = q.eq('term_id', targetTermId);
-                        return q;
-                    })() : { data: [] },
-                    bulkSubmissionsQuery,
-                    sessionConfig.course_id ? (() => {
-                      let q = db.from('assignments').select('id, term_id').eq('course_id', sessionConfig.course_id).eq('is_active', true);
-                      if (targetTermId) q = q.or(`term_id.eq.${targetTermId},term_id.is.null`) as any;
-                      return q;
-                    })() : { data: [] },
-                    db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
-                    db.from('lab_projects').select('id').eq('user_id', s.id),
-                    db.from('portfolio_projects').select('id').eq('user_id', s.id),
-                ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'bulk student stats sources');
-
-                const { filterByAssignmentSession } = await import('@/lib/assignments/session');
-                const { loadAcademicTermBounds, filterCbtByAcademicTerm } = await import('@/lib/cbt/session');
-                const termBounds = await loadAcademicTermBounds(db as any, targetTermId);
-                const subRes = {
-                  data: filterByAssignmentSession((subResRaw.data ?? []) as any[], targetTermId, { includeUntagged: true }),
-                };
-                const allAsgn = {
-                  data: ((allAsgnRaw.data ?? []) as any[]).filter((a) =>
-                    !targetTermId || a.term_id === targetTermId || !a.term_id,
-                  ),
-                };
-
-                // 2. Compute transparent scores (mirrors fetchStats 6-component mapping)
-                const scopedCbt = filterCbtByAcademicTerm(
-                  (cbtRes.data ?? []) as any[],
-                  targetTermId,
-                  termBounds,
-                  { includeUntagged: true },
-                ).filter((row: any) =>
-                    matchesReportExamScope(row, sessionConfig.course_id || null, programId || null),
-                );
-                const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
-                const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
-                const totalAsgn = allAsgn.data?.length || 0;
-                const hasAssignmentEvidence = totalAsgn > 0;
-                const assigPct = hasAssignmentEvidence ? Math.round((subRes.data?.length || 0) / totalAsgn * 100) : 0;
-                const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
-                const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
-                const hasAttendanceEvidence = sessionIds.length > 0;
-                const attPct = hasAttendanceEvidence ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 0;
-                const hostApplied = applyHostAssessmentToReportScores({
-                    rows: scopedCbt,
-                    examinationFallback: topCbtScore(scopedCbt, 'examination'),
-                    evaluationFallback: topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4)),
-                    mapIntoSixBox: reportScoreAuthority !== 'host_school',
-                });
-                const cbtScore = hostApplied.theory;
-                const evalScore = hostApplied.assessment;
-
-                // 3. Map to 6 weighted components
-                const theory      = cbtScore;     // CBT examination score
-                const classwork   = asgnAvg;      // Assignment grade average
-                const practical   = projectPct;   // Project completion
-                const assignments = assigPct;     // Assignment submission rate
-                const attendance  = attPct;       // Session attendance
-                const assessment  = evalScore;    // Blended evaluation score
-
-                // 4. Check for existing report
-                const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
-                // Scope the existing-report check to term + academic year + course so a
-                // new term/session/cohort inserts a fresh report instead of overwriting
-                // a prior one (school: Term + Academic Year; online/bootcamp: duration).
-                const { data: existing } = isPrePortal ? { data: null } : await withTimeout((() => {
-                    let q = db.from('student_progress_reports').select('id').eq('student_id', s.id);
-                    if (sessionConfig.report_term)   q = q.eq('report_term', sessionConfig.report_term) as typeof q;
-                    if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
-                    if (sessionConfig.course_id)     q = q.eq('course_id', sessionConfig.course_id) as typeof q;
-                    return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
-                })(), { data: null, error: null }, 'bulk existing report lookup');
-
-                const hostComplete = hostPapersComplete(hostApplied.papers);
-                const overall = reportScoreAuthority === 'host_school'
-                  ? (hostComplete ? hostApplied.total!.percent : null)
-                  : computeWeightedScore(
-                  { theory, classwork, practical, assignments, attendance, assessment },
-                  effectiveWeighting.weights,
-                );
-                // Grade code for display (A1–F9); letter grade kept for Standard report card
-                const bulkWaecCode = overall == null ? null : getWAECGrade(overall).code;
-
-                const payload: any = {
-                    student_id: isPrePortal ? null : s.id,
-                    teacher_id: profile!.id,
-                    school_id: sessionConfig.school_id || s.school_id || null,
-                    course_id: sessionConfig.course_id || null,
-                    student_name: s.full_name,
-                    school_name: sessionConfig.school_name || s.school_name,
-                    section_class: (s as any).section_class || sessionConfig.section_class,
-                    course_name: sessionConfig.course_name,
-                    report_date: sessionConfig.report_date,
-                    report_term: sessionConfig.report_term,
-                    report_period: sessionConfig.report_period,
-                    instructor_name: sessionConfig.instructor_name,
-                    // DB column mapping: attendance_score → assignments, participation_score → attendance
-                    theory_score:        reportScoreAuthority === 'host_school' ? null : theory,
-                    practical_score:     practical,
-                    attendance_score:    assignments,
-                    participation_score: attendance,
-                    engagement_metrics:  { classwork_score: classwork, assessment_score: reportScoreAuthority === 'host_school' ? null : assessment, assignment_evidence_missing: reportScoreAuthority === 'host_school' ? false : !hasAssignmentEvidence, attendance_evidence_missing: reportScoreAuthority === 'host_school' ? false : !hasAttendanceEvidence, score_authority: reportScoreAuthority, programme_standing: reportScoreAuthority === 'host_school' ? 'compulsory' : 'optional', ...(reportScoreAuthority === 'host_school' ? hostAssessmentMetricFields(hostApplied.papers) : {}) },
-                    overall_score: overall,
-                    overall_grade: bulkWaecCode,
-                    proficiency_level: overall == null ? null : overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
-                    show_payment_notice: sessionConfig.show_payment_notice,
-                    updated_at: new Date().toISOString(),
-                };
-
-                const bulkRes = await fetch('/api/progress-reports', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ...payload,
-                        existing_id: existing?.id ?? null,
-                        allow_backfill: isStaleAcademicSession(payload.report_term, payload.report_period),
-                    }),
-                });
-                if (!bulkRes.ok) {
-                    const j = await bulkRes.json();
-                    throw new Error(j.error || 'Failed to save report');
-                }
-            }
-            setSuccessMsg(`Successfully generated ${filteredStudents.length} report drafts!`);
-            // Trigger a data refresh for student list
-            selectStudent(filteredStudents[0], 0);
-        } catch (err: any) {
-            setError('Bulk build failed: ' + err.message);
-        } finally {
-            setIsBulkBuilding(false);
-        }
-    };
 
     // ── Save report ───────────────────────────────────────────────────────────
     const handleSave = async (publish = false) => {

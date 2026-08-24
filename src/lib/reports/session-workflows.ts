@@ -1,15 +1,12 @@
 /**
- * Cross-page session workflows — Write Prev/Next, Publish roster, batch-sync.
+ * Cross-page session workflows — Write Prev/Next, Publish roster, and grading.
  * Pages must call these instead of inline report_term/report_period comparisons.
  */
-import { isStaleAcademicSession, resolveSessionForWrite } from './academic-period';
+import { isStaleAcademicSession } from './academic-period';
 import {
-  classSessionFromTerms,
   liveSessionLike,
   reportMatchesSession,
-  resolveSmartWorkingSession,
   sessionFromReport,
-  type ClassRowWithTerms,
   type SessionLike,
 } from './session-scope';
 
@@ -65,19 +62,6 @@ export function filterReportsByRosterSession<T extends ReportSessionRow>(
   return reports.filter((row) => reportMatchesSession(sessionFromReport(row), rosterSession));
 }
 
-/** Batch-sync modal — align term/year when a class is picked. */
-export function resolveBatchSyncSession(input: {
-  classRow?: ClassRowWithTerms | null;
-  current?: SessionLike;
-  periodUnlocked?: boolean;
-}): SessionLike {
-  return resolveSmartWorkingSession({
-    classSession: classSessionFromTerms(input.classRow?.academic_terms),
-    saved: input.current,
-    periodUnlocked: input.periodUnlocked ?? false,
-  });
-}
-
 /** Publish — advance stale roster filter when the calendar moves on. */
 export function rollRosterSessionIfStale(
   current: SessionLike,
@@ -110,21 +94,6 @@ export function rosterSessionQueryFilters(rosterSession: SessionLike | null | un
   return { report_term: rosterSession.term, report_period: rosterSession.period };
 }
 
-/** Grades → batch-sync API: allow writing into a prior session when deliberately backfilling. */
-export function batchSyncAllowBackfill(term: string, period: string): boolean {
-  return isStaleAcademicSession(term, period);
-}
-
-/** Batch-sync API: resolve canonical session identity before touching student_progress_reports. */
-export function resolveBatchSyncApiSession(
-  reportTerm: string,
-  reportPeriod: string | null | undefined,
-  allowBackfill = false,
-): SessionLike {
-  const { session } = resolveSessionForWrite(reportTerm, reportPeriod, { allowBackfill });
-  return { term: session.termLabel, period: session.periodLabel };
-}
-
 /** Grading queue scope from API — term label only until period is returned by API. */
 export function gradingEvidenceSession(scope: {
   term_label?: string | null;
@@ -135,13 +104,4 @@ export function gradingEvidenceSession(scope: {
     return { term: scope.term_label, period: live.period };
   }
   return liveSessionLike();
-}
-
-/** Full pipeline check: evidence session must match report target before batch-sync merge. */
-export function batchSyncSessionMatchesReport(
-  targetSession: SessionLike,
-  report: ReportSessionRow | null | undefined,
-): boolean {
-  if (!report?.id) return true;
-  return reportMatchesSession(sessionFromReport(report), targetSession);
 }

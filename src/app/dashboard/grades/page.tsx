@@ -18,21 +18,15 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
-import { formatAcademicSession, liveAcademicSession, ACADEMIC_TERM_OPTIONS, academicYearOptions } from '@/lib/reports/academic-period';
+import { liveAcademicSession } from '@/lib/reports/academic-period';
 import { AcademicSessionScopeStrip, formatClassRowOptionLabel } from '@/components/reports/ReportSessionContextBanner';
 import {
   calendarSessionLabel,
   classSessionFromTerms,
   liveSessionLike,
-  resolveSmartWorkingSession,
   sessionLabel,
 } from '@/lib/reports/session-scope';
-import {
-  batchSyncAllowBackfill,
-  resolveBatchSyncSession,
-} from '@/lib/reports/session-workflows';
 import { getWAECGrade } from '@/lib/grading';
-import { resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { brandContact } from '@/config/brand';
 import { SubmissionAttachmentCard } from '@/components/submissions/SubmissionAttachmentCard';
 
@@ -78,181 +72,6 @@ function Badge({ status }: { status: string }) {
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize whitespace-nowrap ${map[status] ?? 'bg-muted text-muted-foreground border-border'}`}>
             {status}
         </span>
-    );
-}
-
-// ─── Batch Sync Modal ─────────────────────────────────────────
-function BatchSyncModal({ programs, allCourses, teacherClasses, onClose, onSynced }: { 
-    programs: any[]; 
-    allCourses: any[];
-    teacherClasses: any[];
-    onClose: () => void;
-    onSynced: () => void;
-}) {
-    const { profile } = useAuth();
-    const [selectedClassId, setSelectedClassId] = useState('');
-    const [programId, setProgramId] = useState('');
-    const [courseId, setCourseId] = useState('');
-    const [className, setClassName] = useState('');
-    const [term, setTerm] = useState(() => liveSessionLike().term ?? '');
-    const [period, setPeriod] = useState(() => liveSessionLike().period ?? '');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [instructor, setInstructor] = useState(profile?.full_name || '');
-    const [syncing, setSyncing] = useState(false);
-    const [error, setError] = useState('');
-
-    const courses = programId ? allCourses.filter(c => c.program_id === programId) : [];
-
-    const selectedClass = teacherClasses.find((c) => c.id === selectedClassId);
-    const classSession = classSessionFromTerms(selectedClass?.academic_terms);
-    const batchWorkingSession = useMemo(() => resolveSmartWorkingSession({
-        classSession,
-        saved: { term, period },
-    }), [classSession, term, period]);
-
-    const handleClassChange = (classId: string) => {
-        setSelectedClassId(classId);
-        if (!classId) {
-            setClassName('');
-            return;
-        }
-        const matchingClass = teacherClasses.find(c => c.id === classId);
-        if (matchingClass) {
-            setClassName(matchingClass.name);
-            setProgramId(matchingClass.program_id || '');
-
-            const linkedCourse = resolveLinkedCourseForClass(matchingClass, allCourses);
-            setCourseId(linkedCourse?.id || '');
-
-            const session = resolveBatchSyncSession({
-                classRow: matchingClass,
-                current: { term, period },
-            });
-            if (session.term) setTerm(session.term);
-            if (session.period) setPeriod(session.period);
-        }
-    };
-
-    const handleSync = async () => {
-        if (!courseId || !className || !term || !date) {
-            setError('Please fill in all required fields');
-            return;
-        }
-        setSyncing(true);
-        setError('');
-        try {
-            const course = allCourses.find(c => c.id === courseId);
-            const res = await fetch('/api/reports/batch-sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    course_id: courseId,
-                    course_name: course?.title,
-                    class_name: className,
-                    report_term: term,
-                    report_period: period,
-                    report_date: date,
-                    instructor_name: instructor,
-                    school_id: profile?.school_id,
-                    school_name: profile?.school_name,
-                    // Keep an intentionally selected prior session (don't silently roll to live).
-                    allow_backfill: batchSyncAllowBackfill(term, period),
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to sync');
-            toast.success(`Succesfully synced ${data.results.length} student reports`);
-            onSynced();
-            onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setSyncing(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-[60] bg-foreground/35 dark:bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div role="dialog" aria-modal="true" className="bg-card text-card-foreground border border-border w-full sm:max-w-md shadow-2xl p-6 sm:p-8 space-y-6 rounded-t-3xl sm:rounded-xl">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Batch-Sync Reports</h3>
-                        <p className="text-xs text-muted-foreground mt-1">Push current grades for a whole class into report card drafts.</p>
-                    </div>
-                </div>
-
-                <AcademicSessionScopeStrip
-                    purpose="Batch-sync target"
-                    workingSession={batchWorkingSession}
-                    classSession={classSession}
-                    hint="Drafts created here attach to this session — aligned with the class assignment when you pick a class."
-                />
-
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
-                        <select value={selectedClassId} onChange={e => handleClassChange(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
-                            <option value="">Select Class</option>
-                            {teacherClasses.map(c => (
-                                <option key={c.id} value={c.id}>
-                                    {formatClassRowOptionLabel(c)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Programme *</label>
-                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} disabled={!!selectedClassId} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary disabled:opacity-60 disabled:cursor-not-allowed">
-                            <option value="">Select Programme</option>
-                            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Course *</label>
-                        <select value={courseId} onChange={e => setCourseId(e.target.value)} disabled={!programId} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary disabled:opacity-30">
-                            <option value="">Select Course</option>
-                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Term *</label>
-                            <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
-                                {ACADEMIC_TERM_OPTIONS.map((t) => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Academic Year *</label>
-                            <select value={period} onChange={e => setPeriod(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
-                                {academicYearOptions().map((y) => (
-                                  <option key={y} value={y}>{y}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Date *</label>
-                        <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
-                    </div>
-                </div>
-
-                {error && <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 p-3 border border-rose-500/20">{error}</p>}
-
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3.5 text-xs font-bold text-muted-foreground border border-border hover:bg-muted transition-all">Cancel</button>
-                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/40">
-                        {syncing ? (
-                            <div className="flex items-center justify-center gap-2">
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                Syncing...
-                            </div>
-                        ) : 'Start Magic Sync'}
-                    </button>
-                </div>
-            </div>
-        </div>
     );
 }
 
@@ -894,7 +713,6 @@ export default function GradesPage() {
     const [grading, setGrading] = useState<any | null>(null);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [refreshKey, setRefreshKey] = useState(0);
-    const [showSyncModal, setShowSyncModal] = useState(false);
     const [academicTerms, setAcademicTerms] = useState<Array<{
       id: string; academic_year: string; term_label: string; is_current?: boolean;
     }>>([]);
@@ -1110,16 +928,6 @@ export default function GradesPage() {
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
             {grading && <GradeModal sub={grading} onClose={() => setGrading(null)} onSaved={handleGraded} />}
-            {showSyncModal && (
-                <BatchSyncModal
-                    programs={programs}
-                    allCourses={allCourses}
-                    teacherClasses={teacherClasses}
-                    onClose={() => setShowSyncModal(false)}
-                    onSynced={handleGraded}
-                />
-            )}
-
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {/* ── Assessment Tab Bar ── */}
@@ -1172,12 +980,20 @@ export default function GradesPage() {
                                     <span className="hidden sm:inline">Export PDF</span>
                                 </button>
                                 {isStaff && (
-                                    <button onClick={() => setShowSyncModal(true)}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-900/20 group">
-                                        <SparklesIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />
-                                        <span className="hidden sm:inline">Batch-Sync Reports</span>
-                                        <span className="sm:hidden">Sync</span>
-                                    </button>
+                                    <Link
+                                        href={{
+                                            pathname: '/dashboard/academic/results',
+                                            query: {
+                                                ...(filterClass ? { class_id: filterClass } : {}),
+                                                ...(filterCourse ? { course_id: filterCourse } : {}),
+                                            },
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-900/20 group"
+                                    >
+                                        <SparklesIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                        <span className="hidden sm:inline">Prepare results</span>
+                                        <span className="sm:hidden">Results</span>
+                                    </Link>
                                 )}
                                 <button onClick={() => exportCSV(items, isStaff)}
                                     className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground transition-all">

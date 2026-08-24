@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  batchSyncAllowBackfill,
-  batchSyncSessionMatchesReport,
   filterReportsByRosterSession,
   gradingEvidenceSession,
-  resolveBatchSyncSession,
   resolveWriteHydrateSession,
   rollRosterSessionIfStale,
   rosterSessionQueryFilters,
@@ -65,30 +62,6 @@ describe('session-workflows — Publish roster', () => {
   });
 });
 
-describe('session-workflows — batch-sync modal', () => {
-  it('aligns to class assignment when period is locked', () => {
-    expect(resolveBatchSyncSession({
-      classRow: {
-        name: 'JSS1A',
-        academic_terms: { term_label: 'Third Term', academic_year: '2024/2025' },
-      },
-      current: { term: 'First Term', period: '2025/2026' },
-      periodUnlocked: false,
-    })).toEqual({ term: 'Third Term', period: '2024/2025' });
-  });
-
-  it('keeps manual pick when period is unlocked', () => {
-    expect(resolveBatchSyncSession({
-      classRow: {
-        name: 'JSS1A',
-        academic_terms: { term_label: 'First Term', academic_year: '2025/2026' },
-      },
-      current: { term: 'Third Term', period: '2024/2025' },
-      periodUnlocked: true,
-    })).toEqual({ term: 'Third Term', period: '2024/2025' });
-  });
-});
-
 describe('session-workflows — calendar roll', () => {
   it('advances stale roster and records previous label', () => {
     const { session, rolledFrom } = rollRosterSessionIfStale(
@@ -110,24 +83,6 @@ describe('session-workflows — calendar roll', () => {
 });
 
 describe('session-workflows — grades to report pipeline', () => {
-  it('batchSyncAllowBackfill is true for prior-year sessions', () => {
-    expect(batchSyncAllowBackfill('Third Term', '2024/2025')).toBe(true);
-  });
-
-  it('batchSyncSessionMatchesReport rejects cross-term merge', () => {
-    expect(batchSyncSessionMatchesReport(
-      { term: 'First Term', period: '2025/2026' },
-      { id: 'spr-1', report_term: 'Third Term', report_period: '2024/2025' },
-    )).toBe(false);
-  });
-
-  it('batchSyncSessionMatchesReport allows new draft in target session', () => {
-    expect(batchSyncSessionMatchesReport(
-      { term: 'First Term', period: '2025/2026' },
-      null,
-    )).toBe(true);
-  });
-
   it('gradingEvidenceSession uses API term label when scoped', () => {
     expect(gradingEvidenceSession({ term_label: 'Third Term' }).term).toBe('Third Term');
   });

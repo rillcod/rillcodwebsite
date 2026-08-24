@@ -17,7 +17,6 @@ const SESSION_CRITICAL_PAGES = [
 ] as const;
 
 const SESSION_CRITICAL_API_ROUTES = [
-  'app/api/reports/batch-sync/route.ts',
   'app/api/academic-spine/results/route.ts',
   'app/api/progress-reports/route.ts',
 ] as const;
