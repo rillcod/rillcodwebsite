@@ -55,7 +55,7 @@ async function main() {
     all('academic_assessment_evidence', 'evidence_type,source_id,assessment_id,school_id,class_id,course_id,academic_term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,context_status'),
     all('assignments', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,metadata'),
     all('cbt_exams', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,metadata'),
-    all('exams', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id'),
+    all('exams', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,metadata'),
     all('lesson_plans', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,academic_offering_id,offering_period_id'),
     all('assignment_submissions', 'id,assignment_id,portal_user_id,student_id,user_id'),
     all('cbt_sessions', 'id,exam_id,user_id'),
@@ -89,9 +89,16 @@ async function main() {
       const assignment = row.assessment_id ? maps.assignment_submission.get(row.assessment_id) : null;
       return assignment?.metadata?.result_eligible !== false;
     }
-    if (row.evidence_type !== 'cbt_session') return true;
-    const exam = row.assessment_id ? maps.cbt_session.get(row.assessment_id) : null;
-    return exam?.metadata?.result_eligible !== false;
+    if (row.evidence_type === 'cbt_session') {
+      const exam = row.assessment_id ? maps.cbt_session.get(row.assessment_id) : null;
+      return exam?.metadata?.result_eligible !== false;
+    }
+    if (row.evidence_type === 'exam_attempt') {
+      const exam = row.assessment_id ? maps.exam_attempt.get(row.assessment_id) : null;
+      if (exam?.metadata?.result_eligible === false) return false;
+      return !!exam?.class_id || exam?.metadata?.assessment_scope === 'class_result';
+    }
+    return true;
   });
   const practiceEvidence = relevant.filter((row) => {
     if (row.evidence_type === 'assignment_submission') {
@@ -100,6 +107,10 @@ async function main() {
     }
     if (row.evidence_type === 'cbt_session') {
       const exam = row.assessment_id ? maps.cbt_session.get(row.assessment_id) : null;
+      return exam?.metadata?.result_eligible === false;
+    }
+    if (row.evidence_type === 'exam_attempt') {
+      const exam = row.assessment_id ? maps.exam_attempt.get(row.assessment_id) : null;
       return exam?.metadata?.result_eligible === false;
     }
     return false;
@@ -118,13 +129,18 @@ async function main() {
       expected[sourceField] != null && row[evidenceField] !== expected[sourceField],
     );
   });
-  const unscoped = resultRelevant.filter((row) =>
+  const unresolvedWrittenDecisions = relevant.filter((row) => {
+    if (row.evidence_type !== 'exam_attempt') return false;
+    const exam = row.assessment_id ? maps.exam_attempt.get(row.assessment_id) : null;
+    return !!exam && !exam.class_id && !exam.metadata?.assessment_scope;
+  });
+  const unscoped = [...resultRelevant.filter((row) =>
     row.context_status !== 'traceable'
     || !row.class_id
     || !row.course_id
     || !row.academic_offering_id
     || !row.offering_period_id,
-  );
+  ), ...unresolvedWrittenDecisions];
 
   console.log('\nAcademic evidence context audit (read-only, aggregate only)');
   console.log(`Evidence rows: ${evidence.length}`);

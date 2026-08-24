@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, NotFoundError } from '@/lib/errors';
-import type { Database } from '@/types/supabase';
+import type { Database, Json } from '@/types/supabase';
 import {
   loadCleanupPolicy,
   mayHardDeleteRebuildableContent,
@@ -9,6 +9,13 @@ import {
 
 export interface ExamInput {
     course_id: string;
+    class_id?: string | null;
+    school_id?: string | null;
+    program_id?: string | null;
+    term_id?: string | null;
+    academic_offering_id?: string | null;
+    offering_period_id?: string | null;
+    metadata?: Json;
     title: string;
     description?: string | null;
     duration_minutes: number;
@@ -83,6 +90,12 @@ export class ExamService {
         if (courseError || !course) throw new AppError(courseError?.message || 'Course not found', 400);
         const payload: ExamInsert = {
             course_id: input.course_id,
+            class_id: input.class_id,
+            program_id: input.program_id,
+            term_id: input.term_id,
+            academic_offering_id: input.academic_offering_id,
+            offering_period_id: input.offering_period_id,
+            metadata: input.metadata,
             title: input.title,
             description: input.description,
             duration_minutes: input.duration_minutes,
@@ -92,7 +105,7 @@ export class ExamService {
             randomize_options: input.randomize_options,
             max_attempts: input.max_attempts,
             is_active: input.is_active,
-            school_id: course.school_id ?? null,
+            school_id: input.school_id ?? course.school_id ?? null,
         };
 
         const { data, error } = await supabase
@@ -114,6 +127,13 @@ export class ExamService {
         const supabase = createAdminClient();
         const payload: ExamUpdate = {
             course_id: input.course_id,
+            class_id: input.class_id,
+            school_id: input.school_id,
+            program_id: input.program_id,
+            term_id: input.term_id,
+            academic_offering_id: input.academic_offering_id,
+            offering_period_id: input.offering_period_id,
+            metadata: input.metadata,
             title: input.title,
             description: input.description,
             duration_minutes: input.duration_minutes,

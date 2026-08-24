@@ -26,6 +26,7 @@ describe('protected academic evidence checks', () => {
         error: null,
       },
       cbt_sessions: { data: [{ id: 'attempt-1', score: null, manual_scores: null }], error: null },
+      exam_attempts: { data: [{ id: 'written-attempt-1', status: 'in_progress' }], error: null },
       student_progress_reports: {
         data: [
           { id: 'report-1', is_published: true },
@@ -44,9 +45,10 @@ describe('protected academic evidence checks', () => {
     expect(evidence).toMatchObject({
       assignmentScores: 2,
       cbtScores: 1,
+      writtenExamAttempts: 1,
       progressReports: 3,
       moderatedTermGrades: 0,
-      total: 6,
+      total: 7,
     });
   });
 
@@ -55,6 +57,7 @@ describe('protected academic evidence checks', () => {
       students: { data: [{ id: 'student-row-1' }], error: null },
       assignment_submissions: { data: null, error: { message: 'database unavailable' } },
       cbt_sessions: { data: [], error: null },
+      exam_attempts: { data: [], error: null },
       student_progress_reports: { data: [], error: null },
       enrollments: { count: null, data: [], error: null },
     };
@@ -73,6 +76,7 @@ describe('protected academic evidence checks', () => {
         error: null,
       },
       cbt_sessions: { data: [], error: null },
+      exam_attempts: { data: [], error: null },
       student_progress_reports: { data: [], error: null },
       enrollments: { data: [], error: null },
     };

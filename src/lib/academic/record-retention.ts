@@ -67,6 +67,30 @@ export function hasCbtAttemptEvidence(row: CbtAttemptEvidence | null | undefined
     || Boolean(row.status);
 }
 
+export type WrittenExamAttemptEvidence = {
+  id?: unknown;
+  answers?: unknown;
+  score?: unknown;
+  percentage?: unknown;
+  started_at?: unknown;
+  submitted_at?: unknown;
+  status?: unknown;
+};
+
+/** A started written paper is protected learner work, even before moderation. */
+export function hasWrittenExamAttemptEvidence(
+  row: WrittenExamAttemptEvidence | null | undefined,
+): boolean {
+  if (!row) return false;
+  return Boolean(row.id)
+    || row.score != null
+    || row.percentage != null
+    || Boolean(row.started_at)
+    || Boolean(row.submitted_at)
+    || Boolean(row.answers)
+    || Boolean(row.status);
+}
+
 export type ProgressReportEvidence = {
   is_published?: unknown;
   published_at?: unknown;

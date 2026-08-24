@@ -12,16 +12,24 @@ async function postHandler(req: Request, ctx: ApiContext) {
         throw new AppError('Only students can take exams', 403);
     }
 
-    // Gate by programme enrolment: the exam's course must belong to a programme the
-    // student is enrolled in (defence-in-depth — same rule as the list + assignments).
+    // Use the same school/programme/class rule as list and detail. An official
+    // class paper must never be startable by a learner from a neighbouring class.
     const { createAdminClient } = await import('@/lib/supabase/admin');
     const { resolveStudentProgramScope } = await import('@/lib/assignments/visibility');
+    const { assessmentVisibleToStudent, loadAssessmentStudentProfile } = await import('@/lib/academic/assessment-visibility');
     const admin = createAdminClient();
-    const { data: exam } = await admin.from('exams').select('course_id').eq('id', id).maybeSingle();
-    const examCourseId = (exam as any)?.course_id ?? null;
-    const scope = await resolveStudentProgramScope(admin as any, ctx.user!.id);
-    if (!examCourseId || !scope.courseIds.has(examCourseId)) {
-        throw new AppError('This exam is not part of your enrolled programme.', 403);
+    const { data: exam, error: examError } = await admin
+        .from('exams')
+        .select('id,course_id,program_id,class_id,school_id,metadata,is_active')
+        .eq('id', id)
+        .maybeSingle();
+    if (examError) throw new AppError(examError.message, 500);
+    if (!exam || !exam.is_active) throw new AppError('This exam is not available.', 404);
+    const student = await loadAssessmentStudentProfile(admin as any, ctx.user!.id);
+    if (!student) throw new AppError('Learner profile not found', 404);
+    const scope = await resolveStudentProgramScope(admin as any, ctx.user!.id, student.class_id);
+    if (!assessmentVisibleToStudent(exam, student, scope)) {
+        throw new AppError('This exam is not assigned to your school, programme and class.', 403);
     }
 
     // Attendance-eligibility gate ("lms_attendance_threshold"). Fails open when the policy

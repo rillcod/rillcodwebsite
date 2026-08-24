@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   AcademicCapIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon,
   ClockIcon, CheckCircleIcon, MagnifyingGlassIcon, ArrowPathIcon,
-  DocumentTextIcon, ChartBarIcon, UserGroupIcon, LockClosedIcon,
+  DocumentTextIcon, ChartBarIcon, LockClosedIcon,
   LockOpenIcon, InformationCircleIcon, DocumentCheckIcon,
   CommandLineIcon,
 } from '@/lib/icons';
@@ -25,9 +25,31 @@ interface Exam {
   is_active: boolean;
   created_by: string | null;
   created_at: string;
+  class_id: string | null;
+  metadata: Record<string, unknown> | null;
   courses?: { id: string; title: string };
   _questionCount?: number;
   _attemptCount?: number;
+}
+
+function resultUse(exam: Exam): 'class_result' | 'practice' | 'unresolved' {
+  if (exam.metadata?.assessment_scope === 'practice' || exam.metadata?.result_eligible === false) return 'practice';
+  if (exam.metadata?.assessment_scope === 'class_result' || exam.class_id) return 'class_result';
+  return 'unresolved';
+}
+
+function ResultUseBadge({ exam }: { exam: Exam }) {
+  const use = resultUse(exam);
+  const styles = use === 'class_result'
+    ? 'bg-primary/10 text-primary border-primary/20'
+    : use === 'practice'
+      ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20'
+      : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border ${styles}`}>
+      {use === 'class_result' ? 'Class result' : use === 'practice' ? 'Practice only' : 'Resolve result use'}
+    </span>
+  );
 }
 
 function StatusBadge({ active }: { active: boolean }) {
@@ -202,6 +224,7 @@ export default function ExamsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <StatusBadge active={exam.is_active} />
+                    {canManage && <ResultUseBadge exam={exam} />}
                     {exam.courses && (
                       <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[120px]">{exam.courses.title}</span>
                     )}

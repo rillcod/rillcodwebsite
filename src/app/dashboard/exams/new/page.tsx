@@ -9,11 +9,26 @@ import {
   AcademicCapIcon, ArrowLeftIcon, CheckCircleIcon, InformationCircleIcon, SparklesIcon, ArrowPathIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
+
+interface ExamClassOption {
+  id: string;
+  name: string;
+  teacher_id: string | null;
+  program_id: string | null;
+  current_course_id: string | null;
+  academic_offering_id: string | null;
+  offering_period_id: string | null;
+  status: string | null;
+}
 
 export default function NewExamPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [programs, setPrograms] = useState<any[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<ExamClassOption[]>([]);
+  const [classId, setClassId] = useState('');
+  const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -35,11 +50,40 @@ export default function NewExamPage() {
     fetch('/api/programs?is_active=true').then(r => r.json()).then(j => setPrograms(j.data ?? []));
   }, []);
 
+  useEffect(() => {
+    if (!profile || !['admin', 'teacher'].includes(profile.role)) return;
+    const loadClasses = async () => {
+      const db = createClient();
+      let query = db
+        .from('classes')
+        .select('id,name,teacher_id,program_id,current_course_id,academic_offering_id,offering_period_id,status')
+        .order('name');
+      if (profile.role === 'teacher') query = query.eq('teacher_id', profile.id);
+      const { data, error } = await query;
+      if (error) {
+        toast.error('Classes could not be loaded. Refresh and try again.');
+        return;
+      }
+      setAvailableClasses(((data ?? []) as ExamClassOption[]).filter(item => item.status !== 'archived'));
+    };
+    void loadClasses();
+  }, [profile]);
+
   // Courses are derived from the chosen programme.
   const courses = (programs.find((p: any) => p.id === selectedProgramId)?.courses ?? []) as { id: string; title: string }[];
 
   const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
   const [genDesc, setGenDesc] = useState(false);
+
+  function selectClass(nextClassId: string) {
+    setClassId(nextClassId);
+    const selected = availableClasses.find(item => item.id === nextClassId);
+    if (!selected) return;
+    if (selected.program_id) setSelectedProgramId(selected.program_id);
+    if (selected.current_course_id) {
+      setForm(current => ({ ...current, course_id: selected.current_course_id || current.course_id }));
+    }
+  }
 
   async function generateDescription() {
     if (!form.title) { toast.error('Enter an exam title first'); return; }
@@ -74,6 +118,16 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.course_id || !form.title) { toast.error('Course and title are required'); return; }
+    if (assessmentScope === 'class_result' && !classId) {
+      toast.error('Choose the class receiving this result, or select Practice only.');
+      return;
+    }
+    const selectedClass = classId ? availableClasses.find(item => item.id === classId) : null;
+    if (assessmentScope === 'class_result' && selectedClass
+      && (!selectedClass.academic_offering_id || !selectedClass.offering_period_id)) {
+      toast.error('Repair this class academic offering and reporting period before creating official work.');
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/exams', {
@@ -81,6 +135,8 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          class_id: classId || null,
+          assessment_scope: assessmentScope,
           duration_minutes: Number(form.duration_minutes),
           total_points: Number(form.total_points),
           passing_score: Number(form.passing_score),
@@ -135,9 +191,50 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
       </div>
 
       <form onSubmit={handleSubmit} className="bg-card border border-white/[0.08] rounded-2xl p-6 space-y-5">
+        <div className="rounded-2xl border border-border bg-background/40 p-4 space-y-4">
+          <div>
+            <p className="text-sm font-black text-card-foreground">Where should this exam be used?</p>
+            <p className="mt-1 text-xs text-card-foreground/50">
+              Choose once. Practice attempts remain available for feedback but stay outside official class results.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={() => setAssessmentScope('class_result')}
+              className={`rounded-xl border p-4 text-left transition-colors ${assessmentScope === 'class_result' ? 'border-primary/60 bg-primary/10' : 'border-border bg-card hover:border-primary/30'}`}>
+              <p className="text-sm font-bold text-card-foreground">Class result</p>
+              <p className="mt-1 text-xs text-card-foreground/50">Eligible for the selected class report and grade workflow.</p>
+            </button>
+            <button type="button" onClick={() => setAssessmentScope('practice')}
+              className={`rounded-xl border p-4 text-left transition-colors ${assessmentScope === 'practice' ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-card hover:border-sky-500/30'}`}>
+              <p className="text-sm font-bold text-card-foreground">Practice only</p>
+              <p className="mt-1 text-xs text-card-foreground/50">Keeps attempts and feedback without changing official results.</p>
+            </button>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">
+              {assessmentScope === 'class_result' ? 'Result class *' : 'Limit practice to a class'}
+            </label>
+            <select value={classId} onChange={event => selectClass(event.target.value)}
+              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
+              <option value="">{assessmentScope === 'class_result' ? 'Choose the class receiving this exam…' : 'Programme-wide practice'}</option>
+              {availableClasses.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.name}{item.academic_offering_id && item.offering_period_id ? '' : ' — setup required'}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Programme <span className="text-rose-600 dark:text-rose-400">*</span></label>
-          <select value={selectedProgramId} onChange={e => { setSelectedProgramId(e.target.value); setForm(f => ({ ...f, course_id: '' })); }}
+          <select value={selectedProgramId} onChange={e => {
+            const nextProgramId = e.target.value;
+            setSelectedProgramId(nextProgramId);
+            setForm(f => ({ ...f, course_id: '' }));
+            const selectedClass = availableClasses.find(item => item.id === classId);
+            if (selectedClass?.program_id && selectedClass.program_id !== nextProgramId) setClassId('');
+          }}
             required className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
             <option value="">Select a programme…</option>
             {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}

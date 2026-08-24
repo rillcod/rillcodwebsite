@@ -2733,3 +2733,64 @@ Verification and runtime boundary:
   local development process;
 - no production build, database mutation, remote push, report write or learner evidence mutation was
   performed in this milestone.
+
+### 16.28 Written-exam result boundary and learner-record protection — verified locally and audited live read-only on 24 August 2026
+
+Confirmed central-system gaps:
+
+- written exams carried course and school data but creation did not ask whether a paper was an
+  official class result or practice. The list, detail and start gates checked programme/course scope
+  independently and did not enforce the exact target class, so an official paper could be visible to
+  another class in the same programme;
+- written attempts were synchronized into `academic_assessment_evidence`, but practice eligibility
+  was not represented. An unscoped legacy paper could therefore look eligible to Auto-fill even when
+  nobody had verified the class, offering or reporting period;
+- the permanent learner-deletion guard protected assignment scores, CBT sittings, reports and
+  moderated term grades, but omitted `exam_attempts`. A started written paper is learner evidence and
+  must be retained even before its final manual grade;
+- staff could not repair a missing result class after an attempt existed because the endpoint treated
+  every update as a paper-definition change. The UI also kept paper fields editable until the server
+  rejected the request, which was safe but confusing;
+- the read-only production audit currently finds no written-exam attempt evidence. Prevention is
+  therefore being added before this omission creates live score ambiguity; the existing live counts
+  remain 57 evidence rows, with 49 CBT and two assignment rows unresolved and four orphaned legacy
+  assignment rows preserved.
+
+Implemented prevention and safe recovery:
+
+- `assessmentVisibleToStudent` is now the shared learner gate for CBT and written assessments.
+  Written-exam list, detail, attempt-list and start boundaries all enforce active status plus school,
+  programme/course and exact class. A guessed URL cannot bypass the class decision;
+- written-exam creation now requires **Class result** or **Practice only**. An official paper requires
+  an owned class with a compatible school/programme and complete academic offering/reporting period.
+  The server derives school, programme, term, offering and period from authoritative course/class
+  records rather than trusting browser fields;
+- the written-exam list shows staff **Class result**, **Practice only**, or **Resolve result use**.
+  The edit page provides the same explicit setting and explains protected attempts in human terms;
+- after a learner starts a paper, definition fields are read-only. Staff can still deactivate the
+  paper, classify it as practice, or perform a compatible null-to-class context recovery. An existing
+  class cannot be moved after evidence exists. No answer, score, feedback or moderation decision is
+  recalculated by this recovery;
+- migration `20260929000106_keep_practice_written_exams_out_of_results.sql` keeps practice and
+  unresolved legacy attempt evidence at `recorded`, outside automatic result calculation. Official
+  evidence retains `draft`, `submitted`, `graded` or `moderated` state. Its final `zzz_` trigger order
+  is deliberate: eligibility runs after the general evidence and moderation synchronizers so neither
+  can silently re-admit practice evidence or erase approved moderation;
+- learner account cleanup now resolves both portal-user and student-row identities, checks
+  `exam_attempts`, and fails closed when that source cannot be inspected. Started written attempts are
+  reported in the same professional protected-record message as the other academic sources;
+- the aggregate audit understands written-paper practice and unresolved decisions without selecting
+  names, contacts, answers or marks.
+
+Verification and deployment boundary:
+
+- four focused suites passed: 4 files and 15 tests covering shared visibility, exact-class gating,
+  explicit creation, protected recovery, database eligibility order, moderation preservation and
+  learner-deletion protection;
+- the full `npm run typecheck` passed. Targeted ESLint completed with zero errors; remaining warnings
+  are pre-existing explicit-`any`/effect-style debt and are not represented as a clean lint gate;
+- `git diff --check` passed. A linked Supabase `db push --dry-run --include-all` completed without a
+  database write and confirmed migrations 103, 104, 105 and 106 are the pending ordered set;
+- the production evidence audit was aggregate-only and read-only. Migration 106 is local and has not
+  been applied to production. No database row, learner attempt, answer, score, feedback, moderation,
+  report, finance record or remote branch was changed in this milestone.
