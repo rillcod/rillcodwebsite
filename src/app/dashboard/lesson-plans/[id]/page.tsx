@@ -53,7 +53,6 @@ import {
   inferTermNumberFromPlanTerm,
   type SyllabusContentImport,
 } from "@/lib/lesson-plans/syllabusImport";
-import { consumeJsonSSE } from "@/lib/http/json-sse";
 
 interface WeekEntry {
   week: number;
@@ -1355,67 +1354,68 @@ export default function LessonPlanDetailPage() {
         lmsSettings.maxWeeksPerBatch > 0
           ? lmsSettings.maxWeeksPerBatch
           : undefined;
-      const res = await fetch(`/api/lesson-plans/${id}/generate-${type}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dry_run: false,
-          ...(batchSize ? { max_weeks: batchSize } : {}),
-        }),
-      });
-      if (!res.ok) throw new Error("Generation failed");
+      let generated = 0;
+      let skipped = 0;
+      let alreadyRunning = 0;
+      const failures: string[] = [];
 
-      let receivedDone = false;
-      await consumeJsonSSE<any>(res, (data) => {
-          if (data.done) {
-            receivedDone = true;
-            if (data.skipped > 0 && data.failures?.length > 0) {
-              toast.error(`Bulk generation partial success`, {
-                description: (
-                  <div className="flex flex-col gap-1.5 mt-1">
-                    <p className="text-xs">
-                      Generated: {data.generated} | Skipped: {data.skipped}
-                    </p>
-                    <details className="text-[10px] bg-rose-500/10 p-1.5 rounded border border-rose-500/20">
-                      <summary className="cursor-pointer font-bold uppercase tracking-wider">
-                        Failure Details
-                      </summary>
-                      <ul className="mt-1 list-disc pl-3 max-h-24 overflow-y-auto">
-                        {data.failures.map((f: any, i: number) => (
-                          <li key={i}>
-                            Week {f.week}: {f.reason}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  </div>
-                ),
-                duration: 8000,
-              });
-            } else if (data.truncated) {
-              toast.success(
-                `Generated ${data.generated} ${type} (batch limit — run again for remaining weeks)`
-              );
-            } else {
-              toast.success(
-                `Generated ${data.generated} ${type}, skipped ${data.skipped}`
-              );
-            }
-            setGenProgress(null);
-            setGenerating(null);
-            load();
-            return;
-          }
-          setGenProgress({
-            generated: Number(data.generated) || 0,
-            total: Number(data.total) || weeks.length,
-            status: typeof data.status === "string" ? data.status : "Working…",
-          });
-      });
-      if (!receivedDone) {
-        throw new Error(
-          "Generation ended before the server confirmed the saved content. Refresh the plan before retrying."
+      // Use the same per-meeting authority as Prepare this week and the cron.
+      // The former bulk routes checked for existing rows, but two concurrent
+      // requests could still pay for the same AI work before the database
+      // rejected the second save. The tracked route claims the meeting first,
+      // inventories it, and asks only for the missing selected content kind.
+      for (let index = 0; index < weeks.length; index++) {
+        if (batchSize && generated >= batchSize) break;
+        const week = weeks[index];
+        const session = Math.max(
+          1,
+          Number(week.session_number ?? week.session ?? 1) || 1
         );
+        setGenProgress({
+          generated,
+          total: weeks.length,
+          status: `Week ${week.week}${session > 1 ? ` · Session ${session}` : ""}: checking existing ${type}`,
+        });
+        const response = await fetch(`/api/lesson-plans/${id}/generate-week`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ week: week.week, session, types: [type] }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (result.alreadyRunning === true) {
+          alreadyRunning++;
+          continue;
+        }
+        generated += Number(result.generated) || 0;
+        skipped += Number(result.skipped) || 0;
+        if (!response.ok || result.success === false) {
+          failures.push(
+            `Week ${week.week}: ${result.error || `${type} did not finish`}`
+          );
+        } else if (
+          Array.isArray(result.failedTypes) &&
+          result.failedTypes.includes(type)
+        ) {
+          failures.push(`Week ${week.week}: ${type} still needs attention`);
+        }
+      }
+
+      await load();
+      if (failures.length > 0) {
+        toast.warning(
+          `${generated} ${type} prepared; ${failures.length} week${failures.length === 1 ? "" : "s"} still need attention.`,
+          { description: failures.slice(0, 3).join(" · "), duration: 9000 }
+        );
+      } else if (alreadyRunning > 0) {
+        toast.info(
+          `${alreadyRunning} meeting${alreadyRunning === 1 ? " is" : "s are"} already being prepared. No duplicate AI run was started.`
+        );
+      } else if (generated > 0) {
+        toast.success(
+          `${generated} ${type} prepared${skipped ? `; ${skipped} existing item${skipped === 1 ? " was" : "s were"} kept.` : "."}`
+        );
+      } else {
+        toast.success(`All ${type} were already prepared. Nothing was duplicated.`);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Generation failed";

@@ -3,6 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { decideGenerationRepairTypes } from "./generation-repair";
 
+const planEditor = readFileSync(
+  join(process.cwd(), "src/app/dashboard/lesson-plans/[id]/page.tsx"),
+  "utf8"
+);
+
 const row = (extra: Record<string, unknown> = {}) => ({
   curriculum_week_number: 2,
   session_number: 1,
@@ -90,5 +95,15 @@ describe("smart teaching-package repair", () => {
     expect(tracked).toContain('error.code === "23505"');
     expect(tracked).toContain("resolveGenerationRepairTypes");
     expect(tracked).toContain("alreadyRunning: true");
+  });
+
+  it("routes teacher bulk generation through the tracked per-meeting authority", () => {
+    expect(planEditor).toContain(
+      "body: JSON.stringify({ week: week.week, session, types: [type] })"
+    );
+    expect(planEditor).toContain(
+      "No duplicate AI run was started."
+    );
+    expect(planEditor).not.toContain("dry_run: false");
   });
 });
