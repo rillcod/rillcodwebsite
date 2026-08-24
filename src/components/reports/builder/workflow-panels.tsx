@@ -69,32 +69,35 @@ export function BuilderSection({
       }`}
     >
       {collapsible ? (
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className={`flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/30 sm:px-4 ${
+        <div
+          className={`flex w-full items-start gap-2 px-3 py-2 transition-colors hover:bg-muted/30 sm:px-4 ${
             showBody ? 'border-b border-border/50' : ''
           }`}
         >
-          <div className="min-w-0">
-            <h3
-              className={`font-black text-foreground ${
-                isSecondary ? 'text-xs' : 'text-sm'
-              }`}
-            >
-              {title}
-            </h3>
-            {description ? (
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-2">
-            {actions}
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+          >
+            <div className="min-w-0">
+              <h3
+                className={`font-black text-foreground ${
+                  isSecondary ? 'text-xs' : 'text-sm'
+                }`}
+              >
+                {title}
+              </h3>
+              {description ? (
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
+              ) : null}
+            </div>
             <ChevronDownIcon
-              className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+              className={`mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
             />
-          </div>
-        </button>
+          </button>
+          {actions ? <div className="flex-shrink-0">{actions}</div> : null}
+        </div>
       ) : (
         <div
           className={`flex items-start justify-between gap-3 border-b border-border/50 px-3 py-2 sm:px-4 ${

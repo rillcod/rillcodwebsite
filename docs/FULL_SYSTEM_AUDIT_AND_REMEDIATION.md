@@ -2703,3 +2703,33 @@ Verification and deployment boundary:
   choice; no class is inferred from current learner enrolment;
 - no production build, remote push, database write, learner score, submission, attachment, feedback,
   report, or finance record was changed in this milestone.
+
+### 16.27 Report-builder hydration and local manifest investigation — verified locally on 24 August 2026
+
+Confirmed and fixed:
+
+- the existing Next development log contained React's exact hydration warning that a `<button>` was
+  rendered inside another `<button>` in the report builder's collapsible **Setup** section;
+- the reusable `BuilderSection` placed its optional `actions` inside the full-width collapse button.
+  The report builder supplied **Another class** as a button action, producing invalid HTML and
+  potentially unreliable click, focus, keyboard and hydration behavior;
+- collapsible headers now render a dedicated title/chevron button and a sibling actions container.
+  The collapse control exposes `aria-expanded`; action buttons no longer depend on event propagation
+  to escape a parent button;
+- a component regression renders a collapsed Setup section with a button action and proves the two
+  buttons are siblings rather than nested.
+
+Verification and runtime boundary:
+
+- three focused suites passed: 3 files and 8 tests, including the new interaction-structure test and
+  the report-card pathway/PDF guard;
+- the full `npm run typecheck` passed;
+- the historic log also contains a transient **Manifest file is empty** error. A read-only scan found
+  no zero-length manifest in `.next` now. PID 17724 still owns the dev lock but does not answer local
+  requests, so this points to stale development-process/build-artifact state rather than an identified
+  production source defect. No `.next` directory or process was deleted/terminated automatically;
+- after the user restarts the local dev process, repeat the Write/Setup/Another class interaction and
+  inspect fresh logs. Production remains Cloudflare Containers and does not depend on this long-lived
+  local development process;
+- no production build, database mutation, remote push, report write or learner evidence mutation was
+  performed in this milestone.
