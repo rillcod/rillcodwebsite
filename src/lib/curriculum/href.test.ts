@@ -22,6 +22,17 @@ describe("curriculum href helpers", () => {
     expect(buildCurriculumHref({ courseId: "c1", programId: "p1" })).toBe(
       "/dashboard/academic/build?course=c1&program=p1"
     );
+    expect(
+      buildCurriculumHref({
+        courseId: "c1",
+        programId: "p1",
+        year: 2,
+        term: 3,
+        week: 6,
+      })
+    ).toBe(
+      "/dashboard/academic/build?course=c1&program=p1&year=2&term=3&week=6"
+    );
   });
 
   it("builds academic stage links with context", () => {

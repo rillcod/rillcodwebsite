@@ -60,10 +60,10 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
             state: "ready",
             headline:
               facts.readyToCertifyCount === 1
-                ? "One course is written and ready to certify."
-                : `${facts.readyToCertifyCount} courses are written and ready to certify.`,
-            detail: "Certification locks the edition classes will teach from.",
-            actionLabel: "Certify",
+              ? "One course is written and ready for approval."
+              : `${facts.readyToCertifyCount} courses are written and ready for approval.`,
+            detail: "Approval makes this the version that classes will use.",
+            actionLabel: "Review and approve",
             actionHref: buildCertifyHref({
               courseId: facts.readyToCertifyCourseId,
             }),
@@ -73,14 +73,14 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
           ? {
               id: "certify",
               state: "done",
-              headline: `All ${facts.certifiedCourses} courses are certified.`,
-              actionLabel: "Open certify",
+              headline: `All ${facts.certifiedCourses} courses are approved.`,
+              actionLabel: "Review approved courses",
               actionHref: "/dashboard/academic/rollout",
             }
           : {
               id: "certify",
               state: "waiting",
-              headline: "Nothing ready to certify yet.",
+            headline: "Nothing ready for approval yet.",
               detail: "Write a curriculum first.",
             };
 
@@ -89,15 +89,15 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
       ? {
           id: "distribute",
           state: "waiting",
-          headline: "Waiting for a certified course.",
+          headline: "Waiting for an approved course.",
         }
       : facts.assignedDirections === 0
         ? {
             id: "distribute",
             state: "ready",
-            headline: "Certified editions are not assigned to schools yet.",
-            detail: "Schools and special programmes each need their own assignment.",
-            actionLabel: "Assign editions",
+          headline: "Approved curricula are not assigned to schools yet.",
+          detail: "Assign the same approved curriculum wherever the course is taught.",
+          actionLabel: "Assign curricula",
             actionHref: buildDistributeHref(),
           }
         : {
@@ -105,8 +105,8 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
             state: "done",
             headline:
               facts.assignedDirections === 1
-                ? "One school or pathway has its edition."
-                : `${facts.assignedDirections} schools or pathways have their edition.`,
+                ? "One school or programme has its curriculum."
+                : `${facts.assignedDirections} schools or programmes have their curriculum.`,
             actionLabel: "Review assignments",
             actionHref: "/dashboard/academic/rollout",
           };
@@ -121,8 +121,8 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "time",
           state: "ready",
-          headline: "Confirm where each school or class starts.",
-          actionLabel: "Set timing",
+          headline: "Confirm the term and week where each school starts.",
+          actionLabel: "Set start points",
           actionHref: buildTimingHref(),
         };
 
@@ -135,8 +135,8 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       ? {
           id: "plan",
           state: "blocked",
-          headline: "No certified curriculum yet.",
-          detail: "Finish writing and certifying first.",
+          headline: "No approved curriculum yet.",
+          detail: "Finish writing and approval first.",
           actionLabel: "Back to curriculum",
           actionHref: "/dashboard/academic",
         }
@@ -146,8 +146,8 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
             state: "blocked",
             headline:
               facts.stuckPlans === 1
-                ? "One class plan is not on a certified edition."
-                : `${facts.stuckPlans} class plans are not on a certified edition.`,
+                ? "One class plan is not linked to an approved curriculum."
+                : `${facts.stuckPlans} class plans are not linked to an approved curriculum.`,
             actionLabel: "Fix assignments",
             actionHref: "/dashboard/academic/rollout",
           }
@@ -173,7 +173,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "teach",
           state: "ready",
-          headline: "Teach from each class — lessons, slides, practice.",
+          headline: "Teach from each class — lesson, slides, practice, assignment and project.",
           actionLabel: "Open classes",
           actionHref: "/dashboard/classes",
         };
@@ -185,7 +185,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
           id: "cover",
           state: "ready",
           headline: "Mark weeks taught so progress stays honest.",
-          actionLabel: "Record coverage",
+          actionLabel: "Record progress",
           actionHref: "/dashboard/learner-progress?view=delivery",
         };
 
@@ -195,8 +195,8 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
       : {
           id: "evidence",
           state: "ready",
-          headline: "Collect homework, tests and projects.",
-          actionLabel: "Open grades",
+          headline: "Review and mark class work in one grading flow.",
+          actionLabel: "Review grading",
           actionHref: "/dashboard/grades",
         };
 
@@ -207,7 +207,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
           id: "result",
           state: "ready",
           headline: "Prepare results, then share with parents.",
-          actionLabel: "Open Auto-fill",
+          actionLabel: "Prepare results",
           actionHref: "/dashboard/academic/results",
         };
 

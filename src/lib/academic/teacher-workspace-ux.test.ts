@@ -47,6 +47,16 @@ describe('central teacher workspace UX', () => {
     expect(teachingTools).toContain("profile?.role === 'teacher'");
   });
 
+  it('keeps one class-first journey and hides secondary records and diagnostics by default', () => {
+    expect(teachingWorkspace).toContain('Class records and results');
+    expect(teachingWorkspace).toContain('<details className="rounded-xl');
+    expect(teachingWorkspace).toContain('Weekly teaching plan');
+    expect(teachingWorkspace).not.toContain('Weekly Teaching Packages');
+    expect(academicOffice).toContain('Detailed progress');
+    expect(academicOffice).toContain('showWorkflowDetails');
+    expect(academicOffice).not.toContain('Auto-fill</span>');
+  });
+
   // The order of the page is the point: what to do next, then the curriculum
   // lanes that carry the work, then optional tools, and only then the admin-only
   // exceptions. Anchored on ids rather than visible copy — the headings were

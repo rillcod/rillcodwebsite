@@ -572,7 +572,11 @@ export default function CurriculumPage() {
     progName: string;
     courseId: string;
     courseTitle: string;
+    activeYear?: number;
+    activeTerm?: number;
+    activeWeek?: number | null;
   } | null>(null);
+  const restoredCurriculumLocation = useRef<string | null>(null);
   /** Courses that have at least one saved curriculum — tracked per session as courses are loaded. */
   const [coursesWithCurricula, setCoursesWithCurricula] = useState<Set<string>>(
     new Set()
@@ -1137,17 +1141,17 @@ export default function CurriculumPage() {
 
   const qaInlineSuggestions = useMemo(() => {
     const tips: string[] = [
-      "Default mode: keep QA optional. Preview first, then apply only when it clearly matches class context.",
-      "If preview does not fit your class reality, skip apply and continue traditional week-by-week syllabus.",
+      "Flexible is the safest choice while you are still building. Preview before applying a sequence.",
+      "If the preview does not fit this class, leave the current weeks unchanged and edit them normally.",
     ];
     if (!qaClassId) {
       tips.push(
-        "Select a class and run Preview class path before applying, so lane/offset are visible."
+        "Choose a class and preview its suggested weeks before applying them."
       );
     }
     if (qaClassId && qaClassGradeMode === "compulsory") {
       tips.push(
-        "This class is set to compulsory QA mode. Keep using preview before each apply to avoid wrong lane/year injection."
+        "This class is set to follow the suggested sequence exactly. Preview before replacing any weeks."
       );
     }
     if (
@@ -1156,12 +1160,12 @@ export default function CurriculumPage() {
       selectedQaClass.program_id !== programIdForQa
     ) {
       tips.push(
-        "Selected class is from another programme. Prefer a same-programme class for trustworthy preview."
+        "The selected class belongs to another programme. Choose a class in this programme for the best match."
       );
     }
     if (qaOverwrite) {
       tips.push(
-        "Overwrite is ON. This will replace existing weeks in all terms of this syllabus copy."
+        "Replace existing weeks is on. Applying will change the saved topics in every term of this curriculum."
       );
     }
     return tips;
@@ -3531,6 +3535,122 @@ export default function CurriculumPage() {
       ),
     [orderedTerms]
   );
+
+  // Return to the exact course location instead of making staff find the term
+  // and week again. URL values win so shared links are deterministic; local
+  // memory is only the fallback for an ordinary return visit.
+  useEffect(() => {
+    if (!curriculum || !selectedCourse || allTerms.length === 0) return;
+    const restoreKey = `${curriculum.id}:${selectedCourse.id}`;
+    if (restoredCurriculumLocation.current === restoreKey) return;
+
+    let remembered: {
+      courseId?: string;
+      activeYear?: number;
+      activeTerm?: number;
+      activeWeek?: number | null;
+    } = {};
+    try {
+      remembered = JSON.parse(
+        window.localStorage.getItem("curriculum.lastCourse.v1") || "{}"
+      );
+    } catch {
+      remembered = {};
+    }
+
+    const queryYear = Number(searchParams.get("year"));
+    const queryTerm = Number(searchParams.get("term"));
+    const queryWeek = Number(searchParams.get("week"));
+    const canUseMemory = remembered.courseId === selectedCourse.id;
+    const requestedYear =
+      Number.isInteger(queryYear) && queryYear > 0
+        ? queryYear
+        : canUseMemory && Number.isInteger(remembered.activeYear)
+          ? Number(remembered.activeYear)
+          : allTerms[0]?.year ?? 1;
+    const year = allTerms.some((term) => (term.year ?? 1) === requestedYear)
+      ? requestedYear
+      : allTerms[0]?.year ?? 1;
+    const requestedTerm =
+      searchParams.has("term") && Number.isInteger(queryTerm)
+        ? queryTerm
+        : canUseMemory && Number.isInteger(remembered.activeTerm)
+          ? Number(remembered.activeTerm)
+          : allTerms.find((term) => (term.year ?? 1) === year)?.term ?? 1;
+    const term =
+      requestedTerm === 0 ||
+      allTerms.some(
+        (candidate) =>
+          (candidate.year ?? 1) === year && candidate.term === requestedTerm
+      )
+        ? requestedTerm
+        : allTerms.find((candidate) => (candidate.year ?? 1) === year)?.term ?? 1;
+    const requestedWeek =
+      Number.isInteger(queryWeek) && queryWeek > 0
+        ? queryWeek
+        : canUseMemory && Number.isInteger(remembered.activeWeek)
+          ? Number(remembered.activeWeek)
+          : null;
+    const week =
+      requestedWeek == null
+        ? null
+        : allTerms
+            .filter(
+              (candidate) =>
+                (candidate.year ?? 1) === year &&
+                (term === 0 || candidate.term === term)
+            )
+            .flatMap((candidate) => candidate.weeks ?? [])
+            .find((candidate) => candidate.week === requestedWeek) ?? null;
+
+    restoredCurriculumLocation.current = restoreKey;
+    setActiveYear(year);
+    setActiveTerm(term);
+    setActiveWeek(week);
+  }, [allTerms, curriculum, searchParams, selectedCourse]);
+
+  useEffect(() => {
+    if (!curriculum || !selectedCourse || !selectedProgram) return;
+    const restoreKey = `${curriculum.id}:${selectedCourse.id}`;
+    if (restoredCurriculumLocation.current !== restoreKey) return;
+    const visited = {
+      progId: selectedProgram.id,
+      progName: selectedProgram.name,
+      courseId: selectedCourse.id,
+      courseTitle: selectedCourse.title,
+      activeYear,
+      activeTerm,
+      activeWeek: activeWeek?.week ?? null,
+    };
+    try {
+      window.localStorage.setItem(
+        "curriculum.lastCourse.v1",
+        JSON.stringify(visited)
+      );
+      window.history.replaceState(
+        null,
+        "",
+        buildCurriculumHref({
+          programId: selectedProgram.id,
+          courseId: selectedCourse.id,
+          year: activeYear,
+          term: activeTerm,
+          week: activeWeek?.week ?? null,
+        })
+      );
+    } catch {
+      /* Browser history and local memory are conveniences, never blockers. */
+    }
+    setLastVisited(visited);
+  }, [
+    activeTerm,
+    activeWeek?.week,
+    activeYear,
+    curriculum,
+    selectedCourse,
+    selectedProgram,
+  ]);
+
   // Term that actually owns a week number — activeTerm is 0 in All-Terms mode.
   const termOwning = (weekNum: number) =>
     activeTerm !== 0
@@ -4501,11 +4621,10 @@ export default function CurriculumPage() {
                       <div className="space-y-4 relative z-10">
                         <div className="flex flex-wrap items-center gap-2 text-primary">
                           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-muted border border-border rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
-                            <InformationCircleIcon className="w-3 h-3" /> System
-                            Status
+                            <InformationCircleIcon className="w-3 h-3" /> Curriculum
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                            Setup in progress
+                            Not started
                           </span>
                         </div>
 
@@ -4514,9 +4633,8 @@ export default function CurriculumPage() {
                             {selectedCourse.title}
                           </h1>
                           <p className="text-sm text-muted-foreground font-medium max-w-xl">
-                            Build the real course direction for the selected school,
-                            online or cohort format. Central curricula continue
-                            automatically to the readiness check and school assignment.
+                            Create the week-by-week plan for this course. You can review
+                            and assign it after the weeks are ready.
                           </p>
                         </div>
                       </div>
@@ -4526,8 +4644,7 @@ export default function CurriculumPage() {
                           onClick={openGenerateModal}
                           className="relative z-10 flex items-center gap-3 px-6 py-3.5 bg-primary hover:bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all rounded-lg shrink-0"
                         >
-                          <SparklesIcon className="w-4 h-4" /> Generate
-                          Curriculum
+                          <SparklesIcon className="w-4 h-4" /> Create with AI
                         </button>
                       )}
                     </div>
@@ -6145,12 +6262,11 @@ export default function CurriculumPage() {
                             <BoltIcon className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
                             <div>
                               <p className="text-xs font-black text-foreground">
-                                Smart Teaching Template
+                                Suggested weekly sequence
                               </p>
                               <p className="text-[10px] text-muted-foreground mt-0.5">
-                                Instantly fill all your week topics with a
-                                proven teaching sequence — saves hours of
-                                planning
+                                Preview a ready-made sequence, then decide
+                                whether it fits this class.
                               </p>
                             </div>
                           </div>
@@ -6172,10 +6288,8 @@ export default function CurriculumPage() {
                               <div className="p-4 space-y-4">
                                 <>
                                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Pick your class and student level, preview
-                                    the suggested weeks, then apply — your
-                                    curriculum topics are filled in
-                                    automatically.
+                                    Choose a class and level, review the suggested
+                                    weeks, then apply only if they fit.
                                   </p>
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6255,7 +6369,7 @@ export default function CurriculumPage() {
                                   {qaClassId && (
                                     <div className="space-y-1.5">
                                       <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">
-                                        How should the template be applied?
+                                        How closely should this class follow the sequence?
                                       </label>
                                       <div className="flex gap-2 flex-wrap">
                                         <button
@@ -6275,7 +6389,7 @@ export default function CurriculumPage() {
                                               : "border-border text-muted-foreground hover:bg-muted/30"
                                           } disabled:opacity-60`}
                                         >
-                                          AI adapts it to my class
+                                          Flexible — adapt for this class
                                         </button>
                                         <button
                                           type="button"
@@ -6294,7 +6408,7 @@ export default function CurriculumPage() {
                                               : "border-border text-muted-foreground hover:bg-muted/30"
                                           } disabled:opacity-60`}
                                         >
-                                          Use template exactly as-is
+                                          Required — follow exactly
                                         </button>
                                         {qaClassModeErr && (
                                           <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold w-full">
@@ -6302,6 +6416,9 @@ export default function CurriculumPage() {
                                           </p>
                                         )}
                                       </div>
+                                      <p className="text-[10px] leading-4 text-muted-foreground">
+                                        This changes how the suggestion is applied to this class. It does not create another curriculum or change the school&apos;s result pathway.
+                                      </p>
                                     </div>
                                   )}
 

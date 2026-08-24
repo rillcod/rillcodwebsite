@@ -19,11 +19,17 @@ export function buildCurriculumHref(
   args: {
     courseId?: string | null;
     programId?: string | null;
+    year?: number | null;
+    term?: number | null;
+    week?: number | null;
   } = {}
 ): string {
   return withQuery(BUILDER_PATH, {
     course: args.courseId,
     program: args.programId,
+    year: args.year,
+    term: args.term,
+    week: args.week,
   });
 }
 

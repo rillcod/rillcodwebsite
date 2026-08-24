@@ -15,12 +15,12 @@ describe("academic lane navigation", () => {
       "time",
     ]);
     expect(navigationStepsInLane("asset")).toMatchObject([
-      { step: 1, label: "Build", stageIds: ["author"] },
-      { step: 2, label: "Rollout", stageIds: ["certify", "distribute", "time"] },
+      { step: 1, label: "Write curriculum", stageIds: ["author"] },
+      { step: 2, label: "Approve & assign", stageIds: ["certify", "distribute", "time"] },
     ]);
   });
 
-  it("lets a teacher read Build and never offers Rollout", () => {
+  it("lets a teacher read the curriculum and never offers approval or assignment", () => {
     expect(navigationStepsForRole("asset", "teacher").map((s) => s.id)).toEqual([
       "build",
     ]);

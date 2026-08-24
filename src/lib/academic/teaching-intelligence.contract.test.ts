@@ -145,7 +145,7 @@ describe("generators and workspace stay on that schema", () => {
     const coverage = read("src/lib/academic/class-coverage.ts");
     const parser = read("src/lib/academic/teaching-workspace.ts");
     expect(workspace).toContain("buildTeachingWeekRows");
-    expect(workspace).toContain("Weekly Teaching Packages");
+    expect(workspace).toContain("Weekly teaching plan");
     expect(workspace).toContain("Prepare all missing packages");
     expect(workspace).toContain("types: WEEK_CONTENT_TYPES");
     expect(workspace).toContain("teachingMeetingLabel");

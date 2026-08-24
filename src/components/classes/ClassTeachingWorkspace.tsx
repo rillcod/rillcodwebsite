@@ -668,7 +668,7 @@ export function ClassTeachingWorkspace({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
-                  Special Programme Cohort Workspace
+                  Special programme
                 </span>
                 <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-bold text-amber-800 dark:text-amber-200">
                   {data.class.academic_offerings.enrollment_type || "Special"}
@@ -684,7 +684,7 @@ export function ClassTeachingWorkspace({
               href="/dashboard/special-programs"
               className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-800 hover:underline dark:text-amber-200"
             >
-              Special Programmes Manager ↗
+              Programme settings
             </Link>
           </div>
         </div>
@@ -776,12 +776,12 @@ export function ClassTeachingWorkspace({
         <div className="flex flex-col gap-3 rounded-2xl border border-orange-500/40 bg-orange-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-black text-foreground">
-              Release to students?
+              Share with students?
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               {pendingRelease.label} Learners will see the prepared lesson,
-              homework and practice cards. Evaluations stay held until you
-              activate them separately.
+              assignment and practice cards. Tests stay private until you
+              open them separately.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -799,7 +799,7 @@ export function ClassTeachingWorkspace({
               onClick={() => void confirmPendingRelease()}
               className="rounded-xl bg-orange-700 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
             >
-              Confirm release
+              Share now
             </button>
           </div>
         </div>
@@ -926,7 +926,7 @@ export function ClassTeachingWorkspace({
             <StatCard
               label="Needs work"
               value={weeksNeedingWork}
-              subtext="Prep or release"
+              subtext="Prepare or share"
               accent="amber"
               onClick={() => setWeekFilter("todo")}
               isActive={weekFilter === "todo"}
@@ -941,7 +941,7 @@ export function ClassTeachingWorkspace({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                      Active Teaching Focus
+                      Continue teaching
                     </span>
                     <span className="rounded-full border border-border bg-background/80 px-2 py-0.5 text-[9px] font-bold text-muted-foreground">
                       {teachingMeetingLabel(
@@ -960,7 +960,7 @@ export function ClassTeachingWorkspace({
                     {resumeWeek.topic}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
-                    <span>{resumeWeek.packageStatus.readyCount} of 5 assets prepared</span>
+                    <span>{resumeWeek.packageStatus.readyCount} of 5 learning items ready</span>
                     <span>•</span>
                     <span className={
                       resumeWeek.visibilitySummary.needsRelease
@@ -970,10 +970,10 @@ export function ClassTeachingWorkspace({
                         : "font-semibold text-amber-600 dark:text-amber-400"
                     }>
                       {resumeWeek.visibilitySummary.needsRelease
-                        ? `${resumeWeek.visibilitySummary.heldCount} held for students`
+                        ? `${resumeWeek.visibilitySummary.heldCount} not visible to students`
                         : resumeWeek.packageStatus.complete
                         ? "Ready for class"
-                        : `${resumeWeek.packageStatus.missing.length} assets still needed`}
+                        : `${resumeWeek.packageStatus.missing.length} learning items still needed`}
                     </span>
                   </div>
                 </div>
@@ -1002,7 +1002,7 @@ export function ClassTeachingWorkspace({
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-700 hover:bg-orange-800 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       <RocketLaunchIcon className="h-4 w-4" />
-                      Release {teachingMeetingLabel(
+                      Share {teachingMeetingLabel(
                         resumeWeek.week,
                         resumeWeek.session,
                         resumeWeek.meetingsInWeek
@@ -1053,8 +1053,8 @@ export function ClassTeachingWorkspace({
                     >
                       <SparklesIcon className="h-4 w-4" />
                       {resumeWeek.recommendedAction === "refresh"
-                        ? "Refresh changed assets"
-                        : "Prepare teaching package"}
+                        ? "Update changed items"
+                        : "Prepare this week"}
                     </button>
                   )}
 
@@ -1188,80 +1188,70 @@ export function ClassTeachingWorkspace({
             )}
           </div>
 
-          {/* Quick Tool Navigation Buttons */}
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={buildCurriculumHref({
-                courseId,
-                programId: data?.class?.program_id,
-              })}
-              className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40 transition-colors"
-            >
-              Curriculum Map
-            </Link>
-            <Link
-              href={buildClassAssessmentHref({ classId, courseId })}
-              className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40 transition-colors"
-            >
-              Assessment Desk
-            </Link>
-            <Link
-              href={buildGradesHref({ classId, courseId })}
-              className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40 transition-colors"
-            >
-              Gradebook
-            </Link>
-            <Link
-              href={buildResultsHref({ classId, courseId })}
-              className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40 transition-colors"
-            >
-              Term Results
-            </Link>
-            <Link
-              href="/dashboard/teaching/approvals"
-              className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-foreground hover:border-primary/40 transition-colors"
-            >
-              Approvals
-            </Link>
-          </div>
+          {/* Cross-class records stay available without becoming a second tab bar. */}
+          <details className="rounded-xl border border-border bg-card">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="block text-xs font-black text-foreground">
+                  Class records and results
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  Curriculum, assessments, grading and approvals
+                </span>
+              </span>
+              <ChevronDownIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </summary>
+            <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                {
+                  label: "Curriculum",
+                  href: buildCurriculumHref({
+                    courseId,
+                    programId: data?.class?.program_id,
+                  }),
+                },
+                {
+                  label: "Assessments",
+                  href: buildClassAssessmentHref({ classId, courseId }),
+                },
+                { label: "Grading", href: buildGradesHref({ classId, courseId }) },
+                { label: "Results", href: buildResultsHref({ classId, courseId }) },
+                { label: "Approvals", href: "/dashboard/teaching/approvals" },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="rounded-lg border border-border bg-background px-3 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-primary/40"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </details>
 
           {/* Main Teaching Packages Hub */}
           <div className="rounded-2xl border border-border bg-background p-3.5 sm:p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h3 className="text-base font-black text-foreground">
-                  Weekly Teaching Packages
+                  Weekly teaching plan
                 </h3>
                 <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
                   {data?.programme_policy?.usesHostEvaluation
-                    ? `This school made coding a compulsory subject, so teaching follows its First Test, Second Test and Examination calendar. Papers are generated only from sessions already marked taught; tests use ${data.programme_policy.testCapture === "cbt" ? "CBT" : "printed papers"} and examinations use ${data.programme_policy.examCapture === "cbt" ? "CBT" : "printed papers"}.`
-                    : "Rillcod teaching and CBT evaluations apply here. Every lesson meeting follows the published timetable and feeds this one term delivery record."}
+                    ? `Teaching follows this school's calendar. First Test, Second Test and Examination are the official assessments; Rillcod still prepares the lesson materials for teaching weeks.`
+                    : "Lessons, practice and Rillcod assessments feed the same class record and term result."}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-black text-primary">
-                    {data?.programme_policy?.usesHostEvaluation ? "Compulsory school path" : "Optional Rillcod path"}
+                    {data?.programme_policy?.usesHostEvaluation ? "School assessments" : "Rillcod assessments"}
                   </span>
                   <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
                     {data?.programme_policy?.sessionsPerWeek === 1 ? "1 teaching session / week" : "2 teaching sessions / week"}
                   </span>
-                  {data?.programme_policy?.usesHostEvaluation ? (
-                    <>
-                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-                        Tests · {data.programme_policy.testCapture === "cbt" ? "CBT" : "Paper"}
-                      </span>
-                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-                        Exam · {data.programme_policy.examCapture === "cbt" ? "CBT" : "Paper"}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-                      Evaluation · Rillcod CBT
-                    </span>
-                  )}
                 </div>
               </div>
               <span className="w-fit rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                5 Linked Assets
+                Lesson · slides · practice · assignment · project
               </span>
             </div>
 
@@ -1270,7 +1260,7 @@ export function ClassTeachingWorkspace({
               <div className="mt-4 pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Jump to Week
+                    Weeks
                   </span>
                   <span className="text-[10px] font-bold text-muted-foreground">
                     {visibleWeekRows.length} shown
@@ -1300,10 +1290,10 @@ export function ClassTeachingWorkspace({
                           isTaught
                             ? "Taught"
                             : isHeld
-                            ? "Held"
+                            ? "Not visible"
                             : isReady
                             ? "Ready"
-                            : "Needs prep"
+                            : "Needs preparation"
                         })`}
                         className="group snap-start shrink-0 flex items-center gap-1.5 rounded-xl border border-border bg-card/80 px-2.5 py-1.5 text-xs font-bold transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
                       >
@@ -1328,7 +1318,7 @@ export function ClassTeachingWorkspace({
                 {(
                   [
                     ["all", `All (${weekRows.length})`],
-                    ["todo", `Needs Work (${weeksNeedingWork})`],
+                    ["todo", `Needs attention (${weeksNeedingWork})`],
                     ["taught", `Taught (${weeksTaught})`],
                   ] as const
                 ).map(([key, label]) => (
@@ -1445,7 +1435,7 @@ export function ClassTeachingWorkspace({
                     }
                     className="inline-flex min-h-9 items-center rounded-xl border border-orange-500/40 bg-orange-500/10 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 disabled:opacity-50"
                   >
-                    Release to Class
+                    Share with class
                   </button>
                   <button
                     disabled={busy}
@@ -1521,10 +1511,10 @@ export function ClassTeachingWorkspace({
                   : !packageStatus.complete
                   ? `${packageStatus.missing.length} missing`
                   : visibilitySummary.needsRelease
-                  ? "Held"
+                  ? "Not visible"
                   : taught
                   ? "Taught"
-                  : "Live";
+                  : "Visible";
 
                 const statusClass = calendarLabel
                   ? "border-sky-500/30 bg-sky-500/10 text-sky-800 dark:text-sky-300"
@@ -1587,16 +1577,16 @@ export function ClassTeachingWorkspace({
                             )}
                             {provenance.customized ? (
                               <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                                Class override
+                                Edited for this class
                               </span>
                             ) : provenance.shared ? (
                               <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300">
-                                Shared master
+                                From curriculum
                               </span>
                             ) : null}
                             {provenance.staleDerived && (
                               <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                                Refreshing assets
+                                Updating learning items
                               </span>
                             )}
                           </div>
@@ -1606,11 +1596,11 @@ export function ClassTeachingWorkspace({
                           </h4>
 
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {packageStatus.readyCount} of 5 prepared
+                            {packageStatus.readyCount} of 5 learning items ready
                             {visibilitySummary.heldCount > 0
-                              ? ` · ${visibilitySummary.heldCount} held for students`
+                              ? ` · ${visibilitySummary.heldCount} not visible to students`
                               : visibilitySummary.fullyLive
-                              ? " · live for class"
+                              ? " · visible to class"
                               : ""}
                           </p>
                         </div>
@@ -1648,7 +1638,7 @@ export function ClassTeachingWorkspace({
                           actionLabel={slideDeck ? "Open" : "Create"}
                         />
                         <AssetCardTile
-                          label="Flashcards"
+                          label="Practice cards"
                           icon={BoltIcon}
                           state={visibility.flashcards}
                           href={
@@ -1711,7 +1701,7 @@ export function ClassTeachingWorkspace({
                         />
                         {!data?.programme_policy?.usesHostEvaluation ? (
                         <AssetCardTile
-                          label="Evaluation"
+                          label="Assessment"
                           icon={DocumentChartBarIcon}
                           state={evaluationStatus}
                           href={
@@ -1791,7 +1781,7 @@ export function ClassTeachingWorkspace({
                               className="inline-flex min-h-10 flex-1 sm:flex-initial items-center justify-center gap-2 rounded-xl bg-orange-700 hover:bg-orange-800 px-4 py-2 text-xs font-black text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
                             >
                               <RocketLaunchIcon className="h-4 w-4" />
-                              Release to Class
+                              Share with class
                             </button>
                           )}
 
@@ -1841,7 +1831,7 @@ export function ClassTeachingWorkspace({
                             >
                               <SparklesIcon className="h-4 w-4" />
                               {recommendedAction === "refresh"
-                                ? "Refresh changed assets"
+                                ? "Update changed items"
                                 : lesson
                                   ? `Prepare ${packageStatus.missing.length} missing`
                                   : "Prepare teaching package"}
@@ -1927,7 +1917,7 @@ export function ClassTeachingWorkspace({
                             type="button"
                             onClick={() => toggleCardExpanded(rowKey)}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
-                            title={isExpanded ? "Collapse tools" : "Deep asset tools"}
+                            title={isExpanded ? "Hide editing tools" : "Show editing tools"}
                             aria-expanded={isExpanded}
                           >
                             {isExpanded ? (
@@ -1944,7 +1934,7 @@ export function ClassTeachingWorkspace({
                     {isExpanded && (
                       <div className="border-t border-border bg-muted/25 p-3.5 sm:p-4 animate-in fade-in duration-200">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2.5">
-                          Direct Asset Builders & Editors
+                          Edit individual learning items
                         </p>
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-wrap">
                           {lesson ? (
@@ -2239,7 +2229,7 @@ function AssetCardTile({
       className={`group flex flex-col justify-between rounded-xl border p-2 text-left transition-all duration-150 ${colorClass} ${
         href || onClick ? "hover:border-primary/50 hover:shadow-xs active:scale-95 cursor-pointer" : ""
       }`}
-      title={`${label}: ${isLive ? "Live for students" : isHeld ? "Prepared · Held for students" : "Missing"}`}
+      title={`${label}: ${isLive ? "Visible to students" : isHeld ? "Prepared · Not visible to students" : "Missing"}`}
     >
       <div className="flex items-center justify-between gap-1">
         <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
@@ -2248,7 +2238,7 @@ function AssetCardTile({
       <div className="mt-1.5">
         <p className="text-[10px] font-black truncate">{label}</p>
         <p className="text-[9px] font-bold opacity-75 truncate uppercase">
-          {isLive ? "Live" : isHeld ? "Held" : actionLabel || "Add"}
+          {isLive ? "Visible" : isHeld ? "Not visible" : actionLabel || "Add"}
         </p>
       </div>
     </div>
