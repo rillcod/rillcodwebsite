@@ -14,6 +14,7 @@ export type CanonicalProgressReport = {
   course_name: string | null;
   report_term: string | null;
   report_period: string | null;
+  updated_at: string | null;
   term_id?: string | null;
   theory_score?: unknown;
   practical_score?: unknown;
@@ -24,7 +25,7 @@ export type CanonicalProgressReport = {
 };
 
 const SELECT =
-  'id,calculation_mode,is_published,course_id,course_name,report_term,report_period,term_id,theory_score,practical_score,attendance_score,participation_score,overall_score,engagement_metrics';
+  'id,calculation_mode,is_published,course_id,course_name,report_term,report_period,term_id,theory_score,practical_score,attendance_score,participation_score,overall_score,engagement_metrics,updated_at';
 
 function newest(query: any) {
   return query.order('updated_at', { ascending: false }).limit(1).maybeSingle();

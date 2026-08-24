@@ -6,6 +6,10 @@ const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260929000109_include_written_exams_in_central_results.sql'),
   'utf8',
 );
+const guardMigration = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20260929000111_guard_automatic_result_recalculation.sql'),
+  'utf8',
+);
 const resultApi = readFileSync(join(process.cwd(), 'src/app/api/academic-spine/results/route.ts'), 'utf8');
 const weightsPage = readFileSync(join(process.cwd(), 'src/app/dashboard/academic/weights/page.tsx'), 'utf8');
 const schemeApi = readFileSync(join(process.cwd(), 'src/app/api/academic-spine/schemes/route.ts'), 'utf8');
@@ -48,6 +52,14 @@ describe('central academic result calculator', () => {
     expect(migration).not.toContain('update public.exam_attempts');
     expect(migration).not.toContain('update public.cbt_sessions');
     expect(migration).not.toContain('update public.assignment_submissions');
+  });
+
+  it('locks and version-checks automatic recalculation before replacing derived components', () => {
+    expect(guardMigration).toContain('for update');
+    expect(guardMigration).toContain('is distinct from p_expected_updated_at');
+    expect(guardMigration).toContain('REPORT_VERSION_CONFLICT');
+    expect(resultApi).toContain("db.rpc('recalculate_academic_result_guarded'");
+    expect(resultApi).toContain('p_expected_updated_at');
   });
 
   it('returns a professional recovery path when the central rule is absent', () => {

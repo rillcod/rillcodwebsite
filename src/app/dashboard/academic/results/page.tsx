@@ -244,10 +244,14 @@ function CentralResultsPageInner() {
           class_id: classId,
           course_id: courseId,
           calculation_mode: mode,
+          expected_updated_at: selectedReport?.updated_at ?? null,
         }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || (mode === 'manual' ? 'Could not open for typed scores.' : 'Could not fill from class work.'));
+      if (!response.ok) {
+        if (['STALE_REPORT_DRAFT', 'REPORT_VERSION_REQUIRED'].includes(body.code)) await load();
+        throw new Error(body.error || (mode === 'manual' ? 'Could not open for typed scores.' : 'Could not fill from class work.'));
+      }
       const text = body.data.message || (mode === 'manual'
         ? 'Opened in Write. Auto-fill will not change these scores.'
         : 'Draft filled from class work. Review, then Publish.');
@@ -274,10 +278,17 @@ function CentralResultsPageInner() {
       const response = await fetch('/api/academic-spine/results', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'recalculate', report_id: id }),
+        body: JSON.stringify({
+          action: 'recalculate',
+          report_id: id,
+          expected_updated_at: data.reports.find((report) => report.id === id)?.updated_at ?? null,
+        }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Could not refresh from class work.');
+      if (!response.ok) {
+        if (['STALE_REPORT_DRAFT', 'REPORT_VERSION_REQUIRED'].includes(body.code)) await load();
+        throw new Error(body.error || 'Could not refresh from class work.');
+      }
       const text = body.data.message || autoFillResultMessage(body.data.calculation);
       setFeedback(
         text,
@@ -301,9 +312,13 @@ function CentralResultsPageInner() {
     let filled = 0;
     let empty = 0;
     let skipped = 0;
+    let firstSkippedReason = '';
     try {
       for (let index = 0; index < bulkTargets.length; index += 1) {
         const student = bulkTargets[index];
+        const existing = sessionScopedReports.find((report) =>
+          report.student_id === student.id && report.course_id === courseId,
+        );
         const response = await fetch('/api/academic-spine/results', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -312,11 +327,13 @@ function CentralResultsPageInner() {
             class_id: classId,
             course_id: courseId,
             calculation_mode: 'automatic',
+            expected_updated_at: existing?.updated_at ?? null,
           }),
         });
         const body = await response.json();
         if (!response.ok) {
           skipped += 1;
+          if (!firstSkippedReason) firstSkippedReason = body.error || 'This learner could not be filled.';
         } else {
           const text = body.data.message || autoFillResultMessage(body.data.calculation);
           if (text.toLowerCase().includes('no class evidence')) empty += 1;
@@ -325,7 +342,7 @@ function CentralResultsPageInner() {
         setBulkProgress({ done: index + 1, total: bulkTargets.length, filled, empty, skipped });
       }
       setFeedback(
-        `Class batch complete: ${filled} filled from evidence, ${empty} with no evidence yet${skipped ? `, ${skipped} skipped` : ''}.`,
+        `Class batch complete: ${filled} filled from evidence, ${empty} with no evidence yet${skipped ? `, ${skipped} skipped. First issue: ${firstSkippedReason}` : ''}.`,
         empty > 0 && filled === 0 ? 'warning' : 'success',
         '',
       );

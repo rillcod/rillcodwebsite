@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
   let targetId = typeof body.existing_id === 'string' && body.existing_id.trim()
     ? body.existing_id.trim()
     : null;
+  const hasExpectedUpdatedAt = Object.prototype.hasOwnProperty.call(body, 'expected_updated_at');
   const expectedUpdatedAt = typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
     ? body.expected_updated_at.trim()
     : null;
@@ -379,6 +380,12 @@ export async function POST(request: NextRequest) {
       .eq('id', targetId)
       .maybeSingle();
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    if (!hasExpectedUpdatedAt) {
+      return NextResponse.json({
+        error: 'Reload this report before saving so the latest draft is protected.',
+        code: 'REPORT_VERSION_REQUIRED',
+      }, { status: 428 });
+    }
 
     // Partial UI saves must not erase evidence entered earlier. Merge first,
     // then derive the official school result from all three current papers.
@@ -404,7 +411,7 @@ export async function POST(request: NextRequest) {
         code: 'PUBLISHED_REPORT_LOCKED',
       }, { status: 409 });
     }
-    if (expectedUpdatedAt && existingReport.updated_at && expectedUpdatedAt !== existingReport.updated_at) {
+    if ((expectedUpdatedAt ?? null) !== (existingReport.updated_at ?? null)) {
       return NextResponse.json({
         error: 'This report changed after you opened it. Reload the latest draft before saving so another teacher’s work is not overwritten.',
         code: 'STALE_REPORT_DRAFT',
@@ -467,7 +474,9 @@ export async function POST(request: NextRequest) {
       .from('student_progress_reports')
       .update(updatePayload)
       .eq('id', targetId);
-    if (expectedUpdatedAt) updateQuery = updateQuery.eq('updated_at', expectedUpdatedAt);
+    updateQuery = expectedUpdatedAt
+      ? updateQuery.eq('updated_at', expectedUpdatedAt)
+      : updateQuery.is('updated_at', null);
     const { data, error } = await updateQuery
       .select('id, verification_code, updated_at')
       .maybeSingle();

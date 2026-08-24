@@ -40,7 +40,6 @@ import {
 } from '@/lib/reports/session-workflows';
 import { automaticResultHasNoEvidence } from '@/lib/reports/score';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
-import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
 import { brandContact } from '@/config/brand';
@@ -936,49 +935,17 @@ function ResultsPageInner() {
             const name = (reportToDisplay.student_name || 'Student').replace(/\s+/g, '_');
             const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
             const filename = `${name}_${term}.pdf`;
-            const subject = `Progress Report — ${reportToDisplay.student_name || 'Student'} (${reportToDisplay.report_term || ''})`;
-            const appOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com';
-            const trackToken = reportToDisplay.id
-                ? btoa(JSON.stringify({ reportId: reportToDisplay.id, email: emailShareTo.trim(), type: 'report' }))
-                : null;
-            const htmlBody = buildReportEmail({
-                recipientName: emailShareTo.trim().split('@')[0],
-                studentName: reportToDisplay.student_name || 'Your Child',
-                term: reportToDisplay.report_term || 'Current Term',
-                schoolName: (orgSettings as any)?.school_name || (selectedStudent as any)?.school_name || undefined,
-                overallGrade: reportToDisplay.overall_grade || undefined,
-                portalUrl: emailShareTo.trim() === selectedStudent?.email
-                    ? `${appOrigin}/dashboard/results?student=${selectedStudent?.id}`
-                    : `${appOrigin}/dashboard/parent-results`,
-                trackingPixelUrl: trackToken ? `${appOrigin}/api/inbox/track/${trackToken}` : undefined,
-            });
-            const res = await fetch('/api/inbox/email', {
+            const res = await fetch(`/api/progress-reports/${reportToDisplay.id}/email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     to: emailShareTo.trim(),
-                    subject,
-                    body: htmlBody,
-                    attachments: [{ filename, content: base64 }],
+                    expected_updated_at: reportToDisplay.updated_at ?? null,
+                    attachment: { filename, content: base64 },
                 }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to send email');
-            // Log send in report metadata
-            if (reportToDisplay.id) {
-                const rd = reportToDisplay as any;
-                fetch(`/api/progress-reports/${reportToDisplay.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        metadata: {
-                            ...(rd.metadata && typeof rd.metadata === 'object' ? rd.metadata : {}),
-                            email_sent_at: new Date().toISOString(),
-                            email_sent_to: emailShareTo.trim(),
-                        },
-                    }),
-                }).catch(() => null);
-            }
             setEmailShareOpen(false);
             setEmailShareTo('');
             // Refresh email activity strip
@@ -1190,26 +1157,13 @@ function ResultsPageInner() {
                             const base64 = await generateReportPDFBase64(captureRef.current!);
                             const sName = sDisplayName.replace(/\s+/g, '_');
                             const term = (captureReport.report_term || 'Report').replace(/\s+/g, '_');
-                            const bulkTrackToken = captureReport.id
-                                ? btoa(JSON.stringify({ reportId: captureReport.id, email: dest, type: 'report' }))
-                                : null;
-                            const htmlBody = buildReportEmail({
-                                recipientName: dest.split('@')[0],
-                                studentName: captureReport.student_name || 'Your Child',
-                                term: captureReport.report_term || 'Current Term',
-                                schoolName: (stu as any)?.school_name || undefined,
-                                overallGrade: captureReport.overall_grade || undefined,
-                                portalUrl: `${window.location.origin}/dashboard/parent-results`,
-                                trackingPixelUrl: bulkTrackToken ? `${window.location.origin}/api/inbox/track/${bulkTrackToken}` : undefined,
-                            });
-                            const res = await fetch('/api/inbox/email', {
+                            const res = await fetch(`/api/progress-reports/${captureReport.id}/email`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     to: dest,
-                                    subject: `Progress Report — ${captureReport.student_name || 'Student'} (${captureReport.report_term || ''})`,
-                                    body: htmlBody,
-                                    attachments: [{ filename: `${sName}_${term}.pdf`, content: base64 }],
+                                    expected_updated_at: captureReport.updated_at ?? null,
+                                    attachment: { filename: `${sName}_${term}.pdf`, content: base64 },
                                 }),
                             });
                             if (res.ok) {
@@ -1301,14 +1255,15 @@ function ResultsPageInner() {
                     report_term: editTerm.trim(),
                     report_period: selectedReport.report_period,
                     allow_backfill: true,
+                    expected_updated_at: selectedReport.updated_at ?? null,
                 }),
             });
+            const json = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const j = await res.json().catch(() => ({}));
-                alert(j.error ?? 'Failed to save changes.');
+                alert(json.error ?? 'Failed to save changes.');
                 return;
             }
-            const updated = { ...selectedReport, course_name: editCourseName.trim(), report_term: editTerm.trim() };
+            const updated = { ...selectedReport, ...json.data, course_name: editCourseName.trim(), report_term: editTerm.trim() };
             setSelectedReport(updated as StudentReport);
             setShowEditModal(false);
         } finally {
@@ -1325,14 +1280,17 @@ function ResultsPageInner() {
             const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_published: nextVal }),
+                body: JSON.stringify({
+                    is_published: nextVal,
+                    expected_updated_at: selectedReport.updated_at ?? null,
+                }),
             });
+            const json = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const j = await res.json().catch(() => ({}));
-                alert(j.error ?? 'Failed to update publish status.');
+                alert(json.error ?? 'Failed to update publish status.');
                 return;
             }
-            const updated = { ...selectedReport, is_published: nextVal };
+            const updated = { ...selectedReport, ...json.data, is_published: nextVal };
             setSelectedReport(updated as StudentReport);
             if (selectedStudent) {
                 setReportsMap(prev => ({ ...prev, [selectedStudent.id]: updated }));
@@ -1350,7 +1308,10 @@ function ResultsPageInner() {
             const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_published: false }),
+                body: JSON.stringify({
+                    is_published: false,
+                    expected_updated_at: selectedReport.updated_at ?? null,
+                }),
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -1374,14 +1335,17 @@ function ResultsPageInner() {
             const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ show_payment_notice: nextVal }),
+                body: JSON.stringify({
+                    show_payment_notice: nextVal,
+                    expected_updated_at: selectedReport.updated_at ?? null,
+                }),
             });
+            const json = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const j = await res.json().catch(() => ({}));
-                alert(j.error ?? 'Failed to toggle invoice.');
+                alert(json.error ?? 'Failed to toggle invoice.');
                 return;
             }
-            const updated = { ...selectedReport, show_payment_notice: nextVal };
+            const updated = { ...selectedReport, ...json.data, show_payment_notice: nextVal };
             setSelectedReport(updated as StudentReport);
             if (selectedStudent) {
                 setReportsMap(prev => ({ ...prev, [selectedStudent.id]: updated }));

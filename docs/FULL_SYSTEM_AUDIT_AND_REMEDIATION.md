@@ -2990,3 +2990,62 @@ Verification and deployment boundary:
   previously recorded 103–109 set;
 - no production database write, learner submission, answer, score, feedback, moderation decision,
   report, finance record or remote branch was changed in this milestone.
+
+### 16.32 Report lifecycle, Auto-fill concurrency and family sharing — verified locally on 24 August 2026
+
+Confirmed end-to-end gaps:
+
+- draft writes supported an optional timestamp check, but Publish & Share, unpublish, fee-notice,
+  course-alignment and the builder's save-then-publish step did not consistently send it. A stale
+  browser could therefore overwrite or publish a newer draft;
+- the shared publish service protected the unpublished-to-published flag, but not the full report
+  version between load, validation and update. A concurrent edit could be published without the
+  initiating teacher seeing it;
+- class handoff changed `teacher_id` in a separate unguarded write before publish/update. A stale or
+  failed request could change report ownership without completing the requested action;
+- Auto-fill updated an existing automatic report without a version condition. Its central database
+  calculator locked the row but could still recalculate a version different from the one shown in
+  the browser;
+- manual and batch report sharing sent HTML through the generic Inbox email endpoint, which escapes
+  user body HTML. The UI also created an unsigned browser token while the tracking endpoint correctly
+  accepts only server-signed tokens. The resulting message body/tracking could not work as intended;
+- the Results page attempted to store send activity in a nonexistent report `metadata` field. The API
+  silently ignored that field while still advancing `updated_at`, making the open report stale with
+  no durable sent event.
+
+Implemented one conflict-safe lifecycle:
+
+- existing report POST/PATCH writes now require an explicit loaded version, including explicit null
+  for legacy rows, and always condition the database write on that value. Unsupported/no-op changes
+  are rejected instead of advancing the report timestamp;
+- every internal Write and Publish & Share caller carries `expected_updated_at`, consumes the server's
+  returned `updated_at`, and receives a plain reload/retry message for `REPORT_VERSION_REQUIRED` or
+  `STALE_REPORT_DRAFT`;
+- the publish service now checks the browser version and also guards its internal load-to-publish
+  window. A concurrent publisher remains idempotent and cannot create duplicate family delivery;
+  a concurrent edit remains a draft and returns a recoverable conflict;
+- teacher handoff is included in the same guarded update or publish transaction. Read, delete and
+  failed/stale actions no longer mutate ownership;
+- migration `20260929000111_guard_automatic_result_recalculation.sql` adds a service-role-only
+  database wrapper that locks the report, compares the expected timestamp inside the transaction,
+  and only then invokes the one official calculator. Single and class Auto-fill now send the loaded
+  version and report the first skipped learner reason instead of silently counting a failure;
+- report sharing now uses `/api/progress-reports/[id]/email`: it verifies staff/report scope,
+  publication state and exact report version; accepts only a bounded PDF attachment; renders the
+  server-owned Rillcod report template; creates the tracking link with the server HMAC helper; sends
+  Rillcod addresses as an in-app notification; and records a durable `email_events.sent` row plus a
+  human audit entry. If delivery succeeds but audit storage fails, the response warns without
+  encouraging a duplicate resend;
+- both single and batch family sends use this dedicated boundary. The nonexistent metadata write and
+  unsigned browser tracking token were removed.
+
+Verification and deployment boundary:
+
+- the first focused test process hit a Windows sandbox `spawn EPERM` before loading Vitest. The same
+  focused command was rerun outside that process sandbox and passed: 6 files and 22 tests covering
+  stale/concurrent publish, report sharing, PDF validation, central calculation and delivery;
+- `npm run typecheck` passed, targeted ESLint completed with zero errors, `git diff --check` passed,
+  and the linked Supabase dry run accepted the ordered 103–111 migration set without applying it.
+  Migration 111 remains local/pending and is not active in production;
+- no learner score, source evidence, report row, ownership, family message, finance record, database
+  row or remote branch was changed while verifying this milestone.

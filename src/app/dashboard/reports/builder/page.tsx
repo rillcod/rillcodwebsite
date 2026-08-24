@@ -1815,15 +1815,21 @@ function ReportBuilderInner() {
                         body: JSON.stringify({
                             course_id: reconciledCourse.course_id,
                             course_name: reconciledCourse.course_name,
+                            expected_updated_at: hydratedReport.updated_at ?? null,
                         }),
                     });
                     if (syncRes.ok) {
+                        const syncJson = await syncRes.json().catch(() => ({}));
                         hydratedReport = {
                             ...hydratedReport,
                             course_id: reconciledCourse.course_id,
                             course_name: reconciledCourse.course_name,
+                            updated_at: syncJson.data?.updated_at ?? hydratedReport.updated_at,
                         } as StudentReport;
                         setCourseSyncNotice(`Course aligned to ${reconciledCourse.course_name} for this class — saved automatically.`);
+                    } else {
+                        const syncJson = await syncRes.json().catch(() => ({}));
+                        setCourseSyncNotice(syncJson.error || 'Course alignment is waiting for the latest report version. Reload before editing.');
                     }
                 } catch { /* non-blocking */ }
             }
@@ -2565,12 +2571,13 @@ function ReportBuilderInner() {
             if (!res.ok) throw new Error(j.error || 'Failed to save');
             const savedReportId = j.data?.id ?? existingReport?.id;
             const savedVerificationCode = j.data?.verification_code ?? existingReport?.verification_code ?? null;
+            const savedUpdatedAt = j.data?.updated_at ?? existingReport?.updated_at ?? null;
             setExistingReport(prev => ({
                 ...(prev ?? {}),
                 ...payload,
                 id: savedReportId,
                 verification_code: savedVerificationCode,
-                updated_at: j.data?.updated_at ?? new Date().toISOString(),
+                updated_at: savedUpdatedAt,
                 calculation_mode: 'manual',
             } as unknown as StudentReport));
             if (!publish && !reportedIds.has(selectedStudent.id)) {
@@ -2582,13 +2589,21 @@ function ReportBuilderInner() {
                 const publishRes = await fetch(`/api/progress-reports/${savedReportId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_published: true }),
+                    body: JSON.stringify({
+                        is_published: true,
+                        expected_updated_at: savedUpdatedAt,
+                    }),
                 });
                 const publishJson = await publishRes.json().catch(() => ({}));
                 if (!publishRes.ok) {
                     throw new Error(publishJson.error || 'The report draft was saved, but publication did not complete. Please try Publish again.');
                 }
                 deliveryStatus = publishJson.delivery?.status ?? null;
+                setExistingReport(prev => ({
+                    ...(prev ?? {}),
+                    ...(publishJson.data ?? {}),
+                    is_published: true,
+                } as StudentReport));
                 setReportedIds(current => new Set(current).add(selectedStudent.id));
                 setDraftedIds(current => {
                     const next = new Set(current);

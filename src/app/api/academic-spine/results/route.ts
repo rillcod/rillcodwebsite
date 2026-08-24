@@ -26,6 +26,12 @@ function one<T>(value: T | T[] | null | undefined): T | null {
 }
 
 function calculationFailure(error: { message?: string | null }) {
+  if (/REPORT_VERSION_CONFLICT/i.test(error.message ?? '')) {
+    return NextResponse.json({
+      error: 'This result changed after you opened it. Reload the latest draft before refreshing Auto-fill.',
+      code: 'STALE_REPORT_DRAFT',
+    }, { status: 409 });
+  }
   if (/No active assessment weighting scheme/i.test(error.message ?? '')) {
     return NextResponse.json({
       error: 'Automatic results need an active weighting rule. Ask an administrator to publish one in Academic Office.',
@@ -117,16 +123,32 @@ export async function POST(req: NextRequest) {
   if (!['admin', 'teacher'].includes(user.role)) return NextResponse.json({ error: 'Academic staff access required' }, { status: 403 });
   const body = await req.json();
   const db: any = createAdminClient();
+  const hasExpectedUpdatedAt = Object.prototype.hasOwnProperty.call(body, 'expected_updated_at');
+  const expectedUpdatedAt = typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
+    ? body.expected_updated_at.trim()
+    : null;
 
   if (body.action === 'recalculate') {
     const reportId = typeof body.report_id === 'string' ? body.report_id : '';
     const { data: report } = await db.from('student_progress_reports')
-      .select('id,class_id,calculation_mode,is_published,engagement_metrics')
+      .select('id,class_id,calculation_mode,is_published,engagement_metrics,updated_at')
       .eq('id', reportId).maybeSingle();
     if (!report) return NextResponse.json({ error: 'Result record not found' }, { status: 404 });
     if (report.is_published || report.calculation_mode === 'manual') {
       return NextResponse.json({
         error: 'Published and typed scores stay as they are. Refresh only unpublished Auto-fill drafts.',
+      }, { status: 409 });
+    }
+    if (!hasExpectedUpdatedAt) {
+      return NextResponse.json({
+        error: 'Reload this result before refreshing Auto-fill so the latest draft is protected.',
+        code: 'REPORT_VERSION_REQUIRED',
+      }, { status: 428 });
+    }
+    if ((expectedUpdatedAt ?? null) !== (report.updated_at ?? null)) {
+      return NextResponse.json({
+        error: 'This result changed after you opened it. Reload the latest draft before refreshing Auto-fill.',
+        code: 'STALE_REPORT_DRAFT',
       }, { status: 409 });
     }
     if (user.role === 'teacher') {
@@ -143,7 +165,11 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-    const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: reportId, p_actor_id: user.id });
+    const { data: calculation, error: calculationError } = await db.rpc('recalculate_academic_result_guarded', {
+      p_report_id: reportId,
+      p_actor_id: user.id,
+      p_expected_updated_at: expectedUpdatedAt,
+    });
     if (calculationError) return calculationFailure(calculationError);
     const { data: quality, error: qualityError } = await db.rpc('evaluate_progress_report_academic_qa', { p_report_id: reportId });
     if (qualityError) return NextResponse.json({ error: qualityError.message }, { status: 400 });
@@ -265,6 +291,18 @@ export async function POST(req: NextRequest) {
   }
 
   if (existing) {
+    if (!hasExpectedUpdatedAt) {
+      return NextResponse.json({
+        error: 'Reload this result before running Auto-fill so the latest draft is protected.',
+        code: 'REPORT_VERSION_REQUIRED',
+      }, { status: 428 });
+    }
+    if ((expectedUpdatedAt ?? null) !== (existing.updated_at ?? null)) {
+      return NextResponse.json({
+        error: 'This result changed after you opened it. Reload the latest draft before running Auto-fill.',
+        code: 'STALE_REPORT_DRAFT',
+      }, { status: 409 });
+    }
     payload.engagement_metrics = mergeHostSchoolMetrics(
       existing.engagement_metrics,
       payload.engagement_metrics,
@@ -272,9 +310,20 @@ export async function POST(req: NextRequest) {
   }
 
   const write = existing
-    ? await db.from('student_progress_reports').update(payload).eq('id', existing.id).select('id').single()
-    : await db.from('student_progress_reports').insert(payload).select('id').single();
+    ? await db.from('student_progress_reports')
+      .update(payload)
+      .eq('id', existing.id)
+      [expectedUpdatedAt ? 'eq' : 'is']('updated_at', expectedUpdatedAt)
+      .select('id,updated_at')
+      .maybeSingle()
+    : await db.from('student_progress_reports').insert(payload).select('id,updated_at').single();
   if (write.error) return NextResponse.json({ error: write.error.message }, { status: 400 });
+  if (!write.data) {
+    return NextResponse.json({
+      error: 'This result changed while Auto-fill was starting. Reload the latest draft and try again.',
+      code: 'STALE_REPORT_DRAFT',
+    }, { status: 409 });
+  }
   if (calculationMode === 'manual') {
     await logAudit(db as any, {
       action: 'create_protected_manual_result',
@@ -297,7 +346,11 @@ export async function POST(req: NextRequest) {
   if (compulsorySchoolPapers) {
     calculation = { skipped: 'host_school' };
   } else {
-    const { data, error: calculationError } = await db.rpc('recalculate_academic_result', { p_report_id: write.data.id, p_actor_id: user.id });
+    const { data, error: calculationError } = await db.rpc('recalculate_academic_result_guarded', {
+      p_report_id: write.data.id,
+      p_actor_id: user.id,
+      p_expected_updated_at: write.data.updated_at ?? null,
+    });
     if (calculationError) return calculationFailure(calculationError);
     calculation = data;
   }

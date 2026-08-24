@@ -29,7 +29,8 @@ describe('one evaluation and result authority', () => {
     const autoFillApi = read('app/api/academic-spine/results/route.ts');
     const writer = read('app/dashboard/reports/builder/page.tsx');
 
-    expect(autoFillApi).toContain("db.rpc('recalculate_academic_result'");
+    expect(autoFillApi).toContain("db.rpc('recalculate_academic_result_guarded'");
+    expect(autoFillApi).toContain('p_expected_updated_at');
     expect(autoFillApi).toContain('academic_offering_id: klass.academic_offering_id');
     expect(autoFillApi).toContain('offering_period_id: klass.offering_period_id');
     expect(autoFillApi).not.toContain('projectCount / 3');

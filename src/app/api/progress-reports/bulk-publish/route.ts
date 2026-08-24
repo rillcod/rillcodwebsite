@@ -84,17 +84,17 @@ export async function POST(request: NextRequest) {
     const publishedIds: string[] = [];
 
     for (const draft of drafts as any[]) {
-      // Transfer authorship to current class owner before publish so ownership stays consistent.
-      if (caller.role === 'teacher' && draft.teacher_id !== caller.id) {
-        const { error: transferError } = await admin.from('student_progress_reports')
-          .update({ teacher_id: caller.id, updated_at: new Date().toISOString() })
-          .eq('id', draft.id);
-        if (transferError) {
-          failures.push({ id: draft.id, student_name: draft.student_name ?? null, issues: ['Current teacher ownership could not be recorded.'] });
-          continue;
-        }
-      }
-      const result = await publishProgressReport(admin, draft.id);
+      // A class handoff and the publish transition are one guarded write. A
+      // stale draft can therefore never change owner without being published.
+      const ownershipChanges = caller.role === 'teacher' && draft.teacher_id !== caller.id
+        ? { teacher_id: caller.id, instructor_name: caller.full_name || draft.instructor_name || null }
+        : {};
+      const result = await publishProgressReport(
+        admin,
+        draft.id,
+        ownershipChanges,
+        { expectedUpdatedAt: draft.updated_at ?? null },
+      );
       if (!result.ok) failures.push({ id: draft.id, student_name: draft.student_name ?? null, issues: result.issues ?? [result.error] });
       else {
         publishedIds.push(draft.id);

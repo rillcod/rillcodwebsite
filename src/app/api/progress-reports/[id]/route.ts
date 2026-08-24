@@ -35,14 +35,14 @@ async function requireStaff() {
   if (error || !user) return null;
   const { data: profile } = await adminClient()
     .from('portal_users')
-    .select('id, role, school_id')
+    .select('id, role, school_id, full_name')
     .eq('id', user.id)
     .single();
   if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) return null;
   return profile;
 }
 
-type ReportAccessResult = { ok: true } | { ok: false; status: number; error: string };
+type ReportAccessResult = { ok: true; transfer?: boolean } | { ok: false; status: number; error: string };
 
 async function canModifyReport(caller: any, reportId: string): Promise<ReportAccessResult> {
   if (caller.role === 'admin') return { ok: true };
@@ -58,17 +58,10 @@ async function canModifyReport(caller: any, reportId: string): Promise<ReportAcc
   const access = await canAccessProgressReport(admin, caller, report as any, { transferOwnership: true });
   if (!access.ok) return { ok: false, status: 403, error: 'This report is outside your assigned class or school.' };
 
-  // Class-owner takeover: transfer authorship so publish/unpublish stays unblocked.
-  if ((report as any).teacher_id !== caller.id) {
-    const { error: transferError } = await admin.from('student_progress_reports')
-      .update({ teacher_id: caller.id } as any)
-      .eq('id', reportId);
-    if (transferError) {
-      console.error('[progress-reports] report ownership transfer failed:', transferError);
-      return { ok: false, status: 503, error: 'Current teacher ownership could not be recorded. Please try again.' };
-    }
-  }
-  return { ok: true };
+  // Permission and ownership transfer are deliberately separate. The actual
+  // transfer is included in the same version-guarded PATCH below, so a stale or
+  // failed action never changes authorship by itself.
+  return { ok: true, transfer: access.transfer === true };
 }
 
 // PATCH /api/progress-reports/[id] — update specific fields (e.g. course_name)
@@ -83,6 +76,7 @@ export async function PATCH(
   const access = await canModifyReport(caller, id);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   const body = await request.json();
+  const hasExpectedUpdatedAt = Object.prototype.hasOwnProperty.call(body, 'expected_updated_at');
   const expectedUpdatedAt = typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
     ? body.expected_updated_at.trim()
     : null;
@@ -103,6 +97,12 @@ export async function PATCH(
     'section_class', 'student_name', 'gender',
   ];
   fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
+  if (!fields.some((field) => field in body)) {
+    return NextResponse.json({
+      error: 'No supported report change was provided.',
+      code: 'REPORT_CHANGE_REQUIRED',
+    }, { status: 400 });
+  }
   allowed.updated_at = new Date().toISOString();
   // Unpublishing clears the stamp so the next publish records a fresh published_at.
   if (allowed.is_published === false) allowed.published_at = null;
@@ -111,13 +111,19 @@ export async function PATCH(
 
   const { data: currentReport, error: currentReportError } = await admin
     .from('student_progress_reports')
-    .select('student_id, student_name, section_class, school_id, class_id, course_id, course_name, term_id, academic_offering_id, report_term, report_period, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode, updated_at')
+    .select('student_id, student_name, section_class, school_id, class_id, course_id, course_name, term_id, academic_offering_id, report_term, report_period, teacher_id, instructor_name, is_published, academic_trace_status, academic_qa_status, theory_score, practical_score, attendance_score, participation_score, engagement_metrics, overall_score, overall_grade, calculation_mode, updated_at')
     .eq('id', id)
     .maybeSingle();
   if (currentReportError) {
     return NextResponse.json({ error: 'The report could not be verified before saving. Please try again.' }, { status: 503 });
   }
   if (!currentReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+  if (!hasExpectedUpdatedAt) {
+    return NextResponse.json({
+      error: 'Reload this report before changing it so the latest version is protected.',
+      code: 'REPORT_VERSION_REQUIRED',
+    }, { status: 428 });
+  }
 
   const publishedIssue = publishedProgressReportEditIssue(
     currentReport as Record<string, unknown>,
@@ -126,11 +132,16 @@ export async function PATCH(
   if (publishedIssue) {
     return NextResponse.json({ error: publishedIssue, code: 'PUBLISHED_REPORT_LOCKED' }, { status: 409 });
   }
-  if (expectedUpdatedAt && (currentReport as any).updated_at && expectedUpdatedAt !== (currentReport as any).updated_at) {
+  if ((expectedUpdatedAt ?? null) !== ((currentReport as any).updated_at ?? null)) {
     return NextResponse.json({
       error: 'This report changed after you opened it. Reload the latest version before saving.',
       code: 'STALE_REPORT_DRAFT',
     }, { status: 409 });
+  }
+
+  if (access.transfer && caller.role === 'teacher' && (currentReport as any).teacher_id !== caller.id) {
+    allowed.teacher_id = caller.id;
+    if (!('instructor_name' in body) && caller.full_name) allowed.instructor_name = caller.full_name;
   }
 
   // Central session resolve on PATCH (same rules as POST). Resubmitting the
@@ -234,8 +245,13 @@ export async function PATCH(
   let error: any;
   let newlyPublished = false;
   if (allowed.is_published === true) {
-    const publishResult = await publishProgressReport(admin, id, allowed as Record<string, unknown>);
-    if (!publishResult.ok) return NextResponse.json({ error: publishResult.error, issues: publishResult.issues }, { status: publishResult.status });
+    const publishResult = await publishProgressReport(
+      admin,
+      id,
+      allowed as Record<string, unknown>,
+      { expectedUpdatedAt },
+    );
+    if (!publishResult.ok) return NextResponse.json({ error: publishResult.error, code: publishResult.code, issues: publishResult.issues }, { status: publishResult.status });
     data = publishResult.report;
     newlyPublished = publishResult.newlyPublished;
   } else {
@@ -243,7 +259,9 @@ export async function PATCH(
       .from('student_progress_reports')
       .update(allowed as TablesUpdate<'student_progress_reports'>)
       .eq('id', id);
-    if (expectedUpdatedAt) updateQuery = updateQuery.eq('updated_at', expectedUpdatedAt);
+    updateQuery = expectedUpdatedAt
+      ? updateQuery.eq('updated_at', expectedUpdatedAt)
+      : updateQuery.is('updated_at', null);
     const updateResult = await updateQuery
       .select('id, student_id, course_name, overall_score, overall_grade, is_published, verification_code, updated_at')
       .maybeSingle();
@@ -267,7 +285,12 @@ export async function PATCH(
       resourceId: id,
       tableName: 'student_progress_reports',
       oldValues: { overall_score: (currentReport as any)?.overall_score ?? null, overall_grade: (currentReport as any)?.overall_grade ?? null },
-      newValues: { overall_score: data.overall_score ?? null, overall_grade: data.overall_grade ?? null, fields: Object.keys(allowed) },
+      newValues: {
+        overall_score: data.overall_score ?? null,
+        overall_grade: data.overall_grade ?? null,
+        fields: Object.keys(allowed),
+        ownership_transferred: access.transfer === true,
+      },
     });
   }
 
