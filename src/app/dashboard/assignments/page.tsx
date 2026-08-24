@@ -687,6 +687,22 @@ function AssignmentsPageInner() {
                               {a.assignment_type}
                             </span>
                           )}
+                          {a.metadata?.result_eligible === false && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                              Practice only
+                            </span>
+                          )}
+                          {a.metadata?.result_eligible !== false && !a.class_id && (
+                            <Link href={`/dashboard/assignments/${a.id}/edit`}
+                              className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300">
+                              Resolve result use
+                            </Link>
+                          )}
+                          {a.metadata?.result_eligible !== false && a.class_id && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                              Class result
+                            </span>
+                          )}
                           {a.metadata?.week != null && (
                             <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30">
                               Week {a.metadata.week}

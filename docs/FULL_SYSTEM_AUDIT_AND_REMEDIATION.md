@@ -2649,3 +2649,57 @@ Verification and deployment boundary:
   current enrolment;
 - no production build, remote push, database write, learner score mutation, submission mutation or
   report mutation was performed by this milestone.
+
+### 16.26 Assignment-to-result context and practice boundary milestone — verified locally on 24 August 2026
+
+Confirmed workflow defect:
+
+- assignments created from a class or class plan inherited the central class, course, term, offering
+  and period correctly. The general **Create Assignment** page, however, had no class choice and sent
+  `class_id: null`; this is the source pattern behind the two surviving unscoped assignment-evidence
+  rows reported by the aggregate production audit;
+- those submissions and grades exist, but Auto-fill correctly refuses to consume them without a
+  trustworthy class/offering/period. The prior edit endpoint also treated every class update as a
+  scoring-definition change, so staff had no safe way to repair a missing class after grading;
+- a programme-wide task and an official class assignment were not explicitly distinguished. Making
+  all programme-wide practice count as report evidence would be unsafe, while hiding it completely
+  would damage the learner and teacher workflow.
+
+Implemented:
+
+- new assignment creation now asks **Class result** or **Practice only**. Class result requires a
+  class with a valid offering and period; class and plan routes still prefill their known context;
+- the assignment API independently validates teacher ownership, school, class, lesson plan,
+  programme, term, offering and period. A lesson-plan ID alone can no longer target a class the
+  teacher does not own, and a multi-school teacher's selected class supplies the correct school;
+- official assignments stamp `assessment_scope=class_result` and `result_eligible=true`. Practice
+  assignments stamp the opposite and remain available for distribution, submission, marking and
+  feedback;
+- migration `20260929000105_keep_practice_assignments_out_of_results.sql` changes only the central
+  evidence lifecycle label: practice submissions are `recorded`, which the result calculator does
+  not consume. Changing the parent setting updates existing evidence eligibility without deleting or
+  rewriting a submission, grade, answer, attachment, feedback or moderation record;
+- the assignment list labels **Class result**, **Practice only**, or **Resolve result use**. For an
+  older unscoped assignment, the edit screen offers two honest resolutions: link the compatible class
+  or retain it as practice;
+- a null-to-class recovery is exempted from the normal score-definition lock only for academic
+  context. School, programme, term, course, offering and period are validated. All actual scoring,
+  question, weighting and assignment-type changes remain locked once protected grade evidence exists;
+- the permanent aggregate audit now separates practice assignment evidence from unresolved result
+  evidence, just as it does for CBT.
+
+Verification and deployment boundary:
+
+- four focused suites passed: 4 files and 15 tests covering creation scope, teacher/plan ownership,
+  guarded legacy recovery, protected scores, practice exclusion, grading-mode policy, submission
+  authority, and the shared evidence context contract;
+- the full `npm run typecheck` passed after the assignment API and UI changes;
+- local browser proof could not be completed because PID 17724 still owns this workspace's Next
+  development lock while its server no longer answers on port 3000; Next correctly refused a second
+  instance. The process was not force-terminated. Source, type and focused-test proof are claimed, not
+  a successful interactive mobile/desktop journey;
+- migration 105 is local and has not been applied to production. The two existing unscoped assignment
+  evidence rows therefore remain unresolved in live data until deployment and an explicit staff
+  choice; no class is inferred from current learner enrolment;
+- no production build, remote push, database write, learner score, submission, attachment, feedback,
+  report, or finance record was changed in this milestone.

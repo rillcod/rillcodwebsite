@@ -272,6 +272,24 @@ export async function POST(request: NextRequest) {
     if (inputIssue) return NextResponse.json(inputIssue, { status: 400 });
 
     const admin = adminClient();
+    const requestedMetadata = body.metadata && typeof body.metadata === 'object'
+      && !Array.isArray(body.metadata)
+      ? body.metadata as Record<string, unknown>
+      : {};
+    const lessonPlanId = typeof body.lesson_plan_id === 'string'
+      ? body.lesson_plan_id
+      : typeof body.metadata?.lesson_plan_id === 'string'
+        ? body.metadata.lesson_plan_id
+        : null;
+    const targetClassId = body.metadata?.target_class_id || body.class_id;
+    const assessmentScope = requestedMetadata.assessment_scope === 'practice'
+      || requestedMetadata.result_eligible === false
+      ? 'practice'
+      : targetClassId || lessonPlanId
+        ? 'class_result'
+        : requestedMetadata.assessment_scope === 'class_result'
+          ? 'class_result'
+          : 'practice';
 
     // Resolve school — teacher cannot set an arbitrary school_id
     let resolvedSchoolId: string | null = null;
@@ -292,6 +310,29 @@ export async function POST(request: NextRequest) {
           );
         }
         resolvedSchoolId = requestedSchoolId;
+      } else if (targetClassId) {
+        const { data: targetClassSchool } = await admin
+          .from('classes')
+          .select('teacher_id,school_id')
+          .eq('id', targetClassId)
+          .maybeSingle();
+        if (!targetClassSchool || targetClassSchool.teacher_id !== caller.id) {
+          return NextResponse.json({ error: 'You can only target classes you own' }, { status: 403 });
+        }
+        resolvedSchoolId = targetClassSchool.school_id;
+      } else if (lessonPlanId) {
+        const { data: targetPlan } = await admin
+          .from('lesson_plans')
+          .select('class_id,school_id')
+          .eq('id', lessonPlanId)
+          .maybeSingle();
+        const { data: planClass } = targetPlan?.class_id
+          ? await admin.from('classes').select('teacher_id').eq('id', targetPlan.class_id).maybeSingle()
+          : { data: null };
+        if (!targetPlan || planClass?.teacher_id !== caller.id) {
+          return NextResponse.json({ error: 'You can only use lesson plans for classes you own' }, { status: 403 });
+        }
+        resolvedSchoolId = targetPlan.school_id;
       } else {
         if (!caller.school_id) {
           return NextResponse.json(
@@ -306,17 +347,16 @@ export async function POST(request: NextRequest) {
 
     // Validate that a class-scoped assignment targets a class this teacher owns.
     // Without this, Suleiman could create an assignment targeting Amaka's class_id.
-    const targetClassId = body.metadata?.target_class_id || body.class_id;
-    if (caller.role === 'teacher' && targetClassId) {
+    if (targetClassId) {
       const { data: targetCls } = await admin
         .from('classes')
-        .select('teacher_id, school_id')
+        .select('id,teacher_id,school_id,program_id,term_id,academic_offering_id,offering_period_id')
         .eq('id', targetClassId)
         .maybeSingle();
       if (!targetCls) {
         return NextResponse.json({ error: 'Target class not found' }, { status: 400 });
       }
-      if (targetCls.teacher_id !== caller.id) {
+      if (caller.role === 'teacher' && targetCls.teacher_id !== caller.id) {
         return NextResponse.json(
           { error: 'You can only target classes you own' },
           { status: 403 },
@@ -328,20 +368,37 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
+      if (assessmentScope === 'class_result'
+        && (!targetCls.academic_offering_id || !targetCls.offering_period_id)) {
+        return NextResponse.json({
+          error: 'This class is not connected to an academic offering and period yet. Repair the class academic setup before publishing result-bearing work.',
+          code: 'CLASS_ACADEMIC_CONTEXT_INCOMPLETE',
+        }, { status: 409 });
+      }
+      body.class_id = targetCls.id;
+      body.school_id = targetCls.school_id;
+      body.program_id = targetCls.program_id ?? body.program_id;
+      body.term_id = targetCls.term_id ?? body.term_id;
+      body.academic_offering_id = targetCls.academic_offering_id;
+      body.offering_period_id = targetCls.offering_period_id;
+      resolvedSchoolId = targetCls.school_id;
     }
 
     // A class-plan assignment/project inherits its complete scope from that canonical plan.
-    const lessonPlanId = typeof body.lesson_plan_id === 'string'
-      ? body.lesson_plan_id
-      : typeof body.metadata?.lesson_plan_id === 'string'
-        ? body.metadata.lesson_plan_id
-        : null;
     if (lessonPlanId) {
       const { data: plan } = await admin.from('lesson_plans')
         .select('id,class_id,course_id,term_id,school_id,status,curriculum_release_id,academic_offering_id,offering_period_id')
         .eq('id', lessonPlanId).maybeSingle();
-      if (!plan || plan.status === 'archived' || !plan.class_id || !plan.course_id || (!plan.term_id && !plan.offering_period_id)) {
+      if (!plan || plan.status === 'archived' || !plan.class_id || !plan.course_id
+        || !plan.academic_offering_id || !plan.offering_period_id) {
         return NextResponse.json({ error: 'Active class lesson plan not found' }, { status: 400 });
+      }
+      if (caller.role === 'teacher') {
+        const { data: planClass } = await admin.from('classes')
+          .select('teacher_id').eq('id', plan.class_id).maybeSingle();
+        if (planClass?.teacher_id !== caller.id) {
+          return NextResponse.json({ error: 'You can only use lesson plans for classes you own' }, { status: 403 });
+        }
       }
       if (targetClassId && targetClassId !== plan.class_id) {
         return NextResponse.json({ error: 'Target class does not match the lesson plan' }, { status: 400 });
@@ -363,6 +420,18 @@ export async function POST(request: NextRequest) {
       body.metadata = { ...(body.metadata ?? {}), target_class_id: plan.class_id, lesson_plan_id: plan.id };
       resolvedSchoolId = plan.school_id;
     }
+    if (assessmentScope === 'class_result' && !body.class_id) {
+      return NextResponse.json({
+        error: 'Choose the class whose report should receive this work, or switch it to Practice only.',
+        code: 'CLASS_REQUIRED_FOR_RESULT',
+      }, { status: 400 });
+    }
+    body.metadata = {
+      ...(body.metadata ?? {}),
+      assessment_scope: assessmentScope,
+      result_eligible: assessmentScope === 'class_result',
+      ...(body.class_id ? { target_class_id: body.class_id, visibility: 'class' } : {}),
+    };
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'program_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',

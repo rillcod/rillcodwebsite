@@ -53,7 +53,7 @@ function grouped(rows: any[], predicate: (row: any) => boolean): Record<string, 
 async function main() {
   const [evidence, assignments, cbtExams, exams, plans, submissions, cbtSessions, examAttempts, weekly] = await Promise.all([
     all('academic_assessment_evidence', 'evidence_type,source_id,assessment_id,school_id,class_id,course_id,academic_term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,context_status'),
-    all('assignments', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id'),
+    all('assignments', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,metadata'),
     all('cbt_exams', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id,metadata'),
     all('exams', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,lesson_plan_id,lesson_id,academic_offering_id,offering_period_id'),
     all('lesson_plans', 'id,school_id,class_id,course_id,term_id,curriculum_release_id,academic_offering_id,offering_period_id'),
@@ -85,14 +85,24 @@ async function main() {
 
   const relevant = evidence.filter((row) => row.evidence_type in maps);
   const resultRelevant = relevant.filter((row) => {
+    if (row.evidence_type === 'assignment_submission') {
+      const assignment = row.assessment_id ? maps.assignment_submission.get(row.assessment_id) : null;
+      return assignment?.metadata?.result_eligible !== false;
+    }
     if (row.evidence_type !== 'cbt_session') return true;
     const exam = row.assessment_id ? maps.cbt_session.get(row.assessment_id) : null;
     return exam?.metadata?.result_eligible !== false;
   });
   const practiceEvidence = relevant.filter((row) => {
-    if (row.evidence_type !== 'cbt_session') return false;
-    const exam = row.assessment_id ? maps.cbt_session.get(row.assessment_id) : null;
-    return exam?.metadata?.result_eligible === false;
+    if (row.evidence_type === 'assignment_submission') {
+      const assignment = row.assessment_id ? maps.assignment_submission.get(row.assessment_id) : null;
+      return assignment?.metadata?.result_eligible === false;
+    }
+    if (row.evidence_type === 'cbt_session') {
+      const exam = row.assessment_id ? maps.cbt_session.get(row.assessment_id) : null;
+      return exam?.metadata?.result_eligible === false;
+    }
+    return false;
   });
   const orphaned = relevant.filter((row) => {
     const type = row.evidence_type as keyof typeof maps;

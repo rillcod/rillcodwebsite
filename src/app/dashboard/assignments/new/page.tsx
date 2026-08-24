@@ -30,6 +30,17 @@ interface Question {
   };
 }
 
+interface AssignmentClassOption {
+  id: string;
+  name: string;
+  school_id: string;
+  program_id: string | null;
+  current_course_id: string | null;
+  academic_offering_id: string | null;
+  offering_period_id: string | null;
+  status: string | null;
+}
+
 const emptyQuestion = (): Question => ({
   question_text: '',
   question_type: 'multiple_choice',
@@ -52,6 +63,9 @@ export default function NewAssignmentPage() {
   const preWeek = searchParams?.get('week');
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<AssignmentClassOption[]>([]);
+  const [classId, setClassId] = useState(preClassId || '');
+  const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [linkedLesson, setLinkedLesson] = useState<{ id: string; title: string } | null>(null);
   const isMinimal = searchParams?.get('minimal') === 'true';
@@ -206,6 +220,16 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
       if (programError) throw programError;
       setPrograms(progData ?? []);
 
+      let classQuery = db
+        .from('classes')
+        .select('id,name,school_id,program_id,current_course_id,academic_offering_id,offering_period_id,status')
+        .order('name');
+      if (profile.role === 'teacher') classQuery = classQuery.eq('teacher_id', profile.id);
+      const { data: classData, error: classError } = await classQuery;
+      if (classError) throw classError;
+      setAvailableClasses(((classData ?? []) as AssignmentClassOption[])
+        .filter(item => item.status !== 'archived'));
+
       let query = db
         .from('courses')
         .select('id, title, program_id, school_id, programs(name)')
@@ -271,6 +295,17 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
   };
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const selectAssignmentClass = (nextClassId: string) => {
+    setClassId(nextClassId);
+    const selected = availableClasses.find(item => item.id === nextClassId);
+    if (!selected) return;
+    if (selected.program_id) setSelectedProgramId(selected.program_id);
+    if (selected.current_course_id) {
+      setForm(current => ({ ...current, course_id: selected.current_course_id || current.course_id }));
+      const course = courses.find(item => item.id === selected.current_course_id);
+      if (course?.title && !aiTopicEdited.current) setAiTopic(course.title);
+    }
+  };
 
   const handleAssignmentTypeChange = (assignmentType: string) => {
     const suggestion = buildAssignmentEntrySuggestion(assignmentType);
@@ -289,6 +324,16 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
       setError('Title and course are required.');
       return;
     }
+    if (assessmentScope === 'class_result' && !classId) {
+      setError('Choose the class receiving this result, or select Practice only.');
+      return;
+    }
+    const selectedClass = classId ? availableClasses.find(item => item.id === classId) : null;
+    if (assessmentScope === 'class_result' && selectedClass
+      && (!selectedClass.academic_offering_id || !selectedClass.offering_period_id)) {
+      setError('Repair this class academic offering and period before publishing result-bearing work.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -299,7 +344,7 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
         course_id: form.course_id,
         program_id: selectedProgramId || null,
         lesson_id: linkedLesson?.id ?? null,
-        class_id: preClassId ?? null,
+        class_id: classId || null,
         lesson_plan_id: preLessonPlanId ?? null,
         curriculum_week_number: preWeek && Number.isInteger(Number(preWeek)) ? Number(preWeek) : null,
         max_points: parseInt(form.max_points) || 100,
@@ -309,8 +354,10 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
         questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
         metadata: (() => {
           const base: Record<string, unknown> = {};
+          base.assessment_scope = assessmentScope;
+          base.result_eligible = assessmentScope === 'class_result';
           if (preLessonPlanId) base.lesson_plan_id = preLessonPlanId;
-          if (preClassId) base.target_class_id = preClassId;
+          if (classId) base.target_class_id = classId;
           if (preWeek) base.week_number = parseInt(preWeek);
           if (form.assignment_type === 'project') {
             base.deliverables = projectMeta.deliverables.filter(d => d.trim());
@@ -328,8 +375,8 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
         body: JSON.stringify(payload),
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create assignment'); }
-      if (preClassId) {
-        router.push(`/dashboard/classes/${preClassId}?operation=assessment`);
+      if (classId) {
+        router.push(`/dashboard/classes/${classId}?operation=assessment`);
       } else if (preLessonPlanId) {
         router.push(`/dashboard/lesson-plans/${preLessonPlanId}`);
       } else if (linkedLesson?.id) {
@@ -540,6 +587,42 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
             </div>
           )}
 
+          <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
+            <div>
+              <p className="text-sm font-bold text-foreground">Where should this work be used?</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Official class work can contribute to Auto-fill. Practice remains available for feedback without changing reports.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setAssessmentScope('class_result')}
+                className={`rounded-xl border p-4 text-left ${assessmentScope === 'class_result' ? 'border-amber-500/60 bg-amber-500/10' : 'border-border bg-card'}`}>
+                <p className="text-sm font-bold text-foreground">Class result</p>
+                <p className="mt-1 text-xs text-muted-foreground">Uses the central grading weights after the teacher grades it.</p>
+              </button>
+              <button type="button" onClick={() => setAssessmentScope('practice')}
+                className={`rounded-xl border p-4 text-left ${assessmentScope === 'practice' ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-card'}`}>
+                <p className="text-sm font-bold text-foreground">Practice only</p>
+                <p className="mt-1 text-xs text-muted-foreground">Learners submit normally, but scores stay outside official reports.</p>
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                {assessmentScope === 'class_result' ? 'Result class *' : 'Limit practice to a class'}
+              </label>
+              <select value={classId} onChange={event => selectAssignmentClass(event.target.value)}
+                disabled={!!preClassId || !!preLessonPlanId}
+                className="mt-2 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground focus:outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:opacity-60">
+                <option value="">{assessmentScope === 'class_result' ? 'Choose the class receiving this work…' : 'Programme/school-wide practice'}</option>
+                {availableClasses.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}{item.academic_offering_id && item.offering_period_id ? '' : ' — setup required'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
@@ -553,11 +636,11 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
 
           {/* Coming from a class, the programme and course are already decided — the class
               knows both. Asking for them again was two clicks to re-state a known fact. */}
-          {preClassId ? (
+          {classId ? (
             <SmartCourseSelect
               label="Course"
               labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
-              classId={preClassId}
+              classId={classId}
               value={form.course_id}
               onChange={(courseId, course) => {
                 setForm(f => ({ ...f, course_id: courseId }));

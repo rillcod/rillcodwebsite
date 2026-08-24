@@ -21,6 +21,16 @@ interface Question {
     points: number;
 }
 
+interface AssignmentClassOption {
+    id: string;
+    name: string;
+    school_id: string;
+    program_id: string | null;
+    academic_offering_id: string | null;
+    offering_period_id: string | null;
+    status: string | null;
+}
+
 const emptyQuestion = (): Question => ({
     question_text: '',
     question_type: 'multiple_choice',
@@ -41,6 +51,12 @@ export default function EditAssignmentPage() {
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [availableClasses, setAvailableClasses] = useState<AssignmentClassOption[]>([]);
+    const [originalClassId, setOriginalClassId] = useState('');
+    const [selectedClassId, setSelectedClassId] = useState('');
+    const [assignmentSchoolId, setAssignmentSchoolId] = useState('');
+    const [assignmentMetadata, setAssignmentMetadata] = useState<Record<string, unknown>>({});
+    const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
 
     const [form, setForm] = useState({
         title: '',
@@ -59,6 +75,11 @@ export default function EditAssignmentPage() {
     useEffect(() => {
         if (authLoading || !profile || !id) return;
         const db = createClient();
+        let classQuery = db
+            .from('classes')
+            .select('id,name,school_id,program_id,academic_offering_id,offering_period_id,status')
+            .order('name');
+        if (profile.role === 'teacher') classQuery = classQuery.eq('teacher_id', profile.id);
         Promise.all([
             fetch(`/api/assignments/${id}`, { cache: 'no-store' }).then(async r => {
                 const json = await r.json();
@@ -67,9 +88,11 @@ export default function EditAssignmentPage() {
             }),
             db.from('courses').select('id, title, program_id, programs(name)').eq('is_active', true).order('title'),
             db.from('programs').select('id, name').eq('is_active', true).order('name'),
-        ]).then(([aJson, cRes, pRes]) => {
+            classQuery,
+        ]).then(([aJson, cRes, pRes, classRes]) => {
             if (cRes.error) throw cRes.error;
             if (pRes.error) throw pRes.error;
+            if (classRes.error) throw classRes.error;
             const a = aJson.data;
             const courseList = cRes.data ?? [];
             if (a) {
@@ -84,6 +107,16 @@ export default function EditAssignmentPage() {
                     is_active: a.is_active ?? true,
                 });
                 setQuestions(Array.isArray(a.questions) ? a.questions as any as Question[] : []);
+                const metadata = a.metadata && typeof a.metadata === 'object' && !Array.isArray(a.metadata)
+                    ? a.metadata as Record<string, unknown>
+                    : {};
+                setOriginalClassId(a.class_id ?? '');
+                setSelectedClassId(a.class_id ?? '');
+                setAssignmentSchoolId(a.school_id ?? '');
+                setAssignmentMetadata(metadata);
+                setAssessmentScope(metadata.assessment_scope === 'practice' || metadata.result_eligible === false
+                    ? 'practice'
+                    : 'class_result');
                 // Seed the programme from the assignment's tag, else derive it from the course.
                 const derived = a.program_id
                     ?? courseList.find((c: any) => c.id === a.course_id)?.program_id
@@ -94,6 +127,8 @@ export default function EditAssignmentPage() {
             }
             setCourses(courseList);
             setPrograms(pRes.data ?? []);
+            setAvailableClasses(((classRes.data ?? []) as AssignmentClassOption[])
+                .filter(item => item.status !== 'archived'));
             setLoading(false);
         }).catch((cause) => {
             setError(cause instanceof Error ? cause.message : 'Assignment could not be loaded.');
@@ -168,6 +203,37 @@ export default function EditAssignmentPage() {
         }
     };
 
+    const handleResolveResultUse = async () => {
+        if (assessmentScope === 'class_result' && !selectedClassId) {
+            setError('Choose the class receiving these results, or select Practice only.');
+            return;
+        }
+        setSaving(true);
+        setError(null);
+        try {
+            const payload: Record<string, unknown> = {
+                metadata: {
+                    ...assignmentMetadata,
+                    assessment_scope: assessmentScope,
+                    result_eligible: assessmentScope === 'class_result',
+                },
+            };
+            if (assessmentScope === 'class_result') payload.class_id = selectedClassId;
+            const response = await fetch(`/api/assignments/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || 'Could not save result use.');
+            router.push(`/dashboard/assignments/${id}`);
+        } catch (cause: any) {
+            setError(cause.message || 'Could not save result use.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (authLoading || loading) return (
         <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
             <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -204,6 +270,49 @@ export default function EditAssignmentPage() {
                         <p className="text-rose-600 dark:text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
+
+                <div className={`rounded-2xl border p-5 ${originalClassId || assessmentScope === 'practice' ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
+                    <p className="text-sm font-bold text-foreground">
+                        {originalClassId
+                            ? assessmentScope === 'practice' ? 'Class practice — excluded from reports' : 'Connected to class results'
+                            : assessmentScope === 'practice' ? 'Practice only — no class result link needed' : 'Resolve how this assignment is used'}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        Linking repairs academic context only. It never changes a learner submission, score, feedback, or moderation decision.
+                    </p>
+                    {!originalClassId && (
+                        <div className="mt-4 space-y-3">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <button type="button" onClick={() => setAssessmentScope('class_result')}
+                                    className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${assessmentScope === 'class_result' ? 'border-amber-500/60 bg-amber-500/10' : 'border-border bg-card'}`}>
+                                    Use in class results
+                                </button>
+                                <button type="button" onClick={() => { setAssessmentScope('practice'); setSelectedClassId(''); }}
+                                    className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${assessmentScope === 'practice' ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-card'}`}>
+                                    Keep as practice only
+                                </button>
+                            </div>
+                            {assessmentScope === 'class_result' && (
+                                <select value={selectedClassId} onChange={event => setSelectedClassId(event.target.value)}
+                                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+                                    <option value="">Choose the class receiving these results…</option>
+                                    {availableClasses
+                                        .filter(item => (!assignmentSchoolId || item.school_id === assignmentSchoolId)
+                                            && (!selectedProgramId || !item.program_id || item.program_id === selectedProgramId))
+                                        .map(item => (
+                                            <option key={item.id} value={item.id} disabled={!item.academic_offering_id || !item.offering_period_id}>
+                                                {item.name}{item.academic_offering_id && item.offering_period_id ? '' : ' — repair class setup first'}
+                                            </option>
+                                        ))}
+                                </select>
+                            )}
+                            <button type="button" onClick={handleResolveResultUse} disabled={saving}
+                                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50">
+                                {saving ? 'Saving…' : 'Save result use'}
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                 <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
 

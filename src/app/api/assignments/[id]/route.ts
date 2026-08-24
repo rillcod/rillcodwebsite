@@ -89,16 +89,6 @@ function callerCanManageAssignment(
   return false;
 }
 
-async function teacherOwnsClass(admin: ReturnType<typeof adminClient>, teacherId: string, classId: string | null): Promise<boolean> {
-  if (!classId) return false;
-  const { data } = await admin
-    .from('classes')
-    .select('teacher_id')
-    .eq('id', classId)
-    .maybeSingle();
-  return data?.teacher_id === teacherId;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/assignments/[id]
 // Staff only — returns full assignment with all submissions for grading.
@@ -182,7 +172,7 @@ export async function PATCH(
   const admin = adminClient();
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id, title, is_active, term_id, class_id, academic_offering_id, offering_period_id')
+    .select('created_by, school_id, title, is_active, term_id, class_id, course_id, program_id, metadata, academic_offering_id, offering_period_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -196,12 +186,16 @@ export async function PATCH(
   const body = await request.json();
   const inputIssue = validateAssignmentInput(body, true);
   if (inputIssue) return NextResponse.json(inputIssue, { status: 400 });
+  const requestedClassId = typeof body.class_id === 'string' && body.class_id
+    ? body.class_id
+    : null;
+  const isClassRecovery = !existing.class_id && !!requestedClassId;
 
   const evidenceDefinitionFields = [
     'course_id', 'program_id', 'class_id', 'term_id', 'assignment_type',
     'questions', 'max_points', 'weight', 'grading_mode',
   ];
-  if (evidenceDefinitionFields.some((field) => field in body)) {
+  if (evidenceDefinitionFields.some((field) => field in body && !(field === 'class_id' && isClassRecovery))) {
     const { data: scoredSubmissions, error: scoreLookupError } = await admin
       .from('assignment_submissions')
       .select('grade,weighted_score,graded_at,graded_by,grading_mode,status')
@@ -251,18 +245,57 @@ export async function PATCH(
       period,
     });
   }
-  if (caller.role === 'teacher' && targetClassId) {
-    const ownsClass = await teacherOwnsClass(admin, caller.id, targetClassId);
-    if (!ownsClass) {
-      return NextResponse.json({ error: 'You can only target classes you own' }, { status: 403 });
-    }
+  if (targetClassId) {
     const { data: targetClass } = await admin
       .from('classes')
-      .select('school_id')
+      .select('id,teacher_id,school_id,program_id,term_id,academic_offering_id,offering_period_id')
       .eq('id', targetClassId)
       .maybeSingle();
+    if (!targetClass) return NextResponse.json({ error: 'Target class not found' }, { status: 400 });
+    if (caller.role === 'teacher' && targetClass.teacher_id !== caller.id) {
+      return NextResponse.json({ error: 'You can only target classes you own' }, { status: 403 });
+    }
     if (existing.school_id && targetClass?.school_id && targetClass.school_id !== existing.school_id) {
       return NextResponse.json({ error: 'Target class belongs to a different school' }, { status: 403 });
+    }
+    if (isClassRecovery) {
+      if (existing.program_id && targetClass.program_id && existing.program_id !== targetClass.program_id) {
+        return NextResponse.json({
+          error: 'The selected class belongs to a different programme. Choose the matching class.',
+          code: 'CLASS_CONTEXT_MISMATCH',
+        }, { status: 409 });
+      }
+      if (existing.term_id && targetClass.term_id && existing.term_id !== targetClass.term_id) {
+        return NextResponse.json({
+          error: 'The selected class is in a different academic term.',
+          code: 'CLASS_CONTEXT_MISMATCH',
+        }, { status: 409 });
+      }
+      if (!existing.course_id) {
+        return NextResponse.json({
+          error: 'Choose a course before linking this assignment to class results.',
+          code: 'COURSE_REQUIRED_FOR_RESULT',
+        }, { status: 409 });
+      }
+      if (!targetClass.academic_offering_id || !targetClass.offering_period_id) {
+        return NextResponse.json({
+          error: 'Repair the class academic offering and period before linking result evidence.',
+          code: 'CLASS_ACADEMIC_CONTEXT_INCOMPLETE',
+        }, { status: 409 });
+      }
+      allowed.class_id = targetClass.id;
+      allowed.school_id = targetClass.school_id;
+      allowed.term_id = existing.term_id || targetClass.term_id;
+      allowed.academic_offering_id = targetClass.academic_offering_id;
+      allowed.offering_period_id = targetClass.offering_period_id;
+      allowed.metadata = {
+        ...(existing.metadata && typeof existing.metadata === 'object' ? existing.metadata : {}),
+        ...(body.metadata && typeof body.metadata === 'object' ? body.metadata : {}),
+        target_class_id: targetClass.id,
+        visibility: 'class',
+        assessment_scope: 'class_result',
+        result_eligible: true,
+      };
     }
   }
   allowed.updated_at = new Date().toISOString();
