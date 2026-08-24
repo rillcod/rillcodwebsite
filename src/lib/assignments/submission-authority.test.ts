@@ -31,9 +31,14 @@ describe('assignment submission mutation authority', () => {
   it('keeps learner and teacher writes behind their scoped server routes', () => {
     const learnerRoute = read('src/app/api/assignments/[id]/submit/route.ts');
     const gradingRoute = read('src/app/api/assignment-submissions/[id]/route.ts');
+    const gradeAliasRoute = read('src/app/api/assignments/[id]/grade/route.ts');
 
     expect(learnerRoute).toContain('hasProtectedAssignmentScoreEvidence(existingSub)');
     expect(gradingRoute).toContain('buildAssignmentGradeTransition');
     expect(gradingRoute).toContain('callerCanManageAssignmentWork');
+    expect(gradeAliasRoute).toContain('forwardToCanonicalSubmissionReview');
+    expect(gradeAliasRoute).toContain('submitted_at:    null');
+    expect(gradeAliasRoute).toContain("source: 'staff_recorded_without_portal_submission'");
+    expect(gradeAliasRoute).not.toContain('upsert(insertPayload');
   });
 });

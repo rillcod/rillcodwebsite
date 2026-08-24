@@ -36,6 +36,7 @@ const ACTION_PHRASES: Record<string, string> = {
   delete_lesson_plan_keep_learner_work: 'Removed a lesson plan and kept learner work',
   delete_consent_form: 'Deleted consent form through cleanup policy',
   grade_submission: 'Graded a submission',
+  record_direct_assignment_grade: 'Recorded an offline or direct assignment mark',
   accept_ai_grade: 'Accepted an AI grade',
   override_grade: 'Overrode a grade',
   'assignment_submission.ai_suggest': 'Ran AI grading suggestions',

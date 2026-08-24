@@ -15,7 +15,6 @@ import {
 import { callerCanManageAssignmentWork } from '@/lib/assignments/authz';
 import {
   buildAssignmentGradeTransition,
-  computeAssignmentWeightedScore,
 } from '@/lib/assignments/grading';
 import { PATCH as updateAssignmentSubmission } from '@/app/api/assignment-submissions/[id]/route';
 
@@ -100,6 +99,24 @@ async function sendGradeNotifications(
   });
 }
 
+function forwardToCanonicalSubmissionReview(
+  request: NextRequest,
+  body: Record<string, unknown>,
+  submissionId: string,
+) {
+  const headers = new Headers(request.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.delete('Content-Length');
+  const canonicalRequest = new NextRequest(request.url, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(body),
+  });
+  return updateAssignmentSubmission(canonicalRequest, {
+    params: Promise.resolve({ id: submissionId }),
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/assignments/[id]/grade
 // Grades a submission or creates a graded one if none exists yet.
@@ -159,17 +176,7 @@ export async function POST(
       if (!targetSubmission || targetSubmission.assignment_id !== assignment_id) {
         return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
       }
-      const headers = new Headers(request.headers);
-      headers.set('Content-Type', 'application/json');
-      headers.delete('Content-Length');
-      const canonicalRequest = new NextRequest(request.url, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(body),
-      });
-      return updateAssignmentSubmission(canonicalRequest, {
-        params: Promise.resolve({ id: String(submission_id) }),
-      });
+      return forwardToCanonicalSubmissionReview(request, body, String(submission_id));
     }
 
     const assignWeight = assignment.weight ?? 0;
@@ -187,24 +194,11 @@ export async function POST(
     }
     const normalizedGrade = gradeResult.value;
 
-    function computeWeightedScore(g: number | null | undefined): number | null {
-      return computeAssignmentWeightedScore(g, assignMax, assignWeight);
-    }
-
     let existingSub: any = null;
-    if (submission_id) {
+    if (student_id) {
       const { data } = await admin
         .from('assignment_submissions')
-        .select('id, assignment_id, file_url, grade, status')
-        .eq('id', submission_id)
-        .eq('assignment_id', assignment_id)
-        .maybeSingle();
-      existingSub = data;
-      if (!existingSub) return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
-    } else if (student_id) {
-      const { data } = await admin
-        .from('assignment_submissions')
-        .select('id, assignment_id, file_url, grade, status')
+        .select('id, assignment_id, file_url, grade, status, version')
         .eq('assignment_id', assignment_id)
         .eq('portal_user_id', student_id)
         .maybeSingle();
@@ -240,6 +234,15 @@ export async function POST(
     }
 
     if (student_id) {
+      // Existing work always uses the optimistic-concurrency review command.
+      if (existingSub?.id) {
+        return forwardToCanonicalSubmissionReview(request, {
+          ...body,
+          expected_version: body.expected_version ?? existingSub.version,
+        }, String(existingSub.id));
+      }
+
+      const now = new Date().toISOString();
       const insertTransition = buildAssignmentGradeTransition({
         currentGrade: existingSub?.grade ?? null,
         currentStatus: existingSub?.status ?? null,
@@ -248,6 +251,7 @@ export async function POST(
         maxPoints: assignMax,
         weight: assignWeight,
         graderId: caller.id,
+        now,
       });
       if (insertTransition.error) {
         return NextResponse.json({ error: insertTransition.error, field: 'grade' }, { status: 400 });
@@ -260,11 +264,17 @@ export async function POST(
         feedback:        feedback ?? null,
         status:          statusResult.value ?? 'graded',
         submission_text: submission_text ?? null,
+        // Staff-entered/offline evidence is not a learner portal submission.
+        submitted_at:    null,
         graded_by:       caller.id,
-        graded_at:       new Date().toISOString(),
-        submitted_at:    new Date().toISOString(),
-        updated_at:      new Date().toISOString(),
-        weighted_score:  computeWeightedScore(normalizedGrade),
+        graded_at:       now,
+        grading_mode:    'manual',
+        grading_details: { source: 'staff_recorded_without_portal_submission' },
+        status_changed_by: caller.id,
+        last_change_reason: typeof body.change_reason === 'string' && body.change_reason.trim()
+          ? body.change_reason.trim().slice(0, 500)
+          : 'Teacher recorded an offline or direct assessment mark',
+        updated_at:      now,
       };
       Object.assign(insertPayload, insertTransition.fields);
 
@@ -272,20 +282,34 @@ export async function POST(
 
       const { data, error } = await admin
         .from('assignment_submissions')
-        .upsert(insertPayload, { onConflict: 'assignment_id,portal_user_id' })
+        .insert(insertPayload)
         .select('id, grade, status, weighted_score, portal_user_id')
         .single();
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        if (error.code === '23505') {
+          return NextResponse.json({
+            error: 'A review for this learner was created in another session. Refresh before recording the mark.',
+            code: 'STALE_SUBMISSION_REVIEW',
+          }, { status: 409 });
+        }
+        console.error('[assignment-grade] direct mark insert failed', { assignmentId: assignment_id, code: error.code });
+        return NextResponse.json({ error: 'The mark could not be recorded safely. Nothing was changed; please retry.' }, { status: 500 });
+      }
 
       // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
       await logAudit(admin as any, {
-        action: 'grade_submission',
+        action: 'record_direct_assignment_grade',
         actorId: caller.id,
         resourceType: 'assignment_submission',
         resourceId: data.id,
         oldValue: String(existingSub?.grade ?? ''),
-        newValue: `Score ${existingSub?.grade ?? '—'} → ${data.grade ?? '—'}`,
+        newValue: `Recorded staff-entered score ${data.grade ?? '—'} without claiming a portal submission`,
+        newValues: {
+          grade: data.grade ?? null,
+          weighted_score: data.weighted_score ?? null,
+          source: 'staff_recorded_without_portal_submission',
+        },
       });
 
       if (insertTransition.finalized && data?.portal_user_id) {
