@@ -271,6 +271,25 @@ export default function CBTPage() {
                           <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
                             {getExamType(exam) === 'evaluation' ? 'Evaluation' : 'Examination'}
                           </span>
+                          {isStaff && exam.metadata?.result_eligible === false && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                              Practice only
+                            </span>
+                          )}
+                          {isStaff && exam.metadata?.result_eligible !== false && !exam.class_id && (
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}/edit`}
+                              className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                              title="Choose whether this belongs to class results or practice"
+                            >
+                              Resolve result use
+                            </Link>
+                          )}
+                          {isStaff && exam.metadata?.result_eligible !== false && exam.class_id && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                              Class result
+                            </span>
+                          )}
                           {!isStaff && studentSession && (
                             <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${
                               studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :

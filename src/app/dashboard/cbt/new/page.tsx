@@ -37,6 +37,17 @@ interface Question {
   section: 'objective' | 'subjective' | 'practical';
 }
 
+interface AssessmentClassOption {
+  id: string;
+  name: string;
+  school_id: string;
+  program_id: string | null;
+  current_course_id: string | null;
+  academic_offering_id: string | null;
+  offering_period_id: string | null;
+  status: string | null;
+}
+
 const emptyQuestion = (): Question => ({
   question_text: '',
   question_type: 'multiple_choice',
@@ -70,11 +81,13 @@ export default function NewExamPage() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [assignedSchools, setAssignedSchools] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableClasses, setAvailableClasses] = useState<AssessmentClassOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [classId, setClassId] = useState<string | null>(preClassId || null);
   const [className, setClassName] = useState<string>('');
+  const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
   const [form, setForm] = useState({
     title: preTitle,
     description: '',
@@ -261,6 +274,16 @@ export default function NewExamPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     const db = createClient();
+
+    let classQuery = db
+      .from('classes')
+      .select('id,name,school_id,program_id,current_course_id,academic_offering_id,offering_period_id,status')
+      .order('name');
+    if (profile.role === 'teacher') classQuery = classQuery.eq('teacher_id', profile.id);
+    classQuery.then(({ data }) => {
+      setAvailableClasses(((data ?? []) as AssessmentClassOption[])
+        .filter(item => item.status !== 'archived'));
+    });
     
     // 1. Fetch admin school list; teachers load schools together with scoped courses below.
     if (profile.role === 'admin') {
@@ -373,6 +396,24 @@ export default function NewExamPage() {
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const selectedSchoolName = assignedSchools.find(s => s.id === form.school_id)?.name || '';
+  const selectAssessmentClass = (nextClassId: string) => {
+    if (!nextClassId) {
+      setClassId(null);
+      setClassName('');
+      return;
+    }
+    const selected = availableClasses.find(item => item.id === nextClassId);
+    if (!selected) return;
+    setClassId(selected.id);
+    setClassName(selected.name);
+    setForm(previous => ({
+      ...previous,
+      school_id: selected.school_id,
+      program_id: selected.program_id || previous.program_id,
+      course_id: selected.current_course_id || previous.course_id,
+    }));
+    suggestAiTopic(selected.name, 1);
+  };
   const autoClosePreview = form.start_date
     ? new Date(new Date(form.start_date).getTime() + ((parseInt(form.access_window_minutes, 10) || parseInt(form.duration_minutes, 10) || 60) * 60_000))
     : null;
@@ -398,6 +439,16 @@ export default function NewExamPage() {
     e.preventDefault();
     if (!form.title.trim() || !form.program_id) {
       setError('Title and programme are required.');
+      return;
+    }
+    if (assessmentScope === 'class_result' && !classId) {
+      setError('Choose the class whose report should receive this result, or select Practice only.');
+      return;
+    }
+    const selectedClass = classId ? availableClasses.find(item => item.id === classId) : null;
+    if (assessmentScope === 'class_result' && selectedClass
+      && (!selectedClass.academic_offering_id || !selectedClass.offering_period_id)) {
+      setError('This class needs its academic offering and period repaired before it can receive automatic results.');
       return;
     }
     if (profile?.role === 'teacher' && !form.school_id) {
@@ -459,6 +510,8 @@ export default function NewExamPage() {
         is_active: form.is_active,
         metadata: {
             exam_type: form.exam_type,
+            assessment_scope: assessmentScope,
+            result_eligible: assessmentScope === 'class_result',
             ...(useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : {}),
             ...(preWeek ? { week: parseInt(preWeek, 10) } : {}),
             ...(preCurrId ? { curriculum_id: preCurrId } : {}),
@@ -798,6 +851,67 @@ export default function NewExamPage() {
           <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Exam Details</h2>
 
+            <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
+              <div>
+                <p className="text-sm font-bold text-foreground">Where should this assessment be used?</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Choose once. The system will keep practice attempts separate from official class results.
+                </p>
+              </div>
+              <div className={`grid grid-cols-1 gap-3 ${hostKind ? '' : 'sm:grid-cols-2'}`}>
+                <button
+                  type="button"
+                  onClick={() => setAssessmentScope('class_result')}
+                  className={`rounded-xl border p-4 text-left transition-colors ${assessmentScope === 'class_result' ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-border bg-card hover:border-emerald-500/30'}`}
+                >
+                  <p className="text-sm font-bold text-foreground">Class result</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Counts in Auto-fill under the active school grading weights.</p>
+                </button>
+                {!hostKind && (
+                  <button
+                    type="button"
+                    onClick={() => setAssessmentScope('practice')}
+                    className={`rounded-xl border p-4 text-left transition-colors ${assessmentScope === 'practice' ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-card hover:border-sky-500/30'}`}
+                  >
+                    <p className="text-sm font-bold text-foreground">Practice only</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Available for learning and feedback, but never changes a report.</p>
+                  </button>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                  {assessmentScope === 'class_result' ? 'Result class' : 'Limit practice to a class'}
+                  {assessmentScope === 'class_result' && <span className="text-rose-600 dark:text-rose-400"> *</span>}
+                </label>
+                <select
+                  value={classId || ''}
+                  onChange={event => selectAssessmentClass(event.target.value)}
+                  disabled={!!preClassId || !!preLessonPlanId || !!preHostAssessment}
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground focus:outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">
+                    {assessmentScope === 'class_result' ? 'Choose the class receiving this result…' : 'All eligible learners in the selected school/programme'}
+                  </option>
+                  {availableClasses
+                    .filter(item => !form.school_id || item.school_id === form.school_id)
+                    .map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}{item.academic_offering_id && item.offering_period_id ? '' : ' — setup required'}
+                      </option>
+                    ))}
+                </select>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  {classId
+                    ? assessmentScope === 'class_result'
+                      ? `${className || 'This class'} is linked to the evidence and result pipeline.`
+                      : `${className || 'This class'} can take the practice, but its attempts stay outside official results.`
+                    : assessmentScope === 'class_result'
+                      ? 'A class is required so marks cannot be routed to the wrong report.'
+                      : 'Class is optional for practice assessments.'}
+                </p>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                 Exam Title <span className="text-rose-600 dark:text-rose-400">*</span>
@@ -839,7 +953,7 @@ export default function NewExamPage() {
                 <SmartCourseSelect
                   label="Course"
                   labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
-                  classId={preClassId}
+                  classId={classId}
                   programId={form.program_id}
                   schoolId={form.school_id}
                   value={form.course_id}

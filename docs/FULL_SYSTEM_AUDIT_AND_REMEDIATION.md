@@ -2583,3 +2583,69 @@ Verification and boundaries:
   generated route validator;
 - no student mark, manual result, submission, report, database row, or schema was changed. No
   production build, deployment, or remote push was performed in this milestone.
+
+### 16.25 Durable assessment-evidence context and staff recovery milestone — verified locally and audited live read-only on 24 August 2026
+
+Confirmed live centralization gap:
+
+- the aggregate-only production audit inspected 57 central evidence rows: 49 CBT sessions and eight
+  assignment submissions. All 49 CBT rows and two assignment rows lacked the complete class,
+  academic-offering and offering-period identity required by central Auto-fill;
+- the evidence trigger refreshed marks when a CBT or written-exam attempt changed, but its conflict
+  path did not refresh class, course, term, plan, offering or period. Correcting a parent assessment
+  therefore left existing central evidence stale until an unrelated learner update happened;
+- the general CBT builder did not ask whether an assessment was an official class result or practice.
+  It received a class only when launched from a class-aware page, so assessments created from the CBT
+  hub could be visible and gradable while remaining unusable by central results;
+- four assignment evidence rows refer to assessment records that are no longer present. They are
+  historical evidence, not a safe basis for guessing a replacement assignment or class. They remain
+  preserved and visibly classified as legacy/unscoped; no score was deleted or reassigned;
+- no surviving assignment, CBT, written-exam, or weekly-practical source was missing its expected
+  central evidence row at audit time. The material defect was context handoff, not failed score copy.
+
+Implemented prevention and recovery:
+
+- migration `20260929000104_make_assessment_evidence_context_durable.sql` makes assignment, CBT,
+  written-exam and weekly-practical upserts refresh the complete academic lineage on every conflict;
+- changing a parent assessment's verified context now repairs all of its existing evidence
+  immediately. This context-only propagation does not update raw score, maximum score, answers,
+  feedback, moderation, submission content or evidence snapshots;
+- the class remains authoritative for academic offering and delivery period, preventing an old
+  offering identifier from surviving a deliberate class-link repair;
+- new CBT creation asks **Class result** or **Practice only** before publishing. Class result requires
+  an accessible class with an academic offering and period. Practice is stored explicitly and its
+  evidence status remains `recorded`, so the automatic result calculator cannot consume it;
+- staff cannot silently route a result-bearing assessment without a class. API errors explain how to
+  resolve a missing class, incomplete class setup, school/programme/term mismatch, or missing course;
+- the CBT list labels each assessment as **Class result**, **Practice only**, or **Resolve result
+  use**. The edit screen lets staff either link a legacy unscoped assessment to a compatible class or
+  deliberately retain it as practice. Linking a new class is permitted only when context matches;
+  an assessment already linked to a class cannot be moved after learner evidence exists;
+- setting the parent to practice immediately excludes its existing attempts from automatic results;
+  linking a previously unscoped result immediately propagates the confirmed class, course, term,
+  offering and period to its evidence. Neither action changes the learner's mark;
+- only legacy CBT metadata that already contains an exact target class is eligible for automatic
+  migration repair, and only when school, programme, term and class offering/period agree. A learner's
+  current class is never used to guess where an older sitting belonged;
+- `npm run audit:academic-evidence` is the permanent release/readiness check. It reads identifiers
+  only to compare relationships and prints aggregate counts by evidence type—never learner names,
+  contact details, answers, marks or credentials. Practice evidence and unresolved result evidence
+  are reported separately.
+
+Verification and deployment boundary:
+
+- three focused suites passed: 3 files and 14 tests, including complete lineage refresh, practice
+  exclusion, score-preserving parent repair, API compatibility guards, staff resolution UX, and the
+  aggregate-only audit contract;
+- `npm run typecheck` passed for the product change before the final source-only regression test was
+  added; the complete type-check is rerun before the milestone commit;
+- `git diff --check` passed before documentation and is rerun before commit;
+- the production audit was read-only. Migration 104 is local and **has not been applied to the live
+  database in this milestone**. Consequently the 49 CBT and two assignment rows remain unscoped in
+  production until the migration is deployed and staff classify any genuinely ambiguous legacy CBTs;
+- after deployment, rerun `npm run audit:academic-evidence`. A non-zero result means a result-bearing
+  assessment still needs an explicit staff decision or another source relationship is broken. Do not
+  publish an automatic report from unresolved evidence and do not bulk-assign legacy attempts from
+  current enrolment;
+- no production build, remote push, database write, learner score mutation, submission mutation or
+  report mutation was performed by this milestone.

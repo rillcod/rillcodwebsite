@@ -143,12 +143,31 @@ export async function POST(request: NextRequest) {
     const admin = adminClient();
     let classSchoolId: string | null = null;
     let classScoped = false;
+    const requestedMetadata = examFields.metadata && typeof examFields.metadata === 'object'
+      && !Array.isArray(examFields.metadata)
+      ? examFields.metadata as Record<string, unknown>
+      : {};
+    const assessmentScope = requestedMetadata.assessment_scope === 'practice'
+      || requestedMetadata.result_eligible === false
+      ? 'practice'
+      : examFields.class_id
+        ? 'class_result'
+        : requestedMetadata.assessment_scope === 'class_result'
+          ? 'class_result'
+          : 'practice';
+
+    if (assessmentScope === 'class_result' && !examFields.class_id) {
+      return NextResponse.json({
+        error: 'Choose the class whose result should receive this assessment, or switch it to Practice only.',
+        code: 'CLASS_REQUIRED_FOR_RESULT',
+      }, { status: 400 });
+    }
 
     if (examFields.class_id) {
       classScoped = true;
       const { data: cls, error: clsErr } = await admin
         .from('classes')
-        .select('id, school_id, teacher_id, program_id, term_id')
+        .select('id, school_id, teacher_id, program_id, term_id, academic_offering_id, offering_period_id')
         .eq('id', examFields.class_id)
         .maybeSingle();
       if (clsErr) return NextResponse.json({ error: clsErr.message }, { status: 500 });
@@ -157,6 +176,18 @@ export async function POST(request: NextRequest) {
       if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
         return NextResponse.json({ error: 'You can only create evaluations for your assigned class.' }, { status: 403 });
       }
+      if (assessmentScope === 'class_result'
+        && (!cls.academic_offering_id || !cls.offering_period_id)) {
+        return NextResponse.json({
+          error: 'This class is not connected to an academic offering and period yet. Repair the class academic setup before creating a result-bearing assessment.',
+          code: 'CLASS_ACADEMIC_CONTEXT_INCOMPLETE',
+        }, { status: 409 });
+      }
+      examFields.school_id = cls.school_id;
+      examFields.program_id = cls.program_id ?? examFields.program_id;
+      examFields.term_id = cls.term_id ?? examFields.term_id;
+      examFields.academic_offering_id = cls.academic_offering_id;
+      examFields.offering_period_id = cls.offering_period_id;
     }
 
     const canonicalPlanId = typeof examFields.lesson_plan_id === 'string' ? examFields.lesson_plan_id : null;
@@ -207,7 +238,8 @@ export async function POST(request: NextRequest) {
       'title', 'description', 'program_id', 'course_id',
       'duration_minutes', 'passing_score', 'total_questions', 'is_active',
       'start_date', 'end_date', 'metadata', 'class_id', 'lesson_plan_id',
-      'lesson_id', 'curriculum_week_number', 'term_id',
+      'lesson_id', 'curriculum_week_number', 'term_id', 'curriculum_release_id',
+      'academic_offering_id', 'offering_period_id',
     ];
     for (const f of allowedExamFields) {
       if (f in examFields) examPayload[f] = examFields[f] ?? null;
@@ -220,6 +252,8 @@ export async function POST(request: NextRequest) {
       ? { ...(examPayload.metadata as Record<string, unknown>) }
       : {};
     if (examType) baseMeta.exam_type = examType;
+    baseMeta.assessment_scope = assessmentScope;
+    baseMeta.result_eligible = assessmentScope === 'class_result';
     if (canonicalPlanId) baseMeta.lesson_plan_id = canonicalPlanId;
     if (examFields.lesson_id) baseMeta.lesson_id = examFields.lesson_id;
     if (examFields.curriculum_week_number) baseMeta.week = examFields.curriculum_week_number;

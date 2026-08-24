@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "audit:ui": "node scripts/audit-ui-standards.mjs",
     "audit:academic-generation": "tsx scripts/audit-academic-generation.ts",
+    "audit:academic-evidence": "tsx scripts/audit-academic-evidence-context.ts",
     "audit:embeds": "tsx scripts/audit-supabase-embeds.ts",
     "cron:table": "tsx scripts/print-cron-table.ts",
     "test": "vitest run",

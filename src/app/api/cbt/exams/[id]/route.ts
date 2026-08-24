@@ -183,7 +183,7 @@ export async function PATCH(
   // Fetch exam to validate access
   const { data: examMeta } = await admin
     .from('cbt_exams')
-    .select('school_id, created_by, title, is_active')
+    .select('school_id, created_by, title, is_active, class_id, program_id, course_id, term_id, metadata')
     .eq('id', id)
     .maybeSingle();
 
@@ -196,12 +196,16 @@ export async function PATCH(
 
   const body = await request.json();
   const { questions, deletedQuestionIds = [], ...examFields } = body;
+  const changesClassLink = typeof examFields.class_id === 'string'
+    && examFields.class_id.length > 0
+    && examFields.class_id !== examMeta.class_id;
 
   const changesAssessmentDefinition = questions !== undefined
     || deletedQuestionIds.length > 0
     || ['program_id', 'course_id', 'duration_minutes', 'passing_score', 'total_questions']
       .some((field) => field in examFields);
-  if (changesAssessmentDefinition) {
+  let hasStartedEvidence = false;
+  if (changesAssessmentDefinition || changesClassLink) {
     const { data: startedSession, error: sessionError } = await admin
       .from('cbt_sessions')
       .select('id,answers,score,manual_scores,start_time,end_time,status')
@@ -209,9 +213,16 @@ export async function PATCH(
       .limit(1)
       .maybeSingle();
     if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 });
-    if (hasCbtAttemptEvidence(startedSession)) {
+    hasStartedEvidence = hasCbtAttemptEvidence(startedSession);
+    if (changesAssessmentDefinition && hasStartedEvidence) {
       return NextResponse.json({
         error: 'Learners have already started this assessment. Questions and scoring rules are locked; duplicate the exam for changes.',
+        code: 'PROTECTED_ACADEMIC_EVIDENCE',
+      }, { status: 409 });
+    }
+    if (changesClassLink && examMeta.class_id && hasStartedEvidence) {
+      return NextResponse.json({
+        error: 'This assessment already has learner evidence and is linked to a class. Create a copy for a different class so existing results are not moved.',
         code: 'PROTECTED_ACADEMIC_EVIDENCE',
       }, { status: 409 });
     }
@@ -237,6 +248,59 @@ export async function PATCH(
   ];
   for (const f of allowedExamFields) {
     if (f in examFields) examPayload[f] = examFields[f] ?? null;
+  }
+
+  if (changesClassLink) {
+    const { data: targetClass, error: classError } = await admin
+      .from('classes')
+      .select('id,name,school_id,teacher_id,program_id,current_course_id,term_id,academic_offering_id,offering_period_id')
+      .eq('id', examFields.class_id)
+      .maybeSingle();
+    if (classError) return NextResponse.json({ error: classError.message }, { status: 500 });
+    if (!targetClass) {
+      return NextResponse.json({ error: 'Selected class was not found.' }, { status: 400 });
+    }
+    if (caller.role === 'teacher' && targetClass.teacher_id !== caller.id) {
+      return NextResponse.json({ error: 'You can only link an assessment to your assigned class.' }, { status: 403 });
+    }
+    if (examMeta.school_id && targetClass.school_id !== examMeta.school_id) {
+      return NextResponse.json({
+        error: 'The selected class belongs to a different school. Copy the assessment for that school instead.',
+        code: 'CLASS_CONTEXT_MISMATCH',
+      }, { status: 409 });
+    }
+    if (examMeta.program_id && targetClass.program_id && targetClass.program_id !== examMeta.program_id) {
+      return NextResponse.json({
+        error: 'The selected class belongs to a different programme. Choose the matching class or copy the assessment.',
+        code: 'CLASS_CONTEXT_MISMATCH',
+      }, { status: 409 });
+    }
+    if (examMeta.term_id && targetClass.term_id && targetClass.term_id !== examMeta.term_id) {
+      return NextResponse.json({
+        error: 'The selected class is in a different academic term. Choose the class from the assessment term.',
+        code: 'CLASS_CONTEXT_MISMATCH',
+      }, { status: 409 });
+    }
+    if (!targetClass.academic_offering_id || !targetClass.offering_period_id) {
+      return NextResponse.json({
+        error: 'This class is not connected to an academic offering and period yet. Repair the class academic setup before linking results.',
+        code: 'CLASS_ACADEMIC_CONTEXT_INCOMPLETE',
+      }, { status: 409 });
+    }
+    const courseId = examMeta.course_id || targetClass.current_course_id;
+    if (!courseId) {
+      return NextResponse.json({
+        error: 'Choose a course for this assessment before linking it to class results.',
+        code: 'COURSE_REQUIRED_FOR_RESULT',
+      }, { status: 409 });
+    }
+    examPayload.class_id = targetClass.id;
+    examPayload.school_id = targetClass.school_id;
+    examPayload.program_id = examMeta.program_id || targetClass.program_id;
+    examPayload.course_id = courseId;
+    examPayload.term_id = examMeta.term_id || targetClass.term_id;
+    examPayload.academic_offering_id = targetClass.academic_offering_id;
+    examPayload.offering_period_id = targetClass.offering_period_id;
   }
 
   // Ensure academic session stamp (column + metadata) stays filled.
@@ -271,6 +335,19 @@ export async function PATCH(
       ...baseMeta,
       term_id: nextTermId,
       ...(typeof examFields.exam_type === 'string' ? { exam_type: examFields.exam_type } : {}),
+    };
+  }
+
+  if (changesClassLink) {
+    const nextMetadata = examPayload.metadata && typeof examPayload.metadata === 'object'
+      ? examPayload.metadata as Record<string, unknown>
+      : currentMeta;
+    examPayload.metadata = {
+      ...nextMetadata,
+      target_class_id: examPayload.class_id,
+      visibility: 'class',
+      assessment_scope: 'class_result',
+      result_eligible: true,
     };
   }
 

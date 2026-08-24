@@ -25,6 +25,17 @@ interface Question {
     _deleted?: boolean;
 }
 
+interface AssessmentClassOption {
+    id: string;
+    name: string;
+    school_id: string;
+    program_id: string | null;
+    current_course_id: string | null;
+    academic_offering_id: string | null;
+    offering_period_id: string | null;
+    status: string | null;
+}
+
 export default function EditExamPage() {
     const params = useParams();
     const id = params?.id as string;
@@ -36,6 +47,11 @@ export default function EditExamPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState('');
     const [definitionLocked, setDefinitionLocked] = useState(false);
+    const [availableClasses, setAvailableClasses] = useState<AssessmentClassOption[]>([]);
+    const [originalClassId, setOriginalClassId] = useState('');
+    const [examSchoolId, setExamSchoolId] = useState('');
+    const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
+    const [examMetadata, setExamMetadata] = useState<Record<string, unknown>>({});
 
     const [form, setForm] = useState({
         title: '',
@@ -47,6 +63,7 @@ export default function EditExamPage() {
         start_date: '',
         end_date: '',
         is_active: true,
+        class_id: '',
     });
     const [questions, setQuestions] = useState<Question[]>([]);
     const [courses, setCourses] = useState<any[]>([]);
@@ -68,6 +85,9 @@ export default function EditExamPage() {
         ]).then(([examJson, progRes]) => {
             const e = examJson.data;
             if (e) {
+                const metadata = e.metadata && typeof e.metadata === 'object' && !Array.isArray(e.metadata)
+                    ? e.metadata as Record<string, unknown>
+                    : {};
                 setDefinitionLocked(e.definition_locked === true);
                 setForm({
                     title: e.title ?? '',
@@ -79,7 +99,14 @@ export default function EditExamPage() {
                     start_date: e.start_date ? new Date(e.start_date).toISOString().slice(0, 16) : '',
                     end_date: e.end_date ? new Date(e.end_date).toISOString().slice(0, 16) : '',
                     is_active: e.is_active ?? true,
+                    class_id: e.class_id ?? '',
                 });
+                setOriginalClassId(e.class_id ?? '');
+                setExamSchoolId(e.school_id ?? '');
+                setExamMetadata(metadata);
+                setAssessmentScope(metadata.assessment_scope === 'practice' || metadata.result_eligible === false
+                    ? 'practice'
+                    : 'class_result');
                 setQuestions([...(e.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)).map((q: any) => ({
                     ...q,
                     options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
@@ -98,6 +125,15 @@ export default function EditExamPage() {
             courseQuery = courseQuery.or(`school_id.eq.${profile.school_id},school_id.is.null`);
         }
         courseQuery.order('title').then(({ data }) => setCourses(data ?? []));
+
+        let classQuery = db
+            .from('classes')
+            .select('id,name,school_id,program_id,current_course_id,academic_offering_id,offering_period_id,status')
+            .order('name');
+        if (profile.role === 'teacher') classQuery = classQuery.eq('teacher_id', profile.id);
+        classQuery.then(({ data }) => setAvailableClasses(
+            ((data ?? []) as AssessmentClassOption[]).filter(item => item.status !== 'archived'),
+        ));
     }, [profile?.id, authLoading, id]);
 
     const addQuestion = () => setQuestions(q => [...q, {
@@ -180,6 +216,10 @@ export default function EditExamPage() {
             setError('End date and time must be after the start date and time.');
             return;
         }
+        if (assessmentScope === 'class_result' && !originalClassId && !form.class_id) {
+            setError('Choose the class receiving these results, or select Practice only.');
+            return;
+        }
         setSaving(true);
         setError(null);
         setSuccess('');
@@ -190,6 +230,11 @@ export default function EditExamPage() {
                 is_active: form.is_active,
                 start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
                 end_date: form.end_date ? new Date(form.end_date).toISOString() : null,
+                metadata: {
+                    ...examMetadata,
+                    assessment_scope: originalClassId ? assessmentScope : assessmentScope,
+                    result_eligible: assessmentScope === 'class_result',
+                },
             };
             if (!definitionLocked) {
               payload.program_id = form.program_id;
@@ -213,6 +258,7 @@ export default function EditExamPage() {
                     metadata: q.metadata ?? null,
                 }));
             }
+            if (!originalClassId && form.class_id) payload.class_id = form.class_id;
 
             const res = await fetch(`/api/cbt/exams/${id}`, {
                 method: 'PATCH',
@@ -289,6 +335,73 @@ export default function EditExamPage() {
                         </div>
                     </div>
                 )}
+
+                <div className={`rounded-2xl border p-5 ${originalClassId || assessmentScope === 'practice' ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
+                    <div className="flex items-start gap-3">
+                        {originalClassId || assessmentScope === 'practice'
+                            ? <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            : <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />}
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-foreground">
+                                {originalClassId
+                                    ? assessmentScope === 'practice' ? 'Class practice — excluded from reports' : 'Connected to the central result pipeline'
+                                    : assessmentScope === 'practice' ? 'Practice assessment — no result link required' : 'Class result link needs attention'}
+                            </p>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                {originalClassId
+                                    ? assessmentScope === 'practice'
+                                        ? 'Learners can use this assessment for feedback, while its attempts remain outside Auto-fill.'
+                                        : 'The class, academic offering and period travel with every attempt. Existing learner evidence cannot be moved to another class.'
+                                    : assessmentScope === 'practice'
+                                        ? 'Its attempts remain preserved for learning and feedback, but never change an official report.'
+                                        : 'This older assessment is preserved, but its attempts cannot enter Auto-fill until you confirm the correct class.'}
+                            </p>
+                            {!originalClassId && (
+                                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <button type="button" onClick={() => setAssessmentScope('class_result')}
+                                        className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${assessmentScope === 'class_result' ? 'border-emerald-500/60 bg-emerald-500/10 text-foreground' : 'border-border bg-card text-muted-foreground'}`}>
+                                        Use in class results
+                                    </button>
+                                    <button type="button" onClick={() => {
+                                        setAssessmentScope('practice');
+                                        setForm(current => ({ ...current, class_id: '' }));
+                                    }}
+                                        className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${assessmentScope === 'practice' ? 'border-sky-500/60 bg-sky-500/10 text-foreground' : 'border-border bg-card text-muted-foreground'}`}>
+                                        Keep as practice only
+                                    </button>
+                                </div>
+                            )}
+                            {assessmentScope === 'class_result' && (
+                              <>
+                            <label className="mt-4 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                Result class
+                            </label>
+                            <select
+                                value={form.class_id}
+                                onChange={event => setForm(current => ({ ...current, class_id: event.target.value }))}
+                                disabled={!!originalClassId}
+                                className="mt-2 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground focus:outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <option value="">Choose the class that owns these results…</option>
+                                {availableClasses
+                                    .filter(item => (!examSchoolId || item.school_id === examSchoolId)
+                                        && (!form.program_id || !item.program_id || item.program_id === form.program_id))
+                                    .map(item => (
+                                        <option key={item.id} value={item.id} disabled={!item.academic_offering_id || !item.offering_period_id}>
+                                            {item.name}{item.academic_offering_id && item.offering_period_id ? '' : ' — repair class setup first'}
+                                        </option>
+                                    ))}
+                            </select>
+                            {!originalClassId && (
+                                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                                    Linking repairs context only. It does not recalculate, replace or delete any learner mark.
+                                </p>
+                            )}
+                              </>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Exam Details */}
