@@ -831,14 +831,14 @@ snapshots, not current certification. This register is the current product-level
 | SYS-005 | P0 | Partially remediated; shared-store deployment proof pending | Central wrapper and sensitive public routes use the Upstash-aware limiter; reads no longer consume write capacity, authenticated writers use per-user/per-feature counters, and the policy is administrator-configurable. Direct-route inventory and shared-store production proof remain | Configure the shared store, finish all-sensitive-action inventory, then pass concurrency, school-NAT, disable/tune, and bypass tests |
 | SYS-006 | P0 | Locally remediated; production resend proof pending | Financial correction/resend now uses one canonical document route and a trusted issued-account snapshot | Deploy and prove the same invoice version matches save/preview/download/email/resend |
 | SYS-007 | P0 | Class merge/delete verified against the live schema; remaining call sites unclassified | Atomic `merge_duplicate_classes` and `delete_rebuildable_class` are applied and live (migrations 100–102). **Verified against the live database, not by reading the SQL**: all 32 foreign keys referencing `classes` are accounted for by the merge — none cascades without being re-pointed first — and the four learner-evidence tables (`academic_assessment_evidence`, `exams`, `student_progress_reports`, `student_transfer_requests`) are ON DELETE RESTRICT, so the database itself refuses to drop a class while evidence exists. The four deletes inside the merge are conditional dedupe (`and exists (…)`), removing a source row only where an equivalent survivor row already exists. The `students.class_id` write is guarded by a table-and-column check, which matters because that column does not exist on this database; `current_class`, `section` and `user_id` do | Classify the remaining literal and dynamic delete sites outside the class/lesson-plan paths, and exercise a real merge and a real class delete against a disposable database before trusting either in production |
-| SYS-008 | P0 | At risk | Submission/grading/result authority can fragment | One policy/service and complete assignment/project/CBT/result E2E |
+| SYS-008 | P0 | Partially remediated; full evaluation E2E pending | Assignment grading now routes through the canonical submission-review authority. A staff mark without a portal submission is recorded as staff-entered work, not fabricated as a learner submission, and optimistic-version checks remain central | Complete assignment/project/CBT/result role E2E and production proof without changing historical manual scores |
 | SYS-009 | P1 | Partially remediated; observation/deployment proof pending | CSP report-only policy, sanitized observation ledger, Operations Health summary, and production HSTS are implemented locally; CSP is deliberately not enforced yet | Apply migration 99, deploy, inspect real browser/native violations, tighten directives, then enforce CSP and verify HTTPS/HSTS |
 | SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
 | SYS-012 | P1 | At risk | Large academic/lesson/report/settings pages | Vertical service/component split and performance baselines |
-| SYS-013 | P1 | User-reported | AI generation fails and prior content is hard to find | Durable job, retry, persistence, provenance, discovery tests |
+| SYS-013 | P1 | Locally remediated; deployment and interruption proof pending | The tracked generator now inventories the exact plan/week/session, reuses existing content, repairs only missing or safely stale generated items, preserves teacher-customized work, and declines a concurrent duplicate run | Apply migration 103, deploy, then prove interrupted-run recovery and browser discovery against production-like data |
 | SYS-014 | P1 | Locally walked | Persist no longer wipes programme on remount. Walked as admin: Write class→programme→course→start and refresh restore; Autofill after account load listed 58 classes, Abundant Grace Teen Dev offered only Python, four learners, Fill from class work, no score writes | Production deploy |
-| SYS-015 | P1 | At risk | Content types not always carried together | Unified lesson-content contract and learner publication tests |
+| SYS-015 | P1 | Locally remediated; learner publication E2E pending | The weekly preparation and approval flow treats lesson, slides, practice cards, assignment, and project as one package; completeness is visible and partial sharing is an explicit teacher choice | Prove teacher approval and learner visibility for all five content kinds in role E2E |
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |
 | SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
@@ -2351,8 +2351,8 @@ Implemented:
   reports, term grades, and central assessment evidence cannot be opened by selecting Flexible;
 - changed lesson-plan deletion to one database transaction that removes unused generated teaching
   drafts but detaches assignments, written exams, and CBT exams that already contain learner work;
-- retained a rolling-deployment fallback with the same learner-evidence behavior while migration 100
-  is pending, and records human-readable preserved/removed counts in the audit trail;
+- retained a rolling-deployment fallback with the same learner-evidence behavior before migration 100
+  was deployed, and records human-readable preserved/removed counts in the audit trail;
 - fixed class deletion's partial-write defect: the previous route cleared student class fields before
   knowing whether the class delete would succeed. Migration 101 now performs scope recheck,
   evidence preflight, roster-label cleanup, and class deletion atomically;
@@ -2384,19 +2384,21 @@ Verification evidence:
 - TypeScript passed for the complete settings/retention/class transaction change set;
 - `git diff --check` passed before the final class/consent additions and is rerun for final handoff;
 - focused source guards cover policy parsing, build-friendly defaults, issued-record behavior, learner
-  submission evidence, and the lesson-plan atomic retention contract, but Vitest remains unable to
-  start under the approval limitation recorded in 16.15; these tests are **not** claimed as passed;
+  submission evidence, and the lesson-plan atomic retention contract. The statement in the original
+  milestone that Vitest could not start is retained as historical context; later milestones ran
+  focused Vitest suites successfully;
 - migrations `20260929000100_delete_lesson_plan_preserve_learner_work.sql`,
   `20260929000101_delete_rebuildable_class_atomically.sql`, and
-  `20260929000102_merge_duplicate_classes_atomically.sql` were created but not applied;
-- no production build, live database mutation, remote push, score mutation, or credential
-  transmission was performed.
+  `20260929000102_merge_duplicate_classes_atomically.sql` were subsequently applied to the live
+  database. The live functions and all 32 foreign keys that reference `classes` were inspected;
+- the later database application is recorded in commit `771682c4`. This local milestone itself ran
+  no production build, remote push, score mutation, or credential transmission.
 
 Remaining proof and scope:
 
-- apply migrations 100–102 to a disposable database and prove rollback, actor/school scope,
-  Flexible/Standard/Strict behavior, concurrent deletion, missing-function rolling fallback,
-  every protected evidence type, and duplicate-class merge before deploying;
+- exercise a real merge and real class deletion on disposable data to prove rollback,
+  Flexible/Standard/Strict behavior, concurrency, and each protected evidence type. Migrations
+  100–102 are live, but this destructive rehearsal remains intentionally outstanding;
 - complete table-by-table classification of the remaining delete inventory. Current source search
   still finds delete operations across CRM, communication, live-session, timetable, portfolio,
   parent-link, newsletter, file, and ephemeral-token domains; they are not silently declared
@@ -2404,3 +2406,81 @@ Remaining proof and scope:
   or retain path instead of only hard delete;
 - after build data is cleared, switch production from Flexible to Standard and reserve temporary
   Flexible use for an administrator-supervised cleanup window with an audit reason.
+
+### 16.22 Academic workflow, generation-cost, and approval milestone — verified locally and against live read-only data on 24 August 2026
+
+Product model made explicit:
+
+- **Curriculum** is the approved course direction: the concise statement of what should be taught,
+  in what order, and to what standard. It is authored once and assigned to teaching contexts;
+- **Class plan** expands that curriculum for one class and delivery period. It can adapt pacing and
+  examples without cloning or silently changing the curriculum source;
+- **Weekly teaching package** is the delivery unit. A complete package can contain a lesson, slides,
+  practice cards, assignment, and project. School-required/elective course status, school-paper versus
+  Rillcod evidence authority, and flexible versus exact weekly delivery are separate choices;
+- returning teachers now resume the selected course, academic year, term, week, and class instead of
+  restarting or creating another plan. Primary navigation uses plain Write, Approve, Assign, Plan,
+  Teach, Mark, and Results language; detailed diagnostics and secondary records stay available without
+  competing with the next teaching action;
+- the older Lesson Plans surface is now presented as **Class Plans** and uses the same
+  `ensure_class_teaching_plan` database authority as the class workspace. Its previous
+  check-then-insert race is closed, and a special-programme plan now carries its delivery-period
+  identity instead of relying on a loose term label.
+
+Generation and automation changes:
+
+- the tracked weekly generator now claims a plan/week/session run before invoking AI. A second request
+  for the same meeting returns “already preparing” instead of spending on a concurrent duplicate;
+- the repair inventory examines the exact weekly package and requests only missing kinds. Existing
+  lessons, slides, practice cards, assignments, and projects are reused rather than regenerated;
+- stale machine-generated slides or practice cards may be rebuilt from their source, but a stale item
+  marked as teacher-customized is preserved. The system never rewrites teacher work merely to make a
+  package complete;
+- an interrupted running claim older than 20 minutes is marked interrupted so a later retry can repair
+  the package. A completed package is recorded as skipped without calling a content generator;
+- cross-class reuse remains the first choice: a matching package can be copied for another class,
+  while AI is reserved for content that cannot be reused or repaired safely;
+- the teacher's older bulk lesson, assignment, and project actions now execute through the same
+  tracked per-meeting route. Their preview remains read-only, but actual work can no longer bypass
+  the generation claim, missing-only inventory, or teacher-edit protection;
+- migration `20260929000103_prevent_duplicate_teaching_generation_runs.sql` adds the database-level
+  partial unique index that permits only one running generator for a plan/week/session. The migration
+  is committed locally but **has not been applied to the live database in this milestone**;
+- `npm run audit:academic-generation` provides a permanent read-only inspection without printing
+  customer identifiers or mutating curricula, plans, content, scores, or submissions.
+
+Draft review and approval changes:
+
+- the approval queue inventories all five content kinds and labels each as visible or awaiting review;
+- an incomplete week offers **Prepare missing content**, which uses the same missing-only generator;
+- bulk approval selects complete packages only. A teacher may deliberately share the available items
+  from an incomplete package, but that exception is explicit in the review drawer rather than silent;
+- the class workspace displays the weekly teaching plan as the primary task. Curriculum, assessment,
+  grading, results, and approval records remain accessible under one secondary records area instead of
+  occupying competing full tabs.
+
+Live read-only verification on 24 August 2026:
+
+- 79 lesson plans exist: 61 active and class-linked, 18 archived, 11 published, and 50 draft;
+- there are no active standalone plans, no empty active drafts, and no duplicate active
+  class/course/period identity. The largest identity group contains one plan;
+- 37 tracked generation runs exist and all 37 are succeeded. No meeting had more than one running
+  generator when inspected;
+- therefore the visible plan count is not evidence of duplicate active plans. No lesson plan was
+  deleted, and the audit does not recommend deleting the 50 legitimate drafts without record-level
+  product evidence.
+
+Verification and boundaries:
+
+- `npm run typecheck` passed after the grading, academic UX, generation-repair, and approval changes;
+- 18 focused submission-authority tests, 34 focused curriculum/class-workspace tests, and 82 focused
+  generation/approval tests passed;
+- no production build or remote push was run, and no student score, learner answer, submission,
+  finance evidence, or report evidence was changed;
+- local browser visual proof was blocked by the Windows development process failing with `spawn EPERM`.
+  Source, type, focused-test, and live read-only database verification are claimed; complete mobile and
+  desktop browser role journeys are still required after deployment;
+- local milestone commits: `ff05e8cd` (submission grading authority), `089b4831` (curriculum-to-class
+  journey), `5dc2406d` (missing-only generation and approval), and `ed8d6579` (single class-plan
+  creation authority for teachers and automation), plus `ce9f6c11` (teacher bulk actions routed
+  through tracked repair).
