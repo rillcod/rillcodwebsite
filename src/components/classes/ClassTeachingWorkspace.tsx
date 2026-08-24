@@ -306,6 +306,7 @@ export function ClassTeachingWorkspace({
     try {
       let generated = 0;
       let skipped = 0;
+      let alreadyRunning = 0;
       const failures: string[] = [];
 
       for (let index = 0; index < targets.length; index++) {
@@ -333,6 +334,7 @@ export function ClassTeachingWorkspace({
           }
         );
         const result = await response.json().catch(() => ({}));
+        if (result.alreadyRunning === true) alreadyRunning += 1;
         generated += Number(result.generated) || 0;
         skipped += Number(result.skipped) || 0;
         if (!response.ok || result.success === false) {
@@ -361,6 +363,8 @@ export function ClassTeachingWorkspace({
         tone: failures.length > 0 ? "warning" : "success",
         message: failures.length > 0
           ? `${generated} content item${generated === 1 ? "" : "s"} saved, but ${failures.length} package${failures.length === 1 ? "" : "s"} still need attention. ${failures.slice(0, 2).join(" · ")}`
+          : alreadyRunning > 0 && generated === 0
+            ? `${alreadyRunning} teaching package${alreadyRunning === 1 ? " is" : "s are"} already being prepared. Saved items will appear here as they finish.`
           : generated > 0
             ? `${generated} content item${generated === 1 ? "" : "s"} saved across complete teaching packages${skipped > 0 ? `; ${skipped} existing item${skipped === 1 ? " was" : "s were"} kept.` : "."}`
             : "Every teaching package was already prepared. Nothing was duplicated.",

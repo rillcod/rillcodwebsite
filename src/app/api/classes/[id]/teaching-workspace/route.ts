@@ -943,7 +943,12 @@ export async function POST(
       planMeta?.metadata?.auto_generate_settings
     );
     const { generateTrackedPlanWeek } = await import("@/lib/academic/tracked-week-generation");
-    const { outcome: result, runId } = await generateTrackedPlanWeek({
+    const {
+      outcome: result,
+      runId,
+      alreadyRunning,
+      effectiveTypes,
+    } = await generateTrackedPlanWeek({
       db,
       planId: String(body.lesson_plan_id),
       classId: id,
@@ -954,7 +959,14 @@ export async function POST(
       source: "teacher",
       actorId: user.id,
     });
-    return NextResponse.json({ data: { ...result, generationRunId: runId } });
+    return NextResponse.json({
+      data: {
+        ...result,
+        generationRunId: runId,
+        alreadyRunning,
+        preparedTypes: effectiveTypes,
+      },
+    });
   }
 
   return NextResponse.json(

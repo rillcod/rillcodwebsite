@@ -7,6 +7,7 @@ export type PendingApprovalItem = {
   kind: 'lesson' | 'slides' | 'assignment' | 'project' | 'flashcards';
   id: string;
   title: string;
+  state: 'held' | 'live';
 };
 
 export type PendingWeek = {
@@ -25,6 +26,9 @@ export type PendingWeek = {
   classwork?: string | null;
   assignmentBrief?: string | null;
   items: PendingApprovalItem[];
+  /** A week may be reviewed before every configured item exists. */
+  missingKinds: PendingApprovalItem['kind'][];
+  complete: boolean;
 };
 
 export function pendingWeekKey(row: {

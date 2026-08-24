@@ -113,7 +113,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const autoPublish =
     (body as any).auto_publish === true || settings.auto_publish === true;
 
-  const { outcome, runId } = await generateTrackedPlanWeek({
+  const { outcome, runId, alreadyRunning, effectiveTypes } = await generateTrackedPlanWeek({
     db,
     planId,
     classId: plan.class_id ?? null,
@@ -147,6 +147,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       byType: outcome.byType,
       failedTypes: outcome.failedTypes,
       generationRunId: runId,
+      alreadyRunning,
+      preparedTypes: effectiveTypes,
       auto_publish: autoPublish,
       notified,
     },

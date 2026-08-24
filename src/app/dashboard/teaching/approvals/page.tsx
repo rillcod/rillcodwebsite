@@ -78,11 +78,20 @@ const ITEM_META: Record<
   },
 };
 
+const GENERATION_TYPE: Record<PendingApprovalItem["kind"], string> = {
+  lesson: "lessons",
+  slides: "slides",
+  flashcards: "flashcards",
+  assignment: "assignments",
+  project: "projects",
+};
+
 export default function ContentApprovalsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [weeks, setWeeks] = useState<PendingWeek[]>([]);
   const [loading, setLoading] = useState(true);
   const [releasing, setReleasing] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -116,12 +125,13 @@ export default function ContentApprovalsPage() {
 
   const specialCount = weeks.filter((w) => w.isSpecial).length;
   const schoolCount = weeks.filter((w) => !w.isSpecial).length;
+  const readyWeeks = filteredWeeks.filter((week) => week.complete);
 
   const toggleSelectAll = () => {
-    if (selected.length === filteredWeeks.length) {
+    if (selected.length === readyWeeks.length) {
       setSelected([]);
     } else {
-      setSelected(filteredWeeks.map(pendingKey));
+      setSelected(readyWeeks.map(pendingKey));
     }
   };
 
@@ -139,7 +149,7 @@ export default function ContentApprovalsPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Could not release this week");
+      if (!res.ok) throw new Error(json.error ?? "Could not share this week");
       const result = json.data?.results?.[0] ?? json.data;
       const n =
         (result?.lessons_released ?? 0) +
@@ -147,7 +157,7 @@ export default function ContentApprovalsPage() {
         (result?.slides_released ?? 0) +
         (result?.flashcards_released ?? 0);
       const meeting = teachingMeetingLabel(row.week, row.session);
-      toast.success(`${meeting} released — ${n} item${n === 1 ? "" : "s"} now live`);
+      toast.success(`${meeting} shared — ${n} item${n === 1 ? "" : "s"} now visible`);
       setWeeks((prev) => prev.filter((w) => pendingKey(w) !== key));
       if (previewWeek && pendingKey(previewWeek) === key) {
         setPreviewWeek(null);
@@ -156,6 +166,39 @@ export default function ContentApprovalsPage() {
       toast.error(e.message);
     } finally {
       setReleasing(null);
+    }
+  }
+
+  async function prepareMissing(row: PendingWeek) {
+    if (!row.missingKinds.length) return;
+    const key = pendingKey(row);
+    setPreparing(key);
+    try {
+      const res = await fetch(`/api/lesson-plans/${row.planId}/generate-week`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          week: row.week,
+          session: row.session,
+          types: row.missingKinds.map((kind) => GENERATION_TYPE[kind]),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error ?? "Could not prepare the missing items");
+      }
+      if (json.alreadyRunning === true) {
+        toast.info("This meeting is already being prepared. A second run was not started.");
+      } else if (Array.isArray(json.failedTypes) && json.failedTypes.length > 0) {
+        toast.warning("Some items still need a retry. Completed items were kept.");
+      } else {
+        toast.success("Missing items prepared. Review them before sharing.");
+      }
+      await load();
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not prepare the missing items");
+    } finally {
+      setPreparing(null);
     }
   }
 
@@ -176,7 +219,7 @@ export default function ContentApprovalsPage() {
       });
       const json = await res.json();
       if (!res.ok && res.status !== 207) {
-        throw new Error(json.error ?? "Bulk release failed");
+        throw new Error(json.error ?? "Could not share the selected meetings");
       }
       const rows = (json.data?.results ?? []) as Array<{
         planId: string;
@@ -193,10 +236,10 @@ export default function ContentApprovalsPage() {
         setWeeks((prev) => prev.filter((w) => !okSet.has(pendingKey(w))));
       }
       setSelected([]);
-      if (ok.length) toast.success(`Released ${ok.length} meeting${ok.length === 1 ? "" : "s"} to class`);
+      if (ok.length) toast.success(`Shared ${ok.length} meeting${ok.length === 1 ? "" : "s"} with students`);
       if (failed.length) {
         toast.error(
-          `${failed.length} meeting${failed.length === 1 ? "" : "s"} failed to release`
+          `${failed.length} meeting${failed.length === 1 ? "" : "s"} could not be shared`
         );
       }
     } catch (e: any) {
@@ -208,13 +251,14 @@ export default function ContentApprovalsPage() {
 
   async function releaseSelected() {
     const selectedSet = new Set(selected);
-    const picks = filteredWeeks.filter((w) => selectedSet.has(pendingKey(w)));
+    const picks = readyWeeks.filter((w) => selectedSet.has(pendingKey(w)));
     await releasePicks(picks);
   }
 
   async function releaseAll() {
-    if (!confirm(`Release all ${filteredWeeks.length} pending draft meetings live to students?`)) return;
-    await releasePicks(filteredWeeks);
+    if (!readyWeeks.length) return;
+    if (!confirm(`Share all ${readyWeeks.length} complete, reviewed meeting${readyWeeks.length === 1 ? "" : "s"} with students?`)) return;
+    await releasePicks(readyWeeks);
   }
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher";
@@ -247,26 +291,26 @@ export default function ContentApprovalsPage() {
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
             <SparklesIcon className="h-3.5 w-3.5" />
-            Approvals
+            Teaching review
           </p>
           <h1 className="mt-1 text-2xl font-black text-foreground">
-            This week&apos;s teaching drafts
+            Review before sharing
           </h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-            Prepared weeks wait here. Read a meeting, then release it to the class.
+            Check the complete weekly package. Missing items can be prepared without replacing saved work.
           </p>
           <div className="mt-3">
             <ApprovalGateNav current="weeks" />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {filteredWeeks.length > 0 && (
+          {readyWeeks.length > 0 && (
             <button
               onClick={() => void releaseAll()}
               disabled={loading || bulkBusy}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:opacity-50"
             >
-              🚀 Release All ({filteredWeeks.length})
+              Share all ready ({readyWeeks.length})
             </button>
           )}
           <button
@@ -277,10 +321,10 @@ export default function ContentApprovalsPage() {
             {bulkBusy ? (
               <>
                 <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                Releasing…
+                Sharing…
               </>
             ) : (
-              <>Release selected ({selected.length})</>
+              <>Share selected ({selected.length})</>
             )}
           </button>
           <button
@@ -333,12 +377,12 @@ export default function ContentApprovalsPage() {
           </button>
         </div>
 
-        {filteredWeeks.length > 0 && (
+        {readyWeeks.length > 0 && (
           <button
             onClick={toggleSelectAll}
             className="text-[11px] font-bold text-primary hover:underline"
           >
-            {selected.length === filteredWeeks.length ? "Deselect All" : `Select All (${filteredWeeks.length})`}
+            {selected.length === readyWeeks.length ? "Deselect all" : `Select ready (${readyWeeks.length})`}
           </button>
         )}
       </div>
@@ -368,6 +412,7 @@ export default function ContentApprovalsPage() {
           {filteredWeeks.map((row) => {
             const key = pendingKey(row);
             const busy = releasing === key;
+            const preparingThis = preparing === key;
             return (
               <div
                 key={key}
@@ -378,6 +423,7 @@ export default function ContentApprovalsPage() {
                     <input
                       type="checkbox"
                       checked={selected.includes(key)}
+                      disabled={!row.complete}
                       onChange={(e) =>
                         setSelected((prev) =>
                           e.target.checked
@@ -385,7 +431,7 @@ export default function ContentApprovalsPage() {
                             : prev.filter((k) => k !== key)
                         )
                       }
-                      className="mt-1 h-4 w-4 rounded border-border"
+                      className="mt-1 h-4 w-4 rounded border-border disabled:opacity-40"
                       aria-label={`Select week ${row.week}${row.session ? ` class ${row.session}` : ""}`}
                     />
                     <div>
@@ -427,26 +473,46 @@ export default function ContentApprovalsPage() {
                       className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border px-3 text-[11px] font-bold hover:bg-muted"
                     >
                       <EyeIcon className="h-3.5 w-3.5" />
-                      {previewWeek === row ? "Hide details" : "Curriculum preview"}
+                      {previewWeek === row ? "Hide review" : "Review"}
                     </button>
 
-                    <button
-                      onClick={() => void release(row)}
-                      disabled={busy}
-                      className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 shadow-sm"
-                    >
-                      {busy ? (
+                    {row.complete ? (
+                      <button
+                        onClick={() => void release(row)}
+                        disabled={busy}
+                        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 shadow-sm"
+                      >
+                        {busy ? (
+                          <>
+                            <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                            Sharing…
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircleIcon className="h-3.5 w-3.5" />
+                            Share
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => void prepareMissing(row)}
+                        disabled={preparingThis}
+                        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-violet-700 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-violet-800 disabled:opacity-50 shadow-sm"
+                      >
+                        {preparingThis ? (
                         <>
                           <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                          Releasing…
+                          Preparing…
                         </>
                       ) : (
                         <>
-                          <CheckCircleIcon className="h-3.5 w-3.5" />
-                          Release
+                          <SparklesIcon className="h-3.5 w-3.5" />
+                          Prepare {row.missingKinds.length} missing
                         </>
                       )}
-                    </button>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -464,6 +530,9 @@ export default function ContentApprovalsPage() {
                         </span>
                         <span className="max-w-[220px] truncate text-[11px] text-foreground/80">
                           {item.title}
+                        </span>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${item.state === "live" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>
+                          {item.state === "live" ? "Visible" : "Review"}
                         </span>
                       </>
                     );
@@ -493,7 +562,7 @@ export default function ContentApprovalsPage() {
                     <div className="flex items-center justify-between border-b border-border/60 pb-2">
                       <h4 className="font-black text-foreground flex items-center gap-2">
                         <EyeIcon className="h-4 w-4 text-primary" />
-                        Full Curriculum Breakdown & Lesson Plan Preview
+                        Weekly package review
                       </h4>
                       <button
                         onClick={() => setPreviewWeek(null)}
@@ -505,15 +574,15 @@ export default function ContentApprovalsPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                       <div className="space-y-2 bg-card p-3 rounded-xl border border-border/80">
-                        <p className="font-bold text-foreground">📌 Meeting Identity</p>
+                        <p className="font-bold text-foreground">Meeting</p>
                         <p><span className="text-muted-foreground">Topic:</span> <strong className="text-foreground">{row.topic}</strong></p>
-                        <p><span className="text-muted-foreground">Classroom:</span> <strong className="text-foreground">{row.className || "Cohort Class"}</strong></p>
-                        <p><span className="text-muted-foreground">Course:</span> <strong className="text-foreground">{row.courseTitle || "Syllabus Course"}</strong></p>
-                        <p><span className="text-muted-foreground">Pathway:</span> {row.isSpecial ? "✨ Special Programme" : "🏫 Regular Partner School"}</p>
+                        <p><span className="text-muted-foreground">Class:</span> <strong className="text-foreground">{row.className || "Cohort class"}</strong></p>
+                        <p><span className="text-muted-foreground">Course:</span> <strong className="text-foreground">{row.courseTitle || "Course"}</strong></p>
+                        <p><span className="text-muted-foreground">Programme:</span> {row.isSpecial ? "Special programme" : "Partner school"}</p>
                       </div>
 
                       <div className="space-y-2 bg-card p-3 rounded-xl border border-border/80">
-                        <p className="font-bold text-foreground">🎯 Objectives & Activities</p>
+                        <p className="font-bold text-foreground">Teaching direction</p>
                         {row.objectives ? (
                           <div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Objectives:</span>
@@ -531,11 +600,43 @@ export default function ContentApprovalsPage() {
                       </div>
                     </div>
 
+                    {row.missingKinds.length > 0 && (
+                      <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs leading-5 text-foreground">
+                          <strong>{row.missingKinds.length} item{row.missingKinds.length === 1 ? " is" : "s are"} missing:</strong>{" "}
+                          {row.missingKinds.map((kind) => ITEM_META[kind].label).join(", ")}.
+                          Prepare only these items, or deliberately share the available work.
+                        </p>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void prepareMissing(row)}
+                            disabled={preparingThis}
+                            className="rounded-lg bg-violet-700 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+                          >
+                            Prepare missing
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm("Share only the available items? Missing items will remain unavailable to students.")) {
+                                void release(row);
+                              }
+                            }}
+                            disabled={busy}
+                            className="rounded-lg border border-amber-500/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-200 disabled:opacity-50"
+                          >
+                            Share available only
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap gap-2">
                         {row.items.map((it) => (
                           <div key={it.id} className="bg-card border border-border px-3 py-1.5 rounded-lg text-xs font-semibold">
-                            {ITEM_META[it.kind]?.label}: {it.title}
+                            {ITEM_META[it.kind]?.label}: {it.title} · {it.state === "live" ? "Visible" : "Needs review"}
                           </div>
                         ))}
                       </div>
@@ -545,7 +646,7 @@ export default function ContentApprovalsPage() {
                           href={`/dashboard/classes/${row.classId}`}
                           className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:opacity-90 transition-opacity"
                         >
-                          Open Classroom Workspace ↗
+                          Open class plan
                         </Link>
                       )}
                     </div>

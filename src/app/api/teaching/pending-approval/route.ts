@@ -64,13 +64,13 @@ export async function GET() {
 
   const [{ data: lessons }, { data: assignments }, { data: slides }, { data: decks }] = await Promise.all([
     db.from("lessons").select("id,title,status,lesson_plan_id,curriculum_week_number,session_number,metadata")
-      .in("lesson_plan_id", planIds).eq("status", "draft"),
+      .in("lesson_plan_id", planIds),
     db.from("assignments").select("id,title,is_active,assignment_type,lesson_plan_id,curriculum_week_number,session_number,metadata")
-      .in("lesson_plan_id", planIds).eq("is_active", false),
+      .in("lesson_plan_id", planIds),
     (db as any).from("lesson_materials").select("id,title,lesson_id,is_public,lesson_plan_id,curriculum_week_number,session_number")
-      .in("lesson_plan_id", planIds).eq("file_type", "slide-deck").eq("is_public", false),
+      .in("lesson_plan_id", planIds).eq("file_type", "slide-deck"),
     (db as any).from("flashcard_decks").select("id,title,is_public,lesson_plan_id,curriculum_week_number,session_number")
-      .in("lesson_plan_id", planIds).eq("is_public", false),
+      .in("lesson_plan_id", planIds),
   ]);
 
   const byWeek = new Map<string, PendingWeek>();
@@ -113,6 +113,8 @@ export async function GET() {
         classwork: meta?.classwork?.title || (typeof meta?.classwork === 'string' ? meta.classwork : null) || meta?.guided_practice || null,
         assignmentBrief: meta?.assignment?.brief || meta?.assignment?.title || (typeof meta?.assignment === 'string' ? meta.assignment : null) || null,
         items: [],
+        missingKinds: [],
+        complete: false,
       };
       byWeek.set(key, row);
     }
@@ -128,7 +130,12 @@ export async function GET() {
       week,
       session,
     );
-    row.items.push({ kind: "lesson", id: (l as any).id, title: (l as any).title });
+    row.items.push({
+      kind: "lesson",
+      id: (l as any).id,
+      title: (l as any).title,
+      state: String((l as any).status).toLowerCase() === "draft" ? "held" : "live",
+    });
   }
   for (const a of assignments ?? []) {
     const week = Number((a as any).curriculum_week_number);
@@ -143,6 +150,7 @@ export async function GET() {
       kind: (a as any).assignment_type === "project" ? "project" : "assignment",
       id: (a as any).id,
       title: (a as any).title,
+      state: (a as any).is_active === true ? "live" : "held",
     });
   }
   for (const d of decks ?? []) {
@@ -158,6 +166,7 @@ export async function GET() {
       kind: "flashcards",
       id: (d as any).id,
       title: (d as any).title,
+      state: (d as any).is_public === false ? "held" : "live",
     });
   }
   for (const slide of slides ?? []) {
@@ -170,16 +179,35 @@ export async function GET() {
       // The slide viewer lives on the lesson detail page.
       id: (slide as any).lesson_id ?? (slide as any).id,
       title: (slide as any).title,
+      state: (slide as any).is_public === false ? "held" : "live",
     });
   }
 
-  const data = [...byWeek.values()].sort(
+  const expectedKinds = [
+    "lesson",
+    "slides",
+    "flashcards",
+    "assignment",
+    "project",
+  ] as const;
+  const data = [...byWeek.values()]
+    .filter((row) => row.items.some((item) => item.state === "held"))
+    .map((row) => {
+      const present = new Set(row.items.map((item) => item.kind));
+      const missingKinds = expectedKinds.filter((kind) => !present.has(kind));
+      return {
+        ...row,
+        missingKinds: [...missingKinds],
+        complete: missingKinds.length === 0,
+      };
+    })
+    .sort(
     (a, b) =>
       (a.className ?? "").localeCompare(b.className ?? "") ||
       a.week - b.week ||
       (a.session ?? 1) - (b.session ?? 1) ||
       a.topic.localeCompare(b.topic)
-  );
+    );
   return NextResponse.json({ data });
 }
 

@@ -3,6 +3,7 @@ import {
   normaliseTypes,
   type WeekGenerationOutcome,
 } from "./week-generation";
+import { resolveGenerationRepairTypes } from "./generation-repair";
 
 export type TeachingGenerationSource = "teacher" | "cron" | "bootstrap" | "repair";
 export type TeachingGenerationStatus =
@@ -114,8 +115,30 @@ async function beginRun(
     actorId?: string | null;
     retryOf?: string | null;
   },
-): Promise<string | null> {
+): Promise<{
+  runId: string | null;
+  alreadyRunning: boolean;
+  trackingAvailable: boolean;
+}> {
   try {
+    const now = new Date();
+    const staleCutoff = new Date(now.getTime() - 20 * 60_000).toISOString();
+    // A browser may have disappeared while a request was running. Free only a
+    // stale claim for this exact meeting before attempting a new one.
+    await db
+      .from("teaching_generation_runs")
+      .update({
+        status: "interrupted",
+        error_summary: "Generation was interrupted before completion",
+        completed_at: now.toISOString(),
+        last_heartbeat_at: now.toISOString(),
+      })
+      .eq("lesson_plan_id", input.planId)
+      .eq("curriculum_week_number", input.week)
+      .eq("session_number", input.session)
+      .eq("status", "running")
+      .lt("last_heartbeat_at", staleCutoff);
+
     const { data, error } = await db
       .from("teaching_generation_runs")
       .insert({
@@ -132,18 +155,37 @@ async function beginRun(
       .select("id")
       .single();
     if (error) {
+      if (error.code === "23505") {
+        return {
+          runId: null,
+          alreadyRunning: true,
+          trackingAvailable: true,
+        };
+      }
       console.warn("[teaching-generation] could not start durable run", {
         code: error.code ?? null,
         planId: input.planId,
         week: input.week,
         session: input.session,
       });
-      return null;
+      return {
+        runId: null,
+        alreadyRunning: false,
+        trackingAvailable: false,
+      };
     }
-    return String(data.id);
+    return {
+      runId: String(data.id),
+      alreadyRunning: false,
+      trackingAvailable: true,
+    };
   } catch (error) {
     console.warn("[teaching-generation] run tracking unavailable", error);
-    return null;
+    return {
+      runId: null,
+      alreadyRunning: false,
+      trackingAvailable: false,
+    };
   }
 }
 
@@ -199,13 +241,18 @@ export async function generateTrackedPlanWeek(input: {
   source: TeachingGenerationSource;
   actorId?: string | null;
   retryOf?: string | null;
-}): Promise<{ outcome: WeekGenerationOutcome; runId: string | null }> {
+}): Promise<{
+  outcome: WeekGenerationOutcome;
+  runId: string | null;
+  alreadyRunning: boolean;
+  effectiveTypes: string[];
+}> {
   const sessionRaw = Number(input.session);
   const session = Number.isFinite(sessionRaw) && sessionRaw > 0
     ? Math.floor(sessionRaw)
     : 1;
   const requestedTypes = normaliseTypes(input.types);
-  const runId = await beginRun(input.db, {
+  const claim = await beginRun(input.db, {
     planId: input.planId,
     classId: input.classId,
     week: input.week,
@@ -216,17 +263,65 @@ export async function generateTrackedPlanWeek(input: {
     retryOf: input.retryOf,
   });
 
+  if (claim.alreadyRunning) {
+    return {
+      outcome: {
+        week: input.week,
+        generated: 0,
+        skipped: 0,
+        byType: {},
+        failedTypes: [],
+      },
+      runId: null,
+      alreadyRunning: true,
+      effectiveTypes: [],
+    };
+  }
+
+  const repair = await resolveGenerationRepairTypes({
+    db: input.db,
+    planId: input.planId,
+    week: input.week,
+    session,
+    requestedTypes,
+  });
+  const effectiveTypes = repair?.typesToRun ?? requestedTypes;
+
+  if (effectiveTypes.length === 0) {
+    const outcome: WeekGenerationOutcome = {
+      week: input.week,
+      generated: 0,
+      skipped: requestedTypes.length,
+      byType: Object.fromEntries(
+        requestedTypes.map((type) => [type, { generated: 0, skipped: 1 }])
+      ),
+      failedTypes: [],
+    };
+    await finishRun(input.db, claim.runId, outcome);
+    return {
+      outcome,
+      runId: claim.runId,
+      alreadyRunning: false,
+      effectiveTypes,
+    };
+  }
+
   const outcome = await generatePlanWeek({
     planId: input.planId,
     week: input.week,
     session,
-    types: requestedTypes,
+    types: effectiveTypes,
     cronSecret: input.cronSecret,
     cookie: input.cookie,
     autoPublish: input.autoPublish,
   });
-  await finishRun(input.db, runId, outcome);
-  return { outcome, runId };
+  await finishRun(input.db, claim.runId, outcome);
+  return {
+    outcome,
+    runId: claim.runId,
+    alreadyRunning: false,
+    effectiveTypes,
+  };
 }
 
 /** Mark abandoned running rows so operations never silently show them forever. */

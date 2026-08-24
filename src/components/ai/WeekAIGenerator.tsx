@@ -614,6 +614,20 @@ export default function WeekAIGenerator({
       if (!genRes.ok) {
         throw new Error(genJson.error || "Week preparation failed");
       }
+      if (genJson.alreadyRunning === true) {
+        addLog(
+          "This week is already being prepared. Saved items will appear as they finish; a second generation was not started."
+        );
+        setStep("lesson", "skipped");
+        setStep("slides", "skipped");
+        setStep("flashcard", "skipped");
+        setStep("assignment", "skipped");
+        setStep("project", "skipped");
+        setDone(true);
+        setLiveMessage("Preparation is already running safely.");
+        onDone?.({});
+        return;
+      }
 
       const byType = (genJson.byType ?? {}) as Record<
         string,
