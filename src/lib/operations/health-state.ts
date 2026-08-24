@@ -2,6 +2,10 @@ import { monitoredCronJobs } from '@/lib/operations/cron-registry';
 
 export type CronHealthRow = {
   job_name: string;
+  job_label?: string;
+  schedule?: string;
+  purpose?: string;
+  trigger?: string;
   expected_interval_minutes: number;
   last_started_at?: string | null;
   last_finished_at: string | null;
@@ -37,11 +41,27 @@ export function cronNeedsAttention(row: CronHealthRow, now = Date.now()): boolea
  * have no row so a missing scheduler entry becomes visible instead of looking healthy.
  */
 export function withRegisteredCronJobs(rows: Array<Record<string, unknown>>): CronHealthRow[] {
-  const seen = new Set(rows.map((row) => String(row.job_name)));
-  const placeholders: CronHealthRow[] = monitoredCronJobs()
+  const registered = monitoredCronJobs();
+  const jobByName = new Map(registered.map((job) => [job.name, job]));
+  const enriched = rows.map((row) => {
+    const job = jobByName.get(String(row.job_name));
+    return {
+      ...row,
+      job_label: job?.label,
+      schedule: job?.schedule,
+      purpose: job?.purpose,
+      trigger: job?.trigger,
+    } as CronHealthRow;
+  });
+  const seen = new Set(enriched.map((row) => String(row.job_name)));
+  const placeholders: CronHealthRow[] = registered
     .filter((job) => !seen.has(job.name))
     .map((job) => ({
       job_name: job.name,
+      job_label: job.label,
+      schedule: job.schedule,
+      purpose: job.purpose,
+      trigger: job.trigger,
       expected_interval_minutes: job.intervalMinutes,
       last_started_at: null,
       last_finished_at: null,
@@ -55,7 +75,7 @@ export function withRegisteredCronJobs(rows: Array<Record<string, unknown>>): Cr
       never_run: true,
     }));
 
-  return [...(rows as CronHealthRow[]), ...placeholders]
+  return [...enriched, ...placeholders]
     .sort((a, b) => a.job_name.localeCompare(b.job_name));
 }
 

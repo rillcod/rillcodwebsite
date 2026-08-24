@@ -842,7 +842,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |
 | SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
-| SYS-019 | P1 | At risk | Cron operational guarantees undocumented | Job registry, run ledger, alerts, replay and overlap tests |
+| SYS-019 | P1 | Locally remediated; migration/deployment proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented locally | Apply migration 112, deploy, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
 | SYS-020 | P1 | Broadcast truthfulness fixed; provider delivery ledger still absent | The group broadcast surface stamped `last_broadcast_at` whether or not the ledger POST succeeded, so a failed record still rendered "broadcast just now" and the stamp then disappeared on reload. All four broadcast paths now stamp only on a confirmed 2xx, and both multi-group paths name the groups that were not recorded instead of reporting a clean send. Load failures for classes and assignments are traced rather than presenting as "none" | Provider-side delivery ledger (recipient, consent, channel, provider ID, accepted/sent/delivered/failed timestamps) is still missing; this covers our own record, not WhatsApp's |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
@@ -3105,3 +3105,59 @@ Verification and deployment boundary:
 - this milestone requires no database migration and performed no production read/write. It changes
   interpretation and presentation only: no attendance row, learner score, report, promotion decision,
   message, finance record, database row or remote branch was changed during verification.
+
+### 16.34 Scheduled automation overlap, observability and operator recovery — verified locally on 24 August 2026
+
+Confirmed reliability gaps after tracing every `/api/cron` route:
+
+- the repository already had one cron registry, route-to-registry tests, a durable run-history table,
+  latest health state, failure alerts, fan-out visibility, dead-letter recovery and an administrator
+  **Check now** action. The register's statement that these foundations were absent was stale;
+- scheduler, fan-out and administrator requests could still enter the same route at the same time on
+  different Cloudflare container instances. Existing per-task uniqueness guards protected some
+  downstream rows, but there was no universal job-level claim, so a reminder or communication sweep
+  could duplicate work before its own recipient-level guard was reached;
+- the monitor awaited run-history and health writes without checking their returned database errors.
+  A job could finish while its ledger silently remained stale, leaving the Operations page unable to
+  explain what happened;
+- manual **Check now** performed real scheduled work but sounded read-only. The panel exposed a raw
+  minute interval rather than the registry's human schedule and purpose, and did not distinguish an
+  overlap skip from a completed run or a run whose monitoring write failed.
+
+Implemented one recoverable scheduled-work boundary:
+
+- migration `20260929000112_prevent_overlapping_cron_runs.sql` adds one short-lived database lease per
+  job and service-role-only claim/release functions. Claim is atomic across instances. Only an expired
+  lease can be taken over, and release requires the exact owning run ID, so a late old request cannot
+  unlock its successor;
+- every route already enters through `runMonitoredCron`; that single boundary now claims before doing
+  work and releases in `finally`. A concurrent request returns a successful `202` **already running**
+  result, records the skip in run history, and never invokes the handler. A crashed container cannot
+  permanently block the job because the ten-minute lease expires automatically;
+- deployment ordering is safe. If migration 112 is temporarily unavailable, the job continues and
+  emits an explicit monitoring-unavailable signal instead of silently stopping. Once the function is
+  present, overlap protection becomes durable without a second code path;
+- run-history, health, administrator-alert and alert-timestamp writes now inspect database errors.
+  Failed operational recording is logged and carried in the response header so the administrator
+  action can say the work completed but its history was not saved; it does not encourage a blind
+  duplicate retry;
+- Operations Health now shows each job's registry-owned purpose and real schedule. **Run now** states
+  that it performs real work, requires confirmation, reports completion, explains a safely prevented
+  overlap, and preserves customer-safe error wording. Manual runs remain available while Rillcod is
+  still being built; the guard prevents duplication rather than locking the operator out;
+- the health read model enriches persisted and never-run rows from the same registry. Adding a route
+  without a registry entry, hard-coding a cadence, removing the lease ownership condition or granting
+  lease execution to authenticated clients is covered by automated tests.
+
+Verification and deployment boundary:
+
+- the final focused suite passed 8 files and 47 tests covering registry/route parity, host ownership,
+  result and partial-failure classification, scheduler survival, lease overlap behavior, rollout
+  fallback, lease SQL ownership, health guidance, attention state, fan-out, period guards and term
+  scheduling;
+- `npm run typecheck` passed, targeted ESLint completed with zero errors, and `git diff --check`
+  passed;
+- the linked Supabase dry run accepted the ordered pending migrations 103 through 112, including the
+  new lease table/functions, without applying any SQL;
+- migration 112 remains local/pending. No scheduled job was invoked, no message was sent, no finance
+  or academic record changed, no live database row was written and no remote branch was changed.

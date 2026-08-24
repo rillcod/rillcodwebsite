@@ -8,6 +8,10 @@ import { cronHealthCode } from '@/lib/operations/health-state';
 
 type HealthRow = {
   job_name: string;
+  job_label?: string;
+  schedule?: string;
+  purpose?: string;
+  trigger?: string;
   expected_interval_minutes: number;
   last_finished_at: string | null;
   last_success_at: string | null;
@@ -126,6 +130,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
   const [trafficProtection, setTrafficProtection] = useState<TrafficProtection | null>(null);
   const [securityObservations, setSecurityObservations] = useState<SecurityObservations | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,9 +166,14 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
   }, [revision, lastChange, load]);
 
   async function act(payload: Record<string, string>) {
+    if (payload.action === 'run_now') {
+      const label = friendlyJob(payload.jobName || 'scheduled job');
+      if (!window.confirm(`Run ${label} now?\n\nThis performs real scheduled work. Duplicate execution will be blocked automatically.`)) return;
+    }
     const key = payload.id || payload.jobName || payload.action;
     setBusy(key);
     setError('');
+    setNotice('');
     try {
       const response = await fetch('/api/admin/operations-health', {
         method: 'PATCH',
@@ -172,6 +182,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Action failed.');
+      setNotice(json.warning || (payload.action === 'run_now' ? 'Scheduled work completed.' : 'Action completed.'));
       await load();
       notify?.('health');
     } catch (actionError) {
@@ -230,6 +241,11 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
       {error ? (
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+          {notice}
         </p>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -414,8 +430,10 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Last checked: {row.last_finished_at ? new Date(row.last_finished_at).toLocaleString() : 'not yet'} |
-                      checks every {row.expected_interval_minutes} minutes
+                      {row.purpose || 'Scheduled operational work'}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {row.schedule || `Every ${row.expected_interval_minutes} minutes`} · Last completed: {row.last_finished_at ? new Date(row.last_finished_at).toLocaleString() : 'not yet'}
                     </p>
                     {row.last_error ? <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">What went wrong: {row.last_error}</p> : null}
                   </div>
@@ -425,7 +443,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
                     onClick={() => void act({ action: 'run_now', jobName: row.job_name })}
                     className="min-h-11 touch-manipulation rounded-xl border border-primary px-4 py-2 text-xs font-black text-primary hover:bg-primary hover:text-white transition-all disabled:opacity-50 cursor-pointer"
                   >
-                    {busy === row.job_name ? 'Checking' : 'Check now'}
+                    {busy === row.job_name ? 'Running' : 'Run now'}
                   </button>
                 </div>
               );

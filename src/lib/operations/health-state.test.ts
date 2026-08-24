@@ -28,6 +28,22 @@ describe('operations health state', () => {
     const rows = withRegisteredCronJobs([]);
     expect(rows.length).toBeGreaterThan(10);
     expect(rows.every((row) => row.never_run && row.last_finished_at === null)).toBe(true);
+    expect(rows.every((row) => row.job_label && row.schedule && row.purpose && row.trigger)).toBe(true);
+  });
+
+  it('adds registry guidance to persisted health rows', () => {
+    const [row] = withRegisteredCronJobs([{
+      job_name: 'process-notifications',
+      expected_interval_minutes: 1,
+      last_finished_at: '2026-08-13T11:59:00.000Z',
+      next_expected_at: '2026-08-13T12:00:00.000Z',
+      consecutive_failures: 0,
+    }]).filter((item) => item.job_name === 'process-notifications');
+    expect(row).toMatchObject({
+      job_label: 'Send waiting messages',
+      trigger: 'external',
+    });
+    expect(row.purpose).toContain('Email queue');
   });
 
   it('removes historical finance failures after the same work succeeds', () => {

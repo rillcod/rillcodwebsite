@@ -1,4 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const monitorState = vi.hoisted(() => ({
+  lease: 'acquired' as 'acquired' | 'busy' | 'unavailable',
+  historyWriteFails: false,
+}));
 
 // recordOutcome writes the run to Supabase. Mocked so these assert what the
 // scheduler is answered, not whether a database was reachable — the real client
@@ -7,12 +12,23 @@ vi.mock('@/lib/supabase/admin', () => {
   const chain: any = {
     select: () => chain,
     eq: () => chain,
-    insert: async () => ({ error: null }),
+    insert: async () => ({ error: monitorState.historyWriteFails ? { message: 'history unavailable' } : null }),
     upsert: async () => ({ error: null }),
     update: () => chain,
     maybeSingle: async () => ({ data: null }),
   };
-  return { createAdminClient: () => ({ from: () => chain }) };
+  return {
+    createAdminClient: () => ({
+      from: () => chain,
+      rpc: async (name: string) => {
+        if (name === 'claim_cron_job_run') {
+          if (monitorState.lease === 'unavailable') return { data: null, error: { message: 'function missing' } };
+          return { data: monitorState.lease === 'acquired', error: null };
+        }
+        return { data: true, error: null };
+      },
+    }),
+  };
 });
 
 import { cronResultSucceeded, runMonitoredCron } from './cron-monitor';
@@ -50,6 +66,11 @@ describe('what the scheduler is answered', () => {
   const json = (body: unknown, status: number) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
+  beforeEach(() => {
+    monitorState.lease = 'acquired';
+    monitorState.historyWriteFails = false;
+  });
+
   it('answers 200 when the job throws, so the schedule survives a timeout', async () => {
     // Annotated because a handler that only throws infers as `never`, and the
     // returned Response then has no properties to assert on.
@@ -86,5 +107,30 @@ describe('what the scheduler is answered', () => {
         json({ error: 'Unauthorized' }, status));
       expect(response.status).toBe(status);
     }
+  });
+
+  it('does not start the handler when another instance owns the job lease', async () => {
+    monitorState.lease = 'busy';
+    const handler = vi.fn(async () => json({ success: true }, 200));
+    const response = await runMonitoredCron('test-job', 1, handler);
+    expect(handler).not.toHaveBeenCalled();
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({
+      success: true,
+      skipped: true,
+      reason: 'already_running',
+    });
+  });
+
+  it('keeps work available during migration rollout and exposes monitoring failure', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    monitorState.lease = 'unavailable';
+    monitorState.historyWriteFails = true;
+    const handler = vi.fn(async () => json({ success: true, processed: 1 }, 200));
+    const response = await runMonitoredCron('test-job', 1, handler);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-rillcod-monitoring')).toBe('unavailable');
+    consoleSpy.mockRestore();
   });
 });

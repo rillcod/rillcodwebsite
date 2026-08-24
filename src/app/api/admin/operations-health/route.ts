@@ -282,13 +282,20 @@ export async function PATCH(req: NextRequest) {
       }
       const result = await response.json().catch(() => ({}));
       const succeeded = cronResultSucceeded(response.status, result);
+      const skipped = result?.skipped === true && result?.reason === 'already_running';
+      const monitoringUnavailable = response.headers.get('x-rillcod-monitoring') === 'unavailable';
       await logAudit(actor.db, {
-        action: succeeded ? 'run_automation_job_now' : 'run_automation_job_now_failed',
+        action: skipped ? 'automation_job_overlap_prevented' : succeeded ? 'run_automation_job_now' : 'run_automation_job_now_failed',
         actorId: actor.user.id, resourceType: 'cron_job', resourceId: jobName,
-        newValue: succeeded ? `Ran ${jobName} successfully` : `${jobName} returned HTTP ${response.status}`,
-        newValues: { path, http_status: response.status },
+        newValue: skipped ? `${jobName} was already running` : succeeded ? `Ran ${jobName} successfully` : `${jobName} returned HTTP ${response.status}`,
+        newValues: { path, http_status: response.status, skipped, monitoring_available: !monitoringUnavailable },
       });
-      return NextResponse.json({ success: succeeded, status: response.status, result }, { status: succeeded ? 200 : 502 });
+      const warning = skipped
+        ? 'This job is already running. A second copy was safely prevented.'
+        : monitoringUnavailable
+          ? 'The job completed, but its operational history could not be saved. Check the database connection before running it again.'
+          : null;
+      return NextResponse.json({ success: succeeded, skipped, status: response.status, result, warning }, { status: succeeded ? 200 : 502 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Cron run failed.';
       await logAudit(actor.db, {
