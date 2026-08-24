@@ -166,6 +166,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                 grade: grade === '' ? null : g,
                 feedback,
                 status,
+                expected_version: sub.version,
             };
             if (status === 'graded') payload.graded_at = new Date().toISOString();
 

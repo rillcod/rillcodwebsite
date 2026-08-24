@@ -76,6 +76,7 @@ interface Submission {
   status: string;
   submitted_at: string;
   grade: number | null;
+  version: number;
   feedback: string | null;
   submission_text: string | null;
   file_url: string | null;
@@ -440,7 +441,11 @@ export default function GradingQueuePage() {
   async function doGrade(id: string, action: 'accept_ai' | 'override', andNext = false) {
     setSaving(id);
     setError(null);
-    const body: Record<string, unknown> = { action };
+    const submission = submissions.find(row => row.id === id);
+    const body: Record<string, unknown> = {
+      action,
+      expected_version: submission?.version,
+    };
     if (action === 'override') {
       const g = Number(grade[id]);
       if (!grade[id] || Number.isNaN(g)) { setSaving(null); return; }
@@ -493,7 +498,11 @@ export default function GradingQueuePage() {
       const res = await fetch(`/api/grading/submissions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rubric_scores: scores, feedback: feedback[id] || null }),
+        body: JSON.stringify({
+          rubric_scores: scores,
+          feedback: feedback[id] || null,
+          expected_version: submissions.find(row => row.id === id)?.version,
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Rubric grade could not be saved. Please try again.');

@@ -122,12 +122,16 @@ export async function POST(
     // Build the target submission list.
     let query = admin
       .from('assignment_submissions')
-      .select('id, portal_user_id, submission_text, grade, ai_suggested_grade')
+      .select('id, portal_user_id, submission_text, grade, ai_suggested_grade, status, version')
       .eq('assignment_id', assignment_id);
     if (body.submission_id) {
       query = query.eq('id', body.submission_id);
     } else if (body.all === true) {
-      query = query.is('grade', null).is('ai_suggested_grade', null).limit(100);
+      query = query
+        .is('grade', null)
+        .is('ai_suggested_grade', null)
+        .in('status', ['submitted', 'late', 'resubmitted', 'pending_review'])
+        .limit(100);
     } else {
       return NextResponse.json({ error: 'submission_id or all:true required' }, { status: 400 });
     }
@@ -142,23 +146,39 @@ export async function POST(
     for (const sub of subs ?? []) {
       if (Date.now() > DEADLINE) { results.push({ submission_id: sub.id, status: 'deferred_deadline' }); continue; }
       if (sub.grade != null) { results.push({ submission_id: sub.id, status: 'skipped_already_graded' }); continue; }
+      if (!['submitted', 'late', 'resubmitted', 'pending_review'].includes(String(sub.status ?? ''))) {
+        results.push({ submission_id: sub.id, status: 'skipped_not_ready_for_review' });
+        continue;
+      }
       const text = (sub.submission_text ?? '').trim();
       if (!text) { results.push({ submission_id: sub.id, status: 'skipped_no_text' }); continue; }
 
       const ai = await gradeText(title, instructions, maxPoints, text);
       if (!ai) { results.push({ submission_id: sub.id, status: 'ai_failed' }); continue; }
 
-      const { error: upErr } = await admin
+      const { data: savedSuggestion, error: upErr } = await admin
         .from('assignment_submissions')
         .update({
           ai_suggested_grade: ai.score,
           ai_suggested_feedback: ai.feedback,
           grading_mode: 'ai_suggested',
           status: 'pending_review',
+          status_changed_by: caller.id,
+          last_change_reason: 'AI prepared a draft mark for teacher review',
           updated_at: new Date().toISOString(),
         })
-        .eq('id', sub.id);
+        .eq('id', sub.id)
+        .eq('version', sub.version)
+        .is('grade', null)
+        .is('ai_suggested_grade', null)
+        .in('status', ['submitted', 'late', 'resubmitted', 'pending_review'])
+        .select('id, version')
+        .maybeSingle();
       if (upErr) { results.push({ submission_id: sub.id, status: 'save_failed' }); continue; }
+      if (!savedSuggestion) {
+        results.push({ submission_id: sub.id, status: 'skipped_newer_review_preserved' });
+        continue;
+      }
 
       graded += 1;
       results.push({ submission_id: sub.id, status: 'suggested', score: ai.score, feedback: ai.feedback });
@@ -172,7 +192,16 @@ export async function POST(
       newValues: { suggested: graded, total: (subs ?? []).length },
     });
 
-    return NextResponse.json({ success: true, suggested: graded, results });
+    const incomplete = results.filter(result => !['suggested', 'skipped_already_graded', 'skipped_not_ready_for_review', 'skipped_no_text', 'skipped_newer_review_preserved'].includes(result.status)).length;
+    return NextResponse.json({
+      success: true,
+      suggested: graded,
+      incomplete,
+      results,
+      ...(incomplete > 0
+        ? { message: `${incomplete} suggestion${incomplete === 1 ? '' : 's'} could not be completed. Existing work was left untouched; retry or mark manually.` }
+        : {}),
+    });
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Unexpected error' },

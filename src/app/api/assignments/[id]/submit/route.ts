@@ -19,6 +19,7 @@ import {
 import { generateAIContent, type GenerateRequest } from '@/lib/ai/generate-core';
 import { logAudit } from '@/lib/audit/log';
 import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
+import { normalizeGradeValueWithMax } from '@/lib/api-guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,7 +156,7 @@ export async function POST(
     // dedicated grading route, which keeps a before/after audit trail.
     const { data: existingSub, error: existingError } = await admin
       .from('assignment_submissions')
-      .select('id,status,grade,weighted_score,graded_at,graded_by,grading_mode')
+      .select('id,status,grade,weighted_score,graded_at,graded_by,grading_mode,version')
       .eq('assignment_id', assignment_id)
       .eq('portal_user_id', effectiveUserId)
       .maybeSingle();
@@ -242,33 +243,49 @@ export async function POST(
       upsertData.answers = answers;
     }
 
-    let submissionResult = await admin
-      .from('assignment_submissions')
-      .upsert(upsertData, { onConflict: 'assignment_id,portal_user_id' })
-      .select()
-      .single();
-
-    // Safe rolling-deploy fallback while the richer review-state constraint is
-    // waiting for its migration. The evidence is still saved and remains visibly
-    // submitted; `resubmitted` activates automatically once the DB accepts it.
-    if (submissionResult.error?.code === '23514' && desiredStatus === 'resubmitted') {
-      upsertData.status = isLate ? 'late' : 'submitted';
-      submissionResult = await admin
-        .from('assignment_submissions')
-        .upsert(upsertData, { onConflict: 'assignment_id,portal_user_id' })
-        .select()
-        .single();
-    }
+    const submissionResult = existingSub
+      ? await admin
+          .from('assignment_submissions')
+          .update(upsertData)
+          .eq('id', existingSub.id)
+          .eq('version', existingSub.version)
+          .is('grade', null)
+          .select()
+          .maybeSingle()
+      : await admin
+          .from('assignment_submissions')
+          .insert(upsertData)
+          .select()
+          .maybeSingle();
 
     const { data, error } = submissionResult;
 
+    if (error?.code === '23514' && desiredStatus === 'resubmitted') {
+      return NextResponse.json({
+        error: 'Revision submission is temporarily unavailable while its review workflow is updated. Your work remains on this device; please retry shortly.',
+        code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+      }, { status: 503 });
+    }
+    if (error?.code === '23505') {
+      return NextResponse.json({
+        error: 'This submission changed in another session. Refresh before submitting again; the newer copy was left untouched.',
+        code: 'STALE_SUBMISSION_REVIEW',
+      }, { status: 409 });
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) {
+      return NextResponse.json({
+        error: 'This submission changed in another session. Refresh before submitting again; the newer copy was left untouched.',
+        code: 'STALE_SUBMISSION_REVIEW',
+      }, { status: 409 });
+    }
 
     // Grading mode pipeline
     const gradingMode = assignment.grading_mode || 'manual';
     const questions: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
     const maxPts = assignment.max_points ?? 100;
     const assignWeight = assignment.weight ?? 0;
+    let automationNotice: string | null = null;
 
     if (gradingMode === 'auto' && answers && data) {
       // Only fully objective work is finalized automatically. Mixed or unsupported
@@ -287,12 +304,16 @@ export async function POST(
               weighted_score: weightedScore,
               grading_mode: 'auto',
               graded_at: gradedAt,
+              status_changed_by: caller.id,
+              last_change_reason: 'Automatically marked using the assignment answer key',
               updated_at: gradedAt,
             })
-            .eq('assignment_id', assignment_id)
-            .eq('portal_user_id', effectiveUserId)
+            .eq('id', data.id)
+            .eq('version', data.version)
+            .is('grade', null)
+            .in('status', ['submitted', 'late', 'resubmitted'])
             .select()
-            .single();
+            .maybeSingle();
 
           if (gradedError) throw new Error(gradedError.message);
 
@@ -339,47 +360,72 @@ export async function POST(
             }
             return NextResponse.json({ data: gradedRow }, { status: 201 });
           }
+          automationNotice = 'Your work was saved. A newer teacher review was already present, so automatic marking left it untouched.';
+          await safeAssignmentAudit(admin, {
+            action: 'assignment_auto_grading_skipped_stale_review',
+            actorId: caller.id,
+            resourceType: 'assignment_submission',
+            resourceId: data.id,
+            newValues: { assignment_id, student_id: effectiveUserId, preserved_newer_review: true },
+          });
         } else {
           const reviewAt = new Date().toISOString();
-          const { error: reviewError } = await admin
+          const { data: reviewRow, error: reviewError } = await admin
             .from('assignment_submissions')
             .update({
-              grade: null,
-              weighted_score: null,
               status: 'pending_review',
+              status_changed_by: caller.id,
+              last_change_reason: 'Teacher review is required for one or more responses',
               updated_at: reviewAt,
             })
-            .eq('assignment_id', assignment_id)
-            .eq('portal_user_id', effectiveUserId);
+            .eq('id', data.id)
+            .eq('version', data.version)
+            .is('grade', null)
+            .in('status', ['submitted', 'late', 'resubmitted'])
+            .select('id, status, version')
+            .maybeSingle();
           if (reviewError) throw new Error(reviewError.message);
-          data.status = 'pending_review';
-          data.grade = null;
-          data.weighted_score = null;
+          if (reviewRow) {
+            data.status = reviewRow.status;
+            data.version = reviewRow.version;
+          } else {
+            automationNotice = 'Your work was saved. A newer teacher review was already present and was left untouched.';
+          }
         }
       } catch (autoErr) {
         console.error('[auto-grade] failed:', autoErr);
-        const { error: recoveryError } = await admin
+        const { data: recoveryRow, error: recoveryError } = await admin
           .from('assignment_submissions')
           .update({
-            grade: null,
-            weighted_score: null,
             status: 'pending_review',
+            status_changed_by: caller.id,
+            last_change_reason: 'Automatic marking was unavailable; teacher review is required',
             updated_at: new Date().toISOString(),
           })
-          .eq('assignment_id', assignment_id)
-          .eq('portal_user_id', effectiveUserId);
+          .eq('id', data.id)
+          .eq('version', data.version)
+          .is('grade', null)
+          .in('status', ['submitted', 'late', 'resubmitted'])
+          .select('id, status, version')
+          .maybeSingle();
         if (recoveryError) {
           console.error('[assignment-submit] auto-grade recovery update failed; submission remains in the teacher queue', recoveryError);
+        } else if (recoveryRow) {
+          data.status = recoveryRow.status;
+          data.version = recoveryRow.version;
         } else {
-          data.status = 'pending_review';
+          automationNotice = 'Your work was saved. A newer teacher review was already present and was left untouched.';
         }
-        data.grade = null;
-        data.weighted_score = null;
         await safeAssignmentAudit(admin, {
           action: 'assignment_auto_grading_failed', actorId: caller.id,
           resourceType: 'assignment_submission', resourceId: data.id,
           newValue: autoErr instanceof Error ? autoErr.message : 'Automatic grading failed',
-          newValues: { assignment_id, student_id: effectiveUserId, recovered_to: 'pending_review' },
+          newValues: {
+            assignment_id,
+            student_id: effectiveUserId,
+            recovered_to: recoveryRow ? 'pending_review' : null,
+            preserved_newer_review: !recoveryRow,
+          },
         });
       }
     } else if (gradingMode === 'ai_suggested' && answers && data) {
@@ -397,38 +443,78 @@ export async function POST(
         } as GenerateRequest);
 
         if (!aiData?.data) throw new Error('AI grader returned no suggestion');
-        const totalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
-        const { error: suggestionError } = await admin
+        const rawTotalScore = Object.values(aiData.data.scores || {}).reduce((sum: number, s: any) => sum + Number(s || 0), 0);
+        const normalizedSuggestion = normalizeGradeValueWithMax(rawTotalScore, maxPts);
+        if (normalizedSuggestion.error || normalizedSuggestion.value === undefined || normalizedSuggestion.value === null) {
+          throw new Error('AI grader returned an invalid score suggestion');
+        }
+        const totalScore = normalizedSuggestion.value;
+        const { data: suggestionRow, error: suggestionError } = await admin
           .from('assignment_submissions')
           .update({
             ai_suggested_grade: totalScore,
             ai_suggested_feedback: aiData.data.feedback || '',
             status: 'pending_review',
+            status_changed_by: caller.id,
+            last_change_reason: 'AI prepared a draft mark for teacher review',
             updated_at: new Date().toISOString(),
           })
-          .eq('assignment_id', assignment_id)
-          .eq('portal_user_id', effectiveUserId);
+          .eq('id', data.id)
+          .eq('version', data.version)
+          .is('grade', null)
+          .in('status', ['submitted', 'late', 'resubmitted'])
+          .select('id, status, version, ai_suggested_grade, ai_suggested_feedback')
+          .maybeSingle();
         if (suggestionError) throw new Error(suggestionError.message);
-        data.status = 'pending_review';
-        data.ai_suggested_grade = totalScore;
-        data.ai_suggested_feedback = aiData.data.feedback || '';
+        if (suggestionRow) {
+          data.status = suggestionRow.status;
+          data.version = suggestionRow.version;
+          data.ai_suggested_grade = suggestionRow.ai_suggested_grade;
+          data.ai_suggested_feedback = suggestionRow.ai_suggested_feedback;
+        } else {
+          automationNotice = 'Your work was saved. A newer teacher review was already present, so the AI draft was not applied.';
+          await safeAssignmentAudit(admin, {
+            action: 'assignment_ai_suggestion_skipped_stale_review',
+            actorId: caller.id,
+            resourceType: 'assignment_submission',
+            resourceId: data.id,
+            newValues: { assignment_id, student_id: effectiveUserId, preserved_newer_review: true },
+          });
+        }
       } catch (aiErr) {
         console.error('[ai-assisted-grade] failed:', aiErr);
-        const { error: recoveryError } = await admin
+        const { data: recoveryRow, error: recoveryError } = await admin
           .from('assignment_submissions')
-          .update({ status: 'pending_review', updated_at: new Date().toISOString() })
-          .eq('assignment_id', assignment_id)
-          .eq('portal_user_id', effectiveUserId);
+          .update({
+            status: 'pending_review',
+            status_changed_by: caller.id,
+            last_change_reason: 'AI suggestion was unavailable; teacher review is required',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.id)
+          .eq('version', data.version)
+          .is('grade', null)
+          .in('status', ['submitted', 'late', 'resubmitted'])
+          .select('id, status, version')
+          .maybeSingle();
         if (recoveryError) {
           console.error('[assignment-submit] AI-grade recovery update failed; submission remains in the teacher queue', recoveryError);
+        } else if (recoveryRow) {
+          data.status = recoveryRow.status;
+          data.version = recoveryRow.version;
         } else {
-          data.status = 'pending_review';
+          automationNotice = 'Your work was saved. A newer teacher review was already present and was left untouched.';
         }
         await safeAssignmentAudit(admin, {
           action: 'assignment_ai_grading_failed', actorId: caller.id,
           resourceType: 'assignment_submission', resourceId: data.id,
           newValue: aiErr instanceof Error ? aiErr.message : 'AI-assisted grading failed',
-          newValues: { assignment_id, student_id: effectiveUserId, recovered_to: 'pending_review' },
+          newValues: {
+            assignment_id,
+            student_id: effectiveUserId,
+            recovered_to: recoveryRow ? 'pending_review' : null,
+            preserved_newer_review: !recoveryRow,
+          },
         });
       }
     }
@@ -480,7 +566,7 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({ data, ...(automationNotice ? { message: automationNotice } : {}) }, { status: 201 });
   } catch (error) {
     console.error('[assignment-submit] unexpected failure', error);
     return NextResponse.json({ error: 'We could not save this submission just now. Your work remains on this device; please try again.' }, { status: 500 });

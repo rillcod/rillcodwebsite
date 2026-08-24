@@ -112,7 +112,7 @@ export async function GET(
     .select(`
       *, courses ( id, title, programs ( name ) ),
       assignment_submissions (
-        id, status, grade, portal_user_id,
+        id, status, grade, portal_user_id, version,
         submission_text, answers, file_url, attachments,
         submitted_at, graded_at, updated_at, feedback,
         weighted_score, grading_mode,

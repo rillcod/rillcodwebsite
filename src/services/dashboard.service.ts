@@ -276,7 +276,7 @@ export async function fetchSubmissionsForGrading(opts: {
     const { data: rawSubs, error } = await fetchAllReportRows<any>((from, to) => client
         .from('assignment_submissions')
         .select(`
-          id, grade, weighted_score, feedback, status, submitted_at, graded_at,
+          id, grade, weighted_score, feedback, status, version, submitted_at, graded_at,
           submission_text, file_url, portal_user_id, user_id,
           assignments (
             id, title, max_points, weight, due_date, created_by, course_id, term_id,

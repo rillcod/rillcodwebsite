@@ -231,9 +231,18 @@ export function HostPaperDatasheet(props: {
     try {
       const examId = await ensureExam();
       const scores = roster
-        .map((student) => ({ user_id: student.id, earned: hallDraft[student.id] }))
+        .map((student) => ({
+          user_id: student.id,
+          earned: hallDraft[student.id],
+          expected_version: sessions.find((row: any) => row.user_id === student.id)?.grading_version ?? null,
+        }))
         .filter((row) => String(row.earned ?? '').trim() !== '')
-        .map((row) => ({ user_id: row.user_id, earned: Number(row.earned), max: hallMax }));
+        .map((row) => ({
+          user_id: row.user_id,
+          earned: Number(row.earned),
+          max: hallMax,
+          expected_version: row.expected_version,
+        }));
       if (scores.length === 0) throw new Error('Enter at least one mark.');
       const res = await fetch('/api/cbt/sessions', {
         method: 'POST',
@@ -242,7 +251,15 @@ export function HostPaperDatasheet(props: {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Could not save marks');
-      setNotice(`${json.data?.saved?.length ?? scores.length} marks saved. Write reads these same marks.`);
+      const savedCount = json.data?.saved?.length ?? 0;
+      const skippedCount = json.data?.skipped?.length ?? 0;
+      const failedCount = json.data?.failed?.length ?? 0;
+      const warningText = Array.isArray(json.data?.warnings) ? json.data.warnings.join(' ') : '';
+      setNotice(failedCount > 0
+        ? `${savedCount} marks saved. ${failedCount} could not be saved and ${skippedCount} newer or protected marks were left untouched. The sheet has been refreshed; retry only the unsaved entries. ${warningText}`.trim()
+        : skippedCount > 0
+          ? `${savedCount} marks saved. ${skippedCount} changed elsewhere or belong to an online sitting and were left untouched; the refreshed sheet now shows the latest values. ${warningText}`.trim()
+          : `${savedCount} marks saved. Write reads these same marks. ${warningText}`.trim());
       await load();
     } catch (err: any) {
       setError(err.message || 'Could not save marks');

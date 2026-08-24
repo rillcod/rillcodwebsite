@@ -98,22 +98,33 @@ export async function PATCH(
       && (versionResult.error.code === '42703'
         || versionResult.error.code === 'PGRST204'
         || /version/i.test(versionResult.error.message));
-    if (versionResult.error && !versionColumnPending) {
+    if (versionColumnPending) {
+      return NextResponse.json({
+        error: 'Submission review is temporarily unavailable while its safety update is completed. No grade was changed.',
+        code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+      }, { status: 503 });
+    }
+    if (versionResult.error) {
       return NextResponse.json({ error: 'The latest review version could not be verified. Please retry.' }, { status: 503 });
     }
-    const currentVersion = versionColumnPending ? null : versionResult.data?.version ?? 1;
-    if (body.expected_version !== undefined) {
-      const expectedVersion = Number(body.expected_version);
-      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
-        return NextResponse.json({ error: 'expected_version must be a positive integer', field: 'expected_version' }, { status: 400 });
-      }
-      if (currentVersion !== null && expectedVersion !== currentVersion) {
-        return NextResponse.json({
-          error: 'This review changed in another session. Refresh it before saving your feedback.',
-          code: 'STALE_SUBMISSION_REVIEW',
-          current_version: currentVersion,
-        }, { status: 409 });
-      }
+    const currentVersion = versionResult.data?.version ?? 1;
+    if (body.expected_version === undefined) {
+      return NextResponse.json({
+        error: 'Refresh this submission before saving so the latest teacher review is protected.',
+        code: 'REVIEW_VERSION_REQUIRED',
+        current_version: currentVersion,
+      }, { status: 428 });
+    }
+    const expectedVersion = Number(body.expected_version);
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+      return NextResponse.json({ error: 'expected_version must be a positive integer', field: 'expected_version' }, { status: 400 });
+    }
+    if (expectedVersion !== currentVersion) {
+      return NextResponse.json({
+        error: 'This review changed in another session. Refresh it before saving your feedback.',
+        code: 'STALE_SUBMISSION_REVIEW',
+        current_version: currentVersion,
+      }, { status: 409 });
     }
     const assignMax = assignment?.max_points ?? 100;
     const assignWeight = assignment?.weight ?? 0;
@@ -124,6 +135,14 @@ export async function PATCH(
         { error: 'Invalid grading action. Use accept_ai or override.', field: 'action' },
         { status: 400 },
       );
+    }
+    const hasReviewChange = action !== undefined
+      || Object.prototype.hasOwnProperty.call(body, 'grade')
+      || Object.prototype.hasOwnProperty.call(body, 'rubric_scores')
+      || Object.prototype.hasOwnProperty.call(body, 'feedback')
+      || Object.prototype.hasOwnProperty.call(body, 'status');
+    if (!hasReviewChange) {
+      return NextResponse.json({ error: 'Add a grade, feedback, rubric score, or review decision before saving.' }, { status: 400 });
     }
     let requestedGrade = body.grade;
     let requestedFeedback = body.feedback;
@@ -225,28 +244,25 @@ export async function PATCH(
         .from('assignment_submissions')
         .update(payload)
         .eq('id', id);
-      if (currentVersion !== null) query = query.eq('version', currentVersion);
+      query = query.eq('version', currentVersion);
       return query
-        .select(currentVersion !== null
-          ? 'id, grade, status, file_url, portal_user_id, weighted_score, version'
-          : 'id, grade, status, file_url, portal_user_id, weighted_score')
+        .select('id, grade, status, file_url, portal_user_id, weighted_score, version')
         .maybeSingle();
     };
 
-    let updateResult: any = await runUpdate(allowed);
+    const updateResult: any = await runUpdate(allowed);
 
-    // Rolling-deploy compatibility: the final mark must never be blocked while an
-    // additive migration is waiting to reach a database. The same rubric evidence
-    // is included in the audit event below and storage activates automatically once
-    // the column exists.
+    // Rubric and AI evidence must land atomically with the mark. Saving only the
+    // total would leave a result that cannot be explained or safely moderated.
     const missingDetailsColumn = updateResult.error && gradingDetails !== undefined
       && (updateResult.error.code === '42703'
         || updateResult.error.code === 'PGRST204'
         || /grading_details/i.test(updateResult.error.message));
     if (missingDetailsColumn) {
-      delete allowed.grading_details;
-      console.warn('[assignment-grade] rubric storage migration is pending; preserving the rubric in the audit event', { submissionId: id });
-      updateResult = await runUpdate(allowed);
+      return NextResponse.json({
+        error: 'Detailed grading is temporarily unavailable while its safety update is completed. No grade was changed.',
+        code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+      }, { status: 503 });
     }
 
     const lifecycleColumnsPending = updateResult.error
@@ -254,14 +270,10 @@ export async function PATCH(
         || updateResult.error.code === 'PGRST204'
         || /status_changed_by|last_change_reason|version/i.test(updateResult.error.message));
     if (lifecycleColumnsPending) {
-      delete allowed.status_changed_by;
-      delete allowed.last_change_reason;
-      updateResult = await admin
-        .from('assignment_submissions')
-        .update(allowed)
-        .eq('id', id)
-        .select('id, grade, status, file_url, portal_user_id, weighted_score')
-        .maybeSingle();
+      return NextResponse.json({
+        error: 'Submission review is temporarily unavailable while its safety update is completed. No grade was changed.',
+        code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+      }, { status: 503 });
     }
 
     const { data, error } = updateResult;
@@ -305,9 +317,23 @@ export async function PATCH(
           admin.from('portal_users').select('email, full_name').eq('id', data.portal_user_id!).single(),
           admin.from('assignments').select('title, max_points').eq('id', sub.assignment_id).single(),
         ]);
-        if (!student?.email || !asgn) return;
+        if (!student || !asgn) return;
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
         const gradeVal = (data.grade ?? allowed.grade) as number | null;
+        await admin.from('notifications').insert({
+          user_id: data.portal_user_id,
+          title: transition.finalized ? 'Assignment graded' : 'Assignment review updated',
+          message: transition.finalized
+            ? `Your result for "${asgn.title || 'Assignment'}" is ready${gradeVal != null ? `: ${gradeVal}/${asgn.max_points ?? 100}` : ''}.`
+            : `Your teacher updated the review for "${asgn.title || 'Assignment'}".`,
+          type: transition.finalized ? 'success' : 'info',
+          is_read: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).then(({ error: notificationError }) => {
+          if (notificationError) console.error('[assignment-grade] in-app notification failed', notificationError.message);
+        });
+        if (!student.email) return;
         const html = buildRillcodTransactionalEmailHtml({
           title: 'Assignment Graded',
           bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>

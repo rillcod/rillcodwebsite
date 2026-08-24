@@ -167,7 +167,7 @@ export async function POST(
     if (submission_id) {
       const { data: targetSubmission, error: targetSubmissionError } = await admin
         .from('assignment_submissions')
-        .select('id, assignment_id')
+        .select('id, assignment_id, version')
         .eq('id', submission_id)
         .maybeSingle();
       if (targetSubmissionError) {
@@ -176,7 +176,10 @@ export async function POST(
       if (!targetSubmission || targetSubmission.assignment_id !== assignment_id) {
         return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
       }
-      return forwardToCanonicalSubmissionReview(request, body, String(submission_id));
+      return forwardToCanonicalSubmissionReview(request, {
+        ...body,
+        expected_version: body.expected_version ?? targetSubmission.version,
+      }, String(submission_id));
     }
 
     const assignWeight = assignment.weight ?? 0;

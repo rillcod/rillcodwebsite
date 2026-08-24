@@ -25,7 +25,7 @@ type Attempt = {
   percentage: number | null;
   submitted_at: string | null;
   tab_switches: number | null;
-  grading_version?: number | null;
+  grading_version: number;
   moderation_status?: 'unreviewed' | 'reviewed' | 'approved' | 'returned' | null;
   grading_change_reason?: string | null;
   answers: Record<string, unknown>;
@@ -86,7 +86,7 @@ export default function WrittenAttemptReviewPage() {
         body: JSON.stringify({
           scores: numericScores,
           feedback: feedback || null,
-          ...(typeof attempt?.grading_version === 'number' ? { expected_version: attempt.grading_version } : {}),
+          expected_version: attempt?.grading_version,
           moderation_status: moderationStatus,
           ...(changeReason.trim() ? { change_reason: changeReason.trim() } : {}),
         }),

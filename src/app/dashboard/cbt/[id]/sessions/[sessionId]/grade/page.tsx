@@ -25,6 +25,8 @@ export default function GradeSessionPage() {
     const [questions, setQuestions] = useState<any[]>([]);
     const [manualScores, setManualScores] = useState<Record<string, number | null>>({});
     const [gradingNotes, setGradingNotes] = useState('');
+    const [moderationStatus, setModerationStatus] = useState<'unreviewed' | 'reviewed' | 'approved' | 'returned'>('unreviewed');
+    const [changeReason, setChangeReason] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,8 @@ export default function GradeSessionPage() {
                 setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
                 setManualScores(sess?.manual_scores ?? {});
                 setGradingNotes(sess?.grading_notes ?? '');
+                setModerationStatus(sess?.moderation_status ?? 'unreviewed');
+                setChangeReason('');
             } catch (e: any) {
                 setError(e.message);
             } finally {
@@ -161,6 +165,11 @@ export default function GradeSessionPage() {
                 body: JSON.stringify({
                     manual_scores: grade.manualScores,
                     grading_notes: gradingNotes,
+                    moderation_status: moderationStatus,
+                    ...(changeReason.trim() ? { change_reason: changeReason.trim() } : {}),
+                    ...(typeof session.grading_version === 'number'
+                        ? { expected_version: session.grading_version }
+                        : {}),
                 }),
             });
             const savedPayload = await gradeRes.json();
@@ -489,6 +498,32 @@ export default function GradeSessionPage() {
                             rows={5}
                             className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-[2rem] text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
                         />
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <label className="block">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Review status (optional)</span>
+                                <select
+                                    value={moderationStatus}
+                                    onChange={(event) => setModerationStatus(event.target.value as typeof moderationStatus)}
+                                    className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="unreviewed">Normal teacher marking</option>
+                                    <option value="reviewed">Checked</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="returned">Changes requested</option>
+                                </select>
+                            </label>
+                            <label className="block">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Correction note (optional)</span>
+                                <input
+                                    value={changeReason}
+                                    onChange={(event) => setChangeReason(event.target.value)}
+                                    maxLength={500}
+                                    placeholder={session.score != null ? 'Why was this mark changed?' : 'Add context for the activity trail'}
+                                    className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Quality review is optional. Normal marking remains available, and every correction keeps its version and activity context.</p>
                         <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 w-fit">
                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                             <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold italic tracking-tighter">Student will view these remarks on their dashboard</p>

@@ -9,7 +9,9 @@ const classPage = readFileSync(join(ROOT, 'app/dashboard/classes/[id]/page.tsx')
 describe('class gradebook integrity', () => {
   it('uses the canonical submission route for existing academic evidence', () => {
     expect(classPage).toContain('/api/assignment-submissions/${sub.id}');
-    expect(classPage).toContain('JSON.stringify({ grade: numVal, feedback: sub.feedback || null })');
+    expect(classPage).toContain('grade: numVal');
+    expect(classPage).toContain('feedback: sub.feedback || null');
+    expect(classPage).toContain('expected_version: sub.version');
   });
 
   it('does not create an empty manual-score record when there is nothing to clear', () => {

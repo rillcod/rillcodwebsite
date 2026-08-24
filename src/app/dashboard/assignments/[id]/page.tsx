@@ -338,6 +338,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
             const payload: any = {
                 grade: grade === '' ? null : g,
                 feedback, status,
+                expected_version: sub.version,
             };
             if (hasRubricScores) payload.rubric_scores = rubricScores;
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {

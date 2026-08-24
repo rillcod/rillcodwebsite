@@ -15,7 +15,9 @@ describe('unified grading queue rubric workflow', () => {
 
   it('submits criterion evidence through the canonical grading adapter', () => {
     expect(queue).toContain('/api/grading/submissions/${id}');
-    expect(queue).toContain('JSON.stringify({ rubric_scores: scores, feedback: feedback[id] || null })');
+    expect(queue).toContain('rubric_scores: scores');
+    expect(queue).toContain('feedback: feedback[id] || null');
+    expect(queue).toContain('expected_version: submissions.find');
     expect(queue).toContain('Save Rubric & Next');
   });
 

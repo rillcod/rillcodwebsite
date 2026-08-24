@@ -34,11 +34,58 @@ describe('assignment submission mutation authority', () => {
     const gradeAliasRoute = read('src/app/api/assignments/[id]/grade/route.ts');
 
     expect(learnerRoute).toContain('hasProtectedAssignmentScoreEvidence(existingSub)');
+    expect(learnerRoute).toContain(".eq('version', existingSub.version)");
+    expect(learnerRoute).not.toContain('.upsert(upsertData');
     expect(gradingRoute).toContain('buildAssignmentGradeTransition');
     expect(gradingRoute).toContain('callerCanManageAssignmentWork');
     expect(gradeAliasRoute).toContain('forwardToCanonicalSubmissionReview');
     expect(gradeAliasRoute).toContain('submitted_at:    null');
     expect(gradeAliasRoute).toContain("source: 'staff_recorded_without_portal_submission'");
     expect(gradeAliasRoute).not.toContain('upsert(insertPayload');
+  });
+
+  it('fails closed on missing review-safety columns instead of silently dropping them', () => {
+    const gradingRoute = read('src/app/api/assignment-submissions/[id]/route.ts');
+    const writtenService = read('src/services/grading.service.ts');
+
+    expect(gradingRoute).toContain("code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED'");
+    expect(gradingRoute).not.toContain('delete allowed.status_changed_by');
+    expect(writtenService).toContain("{ code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED' }");
+    expect(writtenService).not.toContain('updateResult = await runUpdate(updateFields, null)');
+  });
+
+  it('does not let delayed automation overwrite a newer learner or teacher review', () => {
+    const learnerRoute = read('src/app/api/assignments/[id]/submit/route.ts');
+    const aiRoute = read('src/app/api/assignments/[id]/ai-grade/route.ts');
+
+    expect(learnerRoute).toContain(".eq('version', data.version)");
+    expect(learnerRoute).toContain(".is('grade', null)");
+    expect(learnerRoute).not.toContain("grade: null,\n              weighted_score: null");
+    expect(aiRoute).toContain(".eq('version', sub.version)");
+    expect(aiRoute).toContain('skipped_newer_review_preserved');
+  });
+
+  it('sends the loaded review version from every teacher grading surface', () => {
+    const canonical = read('src/app/api/assignment-submissions/[id]/route.ts');
+    const queue = read('src/app/dashboard/grading/page.tsx');
+    const assignment = read('src/app/dashboard/assignments/[id]/page.tsx');
+    const project = read('src/app/dashboard/projects/[id]/page.tsx');
+    const grades = read('src/app/dashboard/grades/page.tsx');
+    const klass = read('src/app/dashboard/classes/[id]/page.tsx');
+
+    expect(canonical).toContain("code: 'REVIEW_VERSION_REQUIRED'");
+    for (const surface of [queue, assignment, project, grades, klass]) {
+      expect(surface).toContain('expected_version');
+    }
+  });
+
+  it('enforces physical score ranges in the database without rewriting historical marks', () => {
+    const migration = read('supabase/migrations/20260929000110_harden_academic_score_writes.sql');
+
+    expect(migration).toContain('cbt_sessions_score_range');
+    expect(migration).toContain('exam_attempts_percentage_range');
+    expect(migration).toContain('validate_assignment_submission_grade_ceiling');
+    expect(migration).toContain('not valid');
+    expect(migration).not.toMatch(/update\s+public\.(cbt_sessions|assignment_submissions|exam_attempts)\s+set/i);
   });
 });

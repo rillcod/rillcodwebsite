@@ -331,7 +331,7 @@ export default function ClassDetailPage() {
 
         const subQueries: any[] = [];
         if (assignmentIds.length > 0) {
-          subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, user_id, grade, status').in('assignment_id', assignmentIds));
+          subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, user_id, grade, status, version').in('assignment_id', assignmentIds));
         }
         if (cbtIds.length > 0) {
           subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
@@ -2595,7 +2595,11 @@ export default function ClassDetailPage() {
                                               const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ grade: numVal, feedback: sub.feedback || null }),
+                                                body: JSON.stringify({
+                                                  grade: numVal,
+                                                  feedback: sub.feedback || null,
+                                                  expected_version: sub.version,
+                                                }),
                                               });
                                               if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
                                             } else {

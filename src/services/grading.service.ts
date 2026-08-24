@@ -149,9 +149,25 @@ export class GradingService {
             && (versionResult.error.code === '42703'
                 || versionResult.error.code === 'PGRST204'
                 || /grading_version|moderation_status/i.test(versionResult.error.message));
-        if (versionResult.error && !gradingColumnsPending) throw new AppError(versionResult.error.message, 500);
-        const previousVersion = gradingColumnsPending ? null : versionResult.data?.grading_version ?? 1;
-        if (options.expectedVersion !== undefined && previousVersion !== null && options.expectedVersion !== previousVersion) {
+        if (gradingColumnsPending) {
+            throw new AppError(
+                'Written-exam review is temporarily unavailable while its safety update is completed. No marks were changed.',
+                503,
+                true,
+                { code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED' },
+            );
+        }
+        if (versionResult.error) throw new AppError('The latest written-exam review could not be verified. Please retry.', 503);
+        const previousVersion = versionResult.data?.grading_version ?? 1;
+        if (options.expectedVersion === undefined) {
+            throw new AppError(
+                'Refresh this written exam before saving so the latest teacher review is protected.',
+                428,
+                true,
+                { code: 'REVIEW_VERSION_REQUIRED', current_version: previousVersion },
+            );
+        }
+        if (options.expectedVersion !== previousVersion) {
             throw new AppError('This written-exam review changed in another session. Refresh before saving.', 409, true, { code: 'STALE_ASSESSMENT_REVIEW' });
         }
 
@@ -192,25 +208,27 @@ export class GradingService {
                 grading_change_reason: changeReason,
                 ...(options.moderationStatus ? { moderation_status: options.moderationStatus } : {}),
         };
-        const runUpdate = async (payload: Record<string, unknown>, version: number | null): Promise<any> => {
+        const runUpdate = async (payload: Record<string, unknown>, version: number): Promise<any> => {
             let query: any = (supabase as any)
                 .from('exam_attempts')
                 .update(payload)
                 .eq('id', attemptId)
                 .in('status', ['submitted', 'graded']);
-            if (version !== null) query = query.eq('grading_version', version);
+            query = query.eq('grading_version', version);
             return query.select().maybeSingle();
         };
-        let updateResult: any = await runUpdate(updateFields, previousVersion);
+        const updateResult: any = await runUpdate(updateFields, previousVersion);
         const missingGradingColumns = updateResult.error
             && (updateResult.error.code === '42703'
                 || updateResult.error.code === 'PGRST204'
                 || /grading_changed_by|grading_change_reason|moderation_status|grading_version/i.test(updateResult.error.message));
         if (missingGradingColumns) {
-            delete updateFields.grading_changed_by;
-            delete updateFields.grading_change_reason;
-            delete updateFields.moderation_status;
-            updateResult = await runUpdate(updateFields, null);
+            throw new AppError(
+                'Written-exam review is temporarily unavailable while its safety update is completed. No marks were changed.',
+                503,
+                true,
+                { code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED' },
+            );
         }
         const { data: updated, error: updateError } = updateResult;
         if (updateError) throw new AppError(updateError.message, 500);

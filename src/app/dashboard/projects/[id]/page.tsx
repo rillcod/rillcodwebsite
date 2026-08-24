@@ -133,7 +133,11 @@ function ProjectGradeCanvas({ sub, activity, onClose, onSaved }: {
         }
         setSaving(true); setErr('');
         try {
-            const payload: Record<string, unknown> = { feedback, status: 'graded' };
+            const payload: Record<string, unknown> = {
+                feedback,
+                status: 'graded',
+                expected_version: sub.version,
+            };
             if (hasRubricScores) payload.rubric_scores = rubricScores;
             else payload.grade = g;
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {

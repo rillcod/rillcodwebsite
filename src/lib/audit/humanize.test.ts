@@ -91,3 +91,14 @@ describe('parent claim activity labels', () => {
     expect(humanizeAuditAction('parent_claim_code_delivery_failed')).toBe('Verification code delivery needs attention');
   });
 });
+
+describe('evaluation activity labels', () => {
+  it('uses professional labels for review and stale-automation outcomes', () => {
+    expect(humanizeAuditAction('grade_cbt_session')).toBe('Completed or corrected a CBT review');
+    expect(humanizeAuditAction('record_paper_cbt_scores')).toBe('Recorded school-paper marks');
+    expect(humanizeAuditAction('assignment_ai_suggestion_skipped_stale_review')).toBe(
+      'Kept a newer teacher review instead of applying an older AI draft',
+    );
+    expect(humanizeAuditAction('finalize_written_exam_grade')).toBe('Completed a written-exam review');
+  });
+});

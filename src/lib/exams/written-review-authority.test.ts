@@ -30,7 +30,8 @@ describe('written exam review authority', () => {
   });
 
   it('carries version and optional moderation context through the staff review screen', () => {
-    expect(reviewPage).toContain("{ expected_version: attempt.grading_version }");
+    expect(reviewPage).toContain('expected_version: attempt?.grading_version');
+    expect(service).toContain("{ code: 'REVIEW_VERSION_REQUIRED', current_version: previousVersion }");
     expect(reviewPage).toContain('moderation_status: moderationStatus');
     expect(reviewPage).toContain('Optional quality control; normal marking remains available.');
   });

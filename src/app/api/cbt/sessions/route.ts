@@ -183,14 +183,33 @@ async function recordPaperScores(
     (typeof metadata.target_class_id === 'string' ? metadata.target_class_id : null);
   const paperMax = hostMaxFromExam({ metadata }) ?? 100;
 
-  const parsed: Array<{ user_id: string; score: number; earned: number; max: number }> = [];
+  const parsed: Array<{
+    user_id: string;
+    score: number;
+    earned: number;
+    max: number;
+    expected_version: number | null;
+  }> = [];
   for (const row of rawScores) {
     const userId = typeof row?.user_id === 'string' ? row.user_id : '';
     const mark = parseHallMarkInput(row, paperMax);
     if (!userId || !mark) {
       return NextResponse.json({ error: `Each hall mark needs a student and marks out of ${paperMax}` }, { status: 400 });
     }
-    parsed.push({ user_id: userId, score: mark.percent, earned: mark.earned, max: mark.max });
+    const suppliedVersion = row?.expected_version;
+    const expectedVersion = suppliedVersion === undefined || suppliedVersion === null
+      ? null
+      : Number(suppliedVersion);
+    if (expectedVersion !== null && (!Number.isInteger(expectedVersion) || expectedVersion < 1)) {
+      return NextResponse.json({ error: 'Each existing mark needs a valid review version. Refresh the mark sheet and retry.' }, { status: 400 });
+    }
+    parsed.push({
+      user_id: userId,
+      score: mark.percent,
+      earned: mark.earned,
+      max: mark.max,
+      expected_version: expectedVersion,
+    });
   }
 
   const { data: students, error: studentErr } = await admin
@@ -214,18 +233,41 @@ async function recordPaperScores(
 
   const { data: existingRows, error: existingErr } = await admin
     .from('cbt_sessions')
-    .select('id, user_id, answers, status, score')
+    .select('id, user_id, answers, status, score, grading_version')
     .eq('exam_id', examId)
     .in('user_id', parsed.map((row) => row.user_id));
-  if (existingErr) return NextResponse.json({ error: existingErr.message }, { status: 500 });
+  if (existingErr?.code === '42703' || existingErr?.code === 'PGRST204') {
+    return NextResponse.json({
+      error: 'The mark sheet is temporarily read-only while its safety update is completed. No marks were changed.',
+      code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+    }, { status: 503 });
+  }
+  if (existingErr) return NextResponse.json({ error: 'Existing marks could not be verified. No marks were changed; please retry.' }, { status: 503 });
   const existingByUser = new Map((existingRows ?? []).map((row: any) => [row.user_id, row]));
 
   const skipped: Array<{ user_id: string; reason: string }> = [];
-  const saved: Array<{ user_id: string; score: number; status: string }> = [];
+  const failed: Array<{ user_id: string; reason: string }> = [];
+  const warnings: string[] = [];
+  const saved: Array<{ user_id: string; score: number; status: string; grading_version: number }> = [];
+  const changes: Array<{
+    user_id: string;
+    old_score: number | null;
+    new_score: number;
+    previous_version: number | null;
+    grading_version: number;
+  }> = [];
   for (const row of parsed) {
     const existing = existingByUser.get(row.user_id);
     if (!sessionAllowsPaperOverwrite(existing)) {
       skipped.push({ user_id: row.user_id, reason: 'A CBT sitting already exists for this paper' });
+      continue;
+    }
+    if (existing && row.expected_version === null) {
+      skipped.push({ user_id: row.user_id, reason: 'Refresh the mark sheet before changing this existing mark' });
+      continue;
+    }
+    if (existing && row.expected_version !== Number(existing.grading_version ?? 1)) {
+      skipped.push({ user_id: row.user_id, reason: 'This mark changed in another session; refresh before editing it' });
       continue;
     }
     const fields = paperCaptureSessionFields({
@@ -238,22 +280,62 @@ async function recordPaperScores(
     });
     if (existing) {
       const { exam_id: _examId, user_id: _userId, start_time: _start, ...updateFields } = fields;
+      const previousVersion = Number(existing.grading_version ?? 1);
       const { data, error } = await admin
         .from('cbt_sessions')
-        .update(updateFields)
+        .update({
+          ...updateFields,
+          grading_changed_by: caller.id,
+          grading_change_reason: existing.score == null
+            ? 'Teacher recorded a school-paper mark'
+            : 'Teacher corrected a school-paper mark',
+        })
         .eq('id', existing.id)
-        .select('user_id, score, status')
-        .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      saved.push({ user_id: data.user_id, score: data.score, status: data.status });
+        .eq('grading_version', previousVersion)
+        .select('user_id, score, status, grading_version')
+        .maybeSingle();
+      if (error) {
+        failed.push({ user_id: row.user_id, reason: 'This mark could not be saved; refresh and retry it' });
+        continue;
+      }
+      if (!data) {
+        skipped.push({ user_id: row.user_id, reason: 'This mark changed in another session; refresh before editing it' });
+        continue;
+      }
+      saved.push({ user_id: data.user_id, score: data.score, status: data.status, grading_version: data.grading_version });
+      changes.push({
+        user_id: row.user_id,
+        old_score: existing.score ?? null,
+        new_score: data.score,
+        previous_version: previousVersion,
+        grading_version: data.grading_version,
+      });
     } else {
       const { data, error } = await admin
         .from('cbt_sessions')
-        .insert(fields)
-        .select('user_id, score, status')
+        .insert({
+          ...fields,
+          grading_changed_by: caller.id,
+          grading_change_reason: 'Teacher recorded a school-paper mark',
+        })
+        .select('user_id, score, status, grading_version')
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      saved.push({ user_id: data.user_id, score: data.score, status: data.status });
+      if (error?.code === '23505') {
+        skipped.push({ user_id: row.user_id, reason: 'This mark was created in another session; refresh before editing it' });
+        continue;
+      }
+      if (error) {
+        failed.push({ user_id: row.user_id, reason: 'This mark could not be saved; refresh and retry it' });
+        continue;
+      }
+      saved.push({ user_id: data.user_id, score: data.score, status: data.status, grading_version: data.grading_version });
+      changes.push({
+        user_id: row.user_id,
+        old_score: null,
+        new_score: data.score,
+        previous_version: null,
+        grading_version: data.grading_version,
+      });
     }
   }
 
@@ -266,7 +348,7 @@ async function recordPaperScores(
       .from('cbt_exams')
       .update({ metadata: nextMetadata, updated_at: new Date().toISOString() })
       .eq('id', examId);
-    if (metaErr) return NextResponse.json({ error: metaErr.message }, { status: 500 });
+    if (metaErr) warnings.push('Marks were saved, but the paper total could not be refreshed. Reopen the sheet before the next entry.');
   }
 
   await logAudit(admin as any, {
@@ -278,17 +360,21 @@ async function recordPaperScores(
     newValues: {
       saved: saved.length,
       skipped: skipped.length,
+      failed: failed.length,
       exam_id: examId,
       host_max: nextMetadata?.host_max ?? hostMaxFromExam({ metadata }),
+      changes,
     },
   });
   return NextResponse.json({
     data: {
       saved,
       skipped,
+      failed,
+      warnings,
       host_max: nextMetadata?.host_max ?? hostMaxFromExam({ metadata }) ?? paperMax,
     },
-  });
+  }, { status: failed.length > 0 || warnings.length > 0 ? 207 : 200 });
 }
 
 // POST /api/cbt/sessions
@@ -352,7 +438,11 @@ export async function POST(request: NextRequest) {
 
     if (existing && FINAL_CBT_STATUSES.includes(existing.status as any)) {
       if (action === 'start') return NextResponse.json({ data: existing });
-      return NextResponse.json({ error: 'Exam already submitted' }, { status: 409 });
+      return NextResponse.json({
+        data: existing,
+        alreadyFinalized: true,
+        message: 'This exam was already submitted. Your first final submission remains recorded.',
+      });
     }
 
     if (examRow.end_date && new Date(examRow.end_date) < new Date()) {

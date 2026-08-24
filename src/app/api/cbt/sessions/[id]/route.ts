@@ -187,7 +187,7 @@ export async function PATCH(
     // Fetch session + its exam's school to enforce boundary
     const { data: session } = await admin
       .from('cbt_sessions')
-      .select('id, user_id, exam_id, answers, score, status, manual_scores, grading_notes, needs_grading, cbt_exams(school_id, created_by, class_id, passing_score, metadata)')
+      .select('id, user_id, exam_id, answers, score, status, manual_scores, grading_notes, needs_grading, cbt_exams(title, school_id, created_by, class_id, passing_score, metadata)')
       .eq('id', id)
       .maybeSingle();
 
@@ -202,22 +202,33 @@ export async function PATCH(
       && (versionResult.error.code === '42703'
         || versionResult.error.code === 'PGRST204'
         || /grading_version|moderation_status/i.test(versionResult.error.message));
-    if (versionResult.error && !gradingColumnsPending) {
+    if (gradingColumnsPending) {
+      return NextResponse.json({
+        error: 'Assessment review is temporarily unavailable while its safety update is completed. No marks were changed.',
+        code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+      }, { status: 503 });
+    }
+    if (versionResult.error) {
       return NextResponse.json({ error: 'The latest marking version could not be verified. Please retry.' }, { status: 503 });
     }
-    const currentVersion = gradingColumnsPending ? null : versionResult.data?.grading_version ?? 1;
-    if (body.expected_version !== undefined) {
-      const expectedVersion = Number(body.expected_version);
-      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
-        return NextResponse.json({ error: 'expected_version must be a positive integer' }, { status: 400 });
-      }
-      if (currentVersion !== null && expectedVersion !== currentVersion) {
-        return NextResponse.json({
-          error: 'This marking record changed in another session. Refresh before saving.',
-          code: 'STALE_ASSESSMENT_REVIEW',
-          current_version: currentVersion,
-        }, { status: 409 });
-      }
+    const currentVersion = versionResult.data?.grading_version ?? 1;
+    if (body.expected_version === undefined) {
+      return NextResponse.json({
+        error: 'Refresh this assessment before saving so the latest teacher review is protected.',
+        code: 'REVIEW_VERSION_REQUIRED',
+        current_version: currentVersion,
+      }, { status: 428 });
+    }
+    const expectedVersion = Number(body.expected_version);
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+      return NextResponse.json({ error: 'expected_version must be a positive integer' }, { status: 400 });
+    }
+    if (expectedVersion !== currentVersion) {
+      return NextResponse.json({
+        error: 'This marking record changed in another session. Refresh before saving.',
+        code: 'STALE_ASSESSMENT_REVIEW',
+        current_version: currentVersion,
+      }, { status: 409 });
     }
 
     if (caller.role === 'school' && (!caller.school_id || (session as any).cbt_exams?.school_id !== caller.school_id)) {
@@ -261,8 +272,24 @@ export async function PATCH(
       }
     }
 
+    if ('score' in body || 'status' in body || 'needs_grading' in body) {
+      return NextResponse.json({
+        error: 'The final score and result status are calculated from the saved answers and question marks. Edit the question marks instead.',
+        code: 'DERIVED_ASSESSMENT_RESULT',
+      }, { status: 400 });
+    }
+    const hasManualScores = Object.prototype.hasOwnProperty.call(body, 'manual_scores');
+    const hasGradingNotes = Object.prototype.hasOwnProperty.call(body, 'grading_notes');
+    const hasModeration = Object.prototype.hasOwnProperty.call(body, 'moderation_status');
+    if (!hasManualScores && !hasGradingNotes && !hasModeration) {
+      return NextResponse.json({ error: 'Add question marks, feedback, or a review decision before saving.' }, { status: 400 });
+    }
+
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('manual_scores' in body || 'score' in body || 'status' in body) {
+    if (hasManualScores) {
+      if (!body.manual_scores || typeof body.manual_scores !== 'object' || Array.isArray(body.manual_scores)) {
+        return NextResponse.json({ error: 'manual_scores must be an object keyed by question id' }, { status: 400 });
+      }
       const { data: questions, error: qErr } = await admin
         .from('cbt_questions')
         .select('id, question_type, options, correct_answer, points, metadata')
@@ -270,9 +297,7 @@ export async function PATCH(
         .order('order_index');
       if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
 
-      const rawManualScores = body.manual_scores && typeof body.manual_scores === 'object'
-        ? body.manual_scores as Record<string, unknown>
-        : {};
+      const rawManualScores = body.manual_scores as Record<string, unknown>;
       const answers = ((session as any).answers && typeof (session as any).answers === 'object')
         ? (session as any).answers as Record<string, unknown>
         : {};
@@ -288,7 +313,14 @@ export async function PATCH(
       allowed.needs_grading = gradeResult.needsGrading;
       allowed.manual_scores = gradeResult.manualScores;
     }
-    if ('grading_notes' in body) allowed.grading_notes = body.grading_notes;
+    if (hasGradingNotes) {
+      if (body.grading_notes !== null && typeof body.grading_notes !== 'string') {
+        return NextResponse.json({ error: 'grading_notes must be text or null' }, { status: 400 });
+      }
+      allowed.grading_notes = typeof body.grading_notes === 'string'
+        ? body.grading_notes.trim().slice(0, 5000) || null
+        : null;
+    }
     const moderationStatus = body.moderation_status;
     if (moderationStatus !== undefined) {
       if (!['unreviewed', 'reviewed', 'approved', 'returned'].includes(String(moderationStatus))) {
@@ -304,25 +336,23 @@ export async function PATCH(
     allowed.grading_change_reason = suppliedReason
       || ((session as any).score != null ? 'Teacher corrected the assessment marking' : 'Teacher completed the assessment marking');
 
-    const runUpdate = async (payload: Record<string, unknown>, version: number | null): Promise<any> => {
+    const runUpdate = async (payload: Record<string, unknown>, version: number): Promise<any> => {
       let query: any = admin.from('cbt_sessions').update(payload).eq('id', id);
-      if (version !== null) query = query.eq('grading_version', version);
+      query = query.eq('grading_version', version);
       return query
-        .select(version !== null
-          ? 'id, score, status, needs_grading, moderation_status, grading_version'
-          : 'id, score, status, needs_grading')
+        .select('id, score, status, needs_grading, moderation_status, grading_version')
         .maybeSingle();
     };
-    let updateResult: any = await runUpdate(allowed, currentVersion);
+    const updateResult: any = await runUpdate(allowed, currentVersion);
     const missingGradingColumns = updateResult.error
       && (updateResult.error.code === '42703'
         || updateResult.error.code === 'PGRST204'
         || /grading_changed_by|grading_change_reason|moderation_status|grading_version/i.test(updateResult.error.message));
     if (missingGradingColumns) {
-      delete allowed.grading_changed_by;
-      delete allowed.grading_change_reason;
-      delete allowed.moderation_status;
-      updateResult = await runUpdate(allowed, null);
+      return NextResponse.json({
+        error: 'Assessment review is temporarily unavailable while its safety update is completed. No marks were changed.',
+        code: 'ACADEMIC_REVIEW_SCHEMA_REQUIRED',
+      }, { status: 503 });
     }
     const { data, error } = updateResult;
 
@@ -359,6 +389,25 @@ export async function PATCH(
         grading_version: saved?.grading_version ?? null,
       },
     });
+    const resultChanged = hasManualScores && (
+      saved?.score !== (session as any).score
+      || saved?.status !== (session as any).status
+      || JSON.stringify(allowed.manual_scores ?? null) !== JSON.stringify((session as any).manual_scores ?? null)
+    );
+    if (resultChanged && saved?.needs_grading === false && (session as any).user_id) {
+      const examTitle = (session as any).cbt_exams?.title || 'Assessment';
+      await admin.from('notifications').insert({
+        user_id: (session as any).user_id,
+        title: 'Assessment result updated',
+        message: `Your reviewed result for "${examTitle}" is ready: ${saved.score ?? 0}%.`,
+        type: 'success',
+        is_read: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).then(({ error: notificationError }) => {
+        if (notificationError) console.error('[cbt-grade] in-app notification failed', notificationError.message);
+      });
+    }
     return NextResponse.json({ data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

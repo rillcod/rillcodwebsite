@@ -2909,3 +2909,84 @@ Verification and deployment boundary:
   changed. Migration 109 is local and not active in production;
 - no source assignment mark, CBT score, written answer/score, manual report, published report,
   database row, finance record or remote branch was changed.
+
+### 16.31 Evaluation write safety, retries and teacher-review concurrency — verified locally on 24 August 2026
+
+Confirmed integrity and workflow gaps:
+
+- assignment, CBT and written-exam review endpoints detected stale saves when a client supplied a
+  version, but the main assignment and CBT grading screens did not send that version. A teacher
+  could therefore leave an old review open and later save over a newer correction;
+- when review-version/moderation columns were missing, all three marking engines silently retried
+  without those columns. The mark could be saved without concurrency protection, correction reason
+  or moderation state, making schema drift look like success;
+- a CBT notes-only, moderation-only or client-supplied status request entered the score-recalculation
+  branch with an empty manual-score map. That could clear previously recorded per-question marks;
+- assignment auto-marking and AI suggestions perform work after the learner submission is stored.
+  Their delayed updates were not conditioned on the submission version. A teacher correction or a
+  newer resubmission arriving during generation could be overwritten, and recovery code explicitly
+  wrote null grade fields;
+- learner submission used an unconditional upsert. In a narrow race, a teacher could grade after the
+  preflight but before the upsert; the learner request could then change the review status underneath
+  the preserved score;
+- bulk school-paper entry intentionally allows corrections to paper-capture rows but did not carry
+  the teacher's loaded version. Another open mark sheet could be overwritten, the aggregate audit
+  omitted before/after learner changes, and a later per-row failure made an earlier partial save look
+  as though nothing had been stored;
+- retrying a completed CBT final submission returned **Exam already submitted** instead of the first
+  durable result. This turned a successful network retry into a false failure;
+- assignment grading notifications differed by entry surface: direct marks created in-app and email
+  notices, while the canonical submission review could send email only and skipped learners without
+  an email address. Several evaluation audit actions also fell back to technical labels.
+
+Implemented one fail-closed, evidence-preserving write path:
+
+- every internal assignment grading surface now loads and submits `version`: unified Grading,
+  Assignment detail, Project review, Grades, Class gradebook and the legacy grade adapter. The
+  canonical route requires it and returns a professional refresh response (`428` missing, `409`
+  stale). It no longer strips lifecycle or rubric-evidence fields when the schema is behind;
+- learner assignment save now uses version-conditioned update for an existing row and insert-only
+  creation for a new row. It also requires `grade IS NULL`, so a concurrent teacher mark is kept and
+  the learner receives an explicit refresh message. Duplicate insert races converge on the same
+  non-destructive response;
+- auto-marking, mixed-response routing, AI suggestions and their recovery paths all match the row ID,
+  loaded version, null grade and eligible status. No recovery path writes `grade=null` or
+  `weighted_score=null`. A newer teacher/learner review wins; automation records and returns a plain
+  message explaining that it was left untouched. AI suggestions are finite and clamped to the
+  assignment maximum before storage;
+- CBT review rejects browser-supplied totals/status because these are server-derived. It recalculates
+  only when `manual_scores` is explicitly present, validates notes, requires the loaded
+  `grading_version`, and never falls back to an unversioned update. Notes or optional moderation can
+  therefore be saved without clearing question marks;
+- the CBT review screen now carries its version, exposes optional **Normal / Checked / Approved /
+  Changes requested** quality control and an optional human correction note. Completed or corrected
+  manual results create an in-app learner notification;
+- school-paper rows carry their loaded grading version. Existing paper corrections use compare-and-
+  save, online CBT sittings remain protected, new-row races are skipped safely, and each audit event
+  includes bounded learner-level old score, new score and version context. Partial outcomes return
+  saved/skipped/failed counts and the mark sheet reloads with a clear retry instruction;
+- repeated CBT final-submit requests are idempotent: the server returns the first saved result and
+  explains that it remains authoritative;
+- written-exam marking now fails closed on schema drift and requires a loaded review version before
+  any answers, scores, feedback or moderation state can change;
+- migration `20260929000110_harden_academic_score_writes.sql` adds future-write constraints for CBT
+  0–100 percentages, object-shaped manual marks, non-negative assignment/written scores and written
+  0–100 percentages. A database trigger enforces each assignment's configured maximum on insert and
+  update. Constraints are `NOT VALID`: new/changed rows are protected without scanning, coercing or
+  rewriting historical learner evidence;
+- activity labels now describe assignment automation preservation/failure, CBT review/paper entry,
+  timed finalization and written-exam review in plain language.
+
+Verification and deployment boundary:
+
+- the expanded focused regression set passed: 10 files and 43 tests covering assignment, project,
+  class gradebook, unified queue, CBT calculation/finalization/paper capture, written review and the
+  central result calculator;
+- the full repository `npm run test` gate completed successfully. The full `npm run typecheck`
+  passed, all changed runtime/UI files passed targeted ESLint with no output, and `git diff --check`
+  passed;
+- a linked Supabase `db push --dry-run --include-all` completed successfully through the existing
+  authenticated project link and did not apply SQL. Migration 110 remains local/pending with the
+  previously recorded 103–109 set;
+- no production database write, learner submission, answer, score, feedback, moderation decision,
+  report, finance record or remote branch was changed in this milestone.
