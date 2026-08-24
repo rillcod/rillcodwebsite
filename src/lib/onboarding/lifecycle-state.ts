@@ -49,7 +49,18 @@ export function deriveFamilyLifecycle(input: FamilyLifecycleInput): FamilyLifecy
   const finance = (input.unpaidInvoiceCount ?? 0) > 0 ? 'action_available' : 'clear';
 
   let nextAction: FamilyLifecycleAction;
-  if (!consentAvailable) {
+  // Current placement is the first operational dependency. Optional forms and
+  // finance must never distract from a learner who needs the school to restore
+  // an active class/enrolment context.
+  if (input.enrollmentActive === false) {
+    nextAction = {
+      kind: 'contact_school',
+      label: 'Confirm current enrolment',
+      description: 'The learner remains linked, but the school should confirm the current class placement.',
+      href: '/dashboard/support',
+      owner: 'school',
+    };
+  } else if (!consentAvailable) {
     nextAction = {
       kind: 'retry',
       label: 'Refresh form status',
@@ -65,13 +76,13 @@ export function deriveFamilyLifecycle(input: FamilyLifecycleInput): FamilyLifecy
       href: input.consentFormUrl,
       owner: 'parent',
     };
-  } else if (input.enrollmentActive === false) {
+  } else if (consent === 'action_available') {
     nextAction = {
-      kind: 'contact_school',
-      label: 'Confirm current enrolment',
-      description: 'The learner remains linked, but the school should confirm the current class placement.',
-      href: '/dashboard/support',
-      owner: 'school',
+      kind: 'retry',
+      label: 'Refresh school forms',
+      description: 'A school form is available, but its safe link could not be prepared. Your reports and portal remain available.',
+      href: '/dashboard/my-children',
+      owner: 'system',
     };
   } else if (finance === 'action_available') {
     nextAction = {

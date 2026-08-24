@@ -621,8 +621,10 @@ export async function GET(
 
   // Consent lookup is an ENRICHMENT, not a gate on the result itself. If it fails for any
   // reason (schema drift, transient DB error) we must still surface the published result —
-  // never 500 the whole scan. Degrade to "no consent form required" on error.
+  // never 500 the whole scan. Preserve report access and return an explicit
+  // availability flag so the customer sees a recoverable form-status notice.
   let consent: Awaited<ReturnType<typeof getResultConsentAccessStatus>>;
+  let consentStatusAvailable = true;
   try {
     consent = await getResultConsentAccessStatus(db, {
       studentUserId: student.id,
@@ -630,10 +632,21 @@ export async function GET(
       classId: student.class_id,
       enrollmentType: student.enrollment_type,
     });
-    await backfillParentLinkFromConsent(db, student.id, consent);
   } catch (consentErr) {
+    consentStatusAvailable = false;
     console.warn('[result-check] consent enrichment failed (non-fatal):', consentErr);
     consent = { required: false, complete: true, form: null, formUrl: null, matchedLeadId: null };
+  }
+
+  // Link repair is a background convenience, not part of the form-status read.
+  // If it fails, preserve the status we already established and the published
+  // report rather than turning a write failure into a false "status unavailable".
+  if (consentStatusAvailable) {
+    try {
+      await backfillParentLinkFromConsent(db, student.id, consent);
+    } catch (linkError) {
+      console.warn('[result-check] consent parent-link repair failed (non-fatal):', linkError);
+    }
   }
 
   const [{ data: reports, error }, { data: orgSettings }] = await Promise.all([
@@ -711,6 +724,7 @@ export async function GET(
     needsParentSetup,
     consentPending: consent.required && !consent.complete,
     consentComplete: consent.required && consent.complete,
+    consentStatusAvailable,
     parentCaptured,
     sessionAutoLinked,
     // Never expose linked-parent emails/login shortcuts to anonymous code holders.

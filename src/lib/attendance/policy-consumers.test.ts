@@ -33,4 +33,11 @@ describe('one attendance policy across product surfaces', () => {
     expect(source).toContain('RILLCOD <span>TECHNOLOGIES</span>');
     expect(source).not.toContain('RILLCOD <span>ACADEMY</span>');
   });
+
+  it('does not render unmeasured parent attendance as a failing zero', () => {
+    const source = readFileSync(join(process.cwd(), 'src/app/dashboard/my-children/page.tsx'), 'utf8');
+    expect(source).toContain('s.attendancePct == null');
+    expect(source).toContain('Not measured');
+    expect(source).not.toContain('value={s.attendancePct ?? 0}');
+  });
 });

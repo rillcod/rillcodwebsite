@@ -92,12 +92,19 @@ const COLOR_MAP: Record<string, string> = {
 
 export default function MyChildrenPage() {
   const { profile } = useAuth();
+  const profileId = profile?.id;
+  const profileRole = profile?.role;
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [statsMap, setStatsMap] = useState<Record<string, ChildStats>>({});
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [activityLimit, setActivityLimit] = useState(25);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
+  const [consentError, setConsentError] = useState('');
+  const [consentAccessUnaffected, setConsentAccessUnaffected] = useState(false);
+  const [activityError, setActivityError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [pendingConsent, setPendingConsent] = useState<Array<{
     studentUserId: string;
     childName: string;
@@ -109,18 +116,38 @@ export default function MyChildrenPage() {
   }>>([]);
 
   useEffect(() => {
-    if (!profile || profile.role !== 'parent') return;
+    if (!profileId || profileRole !== 'parent') return;
+    setConsentError('');
+    setConsentAccessUnaffected(false);
     fetch('/api/parents/pending-consent')
-      .then(res => res.ok ? res.json() : { pending: [] })
+      .then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const error = new Error(data.error || 'School forms could not be checked.') as Error & { accessUnaffected?: boolean };
+          error.accessUnaffected = data.accessUnaffected === true;
+          throw error;
+        }
+        return data;
+      })
       .then(data => setPendingConsent(data.pending ?? []))
-      .catch(() => setPendingConsent([]));
-  }, [profile]);
+      .catch(error => {
+        console.error('Failed to load optional school forms:', error);
+        setConsentError(error instanceof Error ? error.message : 'School forms could not be checked.');
+        setConsentAccessUnaffected(!(error instanceof Error) || (error as Error & { accessUnaffected?: boolean }).accessUnaffected !== false);
+      });
+  }, [profileId, profileRole, refreshKey]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profileId || profileRole !== 'parent') return;
     setLoading(true);
+    setSummaryError('');
+    setActivityError('');
     fetch('/api/parents/portal?section=summary')
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Your linked learners could not be loaded.');
+        return data;
+      })
       .then(async data => {
         const list = (data.children ?? []) as (Child & { stats: ChildStats })[];
         setChildren(list);
@@ -139,9 +166,17 @@ export default function MyChildrenPage() {
             const activityResults = await Promise.all(
               list.map(c =>
                 fetch(`/api/parents/portal?section=activity&child_id=${c.id}`)
-                  .then(r => r.json())
+                  .then(async r => {
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok) throw new Error(data.error || `Recent activity for ${c.full_name} could not be loaded.`);
+                    return data;
+                  })
                   .then(d => (d.events ?? []).map((e: ActivityEvent) => ({ ...e, childName: c.full_name })))
-                  .catch(() => [])
+                  .catch(error => {
+                    console.error('Failed to load learner activity:', error);
+                    setActivityError('Some recent activity could not be refreshed. Learner records and reports remain available.');
+                    return [];
+                  })
               )
             );
             const allEvents: ActivityEvent[] = activityResults.flat();
@@ -156,9 +191,10 @@ export default function MyChildrenPage() {
       })
       .catch(err => {
         console.error('Failed to load summary:', err);
+        setSummaryError(err instanceof Error ? err.message : 'Your linked learners could not be loaded.');
         setLoading(false);
       });
-  }, [profile]);
+  }, [profileId, profileRole, refreshKey]);
 
   if (profile?.role !== 'parent') {
     return (
@@ -170,6 +206,34 @@ export default function MyChildrenPage() {
 
   return (
     <div className="space-y-6">
+      {summaryError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-rose-700 dark:text-rose-300">{summaryError}</p>
+          <button
+            type="button"
+            onClick={() => setRefreshKey(key => key + 1)}
+            className="min-h-11 shrink-0 rounded-lg bg-primary px-4 py-2 text-xs font-black text-primary-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      ) : null}
+
+      {consentError ? (
+        <div role="status" className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {consentError}{consentAccessUnaffected ? ' Reports and portal access are unaffected.' : ''}
+          </p>
+          <button
+            type="button"
+            onClick={() => setRefreshKey(key => key + 1)}
+            className="min-h-11 shrink-0 rounded-lg border border-border px-4 py-2 text-xs font-black"
+          >
+            Refresh forms
+          </button>
+        </div>
+      ) : null}
+
       {/* Welcome hero */}
       <div className="relative bg-card border border-border overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent pointer-events-none" />
@@ -256,7 +320,7 @@ export default function MyChildrenPage() {
         </div>
       )}
 
-      {!loading && children.length === 0 && (
+      {!loading && !summaryError && children.length === 0 && (
         <div className="bg-card border border-border p-8 sm:p-12 text-center">
           <AcademicCapIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No children linked</p>
@@ -363,14 +427,22 @@ export default function MyChildrenPage() {
                   <div className="border-t border-border p-4 space-y-4 mobile-page-root">
                     {/* Radial rings row */}
                     <div className="flex items-center justify-around">
-                      <RadialRing
-                        value={s.attendancePct ?? 0}
-                        max={100}
-                        size={72}
-                        strokeWidth={7}
-                        color={s.attendancePct != null && s.attendancePct >= 70 ? CHART_COLORS.emerald : CHART_COLORS.rose}
-                        label="Attendance"
-                      />
+                      {s.attendancePct == null ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-[7px] border-border text-sm font-black text-muted-foreground">—</div>
+                          <p className="text-xs font-black text-foreground">Attendance</p>
+                          <p className="text-[10px] text-muted-foreground">Not measured</p>
+                        </div>
+                      ) : (
+                        <RadialRing
+                          value={s.attendancePct}
+                          max={100}
+                          size={72}
+                          strokeWidth={7}
+                          color={s.attendancePct >= 70 ? CHART_COLORS.emerald : CHART_COLORS.rose}
+                          label="Attendance"
+                        />
+                      )}
                       <RadialRing
                         value={
                           s.lastGrade?.startsWith('A') ? 90 :
@@ -447,6 +519,12 @@ export default function MyChildrenPage() {
             </div>
             {activityLoading && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
           </div>
+
+          {activityError ? (
+            <p role="status" className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-3 text-xs text-muted-foreground">
+              {activityError}
+            </p>
+          ) : null}
 
           {!activityLoading && activityEvents.length === 0 && (
             <div className="p-10 text-center">

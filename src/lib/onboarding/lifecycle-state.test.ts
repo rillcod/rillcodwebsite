@@ -47,4 +47,30 @@ describe('family onboarding lifecycle', () => {
 
     expect(state.nextAction.kind).toBe('view_overview');
   });
+
+  it('puts inactive enrolment ahead of optional forms and finance', () => {
+    const state = deriveFamilyLifecycle({
+      childId: 'student-1',
+      enrollmentActive: false,
+      consentRequired: true,
+      consentComplete: false,
+      consentFormUrl: '/consent/CF-1234-5678',
+      unpaidInvoiceCount: 1,
+    });
+
+    expect(state.access).toBe('available');
+    expect(state.nextAction).toMatchObject({ kind: 'contact_school', owner: 'school' });
+  });
+
+  it('exposes a missing form link as recoverable without blocking records', () => {
+    const state = deriveFamilyLifecycle({
+      childId: 'student-1',
+      consentRequired: true,
+      consentComplete: false,
+      consentFormUrl: null,
+    });
+
+    expect(state.access).toBe('available');
+    expect(state.nextAction).toMatchObject({ kind: 'retry', owner: 'system' });
+  });
 });

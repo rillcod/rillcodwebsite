@@ -52,6 +52,7 @@ type QuickCheckResponse = {
   needsParentSetup?: boolean;
   pendingMessage?: string;
   consentPending?: boolean;
+  consentStatusAvailable?: boolean;
   parentCaptured?: boolean;
   sessionAutoLinked?: boolean;
   staffBypass?: boolean;
@@ -496,6 +497,15 @@ export default function ResultQuickCheckPage() {
               >
                 Open {data.form?.title || 'school form'} →
               </a>
+            </div>
+          )}
+
+          {data.consentStatusAvailable === false && (
+            <div role="status" className="flex items-start gap-3 rounded-[1.25rem] border border-amber-500/25 bg-amber-500/10 p-4">
+              <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs text-muted-foreground">
+                Optional school forms could not be refreshed. Your verified report access is unaffected; try again later from the parent portal.
+              </p>
             </div>
           )}
 

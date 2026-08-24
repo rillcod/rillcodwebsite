@@ -839,7 +839,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-013 | P1 | Locally remediated; deployment and interruption proof pending | The tracked generator now inventories the exact plan/week/session, reuses existing content, repairs only missing or safely stale generated items, preserves teacher-customized work, and declines a concurrent duplicate run | Apply migration 103, deploy, then prove interrupted-run recovery and browser discovery against production-like data |
 | SYS-014 | P1 | Locally walked | Persist no longer wipes programme on remount. Walked as admin: Write class→programme→course→start and refresh restore; Autofill after account load listed 58 classes, Abundant Grace Teen Dev offered only Python, four learners, Fill from class work, no score writes | Production deploy |
 | SYS-015 | P1 | Locally remediated; learner publication E2E pending | The weekly preparation and approval flow treats lesson, slides, practice cards, assignment, and project as one package; completeness is visible and partial sharing is an explicit teacher choice | Prove teacher approval and learner visibility for all five content kinds in role E2E |
-| SYS-016 | P1 | At risk | Consent/claim/registration/finance gates can conflict | Central lifecycle state-machine and multi-entry E2E tests |
+| SYS-016 | P1 | Locally remediated; fresh-browser and provider proof pending | One lifecycle now orders enrolment, optional forms, finance attention and record access; parent routes share one active-account gate, optional-form failures remain visible without becoming report locks, and query failures no longer appear as empty families | Deploy, then exercise QR, typed reference, claim, direct signature, registration, assessment, finance and report return from fresh mobile browsers; prove provider delivery and migration 92 on a disposable database |
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |
 | SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | Locally remediated; migration/deployment proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented locally | Apply migration 112, deploy, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
@@ -3161,3 +3161,64 @@ Verification and deployment boundary:
   new lease table/functions, without applying any SQL;
 - migration 112 remains local/pending. No scheduled job was invoked, no message was sent, no finance
   or academic record changed, no live database row was written and no remote branch was changed.
+
+### 16.35 Central family entrance, consent recovery and honest parent states — verified locally on 24 August 2026
+
+Confirmed gaps after re-tracing the already-linked parent journey:
+
+- the parent portal and pending-form endpoint independently decided whether the caller was an active
+  parent. The main portal did not explicitly reject `is_deleted`, so the two entrances could disagree;
+- failed parent-link, learner-profile or form-status queries in the pending-form endpoint were
+  discarded and returned as an empty list. The parent could be told there was nothing to do when the
+  system had not actually established that fact;
+- the **My children** page treated failed summary, form and activity responses as empty data. A main
+  summary failure could therefore render the false statement **No children linked**, with no recovery
+  action, while a partial activity failure looked like genuine inactivity;
+- the lifecycle gave an optional form/status check priority over an inactive current enrolment. It
+  could also fall through to finance when a required form existed but its safe URL could not be
+  prepared;
+- a non-fatal consent-enrichment failure on public result check correctly preserved the published
+  report but was only logged internally. The customer received no explanation;
+- unmeasured attendance still appeared on the family learner card as a red `0`, contradicting the
+  central attendance policy even though the family average already excluded that missing evidence.
+
+Implemented one recoverable entrance contract:
+
+- `src/lib/parents/access.ts` is now the canonical signed-in parent gate for both portal endpoints. It
+  verifies the request session, resolves exactly that auth user's profile, and distinguishes sign-in,
+  temporary verification, wrong-role and inactive/deleted-account outcomes. Both consumers use the
+  same verified parent identity for downstream ownership checks;
+- child-link, learner-profile and consent-status query errors are inspected. A successful response is
+  explicitly marked available; a form-only outage returns a customer-safe retry state and states that
+  record access is unaffected rather than inventing an empty worklist;
+- the family lifecycle now puts inactive class/enrolment context first, then recoverable form status,
+  optional form completion, finance attention and finally the learner overview. Optional forms and
+  unpaid invoices remain actions, not hidden locks. A missing safe form URL is owned by the system and
+  cannot silently disappear behind finance;
+- **My children** checks every response, suppresses the false empty-family state on failure, exposes
+  retry controls, and distinguishes a partial activity refresh from missing records. The optional-form
+  notice only claims access is unaffected when the server marks that failure non-blocking;
+- public result check carries `consentStatusAvailable` from the server and displays a calm, nonblocking
+  notice when optional form status could not be refreshed. Verified published-report access remains
+  available;
+- null attendance renders **Not measured** and no failing colour. A genuine recorded 0% remains a
+  genuine measured result.
+
+Regression and database-contract evidence:
+
+- the focused suite passed 8 files and 55 tests covering the canonical parent gate, lifecycle order,
+  multi-entry parent-link invariants, consent pathway/scoping, public-result degradation, visible UI
+  recovery and attendance presentation;
+- `npm run typecheck` passed; targeted ESLint completed with zero errors; `git diff --check` passed;
+- the read-only live-schema refusal check evaluated 1,737 distinct application queries and the live
+  database accepted all of them. This includes the parent profile, link, learner, consent and report
+  selections changed or protected here;
+- no database migration was needed for this increment. It preserved parent links, responses, consent
+  evidence, reports, invoices, learner scores and every other persisted record. No live database write,
+  provider delivery or remote push was performed.
+
+Remaining production proof is deliberately not called complete: deploy these local commits, apply and
+test the earlier child-scoped consent migration through the controlled process, then exercise QR, typed
+reference, claim, portal signature, registration, assessment, finance attention, sign-out/sign-in and
+published-report return from clean mobile browsers. Real email/WhatsApp acceptance and handset delivery
+also require provider receipts; local tests cannot prove them.

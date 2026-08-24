@@ -9,6 +9,7 @@ import { fetchAllReportRows } from '@/lib/school-reports/paginated-query';
 import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
 import { deriveFamilyLifecycle } from '@/lib/onboarding/lifecycle-state';
 import { countsAsAttended, isExcluded, measuredAttendancePercentage } from '@/lib/attendance/policy';
+import { requireActiveParent } from '@/lib/parents/access';
 
 function assertQueryResults(results: Array<{ error?: { message?: string } | null }>, label: string) {
   const failed = results.find(result => result.error);
@@ -22,31 +23,6 @@ async function liveEvidenceSessionPayload() {
   return evidenceSessionPayload();
 }
 
-// ── Auth guard: must be an active parent ─────────────────────────────────────
-async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized', status: 401 as const };
-
-  const { data: profile, error: profileError } = await supabase
-    .from('portal_users')
-    .select('id, role, email, full_name, is_active')
-    .eq('id', user.id)
-    .single();
-
-  if (profileError) {
-    console.error('[parents/portal] parent profile verification failed:', profileError);
-    return { error: 'Unable to verify the parent account right now. Please try again.', status: 503 as const };
-  }
-
-  if (!profile || profile.role !== 'parent') {
-    return { error: 'Forbidden: parent accounts only', status: 403 as const };
-  }
-  if (profile.is_active === false) {
-    return { error: 'Account deactivated. Contact your school admin.', status: 403 as const };
-  }
-  return { profile };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/parents/portal
 // Query params:
@@ -58,11 +34,11 @@ async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>)
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
-    const guard = await requireParent(supabase);
-    if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
+    const admin: any = createAdminClient();
+    const guard = await requireActiveParent(supabase, admin);
+    if (!guard.ok) return NextResponse.json({ error: guard.error, code: guard.code }, { status: guard.status });
 
     const { profile } = guard;
-    const admin: any = createAdminClient();
     const url = new URL(req.url);
     const section = url.searchParams.get('section') ?? 'children';
     const childId = url.searchParams.get('child_id') ?? '';
