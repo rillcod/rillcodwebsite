@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withApiProxy } from '@/lib/api-wrapper';
 import { hasHuggingFaceKey, huggingFaceTranscribe } from '@/lib/ai/huggingface';
+import { CF_WHISPER_MODEL, cloudflareTranscribe, hasCloudflareAi } from '@/lib/ai/cloudflare-ai';
 
 
 async function postHandler(req: NextRequest) {
@@ -9,7 +10,7 @@ async function postHandler(req: NextRequest) {
     // The old guard checked HUGGINGFACE_API_KEY and then spent the OpenRouter
     // one, which meant it 503-ed with an HF key absent and ran on to a broken
     // call with an HF key present but no OpenRouter key.
-    if (!process.env.OPENROUTER_API_KEY && !hasHuggingFaceKey()) {
+    if (!process.env.OPENROUTER_API_KEY && !hasHuggingFaceKey() && !hasCloudflareAi()) {
       return NextResponse.json({ error: 'Speech-to-text is not configured.' }, { status: 503 });
     }
 
@@ -28,27 +29,42 @@ async function postHandler(req: NextRequest) {
 
     const audioBuffer = await file.arrayBuffer();
 
-    // Real Whisper first. The OpenRouter path below base64s the clip into an
-    // `image_url` field and asks a text model to "transcribe this audio" — it
-    // works by accident of multimodal tolerance, not because it is the right
-    // call. huggingFaceTranscribe returns null rather than throwing, so an HF
-    // outage falls through to that path instead of failing the request.
-    const whisperText = await huggingFaceTranscribe(
-      audioBuffer,
-      file.type || 'audio/mpeg',
-    );
+    // Real Whisper first, cheapest provider first. The OpenRouter path at the
+    // bottom base64s the clip into an `image_url` field and asks a text model to
+    // "transcribe this audio" — it works by accident of multimodal tolerance,
+    // not because it is the right call.
+    //
+    // Cloudflare leads because Whisper there runs on the free daily Neuron
+    // allocation, where Hugging Face bills per second of audio. Each helper
+    // returns null rather than throwing, so an outage moves down the list
+    // instead of failing the request.
+    const providers: Array<{ name: string; model: string; run: () => Promise<string | null> }> = [
+      {
+        name: 'cloudflare',
+        model: CF_WHISPER_MODEL,
+        run: () => cloudflareTranscribe(audioBuffer),
+      },
+      {
+        name: 'huggingface',
+        model: 'openai/whisper-large-v3',
+        run: () => huggingFaceTranscribe(audioBuffer, file.type || 'audio/mpeg'),
+      },
+    ];
 
-    if (whisperText) {
-      return NextResponse.json({
-        text: whisperText,
-        data: {
-          transcript: whisperText,
-          filename: file.name,
-          fileSizeKb: Math.round(file.size / 1024),
-          model: 'openai/whisper-large-v3',
-          provider: 'huggingface',
-        },
-      });
+    for (const provider of providers) {
+      const transcript = await provider.run();
+      if (transcript) {
+        return NextResponse.json({
+          text: transcript,
+          data: {
+            transcript,
+            filename: file.name,
+            fileSizeKb: Math.round(file.size / 1024),
+            model: provider.model,
+            provider: provider.name,
+          },
+        });
+      }
     }
 
     if (!process.env.OPENROUTER_API_KEY) {

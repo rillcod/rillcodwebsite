@@ -47,6 +47,13 @@ const CONTAINER_ENV_KEYS = [
   "GEMINI_API_KEY_5",
   "GEMINI_API_KEYS",
   "HUGGINGFACE_API_KEY",
+  // Workers AI is called over its REST API rather than a Worker binding,
+  // because the Next app runs in the container and bindings live on the Worker.
+  // Both must be forwarded or the free image and Whisper tiers are silently
+  // absent in production while working perfectly in local dev — the same shape
+  // of failure the Gemini keys above had.
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN",
   "LIVEKIT_API_KEY",
   "LIVEKIT_API_SECRET",
   "R2_SECRET_ACCESS_KEY",

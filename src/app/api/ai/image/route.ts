@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { geminiGenerateImage } from '@/lib/gemini/client';
+import { cloudflareGenerateImage } from '@/lib/ai/cloudflare-ai';
 import { withApiProxy } from '@/lib/api-wrapper';
 
 /**
@@ -44,8 +45,26 @@ async function postHandler(req: NextRequest) {
             });
         }
 
-        // ── 2. Fallback: Pollinations.ai (always free, no key) ───────────────
-        console.warn('[AI Image] Gemini unavailable — falling back to Pollinations.ai');
+        // ── 2. Cloudflare Workers AI — FLUX.1 Schnell ────────────────────────
+        // Free on the daily Neuron allocation (~2,000 small images), on the
+        // account this site already deploys from, and unwatermarked. It sits
+        // above Pollinations because Pollinations' anonymous tier is capped at
+        // one request every 15 seconds and its free output can be watermarked —
+        // acceptable as a last resort, not as the normal path for lesson art.
+        const cloudflareResult = await cloudflareGenerateImage(enrichedPrompt);
+
+        if (cloudflareResult) {
+            const dataUrl = `data:${cloudflareResult.mimeType};base64,${cloudflareResult.base64}`;
+            return NextResponse.json({
+                url: dataUrl,
+                data: { url: dataUrl, prompt: finalPrompt },
+                model: cloudflareResult.model,
+                source: 'cloudflare',
+            });
+        }
+
+        // ── 3. Fallback: Pollinations.ai (always free, no key) ───────────────
+        console.warn('[AI Image] Gemini and Cloudflare unavailable — falling back to Pollinations.ai');
         const encoded = encodeURIComponent(enrichedPrompt);
         const pollinationsUrl = `https://image.pollinations.ai/prompt/${encoded}?nologo=true&width=1024&height=1024&model=flux&seed=${Math.floor(Math.random() * 99999)}`;
 
