@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { classifyMessageSafety } from './message-safety';
 
 type SenderRole = 'student' | 'parent' | 'teacher' | 'admin' | 'school';
 type Channel = 'whatsapp_direct' | 'inapp_direct' | 'broadcast' | 'group';
@@ -173,6 +174,47 @@ export async function evaluateAndTrackMessage(input: EvaluateInput): Promise<Eva
         metadata: { keyword: hit },
       });
       return { allowed: false, reason: 'Message blocked by safety policy' };
+    }
+  }
+
+  // Semantic pass, after the keyword list and only for the roles it governs.
+  //
+  // The keyword check above is exact: it catches the configured words and
+  // nothing rephrased. This reads meaning, so it nets stated harm the list
+  // would miss. It runs second because it costs a model call and up to four
+  // seconds, where a keyword hit is free and instant.
+  //
+  // It fails open by construction (see message-safety.ts). A classifier being
+  // slow must never be why a parent cannot reach the school.
+  if (input.senderRole === 'student' || input.senderRole === 'parent') {
+    const verdict = await classifyMessageSafety(input.message);
+
+    if (!verdict.skipped && verdict.action !== 'allow') {
+      const codes = verdict.categories.map((c) => c.code).join(',') || 'unknown';
+
+      await logAbuseEvent({
+        senderId: input.senderId,
+        senderRole: input.senderRole,
+        channel: input.channel,
+        // Distinct event types so a safeguarding lead can tell "we stopped this"
+        // from "this went through and needs a person now".
+        eventType: verdict.action === 'block' ? 'blocked_classifier' : 'escalated_classifier',
+        reason: `classifier:${codes}`,
+        targetConversationId: input.targetConversationId,
+        metadata: {
+          categories: verdict.categories,
+          action: verdict.action,
+          model: 'llama-guard-3-8b',
+        },
+      });
+
+      if (verdict.action === 'block') {
+        return { allowed: false, reason: 'Message blocked by safety policy' };
+      }
+
+      // Escalate: deliver it and flag it. A child writing that they want to
+      // hurt themselves most needs an adult to see it — refusing to send is the
+      // worst outcome available, so this path deliberately falls through.
     }
   }
 

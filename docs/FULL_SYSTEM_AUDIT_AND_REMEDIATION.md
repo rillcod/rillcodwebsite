@@ -3332,7 +3332,7 @@ Verification and honest boundary:
   migration history. `src/types/supabase.ts` was regenerated directly from that live schema;
 - the schema-drift audit checked 1,741 distinct application queries and the live database accepted
   every one;
-- seven focused communication/configuration files passed 28 tests covering lifecycle monotonicity,
+- seven focused communication/configuration files passed 30 tests covering lifecycle monotonicity,
   migration privileges and indexes, provider ownership, WhatsApp retries/queue behavior, central
   templates and platform section ownership. The write-constraint audit also accepted every literal
   write against all 117 constrained tables;
@@ -3340,4 +3340,6 @@ Verification and honest boundary:
   deleted or rewritten. The migration adds correlation and operational evidence;
 - real delivery is not claimed from local evidence. Cloudflare must deploy the application code, and
   production Resend/Meta webhooks, secrets, provider approval/credit and handset receipt behavior must
-  be exercised and monitored before provider delivery is called proven end to end.
+  be exercised and monitored before provider delivery is called proven end to end. The local server
+  reached Next.js ready state, but the in-app browser's URL safety policy refused transition from its
+  earlier connection-error page; no visual browser pass is claimed for this milestone.
