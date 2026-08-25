@@ -1,9 +1,9 @@
 # Rillcod Full-System Audit and Remediation Register
 
-Last evidence capture: 22 August 2026  
+Last evidence capture: 25 August 2026  
 Production platform: Cloudflare Containers  
 Application stack: Next.js App Router, Supabase, Paystack, LiveKit, R2, Capacitor  
-Repository baseline reviewed: `main` at `3f823f87`, plus the explicitly listed uncommitted work below
+Repository baseline reviewed: `main` at `1004d148` (live), plus the message-safety work recorded in §16.39
 
 ## 1. Purpose and rules
 
@@ -54,6 +54,44 @@ The main remaining risks are:
    cross-domain automation are not yet comprehensively certified end to end.
 8. Several “complete” documents are historical and can create false confidence. This register
    supersedes status claims in those documents.
+
+### 2.1 Current operator snapshot — 25 August 2026
+
+Live site: `https://www.rillcod.com` on Cloudflare Containers. Teaching-week, teacher-door,
+anon-table, billing-link and read-aloud work is on `main` at `1004d148` (§16.38). Message
+safety is on `main` at `281129c5` (§16.39). The live database has migrations through
+`20260929000118`.
+
+This is what a person using the product should expect **now**, without calling the whole
+system finished.
+
+**Already live for learners, teachers, families, and the public**
+
+- A learner sees **this class’s current week**, not the whole course catalogue.
+- A teacher marks work on the **gradebook** (`/dashboard/grades`) and results on
+  `/dashboard/academic/results`. Opening the curriculum writer or the Academic Office grading
+  queue by URL is denied.
+- A logged-out visitor cannot read money or people tables. Public pages may still list
+  **approved schools** and **Rillcod receiving accounts** so registration and pay still work.
+- Family pay-reminder links are signed with a **dedicated billing secret**, not the cron
+  password. Older links still verify until 8 September 2026.
+- Email and WhatsApp share **one delivery ledger**. Office owns templates. Real
+  Resend/Meta “this phone got it” proof is still outstanding (SYS-020).
+- A lesson can be **read aloud** (free voice, cached, keyboard reachable).
+
+**Still open on purpose, or not yet proven**
+
+- Origin/CSRF protection is **observe-only**. It is not blocking bad requests yet (SYS-004).
+- Dashboard HTML can still soft-pass a mobile refresh race so a phone reload does not bounce
+  a signed-in user. That is a recovery choice, not a claim that session recovery is certified.
+- Logged-in database policies still include some `USING (true)` rows. The visitor (`anon`)
+  grants were locked; authenticated tenancy is a separate remaining job.
+- Admin still has many grading and results doors. Only the **teacher** path was narrowed.
+- Accessibility sweep, PDF parity, external error monitoring, and full role journeys in a
+  real browser are not closed.
+
+**Honest one-line state:** the school product is in production and the recent teaching,
+door, money-link, and public-table locks are on; it is not yet the “solid” bar in §10.
 
 ## 3. Evidence captured
 
@@ -113,7 +151,7 @@ Required resolution:
 ## 4. Complete application inventory
 
 The codebase currently contains **229 pages**: **180 dashboard pages** and **49 public pages**,
-plus **531 API route files** and **145 database migrations**.
+plus **531 API route files** and **173 database migrations** (through `20260929000118`).
 
 ### 4.1 All public page routes
 
@@ -597,6 +635,11 @@ Remaining production proof:
 - Confirm Resend and Meta webhook subscriptions/secrets in production, exercise real accepted,
   delivered, read, failed and out-of-order callbacks, and alert when receipts or dead-letter recovery
   stop moving. Application code cannot manufacture a provider receipt that the provider never sends.
+- Learner and parent messages now pass the existing keyword list and then a semantic classifier
+  (Llama Guard 3). That is a second net for stated harm, not a grooming detector. Self-harm is
+  delivered and escalated; violence is blocked; a slow or missing model fails open so a parent
+  can still reach the school (SYS-044). Production proof is a canary that those two outcomes
+  still happen on the live Worker AI token.
 
 Required completion:
 
@@ -705,7 +748,7 @@ Required completion:
 
 ### 6.18 Database, data integrity, retention, and deletion — **Schema compatibility verified; semantic audit incomplete**
 
-There are 145 migrations and 175 hard-delete call sites.
+There are 173 migrations and 175 hard-delete call sites.
 
 Required completion:
 
@@ -876,7 +919,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |
 | SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | Database lease applied; application deployment and operational proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented. Migration 112 is live | Deploy the application code, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
-| SYS-020 | P1 | Delivery authority implemented; production provider proof pending | Email and WhatsApp now share a correlated delivery record and append-only event history with provider IDs, attempts, timestamps, monotonic callback reconciliation, atomic WhatsApp enqueue, idempotent retries and recoverable dead letters. Broadcast surfaces only claim a recorded send. The Office delivery page exposes both channels and recovery state | Verify real Resend/Meta webhook subscriptions and secrets, then pass accepted/delivered/read/failed/out-of-order callback and alerting canaries in production |
+| SYS-020 | P1 | On production `main` (`1004d148`); provider receipt proof pending | Email and WhatsApp now share a correlated delivery record and append-only event history with provider IDs, attempts, timestamps, monotonic callback reconciliation, atomic WhatsApp enqueue, idempotent retries and recoverable dead letters. Broadcast surfaces only claim a recorded send. The Office delivery page exposes both channels and recovery state. Live migration 118 is applied | Verify real Resend/Meta webhook subscriptions and secrets, then pass accepted/delivered/read/failed/out-of-order callback and alerting canaries in production |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
 | SYS-023 | P2 | **Withdrawn — false positive** | “EducationAcross” is a `textContent` artifact of a real `<br />` in `src/components/landing/About.tsx`; the rendered copy is correct | None. Re-verified 23 August 2026. A scan reading `textContent` must not treat a `<br>` join as a copy defect |
@@ -900,6 +943,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-041 | P1 | Verified locally; deployment pending | Duplicate `UserRole` type omitted `parent` in `src/types/auth.ts` | Deploy and keep exhaustive role tests green |
 | SYS-042 | P1 | Verified locally | Vitest excluded `.test.tsx`; report-card PDF renderer guard never ran | TSX collection remains enabled and full CI reports 333 files including the guard |
 | SYS-043 | P1 | At risk | Dashboard middleware performs a role database read on each matched navigation | Measured latency budget and invalidation-safe role authorization with revoked/changed-role tests |
+| SYS-044 | P1 | Locally implemented on the existing abuse gate; production canary pending | After the keyword list, learner and parent messages are classified with Llama Guard 3. Violence/criminal categories block. Self-harm (S11) and child-exploitation (S4) escalate and still deliver. The check fails open. It is not a grooming detector | Live canary: a violent message is refused, a self-harm message is delivered and logged as `escalated_classifier`, and an unconfigured/slow model still lets a parent message through |
 
 ## 8. Mandatory journey certification matrix
 
@@ -982,20 +1026,23 @@ The product may be called solid only when:
 Until those proofs exist, the honest state is **strong foundation with documented high-priority
 gaps**, not “everything complete.”
 
+The 22 August executive list above is still the bar. It is not a claim that none of those
+areas have moved. What has shipped since then is recorded in §16 and summarised in §2.1.
+
 ## 11. Protected current worktree
 
-The audit observed uncommitted changes in report/result authority files, report tests, the
-Cloudflare gateway, a generated service worker, Supabase CLI temp metadata, and an untracked
-image. They are not deleted, reset, or bundled into this document. Before any future commit:
+The 22 August uncommitted report/result, gateway, and service-worker files named in the first
+draft of this section are **historical**: they have since been committed on `main`. Do not
+treat that list as current dirty files.
 
-- review and stage exact intended files only;
-- never stage temporary Supabase metadata or an unexplained image automatically;
-- confirm whether the generated service worker belongs to the release;
-- preserve the report tests and protected-score behaviour;
-- run the required type and test gates.
+As of 25 August 2026, do not stage:
 
-This section records preservation boundaries only; it is not evidence that the uncommitted
-implementation has been deployed.
+- `.env`, `.env.local`, or any secret;
+- `IMG-20260820-WA0000.jpg` or other unexplained media sitting in the repo root;
+- `.next/` or Supabase CLI temp metadata.
+
+Before any future commit: stage only the intended product files, preserve protected-score
+behaviour, and run the required type and test gates.
 
 ## 12. Capability truth table: present, incomplete, absent, or unverified
 
@@ -1500,6 +1547,9 @@ The roster and configuration are secondary; they should not dominate the first s
 **Must never happen**
 
 - teacher reaches platform admin, user management, cross-school logs, or platform operations;
+- teacher reaches the curriculum writer (`/dashboard/academic/build`) or the Academic Office
+  grading queue (`/dashboard/grading`); they mark on `/dashboard/grades` and results on
+  `/dashboard/academic/results`;
 - teacher sees or changes work outside assignment/scope;
 - AI publishes or writes a score without review;
 - “failed to fetch” loses generated content;
@@ -3343,3 +3393,63 @@ Verification and honest boundary:
   be exercised and monitored before provider delivery is called proven end to end. The local server
   reached Next.js ready state, but the in-app browser's URL safety policy refused transition from its
   earlier connection-error page; no visual browser pass is claimed for this milestone.
+
+### 16.38 Learner class week, teacher doors, public-table lock, billing-link split, read-aloud — on production `main` 25 August 2026
+
+These were the leftovers from the 25 August close-the-doors work. They are **on
+`origin/main` at `1004d148`**, not sitting in a dirty worktree.
+
+Confirmed product behaviour in that commit:
+
+- Learners load **this class’s live week** through `loadLearnerClassWeek` in
+  `src/lib/learning/lesson-plan-scope.ts`. Learning Center, the student dashboard, and the
+  lesson player reuse that helper. They do not get a second “class-week package” module.
+- Teachers are denied `/dashboard/academic/build` (curriculum writer) and `/dashboard/grading`
+  (Academic Office tray). Home, class, and mark-work tiles go to `/dashboard/grades`. Admin
+  still owns the queue. Route tests in `route-access`, `school-scope`, and
+  `teacher-workspace-ux` cover the door.
+- Migration `20260929000117_lock_anon_out_of_remaining_tables.sql` revokes leftover `anon`
+  `GRANT ALL` on remaining public tables, then re-grants `SELECT` only on `schools` and
+  `payment_accounts`. Applied to live project `akaorqukdoawacvxsdij`. Authenticated
+  `USING (true)` policies were not rewritten in this pass.
+- `BILLING_LINK_SECRET` and `BILLING_LINK_LEGACY_UNTIL` are forwarded by the container gateway
+  and `scripts/sync-cloudflare-env.mjs`. New public pay links throw if the dedicated secret is
+  missing. The Worker secret was set on `rillcodwebsite`; legacy cron-signed links verify until
+  8 September 2026. Secret values are not recorded here.
+- Lessons can be read aloud: free Cloudflare voice, cached once, keyboard reachable
+  (`ReadAloud`, `/api/ai/tts`).
+
+Honest boundary:
+
+- Production containers consume this code only after CI green and the Cloudflare deploy for
+  `1004d148`. Database 00117/00118 are already live. Teacher URL denial and read-aloud are
+  application code; they are not proven by SQL alone.
+- Origin guard stays observe/opt-in. Dashboard HTML soft-pass on a mobile refresh race remains.
+- GitHub may still show a blocked leftover Vercel check and a container image-scan failure.
+  Those are CI noise, not a second host. Vercel must not be reintroduced.
+
+### 16.39 Semantic message-safety net on the existing abuse gate — on `main` 25 August 2026 (`281129c5`)
+
+Confirmed gap:
+
+- `evaluateAndTrackMessage` only matched a configured keyword list. That is exact, and exact
+  is its limit: rephrased harm missed the list. A second product-level “safety engine” was
+  not added; the existing gate is the authority.
+
+Implemented:
+
+- `src/lib/communication/message-safety.ts` classifies learner and parent text with Llama
+  Guard 3 after the keyword pass. Callers are unchanged: inbox, messages, parent/student
+  threads, and class broadcast already go through `abusePolicy`.
+- Violence and criminal categories **block**. Self-harm (S11) and child-exploitation (S4)
+  **escalate and still deliver**, because refusing those messages hides the child from adults.
+  The classifier **fails open** if Cloudflare AI is missing, slow, or unreadable.
+- This is **not a grooming detector**. Secrecy and isolation prompts rated safe on the live
+  model before it was wired. The keyword list, reporting routes, and people remain
+  load-bearing.
+
+Verification and honest boundary:
+
+- Focused tests in `message-safety.test.ts` cover parse shape, S11 escalate vs S1 block,
+  fail-open, and the grooming non-claim.
+- No visual browser pass is claimed for this item. Production proof is SYS-044.
