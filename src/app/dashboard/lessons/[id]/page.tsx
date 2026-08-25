@@ -54,6 +54,7 @@ import Script from "next/script";
 import { motion, AnimatePresence } from "framer-motion";
 import Markdown from "react-markdown";
 import AIMarkdown from "@/components/ai/AIMarkdown";
+import ReadAloud from "@/components/ai/ReadAloud";
 import remarkGfm from "remark-gfm";
 import IntegratedCodeRunner from "@/components/studio/IntegratedCodeRunner";
 import MobileScrollStrip from "@/components/mobile/MobileScrollStrip";
@@ -3093,11 +3094,38 @@ function CanvaRenderer({
           case "text":
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="relative py-2 pl-4 border-l-2 border-border hover:border-primary/30 transition-colors duration-300 selection:bg-cyan-500/30">
+                <div className="group relative py-2 pl-4 border-l-2 border-border hover:border-primary/30 transition-colors duration-300 selection:bg-cyan-500/30">
                   <BlockMarkdown
                     content={block.content || ""}
                     className="text-sm sm:text-base font-medium break-words"
                   />
+                  {/*
+                    Read-aloud sits under each passage rather than one control
+                    for the whole lesson: a learner who lost the thread wants
+                    this paragraph again, not the page from the top.
+
+                    Only rendered for passages long enough to be worth hearing —
+                    a one-line caption with a Listen button beside it is noise,
+                    and each distinct passage is a separate generation the first
+                    time it is played.
+                  */}
+                  {/*
+                    Always visible, never hover-revealed. Most of these learners
+                    are on phones, where there is no hover at all — hiding the
+                    one control that makes a lesson audible behind a mouse
+                    gesture would put it out of reach of exactly the people it
+                    exists for.
+                  */}
+                  {(block.content || "").trim().length > 120 && (
+                    <div className="mt-2">
+                      <ReadAloud
+                        text={block.content || ""}
+                        voice="lesson"
+                        describes={`section ${i + 1} of this lesson`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      />
+                    </div>
+                  )}
                 </div>
               </AnimatedBlock>
             );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useOfficeOptional } from './OfficeContext';
 
@@ -65,6 +65,9 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
   const [saving, setSaving] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | Template['status']>('all');
+  const [preview, setPreview] = useState<{ subject?: string | null; body?: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +103,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Template action failed.');
       setMessage(payload.action === 'test' ? 'Template test passed.' : 'Template saved successfully.');
+      if (payload.action === 'test') setPreview(json.rendered ?? null);
       await load();
       notify?.('settings');
       return true;
@@ -130,7 +134,18 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       body: latest?.body || '',
       changeNote: '',
     });
+    setPreview(null);
   }
+
+  const visibleTemplates = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return templates.filter((template) => {
+      if (statusFilter !== 'all' && template.status !== statusFilter) return false;
+      if (!query) return true;
+      return `${template.name} ${template.template_key} ${template.description ?? ''} ${template.category} ${template.channel}`
+        .toLowerCase().includes(query);
+    });
+  }, [templates, search, statusFilter]);
 
   return (
     <div className="space-y-6">
@@ -172,6 +187,19 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       {message ? (
         <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">{message}</p>
       ) : null}
+      {preview ? (
+        <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5" aria-live="polite">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-black">Rendered test preview</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Sample values replaced every declared variable. Review the human-facing wording before approval.</p>
+            </div>
+            <button type="button" onClick={() => setPreview(null)} className="min-h-10 text-xs font-black text-muted-foreground">Close</button>
+          </div>
+          {preview.subject ? <p className="mt-4 rounded-xl bg-background p-3 text-sm font-black">{preview.subject}</p> : null}
+          <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-background p-4 font-sans text-sm leading-relaxed text-foreground">{preview.body}</pre>
+        </section>
+      ) : null}
 
       <section className={`rounded-2xl border p-5 ${pendingRecovery ? 'border-rose-500/30 bg-rose-500/5' : 'border-border bg-card'}`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -208,7 +236,6 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {!form.templateId ? (
-            <>
               <label className="space-y-1">
                 <span className="text-xs font-bold">Template key</span>
                 <input
@@ -218,23 +245,21 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                   className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
                 />
               </label>
-              <label className="space-y-1">
-                <span className="text-xs font-bold">Name</span>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
-                />
-              </label>
-            </>
           ) : null}
+          <label className="space-y-1">
+            <span className="text-xs font-bold">Name</span>
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
+            />
+          </label>
           <label className="space-y-1">
             <span className="text-xs font-bold">Category</span>
             <input
               value={form.category}
-              disabled={!!form.templateId}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm disabled:opacity-60"
+              className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
             />
           </label>
           <label className="space-y-1">
@@ -251,16 +276,14 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
               <option value="sms">SMS</option>
             </select>
           </label>
-          {!form.templateId ? (
-            <label className="space-y-1 md:col-span-2">
+          <label className="space-y-1 md:col-span-2">
               <span className="text-xs font-bold">Description</span>
               <input
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm"
               />
-            </label>
-          ) : null}
+          </label>
           <label className="space-y-1 md:col-span-2">
             <span className="text-xs font-bold">Subject</span>
             <input
@@ -299,14 +322,35 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       </section>
 
       <section className="space-y-3">
-        <div>
-          <h2 className="font-black">Registered templates</h2>
-          <p className="text-xs text-muted-foreground">Only a tested version can become the approved current version.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-black">Registered templates</h2>
+            <p className="text-xs text-muted-foreground">Only a tested version can become the approved current version.</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-[minmax(14rem,1fr)_auto]">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              aria-label="Search message templates"
+              placeholder="Search name, key or channel"
+              className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm"
+            />
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+              className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm"
+            >
+              <option value="all">All states</option>
+              <option value="draft">Draft</option>
+              <option value="approved">Approved</option>
+              <option value="retired">Retired</option>
+            </select>
+          </div>
         </div>
         {loading ? (
           <p className="rounded-2xl border border-border bg-card p-8 text-sm text-muted-foreground">Loading templates...</p>
         ) : (
-          templates.map((template) => {
+          visibleTemplates.map((template) => {
             const latest = template.versions[0];
             return (
               <article key={template.id} className="rounded-2xl border border-border bg-card p-5">
@@ -393,7 +437,16 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                       >
                         Retire
                       </button>
-                    ) : null}
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={saving === template.id}
+                        onClick={() => void request({ action: 'restore', templateId: template.id }, template.id)}
+                        className="min-h-11 touch-manipulation rounded-lg border border-emerald-500/30 px-3 py-2 text-xs font-black text-emerald-700 dark:text-emerald-400 disabled:opacity-50"
+                      >
+                        Restore
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4 overflow-x-auto">
@@ -437,6 +490,9 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
             );
           })
         )}
+        {!loading && visibleTemplates.length === 0 ? (
+          <p className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">No templates match these filters.</p>
+        ) : null}
       </section>
     </div>
   );

@@ -16,6 +16,7 @@ import { sendWhatsAppDetailed } from './send';
 
 function mockAdminClient(inserted: Array<{ table: string; row: any }>) {
   createAdminClientMock.mockReturnValue({
+    rpc: vi.fn(async () => ({ data: [{ delivery_id: 'communication_delivery_log-1', current_status: 'sent', event_inserted: true }], error: null })),
     from: vi.fn((table: string) => {
       const query: any = {
         insert: vi.fn((row: any) => {
@@ -69,7 +70,7 @@ describe('sendWhatsAppDetailed persistence ownership', () => {
     });
 
     await Promise.resolve();
-    expect(result).toMatchObject({ success: true, messageId: 'wamid.test', deliveryLogId: 'communication_delivery_log-1' });
+    expect(result).toMatchObject({ success: true, messageId: 'wamid.test', deliveryLogId: 'communication_delivery_log-1', ledgerRecorded: true });
     expect(inserted.some((row) => row.table === 'whatsapp_messages')).toBe(false);
     expect(inserted.some((row) => row.table === 'whatsapp_conversations')).toBe(false);
   });

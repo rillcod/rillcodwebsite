@@ -2497,8 +2497,8 @@ export default function ClassDetailPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
-                    <Link href={`/dashboard/grading?class_id=${id}${cls?.term_id ? `&term_id=${cls.term_id}` : ''}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
-                      Grading Queue →
+                    <Link href={`/dashboard/grades?class_id=${id}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
+                      Mark work →
                     </Link>
                     <Link href={learnerReportHref('write', { classId: id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
                       Write scores →

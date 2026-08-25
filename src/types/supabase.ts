@@ -4741,8 +4741,62 @@ export type Database = {
           },
         ]
       }
+      communication_delivery_events: {
+        Row: {
+          channel: string
+          delivery_id: string | null
+          error: string | null
+          event_key: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          provider: string | null
+          provider_message_id: string | null
+          provider_status: string | null
+          received_at: string
+          status: string
+        }
+        Insert: {
+          channel: string
+          delivery_id?: string | null
+          error?: string | null
+          event_key: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_status?: string | null
+          received_at?: string
+          status: string
+        }
+        Update: {
+          channel?: string
+          delivery_id?: string | null
+          error?: string | null
+          event_key?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_status?: string | null
+          received_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_delivery_events_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "communication_delivery_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communication_delivery_log: {
         Row: {
+          attempt_count: number
           automated: boolean
           campaign_key: string | null
           case_event_id: string | null
@@ -4753,17 +4807,27 @@ export type Database = {
           error: string | null
           failed_at: string | null
           id: string
+          idempotency_key: string | null
+          last_event_at: string | null
           metadata: Json
+          outbox_id: string | null
           provider: string | null
+          provider_accepted_at: string | null
           provider_message_id: string | null
+          queued_at: string | null
           read_at: string | null
           recipient: string | null
+          recipient_user_id: string | null
+          school_id: string | null
           sent_at: string | null
+          source_id: string | null
+          source_type: string | null
           status: string
           template_key: string | null
           updated_at: string
         }
         Insert: {
+          attempt_count?: number
           automated?: boolean
           campaign_key?: string | null
           case_event_id?: string | null
@@ -4774,17 +4838,27 @@ export type Database = {
           error?: string | null
           failed_at?: string | null
           id?: string
+          idempotency_key?: string | null
+          last_event_at?: string | null
           metadata?: Json
+          outbox_id?: string | null
           provider?: string | null
+          provider_accepted_at?: string | null
           provider_message_id?: string | null
+          queued_at?: string | null
           read_at?: string | null
           recipient?: string | null
+          recipient_user_id?: string | null
+          school_id?: string | null
           sent_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?: string
           template_key?: string | null
           updated_at?: string
         }
         Update: {
+          attempt_count?: number
           automated?: boolean
           campaign_key?: string | null
           case_event_id?: string | null
@@ -4795,12 +4869,21 @@ export type Database = {
           error?: string | null
           failed_at?: string | null
           id?: string
+          idempotency_key?: string | null
+          last_event_at?: string | null
           metadata?: Json
+          outbox_id?: string | null
           provider?: string | null
+          provider_accepted_at?: string | null
           provider_message_id?: string | null
+          queued_at?: string | null
           read_at?: string | null
           recipient?: string | null
+          recipient_user_id?: string | null
+          school_id?: string | null
           sent_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?: string
           template_key?: string | null
           updated_at?: string
@@ -4818,6 +4901,48 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "communication_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_delivery_log_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_outbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_delivery_log_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "academic_enrollment_pathway_issues"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "communication_delivery_log_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_people_mv"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_delivery_log_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_delivery_log_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "communication_delivery_log_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -20317,6 +20442,7 @@ export type Database = {
           class_id: string | null
           created_at: string
           created_by: string | null
+          delivery_log_id: string | null
           id: string
           idempotency_key: string | null
           last_error: string | null
@@ -20341,6 +20467,7 @@ export type Database = {
           class_id?: string | null
           created_at?: string
           created_by?: string | null
+          delivery_log_id?: string | null
           id?: string
           idempotency_key?: string | null
           last_error?: string | null
@@ -20365,6 +20492,7 @@ export type Database = {
           class_id?: string | null
           created_at?: string
           created_by?: string | null
+          delivery_log_id?: string | null
           id?: string
           idempotency_key?: string | null
           last_error?: string | null
@@ -20419,6 +20547,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbox_delivery_log_id_fkey"
+            columns: ["delivery_log_id"]
+            isOneToOne: false
+            referencedRelation: "communication_delivery_log"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "whatsapp_outbox_recipient_user_id_fkey"
@@ -20767,6 +20902,7 @@ export type Database = {
           class_id: string | null
           created_at: string
           created_by: string | null
+          delivery_log_id: string | null
           id: string
           idempotency_key: string | null
           last_error: string | null
@@ -20958,6 +21094,26 @@ export type Database = {
       discard_withdrawn_partnership_agreements: {
         Args: { p_school_id: string }
         Returns: Json
+      }
+      enqueue_whatsapp_delivery: {
+        Args: {
+          p_class_id: string
+          p_created_by: string
+          p_idempotency_key: string
+          p_message_body: string
+          p_phone: string
+          p_recipient_user_id: string
+          p_school_id: string
+          p_source_id: string
+          p_source_type: string
+          p_template_language: string
+          p_template_name: string
+          p_template_variables: Json
+        }
+        Returns: {
+          delivery_id: string
+          outbox_id: string
+        }[]
       }
       ensure_class_academic_pathway: {
         Args: {
@@ -21314,6 +21470,25 @@ export type Database = {
         }
         Returns: Json
       }
+      record_communication_delivery_event: {
+        Args: {
+          p_channel: string
+          p_delivery_id: string
+          p_error?: string
+          p_event_key: string
+          p_metadata?: Json
+          p_occurred_at?: string
+          p_provider?: string
+          p_provider_message_id?: string
+          p_provider_status?: string
+          p_status: string
+        }
+        Returns: {
+          current_status: string
+          delivery_id: string
+          event_inserted: boolean
+        }[]
+      }
       refresh_accountability_cache: { Args: never; Returns: string }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       release_cron_job_run: {
@@ -21402,6 +21577,13 @@ export type Database = {
           p_term_start_date: string
         }
         Returns: Json
+      }
+      update_platform_configuration: {
+        Args: { p_actor_id: string; p_changes: Json }
+        Returns: {
+          setting_key: string
+          updated_at: string
+        }[]
       }
       upsert_enrollment_term_grade: {
         Args: {

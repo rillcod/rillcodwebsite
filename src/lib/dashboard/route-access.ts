@@ -348,6 +348,9 @@ const TEACHER_DENIED_PREFIXES: string[] = [
   "/dashboard/academic/build",
   "/dashboard/academic/rollout",
   "/dashboard/academic/pathways",
+  // The grading queue is the Academic Office tray. Teachers mark on the
+  // gradebook, then results — they do not inherit the operator queue.
+  "/dashboard/grading",
 ];
 
 /**
@@ -363,7 +366,6 @@ const TEACHER_ALLOWED_PREFIXES: string[] = [
   "/dashboard/timetable",
   "/dashboard/attendance",
   "/dashboard/live-sessions",
-  "/dashboard/grading",
   "/dashboard/grades",
   "/dashboard/students",
   "/dashboard/parents",

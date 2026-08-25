@@ -552,7 +552,7 @@ export default function DashboardNavigation() {
             icon: ClipboardDocumentListIcon,
           },
           {
-            name: "Email & Messaging",
+            name: "Communication Delivery",
             href: "/dashboard/email-log",
             icon: EnvelopeIcon,
           },

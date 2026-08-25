@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'node:crypto';
 import { recordDeadLetter } from '@/lib/operations/dead-letter';
+import { recordCommunicationDeliveryEvent, type CommunicationDeliveryStatus } from '@/lib/communication/delivery-ledger';
 import { canSendWhatsAppApiTo, getWhatsAppCloudApiMode, isWhatsAppCloudApiApproved, WHATSAPP_APPROVAL_PENDING_MESSAGE, WHATSAPP_REVIEW_RECIPIENT_MESSAGE } from './approval';
 
 export function normalisePhone(raw: string): string {
@@ -25,6 +27,14 @@ export type WhatsAppSendInput = {
   caseEventId?: string | null;
   automated?: boolean;
   metadata?: Record<string, unknown>;
+  recipientUserId?: string | null;
+  schoolId?: string | null;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  idempotencyKey?: string | null;
+  deliveryLogId?: string | null;
+  outboxId?: string | null;
+  attemptNumber?: number;
 };
 
 export type WhatsAppSendResult = {
@@ -35,6 +45,7 @@ export type WhatsAppSendResult = {
   errorCode?: number;
   retryable: boolean;
   deliveryLogId?: string | null;
+  ledgerRecorded?: boolean;
 };
 
 function config() {
@@ -55,43 +66,79 @@ function deliveryStatusForResult(result: WhatsAppSendResult): 'sent' | 'failed' 
 async function recordWhatsAppDeliveryAttempt(
   input: WhatsAppSendInput,
   result: WhatsAppSendResult,
-  extras?: { status?: 'sent' | 'failed' | 'suppressed'; metadata?: Record<string, unknown> },
+  extras?: { status?: CommunicationDeliveryStatus; metadata?: Record<string, unknown> },
 ): Promise<string | null> {
   try {
     const sb = createAdminClient() as any;
     const phone = normalisePhone(input.to);
     const status = extras?.status ?? deliveryStatusForResult(result);
-    const { data, error } = await sb.from('communication_delivery_log').insert({
-      channel: 'whatsapp',
-      case_id: input.caseId ?? null,
-      case_event_id: input.caseEventId ?? null,
-      recipient: phone || input.to || null,
-      provider: 'meta',
-      provider_message_id: result.messageId || null,
-      status,
-      automated: input.automated !== false,
-      template_key: input.templateName || null,
-      error: result.success ? null : String(result.error || result.reason || '').slice(0, 4000),
-      metadata: {
-        reason: result.reason ?? null,
-        retryable: result.retryable,
-        ...(input.metadata ?? {}),
-        ...(extras?.metadata ?? {}),
-      },
-      sent_at: status === 'sent' ? new Date().toISOString() : null,
-      failed_at: status === 'failed' ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    }).select('id').maybeSingle();
-    if (error) {
-      if (error.code === '23505' && result.messageId) {
-        const { data: existing } = await sb.from('communication_delivery_log').select('id')
-          .eq('provider', 'meta').eq('provider_message_id', result.messageId).maybeSingle();
-        return existing?.id ?? null;
+    const now = new Date().toISOString();
+    let deliveryLogId = input.deliveryLogId ?? null;
+    if (!deliveryLogId) {
+      const row = {
+        channel: 'whatsapp',
+        case_id: input.caseId ?? null,
+        case_event_id: input.caseEventId ?? null,
+        recipient: phone || input.to || null,
+        recipient_user_id: input.recipientUserId ?? null,
+        school_id: input.schoolId ?? null,
+        source_type: input.sourceType ?? null,
+        source_id: input.sourceId ?? null,
+        outbox_id: input.outboxId ?? null,
+        idempotency_key: input.idempotencyKey ?? null,
+        provider: 'meta',
+        provider_message_id: result.messageId || null,
+        status,
+        automated: input.automated !== false,
+        template_key: input.templateName || null,
+        error: result.success ? null : String(result.error || result.reason || '').slice(0, 4000),
+        metadata: { ...(input.metadata ?? {}) },
+        queued_at: status === 'queued' ? now : null,
+        sent_at: status === 'sent' ? now : null,
+        failed_at: status === 'failed' ? now : null,
+        updated_at: now,
+      };
+      const { data, error } = await sb.from('communication_delivery_log').insert(row).select('id').maybeSingle();
+      if (error) {
+        if (error.code === '23505') {
+          let existing = sb.from('communication_delivery_log').select('id');
+          existing = input.idempotencyKey
+            ? existing.eq('channel', 'whatsapp').eq('idempotency_key', input.idempotencyKey)
+            : existing.eq('provider', 'meta').eq('provider_message_id', result.messageId);
+          const { data: existingRow } = await existing.maybeSingle();
+          deliveryLogId = existingRow?.id ?? null;
+        } else {
+          console.error('[whatsapp] unable to record delivery:', error);
+          return null;
+        }
+      } else {
+        deliveryLogId = data?.id ?? null;
       }
-      console.error('[whatsapp] unable to record delivery:', error);
-      return null;
     }
-    return data?.id ?? null;
+    if (!deliveryLogId) return null;
+    const eventMetadata = {
+      reason: result.reason ?? null,
+      retryable: result.retryable,
+      attempt_number: input.attemptNumber ?? undefined,
+      ...(input.metadata ?? {}),
+      ...(extras?.metadata ?? {}),
+    };
+    const eventKey = result.messageId
+      ? `meta:${result.messageId}:${status}`
+      : `${deliveryLogId}:${status}:${input.attemptNumber ?? randomUUID()}`;
+    await recordCommunicationDeliveryEvent(sb, {
+      deliveryId: deliveryLogId,
+      eventKey,
+      status,
+      channel: 'whatsapp',
+      provider: 'meta',
+      providerMessageId: result.messageId ?? null,
+      providerStatus: result.reason ?? status,
+      occurredAt: now,
+      error: result.success ? null : result.error || result.reason || null,
+      metadata: eventMetadata,
+    });
+    return deliveryLogId;
   } catch (error) {
     console.error('[whatsapp] unable to record delivery:', error);
     return null;
@@ -171,12 +218,26 @@ async function dispatchWhatsAppMessage(input: WhatsAppSendInput): Promise<WhatsA
 export async function sendWhatsAppDetailed(input: WhatsAppSendInput): Promise<WhatsAppSendResult> {
   const result = await dispatchWhatsAppMessage(input);
   const deliveryLogId = await recordWhatsAppDeliveryAttempt(input, result);
+  if (!deliveryLogId && result.success) {
+    await recordDeadLetter({
+      source: 'communication.delivery-ledger',
+      jobType: 'delivery_ledger',
+      originalJobId: result.messageId ?? `whatsapp:${normalisePhone(input.to)}:${Date.now()}`,
+      userId: input.recipientUserId ?? null,
+      payload: {
+        channel: 'whatsapp', provider: 'meta', providerMessageId: result.messageId ?? null,
+        recipient: normalisePhone(input.to), sourceType: input.sourceType, sourceId: input.sourceId,
+      },
+      error: 'Provider accepted the message but its delivery ledger record could not be completed',
+      attempts: input.attemptNumber ?? 1,
+    });
+  }
   if (result.success && input.persistToInbox !== false) {
     logOutboundMessageToDb(normalisePhone(input.to), result.messageId, input, deliveryLogId).catch((err) => {
       console.error('[sendWhatsAppDetailed] Failed to log outbound message to DB:', err);
     });
   }
-  return { ...result, deliveryLogId };
+  return { ...result, deliveryLogId, ledgerRecorded: Boolean(deliveryLogId) };
 }
 
 /** Backwards-compatible immediate text sender. */
@@ -199,9 +260,31 @@ export type WhatsAppOutboxJob = {
   idempotencyKey?: string | null;
 };
 
-export async function enqueueWhatsApp(admin: SupabaseClient<any>, job: WhatsAppOutboxJob): Promise<{ id: string | null; queued: boolean; error?: string }> {
+export async function enqueueWhatsApp(admin: SupabaseClient<any>, job: WhatsAppOutboxJob): Promise<{ id: string | null; deliveryId?: string | null; queued: boolean; error?: string }> {
   const phone = normalisePhone(job.phone);
   if (phone.length < 10) return { id: null, queued: false, error: 'Invalid phone number' };
+  const { data: atomic, error: atomicError } = await admin.rpc('enqueue_whatsapp_delivery', {
+    p_recipient_user_id: job.recipientUserId ?? null,
+    p_phone: phone,
+    p_message_body: job.messageBody,
+    p_template_name: job.templateName ?? null,
+    p_template_language: job.templateLanguage || 'en',
+    p_template_variables: job.templateVariables ?? [],
+    p_source_type: job.sourceType ?? null,
+    p_source_id: job.sourceId ?? null,
+    p_school_id: job.schoolId ?? null,
+    p_class_id: job.classId ?? null,
+    p_created_by: job.createdBy ?? null,
+    p_idempotency_key: job.idempotencyKey ?? null,
+  });
+  if (!atomicError) {
+    const row = atomic?.[0];
+    return { id: row?.outbox_id ?? null, deliveryId: row?.delivery_id ?? null, queued: Boolean(row?.outbox_id) };
+  }
+  if (atomicError.code !== '42883' && atomicError.code !== 'PGRST202') {
+    return { id: null, queued: false, error: atomicError.message };
+  }
+  // Safe rollout fallback while migration 118 is being applied.
   const { data, error } = await admin.from('whatsapp_outbox').upsert({
     recipient_user_id: job.recipientUserId ?? null,
     phone,
@@ -219,7 +302,7 @@ export async function enqueueWhatsApp(admin: SupabaseClient<any>, job: WhatsAppO
     next_attempt_at: new Date().toISOString(),
   }, { onConflict: 'idempotency_key', ignoreDuplicates: true }).select('id').maybeSingle();
   if (error) return { id: null, queued: false, error: error.message };
-  return { id: data?.id ?? null, queued: true };
+  return { id: data?.id ?? null, deliveryId: null, queued: true };
 }
 
 export async function processWhatsAppOutbox(
@@ -264,7 +347,15 @@ export async function processWhatsAppOutbox(
             templateName: row.template_name,
             persistToInbox: false,
             automated: true,
-            metadata: { source_type: row.source_type, source_id: row.source_id, outbox_id: row.id },
+            recipientUserId: row.recipient_user_id,
+            schoolId: row.school_id,
+            sourceType: row.source_type,
+            sourceId: row.source_id,
+            deliveryLogId: row.delivery_log_id,
+            outboxId: row.id,
+            idempotencyKey: `whatsapp-outbox:${row.id}`,
+            attemptNumber: row.attempts,
+            metadata: { outbox_id: row.id },
           },
           { success: false, reason: 'invalid_payload', error: cancelReason, retryable: false },
           { status: 'suppressed', metadata: { cancelled: true } },
@@ -279,8 +370,20 @@ export async function processWhatsAppOutbox(
       templateLanguage: row.template_language,
       templateVariables: Array.isArray(row.template_variables) ? row.template_variables.map(String) : [],
       automated: true,
-      metadata: { source_type: row.source_type, source_id: row.source_id, outbox_id: row.id },
+      recipientUserId: row.recipient_user_id,
+      schoolId: row.school_id,
+      sourceType: row.source_type,
+      sourceId: row.source_id,
+      deliveryLogId: row.delivery_log_id,
+      outboxId: row.id,
+      idempotencyKey: `whatsapp-outbox:${row.id}`,
+      attemptNumber: row.attempts,
+      metadata: { outbox_id: row.id, class_id: row.class_id },
     });
+    if (result.deliveryLogId && !row.delivery_log_id) {
+      await admin.from('whatsapp_outbox').update({ delivery_log_id: result.deliveryLogId }).eq('id', row.id);
+      row.delivery_log_id = result.deliveryLogId;
+    }
     if (result.success) {
       sent++;
       await admin.from('whatsapp_outbox').update({ status: 'sent', meta_message_id: result.messageId ?? null, last_error: null, sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', row.id);
@@ -291,6 +394,24 @@ export async function processWhatsAppOutbox(
       retried++;
       const delayMinutes = Math.min(60, Math.pow(3, Math.max(0, row.attempts - 1)));
       await admin.from('whatsapp_outbox').update({ status: 'retry', last_error: result.error || result.reason, next_attempt_at: new Date(Date.now() + delayMinutes * 60_000).toISOString(), updated_at: new Date().toISOString() }).eq('id', row.id);
+      if (row.delivery_log_id) {
+        await recordWhatsAppDeliveryAttempt(
+          {
+            to: row.phone,
+            message: row.message_body,
+            templateName: row.template_name,
+            deliveryLogId: row.delivery_log_id,
+            outboxId: row.id,
+            idempotencyKey: `whatsapp-outbox:${row.id}`,
+            attemptNumber: row.attempts,
+            persistToInbox: false,
+            automated: true,
+            metadata: { outbox_id: row.id, retry_scheduled: true, retry_in_minutes: delayMinutes },
+          },
+          { success: false, reason: result.reason, error: result.error, retryable: true },
+          { status: 'queued' },
+        );
+      }
     } else {
       failed++;
       await admin.from('whatsapp_outbox').update({ status: 'failed', last_error: result.error || result.reason, updated_at: new Date().toISOString() }).eq('id', row.id);
@@ -435,8 +556,11 @@ async function logOutboundMessageToDb(
     return;
   }
   if (!deliveryLogId) return;
+  const { data: delivery } = await (sb as any).from('communication_delivery_log')
+    .select('metadata').eq('id', deliveryLogId).maybeSingle();
   await (sb as any).from('communication_delivery_log').update({
     metadata: {
+      ...((delivery?.metadata ?? {}) as Record<string, unknown>),
       ...(input.metadata ?? {}),
       whatsapp_message_row_id: messageRow?.id || null,
       conversation_id: conversationId,

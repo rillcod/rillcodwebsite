@@ -730,6 +730,7 @@ export default function GradesPage() {
 
     const role = profile?.role ?? '';
     const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
+    const isAdmin = role === 'admin';
     const canGrade = role === 'admin' || role === 'teacher';
     const activeSessionLabel = useMemo(() => {
       const t = academicTerms.find((row) => row.id === sessionTermId);
@@ -934,10 +935,12 @@ export default function GradesPage() {
                 {/* ── Assessment Tab Bar ── */}
                 {isStaff && (
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+                        {isAdmin && (
                         <Link href="/dashboard/grading"
                             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
                             <ClipboardDocumentCheckIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> 1. Grading Queue (Pending Work)
                         </Link>
+                        )}
                         <span className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-700 text-white text-xs sm:text-sm font-black shadow-sm">
                             <ChartBarIcon className="w-4 h-4" /> 2. Master Gradebook &amp; Outcomes
                         </span>
@@ -1078,16 +1081,20 @@ export default function GradesPage() {
                                     {pending} submission{pending !== 1 ? 's' : ''} waiting in your marking tray
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                                    Mark them in your dedicated <strong className="text-foreground font-bold">Grading Queue</strong>. Once evaluated, scores automatically update this Master Gradebook.
+                                    {isAdmin
+                                      ? <>Mark them in your dedicated <strong className="text-foreground font-bold">Grading Queue</strong>. Once evaluated, scores automatically update this Master Gradebook.</>
+                                      : <>Mark them in this gradebook. Scores stay on the same record you publish from.</>}
                                 </p>
                             </div>
                         </div>
+                        {isAdmin && (
                         <Link
                             href="/dashboard/grading"
                             className="shrink-0 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 dark:text-slate-200 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-amber-500/20"
                         >
                             Open Grading Queue →
                         </Link>
+                        )}
                     </div>
                 )}
 

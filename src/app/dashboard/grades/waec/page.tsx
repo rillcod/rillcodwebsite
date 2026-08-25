@@ -128,7 +128,7 @@ export default function WAECGradingPage() {
             </p>
           )}
         </div>
-        {isStaff && (
+          {profile?.role === 'admin' && (
           <Link
             href="/dashboard/grading"
             className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:border-primary/30 text-sm font-bold transition-all text-muted-foreground hover:text-foreground"

@@ -59,8 +59,8 @@ type ViewId =
 const VIEWS = [
   {
     id: "overview" as const,
-    label: "Assignment overview",
-    purpose: "Graded assignments, pending review and published reports",
+    label: "Review learner work",
+    purpose: "Submissions needing grading and recent outcomes",
     icon: ChartBarIcon,
     roles: ["admin", "teacher", "school"],
   },
@@ -87,8 +87,8 @@ const VIEWS = [
   },
   {
     id: "projects" as const,
-    label: "Projects & activities",
-    purpose: "Practical evidence of learning",
+    label: "Evidence register",
+    purpose: "Projects and practical learning evidence",
     icon: BookOpenIcon,
     roles: ["admin"],
   },
@@ -178,32 +178,7 @@ function LearnerProgressOfficePageContent() {
               : "One flow from teaching evidence to learner outcomes and term decisions."
           }
           icon={ChartBarIcon}
-        >
-          {role !== "teacher" && (
-          <ol
-            className="mt-4 hidden gap-2 text-xs sm:grid sm:grid-cols-5"
-            aria-label="Academic progress flow"
-          >
-            {[
-              "Plan teaching",
-              "Record delivery",
-              "Collect learner evidence",
-              "Review progress",
-              "Decide & report",
-            ].map((step, index) => (
-              <li
-                key={step}
-                className="flex items-center gap-2 rounded-xl border border-border bg-background/50 px-3 py-2"
-              >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 font-black text-primary">
-                  {index + 1}
-                </span>
-                <span className="font-bold">{step}</span>
-              </li>
-            ))}
-          </ol>
-          )}
-        </MobilePageHero>
+        />
 
         {/* Mobile: thumb-friendly horizontal strip */}
         <MobileScrollStrip
@@ -271,7 +246,7 @@ function LearnerProgressOfficePageContent() {
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black [&::-webkit-details-marker]:hidden">
               <span>More academic tools</span>
               <span className="text-xs font-medium text-muted-foreground">
-                Insights, projects, history and configuration
+                Insights, evidence, history and academic setup
               </span>
             </summary>
             <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -545,7 +545,17 @@ Required completion:
 - PDFs must match visible totals, labels, pathway rules, organization identity, and publication
   version.
 
-### 6.10 Learner progress, progression, analytics, and pathways — **At risk**
+### 6.10 Learner progress, progression, analytics, and pathways — **Partially remediated**
+
+Current state:
+
+- The staff learner-progress surface is now a focused review queue. It searches learner, class,
+  grade and assignment context, filters genuine grading states, and links directly to the canonical
+  assignment review rather than recreating grading.
+- The duplicate staff enrolment/roster presentation was removed from this page. Directory and Classes
+  remain the authorities for roster management; a learner still sees their own enrolments here.
+- Decorative workflow cards and technical labels were reduced so the pending review and evidence are
+  prominent on desktop and mobile.
 
 Required completion:
 
@@ -563,7 +573,30 @@ Required completion:
 - Verify recalculation after late grading, corrected attendance, unpublished result, pathway
   toggle, learner transfer, and archival.
 
-### 6.11 Communications, inbox, CRM, WhatsApp, notifications, and support — **At risk**
+### 6.11 Communications, inbox, CRM, WhatsApp, notifications, and support — **Locally remediated; provider proof pending**
+
+Current state:
+
+- Email and WhatsApp sends now converge on one delivery ledger with recipient/source correlation,
+  provider ID, attempt count, queued/accepted/sent/delivered/read/failed/suppressed states and an
+  append-only event history. Provider callbacks advance status monotonically and unmatched early
+  receipts are retained for later reconciliation.
+- WhatsApp queue creation and its first ledger event are atomic. Retries reuse the same delivery,
+  exhausted failures create recoverable dead-letter work, and a provider-accepted message is not
+  silently lost when ledger persistence fails.
+- Email has one provider-owning sender. Template-governed and direct product email paths both pass
+  through that sender; a static regression test rejects new direct Resend/SendPulse/SMTP senders.
+- Office is the single editable template workspace. Administrators can search, create versions, edit
+  human metadata, preview rendered samples, approve, retire and restore; every governance action is
+  attributable. Platform Configuration links there instead of maintaining another template copy.
+- **Communication Delivery** is the operator view for both channels. It exposes truthful status,
+  attempts, source/event context and recovery work without exposing provider internals to customers.
+
+Remaining production proof:
+
+- Confirm Resend and Meta webhook subscriptions/secrets in production, exercise real accepted,
+  delivered, read, failed and out-of-order callbacks, and alert when receipts or dead-letter recovery
+  stop moving. Application code cannot manufacture a provider receipt that the provider never sends.
 
 Required completion:
 
@@ -843,7 +876,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-017 | P1 | Correlation repaired; external aggregation still absent | The reference shown to a customer was generated *after* the error had already been logged without it, so "I got error abc123" pointed at nothing in any log. It is now generated once, logged, and returned, and is covered by `src/proxies/error.proxy.test.ts`. That makes a reported failure traceable by hand. It is not monitoring: `src/lib/logger.ts` still only writes JSON to the console, which on Cloudflare Containers means stdout on an instance that sleeps, and there are 732 `console.error` calls of which 358 are server-side | Wire a real aggregator (Sentry or an OTel exporter), attach release and requestId, and alert on rate. Until then nobody learns a production error happened unless a customer says so |
 | SYS-018 | P0 | Scanning gates added locally; first run and ownership pending | Full and production npm audits report zero findings. `.github/dependabot.yml` schedules weekly npm and monthly action updates, with Next/React/Capacitor majors excluded as coordinated upgrades. `.github/workflows/security-scan.yml` adds CodeQL (`security-extended`), a two-tier npm audit, and a Trivy scan of the `Dockerfile.cf` image the deploy actually ships. Kept out of `ci.yml` on purpose: that workflow gates the Cloudflare deploy, so an overnight advisory must not be able to block a release on its own | Confirm the first scheduled run is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | Database lease applied; application deployment and operational proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented. Migration 112 is live | Deploy the application code, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
-| SYS-020 | P1 | Broadcast truthfulness fixed; provider delivery ledger still absent | The group broadcast surface stamped `last_broadcast_at` whether or not the ledger POST succeeded, so a failed record still rendered "broadcast just now" and the stamp then disappeared on reload. All four broadcast paths now stamp only on a confirmed 2xx, and both multi-group paths name the groups that were not recorded instead of reporting a clean send. Load failures for classes and assignments are traced rather than presenting as "none" | Provider-side delivery ledger (recipient, consent, channel, provider ID, accepted/sent/delivered/failed timestamps) is still missing; this covers our own record, not WhatsApp's |
+| SYS-020 | P1 | Delivery authority implemented; production provider proof pending | Email and WhatsApp now share a correlated delivery record and append-only event history with provider IDs, attempts, timestamps, monotonic callback reconciliation, atomic WhatsApp enqueue, idempotent retries and recoverable dead letters. Broadcast surfaces only claim a recorded send. The Office delivery page exposes both channels and recovery state | Verify real Resend/Meta webhook subscriptions and secrets, then pass accepted/delivered/read/failed/out-of-order callback and alerting canaries in production |
 | SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
 | SYS-023 | P2 | **Withdrawn — false positive** | “EducationAcross” is a `textContent` artifact of a real `<br />` in `src/components/landing/About.tsx`; the rendered copy is correct | None. Re-verified 23 August 2026. A scan reading `textContent` must not treat a `<br>` join as a copy defect |
@@ -856,8 +889,8 @@ snapshots, not current certification. This register is the current product-level
 | SYS-030 | P2 | Classified; 8 remain and are documented as deliberate | 22 matches were 20 real sites (2 were prose in comments). Sites that hid a genuine failure now log a typed, contextual error: card studio lookups, my-card load, WhatsApp class/assignment loads, and the broadcast ledger under SYS-020. The 8 that remain are expected-fallback by design and now say so in place — the three-strategy `safeParseJSON` ladder, and single-line localStorage guards on public pages where storage throws in private mode | Keep the count at zero undocumented. A new empty catch needs a comment saying which fallback it is, or it is a swallowed error |
 | SYS-031 | P2 | At risk | 2,761 `any` escapes | Remove at authority boundaries first; type budget trends down |
 | SYS-032 | P2 | Config aligned; hosted project setting pending | `supabase/config.toml` raised from 6 to 8, matching the 8-character minimum the application already enforces in signup, reset, parent provisioning and settings. The hosted project’s own Auth setting lives in the dashboard, not this file | Set the linked project’s minimum password length to 8, then confirm a 7-character password is refused through a hosted reset link and not only by the app form |
-| SYS-033 | P2 | Partially remediated | Platform Operations now owns traffic/origin controls and optional accountability class repair with audit evidence; the full policy reader/writer map remains incomplete | Complete one-authority inventory and remove or redirect remaining duplicate settings |
-| SYS-034 | P2 | At risk | Learner-progress route overlap/noise | Unique task map, merge true duplicates, central read model |
+| SYS-033 | P2 | Materially remediated; inventory remains | Platform Operations owns traffic/origin controls and optional accountability repair. Platform configuration is governed by a canonical registry with section ownership, validation, optimistic writes and masked secret values. Communication templates were removed from configuration and redirected to the governed Office workspace | Complete the remaining policy reader/writer inventory and remove or redirect any setting outside its owning section |
+| SYS-034 | P2 | Partially remediated | Learner Progress is now a focused submission-review/evidence surface: duplicate staff enrolment management and decorative workflow noise were removed, filters use real review states, search includes grade/class context, and staff open the canonical assignment review | Consolidate the remaining progress/progression/path/analytics read models and prove late-grade, pathway and transfer recalculation E2E |
 | SYS-035 | P2 | At risk | Class roster and path visibility can compete | One roster with scoped visibility controls |
 | SYS-036 | P2 | Central handler fixed; per-route messages unreviewed | The shared API error handler returned an `AppError` message to the customer whether or not it was operational, so a message written for us went out to the public unchanged. Non-operational and unhandled errors now return one generic sentence and keep the detail in the log; operational messages, which are written for the customer, pass through untouched. Verified no non-operational `AppError` is constructed anywhere today, so no existing response changed shape | 471 of 532 routes do not use the shared wrapper and write their own error text. Review those, and define the public error-code contract |
 | SYS-037 | P2 | Static gate enforced in CI; browser gate still absent | `npm run audit:a11y` runs as a required CI step. It is a ratchet: it fails when the count of unlabelled controls rises above the committed baseline, so the backlog can only be paid down. It was tested against a deliberate regression and exits 1, rather than being assumed to work — the lint gate had silently stopped executing for an entire dependency upgrade. Runtime association is proved by `src/components/ui/form-accessible-names.test.tsx`, which renders each primitive and reads the markup back, including that two instances on one page do not share an id | A static scan cannot compute an accessibility tree. A real axe/browser run against a deployed build is still required for contrast, focus order, reflow and announcement |
@@ -3255,3 +3288,56 @@ Post-migration proof:
 - the application still requires Cloudflare deployment before production containers consume the new
   code paths. Database support is live now; browser/device/provider behavior remains a separate
   deployment verification boundary.
+
+### 16.37 Central communication delivery, governed templates and focused learner progress — verified on 25 August 2026
+
+Confirmed gaps:
+
+- email and WhatsApp had product-level records but no complete shared provider lifecycle. Early or
+  unmatched callbacks could be discarded, retries could create fragmented truth, and an accepted
+  provider request could be lost from operations when the following ledger write failed;
+- queued, accepted, sent, delivered and read were not consistently distinguishable in operator UI;
+- Platform Configuration and Office both appeared to own communication templates. Although the
+  canonical versioned model existed, routine template metadata was not editable and retired templates
+  had no reversible operator path;
+- the staff learner-progress page repeated enrolment/roster information already owned by Directory and
+  Classes, mixed enrolment and grading statuses in one filter, and gave workflow decoration more space
+  than work requiring review.
+
+Implemented authority and recovery:
+
+- live migration `20260929000118_complete_communication_delivery_ledger.sql` extends
+  `communication_delivery_log`, adds append-only `communication_delivery_events`, and installs
+  service-role-only RPCs for monotonic provider events and atomic WhatsApp enqueue. Events retain
+  source, recipient, school, provider, outbox, idempotency and attempt correlation. An early unmatched
+  receipt remains evidence and is reconciled when its canonical delivery becomes known;
+- the central email sender and WhatsApp sender record every accepted, failed or suppressed attempt.
+  Provider callbacks use the same monotonic state transition authority, retry processing reuses the
+  delivery identity, and persistence failures after provider acceptance create recovery work rather
+  than disappearing;
+- the combined **Communication Delivery** page exposes channel, truthful state, attempt/event/source
+  context and links to templates and dead-letter recovery. Customer-facing errors remain human while
+  provider detail stays in restricted operator evidence;
+- migration 114 had already moved legacy notification templates into canonical versioned
+  `communication_templates`. The Office editor now completes that ownership: search/status filters,
+  editable name/category/description, rendered sample preview, audited new versions, approval,
+  retirement and restore. Platform Configuration only links to this workspace;
+- staff Learner Progress is now a compact review/evidence queue. It searches learner, class, grade,
+  assignment and email context; uses review-state filters; links to the canonical assignment review;
+  and no longer duplicates roster management. Learners retain their own enrolment context.
+
+Verification and honest boundary:
+
+- migration 118 was applied successfully to linked project `akaorqukdoawacvxsdij` and recorded in
+  migration history. `src/types/supabase.ts` was regenerated directly from that live schema;
+- the schema-drift audit checked 1,741 distinct application queries and the live database accepted
+  every one;
+- seven focused communication/configuration files passed 28 tests covering lifecycle monotonicity,
+  migration privileges and indexes, provider ownership, WhatsApp retries/queue behavior, central
+  templates and platform section ownership. The write-constraint audit also accepted every literal
+  write against all 117 constrained tables;
+- no manual score, submission, answer, report, invoice, payment, consent response or parent link was
+  deleted or rewritten. The migration adds correlation and operational evidence;
+- real delivery is not claimed from local evidence. Cloudflare must deploy the application code, and
+  production Resend/Meta webhooks, secrets, provider approval/credit and handset receipt behavior must
+  be exercised and monitored before provider delivery is called proven end to end.

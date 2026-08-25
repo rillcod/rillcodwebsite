@@ -70,6 +70,16 @@ describe('central teacher workspace UX', () => {
     expect(directory).not.toContain("redirect('/dashboard/crm')");
   });
 
+  it('sends teachers to the gradebook, not the operator grading queue', () => {
+    const home = read('src/components/dashboard/TeacherDashboard.tsx');
+    const dash = read('src/app/dashboard/page.tsx');
+    expect(home).not.toContain('/dashboard/grading');
+    expect(home).toContain('href="/dashboard/grades"');
+    expect(dash).toContain("name: 'Mark work', href: '/dashboard/grades'");
+    expect(classPage).not.toContain('/dashboard/grading');
+    expect(classPage).toContain('/dashboard/grades?class_id=');
+  });
+
   // The order of the page is the point: what to do next, then the curriculum
   // lanes that carry the work, then optional tools, and only then the admin-only
   // exceptions. Anchored on ids rather than visible copy — the headings were

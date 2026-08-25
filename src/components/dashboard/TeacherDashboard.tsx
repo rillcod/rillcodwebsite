@@ -110,7 +110,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Link href="/dashboard/grading"
+              <Link href="/dashboard/grades"
                 className={`group flex items-center gap-4 p-5 border rounded-xl transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedAssignments > 0
                     ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
                     : 'bg-card border-border hover:border-border'
@@ -126,7 +126,7 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
                 </div>
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
               </Link>
-              <Link href="/dashboard/grading"
+              <Link href="/dashboard/grades"
                 className={`group flex items-center gap-4 p-5 border rounded-xl transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedExams > 0
                     ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                     : 'bg-card border-border hover:border-border'

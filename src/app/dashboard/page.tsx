@@ -38,7 +38,7 @@ const QUICK_ACTIONS = {
   // them as bare tiles added a second, worse copy of both.
   teacher: [
     { name: 'Open My Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Teach this week' },
-    { name: 'Mark work', href: '/dashboard/grading', icon: ClipboardDocumentListIcon, desc: 'Grade what is waiting' },
+    { name: 'Mark work', href: '/dashboard/grades', icon: ClipboardDocumentListIcon, desc: 'Grade what is waiting' },
     { name: 'Write reports', href: '/dashboard/reports/builder', icon: DocumentChartBarIcon, desc: 'Type scores, then publish' },
   ],
   student: [
@@ -351,7 +351,7 @@ function transformStatsForTeacher(stats: any) {
   return [
     { label: 'My Classes', value: stats.classes || 0, icon: BookOpenIcon, gradient: 'from-primary to-primary', href: '/dashboard/classes' },
     { label: 'Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary', href: '/dashboard/students' },
-    { label: 'To mark', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary', href: '/dashboard/grading' },
+    { label: 'To mark', value: stats.pendingGrading || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary', href: '/dashboard/grades' },
   ];
 }
 

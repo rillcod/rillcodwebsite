@@ -139,18 +139,39 @@ export async function POST(req: NextRequest) {
     if (!templateId || !templateBody) return NextResponse.json({ error: 'Template and body are required.' }, { status: 400 });
     const { data: template } = await actor.db.from('communication_templates').select('*').eq('id', templateId).maybeSingle();
     if (!template) return NextResponse.json({ error: 'Template not found.' }, { status: 404 });
+    const name = String(body.name || template.name || '').trim();
+    const description = String(body.description ?? template.description ?? '').trim() || null;
+    const category = normalizeTemplateKey(String(body.category || template.category || 'operations'));
+    if (!name || !category) return NextResponse.json({ error: 'Name and category are required.' }, { status: 400 });
     const { data: latest } = await actor.db.from('communication_template_versions').select('version_number').eq('template_id', templateId).order('version_number', { ascending: false }).limit(1).maybeSingle();
     const { data: version, error } = await actor.db.from('communication_template_versions').insert({
       template_id: templateId, version_number: Number(latest?.version_number || 0) + 1,
       subject, body: templateBody, change_note: String(body.changeNote || 'Updated version'), created_by: actor.user.id,
     }).select('*').single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { error: detailsError } = await actor.db.from('communication_templates').update({
+      name, description, category, updated_at: now,
+    }).eq('id', templateId);
+    if (detailsError) {
+      try {
+        await requireSupabaseWrite(
+          actor.db.from('communication_template_versions').delete().eq('id', version.id),
+          'Roll back incomplete communication template version',
+        );
+      } catch (rollbackError) {
+        return NextResponse.json({
+          error: detailsError.message,
+          rollback_error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+        }, { status: 500 });
+      }
+      return NextResponse.json({ error: detailsError.message }, { status: 500 });
+    }
     await logAudit(actor.db, {
       action: 'create_communication_template_version', actorId: actor.user.id,
       resourceType: 'communication_template', resourceId: templateId,
       tableName: 'communication_template_versions', recordId: version.id,
       newValue: `Created communication template version ${version.version_number}`,
-      newValues: { version_id: version.id, version_number: version.version_number },
+      newValues: { version_id: version.id, version_number: version.version_number, name, description, category },
     });
     return NextResponse.json({ success: true, version });
   }
@@ -222,6 +243,23 @@ export async function POST(req: NextRequest) {
       newValue: 'Retired communication template',
     });
     return NextResponse.json({ success: true, status: 'retired' });
+  }
+
+  if (action === 'restore') {
+    const templateId = String(body.templateId || '');
+    const { data: template } = await actor.db.from('communication_templates')
+      .select('current_version_id').eq('id', templateId).maybeSingle();
+    if (!template) return NextResponse.json({ error: 'Template not found.' }, { status: 404 });
+    const restoredStatus = template.current_version_id ? 'approved' : 'draft';
+    const { error } = await actor.db.from('communication_templates')
+      .update({ status: restoredStatus, updated_at: now }).eq('id', templateId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await logAudit(actor.db, {
+      action: 'restore_communication_template', actorId: actor.user.id,
+      resourceType: 'communication_template', resourceId: templateId,
+      newValue: `Restored communication template as ${restoredStatus}`,
+    });
+    return NextResponse.json({ success: true, status: restoredStatus });
   }
 
   return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });

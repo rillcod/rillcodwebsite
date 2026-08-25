@@ -109,6 +109,7 @@ describe('partner school scope', () => {
   it('denies a route that was never granted, including authoring desks', () => {
     expect(isDashboardPathBlockedForSchool('/dashboard/brand-new-admin-surface')).toBe(true);
     expect(isDashboardPathBlockedForSchool('/dashboard/academic/build')).toBe(true);
+    expect(isDashboardPathBlockedForSchool('/dashboard/grading')).toBe(true);
     expect(isDashboardPathBlockedForSchool('/dashboard/generate-content')).toBe(true);
     expect(isDashboardPathBlockedForSchool('/dashboard/lesson-plans')).toBe(true);
   });

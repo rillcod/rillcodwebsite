@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  recordCommunicationDeliveryEvent,
+  recordUnmatchedDeliveryEvent,
+} from '@/lib/communication/delivery-ledger';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,10 +170,7 @@ function verifyResendSvix(req: NextRequest, rawBody: string): boolean {
 
 async function applyEvent(db: any, event: NormalizedEvent) {
   const now = new Date().toISOString();
-  const timestamps: Record<string, string> = {};
-  if (event.status === 'delivered') timestamps.delivered_at = now;
-  if (event.status === 'read') timestamps.read_at = now;
-  if (event.status === 'failed' || event.status === 'suppressed') timestamps.failed_at = now;
+  const eventKey = `${event.provider}:${event.providerMessageId}:${event.rawStatus}`;
 
   // Prefer exact provider+id, then fall back to message id alone (provider naming varies).
   let existing: any = null;
@@ -190,32 +191,35 @@ async function applyEvent(db: any, event: NormalizedEvent) {
       .maybeSingle();
     existing = byId;
   }
-  if (!existing) return { matched: false as const };
-
-  const { data: delivery, error } = await db
-    .from('communication_delivery_log')
-    .update({
+  if (!existing) {
+    await recordUnmatchedDeliveryEvent(db, {
+      eventKey,
       status: event.status,
-      ...timestamps,
-      error:
-        event.status === 'failed'
-          ? String(event.error || 'Provider reported failure').slice(0, 4000)
-          : null,
-      metadata: {
-        ...(existing.metadata || {}),
-        provider_event: event.rawStatus,
-        provider_event_at: now,
-        provider_reason: event.error,
-        webhook_provider: event.provider,
-      },
-      updated_at: now,
-    })
-    .eq('id', existing.id)
-    .select('id,case_id,case_event_id')
-    .maybeSingle();
+      channel: 'email',
+      provider: event.provider,
+      providerMessageId: event.providerMessageId,
+      providerStatus: event.rawStatus,
+      occurredAt: now,
+      error: event.error ?? null,
+      metadata: { provider_reason: event.error, unmatched: true },
+    });
+    return { matched: false as const };
+  }
 
-  if (error) throw new Error(error.message);
-  if (!delivery) return { matched: false as const };
+  const recorded = await recordCommunicationDeliveryEvent(db, {
+    deliveryId: existing.id,
+    eventKey,
+    status: event.status,
+    channel: 'email',
+    provider: event.provider,
+    providerMessageId: event.providerMessageId,
+    providerStatus: event.rawStatus,
+    occurredAt: now,
+    error: event.error ?? null,
+    metadata: { provider_reason: event.error, webhook_provider: event.provider },
+  });
+  const canonicalStatus = (recorded?.current_status ?? event.status) as DeliveryStatus;
+  const delivery = existing;
 
   let caseEventId = delivery.case_event_id as string | null;
   if (!caseEventId && delivery.case_id) {
@@ -250,10 +254,14 @@ async function applyEvent(db: any, event: NormalizedEvent) {
   }
 
   if (caseEventId) {
+    const timestamps: Record<string, string> = {};
+    if (canonicalStatus === 'delivered' || canonicalStatus === 'read') timestamps.delivered_at = now;
+    if (canonicalStatus === 'read') timestamps.read_at = now;
+    if (canonicalStatus === 'failed' || canonicalStatus === 'suppressed') timestamps.failed_at = now;
     await db
       .from('communication_case_events')
       .update({
-        delivery_status: event.status,
+        delivery_status: canonicalStatus,
         provider: event.provider,
         provider_message_id: event.providerMessageId,
         ...timestamps,
@@ -261,7 +269,7 @@ async function applyEvent(db: any, event: NormalizedEvent) {
       .eq('id', caseEventId);
   }
 
-  return { matched: true as const, status: event.status };
+  return { matched: true as const, status: canonicalStatus };
 }
 
 export async function POST(req: NextRequest) {

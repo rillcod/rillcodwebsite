@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowPathIcon, EnvelopeIcon, ShieldCheckIcon, ExclamationTriangleIcon,
 } from '@/lib/icons';
 
 /**
- * Email & messaging delivery — what Resend shows, without leaving the app.
+ * Provider-neutral communication delivery and recovery evidence.
  *
  * Reads /api/admin/email-log (admin only). Every field already existed in
  * communication_delivery_log; the subject line comes from metadata.subject and
@@ -36,6 +37,11 @@ type Row = {
   delivered_at: string | null;
   read_at: string | null;
   failed_at: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  attempt_count: number | null;
+  event_count: number | null;
+  last_event_at: string | null;
   created_at: string;
 };
 
@@ -43,6 +49,7 @@ type Summary = {
   total: number; delivered: number; failed: number;
   engaged: number; opened: number; clicked: number;
   stuck_sent: number; internal_sent: number; triggered: number; manual: number;
+  queued: number; suppressed: number; unmatched_receipts: number;
 };
 
 const CARD = 'bg-card shadow-sm border border-border rounded-xl';
@@ -71,7 +78,7 @@ function downloadCsv(rows: Row[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `email-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `communication-delivery-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -87,12 +94,10 @@ function ago(iso: string): string {
 }
 
 function StatusPill({ r }: { r: Row }) {
-  // failed_at / error beat `status`, which can lag behind the webhook.
-  const failed = !!r.failed_at || !!r.error;
-  const delivered = !!r.delivered_at;
-  const label = failed ? (r.provider_event || 'failed')
-    : delivered ? 'delivered'
-    : (r.status || 'unknown');
+  const status = String(r.status || 'unknown').toLowerCase();
+  const failed = status === 'failed' || status === 'suppressed';
+  const delivered = status === 'delivered' || status === 'read';
+  const label = status;
   const cls = failed
     ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
     : delivered
@@ -121,7 +126,7 @@ function Tile({ value, label, tone = 'default', active, onClick }: {
 }
 
 /** Lifecycle, derived from status + the *_at timestamps. */
-type Outcome = 'all' | 'delivered' | 'failed' | 'opened' | 'clicked' | 'unconfirmed';
+type Outcome = 'all' | 'queued' | 'delivered' | 'failed' | 'suppressed' | 'opened' | 'clicked' | 'unconfirmed';
 /** Whether the address can actually receive mail. */
 type Audience = 'all' | 'real' | 'internal';
 /** The `automated` column. */
@@ -129,14 +134,17 @@ type Origin = 'all' | 'triggered' | 'manual';
 
 /** One row's derived lifecycle facts, computed once and reused. */
 function facts(r: Row) {
-  const failed = !!r.failed_at || !!r.error;
+  const status = String(r.status ?? '').toLowerCase();
+  const failed = status === 'failed';
   const ev = String(r.provider_event ?? '');
   return {
     failed,
-    delivered: !!r.delivered_at,
+    queued: status === 'queued',
+    delivered: status === 'delivered' || status === 'read',
+    suppressed: status === 'suppressed',
     opened: /^open/.test(ev),
     clicked: /^click/.test(ev),
-    unconfirmed: !r.delivered_at && !failed && String(r.status).toLowerCase() === 'sent',
+    unconfirmed: status === 'sent',
   };
 }
 
@@ -144,6 +152,7 @@ export default function EmailLogPage() {
   const { profile, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [ledgerReady, setLedgerReady] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Independent axes, mirroring the columns the system actually records.
@@ -167,6 +176,7 @@ export default function EmailLogPage() {
       if (!res.ok) throw new Error(json.error || 'Could not load the delivery log');
       setRows(json.rows ?? []);
       setSummary(json.summary ?? null);
+      setLedgerReady(json.ledger_ready !== false);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load the delivery log');
@@ -215,12 +225,14 @@ export default function EmailLogPage() {
   const counts = useMemo(() => {
     const c = {
       total: scope.length, delivered: 0, failed: 0, opened: 0, clicked: 0,
-      unconfirmed: 0, real: 0, internal: 0, triggered: 0, manual: 0,
+      queued: 0, suppressed: 0, unconfirmed: 0, real: 0, internal: 0, triggered: 0, manual: 0,
     };
     for (const r of scope) {
       const f = facts(r);
       if (f.delivered) c.delivered++;
       if (f.failed) c.failed++;
+      if (f.queued) c.queued++;
+      if (f.suppressed) c.suppressed++;
       if (f.opened) c.opened++;
       if (f.clicked) c.clicked++;
       if (f.unconfirmed) c.unconfirmed++;
@@ -236,6 +248,8 @@ export default function EmailLogPage() {
       const f = facts(r);
       if (outcome === 'delivered' && !f.delivered) return false;
       if (outcome === 'failed' && !f.failed) return false;
+      if (outcome === 'queued' && !f.queued) return false;
+      if (outcome === 'suppressed' && !f.suppressed) return false;
       if (outcome === 'opened' && !f.opened) return false;
       if (outcome === 'clicked' && !f.clicked) return false;
       if (outcome === 'unconfirmed' && !f.unconfirmed) return false;
@@ -276,20 +290,50 @@ export default function EmailLogPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 mobile-page-root">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tighter text-foreground">Email &amp; Messaging</h1>
+          <h1 className="text-3xl font-black tracking-tighter text-foreground">Communication Delivery</h1>
           <p className="text-sm text-muted-foreground">
-            Every message sent, and what happened to it — no need to open Resend.
+            One lifecycle for email and WhatsApp, from queue to provider receipt.
           </p>
         </div>
-        <button onClick={load} disabled={loading}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent disabled:opacity-60">
-          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/office?workspace=settings&section=templates"
+            className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent">
+            Message templates
+          </Link>
+          <Link href="/dashboard/office?workspace=settings&section=health"
+            className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent">
+            Resolve failures
+          </Link>
+          <button onClick={load} disabled={loading}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent disabled:opacity-60">
+            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
       )}
+
+      {!ledgerReady && !error ? (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+          <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-black">Lifecycle detail needs a refresh</p>
+            <p className="mt-1">The message records are visible, but receipt, attempt or recipient details could not be fully verified. Retry before acting on an unconfirmed delivery.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {ledgerReady && (summary?.unmatched_receipts ?? 0) > 0 ? (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+          <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-black">{summary?.unmatched_receipts} provider receipt{summary?.unmatched_receipts === 1 ? '' : 's'} awaiting a message link</p>
+            <p className="mt-1">The receipt is preserved and will reconcile automatically when its outbound message arrives. Use Resolve failures if it remains here.</p>
+          </div>
+        </div>
+      ) : null}
 
       {/*
         Three independent axes, each mirroring a column the system records.
@@ -302,8 +346,10 @@ export default function EmailLogPage() {
           <h3 className={LABEL}>Outcome · status &amp; timestamps</h3>
           <div className="grid grid-cols-3 gap-3">
             <Tile value={counts.total} label="In scope" active={outcome === 'all'} onClick={() => setOutcome('all')} />
+            <Tile value={counts.queued} label="Queued" tone="warn" active={outcome === 'queued'} onClick={() => setOutcome('queued')} />
             <Tile value={counts.delivered} label="Delivered" tone="good" active={outcome === 'delivered'} onClick={() => setOutcome('delivered')} />
             <Tile value={counts.failed} label="Failed" tone="bad" active={outcome === 'failed'} onClick={() => setOutcome('failed')} />
+            <Tile value={counts.suppressed} label="Suppressed" tone="warn" active={outcome === 'suppressed'} onClick={() => setOutcome('suppressed')} />
             <Tile value={counts.opened} label="Opened" tone="good" active={outcome === 'opened'} onClick={() => setOutcome('opened')} />
             <Tile value={counts.clicked} label="Clicked" tone="good" active={outcome === 'clicked'} onClick={() => setOutcome('clicked')} />
             <Tile value={counts.unconfirmed} label="Unconfirmed" tone="warn" active={outcome === 'unconfirmed'} onClick={() => setOutcome('unconfirmed')} />
@@ -473,6 +519,13 @@ export default function EmailLogPage() {
                     <div className="max-w-[26rem] truncate" title={r.subject ?? ''}>{r.subject || '—'}</div>
                     {r.template_key && (
                       <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">{r.template_key}</div>
+                    )}
+                    {(r.source_type || r.event_count != null) && (
+                      <div className="text-[10px] text-muted-foreground/70">
+                        {r.source_type ? `Source: ${r.source_type}` : 'Direct send'}
+                        {r.event_count != null ? ` · ${r.event_count} lifecycle event${r.event_count === 1 ? '' : 's'}` : ''}
+                        {r.attempt_count && r.attempt_count > 1 ? ` · ${r.attempt_count} attempts` : ''}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">

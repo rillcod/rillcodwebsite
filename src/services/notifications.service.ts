@@ -9,6 +9,7 @@ import { createHash } from 'crypto';
 import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { recordDeadLetter } from '@/lib/operations/dead-letter';
+import { recordCommunicationDeliveryEvent } from '@/lib/communication/delivery-ledger';
 
 /** Convert HTML to a readable plain-text fallback for spam filters and text-only clients */
 function htmlToPlainText(html: string): string {
@@ -593,27 +594,69 @@ export class NotificationsService {
         return `${html}<p style="margin:24px 0 0;padding-top:12px;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;line-height:1.5;">This is an automated service message from Rillcod Technologies. Reply to reach the team handling your request.</p>`;
     }
 
-    private async recordEmailDelivery(payload: EmailPayload, result: EmailDispatchResult | null, error?: string, forcedStatus?: 'sent' | 'failed' | 'suppressed') {
+    private async recordEmailDelivery(payload: EmailPayload, result: EmailDispatchResult | null, error?: string, forcedStatus?: 'sent' | 'failed' | 'suppressed'): Promise<string | null> {
+        const status = forcedStatus || (error ? 'failed' : 'sent');
+        const now = new Date().toISOString();
         try {
             const db = createAdminClient() as any;
-            await db.from('communication_delivery_log').insert({
+            let { data, error: insertError } = await db.from('communication_delivery_log').insert({
                 case_id: payload.caseId ?? null,
                 case_event_id: payload.caseEventId ?? null,
                 channel: 'email', recipient: payload.to,
+                source_type: payload.eventType ?? null,
+                source_id: payload.referenceId ?? null,
                 provider: result?.provider ?? null,
                 provider_message_id: result?.providerMessageId ?? null,
-                status: forcedStatus || (error ? 'failed' : 'sent'),
+                status,
                 automated: payload.automated !== false,
                 template_key: payload.templateKey ?? null,
                 campaign_key: payload.campaignKey ?? null,
                 error: error?.slice(0, 4000) ?? null,
                 metadata: { subject: payload.subject, event_type: payload.eventType ?? null, reference_id: payload.referenceId ?? null },
-                sent_at: error ? null : new Date().toISOString(),
-                failed_at: error && forcedStatus !== 'suppressed' ? new Date().toISOString() : null,
-                updated_at: new Date().toISOString(),
+                provider_accepted_at: result ? now : null,
+                sent_at: status === 'sent' ? now : null,
+                failed_at: status === 'failed' ? now : null,
+                updated_at: now,
+            }).select('id').maybeSingle();
+            if (insertError?.code === '23505' && result?.providerMessageId) {
+                const existing = await db.from('communication_delivery_log').select('id')
+                    .eq('provider', result.provider).eq('provider_message_id', result.providerMessageId).maybeSingle();
+                data = existing.data;
+                insertError = existing.error;
+            }
+            if (insertError || !data?.id) throw insertError || new Error('Delivery row was not returned');
+            await recordCommunicationDeliveryEvent(db, {
+                deliveryId: data.id,
+                eventKey: result?.providerMessageId
+                    ? `${result.provider}:${result.providerMessageId}:${status}`
+                    : `${data.id}:${status}:initial`,
+                status,
+                channel: 'email',
+                provider: result?.provider ?? null,
+                providerMessageId: result?.providerMessageId ?? null,
+                providerStatus: status,
+                occurredAt: now,
+                error: error ?? null,
+                metadata: { subject: payload.subject, event_type: payload.eventType ?? null, reference_id: payload.referenceId ?? null },
             });
+            return data.id;
         } catch (logError) {
             console.error('[notifications] unable to record email delivery:', logError);
+            await recordDeadLetter({
+                source: 'communication.delivery-ledger',
+                jobType: 'delivery_ledger',
+                originalJobId: result?.providerMessageId ?? `email:${payload.referenceId || payload.to}:${status}`,
+                payload: {
+                    channel: 'email', provider: result?.provider ?? null,
+                    providerMessageId: result?.providerMessageId ?? null,
+                    recipient: payload.to, templateKey: payload.templateKey ?? null,
+                    sourceType: payload.eventType ?? null, sourceId: payload.referenceId ?? null,
+                    status,
+                },
+                error: logError instanceof Error ? logError.message : 'Email delivery ledger write failed',
+                attempts: 1,
+            });
+            return null;
         }
     }
 

@@ -29,16 +29,45 @@
 
 const API_BASE = 'https://api.cloudflare.com/client/v4/accounts';
 
-/** Text. Small-and-fast first, so the shared Neuron pool lasts the day. */
+/**
+ * Text. Capable-and-fast first, then the strongest, then the cheapest.
+ *
+ * Every id here was checked against the account's live catalogue rather than
+ * written from memory — `@cf/meta/llama-3.1-8b-instruct-fast` was in this list
+ * and does not exist, which is the same failure that left both Gemini image
+ * models 404ing for months. If you add one, verify it:
+ *   GET /client/v4/accounts/{account}/ai/models/search
+ */
 export const CF_TEXT_MODELS = [
-  '@cf/meta/llama-3.1-8b-instruct-fast',
+  '@cf/openai/gpt-oss-20b',
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  // Cheapest in Neurons — the one that keeps answering late in the day.
+  '@cf/meta/llama-3.2-3b-instruct',
 ] as const;
 
 /** Schnell is the cheap, fast FLUX variant — a few Neurons per 512px image. */
 export const CF_IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
 export const CF_WHISPER_MODEL = '@cf/openai/whisper-large-v3-turbo';
+
+/**
+ * Text to speech, cheapest-working first.
+ *
+ * Deepgram Aura returns raw MP3 bytes with `content-type: audio/mpeg`, not a
+ * JSON envelope — different from every other model here, and getting it wrong
+ * yields a valid-looking response containing nothing playable.
+ *
+ * `@cf/myshell-ai/melotts` is deliberately absent. It is listed in the account
+ * catalogue and answers HTTP 500 (`AiError`, code 3043) for a plain sentence,
+ * so leading with it would spend a round trip to fail. Re-test before adding.
+ */
+export const CF_TTS_MODELS = [
+  '@cf/deepgram/aura-2-en',
+  '@cf/deepgram/aura-1',
+] as const;
+
+/** Longer than a paragraph or two is a download, not a page reading itself. */
+export const CF_TTS_MAX_CHARS = 2_000;
 
 export function hasCloudflareAi(): boolean {
   return Boolean(
@@ -138,6 +167,64 @@ export async function cloudflareTranscribe(
     console.warn('[cloudflare-ai] whisper request failed:', (err as Error)?.message);
     return null;
   }
+}
+
+export type CloudflareSpeech = { audio: Buffer; mimeType: string; model: string };
+
+/**
+ * Read text aloud. Returns null when unconfigured or every model fails.
+ *
+ * Audio comes back as raw bytes rather than base64 in JSON, so the caller can
+ * stream it straight to an <audio> element without paying the ~33% base64 tax
+ * on every lesson paragraph a learner plays.
+ */
+export async function cloudflareTextToSpeech(
+  text: string,
+  voice?: string,
+  signal?: AbortSignal,
+): Promise<CloudflareSpeech | null> {
+  if (!hasCloudflareAi()) return null;
+
+  const trimmed = text.trim().slice(0, CF_TTS_MAX_CHARS);
+  if (!trimmed) return null;
+
+  for (const model of CF_TTS_MODELS) {
+    try {
+      const response = await fetch(endpoint(model), {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(voice ? { text: trimmed, speaker: voice } : { text: trimmed }),
+        signal,
+      });
+
+      if (!response.ok) {
+        console.warn(`[cloudflare-ai] tts ${model} ${response.status}`);
+        continue;
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+
+      // A JSON body here means an error envelope, not audio: Aura answers
+      // audio/mpeg on success. Treating it as sound would hand the browser a
+      // few hundred bytes of error text renamed .mp3.
+      if (contentType.includes('application/json')) {
+        console.warn(`[cloudflare-ai] tts ${model} returned JSON, not audio`);
+        continue;
+      }
+
+      const audio = Buffer.from(await response.arrayBuffer());
+      if (audio.length < 512) {
+        console.warn(`[cloudflare-ai] tts ${model} returned ${audio.length} bytes`);
+        continue;
+      }
+
+      return { audio, mimeType: contentType || 'audio/mpeg', model };
+    } catch (err) {
+      console.warn(`[cloudflare-ai] tts ${model} failed:`, (err as Error)?.message);
+    }
+  }
+
+  return null;
 }
 
 /** Plain system+user text. Returns null so callers keep their own fallbacks. */

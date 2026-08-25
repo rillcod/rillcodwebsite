@@ -4,6 +4,11 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
 import { loadDutyCapacity } from '@/lib/communication/duty-assignment';
 import { recordCommunicationCaseEvent } from '@/lib/communication/cases';
+import {
+  recordCommunicationDeliveryEvent,
+  recordUnmatchedDeliveryEvent,
+  type CommunicationDeliveryStatus,
+} from '@/lib/communication/delivery-ledger';
 
 function adminClient() {
   return createClient(
@@ -285,41 +290,42 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
     for (const status of value.statuses) {
       const messageId: string = status.id;
       const newStatus: string = status.status;
+      const now = new Date().toISOString();
+      const mappedStatus = (['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent') as CommunicationDeliveryStatus;
+      const errorText = newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null;
+      const { data: deliveryRows } = await admin.from('communication_delivery_log')
+        .select('id,case_id,case_event_id,status')
+        .eq('provider', 'meta').eq('provider_message_id', messageId);
 
-      await admin
-        .from('whatsapp_messages')
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .filter('metadata->>whatsapp_message_id', 'eq', messageId);
-      // Transport-persisted rows use the canonical provider id column. Keep the
-      // legacy metadata update above until historical rows are migrated.
-      await admin
-        .from('whatsapp_messages')
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('meta_message_id', messageId);
-
-
-      await admin.from('whatsapp_outbox').update({
-        status: ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent',
-        last_error: newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null,
-        updated_at: new Date().toISOString(),
-      }).eq('meta_message_id', messageId);
-      const deliveryTimes: Record<string, string> = {};
-      if (newStatus === 'delivered') deliveryTimes.delivered_at = new Date().toISOString();
-      if (newStatus === 'read') deliveryTimes.read_at = new Date().toISOString();
-      if (newStatus === 'failed') deliveryTimes.failed_at = new Date().toISOString();
-      const mappedStatus = ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent';
-      const { data: deliveryRows } = await admin.from('communication_delivery_log').update({
-        status: mappedStatus,
-        ...deliveryTimes, error: newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null, updated_at: new Date().toISOString(),
-      }).eq('provider', 'meta').eq('provider_message_id', messageId).select('id,case_id,case_event_id');
+      let canonicalStatus = mappedStatus;
+      if (!deliveryRows?.length) {
+        await recordUnmatchedDeliveryEvent(admin, {
+          eventKey: `meta:${messageId}:${newStatus}`,
+          status: mappedStatus,
+          channel: 'whatsapp',
+          provider: 'meta',
+          providerMessageId: messageId,
+          providerStatus: newStatus,
+          occurredAt: now,
+          error: errorText,
+          metadata: { errors: status.errors ?? [], unmatched: true },
+        });
+      }
 
       for (const delivery of deliveryRows ?? []) {
+        const recorded = await recordCommunicationDeliveryEvent(admin, {
+          deliveryId: delivery.id,
+          eventKey: `meta:${messageId}:${newStatus}`,
+          status: mappedStatus,
+          channel: 'whatsapp',
+          provider: 'meta',
+          providerMessageId: messageId,
+          providerStatus: newStatus,
+          occurredAt: now,
+          error: errorText,
+          metadata: { errors: status.errors ?? [] },
+        });
+        canonicalStatus = (recorded?.current_status ?? mappedStatus) as CommunicationDeliveryStatus;
         let caseEventId = delivery.case_event_id as string | null;
         if (!caseEventId && delivery.case_id) {
           const { data: byMsg } = await admin
@@ -348,14 +354,29 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
           }
         }
         if (caseEventId) {
+          const deliveryTimes: Record<string, string> = {};
+          if (canonicalStatus === 'delivered' || canonicalStatus === 'read') deliveryTimes.delivered_at = now;
+          if (canonicalStatus === 'read') deliveryTimes.read_at = now;
+          if (canonicalStatus === 'failed') deliveryTimes.failed_at = now;
           await admin.from('communication_case_events').update({
-            delivery_status: mappedStatus,
+            delivery_status: canonicalStatus,
             provider: 'meta',
             provider_message_id: messageId,
             ...deliveryTimes,
           }).eq('id', caseEventId);
         }
       }
+
+      // Keep operational mirrors aligned to the canonical monotonic state.
+      await admin.from('whatsapp_messages').update({ status: canonicalStatus, updated_at: now })
+        .filter('metadata->>whatsapp_message_id', 'eq', messageId);
+      await admin.from('whatsapp_messages').update({ status: canonicalStatus, updated_at: now })
+        .eq('meta_message_id', messageId);
+      await admin.from('whatsapp_outbox').update({
+        status: canonicalStatus,
+        last_error: canonicalStatus === 'failed' ? errorText : null,
+        updated_at: now,
+      }).eq('meta_message_id', messageId);
     }
   }
 

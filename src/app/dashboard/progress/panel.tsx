@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -355,11 +356,10 @@ export default function ProgressPage({
       return false;
     if (selectedClass !== "all" && u.section_class !== selectedClass)
       return false;
-    if (selectedStatus !== "all" && e.status !== selectedStatus) return false;
     if (
       searchQuery &&
-      !u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      !`${u.full_name ?? ""} ${u.email ?? ""} ${u.section_class ?? ""} ${e.grade ?? ""}`
+        .toLowerCase().includes(searchQuery.toLowerCase())
     )
       return false;
     return true;
@@ -374,8 +374,8 @@ export default function ProgressPage({
     if (selectedStatus !== "all" && s.status !== selectedStatus) return false;
     if (
       searchQuery &&
-      !u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      !`${u.full_name ?? ""} ${u.email ?? ""} ${u.section_class ?? ""} ${s.grade ?? ""} ${s.assignments?.title ?? ""}`
+        .toLowerCase().includes(searchQuery.toLowerCase())
     )
       return false;
     return true;
@@ -383,7 +383,7 @@ export default function ProgressPage({
 
   const distinctClasses = Array.from(
     new Set(
-      enrollments.map((e) => e.portal_users?.section_class).filter(Boolean)
+      [...enrollments, ...submissions].map((row) => row.portal_users?.section_class).filter(Boolean)
     )
   ).sort() as string[];
 
@@ -686,7 +686,7 @@ export default function ProgressPage({
             <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
-                placeholder="Search student or email..."
+                placeholder="Search student, class, assignment or grade..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -696,7 +696,7 @@ export default function ProgressPage({
               <select
                 value={selectedSchool}
                 onChange={(e) => setSelectedSchool(e.target.value)}
-                className="bg-[#161625] border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+                className="bg-background border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="all">All Schools</option>
                 {schools.map((s) => (
@@ -716,7 +716,7 @@ export default function ProgressPage({
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="bg-[#161625] border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+              className="bg-background border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
             >
               <option value="all">All Classes</option>
               {distinctClasses.map((c) => (
@@ -728,13 +728,11 @@ export default function ProgressPage({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-[#161625] border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+              className="bg-background border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
             >
-              <option value="all">Any Status</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="submitted">Submitted (Submissions)</option>
-              <option value="graded">Graded (Submissions)</option>
+              <option value="all">All review states</option>
+              <option value="submitted">Needs grading</option>
+              <option value="graded">Graded</option>
             </select>
           </div>
         )}
@@ -874,14 +872,15 @@ export default function ProgressPage({
 
         {/* Staff stats */}
         {isStaff && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
               {
-                label: "Scoped Submissions",
+                label: "In this view",
                 value: activeSubs.length,
                 icon: ClipboardDocumentCheckIcon,
                 color: "text-primary",
                 bg: "bg-primary/10",
+                filter: "all",
               },
               {
                 label: "Graded",
@@ -889,16 +888,18 @@ export default function ProgressPage({
                 icon: CheckCircleIcon,
                 color: "text-emerald-600 dark:text-emerald-400",
                 bg: "bg-emerald-500/10",
+                filter: "graded",
               },
               {
-                label: "Awaiting Grade",
+                label: "Needs grading",
                 value: pending,
                 icon: ClockIcon,
                 color: "text-amber-600 dark:text-amber-400",
                 bg: "bg-amber-500/10",
+                filter: "submitted",
               },
               {
-                label: "Scoped Average",
+                label: "Graded average",
                 value: avgScore != null ? `${avgScore}%` : "—",
                 icon: ChartBarIcon,
                 color: avgScore
@@ -907,33 +908,40 @@ export default function ProgressPage({
                     : "text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground",
                 bg: "bg-primary/10",
+                filter: null,
               },
             ].map((s) => (
-              <div
+              <button
+                type="button"
                 key={s.label}
-                className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl"
+                onClick={() => s.filter && setSelectedStatus(s.filter)}
+                disabled={!s.filter}
+                aria-pressed={Boolean(s.filter && selectedStatus === s.filter)}
+                className={`rounded-xl border bg-card p-4 text-left shadow-sm transition-colors ${
+                  s.filter ? "hover:border-primary/40" : "cursor-default"
+                } ${s.filter && selectedStatus === s.filter ? "border-primary/50 ring-1 ring-primary/20" : "border-border"}`}
               >
-                <div
-                  className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}
-                >
-                  <s.icon className={`w-5 h-5 ${s.color}`} />
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
+                  </div>
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${s.bg}`}>
+                    <s.icon className={`h-4 w-4 ${s.color}`} />
+                  </span>
                 </div>
-                <p className={`text-2xl font-extrabold ${s.color}`}>
-                  {s.value}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-              </div>
+              </button>
             ))}
           </div>
         )}
 
         {/* Enrollments */}
-        {enrollments.length > 0 && (
+        {!isStaff && enrollments.length > 0 && (
           <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border">
               <h3 className="font-bold text-foreground flex items-center gap-2">
                 <BookOpenIcon className="w-5 h-5 text-primary" />
-                {isStaff ? "Program Enrollments" : "My Enrolled Programs"}
+                My enrolled programmes
               </h3>
             </div>
             <div className="divide-y divide-white/5">
@@ -1117,6 +1125,14 @@ export default function ProgressPage({
                           {s.status === "submitted" ? "Awaiting grade" : "—"}
                         </span>
                       )}
+                      {isStaff && s.assignments?.id ? (
+                        <Link
+                          href={`/dashboard/assignments/${s.assignments.id}`}
+                          className="mt-1 inline-flex min-h-9 items-center rounded-lg border border-border px-3 py-1.5 text-xs font-black text-primary hover:bg-primary/10"
+                        >
+                          {s.status === "submitted" ? "Review" : "Open"}
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -1125,7 +1141,7 @@ export default function ProgressPage({
           </div>
         )}
 
-        {submissions.length === 0 && enrollments.length === 0 && !error && (
+        {((isStaff && activeSubs.length === 0) || (!isStaff && submissions.length === 0 && enrollments.length === 0)) && !error && (
           <div className="text-center py-20 bg-card shadow-sm border border-border rounded-xl">
             <ChartBarIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-semibold text-muted-foreground">
