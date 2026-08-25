@@ -52,10 +52,10 @@ export function AcademicGuideCtas() {
         </>
       ) : (
         <Link
-          href="/dashboard/academic/build"
+          href="/dashboard/learner-progress?view=delivery"
           className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground"
         >
-          See official curriculum
+          Class progress
         </Link>
       )}
     </div>

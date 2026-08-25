@@ -343,6 +343,11 @@ const TEACHER_DENIED_PREFIXES: string[] = [
   "/dashboard/parent-claims",
   "/dashboard/school-reports",
   "/dashboard/records",
+  // Curriculum writer / rollout is Academic Office work. Teachers track
+  // coverage; they do not author here.
+  "/dashboard/academic/build",
+  "/dashboard/academic/rollout",
+  "/dashboard/academic/pathways",
 ];
 
 /**
@@ -404,6 +409,7 @@ export function isDashboardPathBlockedForTeacher(pathname: string): boolean {
   const path = normalizePath(pathname);
   if (!path.startsWith("/dashboard")) return false;
   if (matchesPathPrefix(path, TEACHER_DENIED_PREFIXES)) return true;
+  if (path === "/dashboard/academic") return true;
   if (path.startsWith("/dashboard/certificates/management")) return true;
   if (isTeacherAllowedPath(path)) return false;
   return true;

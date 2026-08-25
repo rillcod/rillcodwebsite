@@ -71,7 +71,10 @@ import {
   buildClassTeachingHref,
   buildProjectNewHref,
 } from "@/lib/curriculum/href";
-import { filterLessonsForClassPlans } from "@/lib/learning/lesson-plan-scope";
+import {
+  filterLessonsForClassPlans,
+  loadLessonsForClassPlans,
+} from "@/lib/learning/lesson-plan-scope";
 import NeuralVoiceReader from "@/components/ai/NeuralVoiceReader";
 import StudyAssistant from "@/components/ai/StudyAssistant";
 
@@ -4650,10 +4653,9 @@ export default function LessonDetailPage() {
   const nextLesson = useMemo(() => {
     if (!id || courseLessons.length === 0) return null;
     const idx = courseLessons.findIndex((l) => l.id === id);
-    return idx !== -1 && idx < courseLessons.length - 1
-      ? courseLessons[idx + 1]
-      : null;
-  }, [id, courseLessons]);
+    if (idx === -1) return profile?.role === "student" ? courseLessons[0] : null;
+    return idx < courseLessons.length - 1 ? courseLessons[idx + 1] : null;
+  }, [id, courseLessons, profile?.role]);
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher";
 
@@ -4745,12 +4747,16 @@ export default function LessonDetailPage() {
           classId: lessonObj.class_id ?? user.class_id ?? null,
         });
         const termBounds = await loadAcademicTermBounds(db as any, liveTermId);
+        const siblingLessonsPromise =
+          user.role === "student" && user.class_id
+            ? loadLessonsForClassPlans(db, user.class_id)
+            : db
+                .from("lessons")
+                .select("id, title, order_index, lesson_type")
+                .eq("course_id", lessonObj.course_id)
+                .order("order_index", { ascending: true });
         const [cLessons, cAsgns, cQuizzes, fDecks] = await Promise.all([
-          db
-            .from("lessons")
-            .select("id, title, order_index, lesson_type")
-            .eq("course_id", lessonObj.course_id)
-            .order("order_index", { ascending: true }),
+          siblingLessonsPromise,
           scopedAssignmentQuery,
           // cbt_exams has no total_points column; asking for it failed this read, so the lesson
           // page showed no exams at all. Nothing rendered the value.
@@ -4770,7 +4776,9 @@ export default function LessonDetailPage() {
             .select("id, title, term_id, flashcard_cards(count)")
             .eq("lesson_id", id),
         ]);
-        setCourseLessons(cLessons.data ?? []);
+        setCourseLessons(
+          Array.isArray(cLessons) ? cLessons : (cLessons.data ?? []),
+        );
         const lessonWeek = Number(
           lessonObj.curriculum_week_number ??
             lessonObj.metadata?.week ??
@@ -5081,7 +5089,9 @@ export default function LessonDetailPage() {
               </h3>
               <div className="flex items-center gap-3 mt-3 relative z-10">
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                  {courseLessons.length} units of intelligence
+                  {profile?.role === "student"
+                    ? `${courseLessons.length} class lessons`
+                    : `${courseLessons.length} units of intelligence`}
                 </span>
                 <div className="h-px flex-1 bg-white/10" />
               </div>

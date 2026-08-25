@@ -84,6 +84,8 @@ const SECRET_KEYS = [
   "WHATSAPP_WEBHOOK_VERIFY_TOKEN",
   "CRON_SECRET",
   "BILLING_CRON_SECRET",
+  "BILLING_LINK_SECRET",
+  "BILLING_LINK_LEGACY_UNTIL",
   "FIREBASE_SERVICE_ACCOUNT_JSON",
   // Meta WhatsApp Cloud API. WHATSAPP_APP_SECRET signs inbound webhooks — without
   // it every unsigned webhook is rejected, so inbound WhatsApp goes dark.

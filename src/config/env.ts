@@ -61,6 +61,8 @@ const envSchema = z.object({
     WHATSAPP_REVIEW_TEST_NUMBERS: z.string().optional(),
     MOBILE_APP_URL: z.string().optional(),
     BILLING_CRON_SECRET: z.string().optional(),
+    BILLING_LINK_SECRET: z.string().optional(),
+    BILLING_LINK_LEGACY_UNTIL: z.string().optional(),
     /**
      * Internal ops alerts on registration payments (email only).
      * Also configure Supabase `app_settings`: `default_registration_program_id` → programme UUID

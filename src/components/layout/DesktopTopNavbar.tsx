@@ -24,6 +24,7 @@ const PATH_LABELS: Record<string, string> = {
   '/dashboard/courses': 'Course Library',
   '/dashboard/lesson-plans': 'Lesson Plans',
   '/dashboard/grading': 'Grading Queue',
+  '/dashboard/grades': 'Mark work',
   '/dashboard/timetable': 'Timetable',
   '/dashboard/finance': 'Finance & Billing',
   '/dashboard/my-card': 'Digital Access Card',
@@ -37,7 +38,8 @@ const PATH_LABELS: Record<string, string> = {
   '/dashboard/office': 'Office Center',
   '/dashboard/reports/builder': 'Write',
   '/dashboard/results': 'Publish',
-  '/dashboard/academic/results': 'Auto-fill',
+  '/dashboard/academic/results': 'Results',
+  '/dashboard/learner-progress': 'Class progress',
 };
 
 const STUDENT_PATH_LABELS: Record<string, string> = {

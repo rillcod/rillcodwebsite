@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { rowMatchesTeachingPeriod } from '@/lib/academic/teaching-period';
 import {
   compareLessonsByClassWeek,
+  lessonsOnWeek,
   nextLessonInClassOrder,
+  releasedWeekCap,
   selectClassPlansForScope,
   sortLessonsByClassWeek,
+  thisWeekNumber,
   visibleLessonsOnClassPlans,
 } from './lesson-plan-scope';
 
@@ -153,6 +156,51 @@ describe('shared release gate on the class plan', () => {
   it('shows nothing when the learner has no class', () => {
     const rows = [lesson({ id: 'w1', title: 'One', curriculum_week_number: 1 })];
     expect(visibleLessonsOnClassPlans(rows, [plan()], '')).toEqual([]);
+  });
+
+  it('hides a live future week when the class calendar has not reached it', () => {
+    const rows = [
+      lesson({ id: 'now', title: 'Week 3', curriculum_week_number: 3 }),
+      lesson({ id: 'ahead', title: 'Week 8', curriculum_week_number: 8 }),
+    ];
+    expect(
+      visibleLessonsOnClassPlans(rows, [plan()], CLASS, { currentWeek: 3 }).map(
+        (row) => row.id,
+      ),
+    ).toEqual(['now']);
+  });
+
+  it('drops a plan lesson with no week number — that is catalogue leftover', () => {
+    const rows = [
+      lesson({ id: 'on-week', title: 'Shared', curriculum_week_number: 1 }),
+      lesson({ id: 'no-week', title: 'Loose', curriculum_week_number: undefined }),
+    ];
+    expect(visibleLessonsOnClassPlans(rows, [plan()], CLASS).map((row) => row.id)).toEqual([
+      'on-week',
+    ]);
+  });
+});
+
+describe('this class week', () => {
+  it('caps released weeks at the class calendar', () => {
+    expect(releasedWeekCap(8, 3)).toBe(3);
+    expect(releasedWeekCap(2, 5)).toBe(2);
+  });
+
+  it('picks the latest live week at or before today, not the next module in the catalogue', () => {
+    const rows = [
+      lesson({ id: 'w1', title: 'One', curriculum_week_number: 1 }),
+      lesson({ id: 'w3', title: 'Three', curriculum_week_number: 3 }),
+      lesson({ id: 'w8', title: 'Eight', curriculum_week_number: 8 }),
+    ];
+    const visible = visibleLessonsOnClassPlans(rows, [plan()], CLASS, {
+      currentWeek: 3,
+    });
+    expect(thisWeekNumber(visible, 3)).toBe(3);
+    expect(lessonsOnWeek(visible, 3).map((row) => row.id)).toEqual(['w3']);
+    expect(nextLessonInClassOrder(lessonsOnWeek(visible, 3), new Set())?.id).toBe(
+      'w3',
+    );
   });
 });
 

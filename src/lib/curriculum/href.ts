@@ -351,6 +351,20 @@ export function buildResultsHref(
   });
 }
 
+/** Mark taught — teaching coverage, not the curriculum writer. */
+export function buildCoverageHref(
+  args: {
+    classId?: string | null;
+    courseId?: string | null;
+  } = {}
+): string {
+  return withQuery("/dashboard/learner-progress", {
+    view: "delivery",
+    class_id: args.classId,
+    course_id: args.courseId,
+  });
+}
+
 export function buildParentGradesHref(
   args: {
     studentId?: string | null;

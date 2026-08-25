@@ -16,7 +16,6 @@ import {
   parseTeachingTargets,
 } from "@/lib/academic/teaching-workspace";
 import { classCoverageFromRows } from "@/lib/academic/class-coverage";
-import { buildCurriculumHref } from "@/lib/curriculum/href";
 import {
   describeAutoGenerateSettings,
   parseAutoGenerateSettings,
@@ -354,8 +353,8 @@ export async function GET(
           headline: "Official curriculum direction is not ready.",
           detail:
             "The class cannot prepare teaching content until this course has an official edition for its pathway.",
-          actionLabel: "Open curriculum direction",
-          actionHref: buildCurriculumHref({ courseId }),
+          actionLabel: "Open the guide",
+          actionHref: "/dashboard/academic/guide",
         }
       : plan?.curriculum_release_id
         ? {

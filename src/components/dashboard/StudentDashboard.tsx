@@ -6,17 +6,15 @@ import {
   BookOpenIcon, RocketLaunchIcon,
   SparklesIcon, CheckBadgeIcon,
   ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon,
-  ArchiveBoxIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard';
-import RecommendedForYou from '@/components/dashboard/RecommendedForYou';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 import {
-  loadLessonsForClassPlans,
+  loadLearnerClassWeek,
   nextLessonInClassOrder,
 } from '@/lib/learning/lesson-plan-scope';
 
@@ -35,7 +33,7 @@ export default function StudentDashboard() {
   const { profile } = useAuth();
   const [data, setData] = useState<{
     xp: number; streak: number; level: string; lessonsDone: number; avgScore: number;
-    nextLesson: any; pendingAssignments: number; badges: any[]; leaderboardRank: number | null;
+    nextLesson: any; thisWeekNumber: number | null; pendingAssignments: number; badges: any[]; leaderboardRank: number | null;
     recentActivity: any[]; isEnrolled: boolean;
     upcomingDue: { id: string; title: string; due_date: string; course: string | null }[];
     overdueDue: { id: string; title: string; due_date: string; course: string | null }[];
@@ -43,13 +41,11 @@ export default function StudentDashboard() {
     lmsSettings: Record<string, string>;
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
-    nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
+    nextLesson: null, thisWeekNumber: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
     isEnrolled: false, upcomingDue: [], overdueDue: [], recentGrades: [],
     lmsSettings: {} as Record<string, string>,
   });
   const [loading, setLoading] = useState(true);
-  const [aiHook, setAiHook] = useState<{ hook_title: string; real_world_example: string; challenge_question: string } | null>(null);
-  const [loadingHook, setLoadingHook] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -71,7 +67,7 @@ export default function StudentDashboard() {
             pendingAssignments: s.pendingAssignments || 0,
             badges: s.badges || [],
             leaderboardRank: s.leaderboardRank || null,
-            isEnrolled: s.enrolledCourses > 0,
+            isEnrolled: Boolean(profile.class_id) || s.enrolledCourses > 0,
             lmsSettings: json.lmsSettings || {},
           }));
         }
@@ -139,11 +135,13 @@ export default function StudentDashboard() {
         // Next lesson is the first unfinished week this class has been shared —
         // the same package as Learning Center, not a catalogue ordered by id.
         let nextLesson = null;
+        let thisWeekNumber: number | null = null;
         if (profile.class_id) {
           const { data: done } = await db.from('lesson_progress').select('lesson_id').eq('portal_user_id', profile.id).eq('status', 'completed');
           const doneSet = new Set((done ?? []).map((d: any) => d.lesson_id));
-          const scoped = await loadLessonsForClassPlans(db, profile.class_id);
-          nextLesson = nextLessonInClassOrder(scoped, doneSet);
+          const pack = await loadLearnerClassWeek(db, profile.class_id);
+          thisWeekNumber = pack.week;
+          nextLesson = nextLessonInClassOrder(pack.thisWeekLessons, doneSet);
         }
 
         setData(prev => ({
@@ -159,6 +157,7 @@ export default function StudentDashboard() {
           })),
           recentActivity,
           nextLesson,
+          thisWeekNumber,
         }));
 
       } catch (err) {
@@ -183,23 +182,6 @@ export default function StudentDashboard() {
   }
 
   const xpPct = data.level === 'Platinum' ? 100 : Math.min(100, ((data.xp - curThreshold) / (nextThreshold - curThreshold)) * 100);
-
-  const generateHook = async () => {
-    if (!data.nextLesson || loadingHook) return;
-    setLoadingHook(true);
-    try {
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'lesson-hook', topic: data.nextLesson.title, gradeLevel: 'JSS1–SS3' }),
-      });
-      if (!res.ok) throw new Error('AI hook generation failed');
-      const d = await res.json();
-      if (d.data) setAiHook(d.data);
-    } finally {
-      setLoadingHook(false);
-    }
-  };
 
   if (loading) return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -238,14 +220,14 @@ export default function StudentDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
 
       {/* ── TOP SECTION: PRIMARY LEARNING ACTIONS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4">
 
         {/* Next Mission / Learning Hub - BIG CARD */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               <RocketLaunchIcon className="w-4 h-4 text-primary" />
-              Your Next Lesson
+              {data.thisWeekNumber ? `This week · Week ${data.thisWeekNumber}` : 'This week'}
             </h2>
             <Link href="/dashboard/learning" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
               Learning Center →
@@ -257,20 +239,17 @@ export default function StudentDashboard() {
               className="group flex flex-col gap-5 p-6 sm:p-8 bg-card/90 backdrop-blur-2xl border border-primary/30 hover:border-primary/60 rounded-3xl transition-all relative overflow-hidden shadow-xl hover:shadow-2xl">
               <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-center justify-between relative z-10">
-                <div className="px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">CONTINUE</div>
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
-                  <SparklesIcon className="w-4 h-4 animate-pulse" /> +15 XP
-                </div>
+                <div className="px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">THIS WEEK</div>
               </div>
               <div className="relative z-10">
-                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1.5">Up Next</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1.5">Your class this week</p>
                 <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">
                   {data.nextLesson.title}
                 </h3>
               </div>
               <div className="flex items-center gap-3 relative z-10 pt-2">
                 <div className="px-8 py-3 bg-primary group-hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-primary/25 active:scale-[0.98]">
-                  Resume Now
+                  Open this week
                 </div>
               </div>
             </Link>
@@ -286,39 +265,7 @@ export default function StudentDashboard() {
             </Link>
           )}
         </div>
-
-        {/* Programme Sidebar Card */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-            <ArchiveBoxIcon className="w-4 h-4 text-primary" />
-            My Programme
-          </h2>
-          <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 flex flex-col gap-6 h-[calc(100%-2rem)] shadow-xl">
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-4">
-                <span className="px-2.5 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-full">Enrolled</span>
-                <span className="text-[10px] font-black text-muted-foreground">{data.lessonsDone} lessons done</span>
-              </div>
-              <h4 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
-                {profile?.enrollment_type || 'Core Learning'}
-              </h4>
-              <p className="text-[10px] text-muted-foreground font-medium leading-relaxed">
-                Your learning path is kept up to date with the latest Rillcod lessons.
-              </p>
-            </div>
-
-            {/* Two tiles stood here — Path Progress and Assignments — both already
-                Quick Actions on this same page. The Assignments tile carried only a
-                dot to say something was pending, while the Overdue and Due Soon
-                sections below name the actual work and how late it is. A learner
-                reading top to bottom met assignments three times before reaching
-                the one place that said what was due. */}
-          </div>
-        </div>
       </div>
-
-      {/* ── SMART RECOMMENDATIONS ── */}
-      <RecommendedForYou />
 
       {/* ── STATS & PROGRESS SECTION ── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -396,46 +343,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-
-      {/* AI Lesson Hook */}
-      {data.nextLesson && (
-        <div className="bg-indigo-600/5 border border-indigo-500/20 p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -mr-16 -mt-16" />
-          <div className="relative z-10 flex flex-col sm:flex-row items-start gap-6">
-            <div className="w-12 h-12 bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400">
-              <SparklesIcon className="w-6 h-6" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em] mb-1">What You&apos;ll Learn Next</p>
-              {aiHook ? (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-black text-foreground uppercase tracking-tight">{aiHook.hook_title}</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed italic">{aiHook.real_world_example}</p>
-                  <div className="p-3 bg-indigo-500/5 border border-indigo-500/10">
-                    <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Think About This</p>
-                    <p className="text-xs text-foreground font-medium">"{aiHook.challenge_question}"</p>
-                  </div>
-                  <Link href={`/dashboard/lessons/${data.nextLesson.id}`}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-[0.2em] transition-all">
-                    Start This Lesson →
-                  </Link>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-foreground break-words">{data.nextLesson.title}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Get an AI-powered preview of what you&apos;ll learn</p>
-                  </div>
-                  <button type="button" onClick={generateHook} disabled={loadingHook}
-                    className="w-full sm:w-auto shrink-0 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2">
-                    {loadingHook ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Loading...</> : '✦ Preview'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── One launcher ──────────────────────────────────────────────────────
           This was three stacked blocks: a tile grid, a full-width Student Hub

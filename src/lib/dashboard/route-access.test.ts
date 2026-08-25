@@ -70,6 +70,12 @@ describe("central workspace route access", () => {
     expect(isDashboardPathBlockedForTeacher("/dashboard/cases")).toBe(true);
     expect(isDashboardPathBlockedForTeacher("/dashboard/records")).toBe(true);
     expect(isDashboardPathBlockedForTeacher("/dashboard/classes")).toBe(false);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/academic/build")).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/academic/rollout")).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/academic")).toBe(true);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/academic/results")).toBe(false);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/academic/guide")).toBe(false);
+    expect(isDashboardPathBlockedForTeacher("/dashboard/learner-progress")).toBe(false);
     expect(isDashboardPathBlockedForTeacher("/dashboard/engage")).toBe(true);
     expect(isDashboardPathBlockedForTeacher("/dashboard/brand-new-admin-surface")).toBe(true);
   });

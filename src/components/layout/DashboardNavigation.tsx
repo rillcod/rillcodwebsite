@@ -643,14 +643,14 @@ export default function DashboardNavigation() {
             icon: UserGroupIcon,
           },
           {
+            name: "Class progress",
+            href: "/dashboard/learner-progress?view=delivery",
+            icon: ChartBarIcon,
+          },
+          {
             name: "Approvals",
             href: "/dashboard/teaching/approvals",
             icon: ClipboardDocumentCheckIcon,
-          },
-          {
-            name: "Course outline",
-            href: "/dashboard/academic/build",
-            icon: BookOpenIcon,
           },
           {
             name: "Library",
@@ -677,12 +677,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Assessment" },
           {
-            name: "Grading Queue",
-            href: "/dashboard/grading",
-            icon: ClipboardDocumentCheckIcon,
-          },
-          {
-            name: "Gradebook & Reports",
+            name: "Mark work",
             href: "/dashboard/grades",
             icon: ChartBarIcon,
           },
@@ -702,17 +697,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Reports" },
           {
-            name: "Write",
-            href: "/dashboard/reports/builder",
-            icon: DocumentTextIcon,
-          },
-          {
-            name: "Publish",
-            href: "/dashboard/results",
-            icon: DocumentChartBarIcon,
-          },
-          {
-            name: "Auto-fill",
+            name: "Results",
             href: "/dashboard/academic/results",
             icon: DocumentChartBarIcon,
           },
@@ -1036,7 +1021,7 @@ export default function DashboardNavigation() {
     student: ["Dashboard", "Learning Center", "Assignments", "Grades"],
     school: ["Dashboard", "Classes", "Finance Center", "WhatsApp Inbox"],
     admin: ["Dashboard", "Office Center", "Records", "Write"],
-    teacher: ["Dashboard", "My Classes", "Grading Queue", "Course outline"],
+    teacher: ["Dashboard", "My Classes", "Mark work", "Class progress"],
     parent: ["Dashboard", "My Children", "Report Cards", "Finance Center"],
   };
   const bottomNavNames = bottomNavByRole[profile?.role ?? ""] ?? ["Dashboard"];

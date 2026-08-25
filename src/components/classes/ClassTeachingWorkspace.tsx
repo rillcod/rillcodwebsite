@@ -32,7 +32,7 @@ import {
   buildAttendanceHref,
   buildClassAssessmentHref,
   buildCbtNewHref,
-  buildCurriculumHref,
+  buildCoverageHref,
   buildFlashcardsHref,
   buildGradesHref,
   buildLessonNewHref,
@@ -1194,7 +1194,7 @@ export function ClassTeachingWorkspace({
                   Class records and results
                 </span>
                 <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                  Curriculum, assessments, grading and approvals
+                  Coverage, assessments, grading and results
                 </span>
               </span>
               <ChevronDownIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -1202,10 +1202,10 @@ export function ClassTeachingWorkspace({
             <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 lg:grid-cols-5">
               {[
                 {
-                  label: "Curriculum",
-                  href: buildCurriculumHref({
+                  label: "Coverage",
+                  href: buildCoverageHref({
+                    classId,
                     courseId,
-                    programId: data?.class?.program_id,
                   }),
                 },
                 {

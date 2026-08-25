@@ -1,3 +1,4 @@
+import { currentDeliveryWeek } from '@/lib/academic/delivery-calendar';
 import { assetMeetingSession } from '@/lib/academic/session-identity';
 import { canLearnerSeeSharedWeek } from '@/lib/academic/shared-content-visibility';
 import { rowMatchesTeachingPeriod } from '@/lib/academic/teaching-period';
@@ -15,6 +16,18 @@ export type ClassPlanScopeOpts = {
   termId?: string | null;
   offeringPeriodId?: string | null;
   currentCourseId?: string | null;
+};
+
+export type VisibleLessonOpts = {
+  /** Calendar week this class is in today. Future live catalogue weeks stay closed. */
+  currentWeek?: number | null;
+};
+
+export type LearnerClassWeek = {
+  currentWeek: number;
+  week: number | null;
+  thisWeekLessons: any[];
+  lessons: any[];
 };
 
 export function lessonPlanIdOf(lesson: any): string | null {
@@ -41,6 +54,39 @@ function weeksReleasedOnPlan(lessons: readonly any[], planId: string): number {
     if (week != null && week > max) max = week;
   }
   return max;
+}
+
+/** A class cannot be "on" a week the calendar has not reached, even if it is live. */
+export function releasedWeekCap(
+  liveMaxOnPlan: number,
+  currentWeek?: number | null,
+): number {
+  if (currentWeek == null || currentWeek < 1) return liveMaxOnPlan;
+  return Math.min(liveMaxOnPlan, currentWeek);
+}
+
+/** The week this class is actually on: latest live week at or before today. */
+export function thisWeekNumber(
+  lessons: readonly any[],
+  currentWeek: number,
+): number | null {
+  let best: number | null = null;
+  for (const lesson of lessons) {
+    const week = academicWeekNumber(lesson);
+    if (week == null || week > currentWeek) continue;
+    if (best == null || week > best) best = week;
+  }
+  return best;
+}
+
+export function lessonsOnWeek(
+  lessons: readonly any[],
+  week: number | null,
+): any[] {
+  if (week == null) return [];
+  return sortLessonsByClassWeek(
+    lessons.filter((lesson) => academicWeekNumber(lesson) === week),
+  );
 }
 
 export function selectClassPlansForScope(
@@ -102,19 +148,25 @@ export function nextLessonInClassOrder(
 /**
  * Live lessons on this class's teaching plan. Catalogue leftovers are dropped
  * when the class has a plan. Shared-release rows also pass canLearnerSeeSharedWeek
- * so another edition cannot leak in.
+ * so another edition cannot leak in. Weeks after the class calendar stay closed.
  */
 export function visibleLessonsOnClassPlans(
   lessons: readonly any[],
   plans: readonly any[],
   classId: string,
+  opts?: VisibleLessonOpts,
 ): any[] {
   const cid = String(classId ?? '').trim();
   if (!cid || plans.length === 0) return [];
 
+  const currentWeek =
+    opts?.currentWeek != null && opts.currentWeek > 0 ? opts.currentWeek : null;
   const plansById = new Map(plans.map((plan) => [plan.id, plan]));
   const releasedByPlan = new Map(
-    plans.map((plan) => [plan.id, weeksReleasedOnPlan(lessons, plan.id)]),
+    plans.map((plan) => [
+      plan.id,
+      releasedWeekCap(weeksReleasedOnPlan(lessons, plan.id), currentWeek),
+    ]),
   );
 
   const visible = lessons.filter((lesson) => {
@@ -124,11 +176,13 @@ export function visibleLessonsOnClassPlans(
     const plan = plansById.get(planId);
     if (!plan) return false;
 
+    const week = academicWeekNumber(lesson);
+    if (week == null) return false;
+    if (currentWeek != null && week > currentWeek) return false;
+
     const lessonRelease = String(lesson.curriculum_release_id ?? '').trim();
     if (!lessonRelease) return true;
 
-    const week = academicWeekNumber(lesson);
-    if (week == null) return false;
     return canLearnerSeeSharedWeek(
       {
         curriculum_release_id: lessonRelease,
@@ -145,6 +199,15 @@ export function visibleLessonsOnClassPlans(
   return sortLessonsByClassWeek(visible);
 }
 
+function currentWeekFromClass(klass: any): number {
+  const term = asOne(klass?.academic_terms);
+  const period = asOne(klass?.academic_offering_periods);
+  return currentDeliveryWeek({
+    termStart: term?.start_date ?? null,
+    periodStart: period?.starts_on ?? null,
+  });
+}
+
 export async function filterLessonsForClassPlans(
   db: LessonScopeDb,
   lessons: any[],
@@ -159,36 +222,58 @@ export async function filterLessonsForClassPlans(
   if (!cid) return lessons;
   if (lessons.length === 0) return [];
 
-  const { data: plans } = await db
-    .from('lesson_plans')
-    .select('id, class_id, course_id, term_id, offering_period_id, curriculum_release_id, status')
-    .eq('class_id', cid);
+  const [{ data: plans }, { data: klass }] = await Promise.all([
+    db
+      .from('lesson_plans')
+      .select('id, class_id, course_id, term_id, offering_period_id, curriculum_release_id, status')
+      .eq('class_id', cid),
+    db
+      .from('classes')
+      .select(
+        'term_id, offering_period_id, current_course_id, academic_terms(start_date), academic_offering_periods(starts_on)',
+      )
+      .eq('id', cid)
+      .maybeSingle(),
+  ]);
 
   const scoped = selectClassPlansForScope(plans ?? [], {
     classId: cid,
-    termId,
-    offeringPeriodId: opts?.offeringPeriodId,
-    currentCourseId: opts?.currentCourseId,
+    termId: termId ?? klass?.term_id,
+    offeringPeriodId: opts?.offeringPeriodId ?? klass?.offering_period_id,
+    currentCourseId: opts?.currentCourseId ?? klass?.current_course_id,
   });
-  return visibleLessonsOnClassPlans(lessons, scoped, cid);
+  return visibleLessonsOnClassPlans(lessons, scoped, cid, {
+    currentWeek: currentWeekFromClass(klass),
+  });
 }
 
 const LESSON_SELECT =
   'id, title, status, course_id, lesson_plan_id, curriculum_week_number, curriculum_release_id, session_number, order_index, metadata, courses(id, title, program_id, programs(name))';
 
-/** This class, this term: the live weeks the teacher has shared, in week order. */
-export async function loadLessonsForClassPlans(
+const CLASS_SELECT =
+  'term_id, offering_period_id, current_course_id, academic_terms(start_date), academic_offering_periods(starts_on)';
+
+/** This class, this term: live weeks the teacher has shared, up to today's calendar week. */
+export async function loadLearnerClassWeek(
   db: LessonScopeDb,
   classId?: string | null,
-): Promise<any[]> {
+): Promise<LearnerClassWeek> {
   const cid = String(classId ?? '').trim();
-  if (!cid) return [];
+  const empty: LearnerClassWeek = {
+    currentWeek: 1,
+    week: null,
+    thisWeekLessons: [],
+    lessons: [],
+  };
+  if (!cid) return empty;
 
   const { data: klass } = await db
     .from('classes')
-    .select('term_id, offering_period_id, current_course_id')
+    .select(CLASS_SELECT)
     .eq('id', cid)
     .maybeSingle();
+
+  const currentWeek = currentWeekFromClass(klass);
 
   const { data: planRows } = await db
     .from('lesson_plans')
@@ -203,7 +288,7 @@ export async function loadLessonsForClassPlans(
     offeringPeriodId: klass?.offering_period_id,
     currentCourseId: klass?.current_course_id,
   }).map((plan) => ({ ...plan, courses: asOne(plan.courses) }));
-  if (plans.length === 0) return [];
+  if (plans.length === 0) return { ...empty, currentWeek };
 
   const { data: lessonRows } = await db
     .from('lessons')
@@ -213,9 +298,27 @@ export async function loadLessonsForClassPlans(
       plans.map((plan) => plan.id),
     );
 
-  const lessons = (lessonRows ?? []).map((lesson: any) => ({
-    ...lesson,
-    courses: asOne(lesson.courses),
-  }));
-  return visibleLessonsOnClassPlans(lessons, plans, cid);
+  const lessons = visibleLessonsOnClassPlans(
+    (lessonRows ?? []).map((lesson: any) => ({
+      ...lesson,
+      courses: asOne(lesson.courses),
+    })),
+    plans,
+    cid,
+    { currentWeek },
+  );
+  const week = thisWeekNumber(lessons, currentWeek);
+  return {
+    currentWeek,
+    week,
+    thisWeekLessons: lessonsOnWeek(lessons, week),
+    lessons,
+  };
+}
+
+export async function loadLessonsForClassPlans(
+  db: LessonScopeDb,
+  classId?: string | null,
+): Promise<any[]> {
+  return (await loadLearnerClassWeek(db, classId)).lessons;
 }

@@ -12,6 +12,7 @@ import {
   hostPaperEntryHref,
   hostPaperEntryLabel,
   buildLessonNewHref,
+  buildCoverageHref,
   buildResultsHref,
   mergeAssetLaneHref,
   pickAssetLaneQuery,
@@ -74,6 +75,9 @@ describe("curriculum href helpers", () => {
     ).toContain("return_class_id=cl1");
     expect(buildGradesHref({ classId: "cl1", courseId: "c1" })).toBe(
       "/dashboard/grades?class_id=cl1&course_id=c1"
+    );
+    expect(buildCoverageHref({ classId: "cl1", courseId: "c1" })).toBe(
+      "/dashboard/learner-progress?view=delivery&class_id=cl1&course_id=c1"
     );
     expect(
       buildAttendanceHref({

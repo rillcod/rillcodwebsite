@@ -57,6 +57,12 @@ describe('central teacher workspace UX', () => {
     expect(academicOffice).not.toContain('Auto-fill</span>');
   });
 
+  it('does not send teachers into the curriculum writer from class records', () => {
+    expect(teachingWorkspace).toContain('buildCoverageHref');
+    expect(teachingWorkspace).not.toContain('buildCurriculumHref');
+    expect(teachingWorkspace).toContain('label: "Coverage"');
+  });
+
   it('does not send teachers into CRM from the old directory URL', () => {
     const directory = read('src/app/dashboard/directory/page.tsx');
     expect(directory).toContain("/dashboard/students");
