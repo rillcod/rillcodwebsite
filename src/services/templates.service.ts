@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
+import { normalizeTemplateKey } from '@/lib/communication/template-registry';
 
 export interface TemplateVariables {
     [key: string]: string | number;
@@ -17,6 +18,33 @@ export class TemplatesService {
 
     async getTemplate(name: string, type: 'email' | 'sms') {
         const supabase = await createClient();
+        const { data: governed, error: governedError } = await (supabase as any)
+            .from('communication_templates')
+            .select('name,channel,required_variables,current_version:communication_template_versions!communication_templates_current_version_id_fkey(subject,body,test_status)')
+            .eq('template_key', normalizeTemplateKey(name))
+            .eq('channel', type)
+            .eq('status', 'approved')
+            .maybeSingle();
+
+        const current = Array.isArray(governed?.current_version)
+            ? governed.current_version[0]
+            : governed?.current_version;
+        if (!governedError && current?.test_status === 'passed') {
+            return {
+                name: governed.name,
+                type,
+                subject: current.subject,
+                content: current.body,
+                variables: Object.fromEntries(
+                    ((governed.required_variables ?? []) as string[]).map((key) => [key, 'string'])
+                ),
+                source: 'communication_templates' as const,
+            };
+        }
+
+        // Rollout compatibility only: migration 114 copies active legacy rows.
+        // This fallback prevents a deployment race if code reaches production
+        // before the database migration has been applied.
         const { data, error } = await supabase
             .from('notification_templates')
             .select('*')
@@ -29,47 +57,7 @@ export class TemplatesService {
             throw new NotFoundError(`Template "${name}" of type ${type} not found`);
         }
 
-        return data;
-    }
-
-    /**
-     * Seed standard templates if they don't exist
-     */
-    async seedTemplates() {
-        const supabase = await createClient();
-        const standardTemplates: any[] = [
-            {
-                name: 'Assignment Reminder',
-                type: 'email',
-                subject: 'Reminder: Assignment {{assignment_name}} is due soon',
-                content: '<p>Hi {{user_name}},</p><p>This is a reminder that your assignment <strong>{{assignment_name}}</strong> is due on {{due_date}}.</p><p>Please ensure you submit it on time.</p>',
-                variables: { user_name: 'string', assignment_name: 'string', due_date: 'string' }
-            },
-            {
-                name: 'Grade Published',
-                type: 'email',
-                subject: 'New Grade Published: {{course_name}}',
-                content: '<p>Hi {{user_name}},</p><p>A new grade has been published for your work in <strong>{{course_name}}</strong>.</p><p>Grade: {{grade}}</p><p>Comment: {{notes}}</p>',
-                variables: { user_name: 'string', course_name: 'string', grade: 'string', notes: 'string' }
-            },
-            {
-                name: 'New Announcement',
-                type: 'email',
-                subject: 'New Announcement: {{title}}',
-                content: '<p>A new announcement has been posted:</p><h3>{{title}}</h3><p>{{content}}</p>',
-                variables: { title: 'string', content: 'string' }
-            },
-            {
-                name: 'Announcement SMS',
-                type: 'sms',
-                content: 'LMS Announcement: {{title}}. Check your portal for details.',
-                variables: { title: 'string' }
-            }
-        ];
-
-        for (const template of standardTemplates) {
-            await supabase.from('notification_templates').upsert(template, { onConflict: 'name, type' });
-        }
+        return { ...data, source: 'notification_templates' as const };
     }
 }
 

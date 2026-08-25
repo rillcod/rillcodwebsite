@@ -20,6 +20,7 @@ import {
   OPENROUTER_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/openrouter";
 import { modelQueueFor } from "@/lib/ai/model-policy";
+import { hasHuggingFaceKey } from "@/lib/ai/huggingface";
 import { buildCbtEntrySuggestion } from "@/lib/cbt/predictive-entry";
 
 export const MODELS = [
@@ -2159,9 +2160,14 @@ export async function generateAIContent(
 
   // ── OpenRouter queue ───────────────────────────────────────────────────────
   const openRouterKey = process.env.OPENROUTER_API_KEY ?? "";
-  if (!openRouterKey) {
+  // The queue may end in Hugging Face entries, which carry their own
+  // credential and endpoint. Bailing purely on a missing OpenRouter key would
+  // throw away a tier that is configured and working, so the giving-up
+  // condition is "no paid provider at all" rather than "no OpenRouter".
+  const hasPaidFallback = Boolean(openRouterKey) || hasHuggingFaceKey();
+  if (!hasPaidFallback) {
     throw new Error(
-      "AI generation failed: the free Gemini tier returned nothing and no OpenRouter key is configured."
+      "AI generation failed: the free Gemini tier returned nothing and no OpenRouter or Hugging Face key is configured."
     );
   }
 

@@ -13,56 +13,16 @@ function adminClient() {
   );
 }
 
-async function requireStaff(req: NextRequest) {
-  const supabase = await createServerClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  
-  if (authErr || !user) {
-    throw new Error('Unauthorized');
-  }
-
-  const admin = adminClient();
-  const { data: profile } = await admin
-    .from('portal_users')
-    .select('id, role, school_id, full_name')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) {
-    throw new Error('Forbidden: Staff access required');
-  }
-
-  return profile;
-}
-
-/** Normalize to E.164 digits (no +). Nigerian 08XX → 234XX. */
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('0') && digits.length === 11) return '234' + digits.slice(1);
-  return digits;
-}
-
-function getWhatsAppConfig() {
-  const explicitUrl = process.env.WHATSAPP_API_URL;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const version = process.env.WHATSAPP_API_VERSION ?? 'v21.0';
-  const token = process.env.WHATSAPP_API_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
-  const url = explicitUrl || (phoneNumberId ? `https://graph.facebook.com/${version}/${phoneNumberId}/messages` : '');
-  return { url, token };
-}
-
-// Send through the unified WhatsApp transport.
 async function sendWhatsAppMessage(to: string, message: string) {
-  return sendWhatsAppDetailed({ to, message, persistToInbox: false });
+  return sendWhatsAppDetailed({ to, message, persistToInbox: false, automated: false });
 }
 
-// Send a pre-approved WhatsApp template message (for initiating conversations)
 async function sendWhatsAppTemplate(
   to: string,
   templateName: string,
   variables: string[],
 ) {
-  return sendWhatsAppDetailed({ to, templateName, templateVariables: variables, persistToInbox: false });
+  return sendWhatsAppDetailed({ to, templateName, templateVariables: variables, persistToInbox: false, automated: false });
 }
 
 // POST /api/inbox/send — send a message (staff → WhatsApp; learner → inbound portal message)
@@ -320,22 +280,14 @@ export async function POST(req: NextRequest) {
         providerMessageId: whatsappResult.messageId || null,
         deliveryStatus: whatsappResult.success ? 'sent' : 'failed',
       });
-      if (whatsappResult.messageId) {
-        await admin.from('communication_delivery_log').insert({
+      if (whatsappResult.deliveryLogId) {
+        await admin.from('communication_delivery_log').update({
           case_id: caseResult.caseId,
           case_event_id: caseResult.eventId,
-          channel: 'whatsapp',
-          recipient: conversation.phone_number,
-          provider: 'meta',
-          provider_message_id: whatsappResult.messageId,
-          status: whatsappResult.success ? 'sent' : 'failed',
           automated: false,
-          error: whatsappResult.success ? null : String(whatsappResult.error || whatsappResult.reason || '').slice(0, 4000),
           metadata: { whatsapp_message_row_id: newMessage.id, conversation_id },
-          sent_at: whatsappResult.success ? new Date().toISOString() : null,
-          failed_at: whatsappResult.success ? null : new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        }).eq('id', whatsappResult.deliveryLogId);
       }
     } catch (caseError) {
       console.error('[inbox/send] unable to update communication case:', caseError);

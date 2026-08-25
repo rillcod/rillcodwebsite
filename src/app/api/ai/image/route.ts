@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { geminiGenerateImage } from '@/lib/gemini/client';
+import { withApiProxy } from '@/lib/api-wrapper';
 
 /**
  * POST /api/ai/image
@@ -9,7 +10,7 @@ import { geminiGenerateImage } from '@/lib/gemini/client';
  *   2. Imagen 3                            (20 RPM free)
  *   3. Pollinations.ai                     (always free, no key, final fallback)
  */
-export async function POST(req: NextRequest) {
+async function postHandler(req: NextRequest) {
     try {
         const body = await req.json();
         const { prompt, title, subject, gradeLevel } = body;
@@ -76,3 +77,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
     }
 }
+
+// Lesson-authoring tool: same surface as the lesson editor that calls it.
+// withApiProxy supplies auth, the role gate, the write-burst limit and the
+// browser-origin check in one place, so this route cannot drift open again.
+export const POST = (req: any, ctx: any) =>
+  withApiProxy(postHandler, {
+    requireAuth: true,
+    requireTenant: false,
+    roles: ['admin', 'teacher'],
+  })(req, ctx);

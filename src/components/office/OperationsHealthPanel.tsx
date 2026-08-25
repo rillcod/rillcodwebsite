@@ -291,7 +291,7 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
               </p>
             </div>
             <Link
-              href="/dashboard/settings?tab=lms-config"
+              href="/dashboard/platform-operations?view=lms"
               className="inline-flex min-h-11 shrink-0 touch-manipulation items-center rounded-xl border border-border px-4 py-2 text-sm font-black"
             >
               Change settings
@@ -454,8 +454,18 @@ export function OperationsHealthPanel({ embedded = false }: Props) {
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="border-b border-border p-5">
-          <h2 className="font-black">Messages needing help</h2>
-          <p className="mt-1 text-xs text-muted-foreground">A message that could not be sent stays here. It is never silently lost.</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-black">Messages needing help</h2>
+              <p className="mt-1 text-xs text-muted-foreground">A message that could not be sent stays here. It is never silently lost.</p>
+            </div>
+            <Link
+              href="/dashboard/office?workspace=settings&section=templates"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-border px-4 py-2 text-xs font-black"
+            >
+              Open templates
+            </Link>
+          </div>
         </div>
         {deadLetters.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">No messages need help.</p>

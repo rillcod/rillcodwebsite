@@ -648,17 +648,26 @@ export async function* geminiStreamText(
     }
 }
 
-// ── Image generation ────────────────────────────────────────────────────────
+// ── Image generation ────────────────────────────────────────────
 /**
- * Image generation model priority (free tier, exhausted in order):
+ * Image generation model priority (free tier, exhausted in order), then
+ * Pollinations.ai as the always-free final fallback (handled by the caller).
  *
- * 1. gemini-2.0-flash-preview-image-generation — Gemini 2.0 Flash native image output
- * 2. imagen-3.0-generate-001 — Google Imagen 3
- * 3. Pollinations.ai — always-free, no key, final fallback (handled by the caller)
+ * The previous list named gemini-2.0-flash-preview-image-generation and
+ * imagen-3.0-generate-001. Both now 404 on the models endpoint — they were
+ * retired — so this helper always returned null and every image in the product
+ * was silently served by Pollinations. Ids below were taken from ListModels on
+ * the live key; the ai-model-drift cron is what should catch the next retirement.
+ *
+ * All current image models return the picture through generateContent with
+ * responseModalities: [IMAGE, TEXT]. The old generateImages/Imagen branch has
+ * no live model behind it any more and is gone.
  */
 export const IMAGE_MODELS = [
-    'gemini-2.0-flash-preview-image-generation',
-    'imagen-3.0-generate-001',
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-lite-image',
+    'gemini-3.1-flash-image',
+    'gemini-3-pro-image',
 ] as const;
 
 export type ImageModel = typeof IMAGE_MODELS[number];
@@ -684,39 +693,20 @@ export async function geminiGenerateImage(prompt: string): Promise<GeneratedImag
             try {
                 const client = clientFor(apiKey);
 
-                if (model === 'gemini-2.0-flash-preview-image-generation') {
-                    const result = await client.models.generateContent({
-                        model,
-                        contents: prompt,
-                        config: {
-                            responseModalities: ['IMAGE', 'TEXT'],
-                            abortSignal: controller.signal,
-                        } as any,
-                    });
+                const result = await client.models.generateContent({
+                    model,
+                    contents: prompt,
+                    config: {
+                        responseModalities: ['IMAGE', 'TEXT'],
+                        abortSignal: controller.signal,
+                    } as any,
+                });
 
-                    const parts = result.candidates?.[0]?.content?.parts ?? [];
-                    for (const part of parts) {
-                        const inline = (part as any).inlineData;
-                        if (inline?.data) {
-                            return { base64: inline.data, mimeType: inline.mimeType ?? 'image/png', model };
-                        }
-                    }
-                }
-
-                if (model === 'imagen-3.0-generate-001') {
-                    const result = await client.models.generateImages({
-                        model,
-                        prompt,
-                        config: { numberOfImages: 1, abortSignal: controller.signal } as any,
-                    });
-
-                    const img = result.generatedImages?.[0]?.image;
-                    if (img?.imageBytes) {
-                        return {
-                            base64: Buffer.from(img.imageBytes).toString('base64'),
-                            mimeType: 'image/png',
-                            model,
-                        };
+                const parts = result.candidates?.[0]?.content?.parts ?? [];
+                for (const part of parts) {
+                    const inline = (part as any).inlineData;
+                    if (inline?.data) {
+                        return { base64: inline.data, mimeType: inline.mimeType ?? 'image/png', model };
                     }
                 }
             } catch (err: any) {

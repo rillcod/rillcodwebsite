@@ -44,7 +44,7 @@ describe("navigation covers the academic lanes", () => {
     expect(block).not.toContain("Approve Teaching Plans");
     expect(block).not.toContain("Approve AI Drafts");
     expect(block).toContain('name: "My Classes"');
-    expect(block).toContain('name: "Curriculum"');
+    expect(block).toContain('name: "Course outline"');
     expect(block).toContain('name: "Approvals"');
     expect(block).not.toContain("/dashboard/crm");
     expect(block).not.toContain("/dashboard/finance");

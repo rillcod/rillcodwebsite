@@ -57,6 +57,13 @@ describe('central teacher workspace UX', () => {
     expect(academicOffice).not.toContain('Auto-fill</span>');
   });
 
+  it('does not send teachers into CRM from the old directory URL', () => {
+    const directory = read('src/app/dashboard/directory/page.tsx');
+    expect(directory).toContain("/dashboard/students");
+    expect(directory).toContain("/dashboard/records");
+    expect(directory).not.toContain("redirect('/dashboard/crm')");
+  });
+
   // The order of the page is the point: what to do next, then the curriculum
   // lanes that carry the work, then optional tools, and only then the admin-only
   // exceptions. Anchored on ids rather than visible copy — the headings were

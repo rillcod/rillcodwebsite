@@ -5,6 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { triggerWeeklyMilestoneDigest } from '@/lib/curriculum/milestone-digest';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
 import { isWhatsAppCloudApiApproved } from '@/lib/whatsapp/approval';
+import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
 import { parseRequestSession } from '@/lib/academic/session-identity';
 
 export const dynamic = 'force-dynamic';
@@ -172,9 +173,6 @@ async function notifyParentsWeekComplete(opts: {
   channels: string[];
 }) {
   const { schoolId, termNumber, weekNumber, weekTopic, courseName, channels } = opts;
-  const phoneId = process.env.WHATSAPP_PHONE_ID || '1165370629985726';
-  const whatsappToken = process.env.WHATSAPP_API_TOKEN;
-
   const admin = createAdminClient() as any;
 
   // Get parent contact info from students in this school
@@ -192,25 +190,20 @@ async function notifyParentsWeekComplete(opts: {
   const topicLine = weekTopic ? ` — *${weekTopic}*` : '';
   const courseLine = courseName ? ` (${courseName})` : '';
   const whatsappBody = `✅ *Rillcod Technologies*\n\nYour child has completed *${termLabel} Week ${weekNumber}*${topicLine}${courseLine}.\n\nKeep encouraging them — great progress! 🎉`;
-  const whatsappApiUrl = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
 
   for (const student of students) {
     const info = Array.isArray(student.students) ? student.students[0] : student.students;
 
     // WhatsApp notification
-    if (channels.includes('whatsapp') && isWhatsAppCloudApiApproved() && whatsappToken) {
+    if (channels.includes('whatsapp') && isWhatsAppCloudApiApproved()) {
       const phone = info?.parent_phone;
       if (phone) {
-        const cleanPhone = String(phone).replace(/\D+/g, '').replace(/^0/, '234');
-        await fetch(whatsappApiUrl, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${whatsappToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: cleanPhone,
-            type: 'text',
-            text: { body: whatsappBody },
-          }),
+        await sendWhatsAppDetailed({
+          to: String(phone),
+          message: whatsappBody,
+          persistToInbox: false,
+          automated: true,
+          metadata: { source: 'curriculum_week_complete', school_id: schoolId, week_number: weekNumber },
         }).catch(() => {});
       }
     }

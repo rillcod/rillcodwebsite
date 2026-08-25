@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withApiProxy } from '@/lib/api-wrapper';
+import { hasHuggingFaceKey, huggingFaceTranscribe } from '@/lib/ai/huggingface';
 
 
-export async function POST(req: NextRequest) {
+async function postHandler(req: NextRequest) {
   try {
-    if (!process.env.HUGGINGFACE_API_KEY) {
-      return NextResponse.json({ error: 'Hugging Face API key not configured.' }, { status: 503 });
+    // Either provider can do the job, so the route is configured if it has one.
+    // The old guard checked HUGGINGFACE_API_KEY and then spent the OpenRouter
+    // one, which meant it 503-ed with an HF key absent and ran on to a broken
+    // call with an HF key present but no OpenRouter key.
+    if (!process.env.OPENROUTER_API_KEY && !hasHuggingFaceKey()) {
+      return NextResponse.json({ error: 'Speech-to-text is not configured.' }, { status: 503 });
     }
 
     const formData = await req.formData();
@@ -21,6 +27,36 @@ export async function POST(req: NextRequest) {
     }
 
     const audioBuffer = await file.arrayBuffer();
+
+    // Real Whisper first. The OpenRouter path below base64s the clip into an
+    // `image_url` field and asks a text model to "transcribe this audio" — it
+    // works by accident of multimodal tolerance, not because it is the right
+    // call. huggingFaceTranscribe returns null rather than throwing, so an HF
+    // outage falls through to that path instead of failing the request.
+    const whisperText = await huggingFaceTranscribe(
+      audioBuffer,
+      file.type || 'audio/mpeg',
+    );
+
+    if (whisperText) {
+      return NextResponse.json({
+        text: whisperText,
+        data: {
+          transcript: whisperText,
+          filename: file.name,
+          fileSizeKb: Math.round(file.size / 1024),
+          model: 'openai/whisper-large-v3',
+          provider: 'huggingface',
+        },
+      });
+    }
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json(
+        { error: 'Transcription is temporarily unavailable. Please try again.' },
+        { status: 503 },
+      );
+    }
 
     const audioBase64 = Buffer.from(audioBuffer).toString('base64');
 
@@ -69,3 +105,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message ?? 'Speech-to-text failed' }, { status: 500 });
   }
 }
+
+// Lesson-authoring tool: same surface as the lesson editor that calls it.
+// withApiProxy supplies auth, the role gate, the write-burst limit and the
+// browser-origin check in one place, so this route cannot drift open again.
+export const POST = (req: any, ctx: any) =>
+  withApiProxy(postHandler, {
+    requireAuth: true,
+    requireTenant: false,
+    roles: ['admin', 'teacher'],
+  })(req, ctx);

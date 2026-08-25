@@ -222,7 +222,11 @@ export async function GET() {
       retry_count: row.retry_count,
       status: row.status,
       created_at: row.created_at,
-      can_retry: row.job_type === 'email' && Boolean(row.user_id || row.payload?.to),
+      can_retry:
+        (row.job_type === 'email' && Boolean(row.user_id || row.payload?.to || row.payload?.retry?.to)) ||
+        (row.job_type === 'whatsapp' && Boolean(row.payload?.phone || row.payload?.retry?.phone)) ||
+        (row.job_type === 'in_app' && Boolean(row.payload?.userId || row.user_id)) ||
+        row.job_type === 'progress_report_delivery',
     })),
     history: history.data ?? [],
     financeFailures: currentFinanceIncidents(financeFailures.data ?? []).slice(0, 25),

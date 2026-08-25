@@ -4,19 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { isDashboardPathBlockedForSchool, isDashboardPathBlockedForParent } from './route-access';
 
 /**
- * Partner schools are governed differently from everyone else, and that is the risk
- * these tests exist for.
+ * Partner schools are governed by an allow-list, the same default as students
+ * and parents: a new route is denied until someone grants it. One partner
+ * school must never see another's data, or a family's, because a deny-list
+ * was not updated.
  *
- * Students and parents have allow-lists: a new route is denied until someone grants
- * it. Partner schools have a deny-list: a new route is granted until someone
- * remembers to deny it — on a product where one partner school must never see
- * another's data, or a family's.
- *
- * Comparing the deny-list against the school sidebar found 55 route groups a school
- * could open with no row pointing at them, including the CRM contact book, the
- * office centre, safeguarding cases and every parent's personal screens.
- * `/dashboard/engagement` was denied while `/dashboard/engage` was not, which is
- * exactly what this failure mode looks like from the inside.
+ * The school sidebar is the map of granted work. Comparing a deny-list against
+ * that sidebar used to find 55 route groups a school could open with no row
+ * pointing at them.
  */
 
 const SOURCE = readFileSync(
@@ -109,6 +104,13 @@ describe('partner school scope', () => {
     // engagement was denied and engage was not, for long enough to matter.
     expect(isDashboardPathBlockedForSchool('/dashboard/engagement')).toBe(true);
     expect(isDashboardPathBlockedForSchool('/dashboard/engage')).toBe(true);
+  });
+
+  it('denies a route that was never granted, including authoring desks', () => {
+    expect(isDashboardPathBlockedForSchool('/dashboard/brand-new-admin-surface')).toBe(true);
+    expect(isDashboardPathBlockedForSchool('/dashboard/academic/build')).toBe(true);
+    expect(isDashboardPathBlockedForSchool('/dashboard/generate-content')).toBe(true);
+    expect(isDashboardPathBlockedForSchool('/dashboard/lesson-plans')).toBe(true);
   });
 
   it('does not let a school in where a parent is kept out of the same route', () => {

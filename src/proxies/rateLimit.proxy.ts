@@ -15,15 +15,42 @@ let redisClient: Redis | null = null;
 let redisInitFailed = false;
 let warnedMemoryFallback = false;
 
+/**
+ * The caller's address, used as the rate-limit bucket key.
+ *
+ * Header order matters, because this value decides whether two requests share a
+ * counter. x-forwarded-for used to be read first, and that header is written by
+ * the client: Cloudflare *appends* to an inbound x-forwarded-for rather than
+ * replacing it, so the first entry of the chain is whatever the caller typed.
+ * Anyone rotating that header got a fresh bucket on every request, which made
+ * every limit built on this function decorative — including the ones guarding
+ * the public Paystack verify routes.
+ *
+ * cf-connecting-ip is set by Cloudflare itself and cannot be spoofed past the
+ * edge, so it is trusted first. x-real-ip comes from a proxy we control.
+ * x-forwarded-for stays last: still useful for local development and any
+ * non-Cloudflare path, but never preferred over a header an attacker cannot
+ * write.
+ *
+ * Note this is only as good as the network in front of it. If the origin is
+ * reachable without going through Cloudflare, a caller can skip the trusted
+ * headers entirely — that is an infrastructure control, not one this function
+ * can make.
+ */
 export function getClientIp(req: NextRequest): string {
+    const cfIp = req.headers.get('cf-connecting-ip')?.trim();
+    if (cfIp) return cfIp;
+
+    const realIp = req.headers.get('x-real-ip')?.trim();
+    if (realIp) return realIp;
+
     const xff = req.headers.get('x-forwarded-for');
     if (xff) {
         // x-forwarded-for can be "client, proxy1, proxy2"
         const first = xff.split(',')[0]?.trim();
         if (first) return first;
     }
-    const realIp = req.headers.get('x-real-ip')?.trim();
-    return realIp || '127.0.0.1';
+    return '127.0.0.1';
 }
 
 /**

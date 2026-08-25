@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import { isCompletedPaymentStatus } from '@/lib/registration/payment-state';
 import { shouldAutoEnrolOnlinePaystack } from '@/lib/registration/onboard-paid-student';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 
 function adminClient() {
   return createClient(
@@ -14,6 +16,21 @@ function adminClient() {
 
 export async function GET(req: Request) {
   try {
+    try {
+      await checkCustomRateLimit({
+        key: `paystack-verify:${getClientIp(req as any)}`,
+        max: 10,
+        window: 60,
+      });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return NextResponse.json(
+          { error: 'Too many verification attempts. Please wait before trying again.', retryAfter: (err as any).retryAfter ?? 60 },
+          { status: 429 },
+        );
+      }
+    }
+
     const reference = new URL(req.url).searchParams.get('reference')?.trim();
     if (!reference) {
       return NextResponse.json({ error: 'Payment reference is required' }, { status: 400 });

@@ -5,7 +5,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { withTimeout } from '@/lib/async-timeout';
-import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
+import { academicWeekNumber } from '@/lib/academic/week-package';
+import {
+  loadLessonsForClassPlans,
+  nextLessonInClassOrder,
+} from '@/lib/learning/lesson-plan-scope';
 import ClassReplays from '@/components/live-session/ClassReplays';
 import Link from 'next/link';
 import {
@@ -41,7 +45,6 @@ function getLearnerTier(gradeLevel?: string | null, enrollmentType?: string | nu
 export default function StudentLearningPage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const [lessons, setLessons] = useState<any[]>([]);
-  const [programs, setPrograms] = useState<any[]>([]);
   const [stats, setStats] = useState({
     avgScore: 0,
     lessonsDone: 0,
@@ -52,7 +55,6 @@ export default function StudentLearningPage() {
   const [loading, setLoading] = useState(true);
   const [nextLesson, setNextLesson] = useState<any>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
-  const [coursesByProgram, setCoursesByProgram] = useState<Record<string, any[]>>({});
   const [badges, setBadges] = useState<any[]>([]);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
   const [pendingAssignments, setPendingAssignments] = useState(0);
@@ -177,133 +179,29 @@ export default function StudentLearningPage() {
       }
       setDueFlashcards(dueFlashcardsCount);
 
-      // 4. Fetch Enrollments and Programs (sequential levels first)
-      const { data: levelEnr } = await withTimeout(
-        db.from('student_level_enrollments')
-          .select('*, courses!course_id(*, programs(*))')
-          .eq('student_id', profile.id)
-          .eq('status', 'active'),
+      const { data: completedIds } = await withTimeout(
+        db
+          .from('lesson_progress')
+          .select('lesson_id')
+          .eq('portal_user_id', profile.id)
+          .eq('status', 'completed'),
         { data: [], error: null },
-        'learning level enrollments',
+        'learning completed lessons',
       );
-      
-      let enrolledPrograms = [];
-      if (levelEnr?.length) {
-        enrolledPrograms = (levelEnr as any[]).map((le: any) => ({
-          ...((le as any).courses?.programs || {}),
-          status: le.status,
-          current_course: (le as any).courses
-        }));
-      } else {
-        const { data: fallbackEnr } = await withTimeout(
-          db.from('enrollments')
-            .select('*, programs(*)')
-            .eq('user_id', profile.id),
-          { data: [], error: null },
-          'learning fallback enrollments',
-        );
-        enrolledPrograms = (fallbackEnr as any[] | null | undefined)?.map((e: any) => ({
-          ...(e.programs as any || {}),
-          status: e.status
-        })) || [];
-      }
-      
-      setPrograms(enrolledPrograms);
+      const doneSet = new Set<string>(
+        ((completedIds ?? []) as any[])
+          .map((c: any) => c.lesson_id)
+          .filter((id: any): id is string => typeof id === 'string'),
+      );
+      setCompletedLessonIds(doneSet);
 
-      const pIds = Array.from(new Set<string>(enrolledPrograms.map((p: any) => p.id).filter((id: any): id is string => typeof id === 'string' && id.length > 0)));
-
-      // 5. Fetch Courses & Lessons (respect admin lock for students, except
-      // for our always-public flagship programmes — see lib/courses/visibility)
-      if (pIds.length) {
-        const { data: rawCourses } = await withTimeout(
-          db.from('courses')
-            .select('id, title, description, duration_hours, program_id, is_locked, lessons(id), assignments(id), programs(name)')
-            .in('program_id', pIds)
-            .eq('is_active', true)
-            .order('level_order', { ascending: true }),
-          { data: [], error: null },
-          'learning courses',
-        );
-
-        // Check if there is a current course focus lock for the student's class
-        let currentCourseId: string | null = null;
-        let currentClassTermId: string | null = null;
-        if (profile?.class_id) {
-          const { data: clsData } = await withTimeout(
-            db
-              .from('classes')
-              .select('current_course_id, term_id')
-              .eq('id', profile.class_id)
-              .maybeSingle(),
-            { data: null, error: null },
-            'learning class focus',
-          );
-          if (clsData?.current_course_id) {
-            currentCourseId = clsData.current_course_id;
-          }
-          currentClassTermId = clsData?.term_id ?? null;
-        }
-
-        const coursesToUse = currentCourseId
-          ? (rawCourses ?? []).filter((c: any) => c.id === currentCourseId)
-          : (rawCourses ?? []);
-
-        const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
-        // Hide empty courses (no lessons AND no assignments) from students —
-        // "0/0 modules" placeholder cards are not a good first impression.
-        const visibleCourses = (coursesToUse).filter((c: any) =>
-          isCourseVisibleToLearners(c, { requireContent: true }),
-        );
-
-        const cmap: Record<string, any[]> = {};
-        visibleCourses.forEach((c: any) => {
-          if (c.program_id && !cmap[c.program_id]) cmap[c.program_id] = [];
-          if (c.program_id) cmap[c.program_id].push(c);
-        });
-        setCoursesByProgram(cmap);
-
-        const { data: recentLessons } = await withTimeout(
-          db.from('lessons')
-            .select('*, courses(title, programs(name))')
-            .in('course_id', visibleCourses.map((c: any) => c.id))
-            .in('status', ['active', 'published'])
-            .order('created_at', { ascending: false })
-            .limit(30),
-          { data: [], error: null },
-          'learning recent lessons',
-        );
-        const scopedRecentLessons = await filterLessonsForClassPlans(db, recentLessons ?? [], profile?.class_id, currentClassTermId);
-        setLessons(scopedRecentLessons.slice(0, 6));
-
-        // 6. Find "Next Up" Lesson
-        const { data: completedIds } = await withTimeout(
-          db
-            .from('lesson_progress')
-            .select('lesson_id')
-            .eq('portal_user_id', profile.id)
-            .eq('status', 'completed'),
-          { data: [], error: null },
-          'learning completed lessons',
-        );
-        
-        const doneSet = new Set<string>(((completedIds ?? []) as any[]).map((c: any) => c.lesson_id).filter((id: any): id is string => typeof id === 'string'));
-        setCompletedLessonIds(doneSet);
-
-        // Find the first lesson in the first program that isn't done
-        const { data: allLessons } = await withTimeout(
-          db.from('lessons')
-              .select('id, title, course_id, metadata, courses(id, title, level_order)')
-              .in('course_id', coursesToUse.map((c: any) => c.id))
-              .in('status', ['active', 'published'])
-              .order('id', { ascending: true }),
-          { data: [], error: null },
-          'learning all lessons',
-        );
-        const scopedAllLessons = await filterLessonsForClassPlans(db, allLessons ?? [], profile?.class_id, currentClassTermId);
-
-        const next = scopedAllLessons?.find(l => !doneSet.has(l.id));
-        setNextLesson(next || scopedAllLessons?.[0]);
-      }
+      const scoped = await withTimeout(
+        loadLessonsForClassPlans(db, profile.class_id),
+        [],
+        'learning class lessons',
+      );
+      setLessons(scoped);
+      setNextLesson(nextLessonInClassOrder(scoped, doneSet));
 
     } catch (err) {
       console.error('Error loading learning data:', err);
@@ -409,7 +307,7 @@ export default function StudentLearningPage() {
       desc: stats.streak > 0 ? `${stats.streak} weeks active` : 'Active session required',
       xp: 15,
       emoji: '🔥',
-      href: '/dashboard/learning/stats',
+        href: '/dashboard/learning',
       done: stats.streak > 0,
       color: 'border-l-emerald-500 bg-emerald-400/5 text-emerald-600 dark:text-emerald-400'
     });
@@ -431,15 +329,35 @@ export default function StudentLearningPage() {
     ? Math.min(100, ((stats.xp - currentLevelConfig.min) / (nextLevelConfig.min - currentLevelConfig.min)) * 100)
     : 100;
 
-  const totalLessonsCount = useMemo(() => {
-    let count = 0;
-    Object.values(coursesByProgram).forEach((coursesArr: any[]) => {
-      coursesArr.forEach((c: any) => {
-        count += c.lessons?.length || 0;
+  const totalLessonsCount = useMemo(() => Math.max(lessons.length, 1), [lessons.length]);
+
+  const weekGroups = useMemo(() => {
+    const groups: { week: number | null; label: string; lessons: any[] }[] = [];
+    for (const lesson of lessons) {
+      const week = academicWeekNumber(lesson);
+      const last = groups[groups.length - 1];
+      if (last && last.week === week) {
+        last.lessons.push(lesson);
+        continue;
+      }
+      groups.push({
+        week,
+        label: week != null ? `Week ${week}` : 'Shared with you',
+        lessons: [lesson],
       });
-    });
-    return count || 1; // prevent divide-by-zero
-  }, [coursesByProgram]);
+    }
+    return groups;
+  }, [lessons]);
+
+  const enrolledProgramCount = useMemo(() => {
+    const ids = new Set<string>();
+    for (const lesson of lessons) {
+      const course = lesson.courses;
+      const id = String(course?.program_id || course?.id || lesson.course_id || '');
+      if (id) ids.add(id);
+    }
+    return ids.size;
+  }, [lessons]);
 
   if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
@@ -510,10 +428,10 @@ export default function StudentLearningPage() {
               </h1>
               <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
                 {isKids
-                  ? 'Your learning adventure is waiting! Complete lessons, earn points, and have fun! 🌟'
+                  ? 'This is your class this week — the lessons your teacher has opened for you.'
                   : isAdult
-                  ? 'Keep building your skills. Your next lesson is ready.'
-                  : 'Your courses, lessons, and assignments — all in one place.'}
+                  ? 'Your next shared class week is ready when your teacher opens it.'
+                  : 'Lessons your teacher has shared with this class, in week order.'}
               </p>
 
               {/* ── Dynamic Wisdom Spark of the Day ── */}
@@ -596,7 +514,7 @@ export default function StudentLearningPage() {
         <div className="bg-card/40 backdrop-blur-md border border-border/80 rounded-[24px] p-2 flex flex-col md:flex-row gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-1.5 w-full md:w-auto">
             {[
-              { id: 'map', label: 'My Learning Map', emoji: '🗺️', desc: 'Missions & Path' },
+              { id: 'map', label: 'This class', emoji: '🗺️', desc: 'Weeks your teacher shared' },
               { id: 'gym', label: 'Skill Revision Gym', emoji: '⚡', desc: 'Flashcards & Labs', badge: dueFlashcards > 0 ? dueFlashcards : null },
               { id: 'insights', label: 'Growth Analytics', emoji: '📊', desc: 'Academic Insights' },
             ].map((tab) => {
@@ -681,179 +599,90 @@ export default function StudentLearningPage() {
               {/* ── Class Replays (recorded live sessions) ── */}
               <ClassReplays heading={isKids ? '🎬 Class Replays' : 'Class Replays'} />
 
-              {/* ── Lesson Path ── */}
+              {/* ── Shared class weeks ── */}
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {isKids ? '🗺️ My Learning Path' : 'Your Lessons'}
+                    {isKids ? 'This class' : 'Shared with your class'}
                   </h2>
                 </div>
 
-                <div className="bg-card border border-border p-6 overflow-x-auto">
-                  {lessons.length === 0 ? (
+                <div className="bg-card border border-border p-6">
+                  {weekGroups.length === 0 ? (
                     <div className="text-center py-12">
                       <BookOpenIcon className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground font-bold">No lessons yet — your teacher will add them soon.</p>
+                      <p className="text-sm text-muted-foreground font-bold">
+                        Your teacher has not shared a week yet.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        When they open a week for this class, it will show up here in order.
+                      </p>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-0 min-w-max">
-                      {lessons.map((lesson, idx) => {
-                        const isCompleted = completedLessonIds.has(lesson.id);
-                        const isNext = nextLesson?.id === lesson.id;
-                        const isLocked = !isCompleted && !isNext;
-                        return (
-                          <div key={lesson.id} className="flex items-center">
-                            {idx > 0 && (
-                              <div className={`h-0.5 w-12 sm:w-16 ${completedLessonIds.has(lessons[idx-1]?.id) ? 'bg-primary' : 'bg-border'}`} />
-                            )}
-                            <div className="flex flex-col items-center gap-2 relative">
-                              {isNext && (
-                                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-red-600 text-foreground text-[9px] font-black px-2 py-1 whitespace-nowrap uppercase tracking-wider">
-                                  Up Next
-                                </span>
-                              )}
-                              <Link
-                                href={isLocked ? '#' : `/dashboard/lessons/${lesson.id}`}
-                                className={`w-16 h-16 flex items-center justify-center border-2 transition-all duration-300 ${
-                                  isCompleted
-                                    ? 'rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 border-yellow-400 text-slate-900 dark:text-slate-200 shadow-lg shadow-yellow-500/20 hover:scale-110'
-                                    : isNext
-                                    ? 'rounded-[20px] bg-gradient-to-tr from-primary to-brand-red-500 border-primary text-white ring-4 ring-primary/30 shadow-xl shadow-primary/20 hover:scale-105'
-                                    : 'rounded-xl bg-muted/40 border-border text-muted-foreground/30 cursor-not-allowed hover:bg-muted/60'
-                                }`}
-                              >
-                                {isCompleted ? (
-                                  <span className="text-2xl animate-pulse">⭐</span>
-                                ) : isNext ? (
-                                  <RocketLaunchIcon className="w-8 h-8 animate-bounce" />
-                                ) : (
-                                  <span className="text-xl opacity-60">🔒</span>
-                                )}
-                              </Link>
-                              <p className={`text-[9px] font-bold text-center max-w-[80px] leading-tight truncate ${isNext ? 'text-foreground font-black' : 'text-muted-foreground/50'}`}>
-                                {lesson.title}
-                              </p>
-                            </div>
+                    <div className="space-y-6">
+                      {weekGroups.map((group) => (
+                        <div key={group.label}>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">
+                            {group.label}
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {group.lessons.map((lesson) => {
+                              const isCompleted = completedLessonIds.has(lesson.id);
+                              const isNext = nextLesson?.id === lesson.id;
+                              return (
+                                <Link
+                                  key={lesson.id}
+                                  href={`/dashboard/lessons/${lesson.id}`}
+                                  className={`flex items-start gap-3 p-4 border transition-all ${
+                                    isNext
+                                      ? 'border-primary bg-primary/5'
+                                      : 'border-border bg-card hover:bg-muted/30'
+                                  }`}
+                                >
+                                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                                    isCompleted
+                                      ? 'bg-emerald-500/15 text-emerald-600'
+                                      : isNext
+                                      ? 'bg-primary text-white'
+                                      : 'bg-muted text-muted-foreground'
+                                  }`}>
+                                    {isCompleted ? (
+                                      <CheckBadgeIcon className="h-5 w-5" />
+                                    ) : (
+                                      <PlayIcon className="h-4 w-4" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    {isNext && (
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">
+                                        Up next
+                                      </p>
+                                    )}
+                                    <p className="text-sm font-black text-foreground leading-tight">
+                                      {lesson.title}
+                                    </p>
+                                    {lesson.courses?.title && (
+                                      <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                                        {lesson.courses.title}
+                                      </p>
+                                    )}
+                                  </div>
+                                </Link>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  {/* Legend */}
-                  <div className="flex flex-wrap items-center gap-6 mt-6 pt-4 border-t border-border">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 flex items-center justify-center text-[11px]">⭐</div>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Mission Mastered</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-[8px] bg-primary flex items-center justify-center text-white text-[10px] animate-pulse">🚀</div>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Current Adventure</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-xl bg-muted border border-border flex items-center justify-center text-[10px]">🔒</div>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Locked Milestone</span>
-                    </div>
-                    <Link href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/learning'}
+                  <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t border-border">
+                    <Link href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/assignments'}
                       className="ml-auto px-5 py-2.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all">
-                      {nextLesson ? 'Continue Learning' : 'Open Learning Center'}
+                      {nextLesson ? 'Continue' : 'Open assignments'}
                     </Link>
                   </div>
                 </div>
-              </section>
-
-              {/* ── My Programmes ── */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {isKids ? '🎒 My Learning Path' : 'My Programmes'}
-                  </h2>
-                  <span className="text-xs text-muted-foreground font-bold">{programs.length} enrolled</span>
-                </div>
-
-                {programs.length === 0 ? (
-                  <div className="bg-card border-2 border-dashed border-border p-12 text-center">
-                    <AcademicCapIcon className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-sm text-muted-foreground font-bold mb-4">
-                      {isKids ? 'No programmes yet — ask your teacher! ✨' : 'You are not enrolled in any programme yet.'}
-                    </p>
-                    <Link href="/dashboard/library" className="inline-flex items-center gap-2 text-primary hover:text-primary text-xs font-black uppercase tracking-widest transition-all">
-                      Browse Library <ArrowRightIcon className="w-4 h-4" />
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {programs.map((prog, pi) => {
-                      const courses = coursesByProgram[prog.id] ?? [];
-                      const accentColors = [
-                        { border: 'border-t-primary', text: 'text-primary', bar: 'bg-primary' },
-                        { border: 'border-t-primary',   text: 'text-primary',   bar: 'bg-primary'   },
-                        { border: 'border-t-emerald-500', text: 'text-emerald-600 dark:text-emerald-400',bar: 'bg-emerald-500'},
-                      ][pi % 3];
-
-                      return (
-                        <div key={prog.id} className={`bg-card border border-border border-t-2 ${accentColors.border} overflow-hidden`}>
-                          {/* Programme header */}
-                          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                            <div className="flex items-center gap-3">
-                              <AcademicCapIcon className={`w-5 h-5 ${accentColors.text} shrink-0`} />
-                              <div>
-                                <h3 className="text-sm font-black uppercase tracking-tight">{prog.name}</h3>
-                                <p className="text-[10px] text-muted-foreground font-bold mt-0.5">
-                                  {prog.difficulty_level || 'Level 1'} · {prog.duration_weeks || 12} weeks
-                                </p>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                              {courses.length} course{courses.length === 1 ? '' : 's'}
-                            </span>
-                          </div>
-
-                          {/* Courses grid */}
-                          {courses.length === 0 ? (
-                            <div className="px-6 py-8 text-center text-sm text-muted-foreground font-bold">
-                              No courses available yet.
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-border">
-                              {courses.map((c) => {
-                                const total = c.lessons?.length || 0;
-                                const done = (c.lessons || []).filter((l: any) => completedLessonIds.has(l.id)).length;
-                                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                                const nextInCourse = (c.lessons || []).find((l: any) => !completedLessonIds.has(l.id))
-                                  ?? (c.lessons || [])[0];
-                                const courseHref = nextInCourse
-                                  ? `/dashboard/lessons/${nextInCourse.id}`
-                                  : '/dashboard/learning';
-                                return (
-                                  <Link key={c.id} href={courseHref}
-                                    className="bg-card p-5 hover:bg-muted/30 transition-all flex flex-col gap-3">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <p className="text-sm font-black leading-tight">{c.title}</p>
-                                      <span className={`text-[9px] font-black px-2 py-0.5 shrink-0 ${pct === 100 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
-                                        {pct === 100 ? '✓ Done' : `${pct}%`}
-                                      </span>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : accentColors.bar}`}
-                                          style={{ width: `${pct}%` }} />
-                                      </div>
-                                      <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
-                                        <span>{done}/{total} lessons</span>
-                                        <span>{c.duration_hours || 0}h</span>
-                                      </div>
-                                    </div>
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </section>
             </motion.div>
           )}
@@ -1066,7 +895,7 @@ export default function StudentLearningPage() {
                       <div className="border-t border-border/85 pt-4 space-y-2">
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground font-bold">Active Programs:</span>
-                          <span className="font-black text-foreground">{programs.length} Enrolled</span>
+                          <span className="font-black text-foreground">{enrolledProgramCount} Enrolled</span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground font-bold">Homework Tasks Completed:</span>

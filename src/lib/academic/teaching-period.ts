@@ -142,3 +142,19 @@ export function attendanceBelongsToSchoolTerm(
   const dateStamp = session?.session_date || row.created_at;
   return inDateWindow(dateStamp, range);
 }
+
+/**
+ * Whether a class plan (or similar row) belongs to the teaching period on the
+ * class: duration programmes key off offering_period_id, school classes off
+ * term_id. Matching either stamp is enough when a class carries both.
+ */
+export function rowMatchesTeachingPeriod(
+  row: { term_id?: string | null; offering_period_id?: string | null },
+  period: Pick<TeachingPeriodContext, 'term_id' | 'offering_period_id'>,
+): boolean {
+  const offering = String(period.offering_period_id ?? '').trim();
+  const term = String(period.term_id ?? '').trim();
+  if (offering && String(row.offering_period_id ?? '') === offering) return true;
+  if (term && String(row.term_id ?? '') === term) return true;
+  return !offering && !term;
+}

@@ -29,7 +29,7 @@ const SystemHealth = dynamic<{ embedded?: boolean }>(
   { ssr: false }
 );
 
-type ViewId = "lms" | "ai" | "templates" | "activity" | "health";
+type ViewId = "lms" | "ai" | "activity" | "health";
 
 const VIEWS = [
   {
@@ -43,12 +43,6 @@ const VIEWS = [
     label: "AI provider",
     purpose: "Models, limits and safety defaults",
     icon: CpuChipIcon,
-  },
-  {
-    id: "templates" as const,
-    label: "System notifications",
-    purpose: "Account and platform notification wording",
-    icon: DocumentTextIcon,
   },
   {
     id: "activity" as const,
@@ -65,7 +59,7 @@ const VIEWS = [
 ];
 
 const CONFIGURATION_VIEWS = VIEWS.filter((item) =>
-  ["lms", "ai", "templates"].includes(item.id)
+  ["lms", "ai"].includes(item.id)
 );
 const MONITORING_VIEWS = VIEWS.filter((item) =>
   ["activity", "health"].includes(item.id)
@@ -97,14 +91,14 @@ function PlatformOperationsContent() {
             Platform Configuration
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            One owner for app-wide behaviour, AI and system notifications.
-            Academic, office and finance rules stay with the workflows they
+            One owner for app-wide behaviour, brand and AI provider settings.
+            Message templates live in Office; academic and finance rules stay with the workflows they
             govern; personal controls remain under Account Settings.
           </p>
         </header>
 
         <nav
-          className="grid gap-2 rounded-2xl border border-border bg-card p-3 sm:grid-cols-3"
+          className="grid gap-2 rounded-2xl border border-border bg-card p-3 sm:grid-cols-2"
           aria-label="Platform configuration"
         >
           {CONFIGURATION_VIEWS.map((item) => {
@@ -200,6 +194,12 @@ function PlatformOperationsContent() {
                 icon: BoltIcon,
               },
               {
+                href: "/dashboard/office?workspace=settings&section=templates",
+                label: "Message templates",
+                purpose: "Wording, versions, approval and delivery evidence",
+                icon: DocumentTextIcon,
+              },
+              {
                 href: "/dashboard/finance?workspace=settings",
                 label: "Finance settings",
                 purpose: "Accounts, billing and reminder rules",
@@ -229,9 +229,6 @@ function PlatformOperationsContent() {
         <section className="min-w-0 overflow-hidden rounded-2xl border border-border bg-background">
           {view === "lms" && <SettingsPanel embedded forcedTab="lms-config" />}
           {view === "ai" && <SettingsPanel embedded forcedTab="ai-config" />}
-          {view === "templates" && (
-            <SettingsPanel embedded forcedTab="templates" />
-          )}
           {view === "activity" && <SystemActivity embedded />}
           {view === "health" && <SystemHealth embedded />}
         </section>

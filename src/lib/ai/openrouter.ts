@@ -16,6 +16,11 @@
 
 import { readStoredFreeModels } from "./model-catalogue-store";
 import { recordModelFailure, recordModelSuccess } from "./model-health";
+import {
+  HF_CHAT_URL,
+  isHuggingFaceModel,
+  stripHuggingFacePrefix,
+} from "./huggingface";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -422,8 +427,17 @@ export async function openRouterComplete(input: {
             { role: "user", content: RESUME_INSTRUCTION },
           ];
 
+    // Hugging Face sits at the very end of the queue and speaks the same
+    // OpenAI-compatible dialect, so only the address and the credential differ.
+    // The prefix is stripped because it exists to route, not to name a model.
+    const viaHuggingFace = isHuggingFaceModel(input.model);
+    const endpoint = viaHuggingFace ? HF_CHAT_URL : OPENROUTER_URL;
+    const apiKey = viaHuggingFace
+      ? process.env.HUGGINGFACE_API_KEY ?? ""
+      : input.apiKey;
+
     const body: Record<string, unknown> = {
-      model: input.model,
+      model: viaHuggingFace ? stripHuggingFacePrefix(input.model) : input.model,
       messages,
       max_tokens: input.maxTokens,
       temperature: input.temperature ?? 0.7,
@@ -435,10 +449,10 @@ export async function openRouterComplete(input: {
       body.response_format = { type: "json_object" };
     }
 
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${input.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "X-Title": "Rillcod Technologies (Kid-Friendly Platform)",
         "Content-Type": "application/json",
       },

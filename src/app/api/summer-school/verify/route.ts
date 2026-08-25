@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { processSuccessfulPayment } from "@/lib/payments/process-successful-payment";
 import { isSpecialProgramPaymentType } from "@/lib/registration/enrollment-types";
+import { checkCustomRateLimit, getClientIp } from "@/proxies/rateLimit.proxy";
+import { RateLimitError } from "@/lib/errors";
 
 function getAdminClient() {
   return createClient(
@@ -15,6 +17,21 @@ function getAdminClient() {
 /** GET /api/summer-school/verify?reference=SUM-REG-... — verify Paystack payment before showing success UI */
 export async function GET(req: Request) {
   try {
+    try {
+      await checkCustomRateLimit({
+        key: `paystack-verify:${getClientIp(req as any)}`,
+        max: 10,
+        window: 60,
+      });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return NextResponse.json(
+          { error: "Too many verification attempts. Please wait before trying again.", retryAfter: (err as any).retryAfter ?? 60 },
+          { status: 429 },
+        );
+      }
+    }
+
     const reference = new URL(req.url).searchParams.get("reference")?.trim();
     if (!reference) {
       return NextResponse.json({ error: "Payment reference is required" }, { status: 400 });

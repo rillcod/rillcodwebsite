@@ -833,9 +833,23 @@ export class NotificationsService {
 
         try {
             const result = await this.sendExternalWhatsApp({ to: phone, body: payload.body });
-            return result;
+            if ((result as any)?.approval_pending) return false;
+            return Boolean(result);
         } catch (error: any) {
             console.error(`[notifications] WhatsApp delivery failed for ${userId}: ${error.message}`);
+            await recordDeadLetter({
+                source: 'notifications.service',
+                jobType: 'whatsapp',
+                userId,
+                originalJobId: `sync-wa:${userId}:${phone}`,
+                payload: {
+                    phone,
+                    messageBody: payload.body,
+                    recipientUserId: userId,
+                },
+                error: error.message || 'WhatsApp delivery failed',
+                attempts: 1,
+            });
             throw new AppError(`WhatsApp delivery failed: ${error.message}`, 500);
         }
     }
@@ -903,54 +917,27 @@ export class NotificationsService {
     }
 
     async sendExternalWhatsApp(payload: WhatsAppPayload) {
-        const { canSendWhatsAppApiTo, getWhatsAppCloudApiMode, manualWhatsAppUrl } = await import('@/lib/whatsapp/approval');
-        if (!canSendWhatsAppApiTo(payload.to)) {
+        const { sendWhatsAppDetailed } = await import('@/lib/whatsapp/send');
+        const { getWhatsAppCloudApiMode, manualWhatsAppUrl } = await import('@/lib/whatsapp/approval');
+        const result = await sendWhatsAppDetailed({
+            to: payload.to,
+            message: payload.body,
+            persistToInbox: false,
+            automated: true,
+            metadata: { source: 'notifications.service.external' },
+        });
+        if (result.success) {
+            return { sent: true, messageId: result.messageId, deliveryLogId: result.deliveryLogId };
+        }
+        if (result.reason === 'approval_pending' || result.reason === 'review_recipient_blocked') {
             return {
                 queued: false,
                 approval_pending: true,
-                review_recipient_blocked: getWhatsAppCloudApiMode() === 'review',
+                review_recipient_blocked: result.reason === 'review_recipient_blocked' || getWhatsAppCloudApiMode() === 'review',
                 fallback_url: manualWhatsAppUrl(payload.to, payload.body),
             };
         }
-        if (!env.WHATSAPP_API_URL || !env.WHATSAPP_API_TOKEN) {
-            // Fallback for environments without a provider configured.
-            return {
-                queued: true,
-                fallback_url: manualWhatsAppUrl(payload.to, payload.body),
-            };
-        }
-
-        // Clean user's phone number (remove spaces, hashes, pluses)
-        let phone = String(payload.to).replace(/\D+/g, '');
-        // Meta requires international format without the '+'
-        // If a Nigerian number starts with '0', replace '0' with '234'
-        if (phone.startsWith('0')) {
-            phone = '234' + phone.substring(1);
-        }
-
-        const res = await fetch(env.WHATSAPP_API_URL, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${env.WHATSAPP_API_TOKEN}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                messaging_product: 'whatsapp',
-                recipient_type: 'individual',
-                to: phone,
-                type: 'text',
-                text: {
-                    preview_url: true, // Allows URLs in messages to show link previews
-                    body: payload.body,
-                }
-            }),
-        });
-
-        if (!res.ok) {
-            const text = await res.text().catch(() => 'unknown');
-            throw new AppError(`WhatsApp delivery failed: ${text}`, 500);
-        }
-        return res.json().catch(() => ({ sent: true }));
+        throw new AppError(result.error || 'WhatsApp delivery failed', 500);
     }
 }
 

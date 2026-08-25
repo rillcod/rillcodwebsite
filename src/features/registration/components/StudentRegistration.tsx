@@ -174,6 +174,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [paymentReference, setPaymentReference] = useState('');
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [bankAccounts, setBankAccounts] = useState<Array<{ bank_name: string; account_number: string; account_name: string; label?: string }>>([]);
+  const [bankAccountsResolved, setBankAccountsResolved] = useState(false);
   const [bankTransferSubmitted, setBankTransferSubmitted] = useState(false);
   const [submittedBalanceDue, setSubmittedBalanceDue] = useState<number | null>(null);
   const [submittedAmountPaid, setSubmittedAmountPaid] = useState<number | null>(null);
@@ -562,7 +563,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       .select('bank_name, account_number, account_name, label')
       .eq('is_active', true)
       .in('owner_type', ['rillcod', 'global'])
-      .then(({ data }) => setBankAccounts(data ?? []));
+      .then(({ data, error }) => {
+        // This read runs as anon on a public page. It returned nothing at all
+        // until 20260929000116 added a policy for the visitor role, and the
+        // empty result was swallowed here — so the bank transfer panel rendered
+        // with no account to pay into and nobody found out. Record that the
+        // lookup resolved with nothing so the panel can say so out loud.
+        if (error) console.warn('[registration] bank account lookup failed:', error.message);
+        setBankAccounts(data ?? []);
+        setBankAccountsResolved(true);
+      });
   }, [isNativeApp, bankAccounts.length]);
 
   useEffect(() => {
@@ -1281,12 +1291,19 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
                    {paymentMethod === 'bank_transfer' && tuitionTotal > 0 && (
                      <div className="space-y-3 border-t border-primary/20 pt-4">
-                       {bankAccounts.length > 0 && (
+                       {bankAccounts.length > 0 ? (
                          <div className="text-[10px] text-muted-foreground space-y-1">
                            {bankAccounts.map((acct, i) => (
                              <p key={i}><strong>{acct.bank_name}</strong> — {acct.account_number} ({acct.account_name})</p>
                            ))}
                          </div>
+                       ) : bankAccountsResolved && (
+                         /* Asking someone to transfer money without telling them
+                            where is worse than saying we cannot show it yet. */
+                         <p className="text-[10px] text-amber-500">
+                           Account details could not be loaded. Please contact us for the
+                           transfer details before sending any payment.
+                         </p>
                        )}
                        <BankTransferAmountField
                          value={transferAmount}

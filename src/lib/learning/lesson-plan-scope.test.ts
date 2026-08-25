@@ -1,0 +1,191 @@
+import { describe, expect, it } from 'vitest';
+import { rowMatchesTeachingPeriod } from '@/lib/academic/teaching-period';
+import {
+  compareLessonsByClassWeek,
+  nextLessonInClassOrder,
+  selectClassPlansForScope,
+  sortLessonsByClassWeek,
+  visibleLessonsOnClassPlans,
+} from './lesson-plan-scope';
+
+const CLASS = 'class-1';
+const RELEASE_A = 'release-scratch';
+const RELEASE_B = 'release-python';
+
+const plan = (over: Record<string, unknown> = {}) => ({
+  id: 'plan-1',
+  class_id: CLASS,
+  course_id: 'course-1',
+  term_id: 'term-1',
+  curriculum_release_id: RELEASE_A,
+  status: 'published',
+  ...over,
+});
+
+const lesson = (over: Record<string, unknown> & { id: string; title: string }) => ({
+  status: 'active',
+  course_id: 'course-1',
+  lesson_plan_id: 'plan-1',
+  curriculum_release_id: RELEASE_A,
+  session_number: 1,
+  ...over,
+});
+
+describe('class plan period matching', () => {
+  it('matches a school-term plan by term_id', () => {
+    expect(
+      rowMatchesTeachingPeriod(
+        { term_id: 'term-1', offering_period_id: null },
+        { term_id: 'term-1', offering_period_id: null },
+      ),
+    ).toBe(true);
+    expect(
+      rowMatchesTeachingPeriod(
+        { term_id: 'term-2', offering_period_id: null },
+        { term_id: 'term-1', offering_period_id: null },
+      ),
+    ).toBe(false);
+  });
+
+  it('matches a duration-programme plan by offering period', () => {
+    expect(
+      rowMatchesTeachingPeriod(
+        { term_id: null, offering_period_id: 'period-1' },
+        { term_id: null, offering_period_id: 'period-1' },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('learner lesson order', () => {
+  it('orders by curriculum week, then class meeting, not by id', () => {
+    const rows = [
+      lesson({ id: 'z-late', title: 'Week 8', curriculum_week_number: 8 }),
+      lesson({ id: 'a-early', title: 'Week 1', curriculum_week_number: 1 }),
+      lesson({
+        id: 'b-week3-class2',
+        title: 'Week 3 class 2',
+        curriculum_week_number: 3,
+        session_number: 2,
+      }),
+      lesson({
+        id: 'c-week3-class1',
+        title: 'Week 3 class 1',
+        curriculum_week_number: 3,
+        session_number: 1,
+      }),
+    ];
+    expect(sortLessonsByClassWeek(rows).map((row) => row.id)).toEqual([
+      'a-early',
+      'c-week3-class1',
+      'b-week3-class2',
+      'z-late',
+    ]);
+  });
+
+  it('picks the first unfinished lesson in that week order', () => {
+    const rows = [
+      lesson({ id: 'week-2', title: 'Two', curriculum_week_number: 2 }),
+      lesson({ id: 'week-1', title: 'One', curriculum_week_number: 1 }),
+      lesson({ id: 'week-3', title: 'Three', curriculum_week_number: 3 }),
+    ];
+    expect(nextLessonInClassOrder(rows, new Set(['week-1']))?.id).toBe('week-2');
+  });
+
+  it('does not use UUID order as a fallback for next up', () => {
+    const a = lesson({ id: 'aaa', title: 'Later week', curriculum_week_number: 4 });
+    const b = lesson({ id: 'zzz', title: 'First week', curriculum_week_number: 1 });
+    expect(compareLessonsByClassWeek(a, b)).toBeGreaterThan(0);
+    expect(nextLessonInClassOrder([a, b], new Set())?.id).toBe('zzz');
+  });
+});
+
+describe('shared release gate on the class plan', () => {
+  it('hides a live lesson stamped with a release this class did not adopt', () => {
+    const rows = [
+      lesson({
+        id: 'ours',
+        title: 'Week 1',
+        curriculum_week_number: 1,
+        curriculum_release_id: RELEASE_A,
+      }),
+      lesson({
+        id: 'theirs',
+        title: 'Other school week 1',
+        curriculum_week_number: 1,
+        curriculum_release_id: RELEASE_B,
+      }),
+    ];
+    expect(visibleLessonsOnClassPlans(rows, [plan()], CLASS).map((row) => row.id)).toEqual([
+      'ours',
+    ]);
+  });
+
+  it('hides draft lessons even when they sit on the class plan', () => {
+    const rows = [
+      lesson({
+        id: 'held',
+        title: 'Not shared',
+        curriculum_week_number: 2,
+        status: 'draft',
+      }),
+    ];
+    expect(visibleLessonsOnClassPlans(rows, [plan()], CLASS)).toEqual([]);
+  });
+
+  it('drops catalogue leftovers when the class has a plan', () => {
+    const rows = [
+      lesson({ id: 'on-plan', title: 'Shared', curriculum_week_number: 1 }),
+      {
+        id: 'catalogue',
+        title: 'Old course dump',
+        status: 'active',
+        course_id: 'course-1',
+        lesson_plan_id: null,
+        curriculum_week_number: 1,
+      },
+    ];
+    expect(visibleLessonsOnClassPlans(rows, [plan()], CLASS).map((row) => row.id)).toEqual([
+      'on-plan',
+    ]);
+  });
+
+  it('shows nothing when the learner has no class', () => {
+    const rows = [lesson({ id: 'w1', title: 'One', curriculum_week_number: 1 })];
+    expect(visibleLessonsOnClassPlans(rows, [plan()], '')).toEqual([]);
+  });
+});
+
+describe('which plans count', () => {
+  it('keeps this class, this term, and drops archived plans', () => {
+    const selected = selectClassPlansForScope(
+      [
+        plan(),
+        plan({ id: 'other-class', class_id: 'class-2' }),
+        plan({ id: 'other-term', term_id: 'term-2' }),
+        plan({ id: 'old', status: 'archived' }),
+      ],
+      { classId: CLASS, termId: 'term-1' },
+    );
+    expect(selected.map((row) => row.id)).toEqual(['plan-1']);
+  });
+
+  it('keeps a duration-programme plan by offering period', () => {
+    const selected = selectClassPlansForScope(
+      [
+        plan({ id: 'bootcamp', term_id: null, offering_period_id: 'period-1' }),
+        plan({ id: 'school-term', term_id: 'term-1', offering_period_id: null }),
+      ],
+      { classId: CLASS, offeringPeriodId: 'period-1' },
+    );
+    expect(selected.map((row) => row.id)).toEqual(['bootcamp']);
+  });
+
+  it('keeps the class current course when one is set', () => {
+    const selected = selectClassPlansForScope(
+      [plan(), plan({ id: 'other-course', course_id: 'course-9' })],
+      { classId: CLASS, termId: 'term-1', currentCourseId: 'course-1' },
+    );
+    expect(selected.map((row) => row.id)).toEqual(['plan-1']);
+  });
+});

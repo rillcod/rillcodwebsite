@@ -18,6 +18,7 @@ describe("student workspace UX", () => {
     expect(home).toContain("Continue learning");
     expect(home).toContain("My assignments");
     expect(home).toContain("My grades");
+    expect(home).toContain("loadLessonsForClassPlans");
     expect(home).not.toContain("/dashboard/leaderboard");
     expect(home).not.toContain("/dashboard/activity-hub");
     expect(home).not.toContain("/dashboard/study-groups");
@@ -30,6 +31,18 @@ describe("student workspace UX", () => {
     expect(learning).not.toContain("buildCurriculumHref");
     expect(learning).not.toContain("/dashboard/courses/${c.id}");
     expect(learning).toContain("/dashboard/lessons/${nextLesson.id}");
+    expect(learning).toContain("loadLessonsForClassPlans");
+    expect(learning).toContain("Your teacher has not shared a week yet.");
+    expect(learning).not.toContain("/dashboard/learning/stats");
+    expect(learning).not.toContain(".order('id', { ascending: true })");
+    expect(learning).not.toContain("class-week-package");
+    expect(home).not.toContain("class-week-package");
+  });
+
+  it("opens a lesson only if it sits on this class plan", () => {
+    const lessonPlayer = read("src/app/dashboard/lessons/[id]/page.tsx");
+    expect(lessonPlayer).toContain("filterLessonsForClassPlans");
+    expect(lessonPlayer).not.toContain("class-week-package");
   });
 
   it("shows a report card, not a publish desk, to learners", () => {

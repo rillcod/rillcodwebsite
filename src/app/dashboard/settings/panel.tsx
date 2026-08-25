@@ -42,7 +42,11 @@ import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import { LANE_LABELS } from "@/lib/qa/resolveQaSpineLane";
 import { liveAcademicSession } from "@/lib/reports/academic-period";
-import { isSensitivePlatformSetting } from "@/lib/config/platform-settings";
+import {
+  isSensitivePlatformSetting,
+  PLATFORM_CONFIGURATION_SECTION_KEYS,
+  type PlatformConfigurationSection,
+} from "@/lib/config/platform-settings";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -315,14 +319,9 @@ function SettingsPageContent({
   const [configuredSecrets, setConfiguredSecrets] = useState<
     Record<string, boolean>
   >({});
+  const [settingVersions, setSettingVersions] = useState<Record<string, string | null>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
-
-  // ── Templates state ────────────────────────────────────────────────────────
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
-  const [templateSaving, setTemplateSaving] = useState(false);
 
   // ── Audit Log state ────────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -500,7 +499,9 @@ function SettingsPageContent({
       .then((d) => {
         const map: Record<string, string> = {};
         const secretState: Record<string, boolean> = {};
+        const versions: Record<string, string | null> = {};
         (d.data ?? []).forEach((row: any) => {
+          versions[row.key] = row.updated_at ?? null;
           if (row.sensitive) {
             secretState[row.key] = row.configured === true;
           } else {
@@ -509,22 +510,9 @@ function SettingsPageContent({
         });
         setAiSettings(map);
         setConfiguredSecrets(secretState);
+        setSettingVersions(versions);
       })
       .finally(() => setAiLoading(false));
-  }, [profile?.role, tab]);
-
-  useEffect(() => {
-    if (profile?.role !== "admin" || tab !== "templates") return;
-    (async () => {
-      setTemplatesLoading(true);
-      const { data } = await createClient()
-        .from("notification_templates")
-        .select("*")
-        .order("type")
-        .order("name");
-      setTemplates(data ?? []);
-      setTemplatesLoading(false);
-    })();
   }, [profile?.role, tab]);
 
   useEffect(() => {
@@ -754,22 +742,29 @@ function SettingsPageContent({
     }
   };
 
-  const saveAiSettings = async () => {
+  const savePlatformSettings = async (section: PlatformConfigurationSection) => {
     setAiSaving(true);
     try {
+      const ownedKeys = new Set<string>(PLATFORM_CONFIGURATION_SECTION_KEYS[section]);
       const res = await fetch("/api/app-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          section,
           settings: Object.entries(aiSettings)
             .filter(
-              ([key, value]) =>
-                !isSensitivePlatformSetting(key) || value.trim().length > 0
+              ([key]) => ownedKeys.has(key) && !isSensitivePlatformSetting(key)
             )
-            .map(([key, value]) => ({ key, value })),
+            .map(([key, value]) => ({
+              key,
+              value,
+              expected_updated_at: settingVersions[key] ?? null,
+            })),
         }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Save failed");
+      const response = await res.json();
+      if (!res.ok) throw new Error(response.error ?? "Save failed");
+      setSettingVersions((current) => ({ ...current, ...(response.versions ?? {}) }));
       setConfiguredSecrets((current) => ({
         ...current,
         ...Object.fromEntries(
@@ -789,38 +784,11 @@ function SettingsPageContent({
           ])
         )
       );
-      showToast("Settings saved");
+      showToast(section === "ai" ? "AI settings saved" : "Platform behaviour saved");
     } catch (e: any) {
       showToast(e.message ?? "Failed", false);
     } finally {
       setAiSaving(false);
-    }
-  };
-
-  const saveTemplate = async () => {
-    if (!editingTemplate) return;
-    setTemplateSaving(true);
-    try {
-      const { id, ...payload } = editingTemplate;
-      const { error } = await createClient()
-        .from("notification_templates")
-        .upsert(
-          { ...payload, ...(id ? { id } : {}) },
-          { onConflict: "name,type" }
-        );
-      if (error) throw error;
-      setEditingTemplate(null);
-      const { data } = await createClient()
-        .from("notification_templates")
-        .select("*")
-        .order("type")
-        .order("name");
-      setTemplates(data ?? []);
-      showToast("Template saved");
-    } catch (e: any) {
-      showToast(e.message ?? "Failed", false);
-    } finally {
-      setTemplateSaving(false);
     }
   };
 
@@ -1238,7 +1206,7 @@ function SettingsPageContent({
           <MobilePageHero
             badge="Account · Settings"
             title="Settings"
-            description="Manage your account, academic rules, and platform configuration."
+            description="Manage your profile, password and personal notification preferences."
             icon={CogIcon}
           />
         ) : null}
@@ -3723,77 +3691,62 @@ function SettingsPageContent({
                   <div className="p-6 space-y-5">
                     <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl">
                       <p className="text-xs text-primary leading-relaxed">
-                        These keys are loaded at runtime for AI features.
-                        Changes take effect immediately.
+                        OpenRouter and Gemini keys are loaded from the server
+                        environment. Saving a value here does not change what
+                        the models use — rotate them in Cloudflare, then
+                        redeploy.
                       </p>
                     </div>
-                    {[
-                      {
-                        key: "openrouter_api_key",
-                        label: "OpenRouter API Key",
-                        hint: "Used for text generation fallback. Get it at openrouter.ai",
-                        placeholder: "sk-or-v1-...",
-                      },
-                      {
-                        key: "gemini_api_key",
-                        label: "Google Gemini API Key",
-                        hint: "Primary key for Gemini 2.5 Flash text and image generation.",
-                        placeholder: "AIza...",
-                      },
-                      {
-                        key: "pollinations_enabled",
-                        label: "Pollinations Fallback",
-                        hint: 'Set to "true" to enable the free Pollinations.ai image fallback.',
-                        placeholder: "true or false",
-                      },
-                    ].map(({ key, label, hint, placeholder }) => (
+                    {(
+                      [
+                        {
+                          key: "openrouter_api_key",
+                          label: "OpenRouter API Key",
+                          hint: "Text generation fallback. Set OPENROUTER_API_KEY on the container.",
+                        },
+                        {
+                          key: "gemini_api_key",
+                          label: "Google Gemini API Key",
+                          hint: "Primary Gemini text and image key. Set GEMINI_API_KEY (and optional GEMINI_API_KEY_2…5) on the container.",
+                        },
+                      ] as const
+                    ).map(({ key, label, hint }) => (
                       <div key={key}>
                         <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5">
                           {label}
                         </label>
-                        <div className="flex gap-2">
-                          <input
-                            type={
-                              isSensitivePlatformSetting(key)
-                                ? "password"
-                                : "text"
-                            }
-                            value={aiSettings[key] ?? ""}
-                            onChange={(e) =>
-                              setAiSettings((prev) => ({
-                                ...prev,
-                                [key]: e.target.value,
-                              }))
-                            }
-                            placeholder={
-                              configuredSecrets[key]
-                                ? "Configured — enter a replacement only"
-                                : placeholder
-                            }
-                            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-mono focus:outline-none focus:border-primary transition-colors"
-                          />
-                          {!isSensitivePlatformSetting(key) &&
-                            (aiSettings[key] ?? "").length > 4 && (
-                            <button
-                              onClick={() =>
-                                setAiSettings((prev) => ({
-                                  ...prev,
-                                  [key]: "",
-                                }))
-                              }
-                              className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black hover:bg-rose-500/20 transition-colors"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-1">
+                        <p className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-mono text-foreground">
                           {configuredSecrets[key]
-                            ? `${hint} The stored value is never returned to this browser.`
-                            : hint}
+                            ? "Configured on the server"
+                            : "Not set on this host"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {hint}
                         </p>
                       </div>
                     ))}
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                        Pollinations Fallback
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={aiSettings.pollinations_enabled ?? ""}
+                          onChange={(e) =>
+                            setAiSettings((prev) => ({
+                              ...prev,
+                              pollinations_enabled: e.target.value,
+                            }))
+                          }
+                          placeholder="true or false"
+                          className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-mono focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Set to &quot;true&quot; to enable the free Pollinations.ai image fallback.
+                      </p>
+                    </div>
                     {Object.entries(aiSettings)
                       .filter(([key]) => key === "ai_free_models")
                       .map(([key, value]) => (
@@ -3815,7 +3768,7 @@ function SettingsPageContent({
                         </div>
                       ))}
                     <button
-                      onClick={saveAiSettings}
+                      onClick={() => savePlatformSettings("ai")}
                       disabled={aiSaving}
                       className="flex items-center gap-2 px-6 py-2.5 bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-all mt-2"
                     >
@@ -3839,9 +3792,9 @@ function SettingsPageContent({
                     <CogIcon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h2 className="font-bold">Platform Policy & Branding</h2>
+                    <h2 className="font-bold">Platform Experience &amp; Branding</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Global LMS behavior, academic rules, and brand assets.
+                      App-wide access defaults, safe cleanup and brand assets.
                     </p>
                   </div>
                 </div>
@@ -3945,7 +3898,7 @@ function SettingsPageContent({
                     <div className="h-px bg-border" />
                     <div>
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">
-                        Daily Academic Rules
+                        Learning Experience Defaults
                       </h3>
                       <div className="space-y-4">
                         {[
@@ -4011,12 +3964,12 @@ function SettingsPageContent({
                     <div className="h-px bg-border" />
                     <div>
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">
-                        Communication Controls
+                        Conversation Access &amp; Eligibility
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-xs font-bold mb-1.5">
-                            Messaging Restriction
+                            Conversation Access
                           </label>
                           <select
                             value={aiSettings.lms_messaging_policy || "open"}
@@ -4070,7 +4023,7 @@ function SettingsPageContent({
                     </div>
                     <div className="pt-4 flex flex-col sm:flex-row gap-3">
                       <button
-                        onClick={saveAiSettings}
+                        onClick={() => savePlatformSettings("experience")}
                         disabled={aiSaving}
                         className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary shadow-lg shadow-primary/20 disabled:opacity-50 rounded-xl text-sm font-black text-white transition-all uppercase tracking-widest"
                       >
@@ -4108,122 +4061,26 @@ function SettingsPageContent({
               </div>
             )}
 
-            {/* ── Notification Templates (admin) ── */}
+            {/* ── Notification Templates moved to Office ── */}
             {tab === "templates" && profile?.role === "admin" && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                 <div className="p-6 border-b border-border flex items-center gap-2">
                   <DocumentTextIcon className="w-4 h-4 text-primary" />
                   <div>
-                    <h2 className="font-bold">Notification Templates</h2>
+                    <h2 className="font-bold">Message templates live in Office</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Edit email and SMS templates used by the system.
+                      Versions, who changed them, delivery evidence, and failed-message recovery are one operator flow.
                     </p>
                   </div>
                 </div>
-                {templatesLoading ? (
-                  <div className="p-10 flex justify-center">
-                    <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {templates.length === 0 && (
-                      <div className="p-8 text-center text-muted-foreground text-sm">
-                        No templates found. They are seeded on first use.
-                      </div>
-                    )}
-                    {templates.map((tmpl) => (
-                      <div key={tmpl.id} className="p-5">
-                        <div className="flex items-center justify-between gap-4 mb-3">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border ${
-                                tmpl.type === "email"
-                                  ? "bg-primary/10 text-primary border-primary/20"
-                                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                              }`}
-                            >
-                              {tmpl.type}
-                            </span>
-                            <p className="text-sm font-bold">{tmpl.name}</p>
-                          </div>
-                          <button
-                            onClick={() =>
-                              setEditingTemplate(
-                                editingTemplate?.id === tmpl.id
-                                  ? null
-                                  : { ...tmpl }
-                              )
-                            }
-                            className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                          >
-                            <PencilIcon className="w-3.5 h-3.5" /> Edit
-                          </button>
-                        </div>
-                        {editingTemplate?.id === tmpl.id ? (
-                          <div className="space-y-3 border border-border p-4 bg-background">
-                            {editingTemplate.subject !== undefined && (
-                              <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-                                  Subject
-                                </label>
-                                <input
-                                  value={editingTemplate.subject ?? ""}
-                                  onChange={(e) =>
-                                    setEditingTemplate((t: any) => ({
-                                      ...t,
-                                      subject: e.target.value,
-                                    }))
-                                  }
-                                  className="w-full px-3 py-2.5 bg-card border border-border text-sm focus:outline-none focus:border-primary"
-                                />
-                              </div>
-                            )}
-                            <div>
-                              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-                                Content
-                              </label>
-                              <textarea
-                                rows={6}
-                                value={editingTemplate.content ?? ""}
-                                onChange={(e) =>
-                                  setEditingTemplate((t: any) => ({
-                                    ...t,
-                                    content: e.target.value,
-                                  }))
-                                }
-                                className="w-full px-3 py-2.5 bg-card border border-border text-sm font-mono resize-none focus:outline-none focus:border-primary"
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setEditingTemplate(null)}
-                                className="flex-1 py-2.5 text-xs font-bold text-muted-foreground border border-border hover:text-foreground"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={saveTemplate}
-                                disabled={templateSaving}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black bg-primary text-white disabled:opacity-50"
-                              >
-                                {templateSaving ? (
-                                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <CheckIcon className="w-3.5 h-3.5" />
-                                )}
-                                Save
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground font-mono leading-relaxed line-clamp-3">
-                            {tmpl.content}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="p-6">
+                  <Link
+                    href="/dashboard/office?workspace=settings&section=templates"
+                    className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-black text-white"
+                  >
+                    Open Office templates
+                  </Link>
+                </div>
               </div>
             )}
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
 import { modelQueueFor } from '@/lib/ai/model-policy';
+import { withApiProxy } from '@/lib/api-wrapper';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -22,7 +23,7 @@ const MODELS = [
   "mistralai/mistral-7b-instruct:free"        // Emergency fallback
 ];
 
-export async function POST(req: NextRequest) {
+async function postHandler(req: NextRequest) {
   try {
     const { prompt, type } = await req.json();
 
@@ -117,3 +118,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
+
+// Lesson-authoring tool: same surface as the lesson editor that calls it.
+// withApiProxy supplies auth, the role gate, the write-burst limit and the
+// browser-origin check in one place, so this route cannot drift open again.
+export const POST = (req: any, ctx: any) =>
+  withApiProxy(postHandler, {
+    requireAuth: true,
+    requireTenant: false,
+    roles: ['admin', 'teacher'],
+  })(req, ctx);

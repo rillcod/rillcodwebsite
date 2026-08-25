@@ -58,6 +58,7 @@ const PAGE_ITEMS_BY_ROLE: Record<string, PageItem[]> = {
   teacher: [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+    { name: 'Course outline', href: '/dashboard/academic/build', icon: ClipboardDocumentListIcon },
     { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
     { name: 'Lesson Plans', href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon },
     { name: 'Grading', href: '/dashboard/grading', icon: TrophyIcon },
@@ -75,7 +76,7 @@ const PAGE_ITEMS_BY_ROLE: Record<string, PageItem[]> = {
     { name: 'Publish', href: '/dashboard/results', icon: TrophyIcon },
     { name: 'Finance', href: '/dashboard/finance', icon: BanknotesIcon },
     { name: 'Inbox', href: '/dashboard/inbox', icon: EnvelopeIcon },
-    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+    { name: 'My Profile', href: '/dashboard/profile', icon: UserIcon },
   ],
   student: [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },

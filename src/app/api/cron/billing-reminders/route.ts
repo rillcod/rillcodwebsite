@@ -468,10 +468,15 @@ async function handleRequest(request: Request) {
           stage,
           channel: 'whatsapp',
           deliver: async () => {
-            await notificationsService.sendExternalWhatsApp({
+            const sent = await notificationsService.sendExternalWhatsApp({
               to: whatsappTarget!,
               body: text,
             });
+            if ((sent as any)?.approval_pending) {
+              throw new Error((sent as any).fallback_url
+                ? 'WhatsApp API delivery is paused pending approval'
+                : 'WhatsApp was not delivered');
+            }
           },
         });
         await db.from('billing_reminder_logs').insert({

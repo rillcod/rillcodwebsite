@@ -116,8 +116,8 @@ export const INBOX_SECTIONS: Array<{ key: InboxSection; label: string; hint: str
 
 export const SETTINGS_SECTIONS: Array<{ key: SettingsSection; label: string; hint: string }> = [
   { key: 'automation', label: 'Automations', hint: 'What runs automatically' },
-  { key: 'templates', label: 'Message templates', hint: 'Wording your office sends' },
-  { key: 'health', label: 'Scheduled jobs', hint: 'Cron health and failed runs' },
+  { key: 'templates', label: 'Message templates', hint: 'Wording, versions, delivery and recovery' },
+  { key: 'health', label: 'Scheduled jobs', hint: 'Cron health and failed-message recovery' },
   { key: 'results', label: 'Results', hint: 'How the office is performing' },
 ];
 

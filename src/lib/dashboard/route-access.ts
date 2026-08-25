@@ -95,81 +95,42 @@ const STAFF_ONLY_PREFIXES: string[] = [
 ];
 
 /**
- * Partner school: platform-wide and cross-tenant tools (prefix match).
- * Does NOT include routes in the school sidebar (overview, students, curriculum, inbox, …).
+ * Partner school: allow-list, same default as students and parents.
+ * The school sidebar is the map; a new dashboard route stays closed until it
+ * is granted here. One school must never inherit another tenant's tools
+ * because nobody updated a deny-list.
  */
-const SCHOOL_PLATFORM_PREFIXES: string[] = [
-  "/dashboard/learner-safety",
-  "/dashboard/platform-operations",
-  "/dashboard/account-deletion-requests",
-  "/dashboard/users",
-  "/dashboard/schools",
-  "/dashboard/teachers",
-  "/dashboard/parents",
-  "/dashboard/approvals",
-  "/dashboard/lesson-plans",
-  "/dashboard/lessons/add",
-  "/dashboard/analytics",
-  "/dashboard/settings",
-  "/dashboard/directory",
-  "/dashboard/engagement",
-  "/dashboard/school-settings",
-  "/dashboard/bulk",
-  "/dashboard/payments/bulk",
-  "/dashboard/admin",
-  "/dashboard/whatsapp",
-  "/dashboard/cbt/new",
-  "/dashboard/programs",
-  "/dashboard/grading",
-  "/dashboard/gamification",
-  "/dashboard/crm",
-  "/dashboard/activity-hub",
-  "/dashboard/activity-logs",
-  "/dashboard/reports",
-  "/dashboard/billing",
-  "/dashboard/billing-automation",
-  "/dashboard/transactions",
-  "/dashboard/subscriptions",
-  "/dashboard/generate-content",
-  "/dashboard/certificates/management",
-
-  /*
-   * Everything below closed a gap found by comparing this list against the school
-   * sidebar: 55 route groups were reachable with no row pointing at them.
-   *
-   * Students and parents are governed by allow-lists, so a new route is denied
-   * until someone grants it. Partner schools are governed by this deny-list, so a
-   * new route is *granted* until someone remembers to deny it — on a product where
-   * one partner school must never see another's data. `/dashboard/engagement` was
-   * denied while `/dashboard/engage` was not, which is what that failure mode looks
-   * like in practice.
-   */
-
-  // Platform operations and cross-tenant records. `crm` was already denied;
-  // customer-book is the same contact book under a different route.
-  "/dashboard/customer-book",
-  "/dashboard/office",
-  "/dashboard/cases",
-  "/dashboard/accountability",
-  "/dashboard/email-log",
-  "/dashboard/moderation",
-  "/dashboard/overview",
-  "/dashboard/engage",
-
-  // A family's own screens. A partner school has its own reporting on the same
-  // learners; these are the parent's personal views of their own child and their
-  // own invoices, and are not a school surface.
-  "/dashboard/my-children",
-  "/dashboard/my-payments",
-  "/dashboard/parent-results",
-  "/dashboard/parent-grades",
-  "/dashboard/parent-attendance",
-  "/dashboard/parent-certificates",
-  "/dashboard/parent-path-progress",
-  "/dashboard/parent-invoices",
-  "/dashboard/parent-feedback",
-  "/dashboard/parent-card",
+const SCHOOL_ALLOWED_PREFIXES: string[] = [
+  "/dashboard/school-overview",
+  "/dashboard/records",
+  "/dashboard/students",
+  "/dashboard/classes",
+  "/dashboard/card-studio",
+  "/dashboard/timetable",
+  "/dashboard/attendance",
+  "/dashboard/live-sessions",
+  "/dashboard/academic/guide",
+  "/dashboard/learner-progress",
+  "/dashboard/results",
+  "/dashboard/school-reports",
+  "/dashboard/grades",
+  "/dashboard/showcase",
+  "/dashboard/finance",
+  "/dashboard/school-billing",
+  "/dashboard/consent-forms",
+  "/dashboard/parent-claims",
+  "/dashboard/inbox",
+  "/dashboard/whatsapp-groups",
+  "/dashboard/notifications",
+  "/dashboard/profile",
 ];
+
+const SCHOOL_ALLOWED_EXACT = new Set([
+  "/dashboard",
+  "/dashboard/academic",
+  // Thin bounce: the page itself sends school users to Records, not CRM.
+  "/dashboard/directory",
+]);
 
 /** Lesson/course/CBT editors — partner schools monitor clients; content authoring stays with platform staff / teachers. */
 function isCrossTenantContentEditorPath(path: string): boolean {
@@ -290,18 +251,28 @@ export function isDashboardPathBlockedForStudent(pathname: string): boolean {
   return true;
 }
 
+function isSchoolAllowedPath(path: string): boolean {
+  if (SCHOOL_ALLOWED_EXACT.has(path)) return true;
+  for (const prefix of SCHOOL_ALLOWED_PREFIXES) {
+    if (path === prefix || path.startsWith(`${prefix}/`)) return true;
+  }
+  return false;
+}
+
 /**
  * True when a partner school account should be redirected away from this path.
- * Mirrors DB intent: school users are scoped by `school_id`; platform tables stay admin/teacher.
+ * Allow-list first: a missing grant is a deny. Content editors and student
+ * registration tools stay closed even if they sit under an allowed prefix.
  */
 export function isDashboardPathBlockedForSchool(pathname: string): boolean {
   const path = normalizePath(pathname);
   if (!path.startsWith("/dashboard")) return false;
 
-  if (matchesPathPrefix(path, SCHOOL_PLATFORM_PREFIXES)) return true;
   if (isCrossTenantContentEditorPath(path)) return true;
-
-  return false;
+  if (isStudentManagementPath(path)) return true;
+  if (path.startsWith("/dashboard/certificates/management")) return true;
+  if (isSchoolAllowedPath(path)) return false;
+  return true;
 }
 
 const PARENT_ALLOWED_PREFIXES: string[] = [
@@ -354,8 +325,7 @@ export function isDashboardPathBlockedForParent(pathname: string): boolean {
 }
 
 /**
- * True platform-admin surfaces teachers must not deep-link into.
- * Teachers remain platform staff for teaching/ops; this is a thin deny-list only.
+ * Surfaces teachers must never inherit, even if a work prefix is later widened.
  */
 const TEACHER_DENIED_PREFIXES: string[] = [
   "/dashboard/platform-operations",
@@ -375,10 +345,68 @@ const TEACHER_DENIED_PREFIXES: string[] = [
   "/dashboard/records",
 ];
 
+/**
+ * Teaching work a teacher actually opens: sidebar, command palette, and the
+ * class/lesson/exam deep links those rows lead to. A new dashboard route stays
+ * closed until it is granted here.
+ */
+const TEACHER_ALLOWED_PREFIXES: string[] = [
+  "/dashboard/classes",
+  "/dashboard/teaching",
+  "/dashboard/academic",
+  "/dashboard/library",
+  "/dashboard/timetable",
+  "/dashboard/attendance",
+  "/dashboard/live-sessions",
+  "/dashboard/grading",
+  "/dashboard/grades",
+  "/dashboard/students",
+  "/dashboard/parents",
+  "/dashboard/inbox",
+  "/dashboard/reports",
+  "/dashboard/results",
+  "/dashboard/notifications",
+  "/dashboard/settings",
+  "/dashboard/lesson-plans",
+  "/dashboard/lessons",
+  "/dashboard/assignments",
+  "/dashboard/cbt",
+  "/dashboard/exams",
+  "/dashboard/courses",
+  "/dashboard/flashcards",
+  "/dashboard/slides",
+  "/dashboard/projects",
+  "/dashboard/learner-progress",
+  "/dashboard/learner-safety",
+  "/dashboard/profile",
+  "/dashboard/support",
+  "/dashboard/consent-forms",
+  "/dashboard/messages",
+  "/dashboard/newsletters",
+  "/dashboard/path-progress",
+  "/dashboard/certificates",
+];
+
+const TEACHER_ALLOWED_EXACT = new Set([
+  "/dashboard",
+  "/dashboard/directory",
+]);
+
+function isTeacherAllowedPath(path: string): boolean {
+  if (TEACHER_ALLOWED_EXACT.has(path)) return true;
+  for (const prefix of TEACHER_ALLOWED_PREFIXES) {
+    if (path === prefix || path.startsWith(`${prefix}/`)) return true;
+  }
+  return false;
+}
+
 export function isDashboardPathBlockedForTeacher(pathname: string): boolean {
   const path = normalizePath(pathname);
   if (!path.startsWith("/dashboard")) return false;
-  return matchesPathPrefix(path, TEACHER_DENIED_PREFIXES);
+  if (matchesPathPrefix(path, TEACHER_DENIED_PREFIXES)) return true;
+  if (path.startsWith("/dashboard/certificates/management")) return true;
+  if (isTeacherAllowedPath(path)) return false;
+  return true;
 }
 
 export function isDashboardPathBlockedForRole(

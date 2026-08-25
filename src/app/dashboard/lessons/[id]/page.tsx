@@ -71,6 +71,7 @@ import {
   buildClassTeachingHref,
   buildProjectNewHref,
 } from "@/lib/curriculum/href";
+import { filterLessonsForClassPlans } from "@/lib/learning/lesson-plan-scope";
 import NeuralVoiceReader from "@/components/ai/NeuralVoiceReader";
 import StudyAssistant from "@/components/ai/StudyAssistant";
 
@@ -4690,7 +4691,7 @@ export default function LessonDetailPage() {
       if (user.role === "student" && user.class_id) {
         const { data: clsData } = await db
           .from("classes")
-          .select("current_course_id")
+          .select("current_course_id, term_id, offering_period_id")
           .eq("id", user.class_id)
           .maybeSingle();
         if (
@@ -4698,6 +4699,20 @@ export default function LessonDetailPage() {
           clsData.current_course_id !== lessonObj.course_id
         ) {
           setError("This lesson is not active for your class yet.");
+          return;
+        }
+        const visible = await filterLessonsForClassPlans(
+          db,
+          [lessonObj],
+          user.class_id,
+          clsData?.term_id,
+          {
+            currentCourseId: clsData?.current_course_id,
+            offeringPeriodId: clsData?.offering_period_id,
+          },
+        );
+        if (visible.length === 0) {
+          setError("This lesson has not been shared with your class yet.");
           return;
         }
       }

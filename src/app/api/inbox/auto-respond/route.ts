@@ -330,9 +330,10 @@ export async function POST(req: NextRequest) {
 
     let whatsappMessageId: string | null = null;
     let apiStatus = 'pending';
+    let waResult: Awaited<ReturnType<typeof sendWhatsAppMessage>> | null = null;
 
     if (phone_number) {
-      const waResult = await sendWhatsAppMessage({
+      waResult = await sendWhatsAppMessage({
         to: phone_number.replace(/\D/g, ''),
         type: 'text',
         body: autoResponse,
@@ -368,28 +369,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
-    if (whatsappMessageId) {
+    if (waResult?.deliveryLogId) {
       try {
-        await admin.from('communication_delivery_log').insert({
-          channel: 'whatsapp',
-          case_id: null,
-          case_event_id: null,
-          recipient: phone_number || null,
-          provider: 'meta',
-          provider_message_id: whatsappMessageId,
-          status: apiStatus === 'sent' ? 'sent' : 'failed',
-          automated: true,
+        await admin.from('communication_delivery_log').update({
           metadata: {
             auto_response: true,
             intent: intent.id,
             whatsapp_message_row_id: newMessage.id,
             conversation_id,
           },
-          sent_at: apiStatus === 'sent' ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
-        });
+        }).eq('id', waResult.deliveryLogId);
       } catch (deliveryError) {
-        console.error('[auto-respond] delivery log failed:', deliveryError);
+        console.error('[auto-respond] delivery log update failed:', deliveryError);
       }
     }
 

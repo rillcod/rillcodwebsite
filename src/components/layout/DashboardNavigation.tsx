@@ -648,7 +648,7 @@ export default function DashboardNavigation() {
             icon: ClipboardDocumentCheckIcon,
           },
           {
-            name: "Curriculum",
+            name: "Course outline",
             href: "/dashboard/academic/build",
             icon: BookOpenIcon,
           },
@@ -1036,7 +1036,7 @@ export default function DashboardNavigation() {
     student: ["Dashboard", "Learning Center", "Assignments", "Grades"],
     school: ["Dashboard", "Classes", "Finance Center", "WhatsApp Inbox"],
     admin: ["Dashboard", "Office Center", "Records", "Write"],
-    teacher: ["Dashboard", "My Classes", "Grading Queue", "Curriculum"],
+    teacher: ["Dashboard", "My Classes", "Grading Queue", "Course outline"],
     parent: ["Dashboard", "My Children", "Report Cards", "Finance Center"],
   };
   const bottomNavNames = bottomNavByRole[profile?.role ?? ""] ?? ["Dashboard"];

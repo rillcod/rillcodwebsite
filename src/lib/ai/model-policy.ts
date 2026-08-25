@@ -6,6 +6,7 @@ import {
   FREE_FALLBACK_MODELS,
 } from "./openrouter";
 import { healthiestFirst } from "./model-health";
+import { huggingFaceQueue } from "./huggingface";
 
 /**
  * One place that decides which AI models anything in this app may call.
@@ -82,7 +83,19 @@ export async function modelQueueFor(task: AiTask): Promise<string[]> {
   const paid = preferred.filter(
     (id) => !isFreeModel(id) && (listed.size === 0 || listed.has(id))
   );
-  const queue = [...free, ...paid];
+
+  // Hugging Face goes last, behind every free model and every OpenRouter
+  // preference. Nothing on its router is free — all 131 live text models are
+  // billed per token — so it is a floor under the paid tier rather than another
+  // option beside it. huggingFaceQueue returns nothing at all without a key or
+  // under AI_FREE_MODELS_ONLY, which is why the early return above never
+  // reaches this line: a free-only run cannot acquire a billable tail here.
+  const huggingFace = huggingFaceQueue({
+    needsJson: task.needsJson,
+    contextTokensNeeded: task.contextTokensNeeded,
+  });
+
+  const queue = [...free, ...paid, ...huggingFace];
   // Models that recently 404'd or ran out of quota drop to the back of their
   // tier. The catalogue says what exists; only real calls say what works.
   return healthiestFirst(queue.length ? queue : FREE_FALLBACK_MODELS, (id) => id);

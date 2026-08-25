@@ -1,6 +1,14 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { RocketLaunchIcon, LinkIcon, CalendarIcon } from '@/lib/icons';
+
+/*
+ * Never cached. This page is keyed on a share token and enforces an expiry
+ * below, so a cached render could keep serving a portfolio after its link has
+ * expired or been revoked. Both sibling token pages (forms/[id], consent/[code])
+ * pin this for the same reason.
+ */
+export const dynamic = 'force-dynamic';
 
 interface Props { params: Promise<{ token: string }> }
 
@@ -16,7 +24,28 @@ const CATEGORIES: Record<string, string> = {
 
 export default async function PublicPortfolioPage({ params }: Props) {
   const { token } = await params;
-  const supabase = await createClient();
+
+  /*
+   * Service role, deliberately — and the same shape as every other public token
+   * page here (forms/[id], consent/[code], api/public/verify-certificate).
+   *
+   * This page previously used the cookie-backed anon client. portal_users has no
+   * anon-readable policy (every SELECT policy on it needs auth.uid() or a staff
+   * role), so for the logged-out visitor a share link is meant for, the lookup
+   * returned nothing and the page rendered "Link Expired or Not Found" — every
+   * time, for everyone. The feature could not work as built.
+   *
+   * The share token is the capability, exactly as on the sibling pages: it is
+   * matched exactly below, and expiry is enforced immediately after. Widening
+   * anon access to portal_users instead would have meant a policy exposing every
+   * row that merely has a token set, which is far worse than reading one row
+   * behind a token the caller already holds.
+   */
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
 
   const { data: student } = await supabase
     .from('portal_users')

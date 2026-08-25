@@ -27,12 +27,59 @@ export async function GET() {
     actor.db.from('communication_template_versions').select('*').order('version_number', { ascending: false }),
   ]);
   if (templates.error || versions.error) return NextResponse.json({ error: templates.error?.message || versions.error?.message }, { status: 500 });
+  const templateRows = templates.data ?? [];
   const versionRows = versions.data ?? [];
-  return NextResponse.json({ templates: (templates.data ?? []).map((template: any) => ({
-    ...template,
-    versions: versionRows.filter((version: any) => version.template_id === template.id),
-    currentVersion: versionRows.find((version: any) => version.id === template.current_version_id) ?? null,
-  })) });
+  const actorIds = [...new Set([
+    ...templateRows.flatMap((row: any) => [row.created_by, row.approved_by]),
+    ...versionRows.map((row: any) => row.created_by),
+  ].filter(Boolean))];
+  const keys = [...new Set(templateRows.map((row: any) => row.template_key).filter(Boolean))];
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const [peopleResult, deliveryResult, deadLetterResult] = await Promise.all([
+    actorIds.length
+      ? actor.db.from('portal_users').select('id,full_name').in('id', actorIds)
+      : Promise.resolve({ data: [], error: null }),
+    keys.length
+      ? actor.db.from('communication_delivery_log').select('template_key,status,created_at,error')
+          .in('template_key', keys).gte('created_at', since).order('created_at', { ascending: false }).limit(2000)
+      : Promise.resolve({ data: [], error: null }),
+    actor.db.from('notification_dead_letters').select('id', { count: 'exact', head: true })
+      .in('status', ['pending', 'retrying']),
+  ]);
+  if (peopleResult.error || deliveryResult.error || deadLetterResult.error) {
+    return NextResponse.json({
+      error: peopleResult.error?.message || deliveryResult.error?.message || deadLetterResult.error?.message,
+    }, { status: 500 });
+  }
+  const names = new Map((peopleResult.data ?? []).map((person: any) => [person.id, person.full_name || 'Unnamed administrator']));
+  const deliveryByKey = new Map<string, { sent: number; failed: number; suppressed: number; lastStatus: string | null; lastAt: string | null; lastError: string | null }>();
+  for (const row of deliveryResult.data ?? []) {
+    const key = String(row.template_key || '');
+    const current = deliveryByKey.get(key) ?? { sent: 0, failed: 0, suppressed: 0, lastStatus: null, lastAt: null, lastError: null };
+    if (['sent', 'delivered', 'read'].includes(row.status)) current.sent += 1;
+    else if (row.status === 'failed') current.failed += 1;
+    else if (row.status === 'suppressed') current.suppressed += 1;
+    if (!current.lastAt) {
+      current.lastStatus = row.status;
+      current.lastAt = row.created_at;
+      current.lastError = row.error ?? null;
+    }
+    deliveryByKey.set(key, current);
+  }
+  return NextResponse.json({
+    recoveryHref: '/dashboard/office?workspace=settings&section=health',
+    pendingRecovery: deadLetterResult.count ?? 0,
+    templates: templateRows.map((template: any) => ({
+      ...template,
+      createdByName: names.get(template.created_by) ?? null,
+      approvedByName: names.get(template.approved_by) ?? null,
+      delivery: deliveryByKey.get(template.template_key) ?? { sent: 0, failed: 0, suppressed: 0, lastStatus: null, lastAt: null, lastError: null },
+      versions: versionRows
+        .filter((version: any) => version.template_id === template.id)
+        .map((version: any) => ({ ...version, createdByName: names.get(version.created_by) ?? null })),
+      currentVersion: versionRows.find((version: any) => version.id === template.current_version_id) ?? null,
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {

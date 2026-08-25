@@ -15,7 +15,10 @@ import { motion } from 'framer-motion';
 import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard';
 import RecommendedForYou from '@/components/dashboard/RecommendedForYou';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
-import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
+import {
+  loadLessonsForClassPlans,
+  nextLessonInClassOrder,
+} from '@/lib/learning/lesson-plan-scope';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
   Bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-700', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-700/40' },
@@ -80,14 +83,13 @@ export default function StudentDashboard() {
         // applies the same enrollment/program/class visibility as the assignments page) —
         // NOT a raw client query, which would leak other programmes' assignments and was
         // also hiding past-due work via a `.gte('due_date', now)` filter.
-        const [assignmentsRes, recentGradesRes, activityRes, enrollRes] = await Promise.allSettled([
+        const [assignmentsRes, recentGradesRes, activityRes] = await Promise.allSettled([
           fetch('/api/assignments', { cache: 'no-store' }).then(r => r.ok ? r.json() : { data: [] }),
           db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points, term_id)')
             .eq('portal_user_id', profile.id).eq('status', 'graded').not('grade', 'is', null)
             .order('submitted_at', { ascending: false }).limit(12),
           db.from('assignment_submissions').select('status, submitted_at, assignments(title, term_id)')
             .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(10),
-          db.from('enrollments').select('program_id, programs(id, name)').eq('user_id', profile.id).eq('status', 'active').limit(1) as any
         ]);
 
         const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
@@ -134,52 +136,14 @@ export default function StudentDashboard() {
           setData((prev) => ({ ...prev, avgScore: scopedAvg }));
         }
 
-        // Next lesson logic
+        // Next lesson is the first unfinished week this class has been shared —
+        // the same package as Learning Center, not a catalogue ordered by id.
         let nextLesson = null;
-        if (enrollRes.status === 'fulfilled' && enrollRes.value.data?.length) {
-          const prog = enrollRes.value.data[0]?.programs;
-          if (prog?.id) {
-            let currentClassTermId: string | null = null;
-            let currentCourseId: string | null = null;
-            if (profile.class_id) {
-              const { data: clsData } = await db
-                .from('classes')
-                .select('current_course_id, term_id')
-                .eq('id', profile.class_id)
-                .maybeSingle();
-              currentClassTermId = clsData?.term_id ?? null;
-              currentCourseId = clsData?.current_course_id ?? null;
-            }
-            // Mirror the learning-hub visibility rule: only surface
-            // courses that are active, not locked (unless flagship)
-            // AND have at least one lesson — so the "next lesson"
-            // pointer never lands in an empty placeholder course.
-            const { data: rawCourses } = await db
-              .from('courses')
-              .select('id, is_active, is_locked, programs(name), lessons(id), assignments(id)')
-              .eq('program_id', prog.id)
-              .eq('is_active', true);
-            const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
-            const courses = (rawCourses ?? [])
-              .filter((c: any) => !currentCourseId || c.id === currentCourseId)
-              .filter((c: any) =>
-              isCourseVisibleToLearners(c, { requireContent: true }),
-            );
-            if (courses?.length) {
-              const cIds = courses.map((c: any) => c.id);
-              const { data: allLessons } = await db
-                .from('lessons')
-                .select('id, title, course_id, metadata')
-                .in('course_id', cIds)
-                .in('status', ['active', 'published'])
-                .order('order_index', { ascending: true })
-                .limit(50);
-              const { data: done } = await db.from('lesson_progress').select('lesson_id').eq('portal_user_id', profile.id).eq('status', 'completed');
-              const doneSet = new Set((done ?? []).map((d: any) => d.lesson_id));
-              const scopedLessons = await filterLessonsForClassPlans(db, allLessons ?? [], profile.class_id, currentClassTermId);
-              nextLesson = scopedLessons.find((l: any) => !doneSet.has(l.id)) || scopedLessons[0];
-            }
-          }
+        if (profile.class_id) {
+          const { data: done } = await db.from('lesson_progress').select('lesson_id').eq('portal_user_id', profile.id).eq('status', 'completed');
+          const doneSet = new Set((done ?? []).map((d: any) => d.lesson_id));
+          const scoped = await loadLessonsForClassPlans(db, profile.class_id);
+          nextLesson = nextLessonInClassOrder(scoped, doneSet);
         }
 
         setData(prev => ({
@@ -316,7 +280,7 @@ export default function StudentDashboard() {
               <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-3xl">📚</div>
               <div>
                 <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Open Learning Center</h3>
-                <p className="text-xs text-muted-foreground mt-1">No active lesson yet. Ask your teacher if you need to be enrolled.</p>
+                <p className="text-xs text-muted-foreground mt-1">Your teacher has not shared a week with this class yet.</p>
               </div>
               <div className="px-8 py-3 bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] rounded-xl shadow-md">Continue</div>
             </Link>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useOfficeOptional } from './OfficeContext';
 
 type Version = {
@@ -12,6 +13,15 @@ type Version = {
   test_status: 'untested' | 'passed' | 'failed';
   test_notes: string | null;
   created_at: string;
+  createdByName?: string | null;
+};
+type DeliverySummary = {
+  sent: number;
+  failed: number;
+  suppressed: number;
+  lastStatus: string | null;
+  lastAt: string | null;
+  lastError: string | null;
 };
 type Template = {
   id: string;
@@ -23,6 +33,9 @@ type Template = {
   status: 'draft' | 'approved' | 'retired';
   required_variables: string[];
   current_version_id: string | null;
+  createdByName?: string | null;
+  approvedByName?: string | null;
+  delivery?: DeliverySummary;
   currentVersion: Version | null;
   versions: Version[];
 };
@@ -45,6 +58,8 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
   const office = useOfficeOptional();
   const notify = office?.notifyOfficeChange;
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [pendingRecovery, setPendingRecovery] = useState(0);
+  const [recoveryHref, setRecoveryHref] = useState('/dashboard/office?workspace=settings&section=health');
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState('');
@@ -59,6 +74,8 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Unable to load templates.');
       setTemplates(json.templates ?? []);
+      setPendingRecovery(Number(json.pendingRecovery || 0));
+      setRecoveryHref(json.recoveryHref || '/dashboard/office?workspace=settings&section=health');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load templates.');
     } finally {
@@ -123,7 +140,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Administration</p>
             <h1 className="text-2xl font-black">Communication template registry</h1>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              One controlled source for message identity, variables, versions, testing, approval, and retirement.
+              One controlled source for message identity, who changed it, versions, testing, approval, delivery outcomes, and failed-message recovery.
             </p>
           </div>
           <button
@@ -136,7 +153,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
         </header>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">Review and approve wording used in automatic customer messages.</p>
+          <p className="text-sm text-muted-foreground">Review wording, who changed it, delivery results, and recover failed sends from one place.</p>
           <button
             type="button"
             onClick={() => setForm(EMPTY)}
@@ -155,6 +172,25 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
       {message ? (
         <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">{message}</p>
       ) : null}
+
+      <section className={`rounded-2xl border p-5 ${pendingRecovery ? 'border-rose-500/30 bg-rose-500/5' : 'border-border bg-card'}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-black">Failed-message recovery</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {pendingRecovery
+                ? `${pendingRecovery} message${pendingRecovery === 1 ? '' : 's'} still need a person to retry or close them.`
+                : 'No failed messages are waiting. Delivery evidence for each template appears below.'}
+            </p>
+          </div>
+          <Link
+            href={recoveryHref}
+            className="inline-flex min-h-11 shrink-0 touch-manipulation items-center rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
+          >
+            Open recovery
+          </Link>
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-3">
@@ -296,6 +332,21 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                     <p className="mt-2 text-xs text-muted-foreground">
                       Variables: {template.required_variables?.length ? template.required_variables.join(', ') : 'none'}
                     </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {template.createdByName ? `Created by ${template.createdByName}` : 'Creator not recorded'}
+                      {template.approvedByName ? ` · Approved by ${template.approvedByName}` : ''}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Last 30 days: {template.delivery?.sent ?? 0} delivered
+                      {(template.delivery?.failed ?? 0) > 0 ? ` · ${template.delivery?.failed} failed` : ''}
+                      {(template.delivery?.suppressed ?? 0) > 0 ? ` · ${template.delivery?.suppressed} stopped by preference` : ''}
+                      {template.delivery?.lastAt
+                        ? ` · latest ${template.delivery.lastStatus} ${new Date(template.delivery.lastAt).toLocaleString()}`
+                        : ' · no delivery yet'}
+                    </p>
+                    {template.delivery?.lastError ? (
+                      <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{template.delivery.lastError}</p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -325,6 +376,14 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                         Approve v{latest.version_number}
                       </button>
                     ) : null}
+                    {(template.delivery?.failed ?? 0) > 0 ? (
+                      <Link
+                        href={recoveryHref}
+                        className="inline-flex min-h-11 touch-manipulation items-center rounded-lg border border-rose-500/30 px-3 py-2 text-xs font-black text-rose-600 dark:text-rose-400"
+                      >
+                        Recover failed sends
+                      </Link>
+                    ) : null}
                     {template.status !== 'retired' ? (
                       <button
                         type="button"
@@ -344,6 +403,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                         <th className="py-2">Version</th>
                         <th className="py-2">Test</th>
                         <th className="py-2">Change</th>
+                        <th className="py-2">Changed by</th>
                         <th className="py-2">Created</th>
                       </tr>
                     </thead>
@@ -366,6 +426,7 @@ export function CommunicationTemplatesPanel({ embedded = false }: Props) {
                             {version.test_status}
                           </td>
                           <td className="py-2">{version.change_note || '-'}</td>
+                          <td className="py-2">{version.createdByName || 'Not recorded'}</td>
                           <td className="py-2">{new Date(version.created_at).toLocaleDateString()}</td>
                         </tr>
                       ))}
