@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveApprovedTemplate } from './template-registry';
+import { deliverNotificationsOnce } from '@/lib/notifications/deliver-once';
 
 export interface CommunicationFollowupResult {
   success: boolean;
@@ -56,17 +57,29 @@ export async function runCommunicationFollowup(admin: SupabaseClient<any>): Prom
 
     const roles = await roleMapForUsers(admin, [...recipientIds]);
     const reference = `WA-${String(row.conversation_id).slice(0, 8)}`;
-    const { error: notificationError } = await admin.from('notifications').insert([...recipientIds].map((userId) => ({
-      user_id: userId,
-      type: shouldEscalate ? 'warning' : 'info',
-      title: shouldEscalate ? `Overdue communication escalated - ${reference}` : `Communication follow-up due - ${reference}`,
-      message: `${conversation?.contact_name || conversation?.phone_number || 'Customer'} is waiting for a response.`,
-      action_url: inboxActionUrl(roles.get(userId), row.conversation_id),
-      is_read: false,
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-    })));
-    if (notificationError) { failures.push(row.conversation_id); continue; }
+    // reminder_count is incremented after this write, so a failure between the
+    // two makes the next run chase the same conversation again. Versioned by
+    // the count, so reminder 2 still speaks up while a retry of reminder 1 does
+    // not.
+    const delivery = await deliverNotificationsOnce(
+      admin,
+      [...recipientIds].map((userId) => ({
+        user_id: userId,
+        type: shouldEscalate ? 'warning' : 'info',
+        title: shouldEscalate ? `Overdue communication escalated - ${reference}` : `Communication follow-up due - ${reference}`,
+        message: `${conversation?.contact_name || conversation?.phone_number || 'Customer'} is waiting for a response.`,
+        action_url: inboxActionUrl(roles.get(userId), row.conversation_id),
+        is_read: false,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })),
+      {
+        sourceType: shouldEscalate ? 'conversation_escalation' : 'conversation_followup',
+        sourceId: String(row.conversation_id),
+        version: `reminder_${Number(row.reminder_count || 0)}`,
+      },
+    );
+    if (delivery.error) { failures.push(row.conversation_id); continue; }
 
     await admin.from('communication_conversation_meta').update({
       reminder_count: Number(row.reminder_count || 0) + 1,
@@ -101,14 +114,25 @@ export async function runCommunicationFollowup(admin: SupabaseClient<any>): Prom
     if (shouldEscalate) for (const adminRow of admins ?? []) recipientIds.add(adminRow.id);
     if (!recipientIds.size) { failures.push(caseRow.id); continue; }
     const roles = await roleMapForUsers(admin, [...recipientIds]);
-    const { error: notificationError } = await admin.from('notifications').insert([...recipientIds].map((userId) => ({
-      user_id: userId, type: shouldEscalate ? 'warning' : 'info',
-      title: shouldEscalate ? `Overdue: ${reminder?.subject || `case ${reference}`}` : reminder?.subject || `Case response due - ${reference}`,
-      message: reminder?.body || `${caseRow.requester_name || 'Customer'} is waiting: ${caseRow.subject}`,
-      action_url: caseActionUrl(roles.get(userId), caseRow.id),
-      is_read: false, created_at: now.toISOString(), updated_at: now.toISOString(),
-    })));
-    if (notificationError) { failures.push(caseRow.id); continue; }
+    // next_follow_up_at is pushed forward after this write. Versioned by its
+    // value *before* the update, so each follow-up window notifies once and a
+    // retry inside the same window does not.
+    const caseDelivery = await deliverNotificationsOnce(
+      admin,
+      [...recipientIds].map((userId) => ({
+        user_id: userId, type: shouldEscalate ? 'warning' : 'info',
+        title: shouldEscalate ? `Overdue: ${reminder?.subject || `case ${reference}`}` : reminder?.subject || `Case response due - ${reference}`,
+        message: reminder?.body || `${caseRow.requester_name || 'Customer'} is waiting: ${caseRow.subject}`,
+        action_url: caseActionUrl(roles.get(userId), caseRow.id),
+        is_read: false, created_at: now.toISOString(), updated_at: now.toISOString(),
+      })),
+      {
+        sourceType: shouldEscalate ? 'case_escalation' : 'case_followup',
+        sourceId: String(caseRow.id),
+        version: String(caseRow.next_follow_up_at ?? 'first'),
+      },
+    );
+    if (caseDelivery.error) { failures.push(caseRow.id); continue; }
     await admin.from('communication_cases').update({ next_follow_up_at: new Date(now.getTime() + 60 * 60 * 1000).toISOString(), updated_at: now.toISOString() }).eq('id', caseRow.id);
     reminded += 1;
     if (shouldEscalate) escalated += 1;

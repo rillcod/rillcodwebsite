@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { deliverNotificationsOnce } from '@/lib/notifications/deliver-once';
 
 const CRON_LEASE_SECONDS = 10 * 60;
 
@@ -79,16 +80,32 @@ async function recordOutcome(input: {
       const { data: admins } = await db.from('portal_users').select('id').eq('role', 'admin').eq('is_active', true);
       if (admins?.length) {
         const now = new Date().toISOString();
-        const { error: notificationError } = await db.from('notifications').insert(admins.map((admin: { id: string }) => ({
-          user_id: admin.id,
-          title: `Cron job needs attention: ${input.jobName}`,
-          message: `${failures} consecutive failures. ${input.error || `HTTP ${input.statusCode}`}`.slice(0, 500),
-          type: 'warning',
-          action_url: '/dashboard/office?workspace=settings&section=health',
-          is_read: false,
-          created_at: now,
-          updated_at: now,
-        })));
+        // The hour-long last_alerted_at throttle above is the primary guard, but
+        // it is written after this alert. A failure in between re-alerts every
+        // administrator on the next run of a job that is already failing — the
+        // moment the inbox is least useful noisy.
+        //
+        // Versioned by the failure count, so a worsening job (2 failures, then
+        // 3) still speaks up while a retry at the same count stays quiet.
+        const delivery = await deliverNotificationsOnce(
+          db,
+          admins.map((admin: { id: string }) => ({
+            user_id: admin.id,
+            title: `Cron job needs attention: ${input.jobName}`,
+            message: `${failures} consecutive failures. ${input.error || `HTTP ${input.statusCode}`}`.slice(0, 500),
+            type: 'warning',
+            action_url: '/dashboard/office?workspace=settings&section=health',
+            is_read: false,
+            created_at: now,
+            updated_at: now,
+          })),
+          {
+            sourceType: 'cron_failure_alert',
+            sourceId: String(input.jobName),
+            version: `failures_${failures}`,
+          },
+        );
+        const notificationError = delivery.error ? { message: delivery.error } : null;
         if (notificationError) {
           console.error(`[cron-monitor] could not alert administrators for ${input.jobName}:`, notificationError);
         } else {

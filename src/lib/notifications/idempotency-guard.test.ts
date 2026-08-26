@@ -54,11 +54,9 @@ const RETRY_PRONE = [
 const KNOWN_OUTSTANDING = new Set<string>([
   'lib/academic/readiness-automation.ts',
   'lib/academic/week-generation.ts',
-  'lib/communication/followup-runner.ts',
   'lib/consent/lead-notifications.ts',
   'lib/credentials/summer-school-credentials.ts',
   'lib/curriculum/milestone-digest.ts',
-  'lib/operations/cron-monitor.ts',
   'lib/parent-claim/complete.ts',
   'lib/registration/native-enrolment-email.ts',
   'lib/registration/payment-link-email.ts',
