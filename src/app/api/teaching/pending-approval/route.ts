@@ -44,10 +44,11 @@ async function visiblePlans(
   if (staff.role === "admin") return plans ?? [];
 
   return (plans ?? []).filter((p: any) => {
-    if (p.created_by && p.created_by === staff.id) return true;
     const klass = Array.isArray(p.classes) ? p.classes[0] : p.classes;
-    if (klass?.teacher_id && klass.teacher_id === staff.id) return true;
-    return false;
+    // A class reassignment must also move the approval queue. Keep creator
+    // ownership only for standalone plans that have not joined a class yet.
+    if (p.class_id || klass?.id) return klass?.teacher_id === staff.id;
+    return p.created_by === staff.id;
   });
 }
 

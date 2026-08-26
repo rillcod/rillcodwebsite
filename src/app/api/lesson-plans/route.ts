@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     *,
     created_by,
     courses(id, title, program_id),
-    classes!lesson_plans_class_id_fkey(id, name),
+    classes!lesson_plans_class_id_fkey(id, name, teacher_id),
     schools!lesson_plans_school_id_fkey(id, name),
     lessons!lessons_lesson_plan_id_fkey(id, title, course_id, school_id, created_by,
       courses(id, title, program_id)
@@ -102,17 +102,20 @@ export async function GET(request: Request) {
   // Filter by scope access for non-admins
   let plans = data ?? [];
   if (user.role !== "admin") {
-    plans = plans.filter((p: any) =>
-      canAccessLessonScope(
+    plans = plans.filter((p: any) => {
+      const klass = Array.isArray(p?.classes) ? p.classes[0] : p?.classes;
+      return canAccessLessonScope(
         { id: user.id, role: user.role, school_id: user.school_id },
         {
           school_id: p?.lessons?.school_id ?? p?.school_id ?? null,
           // Prefer the plan's own created_by for term-level plans (no lesson_id).
           created_by: p?.created_by ?? p?.lessons?.created_by ?? null,
+          class_id: p?.class_id ?? null,
+          class_teacher_id: klass?.teacher_id ?? null,
         },
         tSchoolIds
-      )
-    );
+      );
+    });
   }
 
   if (!allSessions) {
@@ -584,7 +587,7 @@ export async function POST(request: Request) {
 
   const { data: lesson, error: lessonErr } = await db
     .from("lessons")
-    .select("id, school_id, created_by")
+    .select("id, school_id, class_id, created_by")
     .eq("id", lesson_id)
     .maybeSingle();
   if (lessonErr || !lesson)
@@ -592,11 +595,20 @@ export async function POST(request: Request) {
 
   if (user.role === "teacher") {
     const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
+    const { data: lessonClass } = lesson.class_id
+      ? await db
+          .from("classes")
+          .select("teacher_id")
+          .eq("id", lesson.class_id)
+          .maybeSingle()
+      : { data: null };
     const allowed = canAccessLessonScope(
       { id: user.id, role: user.role, school_id: user.school_id },
       {
         school_id: lesson.school_id ?? null,
         created_by: lesson.created_by ?? null,
+        class_id: lesson.class_id ?? null,
+        class_teacher_id: lessonClass?.teacher_id ?? null,
       },
       teacherSchoolIds
     );

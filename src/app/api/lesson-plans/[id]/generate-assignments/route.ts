@@ -74,7 +74,7 @@ export async function POST(
     const { data: plan, error: planErr } = await (supabase as any)
       .from("lesson_plans")
       .select(
-        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
+        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name,teacher_id), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
       )
       .eq("id", id)
       .single();
@@ -87,6 +87,9 @@ export async function POST(
       return NextResponse.json(payload, { status });
     }
     if (!isCron && staff.role !== "admin") {
+      const klass = Array.isArray(plan?.classes)
+        ? plan.classes[0]
+        : plan?.classes;
       const teacherSchoolIds =
         staff.role === "teacher"
           ? await getTeacherSchoolIds(staff.id, staff.school_id)
@@ -96,6 +99,8 @@ export async function POST(
         {
           school_id: plan?.school_id ?? null,
           created_by: plan?.created_by ?? null,
+          class_id: plan?.class_id ?? null,
+          class_teacher_id: klass?.teacher_id ?? null,
         },
         teacherSchoolIds
       );

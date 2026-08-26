@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { canAccessLessonScope } from '@/app/api/lesson-plans/authz';
 import { buildLessonPlanReleaseBoard } from '@/lib/academic/lesson-plan-release-board';
 import { summarizeTeachingGenerationRuns } from '@/lib/academic/tracked-week-generation';
 
@@ -76,13 +76,21 @@ export async function GET(
 
   const { data: plan, error: planErr } = await supabase
     .from('lesson_plans')
-    .select('id, school_id, plan_data, term_start, course_id, class_id')
+    .select('id, school_id, created_by, plan_data, term_start, course_id, class_id, classes!lesson_plans_class_id_fkey(teacher_id)')
     .eq('id', id)
     .single();
   if (planErr || !plan) return NextResponse.json({ error: 'Lesson plan not found.' }, { status: 404 });
   if (profile.role !== 'admin') {
-    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
-    if (!allowedSchoolIds.includes(plan.school_id ?? '')) {
+    const klass = Array.isArray((plan as any).classes) ? (plan as any).classes[0] : (plan as any).classes;
+    if (!canAccessLessonScope(
+      { id: user.id, role: profile.role, school_id: profile.school_id },
+      {
+        school_id: plan.school_id ?? null,
+        created_by: (plan as any).created_by ?? null,
+        class_id: plan.class_id ?? null,
+        class_teacher_id: klass?.teacher_id ?? null,
+      },
+    )) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

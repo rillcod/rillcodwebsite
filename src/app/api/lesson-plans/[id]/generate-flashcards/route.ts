@@ -47,6 +47,9 @@ export async function POST(
   }
 
   if (!isCron && staff.role !== "admin") {
+    const klass = Array.isArray((plan as any)?.classes)
+      ? (plan as any).classes[0]
+      : (plan as any)?.classes;
     const teacherSchoolIds =
       staff.role === "teacher"
         ? await getTeacherSchoolIds(staff.id, staff.school_id)
@@ -56,6 +59,8 @@ export async function POST(
       {
         school_id: (plan as any)?.school_id ?? null,
         created_by: (plan as any)?.created_by ?? null,
+        class_id: (plan as any)?.class_id ?? null,
+        class_teacher_id: klass?.teacher_id ?? null,
       },
       teacherSchoolIds
     );

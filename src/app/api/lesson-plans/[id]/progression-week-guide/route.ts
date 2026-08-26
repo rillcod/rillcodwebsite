@@ -5,7 +5,7 @@ import {
   resolveGradeKeyFromClassName,
   resolveSyllabusPhaseFromClassName,
 } from '@/lib/progression/lessonPlanProgressionContext';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { canAccessLessonScope } from '@/app/api/lesson-plans/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +72,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       id,
       school_id,
       class_id,
+      created_by,
       course_id,
       courses(
         id,
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           progression_policy
         )
       ),
-      classes!lesson_plans_class_id_fkey(name)
+      classes!lesson_plans_class_id_fkey(name, teacher_id)
     `)
     .eq('id', id)
     .single();
@@ -96,6 +97,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const plan = planDataRaw as {
     id: string;
     school_id: string | null;
+    class_id: string | null;
+    created_by: string | null;
     courses: {
       program_id: string | null;
       programs: {
@@ -106,15 +109,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         progression_policy: unknown;
       } | null;
     } | null;
-    classes: { name: string | null } | null;
+    classes: { name: string | null; teacher_id: string | null } | null;
   };
 
   if (!plan.school_id) {
     return NextResponse.json({ error: 'Lesson plan is missing school context.' }, { status: 422 });
   }
   if (profile.role !== 'admin') {
-    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
-    if (!allowedSchoolIds.includes(plan.school_id)) {
+    const klass = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
+    if (!canAccessLessonScope(
+      { id: user.id, role: profile.role, school_id: profile.school_id },
+      {
+        school_id: plan.school_id,
+        created_by: plan.created_by,
+        class_id: plan.class_id,
+        class_teacher_id: klass?.teacher_id ?? null,
+      },
+    )) {
       return NextResponse.json({ error: 'You can only view guides for your school lesson plans.' }, { status: 403 });
     }
   }
@@ -131,7 +142,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   }
 
   const policy = asObject(program.progression_policy);
-  const className = plan.classes?.name;
+  const planClass = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
+  const className = planClass?.name;
   const inferredGradeKey = resolveGradeKeyFromClassName(className);
   const gradeKey =
     typeof gradeKeyOverride === 'string' && /^[a-z0-9_]+$/i.test(gradeKeyOverride.trim())

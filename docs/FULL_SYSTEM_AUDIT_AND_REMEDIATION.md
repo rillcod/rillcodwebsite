@@ -3453,3 +3453,35 @@ Verification and honest boundary:
 - Focused tests in `message-safety.test.ts` cover parse shape, S11 escalate vs S1 block,
   fail-open, and the grooming non-claim.
 - No visual browser pass is claimed for this item. Production proof is SYS-044.
+
+### 16.40 Academic class-plan authority consolidation — locally verified 26 August 2026
+
+Confirmed gap:
+
+- several older lesson-plan routes treated membership in the same school as sufficient authority.
+  That is valid for a school operator, but too broad for a teacher: after a class was reassigned, the
+  former teacher could retain access through `created_by`, and a same-school teacher could reach
+  operations, release, schedule, performance or progression routes that did not verify the current
+  `classes.teacher_id`;
+- the pending-approval inbox also allowed a class-bound plan to remain with its creator after the
+  class assignment changed. That made the operational queue disagree with the class itself.
+
+Implemented authority:
+
+- `canAccessLessonScope` is now the single rule: administrators retain oversight; school accounts are
+  limited to their school; a class-bound plan follows the class's currently assigned teacher; and a
+  genuinely standalone plan remains with its creator until it is attached to a class;
+- plan list/detail/edit/delete, lesson/slide/card/assignment/project generation, operations, release,
+  scheduling, performance, syllabus QA and progression routes now load and apply that same current
+  class assignment;
+- the approvals queue uses the same ownership transition, so reassignment moves both the plan and its
+  unfinished review work. This does not change curriculum, lesson content, learner work or scores.
+
+Verification and honest boundary:
+
+- three focused files passed 22 tests, including former-teacher denial, current-teacher access,
+  standalone creator access and a route-coverage guard for every migrated lesson-plan endpoint;
+- the complete TypeScript check passed;
+- this closes an application authorization inconsistency. Production session revocation and
+  reassignment should still be exercised after Cloudflare deployment; no production browser proof is
+  claimed from the local checks.

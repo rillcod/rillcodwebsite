@@ -40,5 +40,38 @@ describe('lesson-plan authorization scope', () => {
     expect(schoolAllowed).toBe(false);
     expect(adminAllowed).toBe(true);
   });
+
+  it('moves class-plan authority when a class is reassigned', () => {
+    const plan = {
+      school_id: 'school-1',
+      created_by: 'teacher-a',
+      class_id: 'class-1',
+      class_teacher_id: 'teacher-b',
+    };
+
+    expect(canAccessLessonScope(
+      { id: 'teacher-a', role: 'teacher', school_id: 'school-1' },
+      plan,
+      ['school-1'],
+    )).toBe(false);
+    expect(canAccessLessonScope(
+      { id: 'teacher-b', role: 'teacher', school_id: 'school-1' },
+      plan,
+      ['school-1'],
+    )).toBe(true);
+  });
+
+  it('keeps a standalone draft with its creator', () => {
+    expect(canAccessLessonScope(
+      { id: 'teacher-a', role: 'teacher', school_id: 'school-1' },
+      {
+        school_id: 'school-1',
+        created_by: 'teacher-a',
+        class_id: null,
+        class_teacher_id: null,
+      },
+      ['school-1'],
+    )).toBe(true);
+  });
 });
 

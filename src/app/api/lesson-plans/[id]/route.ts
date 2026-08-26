@@ -71,7 +71,7 @@ export async function GET(
         progression_policy
       )
     ),
-    classes!lesson_plans_class_id_fkey(id, name),
+    classes!lesson_plans_class_id_fkey(id, name, teacher_id),
     schools!lesson_plans_school_id_fkey(id, name),
     lessons!lessons_lesson_plan_id_fkey(id, title, description, course_id, school_id, created_by, lesson_type, status, duration_minutes),
     official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(id, release_number, title, content, source_curriculum_id),
@@ -84,6 +84,9 @@ export async function GET(
   if (error || !data)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (user.role !== "admin") {
+    const klass = Array.isArray((data as any)?.classes)
+      ? (data as any).classes[0]
+      : (data as any)?.classes;
     const teacherSchoolIds =
       user.role === "teacher"
         ? await getTeacherSchoolIds(user.id, user.school_id)
@@ -97,6 +100,8 @@ export async function GET(
           (data as any)?.lessons?.created_by ??
           (data as any)?.created_by ??
           null,
+        class_id: (data as any)?.class_id ?? null,
+        class_teacher_id: klass?.teacher_id ?? null,
       },
       teacherSchoolIds
     );
@@ -150,7 +155,7 @@ export async function PATCH(
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
     .select(
-      "id, school_id, created_by, plan_data, metadata, lessons!lessons_lesson_plan_id_fkey(school_id, created_by)"
+      "id, school_id, class_id, created_by, plan_data, metadata, classes!lesson_plans_class_id_fkey(teacher_id), lessons!lessons_lesson_plan_id_fkey(school_id, created_by)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -166,6 +171,9 @@ export async function PATCH(
     (existingPlan as any)?.lessons?.created_by ??
     (existingPlan as any)?.created_by ??
     null;
+  const planClass = Array.isArray((existingPlan as any)?.classes)
+    ? (existingPlan as any).classes[0]
+    : (existingPlan as any)?.classes;
 
   const teacherSchoolIds =
     user.role === "teacher"
@@ -175,7 +183,12 @@ export async function PATCH(
     user.role === "admin" ||
     canAccessLessonScope(
       { id: user.id, role: user.role, school_id: user.school_id },
-      { school_id: planSchoolId, created_by: planCreatedBy },
+      {
+        school_id: planSchoolId,
+        created_by: planCreatedBy,
+        class_id: (existingPlan as any)?.class_id ?? null,
+        class_teacher_id: planClass?.teacher_id ?? null,
+      },
       teacherSchoolIds
     );
   if (!allowed)
@@ -390,7 +403,7 @@ export async function DELETE(
 
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
-    .select("id, school_id, created_by, lessons!lessons_lesson_plan_id_fkey(id, school_id, created_by)")
+    .select("id, school_id, class_id, created_by, classes!lesson_plans_class_id_fkey(teacher_id), lessons!lessons_lesson_plan_id_fkey(id, school_id, created_by)")
     .eq("id", id)
     .maybeSingle();
   if (existingErr || !existingPlan)
@@ -405,10 +418,18 @@ export async function DELETE(
       (existingPlan as any)?.lessons?.created_by ??
       (existingPlan as any)?.created_by ??
       null;
+    const planClass = Array.isArray((existingPlan as any)?.classes)
+      ? (existingPlan as any).classes[0]
+      : (existingPlan as any)?.classes;
     const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
     const allowed = canAccessLessonScope(
       { id: user.id, role: user.role, school_id: user.school_id },
-      { school_id: planSchoolId, created_by: planCreatedBy },
+      {
+        school_id: planSchoolId,
+        created_by: planCreatedBy,
+        class_id: (existingPlan as any)?.class_id ?? null,
+        class_teacher_id: planClass?.teacher_id ?? null,
+      },
       teacherSchoolIds
     );
     if (!allowed)

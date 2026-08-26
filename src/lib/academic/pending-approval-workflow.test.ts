@@ -25,4 +25,10 @@ describe("weekly package approval workflow", () => {
     expect(page).not.toContain("Release All");
     expect(page).not.toContain("Full Curriculum Breakdown");
   });
+
+  it("moves a class approval queue to the currently assigned teacher", () => {
+    expect(api).toContain("if (p.class_id || klass?.id) return klass?.teacher_id === staff.id");
+    expect(api).toContain("return p.created_by === staff.id");
+    expect(api).not.toContain("if (p.created_by && p.created_by === staff.id) return true");
+  });
 });

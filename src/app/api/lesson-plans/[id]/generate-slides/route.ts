@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
-import { requireStaffUser } from "@/app/api/lesson-plans/authz";
+import {
+  canAccessLessonScope,
+  requireStaffUser,
+} from "@/app/api/lesson-plans/authz";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { AIFetchError, fetchAIGenerate } from "@/lib/lesson-plans/ai-fetch";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
@@ -168,9 +171,17 @@ export async function POST(
   const klass = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
   if (staff.role !== "admin") {
     const schoolIds = await getTeacherSchoolIds(staff.id, staff.school_id);
-    const ownsPlan =
-      plan.created_by === staff.id || klass?.teacher_id === staff.id;
-    if (!ownsPlan || !plan.school_id || !schoolIds.includes(plan.school_id)) {
+    const allowed = canAccessLessonScope(
+      staff,
+      {
+        school_id: plan.school_id ?? null,
+        created_by: plan.created_by ?? null,
+        class_id: plan.class_id ?? null,
+        class_teacher_id: klass?.teacher_id ?? null,
+      },
+      schoolIds,
+    );
+    if (!allowed) {
       return NextResponse.json(
         { error: "You can only generate slides for your assigned class" },
         { status: 403 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { canAccessLessonScope } from '@/app/api/lesson-plans/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +19,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { term_start, cadence_days } = await req.json();
   if (!term_start) return NextResponse.json({ error: 'term_start is required', field: 'term_start' }, { status: 400 });
 
-  const { data: plan } = await supabase.from('lesson_plans').select('id, school_id').eq('id', id).single();
+  const { data: plan } = await supabase.from('lesson_plans')
+    .select('id, school_id, class_id, created_by, classes!lesson_plans_class_id_fkey(teacher_id)')
+    .eq('id', id).single();
   if (!plan) return NextResponse.json({ error: 'Lesson plan not found' }, { status: 404 });
   if (profile.role !== 'admin') {
-    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
-    if (!allowedSchoolIds.includes(plan.school_id ?? '')) {
+    const klass = Array.isArray((plan as any).classes) ? (plan as any).classes[0] : (plan as any).classes;
+    if (!canAccessLessonScope(
+      { id: user.id, role: profile.role, school_id: profile.school_id },
+      {
+        school_id: plan.school_id ?? null,
+        created_by: (plan as any).created_by ?? null,
+        class_id: (plan as any).class_id ?? null,
+        class_teacher_id: klass?.teacher_id ?? null,
+      },
+    )) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { canAccessLessonScope } from '@/app/api/lesson-plans/authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,10 +26,22 @@ export async function GET(
   }
 
   if (profile.role !== 'admin') {
-    const { data: planCheck } = await supabase.from('lesson_plans').select('school_id').eq('id', id).maybeSingle();
+    const { data: planCheck } = await supabase.from('lesson_plans')
+      .select('school_id,class_id,created_by,classes!lesson_plans_class_id_fkey(teacher_id)')
+      .eq('id', id).maybeSingle();
     if (planCheck) {
-      const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
-      if (!allowedSchoolIds.includes(planCheck.school_id ?? '')) {
+      const klass = Array.isArray((planCheck as any).classes)
+        ? (planCheck as any).classes[0]
+        : (planCheck as any).classes;
+      if (!canAccessLessonScope(
+        { id: user.id, role: profile.role, school_id: profile.school_id },
+        {
+          school_id: planCheck.school_id ?? null,
+          created_by: (planCheck as any).created_by ?? null,
+          class_id: (planCheck as any).class_id ?? null,
+          class_teacher_id: klass?.teacher_id ?? null,
+        },
+      )) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
@@ -101,14 +113,24 @@ export async function POST(
 
   const { data: plan } = await supabase
     .from('lesson_plans')
-    .select('id, school_id, course_id, class_id')
+    .select('id, school_id, course_id, class_id, created_by, classes!lesson_plans_class_id_fkey(teacher_id)')
     .eq('id', id)
     .single();
   if (!plan) return NextResponse.json({ error: 'Lesson plan not found.' }, { status: 404 });
   if (!plan.school_id) return NextResponse.json({ error: 'Lesson plan missing school scope.' }, { status: 422 });
   if (profile.role !== 'admin') {
-    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
-    if (!allowedSchoolIds.includes(plan.school_id)) {
+    const klass = Array.isArray((plan as any).classes)
+      ? (plan as any).classes[0]
+      : (plan as any).classes;
+    if (!canAccessLessonScope(
+      { id: user.id, role: profile.role, school_id: profile.school_id },
+      {
+        school_id: plan.school_id,
+        created_by: (plan as any).created_by ?? null,
+        class_id: plan.class_id ?? null,
+        class_teacher_id: klass?.teacher_id ?? null,
+      },
+    )) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

@@ -20,6 +20,9 @@ export type LessonPlanAccessUser = {
 export type LessonScope = {
   school_id: string | null;
   created_by: string | null;
+  /** A class-bound plan follows the current class assignment, not its author. */
+  class_id?: string | null;
+  class_teacher_id?: string | null;
 };
 
 export function canAccessLessonScope(
@@ -34,9 +37,15 @@ export function canAccessLessonScope(
   }
 
   if (user.role === 'teacher') {
-    // Always show plans created by this teacher, regardless of school scope.
-    if (lesson.created_by && lesson.created_by === user.id) return true;
-    return false;
+    // Reassignment must revoke the former teacher immediately. A creator match
+    // is only authoritative for a genuinely standalone plan; once attached to
+    // a class, classes.teacher_id is the single teaching authority.
+    if (lesson.class_id) {
+      return Boolean(
+        lesson.class_teacher_id && lesson.class_teacher_id === user.id,
+      );
+    }
+    return Boolean(lesson.created_by && lesson.created_by === user.id);
   }
 
   // Non-admins must never read unscoped records without a creator match.

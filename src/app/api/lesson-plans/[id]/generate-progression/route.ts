@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getTeacherSchoolIds } from "@/lib/auth-utils";
+import { canAccessLessonScope } from "@/app/api/lesson-plans/authz";
 import { canonicalPlanCurriculum } from "@/lib/curriculum/official-direction";
 
 export const dynamic = "force-dynamic";
@@ -72,11 +72,12 @@ type CourseWithProgram = {
   program_id: string | null;
   programs: ProgramRow | null;
 };
-type ClassRow = { name: string | null };
+type ClassRow = { name: string | null; teacher_id: string | null };
 type LessonPlanSource = {
   id: string;
   school_id: string | null;
   class_id: string | null;
+  created_by: string | null;
   course_id: string | null;
   term_start?: string | null;
   sessions_per_week: number | null;
@@ -621,6 +622,7 @@ export async function POST(
       id,
       school_id,
       class_id,
+      created_by,
       course_id,
       term_start,
       sessions_per_week,
@@ -639,7 +641,7 @@ export async function POST(
           progression_policy
         )
       ),
-      classes!lesson_plans_class_id_fkey(name),
+      classes!lesson_plans_class_id_fkey(name, teacher_id),
       official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content),
       curriculum:course_curricula!fk_lesson_plans_curriculum(content)
     `
@@ -669,11 +671,16 @@ export async function POST(
   }
   const courseId = plan.course_id;
   if (profile.role !== "admin") {
-    const allowedSchoolIds = await getTeacherSchoolIds(
-      user.id,
-      profile.school_id
-    );
-    if (!allowedSchoolIds.includes(plan.school_id)) {
+    const klass = Array.isArray(plan.classes) ? plan.classes[0] : plan.classes;
+    if (!canAccessLessonScope(
+      { id: user.id, role: profile.role, school_id: profile.school_id },
+      {
+        school_id: plan.school_id,
+        created_by: plan.created_by,
+        class_id: plan.class_id,
+        class_teacher_id: klass?.teacher_id ?? null,
+      },
+    )) {
       return NextResponse.json(
         { error: "You can only generate progression for your school plans." },
         { status: 403 }
