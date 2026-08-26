@@ -3485,3 +3485,43 @@ Verification and honest boundary:
 - this closes an application authorization inconsistency. Production session revocation and
   reassignment should still be exercised after Cloudflare deployment; no production browser proof is
   claimed from the local checks.
+
+### 16.41 Truthful, quieter Academic Office overview — locally verified 26 August 2026
+
+Confirmed gaps:
+
+- the overview called teaching, evidence and results “ready” from upstream plan existence alone. It
+  did not wait for recorded delivery, linked assessments, traceable graded evidence or QA-ready
+  reports, so staff could be sent into an empty downstream page;
+- several totals were calculated from returned row arrays. PostgREST response limits meant a large
+  administrator account could receive an exact total but an under-counted linked/delivered subset;
+- the student branch used the service client and scoped reports to the learner, but did not also
+  require publication. It could therefore return unpublished report metadata and staff attention
+  states to the learner;
+- the visible Academic Office repeated full curriculum and delivery navigation maps, a second
+  delivery diagnostic, work queues, settings and exceptions. The next action competed with the tools
+  used only when something is wrong.
+
+Implemented:
+
+- delivery stages now progress from plan to started teaching, recorded delivery, linked assessment,
+  traceable evidence, checked result and publication using the actual counts for those states;
+- downstream steps wait when their prerequisite is absent, and broken assessment/evidence context is
+  explicitly blocked with a human action instead of being silently ignored by Auto-fill;
+- assessment, evidence, delivered-lesson, QA-ready and published-result totals use exact head counts;
+  the recent-report list remains intentionally bounded;
+- learners receive published reports only and never receive the staff attention queue;
+- the visible office now contains one next action, three meaningful counts, work requiring a person,
+  report exceptions and three compact work-area links. Detailed stages, queues, settings, delivery
+  diagnosis and academic exceptions share one **More academic tools** disclosure. A direct
+  `#academic-exceptions` link opens that disclosure automatically.
+
+Verification and honest boundary:
+
+- three focused files passed 20 tests, including prerequisite sequencing, unlinked-evidence blocking,
+  checked-to-published result flow, exact-count contracts, learner publication scope and the simplified
+  page hierarchy;
+- the complete TypeScript check passed;
+- the local route reached the Next.js compiler but the in-app browser timed out while the development
+  server compiled this large route. No visual/browser pass is claimed; viewport, focus and live-data
+  behaviour remain deployment checks.

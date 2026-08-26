@@ -53,7 +53,9 @@ describe('central teacher workspace UX', () => {
     expect(teachingWorkspace).toContain('Weekly teaching plan');
     expect(teachingWorkspace).not.toContain('Weekly Teaching Packages');
     expect(academicOffice).toContain('Detailed progress');
-    expect(academicOffice).toContain('showWorkflowDetails');
+    expect(academicOffice).toContain('More academic tools');
+    expect(academicOffice).not.toContain('showWorkflowDetails');
+    expect(academicOffice).not.toContain('label: "Assigned"');
     expect(academicOffice).not.toContain('Auto-fill</span>');
   });
 
@@ -80,12 +82,10 @@ describe('central teacher workspace UX', () => {
     expect(classPage).toContain('/dashboard/grades?class_id=');
   });
 
-  // The order of the page is the point: what to do next, then the curriculum
-  // lanes that carry the work, then optional tools, and only then the admin-only
-  // exceptions. Anchored on ids rather than visible copy — the headings were
-  // rewritten once already and took this guard down with them without any of
-  // the ordering it protects actually changing.
-  it('keeps exceptions after the main academic direction and tools', () => {
+  // The office is an overview, not another dashboard made of dashboards: one
+  // next move and compact work-area links stay visible; detailed stages,
+  // queues and exceptions share one secondary disclosure.
+  it('keeps diagnostics behind one secondary academic-tools disclosure', () => {
     const nextAction = academicOffice.indexOf('<NextActionCard');
     const curriculum = academicOffice.indexOf('id="curriculum-lanes"');
     const tools = academicOffice.indexOf('id="supporting-tools"');
@@ -98,5 +98,6 @@ describe('central teacher workspace UX', () => {
     expect(nextAction).toBeLessThan(curriculum);
     expect(curriculum).toBeLessThan(tools);
     expect(tools).toBeLessThan(exceptions);
+    expect(academicOffice).not.toContain('showPipeline');
   });
 });

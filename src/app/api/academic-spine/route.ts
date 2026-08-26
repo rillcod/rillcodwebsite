@@ -68,42 +68,73 @@ export async function GET(req: NextRequest) {
       : offeringDirectionQuery.eq('academic_offering_id', '00000000-0000-0000-0000-000000000000');
   }
 
-  let evidenceQuery = applyClassScope(db.from('academic_assessment_evidence')
-    .select('id,evidence_status,context_status,curriculum_release_id,lesson_plan_id,student_id,class_id', { count: 'exact' }));
-  if (studentId) evidenceQuery = evidenceQuery.eq('student_id', studentId);
+  const scopeEvidence = (query: any) => {
+    const scoped = applyClassScope(query);
+    return studentId ? scoped.eq('student_id', studentId) : scoped;
+  };
+  const scopeReports = (query: any) => {
+    const scoped = applyClassScope(query);
+    return studentId ? scoped.eq('student_id', studentId).eq('is_published', true) : scoped;
+  };
 
-  let reportQuery = applyClassScope(db.from('student_progress_reports')
+  const reportQuery = scopeReports(db.from('student_progress_reports')
     .select('id,student_id,student_name,section_class,course_name,report_term,report_period,is_published,academic_trace_status,academic_qa_status,academic_qa_issues,curriculum_coverage,teaching_delivery_pct,class_id,updated_at', { count: 'exact' })
     .order('updated_at', { ascending: false }).limit(80));
-  if (studentId) reportQuery = reportQuery.eq('student_id', studentId);
 
-  const [plans, deliveries, assessments, evidence, reports, progressions, adoptions, offeringDirections] = await Promise.all([
+  const [
+    plans,
+    deliveries,
+    deliveredLessons,
+    assessments,
+    linkedAssessments,
+    evidence,
+    linkedEvidence,
+    legacyEvidence,
+    reports,
+    traceableReports,
+    readyReports,
+    publishedReports,
+    progressions,
+    adoptions,
+    offeringDirections,
+  ] = await Promise.all([
     applyClassScope(db.from('lesson_plans').select('id,class_id,curriculum_release_id,status', { count: 'exact' }).neq('status', 'archived')),
     applyClassScope(db.from('class_lesson_delivery').select('id,status,class_id', { count: 'exact' })),
-    applyClassScope(db.from('assignments').select('id,class_id,lesson_plan_id,curriculum_release_id', { count: 'exact' })),
-    evidenceQuery,
+    applyClassScope(db.from('class_lesson_delivery').select('id', { count: 'exact', head: true }).eq('status', 'delivered')),
+    applyClassScope(db.from('assignments').select('id', { count: 'exact', head: true })),
+    applyClassScope(db.from('assignments').select('id', { count: 'exact', head: true })
+      .not('lesson_plan_id', 'is', null).not('curriculum_release_id', 'is', null)),
+    scopeEvidence(db.from('academic_assessment_evidence').select('id', { count: 'exact', head: true })
+      .neq('context_status', 'legacy_unscoped')),
+    scopeEvidence(db.from('academic_assessment_evidence').select('id', { count: 'exact', head: true })
+      .neq('context_status', 'legacy_unscoped')
+      .not('lesson_plan_id', 'is', null).not('curriculum_release_id', 'is', null)),
+    scopeEvidence(db.from('academic_assessment_evidence').select('id', { count: 'exact', head: true })
+      .eq('context_status', 'legacy_unscoped')),
     reportQuery,
+    scopeReports(db.from('student_progress_reports').select('id', { count: 'exact', head: true })
+      .eq('academic_trace_status', 'traceable')),
+    scopeReports(db.from('student_progress_reports').select('id', { count: 'exact', head: true })
+      .eq('academic_qa_status', 'ready')),
+    scopeReports(db.from('student_progress_reports').select('id', { count: 'exact', head: true })
+      .eq('is_published', true)),
     applyClassScope(db.from('academic_progression_decisions').select('id,status,class_id', { count: 'exact' })),
     adoptionQuery,
     offeringDirectionQuery,
   ]);
 
-  const errors = [plans, deliveries, assessments, evidence, reports, progressions, adoptions, offeringDirections]
+  const errors = [
+    plans, deliveries, deliveredLessons, assessments, linkedAssessments,
+    evidence, linkedEvidence, legacyEvidence, reports, traceableReports, readyReports,
+    publishedReports, progressions, adoptions, offeringDirections,
+  ]
     .map((result: any) => result.error?.message).filter(Boolean);
   if (errors.length) return NextResponse.json({ error: errors[0] }, { status: 500 });
 
   const planRows = plans.data ?? [];
   const deliveryRows = deliveries.data ?? [];
-  const assessmentRows = assessments.data ?? [];
-  const evidenceRows = evidence.data ?? [];
   const reportRows = reports.data ?? [];
   const officiallyDirectedPlans = planRows.filter((row: any) => row.curriculum_release_id).length;
-  const linkedAssessments = assessmentRows.filter((row: any) => row.lesson_plan_id && row.curriculum_release_id).length;
-  const traceableEvidence = evidenceRows.filter((row: any) => row.context_status !== 'legacy_unscoped');
-  const legacyEvidence = evidenceRows.filter((row: any) => row.context_status === 'legacy_unscoped').length;
-  const linkedEvidence = traceableEvidence.filter((row: any) => row.lesson_plan_id && row.curriculum_release_id).length;
-  const traceableReports = reportRows.filter((row: any) => row.academic_trace_status === 'traceable').length;
-  const readyReports = reportRows.filter((row: any) => row.academic_qa_status === 'ready').length;
   const classesWithPlans = new Set(planRows.map((row: any) => row.class_id).filter(Boolean));
   const classesWithDelivery = new Set(deliveryRows.map((row: any) => row.class_id).filter(Boolean));
   const draftPlans = planRows.filter((row: any) => row.status === 'draft').length;
@@ -124,18 +155,21 @@ export async function GET(req: NextRequest) {
       teaching_plans: plans.count ?? planRows.length,
       officially_directed_plans: officiallyDirectedPlans,
       delivery_records: deliveries.count ?? deliveryRows.length,
-      delivered_lessons: deliveryRows.filter((row: any) => row.status === 'delivered').length,
-      assessments: assessments.count ?? assessmentRows.length,
-      linked_assessments: linkedAssessments,
-      evidence_records: traceableEvidence.length,
-      legacy_evidence_records: legacyEvidence,
-      linked_evidence: linkedEvidence,
+      delivered_lessons: deliveredLessons.count ?? 0,
+      assessments: assessments.count ?? 0,
+      linked_assessments: linkedAssessments.count ?? 0,
+      evidence_records: evidence.count ?? 0,
+      legacy_evidence_records: legacyEvidence.count ?? 0,
+      linked_evidence: linkedEvidence.count ?? 0,
       progress_reports: reports.count ?? reportRows.length,
-      traceable_reports: traceableReports,
-      ready_reports: readyReports,
+      traceable_reports: traceableReports.count ?? 0,
+      ready_reports: readyReports.count ?? 0,
+      published_reports: publishedReports.count ?? 0,
       progression_decisions: progressions.count ?? (progressions.data ?? []).length,
     },
-    attention: reportRows.filter((row: any) => row.academic_trace_status === 'traceable' && row.academic_qa_status !== 'ready'),
+    attention: user.role === 'student'
+      ? []
+      : reportRows.filter((row: any) => row.academic_trace_status === 'traceable' && row.academic_qa_status !== 'ready'),
     recent_reports: reportRows.slice(0, 20),
     pathway: [
       'Official academic direction', 'Class teaching plan', 'Delivered lesson',

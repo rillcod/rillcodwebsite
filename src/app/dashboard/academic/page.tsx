@@ -8,11 +8,6 @@ import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard, StageList } from "@/components/academic/StageList";
 import AcademicExceptionsWorkspace from "@/components/academic/AcademicExceptionsWorkspace";
-import {
-  LANES,
-  navigationStepsForRole,
-  type AcademicRole,
-} from "@/lib/academic/lanes";
 import { nextAction, type StageStatus } from "@/lib/academic/status";
 import {
   overviewAssetStages,
@@ -20,7 +15,6 @@ import {
 } from "@/lib/academic/overview-flow";
 import {
   AcademicCapIcon,
-  ArrowRightIcon,
   ChevronDownIcon,
   ChevronRightIcon,
 } from "@/lib/icons";
@@ -159,8 +153,6 @@ export default function AcademicSpinePage() {
   const [checking, setChecking] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [showTools, setShowTools] = useState(false);
-  const [showPipeline, setShowPipeline] = useState(false);
-  const [showWorkflowDetails, setShowWorkflowDetails] = useState(false);
   const [showAllAttention, setShowAllAttention] = useState(false);
 
   const load = useCallback(async () => {
@@ -194,6 +186,15 @@ export default function AcademicSpinePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const revealLinkedSection = () => {
+      if (window.location.hash === "#academic-exceptions") setShowTools(true);
+    };
+    revealLinkedSection();
+    window.addEventListener("hashchange", revealLinkedSection);
+    return () => window.removeEventListener("hashchange", revealLinkedSection);
+  }, []);
 
   async function checkReport(reportId: string) {
     setChecking(reportId);
@@ -234,6 +235,16 @@ export default function AcademicSpinePage() {
         stuckPlans: overview.stuck_plans,
         classesWithPlans: totals.classes_with_teaching_plans ?? 0,
         classesTotal: totals.classes ?? 0,
+        classesWithDeliveryStarted: totals.classes_with_delivery_started ?? 0,
+        deliveredLessons: totals.delivered_lessons ?? 0,
+        assessments: totals.assessments ?? 0,
+        linkedAssessments: totals.linked_assessments ?? 0,
+        evidenceRecords: totals.evidence_records ?? 0,
+        linkedEvidence: totals.linked_evidence ?? 0,
+        legacyEvidenceRecords: totals.legacy_evidence_records ?? 0,
+        progressReports: totals.progress_reports ?? 0,
+        readyReports: totals.ready_reports ?? 0,
+        publishedReports: totals.published_reports ?? 0,
       }
     : null;
 
@@ -249,20 +260,11 @@ export default function AcademicSpinePage() {
     return nextAction(assetStages) ?? nextAction(deliveryStages) ?? null;
   })();
 
-  const academicRole = profile?.role as AcademicRole | undefined;
-
-  const certifiedPct =
-    overview && overview.central_courses > 0
-      ? Math.round(
-          (overview.certified_courses / overview.central_courses) * 100
-        )
-      : 0;
-
   const glance = [
     ...(isAdmin
       ? [
           {
-            label: "Certified",
+            label: "Official courses",
             value:
               overview != null
                 ? `${overview.certified_courses}/${overview.central_courses}`
@@ -271,13 +273,6 @@ export default function AcademicSpinePage() {
           },
         ]
       : []),
-    {
-      label: "Assigned",
-      value: String(totals.assigned_directions ?? 0),
-      href: isAdmin
-        ? "/dashboard/academic/rollout#schools"
-        : "/dashboard/classes",
-    },
     {
       label: "Class plans",
       value: `${totals.classes_with_teaching_plans ?? 0}/${totals.classes ?? 0}`,
@@ -296,39 +291,13 @@ export default function AcademicSpinePage() {
     >
       <MobilePageHero
         badge={isAdmin ? "Academic Office" : "Teaching"}
-        title={isAdmin ? "Curriculum" : "What to teach"}
+        title={isAdmin ? "Academic Office" : "What to teach"}
         description={
           isAdmin
-            ? "Write each course once, approve it, then teach from the class plan."
+            ? "See the next academic action across curriculum, classes, evidence and results."
             : "Open a class to continue the current week and all its learning activities."
         }
         icon={AcademicCapIcon}
-        stats={
-          isAdmin
-            ? [
-                {
-                  label: "Certified",
-                  value: `${certifiedPct}%`,
-                  tone: certifiedPct >= 50 ? "emerald" : "default",
-                },
-                {
-                  label: "Plans",
-                  value: totals.classes_with_teaching_plans ?? 0,
-                  tone: "primary",
-                },
-              ]
-            : [
-                {
-                  label: "Classes",
-                  value: totals.classes ?? 0,
-                },
-                {
-                  label: "Plans",
-                  value: totals.classes_with_teaching_plans ?? 0,
-                  tone: "primary",
-                },
-              ]
-        }
         actions={
           <Link
             href="/dashboard/academic/guide"
@@ -379,7 +348,7 @@ export default function AcademicSpinePage() {
           )}
 
           {/* One quiet glance — numbers only, no essays. */}
-          <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {glance.map((item) => (
               <Link
                 key={item.label}
@@ -484,96 +453,30 @@ export default function AcademicSpinePage() {
               </section>
             )}
 
-          {/* One visible map. Detailed system stages stay available on demand,
-              but they no longer compete with the work itself. */}
-          {/* Anchored: page order — next action, then the curriculum lanes,
-              then supporting tools, then exceptions — is asserted in
-              teacher-workspace-ux.test.ts. */}
-          <section id="curriculum-lanes" className="space-y-3">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {(["asset", "delivery"] as const).map((laneId) => {
-                const lane = LANES[laneId];
-                const roleSteps = navigationStepsForRole(laneId, academicRole);
-                const visibleSteps =
-                  laneId === "asset" && !isAdmin && roleSteps.length > 0
-                    ? [
-                        {
-                          ...roleSteps[0],
-                          label: "View curriculum",
-                          purpose: "Read the approved weeks your classes teach.",
-                        },
-                      ]
-                    : roleSteps;
-                return (
-                  <article
-                    key={laneId}
-                    className="rounded-2xl border border-border bg-card p-5"
-                  >
-                    <h2 className="text-base font-black text-foreground">
-                      {lane.label}
-                    </h2>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      {lane.summary}
-                    </p>
-                    <ol className="mt-4 space-y-2" role="list">
-                      {visibleSteps.map((step, index) => (
-                        <li key={step.id}>
-                          <Link
-                            href={step.href}
-                            className={`group flex items-center justify-between gap-3 rounded-xl border px-3 py-3 transition-colors hover:border-primary/40 ${
-                              index === 0
-                                ? "border-primary/25 bg-primary/5"
-                                : "border-border bg-background"
-                            }`}
-                          >
-                            <span className="min-w-0">
-                              <span className="block text-sm font-black text-foreground">
-                                {step.label}
-                              </span>
-                              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                                {step.purpose}
-                              </span>
-                            </span>
-                            <ArrowRightIcon className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
-                          </Link>
-                        </li>
-                      ))}
-                    </ol>
-                  </article>
-                );
-              })}
-            </div>
-
-            {isAdmin && assetStages.length + deliveryStages.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card">
-                <button
-                  type="button"
-                  onClick={() => setShowWorkflowDetails((value) => !value)}
-                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-                >
-                  <span>
-                    <span className="block text-sm font-black text-foreground">
-                      Detailed progress
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      Open only when you need to trace a blocked course or class.
-                    </span>
-                  </span>
-                  {showWorkflowDetails ? (
-                    <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
-                {showWorkflowDetails && (
-                  <div className="grid gap-4 border-t border-border p-4 lg:grid-cols-2">
-                    <StageList statuses={assetStages} lane="asset" />
-                    <StageList statuses={deliveryStages} lane="delivery" />
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+          <nav
+            id="curriculum-lanes"
+            aria-label="Academic work areas"
+            className="grid grid-cols-3 gap-2"
+          >
+            <Link
+              href={isAdmin ? "/dashboard/academic/build" : "/dashboard/classes"}
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-sm font-bold text-foreground hover:border-primary/40"
+            >
+              {isAdmin ? "Curricula" : "Classes"}
+            </Link>
+            <Link
+              href="/dashboard/classes"
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-sm font-bold text-foreground hover:border-primary/40"
+            >
+              Teaching
+            </Link>
+            <Link
+              href="/dashboard/academic/results"
+              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-sm font-bold text-foreground hover:border-primary/40"
+            >
+              Results
+            </Link>
+          </nav>
 
           {data && data.attention.length > 0 && (
             <section className="rounded-2xl border border-border bg-card p-5">
@@ -653,54 +556,43 @@ export default function AcademicSpinePage() {
             </section>
           )}
 
-          {isAdmin && (
-            <section className="rounded-2xl border border-border bg-card">
-              <button
-                type="button"
-                onClick={() => setShowPipeline((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-              >
-                <div>
-                  <p className="text-sm font-black text-foreground">
-                    Delivery check
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Check why a class has no teaching content.
-                  </p>
-                </div>
-                {showPipeline ? (
-                  <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
-                )}
-              </button>
-              {showPipeline && (
-                <div className="border-t border-border px-2 pb-2">
-                  <AcademicPipelinePanel embedded />
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Anchored: the page's order — next action, then curriculum, then
-              supporting tools, then exceptions — is asserted in
-              teacher-workspace-ux.test.ts, and it needs a stable handle for the
-              tools block. */}
-          <section id="supporting-tools" className="space-y-3">
+          <section
+            id="supporting-tools"
+            className="rounded-2xl border border-border bg-card"
+          >
             <button
               type="button"
               onClick={() => setShowTools((v) => !v)}
-              className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"
+              className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
             >
-              {showTools ? (
-                <ChevronDownIcon className="h-4 w-4" />
-              ) : (
-                <ChevronRightIcon className="h-4 w-4" />
-              )}
-              {showTools ? "Hide work queues" : "Work queues and settings"}
+              <span>
+                <span className="block text-sm font-black text-foreground">
+                  More academic tools
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Work queues, settings and diagnostics stay here when needed.
+                </span>
+              </span>
+              {showTools
+                ? <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+                : <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />}
             </button>
-            {showTools &&
-              (
+            {showTools && (
+              <div className="space-y-5 border-t border-border p-4 sm:p-5">
+                {isAdmin && assetStages.length + deliveryStages.length > 0 && (
+                  <section>
+                    <h2 className="text-sm font-black text-foreground">Detailed progress</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Use this only when tracing where work has stopped.
+                    </p>
+                    <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                      <StageList statuses={assetStages} lane="asset" />
+                      <StageList statuses={deliveryStages} lane="delivery" />
+                    </div>
+                  </section>
+                )}
+
+                {(
                 [
                   ["teaching", "Shared resources"],
                   ["evidence", "Across all classes"],
@@ -714,10 +606,10 @@ export default function AcademicSpinePage() {
                 );
                 if (tools.length === 0) return null;
                 return (
-                  <div
+                  <section
                     key={group}
                     id={group === "teaching" ? "teaching-resources" : undefined}
-                    className="scroll-mt-24 rounded-2xl border border-border bg-card p-4"
+                    className="scroll-mt-24"
                   >
                     <h3 className="text-sm font-black text-foreground">
                       {title}
@@ -738,12 +630,26 @@ export default function AcademicSpinePage() {
                         </Link>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 );
-              })}
-          </section>
+                })}
 
-          {isAdmin && <AcademicExceptionsWorkspace classId={classId} />}
+                {isAdmin && (
+                  <section>
+                    <h2 className="text-sm font-black text-foreground">Delivery check</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Diagnose a class that has no teaching content.
+                    </p>
+                    <div className="mt-3 rounded-xl border border-border px-2 pb-2">
+                      <AcademicPipelinePanel embedded />
+                    </div>
+                  </section>
+                )}
+
+                {isAdmin && <AcademicExceptionsWorkspace classId={classId} />}
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>

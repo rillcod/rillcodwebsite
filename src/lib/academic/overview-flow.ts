@@ -17,6 +17,16 @@ export type OverviewFacts = {
   stuckPlans: number;
   classesWithPlans: number;
   classesTotal: number;
+  classesWithDeliveryStarted: number;
+  deliveredLessons: number;
+  assessments: number;
+  linkedAssessments: number;
+  evidenceRecords: number;
+  linkedEvidence: number;
+  legacyEvidenceRecords: number;
+  progressReports: number;
+  readyReports: number;
+  publishedReports: number;
 };
 
 /**
@@ -131,7 +141,16 @@ export function overviewAssetStages(facts: OverviewFacts): StageStatus[] {
 
 export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
   const plan: StageStatus =
-    facts.certifiedCourses === 0
+    facts.classesTotal === 0
+      ? {
+          id: "plan",
+          state: "ready",
+          headline: "No active classes are ready for teaching yet.",
+          detail: "Create or restore a class before preparing teaching plans.",
+          actionLabel: "Open classes",
+          actionHref: "/dashboard/classes",
+        }
+      : facts.certifiedCourses === 0
       ? {
           id: "plan",
           state: "blocked",
@@ -167,49 +186,139 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
               actionHref: "/dashboard/classes",
             };
 
+  const plansReady = facts.classesWithPlans > 0;
   const teach: StageStatus =
-    plan.state === "blocked"
+    plan.state === "blocked" || !plansReady
       ? { id: "teach", state: "waiting", headline: "Waiting for class plans." }
+      : facts.classesWithDeliveryStarted < facts.classesWithPlans
+        ? {
+            id: "teach",
+            state: "ready",
+            headline: `${facts.classesWithDeliveryStarted} of ${facts.classesWithPlans} planned classes have started delivery.`,
+            detail: "Open the next class and continue from its recommended teaching meeting.",
+            actionLabel: "Continue teaching",
+            actionHref: "/dashboard/classes",
+          }
       : {
           id: "teach",
-          state: "ready",
-          headline: "Teach from each class — lesson, slides, practice, assignment and project.",
+          state: "done",
+          headline: "Every planned class has started teaching.",
           actionLabel: "Open classes",
           actionHref: "/dashboard/classes",
         };
 
   const cover: StageStatus =
-    plan.state === "blocked"
+    !plansReady
       ? { id: "cover", state: "waiting", headline: "Waiting for teaching." }
+      : facts.deliveredLessons === 0
+        ? {
+            id: "cover",
+            state: "ready",
+            headline: "No completed lesson has been recorded yet.",
+            detail: "After teaching, mark the meeting complete so coverage and reports stay accurate.",
+            actionLabel: "Record delivery",
+            actionHref: "/dashboard/learner-progress?view=delivery",
+          }
       : {
           id: "cover",
-          state: "ready",
-          headline: "Mark weeks taught so progress stays honest.",
+          state: "done",
+          headline: `${facts.deliveredLessons} completed lesson${facts.deliveredLessons === 1 ? " is" : "s are"} recorded.`,
           actionLabel: "Record progress",
           actionHref: "/dashboard/learner-progress?view=delivery",
         };
 
-  const evidence: StageStatus =
-    plan.state === "blocked"
-      ? { id: "evidence", state: "waiting", headline: "Waiting for teaching." }
-      : {
-          id: "evidence",
-          state: "ready",
-          headline: "Review and mark class work in one grading flow.",
-          actionLabel: "Review grading",
-          actionHref: "/dashboard/grades",
-        };
+  let evidence: StageStatus;
+  if (facts.deliveredLessons === 0) {
+    evidence = { id: "evidence", state: "waiting", headline: "Waiting for delivered teaching." };
+  } else if (facts.assessments === 0) {
+    evidence = {
+      id: "evidence",
+      state: "ready",
+      headline: "No assessment is ready for this teaching yet.",
+      detail: "Create class work, a project, CBT or a written assessment from the class plan.",
+      actionLabel: "Open grading",
+      actionHref: "/dashboard/grades",
+    };
+  } else if (facts.linkedAssessments < facts.assessments) {
+    const missing = facts.assessments - facts.linkedAssessments;
+    evidence = {
+      id: "evidence",
+      state: "blocked",
+      headline: `${missing} assessment${missing === 1 ? " is" : "s are"} outside the official teaching plan.`,
+      detail: "Repair the class, curriculum edition and plan links before those marks contribute to results.",
+      actionLabel: "Fix assessment links",
+      actionHref: "/dashboard/academic#academic-exceptions",
+    };
+  } else if (facts.evidenceRecords === 0) {
+    evidence = {
+      id: "evidence",
+      state: "ready",
+      headline: "Assessments are ready, but no learner work has been graded yet.",
+      actionLabel: "Review grading",
+      actionHref: "/dashboard/grades",
+    };
+  } else if (
+    facts.legacyEvidenceRecords > 0 ||
+    facts.linkedEvidence < facts.evidenceRecords
+  ) {
+    const missing = facts.legacyEvidenceRecords
+      + Math.max(0, facts.evidenceRecords - facts.linkedEvidence);
+    evidence = {
+      id: "evidence",
+      state: "blocked",
+      headline: `${missing} evidence record${missing === 1 ? " needs" : "s need"} academic context.`,
+      detail: "The marks are preserved, but Auto-fill will ignore them until their class, period and teaching-plan links are verified.",
+      actionLabel: "Review evidence",
+      actionHref: "/dashboard/academic#academic-exceptions",
+    };
+  } else {
+    evidence = {
+      id: "evidence",
+      state: "done",
+      headline: `${facts.linkedEvidence} graded evidence record${facts.linkedEvidence === 1 ? " is" : "s are"} traceable to teaching.`,
+      actionLabel: "Review grading",
+      actionHref: "/dashboard/grades",
+    };
+  }
 
-  const result: StageStatus =
-    plan.state === "blocked"
-      ? { id: "result", state: "waiting", headline: "Waiting for evidence." }
-      : {
-          id: "result",
-          state: "ready",
-          headline: "Prepare results, then share with parents.",
-          actionLabel: "Prepare results",
-          actionHref: "/dashboard/academic/results",
-        };
+  let result: StageStatus;
+  if (facts.linkedEvidence === 0 || evidence.state === "blocked") {
+    result = { id: "result", state: "waiting", headline: "Waiting for verified learner evidence." };
+  } else if (facts.progressReports === 0) {
+    result = {
+      id: "result",
+      state: "ready",
+      headline: "Verified marks are ready for result preparation.",
+      actionLabel: "Prepare results",
+      actionHref: "/dashboard/academic/results",
+    };
+  } else if (facts.readyReports < facts.progressReports) {
+    const needingReview = facts.progressReports - facts.readyReports;
+    result = {
+      id: "result",
+      state: "ready",
+      headline: `${needingReview} result${needingReview === 1 ? " needs" : "s need"} review before publication.`,
+      actionLabel: "Review results",
+      actionHref: "/dashboard/academic/results",
+    };
+  } else if (facts.publishedReports < facts.readyReports) {
+    const readyToPublish = facts.readyReports - facts.publishedReports;
+    result = {
+      id: "result",
+      state: "ready",
+      headline: `${readyToPublish} checked result${readyToPublish === 1 ? " is" : "s are"} ready to publish.`,
+      actionLabel: "Publish results",
+      actionHref: "/dashboard/academic/results",
+    };
+  } else {
+    result = {
+      id: "result",
+      state: "done",
+      headline: `${facts.publishedReports} checked result${facts.publishedReports === 1 ? " is" : "s are"} published.`,
+      actionLabel: "Open results",
+      actionHref: "/dashboard/academic/results",
+    };
+  }
 
   return [plan, teach, cover, evidence, result];
 }
