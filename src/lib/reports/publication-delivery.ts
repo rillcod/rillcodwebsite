@@ -5,6 +5,7 @@ import { recordDeadLetter } from '@/lib/operations/dead-letter';
 import { getParentsForStudentPortalId } from '@/lib/parents/links';
 import { enqueueWhatsApp } from '@/lib/whatsapp/send';
 import { queueService } from '@/services/queue.service';
+import { deliverNotificationsOnce } from '@/lib/notifications/deliver-once';
 
 type PublishedProgressReport = {
   id: string;
@@ -123,18 +124,33 @@ export async function queueProgressReportPublicationDelivery(
     };
 
     const insertInApp = async (userId: string, message: string, actionUrl: string) => {
-      const { error } = await admin.from('notifications').insert({
-        user_id: userId,
-        title: subject,
-        message,
-        type: 'info',
-        is_read: false,
-        action_url: actionUrl,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
-      inAppCreated += 1;
+      // Delivery is retried by its own dead-letter recovery, and a report can
+      // be published more than once. Without a key the parent is told their
+      // child's report is ready again on every retry.
+      //
+      // Versioned by the publication timestamp, so re-publishing a corrected
+      // report does notify again while recovering a failed send does not.
+      const now = new Date().toISOString();
+      const delivery = await deliverNotificationsOnce(
+        admin,
+        [{
+          user_id: userId,
+          title: subject,
+          message,
+          type: 'info',
+          is_read: false,
+          action_url: actionUrl,
+          created_at: now,
+          updated_at: now,
+        }],
+        {
+          sourceType: 'progress_report_published',
+          sourceId: String(report.id),
+          version: String((report as any).published_at ?? (report as any).updated_at ?? 'published'),
+        },
+      );
+      if (delivery.error) throw new Error(delivery.error);
+      inAppCreated += delivery.created;
     };
 
     if (student?.id) {

@@ -24,6 +24,7 @@ import {
   type BillingAutomationConfig,
 } from '@/app/api/billing/automation/config';
 import { SMTP_FROM_EMAIL } from '@/config/brand';
+import { deliverNotificationsOnce } from '@/lib/notifications/deliver-once';
 
 export const dynamic = 'force-dynamic';
 
@@ -187,14 +188,30 @@ async function run(triggeredBy: 'cron' | 'manual') {
             channel: 'in_app',
             metadata: { invoice_number: inv.invoice_number },
             deliver: async () => {
-              const { error: notifErr } = await db.from('notifications').insert({
-                user_id: student.id,
-                title: subject,
-                message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
-                type: reminderToSend === 3 ? 'warning' : 'info',
-                action_url: '/dashboard/my-payments',
-              } as any);
-              if (notifErr) throw new Error(notifErr.message);
+              // The reminder marker below is stamped only after a channel
+              // delivers, which leaves a window: notification written, marker
+              // write fails, cron retries, parent told twice about the same
+              // money. The key closes it in the database rather than relying on
+              // both writes surviving together.
+              //
+              // Versioned by reminder number, so reminders 1, 2 and 3 each
+              // reach the parent once and a retry of any of them does not.
+              const delivery = await deliverNotificationsOnce(
+                db,
+                [{
+                  user_id: student.id,
+                  title: subject,
+                  message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
+                  type: reminderToSend === 3 ? 'warning' : 'info',
+                  action_url: '/dashboard/my-payments',
+                }],
+                {
+                  sourceType: 'invoice_reminder',
+                  sourceId: String(inv.id),
+                  version: `reminder_${reminderToSend}`,
+                },
+              );
+              if (delivery.error) throw new Error(delivery.error);
             },
           });
           if (inAppResult.status === 'success') delivered = true;

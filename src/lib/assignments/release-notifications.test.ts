@@ -45,7 +45,16 @@ describe('assignment release notification durability contract', () => {
   );
 
   it('deduplicates inbox rows with a database-enforced key', () => {
-    expect(helper).toContain("upsert(batch, { onConflict: 'idempotency_key', ignoreDuplicates: true })");
+    // The upsert moved to src/lib/notifications/deliver-once.ts so that every
+    // caller needing idempotency shares one key format and one skip-on-retry
+    // path. This assertion follows it there rather than pinning the behaviour
+    // to the file it happened to be written in first.
+    const shared = read('src/lib/notifications/deliver-once.ts');
+    expect(shared).toContain("onConflict: 'idempotency_key', ignoreDuplicates: true");
+    // And this caller must actually use it, not keep a private copy.
+    expect(helper).toContain('deliverNotificationsOnce(');
+    expect(helper).not.toContain("from('notifications')");
+
     expect(migration).toContain('add column if not exists idempotency_key text');
     expect(migration).toContain('create unique index if not exists notifications_idempotency_key_unique');
     expect(migration).not.toMatch(/notifications_idempotency_key_unique[\s\S]{0,120}where idempotency_key is not null/i);

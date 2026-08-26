@@ -43,7 +43,15 @@ describe('queueProgressReportPublicationDelivery', () => {
       from: (table: string) => {
         if (table === 'portal_users') return queryResult({ id: 'student-1', email: 'student@example.com', full_name: 'Ada', school_id: 'school-1' });
         if (table === 'students') return queryResult({ parent_email: 'parent@example.com', parent_name: 'Parent', parent_phone: '08012345678' });
-        if (table === 'notifications') return { insert: async (row: any) => { notificationInserts.push(row); return { error: null }; } };
+        if (table === 'notifications') return {
+          // deliverNotificationsOnce upserts on the unique idempotency_key and
+          // reads back only the rows that were genuinely new, so the double has
+          // to answer that shape rather than a bare insert.
+          upsert: (rows: any[]) => {
+            notificationInserts.push(...rows);
+            return { select: async () => ({ data: rows.map((row: any) => ({ user_id: row.user_id })), error: null }) };
+          },
+        };
         throw new Error(`Unexpected table ${table}`);
       },
     };

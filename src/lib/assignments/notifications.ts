@@ -1,6 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendPushNotification } from '@/lib/push';
 import { recordDeadLetter } from '@/lib/operations/dead-letter';
+import {
+  deliverNotificationsOnce,
+  notificationKey,
+  type NotificationSource,
+} from '@/lib/notifications/deliver-once';
 
 export type AssignmentReleaseNotificationResult = {
   status: 'sent' | 'already_notified' | 'no_recipients' | 'failed';
@@ -11,12 +16,35 @@ export type AssignmentReleaseNotificationResult = {
   error?: string;
 };
 
+/** The source descriptor for one assignment release. */
+export function assignmentReleaseSource(input: {
+  assignmentId: string;
+  releaseVersion: string;
+}): NotificationSource {
+  return {
+    sourceType: 'assignment_release',
+    sourceId: input.assignmentId,
+    // updated_at, so re-releasing a changed assignment notifies again while a
+    // retry of the same release does not.
+    version: input.releaseVersion,
+  };
+}
+
+/**
+ * Kept as the named entry point for this event, but the key itself is built by
+ * the shared helper.
+ *
+ * This function used to compose the string here, which meant the platform had
+ * two spellings of one idea the moment a second caller needed idempotency. The
+ * format below is the shared one; nothing depended on the old ordering, because
+ * no row carried a key yet when this changed.
+ */
 export function assignmentReleaseNotificationKey(input: {
   assignmentId: string;
   releaseVersion: string;
   studentId: string;
 }) {
-  return `assignment-release:${input.assignmentId}:${input.releaseVersion}:${input.studentId}`;
+  return notificationKey(assignmentReleaseSource(input), input.studentId);
 }
 
 /**
@@ -85,29 +113,20 @@ export async function triggerAssignmentReleaseNotifications(
       notification_channel: 'in_app',
       delivery_status: 'sent',
       sent_at: now,
-      source_type: 'assignment_release',
-      source_id: assignment.id,
-      idempotency_key: assignmentReleaseNotificationKey({
-        assignmentId: assignment.id,
-        releaseVersion,
-        studentId: student.id,
-      }),
       created_at: now,
       updated_at: now,
     }));
 
-    const insertedUserIds: string[] = [];
-    for (let i = 0; i < notificationRows.length; i += 50) {
-      const batch = notificationRows.slice(i, i + 50);
-      const { data: inserted, error: insertErr } = await (db as any)
-        .from('notifications')
-        .upsert(batch, { onConflict: 'idempotency_key', ignoreDuplicates: true })
-        .select('user_id');
-      if (insertErr) throw insertErr;
-      for (const row of inserted ?? []) {
-        if (typeof row.user_id === 'string') insertedUserIds.push(row.user_id);
-      }
-    }
+    // Stamping and batching now live in one place, so every caller that needs
+    // idempotency gets the same key format and the same skip-on-retry
+    // behaviour rather than its own copy of this loop.
+    const delivery = await deliverNotificationsOnce(
+      db,
+      notificationRows,
+      assignmentReleaseSource({ assignmentId: assignment.id, releaseVersion }),
+    );
+    if (delivery.error) throw new Error(delivery.error);
+    const insertedUserIds = delivery.createdUserIds;
 
     const pushResults = await Promise.allSettled(
       insertedUserIds.map((userId) => sendPushNotification(userId, {

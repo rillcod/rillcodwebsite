@@ -12,6 +12,7 @@ import {
   shouldNotifyReadiness,
 } from '@/lib/school-reports/readiness-scan';
 import { logAuditEvent } from '@/lib/observability/audit-events';
+import { deliverNotificationsOnce } from '@/lib/notifications/deliver-once';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,18 +130,30 @@ async function handleRequest(req: NextRequest) {
         });
 
         const now = new Date().toISOString();
-        const { error: notificationError } = await supabase.from('notifications').insert({
-          user_id: report.created_by,
-          title: copy.title,
-          message: copy.message,
-          type: 'success',
-          action_url: `/dashboard/school-performance-reports/${report.id}`,
-          is_read: false,
-          created_at: now,
-          updated_at: now,
-        });
-        if (notificationError) {
-          errors.push(`${report.id}: readiness notification failed: ${notificationError.message}`);
+        // notified_at is stamped after this write, so a failure between the two
+        // leaves the notification sent and the log unmarked — and the next run
+        // tells the same person again. Keyed on the readiness status, so a real
+        // change in status still notifies while a retry of one does not.
+        const delivery = await deliverNotificationsOnce(
+          supabase,
+          [{
+            user_id: report.created_by,
+            title: copy.title,
+            message: copy.message,
+            type: 'success',
+            action_url: `/dashboard/school-performance-reports/${report.id}`,
+            is_read: false,
+            created_at: now,
+            updated_at: now,
+          }],
+          {
+            sourceType: 'report_readiness',
+            sourceId: String(report.id),
+            version: String(status),
+          },
+        );
+        if (delivery.error) {
+          errors.push(`${report.id}: readiness notification failed: ${delivery.error}`);
           continue;
         }
 
