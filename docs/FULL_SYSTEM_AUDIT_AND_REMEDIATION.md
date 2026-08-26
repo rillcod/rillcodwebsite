@@ -3555,10 +3555,9 @@ Verification and honest boundary:
 - four focused files passed 27 tests across release identity, database deduplication contract, awaited
   endpoints, retry coverage, session-scoped week release and approval flow;
 - the complete TypeScript check passed;
-- migration 120 is committed for the next ordered database push but was not applied from this dirty
-  shared worktree because an unrelated, uncommitted migration 119 precedes it. Until the migration is
-  live, publication remains safe and recoverable but the new notification insert will correctly return
-  the human warning instead of claiming the alert was sent.
+- migration 120 is committed in source. Its application to the live database was not verified in this
+  pass. Until that is verified, publication remains safe and recoverable: a failed notification insert
+  returns the human warning instead of claiming the alert was sent.
 
 ### 16.43 Full, plain-language curriculum overview — locally verified 26 August 2026
 
@@ -3586,5 +3585,7 @@ Verification and honest boundary:
 - the curriculum overview regression checks plain labels, full week rendering and the classroom update
   explanation; it passed as part of the four-file, 27-test academic run;
 - the complete TypeScript check passed;
-- this confirms the code and version-pinning contract. The local browser tab had no running development
-  server during this pass, so no visual browser proof is claimed.
+- this confirms the code and version-pinning contract. An authenticated local desktop pass opened the
+  new Overview, verified its programme/course controls and empty state, and confirmed it uses the page
+  scroll. The current account returned zero curriculum rows, so a live-data expanded-week visual is not
+  claimed; complete-week rendering is covered by the regression contract.
