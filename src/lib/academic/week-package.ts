@@ -7,6 +7,7 @@
  */
 import {
   assetMeetingSession,
+  canonicalMeetingSession,
   meetingLookupKey,
 } from "@/lib/academic/session-identity";
 
@@ -85,6 +86,18 @@ export function weekSessionLookupKey(
   session?: number | null,
 ): string {
   return meetingLookupKey(week, session);
+}
+
+/** Same identity the workspace index, generation repair, and plan page use. */
+export function assetMatchesMeeting(
+  asset: WeekLinkedAsset | null | undefined,
+  week: number,
+  session?: number | null,
+): boolean {
+  return (
+    academicWeekNumber(asset) === week &&
+    assetMeetingSession(asset ?? {}) === canonicalMeetingSession(session)
+  );
 }
 
 export type WeekPackagePresence = Record<WeekPackageAsset, boolean>;

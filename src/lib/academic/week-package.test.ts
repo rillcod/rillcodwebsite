@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   academicWeekNumber,
+  assetMatchesMeeting,
   indexFirstByWeek,
   indexFirstByWeekSession,
   weekSessionLookupKey,
@@ -71,6 +72,21 @@ describe("indexFirstByWeekSession", () => {
     ]);
     expect(index.get(weekSessionLookupKey(2, 1))?.id).toBe("school");
     expect(index.get(weekSessionLookupKey(2))?.id).toBe("school");
+  });
+});
+
+describe("assetMatchesMeeting", () => {
+  it("uses the same week + class-meeting identity as the workspace index", () => {
+    const class2 = {
+      id: "s2",
+      curriculum_week_number: 3,
+      session_number: 2,
+    };
+    expect(assetMatchesMeeting(class2, 3, 2)).toBe(true);
+    expect(assetMatchesMeeting(class2, 3, 1)).toBe(false);
+    expect(assetMatchesMeeting({ metadata: { week_number: 3 } }, 3, 1)).toBe(
+      true
+    );
   });
 });
 

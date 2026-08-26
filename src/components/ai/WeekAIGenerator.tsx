@@ -23,6 +23,10 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
+import {
+  preparedWeekPackageFromWorkspace,
+  type PreparedWeekPackage,
+} from "@/lib/academic/prepared-week-package";
 import { useOverlayScrollLock } from "@/components/ui/BodyPortal";
 import {
   SparklesIcon,
@@ -322,153 +326,33 @@ async function publishPlan(planId: string, currentVersion?: number) {
   }
 }
 
-async function fetchLesson(
-  planId: string,
-  weekNum: number
-): Promise<any | null> {
+async function fetchPreparedWeekPackage(input: {
+  classId?: string | null;
+  courseId?: string | null;
+  planId: string;
+  week: number;
+  session: number;
+}): Promise<PreparedWeekPackage | null> {
+  if (!input.classId) return null;
   try {
-    const res = await fetch(`/api/lessons?lesson_plan_id=${planId}`);
-    if (!res.ok) return null;
-    const { data } = await res.json();
-    return (
-      (data ?? []).find(
-        (l: any) =>
-          Number(
-            l.curriculum_week_number ??
-              l.metadata?.week ??
-              l.metadata?.week_number
-          ) === weekNum
-      ) ?? null
+    const params = new URLSearchParams();
+    if (input.courseId) params.set("course_id", input.courseId);
+    const query = params.size ? `?${params.toString()}` : "";
+    const res = await fetch(
+      `/api/classes/${encodeURIComponent(input.classId)}/teaching-workspace${query}`,
+      { cache: "no-store" }
     );
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Confirms each artifact actually exists before it is offered as a link.
- *
- * Every id here was previously trusted the moment a POST returned. That is not
- * the same as the thing existing: the flashcard deck id, for one, was recorded
- * when the deck row was created and kept even if card generation then threw —
- * so the panel offered "Open Flashcards" for an empty deck. A deck with no
- * cards, a slide deck the response merely mentioned, a lesson that failed to
- * save: none of those are content, and none of them should be linkable.
- *
- * Anything that cannot be confirmed present is dropped from the result.
- */
-async function verifyArtifacts(
-  planId: string,
-  candidate: Result
-): Promise<{ verified: Result; dropped: string[] }> {
-  const dropped: string[] = [];
-  const verified: Result = { skipped: candidate.skipped };
-
-  const idsIn = async (url: string): Promise<Set<string>> => {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return new Set();
-      const { data } = await res.json();
-      return new Set((data ?? []).map((row: any) => String(row.id)));
-    } catch {
-      return new Set();
-    }
-  };
-
-  const [lessonIds, assignmentIds, slideIds, deckOk] = await Promise.all([
-    candidate.lessonId
-      ? idsIn(`/api/lessons?lesson_plan_id=${planId}`)
-      : Promise.resolve(new Set<string>()),
-    candidate.assignmentId || candidate.projectId
-      ? idsIn(`/api/assignments?lesson_plan_id=${planId}`)
-      : Promise.resolve(new Set<string>()),
-    candidate.slideDeckId
-      ? idsIn(`/api/slide-decks`)
-      : Promise.resolve(new Set<string>()),
-    // A deck only counts as generated once it actually holds cards.
-    candidate.deckId
-      ? (async () => {
-          try {
-            const res = await fetch(
-              `/api/flashcards/decks/${candidate.deckId}/cards`
-            );
-            if (!res.ok) return false;
-            const { data } = await res.json();
-            return Array.isArray(data) && data.length > 0;
-          } catch {
-            return false;
-          }
-        })()
-      : Promise.resolve(false),
-  ]);
-
-  const keep = (
-    key: keyof Result,
-    id: string | undefined,
-    present: boolean,
-    label: string,
-    title?: string,
-    titleKey?: keyof Result
-  ) => {
-    if (!id) return;
-    if (present) {
-      (verified as any)[key] = id;
-      if (titleKey && title) (verified as any)[titleKey] = title;
-    } else {
-      dropped.push(label);
-    }
-  };
-
-  keep("lessonId", candidate.lessonId, lessonIds.has(String(candidate.lessonId)), "lesson", candidate.lessonTitle, "lessonTitle");
-  keep("slideDeckId", candidate.slideDeckId, slideIds.has(String(candidate.slideDeckId)), "learning slides", candidate.slideDeckTitle, "slideDeckTitle");
-  keep("deckId", candidate.deckId, deckOk, "flashcards", candidate.deckTitle, "deckTitle");
-  keep("assignmentId", candidate.assignmentId, assignmentIds.has(String(candidate.assignmentId)), "assignment", candidate.assignmentTitle, "assignmentTitle");
-  keep("projectId", candidate.projectId, assignmentIds.has(String(candidate.projectId)), "project", candidate.projectTitle, "projectTitle");
-
-  return { verified, dropped };
-}
-
-async function checkExistingAssignment(
-  planId: string,
-  weekNum: number
-): Promise<string | null> {
-  try {
-    const res = await fetch(`/api/assignments?lesson_plan_id=${planId}`);
     if (!res.ok) return null;
-    const { data } = await res.json();
-    return (
-      (data ?? []).find(
-        (a: any) =>
-          Number(
-            a.curriculum_week_number ??
-              a.metadata?.week ??
-              a.metadata?.week_number
-          ) === weekNum && a.assignment_type !== "project"
-      )?.id ?? null
-    );
-  } catch {
-    return null;
-  }
-}
-
-async function checkExistingProject(
-  planId: string,
-  weekNum: number
-): Promise<string | null> {
-  try {
-    const res = await fetch(`/api/assignments?lesson_plan_id=${planId}`);
-    if (!res.ok) return null;
-    const { data } = await res.json();
-    return (
-      (data ?? []).find(
-        (a: any) =>
-          Number(
-            a.curriculum_week_number ??
-              a.metadata?.week ??
-              a.metadata?.week_number
-          ) === weekNum && a.assignment_type === "project"
-      )?.id ?? null
-    );
+    const body = (await res.json().catch(() => ({}))) as {
+      data?: Parameters<typeof preparedWeekPackageFromWorkspace>[0]["data"];
+    };
+    if (!body.data) return null;
+    return preparedWeekPackageFromWorkspace({
+      data: body.data,
+      planId: input.planId,
+      week: input.week,
+      session: input.session,
+    });
   } catch {
     return null;
   }
@@ -679,7 +563,7 @@ export default function WeekAIGenerator({
         const outcome = byType[type];
         if (!outcome) {
           setStep(step, "skipped");
-          res.skipped.push(type);
+          res.skipped.push(labelFor[type] ?? type);
           continue;
         }
         if (outcome.error) {
@@ -689,7 +573,7 @@ export default function WeekAIGenerator({
         }
         if (Number(outcome.skipped) > 0 && Number(outcome.generated) === 0) {
           setStep(step, "skipped");
-          res.skipped.push(type);
+          res.skipped.push(labelFor[type] ?? type);
           addLog(`${labelFor[type]} already ready — keeping it.`);
           continue;
         }
@@ -697,68 +581,88 @@ export default function WeekAIGenerator({
         addLog(`${labelFor[type]} prepared.`);
       }
 
-      if (Array.isArray(genJson.failedTypes) && genJson.failedTypes.length) {
+      const failedTypes = Array.isArray(genJson.failedTypes)
+        ? genJson.failedTypes
+        : [];
+      if (failedTypes.length) {
         addLog(
-          `Still outstanding: ${genJson.failedTypes
+          `Still outstanding: ${failedTypes
             .map((t: string) => labelFor[t] ?? t)
             .join(", ")}`
         );
       }
 
-      // Hydrate open-links from what the pipeline actually wrote.
+      // Read back through the same class workspace that teachers use. This is
+      // the canonical plan + week + class-meeting lookup; the former week-only
+      // API scans could attach Class 1 links after preparing Class 2.
       addLog("Double-checking everything saved correctly…");
-      const lesson = await fetchLesson(planId, week.week);
-      if (lesson?.id) {
-        res.lessonId = lesson.id;
-        res.lessonTitle = lesson.title;
-      }
-      const asnId =
-        existing?.assignmentId ??
-        (await checkExistingAssignment(planId, week.week));
-      if (asnId) res.assignmentId = asnId;
-      const projId =
-        existing?.projectId ?? (await checkExistingProject(planId, week.week));
-      if (projId) res.projectId = projId;
-      if (existing?.slideDeckId) res.slideDeckId = existing.slideDeckId;
-      if (existing?.deckId) {
-        res.deckId = existing.deckId;
-      } else {
-        // Best-effort: pipeline may have created a held deck for this week.
+      const prepared = await fetchPreparedWeekPackage({
+        classId,
+        courseId,
+        planId,
+        week: week.week,
+        session: sessionVal > 0 ? Math.floor(sessionVal) : 1,
+      });
+      const verified: Result = {
+        skipped: res.skipped,
+        ...(prepared ?? existing ?? {}),
+      };
+      const dropped: string[] = [];
+
+      // A deck row is not useful content until it contains cards. An empty
+      // successful response is authoritative; a temporary verification error
+      // is not, so it never hides otherwise confirmed work.
+      if (verified.deckId) {
         try {
-          const decksRes = await fetch(
-            `/api/flashcards/decks?lesson_id=${encodeURIComponent(res.lessonId ?? "")}`
+          const cardsResponse = await fetch(
+            `/api/flashcards/decks/${verified.deckId}/cards`,
+            { cache: "no-store" }
           );
-          const decksJson = await decksRes.json().catch(() => ({}));
-          const match = (decksJson.data ?? []).find(
-            (d: any) =>
-              d.lesson_plan_id === planId &&
-              Number(d.curriculum_week_number) === week.week
-          );
-          if (match?.id) {
-            res.deckId = match.id;
-            res.deckTitle = match.title;
+          if (cardsResponse.ok) {
+            const cardsBody = await cardsResponse.json().catch(() => ({}));
+            if (!Array.isArray(cardsBody.data) || cardsBody.data.length === 0) {
+              delete verified.deckId;
+              delete verified.deckTitle;
+              dropped.push("practice cards");
+            }
           }
         } catch {
-          /* non-fatal */
+          // The class workspace already confirmed the deck row. Keep it and
+          // let the refreshed workspace surface any durable content problem.
         }
       }
 
-      const { verified, dropped } = await verifyArtifacts(planId, res);
+      if (prepared) {
+        const expected: Array<{
+          id: keyof PreparedWeekPackage;
+          label: string;
+          step: keyof StepStatus;
+          type: string;
+        }> = [
+          { id: "lessonId", label: "lesson", step: "lesson", type: "lessons" },
+          { id: "slideDeckId", label: "learning slides", step: "slides", type: "slides" },
+          { id: "deckId", label: "practice cards", step: "flashcard", type: "flashcards" },
+          { id: "assignmentId", label: "homework", step: "assignment", type: "assignments" },
+          { id: "projectId", label: "project", step: "project", type: "projects" },
+        ];
+        for (const item of expected) {
+          const outcome = byType[item.type];
+          if (!outcome || failedTypes.includes(item.type)) continue;
+          if (!verified[item.id] && !dropped.includes(item.label)) {
+            dropped.push(item.label);
+          }
+          if (dropped.includes(item.label)) setStep(item.step, "error");
+        }
+      } else {
+        addLog(
+          "The package was saved, but this screen could not refresh its links. Close it to see the latest class record."
+        );
+      }
+
       if (dropped.length > 0) {
         addLog(
           `These didn’t save properly, so they won’t open yet: ${dropped.join(", ")}`
         );
-        const stepFor: Record<string, keyof StepStatus> = {
-          lesson: "lesson",
-          "learning slides": "slides",
-          flashcards: "flashcard",
-          assignment: "assignment",
-          project: "project",
-        };
-        for (const label of dropped) {
-          const step = stepFor[label];
-          if (step) setStep(step, "error");
-        }
       } else if (genJson.auto_publish) {
         addLog("All set — this week is live for students.");
       } else {

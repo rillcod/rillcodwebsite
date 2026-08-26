@@ -1,8 +1,7 @@
 import {
-  academicWeekNumber,
+  assetMatchesMeeting,
   type WeekPackageAsset,
 } from "@/lib/academic/week-package";
-import { assetMeetingSession } from "@/lib/academic/session-identity";
 import {
   normaliseTypes,
   type WeekContentType,
@@ -40,12 +39,6 @@ function isCustomized(row: Row | null): boolean {
   );
 }
 
-function inSlot(row: Row, week: number, session: number): boolean {
-  return (
-    academicWeekNumber(row) === week && assetMeetingSession(row) === session
-  );
-}
-
 /**
  * Decide what actually needs a generator call for one class meeting.
  * Existing teacher work is presence, not an invitation to regenerate it.
@@ -59,16 +52,16 @@ export function decideGenerationRepairTypes(input: {
 }): GenerationRepairDecision {
   const requestedTypes = normaliseTypes(input.requestedTypes);
   const lessons = (input.inventory.lessons ?? []).filter((row) =>
-    inSlot(row, input.week, input.session)
+    assetMatchesMeeting(row, input.week, input.session)
   );
   const slides = (input.inventory.slides ?? []).filter((row) =>
-    inSlot(row, input.week, input.session)
+    assetMatchesMeeting(row, input.week, input.session)
   );
   const flashcards = (input.inventory.flashcards ?? []).filter((row) =>
-    inSlot(row, input.week, input.session)
+    assetMatchesMeeting(row, input.week, input.session)
   );
   const assignments = (input.inventory.assignments ?? []).filter((row) =>
-    inSlot(row, input.week, input.session)
+    assetMatchesMeeting(row, input.week, input.session)
   );
   const homework = assignments.filter(
     (row) => String(row.assignment_type ?? "").toLowerCase() !== "project"

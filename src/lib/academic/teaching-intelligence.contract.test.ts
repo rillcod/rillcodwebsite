@@ -17,6 +17,9 @@ const releaseMigration = read(
 const releaseOneMeetingMigration = read(
   "supabase/migrations/20260929000082_release_one_meeting.sql"
 );
+const completePackageReleaseMigration = read(
+  "supabase/migrations/20260929000088_release_complete_teaching_package.sql"
+);
 
 describe("generated types match the teaching schema", () => {
   it("delivery rows carry a meeting and may sit on a period instead of a term", () => {
@@ -111,6 +114,40 @@ describe("old week-only schema is retired", () => {
     );
     expect(read("src/lib/academic/release-week-content.ts")).toContain(
       "p_session_number: canonicalMeetingSession(session)"
+    );
+  });
+
+  it("releases slides in the same transaction as the rest of the package", () => {
+    expect(completePackageReleaseMigration).toContain(
+      "update public.lesson_materials"
+    );
+    expect(completePackageReleaseMigration).toContain(
+      "'slides_released', v_slides"
+    );
+    expect(completePackageReleaseMigration).toContain(
+      "and session_number = p_session_number"
+    );
+    expect(completePackageReleaseMigration).toContain(
+      "Lessons, slides, assignments, projects and flashcards"
+    );
+  });
+
+  it("week prep confirms saved work through the class workspace, by meeting", () => {
+    const generator = read("src/components/ai/WeekAIGenerator.tsx");
+    const workspaceRoute = read(
+      "src/app/api/classes/[id]/teaching-workspace/route.ts"
+    );
+    expect(generator).toContain("preparedWeekPackageFromWorkspace");
+    expect(generator).toContain("teaching-workspace");
+    expect(workspaceRoute).toContain("is_public");
+    expect(read("src/lib/academic/prepared-week-package.ts")).toContain(
+      "weekSessionLookupKey"
+    );
+    expect(read("src/lib/academic/generation-repair.ts")).toContain(
+      "assetMatchesMeeting"
+    );
+    expect(read("src/lib/academic/week-package.ts")).toContain(
+      "export function assetMatchesMeeting"
     );
   });
 });

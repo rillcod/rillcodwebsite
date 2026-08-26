@@ -56,7 +56,10 @@ import {
 import {
   expandPlanWeeksForMeetings,
 } from "@/lib/academic/school-programme-standing";
-import { WEEK_CONTENT_TYPES } from "@/lib/academic/auto-generate-settings";
+import {
+  WEEK_CONTENT_TYPES,
+  WEEK_CONTENT_TYPE_LABELS,
+} from "@/lib/academic/auto-generate-settings";
 import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
 import {
   hostAssessmentSit,
@@ -237,7 +240,21 @@ export function ClassTeachingWorkspace({
         throw new Error(j.detail || j.error || "Action failed");
       }
       await load(courseId);
-      if (j.warning) setError(j.warning);
+      if (j.warning) {
+        setAiStatus({ tone: "warning", message: j.warning });
+      } else if (body.action === "release_week") {
+        setAiStatus({
+          tone: "success",
+          message:
+            "This teaching package is now visible to the class. Tests remain private until you open them separately.",
+        });
+      } else if (body.action === "release_week_bulk") {
+        const completed = Number(j.data?.completed_count) || 0;
+        setAiStatus({
+          tone: "success",
+          message: `${completed} teaching package${completed === 1 ? " is" : "s are"} now visible to the class.`,
+        });
+      }
       return true;
     } catch (e: any) {
       setError(e.message);
@@ -342,12 +359,17 @@ export function ClassTeachingWorkspace({
           continue;
         }
         if (Array.isArray(result.failedTypes) && result.failedTypes.length > 0) {
+          const readableTypes = result.failedTypes.map(
+            (type) =>
+              (WEEK_CONTENT_TYPE_LABELS as Record<string, string>)[type] ??
+              "one learning item"
+          );
           failures.push(
             `${teachingMeetingLabel(
               target.week,
               target.session,
               target.meetingsInWeek
-            )}: ${result.failedTypes.join(", ")} still need attention`
+            )}: ${readableTypes.join(", ")} still need attention`
           );
         }
       }
@@ -777,9 +799,10 @@ export function ClassTeachingWorkspace({
               Share with students?
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {pendingRelease.label} Learners will see the prepared lesson,
-              assignment and practice cards. Tests stay private until you
-              open them separately.
+              {pendingRelease.label} Learners will see every prepared lesson,
+              slide deck, practice-card deck, homework and project in the
+              selected package. Tests stay private until you open them
+              separately.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">

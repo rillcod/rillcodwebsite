@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
         course_id, program_id, class_id, school_id, school_name, metadata, term_id,
-        lesson_plan_id, curriculum_release_id, curriculum_year_number, curriculum_term_number, curriculum_week_number, learning_outcomes,
+        lesson_plan_id, curriculum_release_id, curriculum_year_number, curriculum_term_number, curriculum_week_number, session_number, learning_outcomes,
         courses ( id, title, programs ( name ) ),
         assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
       `).order('due_date', { ascending: true });
@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
       'class_id', 'weight', 'grading_mode', 'term_id', 'lesson_plan_id',
       'academic_offering_id', 'offering_period_id', 'project_template_id',
       'curriculum_release_id', 'curriculum_year_number', 'curriculum_term_number',
-      'curriculum_week_number', 'learning_outcomes',
+      'curriculum_week_number', 'session_number', 'learning_outcomes',
     ];
     const payload: Record<string, unknown> = {
       created_by: caller.id,

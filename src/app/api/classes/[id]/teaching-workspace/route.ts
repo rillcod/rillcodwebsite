@@ -224,7 +224,7 @@ export async function GET(
           db
             .from("lesson_materials")
             .select(
-              "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,content_stale_at"
+              "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
             )
             .or(planOrLessonScope)
             .eq("file_type", "slide-deck"),

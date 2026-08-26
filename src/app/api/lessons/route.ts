@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         `
         id, title, description, lesson_type, status, duration_minutes,
         session_date, video_url, created_by, created_at, metadata,
-        school_id, class_id, lesson_plan_id, curriculum_week_number,
+        school_id, class_id, lesson_plan_id, curriculum_week_number, session_number,
         courses ( id, title, programs ( name ) )
       `
       )

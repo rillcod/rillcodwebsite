@@ -54,6 +54,8 @@ import {
   inferTermNumberFromPlanTerm,
   type SyllabusContentImport,
 } from "@/lib/lesson-plans/syllabusImport";
+import { assetMatchesMeeting } from "@/lib/academic/week-package";
+import { canonicalMeetingSession } from "@/lib/academic/session-identity";
 
 interface WeekEntry {
   week: number;
@@ -471,21 +473,19 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   },
 };
 
-function metadataMatchesWeek(
-  metadata: Record<string, unknown> | null | undefined,
+function matchesPlanWeek(
+  asset: {
+    curriculum_week_number?: number | null;
+    session_number?: number | null;
+    metadata?: Record<string, unknown> | null;
+  },
   week: WeekEntry
 ): boolean {
-  const weekNumber = Number(metadata?.week_number ?? metadata?.week ?? -1);
-  if (weekNumber !== week.week) return false;
-
-  const weekYear = Number(week.syllabus_ref?.year_number ?? 0);
-  const weekTerm = Number(week.syllabus_ref?.term_number ?? 0);
-  const metadataYear = Number(metadata?.year_number ?? 0);
-  const metadataTerm = Number(metadata?.term_number ?? 0);
-
-  const yearMatches = !weekYear || !metadataYear || weekYear === metadataYear;
-  const termMatches = !weekTerm || !metadataTerm || weekTerm === metadataTerm;
-  return yearMatches && termMatches;
+  return assetMatchesMeeting(
+    asset,
+    week.week,
+    week.session ?? week.session_number
+  );
 }
 
 const PROGRESSION_SCOPE_OPTIONS: Array<{
@@ -558,6 +558,8 @@ export default function LessonPlanDetailPage() {
       id: string;
       title: string;
       status: string;
+      curriculum_week_number?: number | null;
+      session_number?: number | null;
       metadata?: Record<string, unknown> | null;
     }[]
   >([]);
@@ -566,11 +568,19 @@ export default function LessonPlanDetailPage() {
       id: string;
       title: string;
       assignment_type: string;
+      curriculum_week_number?: number | null;
+      session_number?: number | null;
       metadata?: Record<string, unknown> | null;
     }[]
   >([]);
   const [linkedProjects, setLinkedProjects] = useState<
-    { id: string; title: string; metadata?: Record<string, unknown> | null }[]
+    {
+      id: string;
+      title: string;
+      curriculum_week_number?: number | null;
+      session_number?: number | null;
+      metadata?: Record<string, unknown> | null;
+    }[]
   >([]);
   const [progressionScope, setProgressionScope] =
     useState<ProgressionScope>("term");
@@ -657,6 +667,7 @@ export default function LessonPlanDetailPage() {
       const dueDate = new Date(Date.now() + 7 * 864e5)
         .toISOString()
         .split("T")[0];
+      const session = Number(week.session ?? week.session_number ?? 1);
       const res = await fetch("/api/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -673,6 +684,8 @@ export default function LessonPlanDetailPage() {
           course_id: plan.course_id,
           class_id: plan.class_id,
           lesson_plan_id: plan.id,
+          curriculum_week_number: week.week,
+          session_number: session,
           metadata: {
             source: "lesson-plan",
             lesson_plan_id: plan.id,
@@ -680,6 +693,8 @@ export default function LessonPlanDetailPage() {
             term: plan.term,
             week: week.week,
             week_number: week.week,
+            session,
+            session_number: session,
             year_number: week.syllabus_ref?.year_number ?? null,
             term_number: week.syllabus_ref?.term_number ?? null,
           },
@@ -703,6 +718,7 @@ export default function LessonPlanDetailPage() {
       const dueDate = new Date(Date.now() + 14 * 864e5)
         .toISOString()
         .split("T")[0];
+      const session = Number(week.session ?? week.session_number ?? 1);
       const res = await fetch("/api/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -719,6 +735,8 @@ export default function LessonPlanDetailPage() {
           course_id: plan.course_id,
           class_id: plan.class_id,
           lesson_plan_id: plan.id,
+          curriculum_week_number: week.week,
+          session_number: session,
           metadata: {
             source: "lesson-plan",
             lesson_plan_id: plan.id,
@@ -726,6 +744,8 @@ export default function LessonPlanDetailPage() {
             term: plan.term,
             week: week.week,
             week_number: week.week,
+            session,
+            session_number: session,
             year_number: week.syllabus_ref?.year_number ?? null,
             term_number: week.syllabus_ref?.term_number ?? null,
           },
@@ -775,6 +795,8 @@ export default function LessonPlanDetailPage() {
           id: string;
           title: string;
           assignment_type: string;
+          curriculum_week_number?: number | null;
+          session_number?: number | null;
           metadata?: Record<string, unknown> | null;
         }[] = aj.data ?? [];
         setLinkedAssignments(
@@ -803,13 +825,13 @@ export default function LessonPlanDetailPage() {
     }
 
     const weekLesson = linkedLessons.find((l) =>
-      metadataMatchesWeek(l.metadata, viewWeek)
+      matchesPlanWeek(l, viewWeek)
     );
     const weekAssignment = linkedAssignments.find((a) =>
-      metadataMatchesWeek(a.metadata, viewWeek)
+      matchesPlanWeek(a, viewWeek)
     );
     const weekProject = linkedProjects.find((p) =>
-      metadataMatchesWeek(p.metadata, viewWeek)
+      matchesPlanWeek(p, viewWeek)
     );
 
     if (weekLesson || weekAssignment || weekProject) {
@@ -1939,7 +1961,7 @@ export default function LessonPlanDetailPage() {
 
         {/* AI Lesson Assistant banner — discoverable entry point */}
         {weeks.some(
-          (w) => !linkedLessons.find((l) => metadataMatchesWeek(l.metadata, w))
+          (w) => !linkedLessons.find((l) => matchesPlanWeek(l, w))
         ) && (
           <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-primary/30 bg-primary/[0.05]">
             <div className="flex items-start gap-3 min-w-0">
@@ -2427,13 +2449,13 @@ export default function LessonPlanDetailPage() {
             <div className="space-y-4">
               {weeks.map((w) => {
                 const weekLesson = linkedLessons.find((l) =>
-                  metadataMatchesWeek(l.metadata, w)
+                  matchesPlanWeek(l, w)
                 );
                 const weekAssignment = linkedAssignments.find((a) =>
-                  metadataMatchesWeek(a.metadata, w)
+                  matchesPlanWeek(a, w)
                 );
                 const weekProject = linkedProjects.find((p) =>
-                  metadataMatchesWeek(p.metadata, w)
+                  matchesPlanWeek(p, w)
                 );
                 const addLessonHref = buildPlanWeekCreateLessonUrl({
                   plan: plan!,
@@ -2453,7 +2475,7 @@ export default function LessonPlanDetailPage() {
 
                 return (
                   <div
-                    key={w.week}
+                    key={`${w.week}:${w.session ?? w.session_number ?? 1}`}
                     className={`bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:from-white/[0.06] hover:to-white/[0.02] border rounded-[24px] overflow-hidden hover:border-primary/30 transition-all duration-300 group shadow-xl hover:shadow-primary/5 ${
                       w.completed
                         ? "border-emerald-500/25 bg-emerald-500/[0.01]"
@@ -2951,16 +2973,19 @@ export default function LessonPlanDetailPage() {
           classId={plan?.class_id}
           existing={{
             lessonId: linkedLessons.find((l) =>
-              metadataMatchesWeek(l.metadata, aiWeek)
+              matchesPlanWeek(l, aiWeek)
             )?.id,
             assignmentId: linkedAssignments.find((a) =>
-              metadataMatchesWeek(a.metadata, aiWeek)
+              matchesPlanWeek(a, aiWeek)
             )?.id,
             projectId: linkedProjects.find((p) =>
-              metadataMatchesWeek(p.metadata, aiWeek)
+              matchesPlanWeek(p, aiWeek)
             )?.id,
           }}
           onDone={(res) => {
+            const meetingSession = canonicalMeetingSession(
+              aiWeek.session ?? aiWeek.session_number
+            );
             if (
               res.lessonId &&
               !linkedLessons.find((l) => l.id === res.lessonId)
@@ -2971,7 +2996,14 @@ export default function LessonPlanDetailPage() {
                   id: res.lessonId!,
                   title: `Week ${aiWeek.week} Lesson`,
                   status: "draft",
-                  metadata: { week: aiWeek.week, week_number: aiWeek.week },
+                  curriculum_week_number: aiWeek.week,
+                  session_number: meetingSession,
+                  metadata: {
+                    week: aiWeek.week,
+                    week_number: aiWeek.week,
+                    session: meetingSession,
+                    session_number: meetingSession,
+                  },
                 },
               ]);
             }
@@ -2985,7 +3017,14 @@ export default function LessonPlanDetailPage() {
                   id: res.assignmentId!,
                   title: `Week ${aiWeek.week} Assignment`,
                   assignment_type: "homework",
-                  metadata: { week: aiWeek.week, week_number: aiWeek.week },
+                  curriculum_week_number: aiWeek.week,
+                  session_number: meetingSession,
+                  metadata: {
+                    week: aiWeek.week,
+                    week_number: aiWeek.week,
+                    session: meetingSession,
+                    session_number: meetingSession,
+                  },
                 },
               ]);
             }
@@ -2998,7 +3037,14 @@ export default function LessonPlanDetailPage() {
                 {
                   id: res.projectId!,
                   title: `Week ${aiWeek.week} Project`,
-                  metadata: { week: aiWeek.week, week_number: aiWeek.week },
+                  curriculum_week_number: aiWeek.week,
+                  session_number: meetingSession,
+                  metadata: {
+                    week: aiWeek.week,
+                    week_number: aiWeek.week,
+                    session: meetingSession,
+                    session_number: meetingSession,
+                  },
                 },
               ]);
             }
@@ -4663,13 +4709,13 @@ export default function LessonPlanDetailPage() {
               <div className="space-y-2">
                 {weeks.map((w) => {
                   const weekLesson = linkedLessons.find((l) =>
-                    metadataMatchesWeek(l.metadata, w)
+                    matchesPlanWeek(l, w)
                   );
                   const weekAssignment = linkedAssignments.find((a) =>
-                    metadataMatchesWeek(a.metadata, w)
+                    matchesPlanWeek(a, w)
                   );
                   const weekProject = linkedProjects.find((p) =>
-                    metadataMatchesWeek(p.metadata, w)
+                    matchesPlanWeek(p, w)
                   );
                   const addLessonHref = buildPlanWeekCreateLessonUrl({
                     plan,
@@ -4684,7 +4730,7 @@ export default function LessonPlanDetailPage() {
                   }${plan.course_id ? `&course_id=${plan.course_id}` : ""}`;
                   return (
                     <div
-                      key={w.week}
+                      key={`${w.week}:${w.session ?? w.session_number ?? 1}`}
                       className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl"
                     >
                       <div className="flex items-center gap-2">
