@@ -235,9 +235,17 @@ function RolloutWorkspace() {
   /** Dry-run of who an edition reaches, before or after it is assigned. */
   const [preview, setPreview] = useState<{
     summary: { eligible: number; skipped: number; conflict: number; protected_active_plans: number };
-    schools: Array<{ school_id: string; school_name: string; rollout_status: string; active_plan_count: number }>;
+    schools: Array<{
+      school_id: string;
+      school_name: string;
+      adoption_id: string | null;
+      auto_update: boolean;
+      rollout_status: string;
+      active_plan_count: number;
+    }>;
   } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [savingUpdateChoice, setSavingUpdateChoice] = useState<string | null>(null);
   const [stranded, setStranded] = useState<{ groups: StrandedGroup[]; totals: { schools: number } } | null>(null);
   const [strandedOpen, setStrandedOpen] = useState<string | null>(null);
   const [fixing, setFixing] = useState<string | null>(null);
@@ -594,6 +602,53 @@ function RolloutWorkspace() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'School assignment could not be checked.');
     } finally { setPreviewing(false); }
+  }
+
+  async function setSchoolUpdateChoice(school: {
+    adoption_id: string | null;
+    auto_update: boolean;
+  }) {
+    if (!school.adoption_id) return;
+    const nextValue = school.auto_update === false;
+    setSavingUpdateChoice(school.adoption_id);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch('/api/curriculum-governance/rollouts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adoption_id: school.adoption_id, auto_update: nextValue }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'The school update choice could not be saved.');
+      setPreview((current) => {
+        if (!current) return current;
+        const schools = current.schools.map((item) => item.adoption_id === school.adoption_id
+          ? {
+              ...item,
+              auto_update: nextValue,
+              rollout_status: item.rollout_status === 'conflict'
+                ? 'conflict'
+                : nextValue ? 'eligible' : 'skipped',
+            }
+          : item);
+        return {
+          ...current,
+          schools,
+          summary: {
+            ...current.summary,
+            eligible: schools.filter((item) => item.rollout_status === 'eligible').length,
+            skipped: schools.filter((item) => item.rollout_status === 'skipped').length,
+            conflict: schools.filter((item) => item.rollout_status === 'conflict').length,
+          },
+        };
+      });
+      setMessage(payload.message || 'School curriculum update choice saved.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The school update choice could not be saved.');
+    } finally {
+      setSavingUpdateChoice(null);
+    }
   }
 
   async function fixStranded(courseId: string, mode: 'move' | 'clear') {
@@ -1094,6 +1149,9 @@ function RolloutWorkspace() {
                 <p className="text-sm font-black text-foreground">
                   {preview.summary.eligible} ready · {preview.summary.skipped} skipped · {preview.summary.conflict} need attention · {preview.summary.protected_active_plans} class plans unchanged
                 </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Automatic updates choose the approved edition for future class-term plans only. Existing plans, lessons, submissions and scores never change here.
+                </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {preview.schools.map((school) => (
                     <div key={school.school_id} className="rounded-lg border border-border bg-card p-3">
@@ -1108,6 +1166,28 @@ function RolloutWorkspace() {
                           ? `${school.active_plan_count} current class plan(s) will remain unchanged.`
                           : 'No current class plan will be affected.'}
                       </p>
+                      {isAdmin && school.adoption_id && (
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={school.auto_update !== false}
+                          disabled={savingUpdateChoice === school.adoption_id}
+                          onClick={() => void setSchoolUpdateChoice(school)}
+                          className="mt-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left text-xs font-bold text-foreground disabled:opacity-50"
+                        >
+                          <span>
+                            {school.auto_update !== false
+                              ? 'Future editions update automatically'
+                              : 'Future editions need approval'}
+                          </span>
+                          <span
+                            aria-hidden="true"
+                            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${school.auto_update !== false ? 'bg-primary' : 'bg-muted'}`}
+                          >
+                            <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${school.auto_update !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </span>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

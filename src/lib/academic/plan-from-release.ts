@@ -273,7 +273,7 @@ export function customisePlanWeek(
  */
 export async function instantiatePlansFromAdoptions(
   dbClient?: any,
-  options?: { classIds?: string[]; courseId?: string; offeringId?: string; limit?: number; forceRefresh?: boolean },
+  options?: { classIds?: string[]; courseId?: string; offeringId?: string; limit?: number },
 ): Promise<{
   scanned: number;
   created: number;

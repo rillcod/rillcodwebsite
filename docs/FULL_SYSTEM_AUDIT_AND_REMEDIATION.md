@@ -3624,3 +3624,35 @@ Verification and honest boundary:
   fresh tab did not inherit a valid server session and correctly stopped at **Account details
   unavailable**. Therefore this pass proves the code contract and fail-closed access behavior, but does
   not claim a second authenticated visual pass.
+
+### 16.45 Per-school curriculum update choice — locally verified 26 August 2026
+
+Confirmed gaps:
+
+- `academic_curriculum_adoptions.auto_update` already represented the school's intended choice, and
+  rollout already respected it, but no API or screen allowed an administrator to change it;
+- the plan-sync endpoint accepted and audited `force_refresh`, but the value was discarded before the
+  readiness engine. This created a hidden promise that existing plans could be refreshed even though
+  the protected version-pinning contract deliberately prevents that rewrite.
+
+Implemented:
+
+- the rollout impact view now gives each assigned school an accessible automatic-update switch. Its
+  explanation is explicit: the choice affects the approved edition used by **future class-term plans**;
+  existing plans, lessons, submissions and scores remain unchanged;
+- the administrator-only update endpoint validates an actual boolean, changes only the adoption
+  preference, returns plain confirmation and writes one human-labelled audit event. It does not query or
+  mutate lesson plans;
+- turning automatic updates off keeps the school on its current edition until an administrator changes
+  the choice. Turning it on lets the next approved rollout update the school direction. Preview totals
+  change immediately with the switch;
+- the unused `force_refresh` input was removed from the plan-sync API and helper so callers cannot infer
+  a destructive capability that does not exist.
+
+Verification and honest boundary:
+
+- the final focused run passed 32 tests across authorization, validation, audit logging, rollout policy,
+  plan version pinning and the visible future-edition choice;
+- the complete TypeScript check passed and `git diff --check` reported no whitespace errors;
+- no live adoption was changed during verification, so the switch still needs an authenticated
+  post-deployment browser exercise against a non-production test school before production certification.

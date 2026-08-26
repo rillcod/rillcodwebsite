@@ -7,6 +7,8 @@ const builder = read("src/app/dashboard/academic/build/page.tsx");
 const classWorkspace = read("src/components/classes/ClassTeachingWorkspace.tsx");
 const classPlanList = read("src/app/dashboard/lesson-plans/page.tsx");
 const classPlanRoute = read("src/app/api/lesson-plans/route.ts");
+const rollout = read("src/app/dashboard/academic/rollout/page.tsx");
+const planSyncRoute = read("src/app/api/admin/academics/sync-plans/route.ts");
 
 describe("curriculum to class-plan workflow UX", () => {
   it("returns staff to the exact saved curriculum location", () => {
@@ -54,5 +56,13 @@ describe("curriculum to class-plan workflow UX", () => {
     expect(classPlanRoute).toContain("p_offering_period_id: canonicalTermId");
     expect(classPlanRoute).toContain("if (!ensuredPlan.created)");
     expect(classPlanRoute).toContain("existing_id: ensuredPlan.plan_id");
+  });
+
+  it("gives each school an honest future-edition choice", () => {
+    expect(rollout).toContain('role="switch"');
+    expect(rollout).toContain('Future editions update automatically');
+    expect(rollout).toContain('Future editions need approval');
+    expect(rollout).toContain('Existing plans, lessons, submissions and scores never change here.');
+    expect(planSyncRoute).not.toContain('force_refresh');
   });
 });
