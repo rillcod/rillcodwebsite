@@ -192,6 +192,20 @@ export function CurriculumBuildingBlockInspector({
               </div>
             ) : terms.map((term: any, index: number) => {
               const weeks = Array.isArray(term.weeks) ? term.weeks : [];
+              /*
+               * How many weeks actually carry teaching content.
+               *
+               * A week used to show a green tick when it had a plan and NOTHING
+               * when it did not, so a term where every week was empty looked
+               * like an ordinary list of topics. Creative Coding with Scratch
+               * sat exactly like that — thirty titled weeks, no lesson plan on
+               * any of them, taught by forty classes — and the screen gave the
+               * office no reason to look twice. Silence is not a status.
+               */
+              const planned = weeks.filter(
+                (week: any) => week?.lesson_plan || week?.assessment_plan,
+              ).length;
+              const missing = weeks.length - planned;
               return (
                 <details key={`${term.term ?? index}-${term.year ?? ''}`} open={index === 0} className="group rounded-2xl border border-border bg-card">
                   <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5 [&::-webkit-details-marker]:hidden">
@@ -201,6 +215,16 @@ export function CurriculumBuildingBlockInspector({
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {weeks.length} week{weeks.length === 1 ? '' : 's'}
+                        {weeks.length > 0 && (
+                          <>
+                            {' · '}
+                            <span className={missing > 0 ? 'font-bold text-amber-600 dark:text-amber-500' : 'text-emerald-600 dark:text-emerald-500'}>
+                              {missing > 0
+                                ? `${missing} without teaching content`
+                                : 'all weeks have teaching content'}
+                            </span>
+                          </>
+                        )}
                       </span>
                     </span>
                     <span className="text-xs font-black text-primary group-open:hidden">Show weeks</span>
@@ -222,7 +246,18 @@ export function CurriculumBuildingBlockInspector({
                         </div>
                         {week.lesson_plan || week.assessment_plan ? (
                           <CheckCircleIcon className="mt-1 h-4 w-4 shrink-0 text-emerald-600" aria-label="Plan included" />
-                        ) : null}
+                        ) : (
+                          /*
+                            Say it rather than showing nothing. A missing tick is
+                            indistinguishable from a list that was never meant to
+                            have ticks, which is how thirty empty weeks went
+                            unnoticed. Text, not just colour, so it survives a
+                            screen reader and a colour-blind reader alike.
+                          */
+                          <span className="mt-0.5 shrink-0 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                            No teaching content
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
