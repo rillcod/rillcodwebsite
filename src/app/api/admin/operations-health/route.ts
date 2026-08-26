@@ -226,6 +226,7 @@ export async function GET() {
         (row.job_type === 'email' && Boolean(row.user_id || row.payload?.to || row.payload?.retry?.to)) ||
         (row.job_type === 'whatsapp' && Boolean(row.payload?.phone || row.payload?.retry?.phone)) ||
         (row.job_type === 'in_app' && Boolean(row.payload?.userId || row.user_id)) ||
+        (row.job_type === 'assignment_release' && Boolean(row.payload?.assignmentId || row.payload?.retry?.assignmentId)) ||
         row.job_type === 'progress_report_delivery',
     })),
     history: history.data ?? [],
@@ -346,7 +347,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (action === 'retry') {
-    if (!['email', 'whatsapp', 'in_app', 'progress_report_delivery'].includes(String(row.job_type))) {
+    if (!['email', 'whatsapp', 'in_app', 'assignment_release', 'progress_report_delivery'].includes(String(row.job_type))) {
       return NextResponse.json({ error: 'This dead-letter type requires manual resolution.' }, { status: 400 });
     }
     const rawPayload = (row.payload && typeof row.payload === 'object' ? row.payload : {}) as Record<string, unknown>;
@@ -394,6 +395,14 @@ export async function PATCH(req: NextRequest) {
           created_at: now,
           updated_at: now,
         }), 'Retry in-app notification');
+      } else if (row.job_type === 'assignment_release') {
+        const assignmentId = String(payload.assignmentId || '');
+        if (!assignmentId) throw new Error('The assignment reference is missing.');
+        const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
+        const result = await triggerAssignmentReleaseNotifications(assignmentId, actor.user.id);
+        if (result.status === 'failed') {
+          throw new Error(result.error || 'Assignment learner alerts still require recovery.');
+        }
       } else {
         const reportId = String(payload.reportId || '');
         if (!reportId) throw new Error('The progress report reference is missing.');

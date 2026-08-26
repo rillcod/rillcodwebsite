@@ -12,6 +12,7 @@ import {
   resolveOfficialCurriculumDirection,
   resolveOfficialDeliverySchedule,
 } from "@/lib/curriculum/official-direction";
+import { fallbackScheduleRow } from "@/lib/academic/entry-point";
 
 async function getUser() {
   const supabase = await createClient();
@@ -483,14 +484,11 @@ export async function POST(request: Request) {
         classId: class_id,
         courseId: course_id,
         releaseId: officialDirection.id,
-      })) ?? {
-        entry_term_number:
-          officialDirection.effective_term_number ?? calendarTerm,
-        entry_week_number: 1,
-        curriculum_year_number: targetYear,
-        curriculum_term_number: 1,
-        curriculum_week_number: 1,
-      };
+      })) ??
+        fallbackScheduleRow({
+          entryTerm: officialDirection.effective_term_number ?? calendarTerm,
+          curriculumYear: targetYear,
+        });
       autoPlanData = {
         ...autoPlanData,
         academic_direction: {

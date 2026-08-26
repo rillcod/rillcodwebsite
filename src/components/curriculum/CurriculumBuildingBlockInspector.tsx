@@ -1,17 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  AcademicCapIcon, BookOpenIcon, CalendarDaysIcon,
-  UserGroupIcon, ChevronRightIcon, InformationCircleIcon,
-  CheckCircleIcon, SparklesIcon, TagIcon
-} from '@/lib/icons';
+import { BookOpenIcon, CheckCircleIcon, SparklesIcon } from '@/lib/icons';
 
 interface CurriculumBuildingBlockInspectorProps {
   programs: any[];
   courses: any[];
   curricula: any[];
   onSelectCourse: (program: any, course: any) => void;
+}
+
+function curriculumCopyLabel(curriculum: any) {
+  const owner = curriculum.schools?.name || 'Shared curriculum';
+  return `${owner} · Version ${curriculum.version ?? 1}`;
 }
 
 export function CurriculumBuildingBlockInspector({
@@ -22,259 +23,214 @@ export function CurriculumBuildingBlockInspector({
 }: CurriculumBuildingBlockInspectorProps) {
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [selectedCurriculumId, setSelectedCurriculumId] = useState<string | null>(null);
 
-  const activeProgram = programs.find((p) => p.id === selectedProgramId) || programs[0] || null;
+  const activeProgram = programs.find((program) => program.id === selectedProgramId)
+    || programs[0]
+    || null;
   const programCourses = activeProgram
-    ? courses.filter((c) => c.program_id === activeProgram.id)
-    : courses;
-
-  const activeCourse = courses.find((c) => c.id === selectedCourseId) || programCourses[0] || null;
-  const courseCurricula = activeCourse
-    ? curricula.filter((curr) => curr.course_id === activeCourse.id)
+    ? courses.filter((course) => course.program_id === activeProgram.id)
     : [];
+  const activeCourse = programCourses.find((course) => course.id === selectedCourseId)
+    || programCourses[0]
+    || null;
+  const courseCurricula = activeCourse
+    ? curricula
+        .filter((curriculum) => curriculum.course_id === activeCourse.id)
+        .sort((left, right) => {
+          const versionDifference = Number(right.version ?? 0) - Number(left.version ?? 0);
+          if (versionDifference !== 0) return versionDifference;
+          return String(right.created_at ?? '').localeCompare(String(left.created_at ?? ''));
+        })
+    : [];
+  const activeCurriculum = courseCurricula.find((curriculum) => curriculum.id === selectedCurriculumId)
+    || courseCurricula[0]
+    || null;
+  const terms = Array.isArray(activeCurriculum?.content?.terms)
+    ? activeCurriculum.content.terms
+    : [];
+  const weekCount = terms.reduce(
+    (total: number, term: any) => total + (Array.isArray(term.weeks) ? term.weeks.length : 0),
+    0,
+  );
+
+  function chooseProgram(programId: string) {
+    setSelectedProgramId(programId);
+    const firstCourse = courses.find((course) => course.program_id === programId);
+    setSelectedCourseId(firstCourse?.id ?? null);
+    setSelectedCurriculumId(null);
+  }
+
+  function chooseCourse(courseId: string) {
+    setSelectedCourseId(courseId);
+    setSelectedCurriculumId(null);
+  }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Sleek Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-red-600/10 via-primary/10 to-muted border border-border p-6 backdrop-blur-xl shadow-lg">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/30">
-                <SparklesIcon className="w-3.5 h-3.5" />
-                Building Block Inspector
-              </span>
-              <span className="text-xs font-bold text-muted-foreground bg-background/60 px-3 py-1 rounded-full border border-border">
-                5-Tier Dependency Map
-              </span>
-            </div>
-            <h1 className="text-2xl font-black text-foreground uppercase tracking-tight">
-              Curriculum Building Blocks &amp; Hierarchy
-            </h1>
-            <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-              Step-by-step visual dependency tree connecting <strong className="text-foreground">Program ➔ Course ➔ Academic Term ➔ Weeks &amp; Lessons ➔ Linked Classes</strong> in plain English.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <header className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <p className="text-xs font-black uppercase tracking-widest text-primary">Curriculum overview</p>
+        <h1 className="mt-2 text-2xl font-black text-foreground">See the full learning journey</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+          Choose a programme and course to read every term and week in order. Open the editor only when you need to change the plan.
+        </p>
+      </header>
 
-      {/* Step 1: Program Selector */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-black shadow-md">
-            1
-          </div>
-          <h2 className="text-sm font-black text-foreground uppercase tracking-wider">
-            Select Academic Program ({programs.length} Available)
-          </h2>
-        </div>
+      <section className="grid gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
+        <label className="text-sm font-bold text-foreground">
+          Programme
+          <select
+            value={activeProgram?.id ?? ''}
+            onChange={(event) => chooseProgram(event.target.value)}
+            className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
+          >
+            {programs.length === 0 && <option value="">No programmes available</option>}
+            {programs.map((program) => (
+              <option key={program.id} value={program.id}>{program.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-bold text-foreground">
+          Course
+          <select
+            value={activeCourse?.id ?? ''}
+            onChange={(event) => chooseCourse(event.target.value)}
+            disabled={programCourses.length === 0}
+            className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal disabled:opacity-60"
+          >
+            {programCourses.length === 0 && <option value="">No courses in this programme</option>}
+            {programCourses.map((course) => (
+              <option key={course.id} value={course.id}>{course.title}</option>
+            ))}
+          </select>
+        </label>
+      </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {programs.map((prog) => {
-            const isSelected = activeProgram?.id === prog.id;
-            const courseCount = courses.filter((c) => c.program_id === prog.id).length;
+      {activeCourse && !activeCurriculum && (
+        <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+          <BookOpenIcon className="mx-auto h-10 w-10 text-muted-foreground/40" />
+          <h2 className="mt-3 font-black text-foreground">No curriculum for {activeCourse.title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Open the editor to create its terms and weeks.</p>
+          <button
+            type="button"
+            onClick={() => onSelectCourse(activeProgram, activeCourse)}
+            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground"
+          >
+            <SparklesIcon className="h-4 w-4" />
+            Open editor
+          </button>
+        </section>
+      )}
 
-            return (
-              <button
-                key={prog.id}
-                type="button"
-                onClick={() => {
-                  setSelectedProgramId(prog.id);
-                  const firstCourse = courses.find((c) => c.program_id === prog.id);
-                  if (firstCourse) setSelectedCourseId(firstCourse.id);
-                }}
-                className={`group text-left p-4 rounded-2xl border transition-all duration-300 ${
-                  isSelected
-                    ? 'bg-primary/10 border-primary shadow-lg ring-2 ring-primary/20'
-                    : 'bg-card border-border hover:border-primary/40 hover:shadow-md'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`p-2 rounded-xl transition-colors ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:text-foreground'}`}>
-                    <AcademicCapIcon className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 bg-muted/80 rounded-full border border-border">
-                    {courseCount} Course(s)
+      {activeCurriculum && (
+        <>
+          <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-widest text-primary">
+                  {activeProgram?.name || 'Programme'}
+                </p>
+                <h2 className="mt-1 text-xl font-black text-foreground">{activeCourse.title}</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {activeCurriculum.content?.overview
+                    || activeCurriculum.content?.description
+                    || activeCurriculum.description
+                    || 'The approved sequence of learning for this course.'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-full bg-muted px-3 py-1 text-foreground">
+                    {terms.length} term{terms.length === 1 ? '' : 's'}
+                  </span>
+                  <span className="rounded-full bg-muted px-3 py-1 text-foreground">
+                    {weekCount} week{weekCount === 1 ? '' : 's'}
+                  </span>
+                  <span className={`rounded-full px-3 py-1 ${activeCurriculum.is_visible_to_school ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>
+                    {activeCurriculum.is_visible_to_school ? 'Visible to schools' : 'Draft'}
                   </span>
                 </div>
-                <p className="text-sm font-black text-foreground truncate">{prog.name}</p>
-                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
-                  {prog.description || 'Standard Academic Track'}
-                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSelectCourse(activeProgram, activeCourse)}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-primary-foreground"
+              >
+                Open editor
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Step 2 & 3: Course & Term Breakdown */}
-      {activeProgram && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t border-border">
-          {/* Left Column: Courses in this program */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-black shadow-md">
-                2
-              </div>
-              <h3 className="text-sm font-black text-foreground uppercase tracking-wider truncate">
-                Courses in &quot;{activeProgram.name}&quot;
-              </h3>
             </div>
 
-            <div className="space-y-2 max-h-[550px] overflow-y-auto custom-scrollbar pr-1">
-              {programCourses.length === 0 ? (
-                <div className="p-6 border border-dashed border-border rounded-2xl text-center space-y-1">
-                  <p className="text-xs text-muted-foreground font-bold">No courses assigned to this program yet.</p>
-                </div>
-              ) : (
-                programCourses.map((c) => {
-                  const isSelected = activeCourse?.id === c.id;
-                  const currs = curricula.filter((curr) => curr.course_id === c.id);
-
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSelectedCourseId(c.id)}
-                      className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 ${
-                        isSelected
-                          ? 'bg-primary/10 border-primary shadow-md'
-                          : 'bg-card border-border hover:border-primary/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black text-foreground truncate">{c.title}</p>
-                        <ChevronRightIcon className={`w-4 h-4 transition-transform ${isSelected ? 'text-primary translate-x-1' : 'text-muted-foreground/40'}`} />
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[10px] font-bold text-muted-foreground">
-                          {currs.length} Curriculum Copy(ies)
-                        </span>
-                        {currs.some((curr) => curr.is_visible_to_school) && (
-                          <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            Published
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Middle & Right Column: Term Building Blocks for Selected Course */}
-          <div className="lg:col-span-2 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-black shadow-md">
-                  3
-                </div>
-                <h3 className="text-sm font-black text-foreground uppercase tracking-wider truncate">
-                  Academic Terms &amp; Weeks ({activeCourse?.title || 'Selected Course'})
-                </h3>
-              </div>
-
-              {activeCourse && (
-                <button
-                  type="button"
-                  onClick={() => onSelectCourse(activeProgram, activeCourse)}
-                  className="px-4 py-2 bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider rounded-xl hover:bg-primary/90 transition shadow-md flex items-center gap-1.5"
+            {courseCurricula.length > 1 && (
+              <label className="mt-5 block max-w-md text-sm font-bold text-foreground">
+                Curriculum copy
+                <select
+                  value={activeCurriculum.id}
+                  onChange={(event) => setSelectedCurriculumId(event.target.value)}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-normal"
                 >
-                  <SparklesIcon className="w-3.5 h-3.5" /> Open in Builder &rarr;
-                </button>
-              )}
-            </div>
-
-            {courseCurricula.length === 0 ? (
-              <div className="p-10 border border-dashed border-border rounded-2xl text-center space-y-4 shadow-inner">
-                <BookOpenIcon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-                <div className="space-y-1">
-                  <p className="text-base font-black text-foreground">No Curriculum Generated for {activeCourse?.title}</p>
-                  <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                    This course does not have a generated syllabus yet. Click &quot;Open in Builder&quot; above to create a 3-term academic curriculum for this course.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {courseCurricula.map((curr) => {
-                  const terms = curr.content?.terms ?? [];
-
-                  return (
-                    <div key={curr.id} className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
-                        <div>
-                          <span className="text-[10px] font-black text-brand-red-600 uppercase tracking-widest bg-brand-red-600/10 px-2.5 py-0.5 rounded-full border border-brand-red-600/20">
-                            Curriculum Version {curr.version ?? 1}
-                          </span>
-                          <h4 className="text-base font-black text-foreground mt-1">
-                            {curr.content?.description || curr.courses?.title || 'Course Syllabus'}
-                          </h4>
-                        </div>
-                        <span
-                          className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border shadow-sm ${
-                            curr.is_visible_to_school
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                          }`}
-                        >
-                          {curr.is_visible_to_school ? '✓ Visible to Schools' : '🔒 Hidden (Draft)'}
-                        </span>
-                      </div>
-
-                      {/* Terms Breakdown */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[1, 2, 3].map((termNum) => {
-                          const termObj = terms.find((t: any) => t.term === termNum);
-                          const termLabel =
-                            termNum === 1 ? 'First Term (Foundations)' : termNum === 2 ? 'Second Term (Application)' : 'Third Term (Innovation)';
-
-                          return (
-                            <div
-                              key={termNum}
-                              className={`p-4 rounded-2xl border space-y-3 transition-all ${
-                                termObj
-                                  ? 'bg-muted/20 border-border hover:border-primary/40 shadow-sm'
-                                  : 'bg-muted/5 border-dashed border-border/60 opacity-60'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black text-primary uppercase tracking-wider">
-                                  {termLabel}
-                                </span>
-                                {termObj && <CheckCircleIcon className="w-4 h-4 text-emerald-400" />}
-                              </div>
-
-                              {termObj ? (
-                                <>
-                                  <p className="text-xs font-bold text-foreground">
-                                    {(termObj.weeks ?? []).length} Weekly Sessions
-                                  </p>
-                                  <div className="text-[11px] text-muted-foreground space-y-1 pt-2 border-t border-border/40 max-h-32 overflow-y-auto custom-scrollbar">
-                                    {(termObj.weeks ?? []).slice(0, 4).map((w: any) => (
-                                      <div key={w.week} className="truncate">
-                                        <span className="font-bold text-foreground">W{w.week}:</span> {w.topic || w.type}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </>
-                              ) : (
-                                <p className="text-[10px] text-muted-foreground font-bold italic pt-2">
-                                  Term content pending generation
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  {courseCurricula.map((curriculum) => (
+                    <option key={curriculum.id} value={curriculum.id}>
+                      {curriculumCopyLabel(curriculum)}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
-          </div>
-        </div>
+          </section>
+
+          <section className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-5">
+            <h2 className="font-black text-foreground">How changes reach classes</h2>
+            <div className="mt-3 grid gap-3 text-sm leading-6 text-muted-foreground sm:grid-cols-3">
+              <p><strong className="text-foreground">1. Save:</strong> changes stay in this draft.</p>
+              <p><strong className="text-foreground">2. Publish:</strong> a new approved version becomes available to future class plans.</p>
+              <p><strong className="text-foreground">3. Protect teaching:</strong> classes already in progress keep their current version, so lessons, submissions and scores do not change midway.</p>
+            </div>
+          </section>
+
+          <section className="space-y-3" aria-label="Terms and weeks">
+            {terms.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
+                This curriculum has no terms or weeks yet. Open the editor to add them.
+              </div>
+            ) : terms.map((term: any, index: number) => {
+              const weeks = Array.isArray(term.weeks) ? term.weeks : [];
+              return (
+                <details key={`${term.term ?? index}-${term.year ?? ''}`} open={index === 0} className="group rounded-2xl border border-border bg-card">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 sm:px-5 [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0">
+                      <span className="block font-black text-foreground">
+                        {term.title || `Term ${term.term ?? index + 1}`}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {weeks.length} week{weeks.length === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    <span className="text-xs font-black text-primary group-open:hidden">Show weeks</span>
+                    <span className="hidden text-xs font-black text-primary group-open:inline">Hide weeks</span>
+                  </summary>
+                  <div className="space-y-2 border-t border-border p-3 sm:p-4">
+                    {weeks.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">No weeks have been added to this term.</p>
+                    ) : weeks.map((week: any, weekIndex: number) => (
+                      <div key={`${week.week ?? weekIndex}-${week.topic ?? ''}`} className="flex items-start gap-3 rounded-xl border border-border px-3 py-3 sm:px-4">
+                        <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                          {week.week ?? weekIndex + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-foreground">{week.topic || 'Topic not added yet'}</p>
+                          {(week.subtopics ?? []).length > 0 && (
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{week.subtopics.join(' · ')}</p>
+                          )}
+                        </div>
+                        {week.lesson_plan || week.assessment_plan ? (
+                          <CheckCircleIcon className="mt-1 h-4 w-4 shrink-0 text-emerald-600" aria-label="Plan included" />
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              );
+            })}
+          </section>
+        </>
       )}
     </div>
   );

@@ -9,6 +9,7 @@
  * 5. Stored course_name / course_id (when programme agrees)
  */
 import { inferProgramme } from '@/lib/classes/naming';
+import { homeCourseTitle, schoolProgrammeOf } from '@/lib/courses/school-pathway';
 
 export type CourseCatalogRow = {
   id: string;
@@ -59,7 +60,16 @@ type ClassCourseHint = {
 
 const INTRO_COURSE_PATTERN = /intro(duction)?|hello world|introduction to computers/i;
 
-const CLASS_COURSE_HINTS: ClassCourseHint[] = [
+/** Course named in the class label — wins over the band's default home course. */
+const KEYWORD_COURSE_HINTS: ClassCourseHint[] = [
+  { classPattern: /scratch/i, coursePattern: /scratch/i },
+  { classPattern: /python/i, coursePattern: /python/i },
+  { classPattern: /html|css/i, coursePattern: /html|css/i },
+  { classPattern: /robot/i, coursePattern: /robot/i },
+  { classPattern: /javascript|js\b/i, coursePattern: /javascript|js\b/i },
+];
+
+const PROGRAMME_COURSE_HINTS: ClassCourseHint[] = [
   { classPattern: /teen\s*dev/i, coursePattern: /python/i },
   {
     classPattern: /young\s*innov/i,
@@ -68,12 +78,9 @@ const CLASS_COURSE_HINTS: ClassCourseHint[] = [
   },
   { classPattern: /web\s*dev/i, coursePattern: /web/i },
   { classPattern: /data\s*anal/i, coursePattern: /python|data/i },
-  { classPattern: /scratch/i, coursePattern: /scratch/i },
-  { classPattern: /python/i, coursePattern: /python/i },
-  { classPattern: /html|css/i, coursePattern: /html|css/i },
-  { classPattern: /robot/i, coursePattern: /robot/i },
-  { classPattern: /javascript|js\b/i, coursePattern: /javascript|js\b/i },
 ];
+
+const CLASS_COURSE_HINTS: ClassCourseHint[] = [...KEYWORD_COURSE_HINTS, ...PROGRAMME_COURSE_HINTS];
 
 const STOP_WORDS = new Set([
   'course', 'coding', 'with', 'programme', 'program', 'beginners', 'creative', 'intensive',
@@ -121,10 +128,26 @@ function programmeNameFromCourse(course: CourseCatalogRow): string {
   return normalizeProgrammeLabel(String(progRel?.name || ''));
 }
 
-function programmeNameFromClassInput(cls: ClassCourseLinkInput): string {
+function programmeNameFromClassInput(cls: ClassCourseLinkInput): string | null {
   const rel = cls.programmes || cls.programs;
   const progRel = Array.isArray(rel) ? rel[0] : rel;
-  return normalizeProgrammeLabel(String(progRel?.name || ''));
+  const name = String(progRel?.name || '').trim();
+  if (!name) return null;
+  return normalizeProgrammeLabel(name);
+}
+
+function firstMatchingHint(
+  label: string,
+  candidates: CourseCatalogRow[],
+  hints: ClassCourseHint[],
+): CourseCatalogRow | null {
+  const normalized = String(label || '').trim().toLowerCase();
+  for (const hint of hints) {
+    if (!labelMatchesCourseHint(normalized, hint)) continue;
+    const match = candidates.find((course) => hint.coursePattern.test(courseTitle(course)));
+    if (match) return match;
+  }
+  return null;
 }
 
 function isActiveCourse<T extends { id?: string | null; is_active?: boolean | null }>(
@@ -158,11 +181,20 @@ export function matchCourseFromCatalog(
     if (scoped.length) candidates = scoped;
   }
 
-  for (const hint of CLASS_COURSE_HINTS) {
-    if (!labelMatchesCourseHint(normalized, hint)) continue;
-    const match = candidates.find((course) => hint.coursePattern.test(courseTitle(course)));
-    if (match) return match;
+  const keywordMatch = firstMatchingHint(normalized, candidates, KEYWORD_COURSE_HINTS);
+  if (keywordMatch) return keywordMatch;
+
+  const homeTitle = homeCourseTitle({
+    programme: schoolProgrammeOf(opts?.programmeHint) || programmeFromClassLabel(label),
+    className: label,
+  });
+  if (homeTitle) {
+    const home = candidates.find((course) => courseTitle(course) === homeTitle);
+    if (home) return home;
   }
+
+  const programmeMatch = firstMatchingHint(normalized, candidates, PROGRAMME_COURSE_HINTS);
+  if (programmeMatch) return programmeMatch;
 
   for (const course of candidates) {
     if (INTRO_COURSE_PATTERN.test(courseTitle(course))) continue;
@@ -241,8 +273,13 @@ export function resolveClassLinkedCourse(
 ): CourseCatalogRow | null {
   const className = String(cls.name || '');
   const programId = cls.program_id ? String(cls.program_id) : null;
-  const programmeHint = programmeNameFromClassInput(cls)
-    || (className ? programmeFromClassLabel(className) : null);
+  const storedProgramme = programmeNameFromClassInput(cls);
+  const labelProgramme = className ? programmeFromClassLabel(className) : null;
+  const labelSchool = schoolProgrammeOf(labelProgramme);
+  const storedConflicts = Boolean(
+    labelSchool && storedProgramme && normalizeProgrammeLabel(storedProgramme) !== labelSchool,
+  );
+  const programmeHint = (storedConflicts ? labelSchool : null) || storedProgramme || labelProgramme;
 
   let programCourses = programId
     ? catalog.filter((course) => course.program_id === programId && isActiveCourse(course))
@@ -250,6 +287,17 @@ export function resolveClassLinkedCourse(
   if (programmeHint && programCourses.length) {
     const scoped = programCourses.filter((course) => programmeNameFromCourse(course) === programmeHint);
     if (scoped.length) programCourses = scoped;
+  }
+
+  // Bayflower-style mis-tag: class is Teen Dev but stored under another programme.
+  // Look at the whole catalogue when the home course lives outside the stored programme.
+  const homeTitle = homeCourseTitle({ programme: labelSchool || programmeHint, className });
+  if (
+    homeTitle
+    && !programCourses.some((course) => courseTitle(course) === homeTitle)
+    && catalog.some((course) => isActiveCourse(course) && courseTitle(course) === homeTitle)
+  ) {
+    programCourses = catalog.filter(isActiveCourse);
   }
 
   const nameMatch = programCourses.length
@@ -279,22 +327,32 @@ export function resolveClassCourseForScope(
   coursesByProgram: Map<string, CourseCatalogRow[]>,
 ): ResolvedClassCourse | null {
   const programmeId = cls.program_id ? String(cls.program_id) : null;
-  const catalog = programmeId
+  const className = String(cls.name || '');
+  const labelSchool = schoolProgrammeOf(programmeFromClassLabel(className));
+  const homeTitle = homeCourseTitle({ programme: labelSchool, className });
+  let catalog = programmeId
     ? coursesByProgram.get(programmeId) || []
     : [...courseById.values()];
+  if (
+    homeTitle
+    && !catalog.some((course) => courseTitle(course) === homeTitle)
+    && [...courseById.values()].some((course) => courseTitle(course) === homeTitle)
+  ) {
+    catalog = [...courseById.values()];
+  }
   const linked = resolveClassLinkedCourse(cls, catalog.length ? catalog : [...courseById.values()]);
   if (!linked) return null;
 
   let programme = programmeNameFromCourse(linked);
   if (!programme || programme === 'Programme') {
-    programme = programmeFromClassLabel(String(cls.name || '')) || programme;
+    programme = programmeFromClassLabel(className) || programme;
   }
 
   return {
     programme,
     course: courseTitle(linked),
     courseId: linked.id,
-    programmeId,
+    programmeId: linked.program_id ? String(linked.program_id) : programmeId,
     source: 'class_label',
   };
 }
@@ -323,9 +381,9 @@ function labelsConflictWithCourseField(
 function inferProgrammeFromCourseTitle(courseName: string | null | undefined): string | null {
   const lower = String(courseName || '').trim().toLowerCase();
   if (!lower) return null;
-  if (/python|javascript|html|css|web|data anal/.test(lower)) return 'Teen Developers';
-  if (/scratch|robot/.test(lower)) return 'Young Innovators';
-  return null;
+  if (/python|javascript|html|css|web|data anal|arduino|prototyping|electronics/.test(lower)) return 'Teen Developers';
+  if (/scratch|robot|hello world|digital art|digital citizenship|mini-maker/.test(lower)) return 'Young Innovators';
+  return schoolProgrammeOf(lower);
 }
 
 export function courseConflictsWithClassSection(input: {

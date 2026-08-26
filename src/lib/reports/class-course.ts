@@ -5,10 +5,12 @@ import {
   type ClassCourseLinkInput,
   type CourseCatalogRow,
   courseConflictsWithClassSection,
+  programmeFromClassLabel,
   reconcileCourseWithClassSection,
   resolveClassLinkedCourse,
   resolveLinkedCourseForClass,
 } from '@/lib/courses/class-course-resolution';
+import { homeCourseTitle, schoolProgrammeOf } from '@/lib/courses/school-pathway';
 
 export type ReportCourseOption = CourseCatalogRow;
 export type { ClassCourseLinkInput };
@@ -83,7 +85,14 @@ export async function reconcileReportCourseFromClassContext(
       ? (await admin.from('courses').select('program_id').eq('id', String(payload.course_id)).maybeSingle())
           .data?.program_id
       : null);
-  const catalog = await loadActiveCoursesForProgram(admin, programId as string | null);
+  let catalog = await loadActiveCoursesForProgram(admin, programId as string | null);
+  const homeTitle = homeCourseTitle({
+    programme: schoolProgrammeOf(programmeFromClassLabel(String(classRow.name || ''))),
+    className: classRow.name,
+  });
+  if (homeTitle && !catalog.some((course) => String(course.title || '') === homeTitle)) {
+    catalog = await loadActiveCoursesForProgram(admin, null);
+  }
   const reconciled = reconcileCourseWithClassSection(
     {
       course_id: payload.course_id ?? null,

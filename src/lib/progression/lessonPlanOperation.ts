@@ -22,8 +22,9 @@ function getYearTermFromWeek(
   fallbackTerm?: number | null,
 ) {
   const syllabusRef = asObject(week.syllabus_ref);
-  const year = Number(syllabusRef.year_number ?? fallbackYear ?? 0);
-  const term = Number(syllabusRef.term_number ?? fallbackTerm ?? 0);
+  const official = asObject(week.official_position);
+  const year = Number(syllabusRef.year_number ?? official.programme_year ?? fallbackYear ?? 0);
+  const term = Number(syllabusRef.term_number ?? official.programme_term ?? fallbackTerm ?? 0);
   return {
     year: Number.isFinite(year) && year > 0 ? year : null,
     term: Number.isFinite(term) && term > 0 ? term : null,
@@ -160,12 +161,19 @@ export function filterPlanOperationWeeks(
 }
 
 export function parseWeekTermRefs(
-  week: { syllabus_ref?: { year_number?: number; term_number?: number } },
+  week: {
+    syllabus_ref?: { year_number?: number; term_number?: number };
+    official_position?: { programme_year?: number; programme_term?: number };
+  },
   planTermNum: number,
   fallbackYear: number = 1,
 ): { yearNumber: number; termNumber: number; effectiveTermNum: number } {
-  const yearNumber = Number(week.syllabus_ref?.year_number ?? fallbackYear);
-  const termNumber = Number(week.syllabus_ref?.term_number ?? planTermNum);
+  const yearNumber = Number(
+    week.syllabus_ref?.year_number ?? week.official_position?.programme_year ?? fallbackYear,
+  );
+  const termNumber = Number(
+    week.syllabus_ref?.term_number ?? week.official_position?.programme_term ?? planTermNum,
+  );
   const effectiveTermNum = Number.isFinite(termNumber) && termNumber > 0 ? termNumber : planTermNum;
   return { yearNumber, termNumber, effectiveTermNum };
 }

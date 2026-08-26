@@ -311,11 +311,19 @@ export async function runAcademicReadinessAutomation(
           ? humanTermLabel(Number(term?.term_number) || 1)
           : period?.label ?? 'Delivery period';
 
+        const capturedYear = Number(
+          (mappedWeeks[0] as { official_position?: { programme_year?: number } } | undefined)
+            ?.official_position?.programme_year,
+        );
+        const programmeYear =
+          Number.isInteger(capturedYear) && capturedYear >= 1 ? capturedYear : undefined;
+
         const { mergePlanWithRelease } = await import('@/lib/academic/plan-from-release');
         const mergedData = mergePlanWithRelease({
           existingPlanData: currentPlanData as any,
           releaseContent: direction.content as any,
           termLabel,
+          programmeYear,
         });
         const weeks = mergedData?.weeks ?? mappedWeeks;
 
@@ -334,6 +342,7 @@ export async function runAcademicReadinessAutomation(
               current_term: termLabel,
             },
             starts_at_week: Number(schedule.entry_week_number) || 1,
+            ...(programmeYear ? { curriculum_year: programmeYear } : {}),
             weeks,
           },
           metadata: {

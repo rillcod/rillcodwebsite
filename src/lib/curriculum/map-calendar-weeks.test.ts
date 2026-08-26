@@ -55,7 +55,7 @@ describe("mapping an official curriculum onto class plan weeks", () => {
       ...BASE,
       content: content([
         { term: 1, weeks: [{ week: 1, topic: "A" }] },
-        { term: 3, year: 2, weeks: [{ week: 5, topic: "B" }] },
+        { term: 3, weeks: [{ week: 5, topic: "B" }] },
       ]),
     });
     expect(weeks[0].official_position).toMatchObject({
@@ -64,10 +64,36 @@ describe("mapping an official curriculum onto class plan weeks", () => {
       programme_week: 1,
     });
     expect(weeks[1].official_position).toMatchObject({
-      programme_year: 2,
+      programme_year: 1,
       programme_term: 3,
       programme_week: 5,
     });
+  });
+
+  it("when the syllabus spans years, keeps only the session's programme year", () => {
+    // Same capture as sessionAwareSchedule: 2025/2026 Third Term entry →
+    // 2026/2027 Third Term is Programme Year 2. The mapper used to dump every
+    // year into the plan, so Year 2 First Term was indistinguishable from Year 1.
+    const weeks = mapOfficialCurriculumToCalendarWeeks({
+      directionAcademicSession: "2025/2026",
+      currentAcademicSession: "2026/2027",
+      calendarTerm: 3,
+      schedule: {
+        entry_term_number: 3,
+        entry_week_number: 1,
+        curriculum_year_number: 1,
+        curriculum_term_number: 1,
+        curriculum_week_number: 1,
+      },
+      content: content([
+        { year: 1, term: 1, weeks: [{ week: 1, topic: "Y1T1" }] },
+        { year: 1, term: 3, weeks: [{ week: 9, topic: "Y1T3" }] },
+        { year: 2, term: 1, weeks: [{ week: 1, topic: "Y2T1" }] },
+        { year: 2, term: 3, weeks: [{ week: 9, topic: "Y2T3" }] },
+      ]),
+    });
+    expect(weeks.map((w) => (w.official_position as { programme_year: number }).programme_year)).toEqual([2, 2]);
+    expect(weeks.map((w) => w.topic)).toEqual(["Y2T1", "Y2T3"]);
   });
 
   it("never repeats a week number when terms restart at 1", () => {

@@ -135,6 +135,48 @@ describe('recommendCourse', () => {
     expect(out.recommended).toBeNull();
     expect(out.confidence).toBe('none');
   });
+
+  it('keeps Scratch as the adopted home for a Basic 2 Young Innovators class', () => {
+    const out = recommendCourse({
+      grade: 'Basic 2',
+      classLabel: 'Franej · Young Innov · Basic 1-3',
+      courses: [
+        course('hello', 'Hello World: Introduction to Computers', {
+          programmeName: 'Young Innovators',
+          gradeLevels: ['Nursery 1-3', 'Basic 1'],
+          hasPublishedRelease: true,
+        }),
+        course('scratch', 'Creative Coding with Scratch', {
+          programmeName: 'Young Innovators',
+          adopted: true,
+          hasPublishedRelease: true,
+          gradeLevels: ['Basic 1-3', 'Basic 2'],
+        }),
+      ],
+    });
+    expect(out.recommended?.id).toBe('scratch');
+  });
+
+  it('keeps Scratch as the teachable Nursery course until Hello World has an edition', () => {
+    const out = recommendCourse({
+      grade: 'Nursery 1-3',
+      classLabel: 'Royhills · Young Innov · Nursery 1-3',
+      courses: [
+        course('hello', 'Hello World: Introduction to Computers', {
+          programmeName: 'Young Innovators',
+          gradeLevels: ['Nursery 1-3'],
+        }),
+        course('scratch', 'Creative Coding with Scratch', {
+          programmeName: 'Young Innovators',
+          adopted: true,
+          hasPublishedRelease: true,
+          gradeLevels: ['Nursery 1-3', 'Basic 1-3'],
+        }),
+      ],
+    });
+    expect(out.recommended?.id).toBe('scratch');
+    expect(out.recommended?.teachable).toBe(true);
+  });
 });
 
 describe('gradeFitFor', () => {

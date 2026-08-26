@@ -499,9 +499,12 @@ export async function POST(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    let notificationResult: Awaited<ReturnType<
+      typeof import('@/lib/assignments/notifications')['triggerAssignmentReleaseNotifications']
+    >> | null = null;
     if (data.is_active) {
       const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
-      triggerAssignmentReleaseNotifications(data.id, caller.id).catch(console.error);
+      notificationResult = await triggerAssignmentReleaseNotifications(data.id, caller.id);
     }
 
     await logAudit(admin as any, {
@@ -522,7 +525,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({
+      data,
+      ...(notificationResult ? { notification: notificationResult } : {}),
+      ...(notificationResult?.status === 'failed'
+        ? {
+            warning: 'The assignment is visible to students, but one or more alerts were not sent. An administrator can resend them from Office.',
+          }
+        : {}),
+    }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

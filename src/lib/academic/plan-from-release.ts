@@ -23,6 +23,7 @@ export type ReleaseWeek = {
 };
 
 export type ReleaseTerm = {
+  year?: unknown;
   term?: unknown;
   title?: unknown;
   weeks?: ReleaseWeek[] | null;
@@ -66,9 +67,15 @@ export function termNumberFrom(termLabel: string | null | undefined): number | n
  * class exactly where it started — unable to generate. A plan built from the
  * first available term is a teacher's starting point; no plan is a dead end.
  */
+function termProgrammeYear(term: ReleaseTerm | undefined): number {
+  const year = Number(term?.year ?? 1);
+  return Number.isInteger(year) && year >= 1 ? year : 1;
+}
+
 export function planDataForTerm(
   content: ReleaseContent | null | undefined,
   termLabel: string | null | undefined,
+  programmeYear?: number | null,
 ): PlanData | null {
   if (!content || typeof content !== 'object') return null;
 
@@ -87,8 +94,17 @@ export function planDataForTerm(
   // otherwise win the match and produce a plan with nothing in it, which
   // generates exactly as much as no plan at all.
   const wanted = termNumberFrom(termLabel);
+  const wantedYear =
+    Number.isInteger(Number(programmeYear)) && Number(programmeYear) >= 1
+      ? Number(programmeYear)
+      : null;
   const match = wanted !== null
-    ? terms.find((t) => Number(t?.term) === wanted && hasWeeks(t))
+    ? (
+        wantedYear !== null
+          ? terms.find((t) => Number(t?.term) === wanted && termProgrammeYear(t) === wantedYear && hasWeeks(t))
+            ?? terms.find((t) => Number(t?.term) === wanted && hasWeeks(t))
+          : terms.find((t) => Number(t?.term) === wanted && hasWeeks(t))
+      )
     : undefined;
 
   const chosen = match ?? terms.find(hasWeeks);
@@ -178,8 +194,9 @@ export function mergePlanWithRelease(input: {
   existingPlanData: PlanData | null | undefined;
   releaseContent: ReleaseContent | null | undefined;
   termLabel: string | null | undefined;
+  programmeYear?: number | null;
 }): PlanData | null {
-  const freshData = planDataForTerm(input.releaseContent, input.termLabel);
+  const freshData = planDataForTerm(input.releaseContent, input.termLabel, input.programmeYear);
   if (!freshData) return input.existingPlanData ?? null;
   if (!input.existingPlanData || !Array.isArray(input.existingPlanData.weeks)) {
     return freshData;

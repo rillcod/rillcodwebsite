@@ -11,6 +11,7 @@ import {
   humanTermLabel,
 } from '@/lib/curriculum/humanLabels';
 import { requireGovernanceActor } from '@/lib/curriculum/governance-server';
+import { fallbackScheduleRow, readDeliveryPosition } from '@/lib/academic/entry-point';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,20 +77,12 @@ export async function GET(req: NextRequest) {
   const schoolDefault = (schedules ?? []).find((row: any) => !row.class_id) ?? null;
   const classOverride = (schedules ?? []).find((row: any) => row.class_id === classId) ?? null;
   const academicTerm: any = relation(klass.academic_terms);
-  const rawSchedule: any = effectiveDeliverySchedule({ schoolDefault, classOverride }) ?? {
-    entry_term_number: academicTerm?.term_number ?? release.effective_term_number ?? 1,
-    entry_week_number: 1,
-    curriculum_year_number: 1,
-    curriculum_term_number: 1,
-    curriculum_week_number: 1,
-  };
-  const schedule = {
-    entryTerm: Number(rawSchedule.entry_term_number ?? 1),
-    entryWeek: Number(rawSchedule.entry_week_number ?? 1),
-    curriculumYear: Number(rawSchedule.curriculum_year_number ?? 1),
-    curriculumTerm: Number(rawSchedule.curriculum_term_number ?? 1),
-    curriculumWeek: Number(rawSchedule.curriculum_week_number ?? 1),
-  };
+  const rawSchedule: any =
+    effectiveDeliverySchedule({ schoolDefault, classOverride }) ??
+    fallbackScheduleRow({
+      entryTerm: academicTerm?.term_number ?? release.effective_term_number,
+    });
+  const schedule = readDeliveryPosition(rawSchedule);
   const calendarTerm = Number(academicTerm?.term_number ?? release.effective_term_number ?? 1);
   const entryAcademicSession = adoption.academic_session ?? release.academic_session;
   const currentAcademicSession = academicTerm?.academic_year ?? entryAcademicSession;

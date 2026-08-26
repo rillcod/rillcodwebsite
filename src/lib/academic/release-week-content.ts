@@ -19,6 +19,10 @@ export type WeekReleaseResult = {
   assignments_released: number;
   slides_released: number;
   flashcards_released: number;
+  notification_status?: "sent" | "already_notified" | "no_recipients" | "failed";
+  notifications_created?: number;
+  notification_recovery_id?: string | null;
+  warning?: string;
   error?: string;
   /** Multiple class meetings are held and the caller must name one. */
   needs_session?: boolean;
@@ -196,15 +200,40 @@ export async function releasePreparedWeek(input: {
     ? payload.assignment_ids.filter(Boolean)
     : [];
 
+  let notificationSummary: Pick<
+    WeekReleaseResult,
+    "notification_status" | "notifications_created" | "notification_recovery_id" | "warning"
+  > = {};
   if (assignmentIds.length > 0) {
     const { triggerAssignmentReleaseNotifications } = await import(
       "@/lib/assignments/notifications"
     );
-    void Promise.all(
+    const notificationResults = await Promise.all(
       assignmentIds.map((assignmentId) =>
-        triggerAssignmentReleaseNotifications(assignmentId).catch(console.error)
+        triggerAssignmentReleaseNotifications(assignmentId)
       )
     );
+    const failed = notificationResults.filter((result) => result.status === "failed");
+    const created = notificationResults.reduce(
+      (total, result) => total + result.notificationsCreated,
+      0,
+    );
+    notificationSummary = {
+      notification_status: failed.length > 0
+        ? "failed"
+        : created > 0
+          ? "sent"
+          : notificationResults.some((result) => result.status === "no_recipients")
+            ? "no_recipients"
+            : "already_notified",
+      notifications_created: created,
+      notification_recovery_id: failed[0]?.deadLetterId ?? null,
+      ...(failed.length > 0
+        ? {
+            warning: "The work is visible to students, but one or more alerts were not sent. An administrator can resend them from Office.",
+          }
+        : {}),
+    };
   }
 
   return {
@@ -215,5 +244,6 @@ export async function releasePreparedWeek(input: {
     assignments_released: Number(payload.assignments_released) || 0,
     slides_released: Number(payload.slides_released) || 0,
     flashcards_released: Number(payload.flashcards_released) || 0,
+    ...notificationSummary,
   };
 }

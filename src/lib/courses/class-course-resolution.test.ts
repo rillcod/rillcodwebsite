@@ -27,6 +27,68 @@ describe('class-course-resolution', () => {
     expect(linked?.id).toBe('python-id');
   });
 
+  it('opens a Nursery Young Innov class on Hello World when that course exists', () => {
+    const nurseryCatalog = [
+      ...catalog,
+      { id: 'hello-id', title: 'Hello World: Introduction to Computers', program_id: 'yi-id', is_active: true },
+    ];
+    expect(
+      resolveClassLinkedCourse(
+        {
+          name: 'Royhills · Young Innov · Nursery 1-3',
+          program_id: 'yi-id',
+          current_course_id: null,
+        },
+        nurseryCatalog,
+      )?.id,
+    ).toBe('hello-id');
+  });
+
+  it('does not yank a Nursery class off Scratch when that is already set', () => {
+    const nurseryCatalog = [
+      ...catalog,
+      { id: 'hello-id', title: 'Hello World: Introduction to Computers', program_id: 'yi-id', is_active: true },
+    ];
+    expect(
+      resolveClassLinkedCourse(
+        {
+          name: 'Royhills · Young Innov · Nursery 1-3',
+          program_id: 'yi-id',
+          current_course_id: 'scratch-id',
+        },
+        nurseryCatalog,
+      )?.id,
+    ).toBe('scratch-id');
+  });
+
+  it('honours an explicit robots class name over the Scratch home', () => {
+    const robotsCatalog = [
+      ...catalog,
+      { id: 'robots-id', title: 'Fun with Robots: Introduction to Robotics', program_id: 'yi-id', is_active: true },
+    ];
+    expect(
+      matchCourseFromCatalog('St Peter · Young Innov · Basic 4-6 Robots', robotsCatalog)?.id,
+    ).toBe('robots-id');
+  });
+
+  it('links a Teen Dev class stored on Data Analysis to Python', () => {
+    const mixed = [
+      ...catalog,
+      { id: 'da-id', title: 'Data Analysis with Python', program_id: 'data-id', is_active: true },
+    ];
+    expect(
+      resolveClassLinkedCourse(
+        {
+          name: 'Bayflower · Teen Dev · JSS 1-3',
+          program_id: 'data-id',
+          current_course_id: null,
+          programs: { name: 'Data Analysis with Python' },
+        },
+        mixed,
+      )?.id,
+    ).toBe('python-id');
+  });
+
   it('links Young Innov Basic class to Scratch with guard pattern', () => {
     const linked = resolveClassLinkedCourse(
       {

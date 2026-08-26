@@ -3525,3 +3525,66 @@ Verification and honest boundary:
 - the local route reached the Next.js compiler but the in-app browser timed out while the development
   server compiled this large route. No visual/browser pass is claimed; viewport, focus and live-data
   behaviour remain deployment checks.
+
+### 16.42 Idempotent assignment release alerts — locally verified 26 August 2026
+
+Confirmed gaps:
+
+- direct assignment publication and class-week publication treated learner alerts as detached,
+  fire-and-forget work. Content could be live while alert failure existed only in server output;
+- retrying a publication could insert the same inbox alert again, while the administrative failed-job
+  screen did not know how to retry the assignment release event;
+- the first implementation attempt used a partial unique index. PostgreSQL conflict inference through
+  PostgREST cannot target that index without its predicate, so the apparent deduplication would fail at
+  runtime. A normal unique index is safe because PostgreSQL permits multiple null values.
+
+Implemented:
+
+- migration `20260929000120_make_assignment_release_notifications_idempotent.sql` adds source and
+  business-event identity to in-app notifications, with a unique per-release/per-learner key;
+- the same release version and learner now produce one inbox row; deliberately deactivating and later
+  republishing creates a new release version and may send a new alert;
+- direct assignment publication and atomic week publication await the alert outcome. The teaching
+  content remains available if delivery fails, but the response now says in plain language that some
+  alerts were not sent and that an administrator can resend them from Office;
+- failure becomes a durable `assignment_release` dead letter, and the existing Office operations flow
+  can retry that business event. Push remains a best-effort companion to the durable in-app alert.
+
+Verification and honest boundary:
+
+- four focused files passed 27 tests across release identity, database deduplication contract, awaited
+  endpoints, retry coverage, session-scoped week release and approval flow;
+- the complete TypeScript check passed;
+- migration 120 is committed for the next ordered database push but was not applied from this dirty
+  shared worktree because an unrelated, uncommitted migration 119 precedes it. Until the migration is
+  live, publication remains safe and recoverable but the new notification insert will correctly return
+  the human warning instead of claiming the alert was sent.
+
+### 16.43 Full, plain-language curriculum overview — locally verified 26 August 2026
+
+Confirmed gaps:
+
+- the curriculum **Structure** view described itself as a “Building Block Inspector” and “5-Tier
+  Dependency Map” even though the user needed a readable curriculum overview;
+- the highlighted term cards rendered only the first four weeks inside a very small nested scroll
+  region. The full curriculum existed, but an administrator could not read it from that view;
+- the screen did not plainly answer whether editing or publishing a curriculum changes work already
+  underway in classrooms.
+
+Implemented:
+
+- **Structure** is now **Overview**, with two familiar selectors: programme and course;
+- the selected curriculum shows its owner/version, visibility, term count and complete week count.
+  Every term is expandable and every week is rendered in normal page flow—no four-week truncation and
+  no small nested scroll container. The expanded **All curricula** rows now show every week as well;
+- the overview states the update contract: saving changes only the draft; publishing creates a new
+  approved version for future class plans; classes already in progress stay pinned to their current
+  version so active lessons, submissions and scores are not rewritten midway.
+
+Verification and honest boundary:
+
+- the curriculum overview regression checks plain labels, full week rendering and the classroom update
+  explanation; it passed as part of the four-file, 27-test academic run;
+- the complete TypeScript check passed;
+- this confirms the code and version-pinning contract. The local browser tab had no running development
+  server during this pass, so no visual browser proof is claimed.

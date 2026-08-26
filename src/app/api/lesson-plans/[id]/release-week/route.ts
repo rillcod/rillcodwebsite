@@ -88,5 +88,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     session: result.session,
     year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
     term_number: Number.isFinite(termNumber) && termNumber > 0 ? termNumber : null,
+    ...(result.warning ? { warning: result.warning } : {}),
   });
 }

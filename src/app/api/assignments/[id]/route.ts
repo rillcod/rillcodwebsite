@@ -303,9 +303,12 @@ export async function PATCH(
   const { error } = await admin.from('assignments').update(allowed).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  let notificationResult: Awaited<ReturnType<
+    typeof import('@/lib/assignments/notifications')['triggerAssignmentReleaseNotifications']
+  >> | null = null;
   if (allowed.is_active === true && existing.is_active !== true) {
     const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
-    triggerAssignmentReleaseNotifications(id, caller.id).catch(console.error);
+    notificationResult = await triggerAssignmentReleaseNotifications(id, caller.id);
   }
 
   await logAudit(admin as any, {
@@ -326,7 +329,15 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    ...(notificationResult ? { notification: notificationResult } : {}),
+    ...(notificationResult?.status === 'failed'
+      ? {
+          warning: 'The assignment is visible to students, but one or more alerts were not sent. An administrator can resend them from Office.',
+        }
+      : {}),
+  });
 }
 
 // PUT is an alias for PATCH

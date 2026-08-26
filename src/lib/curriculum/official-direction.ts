@@ -155,6 +155,35 @@ export async function resolveOfficialDeliverySchedule(
   }) as any;
 }
 
+function termProgrammeYear(term: { year?: unknown } | null | undefined): number {
+  const year = Number(term?.year ?? 1);
+  return Number.isInteger(year) && year >= 1 ? year : 1;
+}
+
+function curriculumPositionForCalendar(
+  input: {
+    directionAcademicSession: string | null;
+    currentAcademicSession: string | null;
+    calendarTerm: number;
+    schedule: Record<string, unknown>;
+  },
+  calendarWeek: number,
+) {
+  return mapSessionCalendarToCurriculumPosition({
+    entryAcademicSession: input.directionAcademicSession,
+    currentAcademicSession: input.currentAcademicSession,
+    calendarTerm: input.calendarTerm,
+    calendarWeek,
+    schedule: {
+      entryTerm: Number(input.schedule.entry_term_number ?? 1),
+      entryWeek: Number(input.schedule.entry_week_number ?? 1),
+      curriculumYear: Number(input.schedule.curriculum_year_number ?? 1),
+      curriculumTerm: Number(input.schedule.curriculum_term_number ?? 1),
+      curriculumWeek: Number(input.schedule.curriculum_week_number ?? 1),
+    },
+  });
+}
+
 export function mapOfficialCurriculumToCalendarWeeks(input: {
   content: Record<string, unknown>;
   directionAcademicSession: string | null;
@@ -163,9 +192,23 @@ export function mapOfficialCurriculumToCalendarWeeks(input: {
   schedule: Record<string, unknown>;
 }) {
   const weeks: Record<string, unknown>[] = [];
-  const terms: any[] = Array.isArray(input.content?.terms)
+  const authoredTerms: any[] = Array.isArray(input.content?.terms)
     ? (input.content.terms as any[])
     : [];
+
+  // Live Scratch/Python editions are one programme year (year omitted → 1).
+  // Those still dump every term. Multi-year editions already name `terms[].year`;
+  // the session mapper already knows which year this class is in.
+  const years = new Set(authoredTerms.map((term) => termProgrammeYear(term)));
+  let terms = authoredTerms;
+  if (years.size > 1) {
+    const position = curriculumPositionForCalendar(input, 1);
+    if (position) {
+      terms = authoredTerms.filter(
+        (term) => termProgrammeYear(term) === position.year,
+      );
+    }
+  }
 
   // Every week of every term, keeping the numbering the curriculum was authored
   // with. The plan's week number is the key everything downstream joins on —
@@ -187,11 +230,12 @@ export function mapOfficialCurriculumToCalendarWeeks(input: {
       while (takenWeekNumbers.has(weekNum)) weekNum += 1;
       takenWeekNumbers.add(weekNum);
 
+      const programmeYear = termProgrammeYear(term);
       weeks.push({
         ...mappedRow,
         week: weekNum,
         official_position: {
-          programme_year: Number(term.year ?? 1),
+          programme_year: programmeYear,
           programme_term: Number(term.term ?? 1),
           // The week as the curriculum names it, even when the plan had to
           // renumber to keep its own keys unique.
@@ -204,24 +248,12 @@ export function mapOfficialCurriculumToCalendarWeeks(input: {
   // Fallback: If no terms or weeks were populated through term iteration, use position mapper
   if (weeks.length === 0) {
     for (let calendarWeek = 1; calendarWeek <= 12; calendarWeek += 1) {
-      const position = mapSessionCalendarToCurriculumPosition({
-        entryAcademicSession: input.directionAcademicSession,
-        currentAcademicSession: input.currentAcademicSession,
-        calendarTerm: input.calendarTerm,
-        calendarWeek,
-        schedule: {
-          entryTerm: Number(input.schedule.entry_term_number ?? 1),
-          entryWeek: Number(input.schedule.entry_week_number ?? 1),
-          curriculumYear: Number(input.schedule.curriculum_year_number ?? 1),
-          curriculumTerm: Number(input.schedule.curriculum_term_number ?? 1),
-          curriculumWeek: Number(input.schedule.curriculum_week_number ?? 1),
-        },
-      });
+      const position = curriculumPositionForCalendar(input, calendarWeek);
       if (!position) continue;
       const term =
         terms.find(
           (item) =>
-            Number(item.year ?? 1) === position.year &&
+            termProgrammeYear(item) === position.year &&
             Number(item.term) === position.term
         ) ?? terms.find((item) => Number(item.term) === position.term);
       const sourceWeek = Array.isArray(term?.weeks)

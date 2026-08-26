@@ -281,6 +281,7 @@ export async function POST(req: NextRequest) {
   }
 
   const failures = results.filter((r) => r.error);
+  const notificationWarnings = results.filter((r) => r.warning);
   await logAudit(db as any, {
     action: failures.length ? "release_prepared_teaching_content_partial" : "release_prepared_teaching_content",
     actorId: staff.id,
@@ -307,6 +308,11 @@ export async function POST(req: NextRequest) {
         failed: failures.length,
         results,
       },
+      ...(notificationWarnings.length > 0
+        ? {
+            warning: "The work is visible to students, but one or more alerts were not sent. An administrator can resend them from Office.",
+          }
+        : {}),
     },
     { status: failures.length ? 207 : 200 }
   );

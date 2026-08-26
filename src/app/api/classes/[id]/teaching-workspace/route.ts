@@ -29,6 +29,7 @@ import {
   expandPlanWeeksForMeetings,
   policyFromClassSchool,
 } from "@/lib/academic/school-programme-standing";
+import { fallbackScheduleRow, readDeliveryPosition } from "@/lib/academic/entry-point";
 
 export const dynamic = "force-dynamic";
 
@@ -592,16 +593,14 @@ export async function POST(
       courseId,
       releaseId: direction.id,
     })) ?? {
-      entry_term_number:
-        direction.effective_term_number ??
-        klass.academic_terms?.term_number ??
-        1,
-      entry_week_number: 1,
-      curriculum_year_number: 1,
-      curriculum_term_number: 1,
-      curriculum_week_number: 1,
+      ...fallbackScheduleRow({
+        entryTerm:
+          direction.effective_term_number ?? klass.academic_terms?.term_number,
+      }),
       sessions_per_week: schoolPolicy.sessionsPerWeek,
     };
+    // One safe read, rather than re-coercing each field at every use below.
+    const position = readDeliveryPosition(schedule);
     const sessionsPerWeek = schoolPolicy.sessionsPerWeek;
     const { data, error } = await db.rpc("ensure_class_teaching_plan", {
       p_class_id: id,
@@ -631,7 +630,7 @@ export async function POST(
     // start from the edition's own entry point rather than a calendar term.
     const calendarTerm = hasTerm
       ? Number(klass.academic_terms.term_number)
-      : Number(schedule.entry_term_number) || 1;
+      : position.entryTerm;
     const currentSession = hasTerm
       ? klass.academic_terms.academic_year
       : direction.academic_session;
@@ -658,14 +657,14 @@ export async function POST(
             title: direction.title,
             academic_session: direction.academic_session,
             entry_point: humanEntryPoint({
-              termNumber: Number(schedule.entry_term_number),
-              weekNumber: Number(schedule.entry_week_number),
+              termNumber: position.entryTerm,
+              weekNumber: position.entryWeek,
             }),
             current_term: hasTerm
               ? humanTermLabel(Number(klass.academic_terms.term_number))
               : klass.academic_offering_periods?.label ?? "Delivery period",
           },
-          starts_at_week: Number(schedule.entry_week_number),
+          starts_at_week: position.entryWeek,
           ...(weeks ? { weeks } : {}),
         },
         updated_at: new Date().toISOString(),

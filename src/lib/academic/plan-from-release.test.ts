@@ -59,6 +59,27 @@ describe('choosing the weeks a class should teach', () => {
     expect(planDataForTerm(null, 'First Term')).toBeNull();
     expect(planDataForTerm({} as never, 'First Term')).toBeNull();
   });
+
+  it('picks the matching year when First Term exists in more than one', () => {
+    const multi = {
+      terms: [
+        { year: 1, term: 1, title: 'Y1 First', weeks: [week(1)] },
+        { year: 2, term: 1, title: 'Y2 First', weeks: [week(1), week(2)] },
+      ],
+    };
+    expect(planDataForTerm(multi, 'First Term', 2)?.source_title).toBe('Y2 First');
+    expect(planDataForTerm(multi, 'First Term', 2)?.weeks).toHaveLength(2);
+  });
+
+  it('still matches by term alone when year is not asked for', () => {
+    const multi = {
+      terms: [
+        { year: 1, term: 1, title: 'Y1 First', weeks: [week(1)] },
+        { year: 2, term: 1, title: 'Y2 First', weeks: [week(1), week(2)] },
+      ],
+    };
+    expect(planDataForTerm(multi, 'First Term')?.source_title).toBe('Y1 First');
+  });
 });
 
 describe('the row that gets written', () => {

@@ -884,8 +884,8 @@ export function MasterCurriculumRoster({
                                 <p className="text-xs font-bold text-foreground truncate">
                                   {(t.weeks ?? []).length} weeks planned
                                 </p>
-                                <div className={`text-[11px] text-muted-foreground space-y-1 pt-1 border-t border-border/40 overflow-y-auto custom-scrollbar ${isAdmin ? 'max-h-24' : 'max-h-80'}`}>
-                                  {(isAdmin ? (t.weeks ?? []).slice(0, 4) : (t.weeks ?? [])).map((w: any) => (
+                                <div className="space-y-1 border-t border-border/40 pt-2 text-[11px] text-muted-foreground">
+                                  {(t.weeks ?? []).map((w: any) => (
                                     <p key={w.week} className="truncate">
                                       <span className="font-bold text-foreground">W{w.week}:</span> {w.topic || w.type}
                                     </p>

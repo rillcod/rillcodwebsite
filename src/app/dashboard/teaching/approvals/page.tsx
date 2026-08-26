@@ -159,7 +159,12 @@ export default function ContentApprovalsPage() {
         (result?.slides_released ?? 0) +
         (result?.flashcards_released ?? 0);
       const meeting = teachingMeetingLabel(row.week, row.session);
-      toast.success(`${meeting} shared — ${n} item${n === 1 ? "" : "s"} now visible`);
+      const warning = result?.warning ?? json.warning;
+      if (warning) {
+        toast.warning(`${meeting} is live. ${warning}`);
+      } else {
+        toast.success(`${meeting} shared — ${n} item${n === 1 ? "" : "s"} now visible`);
+      }
       setWeeks((prev) => prev.filter((w) => pendingKey(w) !== key));
       if (previewWeek && pendingKey(previewWeek) === key) {
         setPreviewWeek(null);
@@ -225,6 +230,7 @@ export default function ContentApprovalsPage() {
         session?: number | null;
         lessons_released: number;
         assignments_released: number;
+        warning?: string;
         error?: string;
       }>;
       const ok = rows.filter((r) => !r.error);
@@ -234,7 +240,13 @@ export default function ContentApprovalsPage() {
         setWeeks((prev) => prev.filter((w) => !okSet.has(pendingKey(w))));
       }
       setSelected([]);
-      if (ok.length) toast.success(`Shared ${ok.length} meeting${ok.length === 1 ? "" : "s"} with students`);
+      const alertWarnings = ok.filter((row) => row.warning);
+      if (ok.length && alertWarnings.length === 0) {
+        toast.success(`Shared ${ok.length} meeting${ok.length === 1 ? "" : "s"} with students`);
+      }
+      if (alertWarnings.length > 0) {
+        toast.warning(json.warning ?? `${alertWarnings.length} live meeting${alertWarnings.length === 1 ? " did" : "s did"} not send every student alert. An administrator can resend them from Office.`);
+      }
       if (failed.length) {
         toast.error(
           `${failed.length} meeting${failed.length === 1 ? "" : "s"} could not be shared`

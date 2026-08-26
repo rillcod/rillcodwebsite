@@ -7,6 +7,7 @@
  */
 import { recommendCourse, type CourseRecommendation, type CourseSignals } from '@/lib/courses/course-recommendation';
 import { bandForGrade, parseBandLabel } from '@/lib/classes/naming';
+import { canonicalGradeLevels, canonicalLevelOrder } from '@/lib/courses/school-pathway';
 
 type DbClient = { from: (table: string) => any };
 
@@ -104,13 +105,18 @@ export async function loadCourseRecommendation(
   const signals: CourseSignals[] = courses.map((row) => {
     const id = String(row.id);
     const programme = Array.isArray(row.programs) ? row.programs[0] : row.programs;
+    const programmeName = programme?.name ? String(programme.name) : null;
+    const title = String(row.title || 'Untitled course');
     return {
       id,
-      title: String(row.title || 'Untitled course'),
+      title,
       programId: row.program_id ? String(row.program_id) : null,
-      programmeName: programme?.name ? String(programme.name) : null,
-      levelOrder: typeof row.level_order === 'number' ? row.level_order : null,
-      gradeLevels: gradeLevelsOf(row.metadata),
+      programmeName,
+      levelOrder: canonicalLevelOrder(programmeName, title)
+        ?? (typeof row.level_order === 'number' ? row.level_order : null),
+      gradeLevels: gradeLevelsOf(row.metadata).length
+        ? gradeLevelsOf(row.metadata)
+        : canonicalGradeLevels(programmeName, title),
       adopted: adopted.has(id),
       hasPublishedRelease: released.has(id),
       hasCurriculum: withSyllabus.has(id) || released.has(id),

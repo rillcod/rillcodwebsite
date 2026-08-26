@@ -417,7 +417,7 @@ export default function CurriculumPage() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [currentCourseId, setCurrentCourseId] = useState<string | null>(null);
 
-  // ── Master Roster & Building Block Inspector state ──
+  // ── Curriculum list and readable overview state ──
   const [allCurricula, setAllCurricula] = useState<any[]>([]);
   const [curriculumViewMode, setCurriculumViewMode] = useState<
     'roster' | 'inspector' | 'builder'
@@ -4113,7 +4113,7 @@ export default function CurriculumPage() {
                   }`}
                   title="Structure map — rarely needed"
                 >
-                  Structure
+                Overview
                 </button>
               </div>
             )}
@@ -4193,7 +4193,7 @@ export default function CurriculumPage() {
           </div>
         )}
 
-        {/* View Mode 2: Building Block Inspector */}
+        {/* View Mode 2: full curriculum overview */}
         {viewMode === "inspector" && ["admin", "teacher", "school"].includes(profile?.role || "") && (
           <div className="p-4 sm:p-6 max-w-[1800px] mx-auto w-full">
             <CurriculumBuildingBlockInspector

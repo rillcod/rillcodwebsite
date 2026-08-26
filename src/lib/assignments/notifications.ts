@@ -1,5 +1,23 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendPushNotification } from '@/lib/push';
+import { recordDeadLetter } from '@/lib/operations/dead-letter';
+
+export type AssignmentReleaseNotificationResult = {
+  status: 'sent' | 'already_notified' | 'no_recipients' | 'failed';
+  recipients: number;
+  notificationsCreated: number;
+  pushSent: number;
+  deadLetterId?: string | null;
+  error?: string;
+};
+
+export function assignmentReleaseNotificationKey(input: {
+  assignmentId: string;
+  releaseVersion: string;
+  studentId: string;
+}) {
+  return `assignment-release:${input.assignmentId}:${input.releaseVersion}:${input.studentId}`;
+}
 
 /**
  * Trigger in-app and push notifications for the students targeted by an
@@ -8,75 +26,121 @@ import { sendPushNotification } from '@/lib/push';
 export async function triggerAssignmentReleaseNotifications(
   assignmentId: string,
   callerId?: string
-) {
+): Promise<AssignmentReleaseNotificationResult> {
   const db = createAdminClient();
 
-  // 1. Fetch assignment details
   const { data: assignment, error: fetchErr } = await db
     .from('assignments')
-    .select('id, title, assignment_type, class_id, course_id, program_id, metadata, school_id, school_name')
+    .select('id, title, assignment_type, class_id, course_id, program_id, metadata, school_id, school_name, updated_at')
     .eq('id', assignmentId)
     .single();
 
   if (fetchErr || !assignment) {
-    console.error('[assignment notification] Failed to fetch assignment details:', fetchErr?.message);
-    return;
+    const error = fetchErr?.message || 'Assignment not found';
+    const deadLetterId = await recordDeadLetter({
+      source: 'assignment_release',
+      jobType: 'assignment_release',
+      originalJobId: `assignment-release:${assignmentId}:lookup`,
+      payload: { assignmentId, callerId: callerId ?? null },
+      error,
+    });
+    return {
+      status: 'failed', recipients: 0, notificationsCreated: 0, pushSent: 0,
+      deadLetterId, error,
+    };
   }
 
   const metadata = (assignment.metadata as any) || {};
-  const students = await resolveTargetStudents(db, {
-    id: assignment.id,
-    class_id: assignment.class_id,
-    course_id: assignment.course_id,
-    program_id: assignment.program_id,
-    school_id: assignment.school_id,
-    school_name: assignment.school_name,
-    metadata,
-  });
-
-  if (!students || students.length === 0) {
-    console.log('[assignment notification] No active target students found for assignment:', assignmentId);
-    return;
-  }
-
   const typeLabel = assignment.assignment_type === 'project' ? 'Project' : 'Assignment';
   const title = `New ${typeLabel} Released`;
   const message = `A new ${typeLabel.toLowerCase()} "${assignment.title}" has been released.`;
   const now = new Date().toISOString();
+  const releaseVersion = assignment.updated_at || now;
+  const deadLetterJobId = `assignment-release:${assignment.id}:${releaseVersion}`;
 
-  // 3. Batch insert notifications (50 at a time)
-  const notificationRows = students.map((s) => ({
-    user_id: s.id,
-    title,
-    message,
-    type: 'info',
-    is_read: false,
-    created_at: now,
-    updated_at: now,
-  }));
+  try {
+    const students = await resolveTargetStudents(db, {
+      id: assignment.id,
+      class_id: assignment.class_id,
+      course_id: assignment.course_id,
+      program_id: assignment.program_id,
+      school_id: assignment.school_id,
+      school_name: assignment.school_name,
+      metadata,
+    });
 
-  for (let i = 0; i < notificationRows.length; i += 50) {
-    const batch = notificationRows.slice(i, i + 50);
-    const { error: insertErr } = await db.from('notifications').insert(batch);
-    if (insertErr) {
-      console.error('[assignment notification] Error batch-inserting notifications:', insertErr.message);
+    if (students.length === 0) {
+      return {
+        status: 'no_recipients', recipients: 0, notificationsCreated: 0, pushSent: 0,
+      };
     }
+
+    const notificationRows = students.map((student) => ({
+      user_id: student.id,
+      title,
+      message,
+      type: 'info',
+      is_read: false,
+      action_url: `/dashboard/assignments/${assignment.id}`,
+      notification_channel: 'in_app',
+      delivery_status: 'sent',
+      sent_at: now,
+      source_type: 'assignment_release',
+      source_id: assignment.id,
+      idempotency_key: assignmentReleaseNotificationKey({
+        assignmentId: assignment.id,
+        releaseVersion,
+        studentId: student.id,
+      }),
+      created_at: now,
+      updated_at: now,
+    }));
+
+    const insertedUserIds: string[] = [];
+    for (let i = 0; i < notificationRows.length; i += 50) {
+      const batch = notificationRows.slice(i, i + 50);
+      const { data: inserted, error: insertErr } = await (db as any)
+        .from('notifications')
+        .upsert(batch, { onConflict: 'idempotency_key', ignoreDuplicates: true })
+        .select('user_id');
+      if (insertErr) throw insertErr;
+      for (const row of inserted ?? []) {
+        if (typeof row.user_id === 'string') insertedUserIds.push(row.user_id);
+      }
+    }
+
+    const pushResults = await Promise.allSettled(
+      insertedUserIds.map((userId) => sendPushNotification(userId, {
+        title,
+        body: message,
+        url: `/dashboard/assignments/${assignment.id}`,
+      }))
+    );
+    const pushSent = pushResults.reduce((total, result) => (
+      result.status === 'fulfilled' ? total + result.value.sent : total
+    ), 0);
+
+    return {
+      status: insertedUserIds.length > 0 ? 'sent' : 'already_notified',
+      recipients: students.length,
+      notificationsCreated: insertedUserIds.length,
+      pushSent,
+    };
+  } catch (cause) {
+    const error = cause instanceof Error ? cause.message : String(cause);
+    const deadLetterId = await recordDeadLetter({
+      source: 'assignment_release',
+      jobType: 'assignment_release',
+      originalJobId: deadLetterJobId,
+      payload: { assignmentId, callerId: callerId ?? null },
+      error,
+    });
+    console.error('[assignment notification] Release notification requires recovery:', error);
+    return {
+      status: 'failed', recipients: 0, notificationsCreated: 0, pushSent: 0,
+      deadLetterId, error,
+    };
   }
-
-  // 4. Send push notifications to all recipients
-  const pushPayload = {
-    title,
-    body: message,
-    url: `/dashboard/assignments/${assignment.id}`,
-  };
-
-  Promise.allSettled(
-    students.map((s) => sendPushNotification(s.id, pushPayload))
-  ).catch((e) => {
-    console.error('[assignment notification] Push notifications error:', e);
-  });
-
-  console.log(`[assignment notification] Successfully sent release notifications for "${assignment.title}" to ${students.length} students.`);
 }
 
 type TargetAssignment = {
@@ -100,11 +164,12 @@ async function filterStudentsByAssignmentProgram(
 ) {
   let programId = assignment.program_id;
   if (!programId && assignment.course_id) {
-    const { data: course } = await db
+    const { data: course, error } = await db
       .from('courses')
       .select('program_id')
       .eq('id', assignment.course_id)
       .maybeSingle();
+    if (error) throw error;
     programId = course?.program_id ?? null;
   }
   if (!programId) return students;
@@ -112,7 +177,7 @@ async function filterStudentsByAssignmentProgram(
   const studentIds = students.map((student) => student.id).filter(Boolean);
   if (studentIds.length === 0) return [];
 
-  const [{ data: enrollments }, { data: classes }] = await Promise.all([
+  const [enrollmentResult, classResult] = await Promise.all([
     db
       .from('enrollments')
       .select('user_id')
@@ -125,6 +190,10 @@ async function filterStudentsByAssignmentProgram(
       .eq('program_id', programId)
       .in('id', students.map((student) => student.class_id).filter(Boolean)),
   ]);
+  if (enrollmentResult.error) throw enrollmentResult.error;
+  if (classResult.error) throw classResult.error;
+  const enrollments = enrollmentResult.data;
+  const classes = classResult.data;
 
   const eligibleUserIds = new Set((enrollments ?? []).map((row: any) => row.user_id));
   const eligibleClassIds = new Set((classes ?? []).map((row: any) => row.id));
@@ -146,8 +215,7 @@ async function activeStudentsByIds(db: ReturnType<typeof createAdminClient>, ids
     .in('id', uniqueIds);
 
   if (error) {
-    console.error('[assignment notification] Failed to fetch target students:', error.message);
-    return [];
+    throw error;
   }
   return data ?? [];
 }
@@ -172,8 +240,7 @@ async function resolveTargetStudents(db: ReturnType<typeof createAdminClient>, a
       .eq('class_id', targetClassId)
       .eq('is_active', true);
     if (error) {
-      console.error('[assignment notification] Failed to fetch class students:', error.message);
-      return [];
+      throw error;
     }
     return filterStudentsByAssignmentProgram(db, assignment, data ?? []);
   }
@@ -192,18 +259,18 @@ async function resolveTargetStudents(db: ReturnType<typeof createAdminClient>, a
 
     const { data, error } = await query;
     if (error) {
-      console.error('[assignment notification] Failed to fetch school students:', error.message);
-      return [];
+      throw error;
     }
     return data ?? [];
   }
 
   if (assignment.course_id) {
-    const { data: course } = await db
+    const { data: course, error: courseError } = await db
       .from('courses')
       .select('program_id')
       .eq('id', assignment.course_id)
       .maybeSingle();
+    if (courseError) throw courseError;
 
     if (!course?.program_id) return [];
 
@@ -213,8 +280,7 @@ async function resolveTargetStudents(db: ReturnType<typeof createAdminClient>, a
       .eq('program_id', course.program_id);
 
     if (error) {
-      console.error('[assignment notification] Failed to fetch course enrollments:', error.message);
-      return [];
+      throw error;
     }
 
     return activeStudentsByIds(db, (enrollments ?? []).map((e: any) => e.user_id));
