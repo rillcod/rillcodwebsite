@@ -30,6 +30,33 @@ export type OverviewFacts = {
 };
 
 /**
+ * Choose the one item the Academic Office should put first.
+ *
+ * A live-class or saved-marks problem is more urgent than filling another
+ * course in the catalogue. Once active work is healthy, the next classroom
+ * action wins for schools that already have classes; a school with no classes
+ * is guided through curriculum setup first.
+ */
+export function nextOverviewAction(input: {
+  assetStages: StageStatus[];
+  deliveryStages: StageStatus[];
+  hasActiveClasses: boolean;
+}): StageStatus | null {
+  const blocked = [...input.deliveryStages, ...input.assetStages].find(
+    (stage) => stage.state === "blocked",
+  );
+  if (blocked) return blocked;
+
+  const firstReady = (stages: StageStatus[]) =>
+    stages.find((stage) => stage.state === "ready" && stage.actionHref);
+
+  if (input.hasActiveClasses) {
+    return firstReady(input.deliveryStages) ?? firstReady(input.assetStages) ?? null;
+  }
+  return firstReady(input.assetStages) ?? firstReady(input.deliveryStages) ?? null;
+}
+
+/**
  * Curriculum lane status for the Academic overview.
  * Plain sentences only — no process jargon stacked on top of the stage name.
  */
@@ -244,9 +271,9 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
     evidence = {
       id: "evidence",
       state: "blocked",
-      headline: `${missing} assessment${missing === 1 ? " is" : "s are"} outside the official teaching plan.`,
-      detail: "Repair the class, curriculum edition and plan links before those marks contribute to results.",
-      actionLabel: "Fix assessment links",
+      headline: `${missing} assessment${missing === 1 ? " is" : "s are"} not connected to the right class plan.`,
+      detail: "The work and scores are safe, but they will not be used in results until the class, term and plan are confirmed.",
+      actionLabel: "Connect assessments",
       actionHref: "/dashboard/academic#academic-exceptions",
     };
   } else if (facts.evidenceRecords === 0) {
@@ -266,9 +293,9 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
     evidence = {
       id: "evidence",
       state: "blocked",
-      headline: `${missing} evidence record${missing === 1 ? " needs" : "s need"} academic context.`,
-      detail: "The marks are preserved, but Auto-fill will ignore them until their class, period and teaching-plan links are verified.",
-      actionLabel: "Review evidence",
+      headline: `${missing} saved mark${missing === 1 ? " is" : "s are"} not connected to the right class and term.`,
+      detail: "The marks are safe, but Auto-fill will not use them until an administrator confirms where they belong.",
+      actionLabel: "Connect saved marks",
       actionHref: "/dashboard/academic#academic-exceptions",
     };
   } else {

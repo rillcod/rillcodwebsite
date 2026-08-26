@@ -8,8 +8,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard, StageList } from "@/components/academic/StageList";
 import AcademicExceptionsWorkspace from "@/components/academic/AcademicExceptionsWorkspace";
-import { nextAction, type StageStatus } from "@/lib/academic/status";
+import type { StageStatus } from "@/lib/academic/status";
 import {
+  nextOverviewAction,
   overviewAssetStages,
   overviewDeliveryStages,
 } from "@/lib/academic/overview-flow";
@@ -257,14 +258,18 @@ export default function AcademicSpinePage() {
 
   const next: StageStatus | null = (() => {
     if (!isAdmin || !overviewFacts) return null;
-    return nextAction(assetStages) ?? nextAction(deliveryStages) ?? null;
+    return nextOverviewAction({
+      assetStages,
+      deliveryStages,
+      hasActiveClasses: overviewFacts.classesTotal > 0,
+    });
   })();
 
   const glance = [
     ...(isAdmin
       ? [
           {
-            label: "Official courses",
+            label: "Approved courses",
             value:
               overview != null
                 ? `${overview.certified_courses}/${overview.central_courses}`
@@ -343,7 +348,7 @@ export default function AcademicSpinePage() {
           {isAdmin && overview && (
             <NextActionCard
               next={next}
-              fallback="You're caught up — curricula are certified and class plans are on them."
+              fallback="You're caught up — curricula are approved and every class plan uses the right version."
             />
           )}
 
@@ -379,7 +384,7 @@ export default function AcademicSpinePage() {
                 {overview.ready_to_certify.length > 0 && (
                   <div>
                     <p className="text-xs font-bold text-muted-foreground">
-                      Ready to certify
+                      Ready for approval
                     </p>
                     <ul className="mt-2 space-y-1.5">
                       {overview.ready_to_certify.slice(0, 4).map((course) => (
@@ -394,7 +399,7 @@ export default function AcademicSpinePage() {
                               {course.title}
                             </span>
                             <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">
-                              Certify
+                              Review
                             </span>
                           </Link>
                         </li>

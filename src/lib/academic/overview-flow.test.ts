@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  nextOverviewAction,
   overviewAssetStages,
   overviewDeliveryStages,
 } from "./overview-flow";
@@ -117,5 +118,74 @@ describe("overviewDeliveryStages", () => {
     const result = stages.find((stage) => stage.id === "result");
     expect(result?.state).toBe("ready");
     expect(result?.headline).toContain("2 checked results");
+  });
+});
+
+describe("nextOverviewAction", () => {
+  it("puts a broken live evidence link before unfinished catalogue work", () => {
+    const facts = {
+      ...base,
+      certifiedCourses: 8,
+      awaitingCurriculumCount: 2,
+      assignedDirections: 8,
+      classesWithPlans: 5,
+      classesTotal: 5,
+      classesWithDeliveryStarted: 5,
+      deliveredLessons: 12,
+      assessments: 4,
+      linkedAssessments: 3,
+    };
+    const next = nextOverviewAction({
+      assetStages: overviewAssetStages(facts),
+      deliveryStages: overviewDeliveryStages(facts),
+      hasActiveClasses: true,
+    });
+    expect(next?.id).toBe("evidence");
+    expect(next?.headline).toContain("right class plan");
+  });
+
+  it("puts the next teaching action before writing another catalogue course", () => {
+    const facts = {
+      ...base,
+      certifiedCourses: 8,
+      awaitingCurriculumCount: 2,
+      assignedDirections: 8,
+      classesWithPlans: 5,
+      classesTotal: 5,
+    };
+    const next = nextOverviewAction({
+      assetStages: overviewAssetStages(facts),
+      deliveryStages: overviewDeliveryStages(facts),
+      hasActiveClasses: true,
+    });
+    expect(next?.id).toBe("teach");
+  });
+
+  it("starts with curriculum setup when there are no active classes", () => {
+    const facts = { ...base, classesTotal: 0 };
+    const next = nextOverviewAction({
+      assetStages: overviewAssetStages(facts),
+      deliveryStages: overviewDeliveryStages(facts),
+      hasActiveClasses: false,
+    });
+    expect(next?.id).toBe("author");
+  });
+
+  it("explains an unlinked saved mark without internal terminology", () => {
+    const stages = overviewDeliveryStages({
+      ...base,
+      certifiedCourses: 10,
+      classesWithPlans: 5,
+      classesWithDeliveryStarted: 5,
+      deliveredLessons: 12,
+      assessments: 4,
+      linkedAssessments: 4,
+      evidenceRecords: 8,
+      linkedEvidence: 7,
+    });
+    const evidence = stages.find((stage) => stage.id === "evidence");
+    expect(evidence?.headline).toContain("saved mark");
+    expect(evidence?.detail).toContain("marks are safe");
+    expect(evidence?.headline).not.toContain("academic context");
   });
 });

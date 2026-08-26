@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
 import RouteDeniedNotice from '@/components/access/RouteDeniedNotice';
+import { isCapacitorNative } from '@/lib/capacitor/platform';
+import { createClient } from '@/lib/supabase/client';
 
 /**
  * Redirects students, parents, and school users away from routes their role must not use.
@@ -35,9 +37,7 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
     // Track active session (inside dashboard) for logged-in users
     (async () => {
       try {
-        const { isCapacitorNative } = await import('@/lib/capacitor/platform');
         const isNative = isCapacitorNative();
-        const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
 
         // 1. Log session activity in crm_interactions

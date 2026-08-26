@@ -3589,3 +3589,38 @@ Verification and honest boundary:
   new Overview, verified its programme/course controls and empty state, and confirmed it uses the page
   scroll. The current account returned zero curriculum rows, so a live-data expanded-week visual is not
   claimed; complete-week rendering is covered by the regression contract.
+
+### 16.44 Operational priority and dashboard runtime recovery — locally verified 26 August 2026
+
+Confirmed gaps:
+
+- the Academic Office selected its next action from the curriculum catalogue before looking at active
+  classroom work. An unfinished course could therefore hide a broken assessment link, an unconnected
+  saved mark or the next teaching action;
+- detailed status chips still said **Blocked**, while saved marks were described as needing “academic
+  context”. Those labels exposed internal concepts without telling staff what was safe or what to do;
+- the local browser log captured a real `ChunkLoadError` while the dashboard access guard dynamically
+  loaded its platform helper. The audit write was optional, but the missing on-demand chunk belonged to
+  the same stale-client failure family as the earlier dashboard runtime crash.
+
+Implemented:
+
+- a single overview-priority rule now puts broken active work first. When active work is healthy, a
+  school with classes sees its next classroom action before unfinished catalogue work; a setup with no
+  classes still begins with curriculum;
+- the overview now says **Needs attention**, **Ready for approval**, **Approved courses**, and explains
+  that an unconnected score is safe but will not be used by Auto-fill until its class and term are
+  confirmed;
+- the dashboard access guard now bundles its platform and Supabase helpers with the guard instead of
+  fetching a separate runtime chunk after entry. A regression test prevents those critical imports from
+  returning to the fragile on-demand path.
+
+Verification and honest boundary:
+
+- five focused files passed 28 tests across overview priority, plain-language copy, curriculum flow,
+  teacher navigation and dashboard runtime loading;
+- the complete TypeScript check passed, and `git diff --check` reported no whitespace errors;
+- the local browser reproduced the old missing-chunk error from the server log. After the correction, a
+  fresh tab did not inherit a valid server session and correctly stopped at **Account details
+  unavailable**. Therefore this pass proves the code contract and fail-closed access behavior, but does
+  not claim a second authenticated visual pass.

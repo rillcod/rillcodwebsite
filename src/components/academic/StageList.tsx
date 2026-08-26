@@ -27,7 +27,7 @@ const STATE_STYLE: Record<
   blocked: {
     ring: "border-amber-500/30 bg-amber-500/5",
     chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    label: "Blocked",
+    label: "Needs attention",
   },
   waiting: {
     ring: "border-border bg-card",
