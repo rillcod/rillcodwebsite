@@ -24,6 +24,7 @@ import {
   type HarmonizedWeekType,
 } from "@/lib/progression/harmonizedWeek";
 import type { Database, Json } from "@/types/supabase";
+import { dueDateForPlanWeek } from "@/lib/academic/plan-week-due-date";
 
 type ProjectRow = {
   id: string;
@@ -1293,10 +1294,9 @@ export async function POST(
     const inserts = desiredWorkItems
       .filter((w) => !existingWorkByMarker.has(w.marker))
       .map((w) => {
-        const dueDate = new Date(termStart);
-        dueDate.setDate(
-          dueDate.getDate() + w.week.week * 7 + (w.type === "project" ? 7 : 0)
-        );
+        const dueDate = dueDateForPlanWeek(termStart, Number(w.week.week), {
+          extraDays: w.type === "project" ? 7 : 0,
+        });
         return {
           course_id: courseId,
           class_id: plan.class_id,

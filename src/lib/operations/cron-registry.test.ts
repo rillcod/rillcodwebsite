@@ -122,6 +122,11 @@ describe('wrangler cron triggers', () => {
     ).toBe(false);
   });
 
+  it('keeps production on cron-job.org (no host triggers while ownership is off)', () => {
+    expect(hasTriggers).toBe(false);
+    expect(ownsCron).toBe(false);
+  });
+
   it('keeps the gateway guard wired to the same flag', () => {
     const gateway = readFileSync(
       path.resolve(__dirname, '../../cloudflare/container-gateway.ts'),

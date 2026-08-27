@@ -11,6 +11,11 @@ const ASSIGNMENT_DEFAULTS: Record<string, { days: number; maxPoints: number; mul
   discussion: { days: 2, maxPoints: 10, multiStep: false },
 };
 
+/**
+ * Defaults for the manual "new assignment" form (from today).
+ * Generated week packages use `dueDateForPlanWeek` so deadlines follow the term calendar.
+ */
+
 export function formatDatetimeLocal(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');

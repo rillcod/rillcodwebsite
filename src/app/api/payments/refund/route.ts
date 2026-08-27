@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { paymentsService } from '@/services/payments.service';
 import { logAudit } from '@/lib/audit/log';
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +12,13 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const admin = createAdminClient();
     const { data: caller } = await admin.from('portal_users').select('id, role').eq('id', user.id).maybeSingle();
-    if (!caller || caller.role !== 'admin') return NextResponse.json({ error: 'Only finance administrators can issue refunds' }, { status: 403 });
+    const denied = denyIfMissingCapability(caller?.role, 'manage_finance');
+    if (!caller || denied) {
+      return NextResponse.json(
+        { error: denied?.error ?? 'You do not have permission to perform this action.' },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const transactionId = String(body.transaction_id || '').trim();

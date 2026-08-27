@@ -179,15 +179,33 @@ describe("generatedLessonIsUsable", () => {
   it("accepts a lesson whose body lives in notes or layout", () => {
     expect(
       generatedLessonIsUsable({
-        description: "Students write a Scratch sprite that moves on the stage.",
+        description:
+          "Students write a Scratch sprite that moves on the stage and reacts to clicks.",
         content_layout: [],
       }),
     ).toBe(true);
     expect(
       generatedLessonIsUsable({
-        content_layout: [{ title: "Warm up", content: "Move the sprite." }],
+        content_layout: [
+          {
+            title: "Warm up",
+            content:
+              "Open Scratch and move the sprite across the stage using arrow keys.",
+          },
+        ],
       }),
     ).toBe(true);
+  });
+
+  it("rejects one-line stubs that are not teachable packages", () => {
+    expect(
+      generatedLessonIsUsable({
+        description: "TBD",
+        lesson_notes: "",
+        content: "",
+        content_layout: [],
+      }),
+    ).toBe(false);
   });
 });
 

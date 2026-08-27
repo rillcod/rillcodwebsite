@@ -71,7 +71,19 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
   double-firing the invoice/billing/payment reminders that email parents, because the gateway's
   `scheduled()` handler calls the same routes cron-job.org already calls. If you ever want
   Cloudflare to own scheduling (it can — Workers Paid allows 250 triggers at 1-minute
-  granularity), **disable the cron-job.org entries first**, then add the block back.
+  granularity), **disable the cron-job.org entries first**, then add the block back and set
+  `CLOUDFLARE_OWNS_CRON = "true"` (today production keeps `CLOUDFLARE_OWNS_CRON = "false"`).
+
+### Prove cron-job.org still matches the registry
+
+1. `npm run cron:table` — pasteable schedule from the registry (docs / cron-job.org checklist).
+2. `GET /api/system/cron-health` with header `x-cron-secret: $CRON_SECRET` — **200** when every
+   monitored job's `last_success_at` is within `max(15m, 2× registry interval)`; **503** when any
+   job is overdue or has never succeeded. Optional `?scope=external` limits the check to
+   cron-job.org-owned jobs (excludes fan-out children). This route is a probe, not a scheduled
+   job — it sits under `/api/system` so the cron registry stays schedule-only.
+3. Wire that URL into an uptime monitor. Operations Health in the admin UI still uses the
+   softer late/grace view; `/api/system/cron-health` is the hard liveness signal.
 - Staging subdomain **cf.rillcod.com** stays attached; production is **www** + apex.
 
 ---

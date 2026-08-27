@@ -2052,6 +2052,25 @@ export default function LessonPlanDetailPage() {
             <h1 className="text-xl font-black text-card-foreground">
               {plan.term ?? "Term Plan"} — {courseTitle}
             </h1>
+            {plan.class_id ? (
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-card-foreground/55 print:hidden">
+                Day-to-day teaching lives in the{" "}
+                <a
+                  href={`/dashboard/classes/${plan.class_id}?course_id=${encodeURIComponent(plan.course_id ?? "")}#teaching`}
+                  className="font-bold text-primary hover:underline"
+                >
+                  class workspace
+                </a>
+                . Review held packages in{" "}
+                <a
+                  href="/dashboard/teaching/approvals"
+                  className="font-bold text-primary hover:underline"
+                >
+                  Approvals
+                </a>
+                . This page is the curriculum editor.
+              </p>
+            ) : null}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {plan.classes?.name ? (
                 <button
@@ -2434,8 +2453,25 @@ export default function LessonPlanDetailPage() {
               <div className="min-w-0">
                 <p className="text-xs font-black text-card-foreground">Prepare complete teaching packages</p>
                 <p className="mt-1 text-xs leading-5 text-card-foreground/60">
-                  Builds lessons, slides, flashcards, assignments and projects together. Existing work is preserved; held content waits for review.
+                  Bulk rebuild for this plan. For the class you teach this week, prefer the class
+                  workspace, then review held packages in Approvals.
                 </p>
+                <div className="mt-2 flex flex-wrap gap-3 text-[11px] font-bold">
+                  {plan.class_id ? (
+                    <a
+                      href={`/dashboard/classes/${plan.class_id}?course_id=${encodeURIComponent(plan.course_id ?? "")}#teaching`}
+                      className="text-primary hover:underline"
+                    >
+                      Open class workspace
+                    </a>
+                  ) : null}
+                  <a
+                    href="/dashboard/teaching/approvals"
+                    className="text-primary hover:underline"
+                  >
+                    Approvals
+                  </a>
+                </div>
               </div>
               <button
                 onClick={() => void generateCompletePackages()}

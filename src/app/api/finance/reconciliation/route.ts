@@ -25,6 +25,7 @@ import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 import { voidPaymentAttempt } from '@/lib/finance/void-payment';
 import { financeResultToResponse } from '@/lib/finance/write-result';
 import { logAudit } from '@/lib/audit/log';
+import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 
 function adminClient() {
   return createClient(
@@ -45,8 +46,12 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .single();
     if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 });
+    const denied = denyIfMissingCapability(profile?.role, 'manage_finance');
+    if (!profile || denied) {
+      return NextResponse.json(
+        { error: denied?.error ?? 'You do not have permission to perform this action.' },
+        { status: 403 },
+      );
     }
 
     const admin = adminClient();
@@ -168,7 +173,13 @@ export async function DELETE(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
-  if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden - admin only' }, { status: 403 });
+  const deniedDelete = denyIfMissingCapability(profile?.role, 'manage_finance');
+  if (!profile || deniedDelete) {
+    return NextResponse.json(
+      { error: deniedDelete?.error ?? 'You do not have permission to perform this action.' },
+      { status: 403 },
+    );
+  }
 
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
@@ -189,7 +200,13 @@ export async function POST(request: NextRequest) {
     const admin = adminClient();
     const { data: profile, error: profileError } = await admin.from('portal_users').select('role').eq('id', user.id).maybeSingle();
     if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
-    if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden - admin only' }, { status: 403 });
+    const deniedPost = denyIfMissingCapability(profile?.role, 'manage_finance');
+    if (!profile || deniedPost) {
+      return NextResponse.json(
+        { error: deniedPost?.error ?? 'You do not have permission to perform this action.' },
+        { status: 403 },
+      );
+    }
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || '');
 

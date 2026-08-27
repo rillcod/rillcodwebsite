@@ -147,15 +147,18 @@ function lessonBodyText(lesson: WeekLinkedAsset): string {
  * A title-only lesson row is not a prepared week. The sweep used to skip those
  * shells forever, so later AI weeks never started.
  *
- * When the body columns were not loaded, keep the row — callers that only
- * asked for identity still mean "this meeting has a lesson".
+ * When body columns were loaded, require a real teaching body — not a one-line
+ * stub. Identity-only selects (no body fields) still count as present so skip
+ * checks that never asked for content keep working.
  */
+export const MIN_USABLE_LESSON_BODY_CHARS = 40;
+
 export function generatedLessonIsUsable(
   lesson: WeekLinkedAsset | null | undefined,
 ): boolean {
   if (!lesson) return false;
   if (!lessonBodyFieldPresent(lesson)) return true;
-  return lessonBodyText(lesson).length > 0;
+  return lessonBodyText(lesson).length >= MIN_USABLE_LESSON_BODY_CHARS;
 }
 
 /**

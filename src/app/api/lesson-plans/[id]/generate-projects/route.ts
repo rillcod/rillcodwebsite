@@ -47,6 +47,7 @@ import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing
 import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
+import { dueDateForPlanWeek } from "@/lib/academic/plan-week-due-date";
 
 export async function POST(
   req: NextRequest,
@@ -236,7 +237,6 @@ export async function POST(
       plan.courses as { programs?: { name?: string | null } | null } | null
     )?.programs?.name;
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
-    const cadenceDays = 7;
 
     return createSSEResponse(async (emit) => {
       let generated = 0;
@@ -276,8 +276,9 @@ export async function POST(
             continue;
           }
 
-          const dueDate = new Date(termStart);
-          dueDate.setDate(dueDate.getDate() + week.week * cadenceDays + 7);
+          const dueDate = dueDateForPlanWeek(termStart, Number(week.week), {
+            extraDays: 7,
+          });
 
           // Copy this week's project from a class that already has it. Matched
           // on the project marker so this can only ever copy a project — the

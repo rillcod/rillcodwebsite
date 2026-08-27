@@ -56,6 +56,10 @@ NEXT_PUBLIC_LIVEKIT_URL = "wss://rillcod-s8ejx073.livekit.cloud"
 NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs"
 NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP = "https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz"
 ENABLE_PAYMENTS = "true"
+# cron-job.org owns scheduling. Keep this false (or unset). Setting "true" without
+# disabling cron-job.org first double-fires parent reminder emails — see
+# src/cloudflare/container-gateway.ts scheduled() and cron-registry tests.
+CLOUDFLARE_OWNS_CRON = "false"
 LIVEKIT_URL = "wss://rillcod-s8ejx073.livekit.cloud"
 R2_ENDPOINT = "https://718b36de1443954931b052a9594d329d.r2.cloudflarestorage.com"
 R2_BUCKET_NAME = "rillcod-assests"

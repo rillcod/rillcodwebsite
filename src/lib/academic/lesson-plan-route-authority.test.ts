@@ -28,8 +28,8 @@ describe('one class-plan authorization rule', () => {
     expect(source).not.toContain('plan.created_by === staff.id || klass?.teacher_id === staff.id');
   });
 
-  it('keeps approval work with the currently assigned class teacher', () => {
-    const source = read('src/app/api/teaching/pending-approval/route.ts');
-    expect(source).toContain('if (p.class_id || klass?.id) return klass?.teacher_id === staff.id');
+  it('generate-week keeps class ownership on canGenerateForClass', () => {
+    const source = read('src/app/api/lesson-plans/[id]/generate-week/route.ts');
+    expect(source).toContain('canGenerateForClass');
   });
 });

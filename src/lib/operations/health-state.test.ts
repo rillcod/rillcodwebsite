@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   cronHealthCode,
+  cronOverdueBeyond2x,
   currentFinanceIncidents,
   generationIncidentsFromPlans,
+  listCronOverdueBeyond2x,
   summariseFanoutState,
   withRegisteredCronJobs,
   type FinanceAutomationStateRow,
@@ -22,6 +24,77 @@ describe('operations health state', () => {
     expect(cronHealthCode({ ...base, next_expected_at: '2026-08-13T11:44:00.000Z' }, now)).toBe('late');
     expect(cronHealthCode({ ...base, consecutive_failures: 1 }, now)).toBe('failing');
     expect(cronHealthCode({ ...base, last_finished_at: null }, now)).toBe('never_run');
+  });
+
+  it('marks a job overdue past 2× interval for machine liveness probes', () => {
+    const now = Date.parse('2026-08-13T12:00:00.000Z');
+    expect(
+      cronOverdueBeyond2x(
+        {
+          job_name: 'auto-generate-content',
+          expected_interval_minutes: 60,
+          last_success_at: '2026-08-13T09:30:00.000Z',
+        },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      cronOverdueBeyond2x(
+        {
+          job_name: 'auto-generate-content',
+          expected_interval_minutes: 60,
+          last_success_at: '2026-08-13T11:00:00.000Z',
+        },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('floors the overdue window so 1-minute jobs are not hair-trigger', () => {
+    const now = Date.parse('2026-08-13T12:00:00.000Z');
+    expect(
+      cronOverdueBeyond2x(
+        {
+          job_name: 'process-notifications',
+          expected_interval_minutes: 1,
+          last_success_at: '2026-08-13T11:50:00.000Z',
+        },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      cronOverdueBeyond2x(
+        {
+          job_name: 'process-notifications',
+          expected_interval_minutes: 1,
+          last_success_at: '2026-08-13T11:40:00.000Z',
+        },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it('lists only overdue external jobs when scoped', () => {
+    const now = Date.parse('2026-08-13T12:00:00.000Z');
+    const overdue = listCronOverdueBeyond2x(
+      [
+        {
+          job_name: 'invoice-reminders',
+          trigger: 'external',
+          expected_interval_minutes: 1440,
+          last_success_at: null,
+        },
+        {
+          job_name: 'auto-generate-content',
+          trigger: 'fanout',
+          expected_interval_minutes: 60,
+          last_success_at: null,
+        },
+      ],
+      now,
+      { triggers: ['external'] },
+    );
+    expect(overdue.map((j) => j.name)).toEqual(['invoice-reminders']);
   });
 
   it('adds every registered monitored job that has never recorded a run', () => {

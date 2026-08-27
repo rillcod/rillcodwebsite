@@ -1309,10 +1309,16 @@ export function ClassTeachingWorkspace({
                   <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
                     {data?.programme_policy?.sessionsPerWeek === 1 ? "1 teaching session / week" : "2 teaching sessions / week"}
                   </span>
+                  <Link
+                    href="/dashboard/teaching/approvals"
+                    className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/15"
+                  >
+                    Approvals
+                  </Link>
                 </div>
               </div>
               <span className="w-fit rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                Lesson · slides · practice · assignment · project
+                Prepare here · review in Approvals
               </span>
             </div>
 

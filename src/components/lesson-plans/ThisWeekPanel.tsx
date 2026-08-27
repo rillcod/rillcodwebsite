@@ -172,6 +172,19 @@ export default function ThisWeekPanel({
         </div>
       )}
 
+      <div className="mt-3 flex flex-wrap gap-3 text-[11px] font-bold">
+        <Link
+          href="/dashboard/teaching/approvals"
+          className="text-primary hover:underline"
+        >
+          Approvals queue
+        </Link>
+        <span className="text-card-foreground/30">·</span>
+        <span className="text-card-foreground/50">
+          Day-to-day teaching stays on the class workspace
+        </span>
+      </div>
+
       <div className="mt-4 border-t border-white/[0.08] pt-3">
         <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 mb-2">
           How the class is doing on {meeting}

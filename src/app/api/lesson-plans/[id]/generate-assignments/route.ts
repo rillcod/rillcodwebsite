@@ -40,6 +40,7 @@ import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
+import { dueDateForPlanWeek } from "@/lib/academic/plan-week-due-date";
 
 /**
  * Assignment kinds this generator is allowed to write.
@@ -231,7 +232,6 @@ export async function POST(
       plan.courses as { programs?: { name?: string | null } | null } | null
     )?.programs?.name;
     const termStart = plan.term_start ? new Date(plan.term_start) : new Date();
-    const cadenceDays = 7;
 
     return createSSEResponse(async (emit) => {
       let generated = 0;
@@ -272,8 +272,7 @@ export async function POST(
             continue;
           }
 
-          const dueDate = new Date(termStart);
-          dueDate.setDate(dueDate.getDate() + week.week * cadenceDays);
+          const dueDate = dueDateForPlanWeek(termStart, Number(week.week));
 
           // Copy this week's assignment from a class that already has it,
           // rather than paying the AI for the same homework once per class.

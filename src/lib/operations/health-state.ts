@@ -36,6 +36,73 @@ export function cronNeedsAttention(row: CronHealthRow, now = Date.now()): boolea
   return cronHealthCode(row, now) !== 'healthy';
 }
 
+/** Fields the 2× overdue probe needs — full health rows always satisfy this. */
+export type CronOverdueInput = {
+  job_name: string;
+  job_label?: string;
+  trigger?: string;
+  expected_interval_minutes: number;
+  last_success_at?: string | null;
+};
+
+/**
+ * Machine liveness for uptime monitors: a job is overdue when it has never
+ * succeeded, or its last success is older than 2× the registry interval
+ * (floored at 15 minutes so 1-minute notification polls are not hair-trigger).
+ */
+export function cronOverdueBeyond2x(
+  row: CronOverdueInput,
+  now = Date.now(),
+): boolean {
+  const interval = Math.max(1, Number(row.expected_interval_minutes) || 1);
+  const limitMs = Math.max(15, interval * 2) * 60_000;
+  const successAt = row.last_success_at
+    ? new Date(row.last_success_at).getTime()
+    : Number.NaN;
+  if (!Number.isFinite(successAt)) return true;
+  return now - successAt > limitMs;
+}
+
+export type CronOverdueJob = {
+  name: string;
+  label?: string;
+  trigger?: string;
+  intervalMinutes: number;
+  last_success_at: string | null;
+  ageMinutes: number | null;
+};
+
+export function listCronOverdueBeyond2x(
+  rows: CronOverdueInput[],
+  now = Date.now(),
+  opts?: { triggers?: Array<string | undefined> },
+): CronOverdueJob[] {
+  const allowed = opts?.triggers?.length
+    ? new Set(opts.triggers.map(String))
+    : null;
+  return rows
+    .filter((row) => {
+      if (allowed && !allowed.has(String(row.trigger ?? ''))) return false;
+      return cronOverdueBeyond2x(row, now);
+    })
+    .map((row) => {
+      const successAt = row.last_success_at
+        ? new Date(row.last_success_at).getTime()
+        : Number.NaN;
+      return {
+        name: row.job_name,
+        label: row.job_label,
+        trigger: row.trigger,
+        intervalMinutes: Math.max(1, Number(row.expected_interval_minutes) || 1),
+        last_success_at: row.last_success_at ?? null,
+        ageMinutes: Number.isFinite(successAt)
+          ? Math.round((now - successAt) / 60_000)
+          : null,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /**
  * cron_job_health gains a row only after a first run. Add registered jobs that
  * have no row so a missing scheduler entry becomes visible instead of looking healthy.
