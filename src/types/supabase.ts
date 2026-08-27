@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -12711,12 +12711,15 @@ export type Database = {
           delivery_status: string | null
           external_id: string | null
           id: string
+          idempotency_key: string | null
           is_read: boolean | null
           message: string
           notification_channel: string | null
           read_at: string | null
           retry_count: number | null
           sent_at: string | null
+          source_id: string | null
+          source_type: string | null
           title: string
           type: string | null
           updated_at: string | null
@@ -12728,12 +12731,15 @@ export type Database = {
           delivery_status?: string | null
           external_id?: string | null
           id?: string
+          idempotency_key?: string | null
           is_read?: boolean | null
           message: string
           notification_channel?: string | null
           read_at?: string | null
           retry_count?: number | null
           sent_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
           title: string
           type?: string | null
           updated_at?: string | null
@@ -12745,12 +12751,15 @@ export type Database = {
           delivery_status?: string | null
           external_id?: string | null
           id?: string
+          idempotency_key?: string | null
           is_read?: boolean | null
           message?: string
           notification_channel?: string | null
           read_at?: string | null
           retry_count?: number | null
           sent_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
           title?: string
           type?: string | null
           updated_at?: string | null
@@ -20864,6 +20873,10 @@ export type Database = {
         Args: { p_assignment_term_id: string; p_term_id: string }
         Returns: boolean
       }
+      can_read_released_lesson: {
+        Args: { p_lesson_id: string }
+        Returns: boolean
+      }
       canonical_academic_enrollment_type: {
         Args: { p_value: string }
         Returns: string
@@ -21292,6 +21305,15 @@ export type Database = {
       }
       hard_delete_portal_user: { Args: { p_id: string }; Returns: Json }
       hard_delete_school: { Args: { p_school: string }; Returns: Json }
+      hold_prepared_week_atomic: {
+        Args: {
+          p_held_at?: string
+          p_lesson_plan_id: string
+          p_session_number: number
+          p_week_number: number
+        }
+        Returns: Json
+      }
       increment_download_count: {
         Args: { file_id: string }
         Returns: undefined
@@ -21494,15 +21516,6 @@ export type Database = {
       release_cron_job_run: {
         Args: { p_job_name: string; p_run_id: string }
         Returns: boolean
-      }
-      hold_prepared_week_atomic: {
-        Args: {
-          p_held_at?: string
-          p_lesson_plan_id: string
-          p_session_number: number
-          p_week_number: number
-        }
-        Returns: Json
       }
       release_prepared_week_atomic: {
         Args: {

@@ -3735,9 +3735,9 @@ Verification and honest boundary:
 - the focused run passed 11 checks across release state, staff preview, exact-class matching, service-
   role proxy enforcement, class-meeting inheritance and database-policy contracts;
 - the complete TypeScript check passed;
-- migration 121 is present and contract-tested in source, but its application to the live database was
-  not verified in this pass. Until it is applied, the new API guard protects slide streaming, while
-  direct Supabase lesson/material reads still depend on the older database policies.
+- migration 121 was applied to the linked live database on 27 August 2026 and is present in the
+  regenerated live TypeScript schema. Direct Supabase lesson/material reads and the slide-stream API
+  now enforce the same released-lesson boundary.
 
 ### 16.48 Manual work now joins the complete class package — locally verified 27 August 2026
 
@@ -3777,7 +3777,34 @@ Verification and honest boundary:
 - five focused files passed 29 tests across learner visibility, exact package release/hold, evidence
   preservation and manual work. The generator-preservation contract passed all four of its checks;
 - the complete TypeScript check passed and `git diff --check` reported no whitespace errors;
-- migrations 121 and 122 are committed and contract-tested in source but were not applied to the live
-  database in this pass. No learner content was published or held during verification. An authenticated
-  browser exercise should still confirm the plan-linked labels, correction confirmation and return
-  navigation with real Class 1/Class 2 data after deployment.
+- migrations 121 and 122 were applied to the linked live database on 27 August 2026; the remote
+  migration history records both versions and regenerated types contain
+  `can_read_released_lesson` and `hold_prepared_week_atomic`;
+- migration 121 performed its intentional one-time alignment of existing class-plan material to each
+  lesson's current release state. No manual live release/hold action was invoked and no submissions,
+  scores or attendance records were changed. An authenticated browser exercise should still confirm
+  the plan-linked labels, correction confirmation and return navigation with real Class 1/Class 2 data
+  after the application code is deployed.
+
+### 16.49 Live schema agreement and reliable drift verification — verified 27 August 2026
+
+Implemented and proved:
+
+- a dry run identified exactly migrations 121 and 122 as pending; both then applied successfully and
+  the linked migration ledger reported local/remote agreement through version 122;
+- Supabase TypeScript definitions were regenerated from the migrated live database. This added the two
+  new functions, brought notification release-identity columns from migration 120 into the checked-in
+  contract and updated the reported PostgREST schema version;
+- the first 1,742-query schema sweep encountered one Cloudflare `502 Bad Gateway` response for a valid
+  assignment select. The verifier previously mislabeled any transport failure as a refused database
+  query. It now retries only gateway/network failures with bounded backoff, never retries a real
+  PostgREST or PostgreSQL schema refusal, and fails as **inconclusive** if a gateway remains unavailable
+  after three attempts;
+- three focused retry tests prove transient recovery, immediate real-schema failure and persistent-
+  gateway reporting. The combined release/access suite passed 33 tests, the complete TypeScript check
+  passed, and the final live sweep accepted all 1,742 queries with zero schema refusals.
+
+Remaining deployment boundary:
+
+- the database is live and current, but the application commits remain local. No remote Git push or
+  Cloudflare application deployment was performed in this pass.

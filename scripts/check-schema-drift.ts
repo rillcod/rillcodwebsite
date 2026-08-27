@@ -20,6 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
+import { runSchemaProbeWithRetry } from '../src/lib/supabase/schema-probe';
 
 const ROOT = path.join(process.cwd(), 'src');
 const CONCURRENCY = 24;
@@ -185,6 +186,8 @@ async function main() {
   const db = createClient(url, key, { auth: { persistSession: false } });
   const queries = collect();
   const failures: Array<Query & { code: string; message: string }> = [];
+  const transportFailures: Array<Query & { code: string; message: string }> = [];
+  let transientRetriesRecovered = 0;
 
   let next = 0;
   await Promise.all(
@@ -194,15 +197,43 @@ async function main() {
         if (i >= queries.length) return;
         const q = queries[i];
         // limit(0) asks PostgREST to parse and plan the query without returning rows.
-        const { error } = await db.from(q.table).select(q.cols, { count: 'exact' }).limit(0);
-        if (error) {
-          failures.push({ ...q, code: error.code ?? '?', message: error.message });
+        const probe = await runSchemaProbeWithRetry(async () => {
+          const { error } = await db.from(q.table).select(q.cols, { count: 'exact' }).limit(0);
+          return error;
+        });
+        if (!probe.error && probe.attempts > 1) transientRetriesRecovered += 1;
+        if (probe.error) {
+          const destination = probe.transient ? transportFailures : failures;
+          destination.push({
+            ...q,
+            code: probe.error.code ?? '?',
+            message: probe.error.message ?? 'Unknown database response',
+          });
         }
       }
     }),
   );
 
   console.log(`[schema-drift] checked ${queries.length} distinct queries against the live schema.`);
+  if (transientRetriesRecovered > 0) {
+    console.log(
+      `[schema-drift] ${transientRetriesRecovered} transient gateway response(s) passed on retry.`,
+    );
+  }
+
+  if (transportFailures.length > 0) {
+    console.error(
+      `\n[schema-drift] ${transportFailures.length} query(s) could not be verified after three gateway retries:\n`,
+    );
+    for (const failure of transportFailures) {
+      console.error(`  ${failure.file}:${failure.line}  [${failure.code}]`);
+      console.error(`    ${failure.message}\n`);
+    }
+    console.error(
+      'This run is inconclusive, not a schema pass. Retry when the database gateway is healthy.\n',
+    );
+    process.exit(1);
+  }
 
   if (failures.length === 0) {
     console.log('[schema-drift] all queries accepted.');
