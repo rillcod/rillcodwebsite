@@ -21,6 +21,26 @@ import {
 
 type Row = Record<string, any>;
 
+/** How this class got the week package. Empty weeks have no origin yet. */
+export type WeekContentOrigin = "generated" | "copied" | "edited";
+
+export const WEEK_CONTENT_ORIGIN_LABEL: Record<WeekContentOrigin, string> = {
+  generated: "Generated for this class",
+  copied: "Copied from another class",
+  edited: "Edited for this class",
+};
+
+export function weekContentOrigin(input: {
+  hasContent: boolean;
+  shared: boolean;
+  customized: boolean;
+}): WeekContentOrigin | null {
+  if (!input.hasContent) return null;
+  if (input.customized) return "edited";
+  if (input.shared) return "copied";
+  return "generated";
+}
+
 export type TeachingWeekRow = {
   weekMeta: Row;
   week: number;
@@ -46,6 +66,7 @@ export type TeachingWeekRow = {
     shared: boolean;
     customized: boolean;
     staleDerived: boolean;
+    origin: WeekContentOrigin | null;
   };
   evaluationStatus: "missing" | "held" | "live";
   calendarRole: WeekCalendarRole;
@@ -215,12 +236,19 @@ export function buildTeachingWeekRows(
 
     const packageStatus = weekPackageStatus(presence);
     const visibilitySummary = weekVisibilitySummary(visibility);
+    const shared = rows.some(isShared);
+    const customized = rows.some(isCustomized);
     const provenance = {
-      shared: rows.some(isShared),
-      customized: rows.some(isCustomized),
+      shared,
+      customized,
       staleDerived: Boolean(
         slideDeck?.content_stale_at || flashcardDeck?.content_stale_at
       ),
+      origin: weekContentOrigin({
+        hasContent: rows.some(Boolean),
+        shared,
+        customized,
+      }),
     };
     const evaluationStatus = !evaluation
       ? "missing"

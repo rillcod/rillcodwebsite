@@ -49,6 +49,7 @@ import {
 import {
   buildTeachingWeekRows,
   teachingSlotNeedsAttention,
+  WEEK_CONTENT_ORIGIN_LABEL,
 } from "@/lib/academic/teaching-workspace";
 import {
   teachingMeetingLabel,
@@ -1527,7 +1528,11 @@ export function ClassTeachingWorkspace({
             )}
 
             {/* List of Week Cards */}
-            <div className="mt-4 space-y-3">
+            <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+              Each week shows how this class got it: generated here, copied from
+              another class, or edited for this class.
+            </p>
+            <div className="mt-2 space-y-3">
               {visibleWeekRows.map((row) => {
                 const {
                   weekMeta,
@@ -1635,13 +1640,17 @@ export function ClassTeachingWorkspace({
                                 ✓ Taught
                               </span>
                             )}
-                            {provenance.customized ? (
-                              <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                                Edited for this class
-                              </span>
-                            ) : provenance.shared ? (
-                              <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300">
-                                From curriculum
+                            {provenance.origin ? (
+                              <span
+                                className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                                  provenance.origin === "edited"
+                                    ? "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                                    : provenance.origin === "copied"
+                                      ? "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+                                }`}
+                              >
+                                {WEEK_CONTENT_ORIGIN_LABEL[provenance.origin]}
                               </span>
                             ) : null}
                             {provenance.staleDerived && (

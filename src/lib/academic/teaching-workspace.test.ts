@@ -47,6 +47,8 @@ describe("teaching workspace week rows", () => {
     expect(rows[0].taught).toBe(true);
     expect(rows[1].lesson?.id).toBe("lesson-2");
     expect(rows[1].taught).toBe(false);
+    expect(rows[0].provenance.origin).toBe("generated");
+    expect(rows[1].provenance.origin).toBe("generated");
   });
 
   it("returns one shared readiness, visibility and provenance verdict", () => {
@@ -89,6 +91,7 @@ describe("teaching workspace week rows", () => {
       shared: true,
       customized: true,
       staleDerived: true,
+      origin: "edited",
     });
     expect(row.evaluationStatus).toBe("held");
     expect(row.recommendedAction).toBe("refresh");
@@ -124,6 +127,27 @@ describe("teaching workspace week rows", () => {
       usesHostEvaluation: true,
     });
     expect(row.recommendedAction).toBe("none");
+  });
+
+  it("labels copied weeks separately from generated and empty weeks", () => {
+    const [copied] = buildTeachingWeekRows({
+      planWeeks: [{ week: 5, topic: "Copied week" }],
+      lessons: [
+        {
+          id: "copied-lesson",
+          curriculum_week_number: 5,
+          status: "active",
+          metadata: { copied_from_content_id: "source-lesson" },
+        },
+      ],
+    });
+    expect(copied.provenance.origin).toBe("copied");
+    expect(copied.provenance.shared).toBe(true);
+
+    const [empty] = buildTeachingWeekRows({
+      planWeeks: [{ week: 6, topic: "Empty week" }],
+    });
+    expect(empty.provenance.origin).toBeNull();
   });
 });
 
