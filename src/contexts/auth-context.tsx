@@ -9,6 +9,10 @@ import {
   isInvalidRefreshTokenError,
   recoverInvalidBrowserSession,
 } from '@/lib/auth/session-recovery';
+import {
+  PROFILE_FETCH_ATTEMPT_TIMEOUTS_MS,
+  shouldRetryProfileResponse,
+} from '@/lib/auth/profile-loading';
 
 // ── "View as role" simulator ──
 // A UI-only preview tool so admins/teachers can sanity-check how the app
@@ -114,10 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cached = profileCache.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-    // Retry only on network/server errors (not on empty profile — that means no account)
-    // Keep delays short so normal users never notice the retry path
-    const MAX_RETRIES = 3;
-    const RETRY_DELAYS = [0, 400, 900]; // ms between retries (total max ~1.3 s)
+    // Retry only on network/server errors (not on empty profile — that means no account).
+    // Pauses stay short; the real wait is the per-attempt deadline in
+    // PROFILE_FETCH_ATTEMPT_TIMEOUTS_MS, not these gaps.
+    const MAX_RETRIES = PROFILE_FETCH_ATTEMPT_TIMEOUTS_MS.length;
+    const RETRY_DELAYS = [0, 400, 900];
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       if (attempt > 0) {
@@ -125,14 +130,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15_000);
-
-        const res = await apiFetch('/api/auth/me', { signal: controller.signal });
-        clearTimeout(timeoutId);
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          PROFILE_FETCH_ATTEMPT_TIMEOUTS_MS[attempt],
+        );
+        let res: Response;
+        try {
+          res = await apiFetch('/api/auth/me', { signal: controller.signal });
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         if (!res.ok) {
           // 401 = cookie not yet propagated after fresh login → worth retrying
-          if (res.status === 401 && attempt < MAX_RETRIES - 1) continue;
+          // 5xx = a temporary gateway/server problem. 4xx policy/account
+          // refusals are authoritative and must not be hammered repeatedly.
+          if (shouldRetryProfileResponse(res.status, attempt, MAX_RETRIES)) continue;
           return null;
         }
         const json = await res.json();

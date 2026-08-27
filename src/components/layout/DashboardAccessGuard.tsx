@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
 import RouteDeniedNotice from '@/components/access/RouteDeniedNotice';
 import { isCapacitorNative } from '@/lib/capacitor/platform';
 import { createClient } from '@/lib/supabase/client';
+import DashboardLoadingScreen from '@/components/dashboard/DashboardLoadingScreen';
 
 /**
  * Redirects students, parents, and school users away from routes their role must not use.
@@ -16,9 +17,10 @@ import { createClient } from '@/lib/supabase/client';
 export default function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, loading, profileLoading } = useAuth();
+  const { profile, loading, profileLoading, refreshProfile } = useAuth();
   const lastRedirectRef = useRef<string | null>(null);
   const hasLoggedSessionRef = useRef(false);
+  const [retryingProfile, setRetryingProfile] = useState(false);
 
   const needsSchool =
     !!profile &&
@@ -86,13 +88,32 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
     router.replace(target);
   }, [pathname, profile?.role, loading, profileLoading, router, structureBlocked]);
 
+  async function retryProfile() {
+    setRetryingProfile(true);
+    try {
+      await refreshProfile();
+    } finally {
+      setRetryingProfile(false);
+    }
+  }
+
+  // Do not render a role-specific page underneath an unresolved role. Besides
+  // looking broken, that briefly exposes irrelevant controls before the API
+  // rejects them. One central loading surface keeps every dashboard route calm.
+  if ((loading || profileLoading) && !profile) {
+    return <DashboardLoadingScreen variant="skeleton" message="Opening your workspace…" />;
+  }
+
   if (profileMissing) {
     return (
       <RouteDeniedNotice
         title="Account details unavailable"
-        body="We could not safely confirm your account and permissions. Sign in again; if this continues, contact your school or Rillcod support."
-        homeHref="/login?clear=1"
-        actionLabel="Return to sign in"
+        body="We could not confirm your account and permissions. Try once more; if it still does not open, sign in again or contact your school or Rillcod support."
+        actionLabel="Try account again"
+        onAction={() => void retryProfile()}
+        actionBusy={retryingProfile}
+        secondaryHref="/login?clear=1"
+        secondaryLabel="Return to sign in"
       />
     );
   }

@@ -14,7 +14,12 @@ export default function DashboardLoadingScreen({
 }: Props) {
   if (variant === 'skeleton') {
     return (
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div
+        className="space-y-4 animate-in fade-in duration-300"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-sm font-medium text-muted-foreground">{message}</p>
         <div className="h-28 rounded-xl bg-muted/40 border border-border animate-pulse" />
         <DashboardSkeleton />
       </div>

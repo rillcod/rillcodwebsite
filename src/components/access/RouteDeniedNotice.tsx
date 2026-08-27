@@ -8,6 +8,10 @@ type Props = {
   body?: string;
   homeHref?: string;
   actionLabel?: string;
+  onAction?: () => void;
+  actionBusy?: boolean;
+  secondaryHref?: string;
+  secondaryLabel?: string;
 };
 
 /**
@@ -19,6 +23,10 @@ export default function RouteDeniedNotice({
   body = 'You were redirected because this page is reserved for platform staff or a different role. Use the menu or go back to your dashboard.',
   homeHref = '/dashboard',
   actionLabel = 'Back to dashboard',
+  onAction,
+  actionBusy = false,
+  secondaryHref,
+  secondaryLabel,
 }: Props) {
   return (
     <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
@@ -29,12 +37,33 @@ export default function RouteDeniedNotice({
         <h1 className="text-base font-black uppercase tracking-widest text-foreground">{title}</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
       </div>
-      <Link
-        href={homeHref}
-        className="inline-flex min-h-11 items-center text-xs font-black uppercase tracking-widest text-primary hover:text-primary underline underline-offset-4"
-      >
-        {actionLabel}
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-4">
+        {onAction ? (
+          <button
+            type="button"
+            onClick={onAction}
+            disabled={actionBusy}
+            className="inline-flex min-h-11 items-center text-xs font-black uppercase tracking-widest text-primary underline underline-offset-4 disabled:cursor-wait disabled:opacity-60"
+          >
+            {actionBusy ? 'Checking account…' : actionLabel}
+          </button>
+        ) : (
+          <Link
+            href={homeHref}
+            className="inline-flex min-h-11 items-center text-xs font-black uppercase tracking-widest text-primary hover:text-primary underline underline-offset-4"
+          >
+            {actionLabel}
+          </Link>
+        )}
+        {secondaryHref && secondaryLabel && (
+          <Link
+            href={secondaryHref}
+            className="inline-flex min-h-11 items-center text-xs font-bold text-muted-foreground hover:text-foreground"
+          >
+            {secondaryLabel}
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

@@ -3863,6 +3863,52 @@ Verification and live evidence:
   missing requested content, and zero meetings have more than one running generator;
 - no production data, score, submission, curriculum, lesson or release state was changed by the audit.
   No migration or production build was required. Commits `546a5c8a`, `b89cdc4c`, `c2a67bb8` and
-  `aedca182` reached `origin/main` through the shared workspace while this verification was running;
-  this final dependency guard and audit update remain a local milestone, and no Cloudflare deployment
-  status is claimed here.
+  `aedca182` reached `origin/main` through the shared workspace while this verification was running.
+  No Cloudflare deployment status is claimed here.
+
+### 16.51 Academic overview and account-loading recovery — locally verified 27 August 2026
+
+Confirmed gaps:
+
+- an account already known from browser storage could show **Still signed in — loading your account**
+  for roughly 47 seconds because three profile attempts each had a 15-second timeout. The comment
+  described only 1.3 seconds of retry pauses and did not account for the request deadlines;
+- the academic overview waited on its required academic-spine request and an optional administrator
+  summary in one unbounded `Promise.all`. Either request could leave the whole page on **Loading…**,
+  and the failure surface had no retry action;
+- while the role/profile was unresolved, role-specific dashboard children still rendered underneath
+  the account-loading state. APIs remained protected, but the interface could briefly expose irrelevant
+  controls and make the product look partially signed in;
+- the shared skeleton ignored its `message` prop, so the central loading state had no accessible or
+  visible explanation;
+- the local Next development log showed `127.0.0.1` HMR/assets being blocked because the dev server
+  was initialized for `localhost` and `allowedDevOrigins` did not include the alternate loopback host.
+
+Implemented:
+
+- profile recovery now uses bounded 8-, 6- and 4-second attempts plus the existing short pauses. It
+  retries cookie propagation and temporary server/gateway failures, but not authoritative 403/404
+  account or policy refusals, and always clears its abort timer;
+- the academic overview gives the required request a 15-second deadline. The administrator-only
+  summary has its own 12-second deadline and may fail without withholding the class/teaching view;
+- stale responses from rapid class changes can no longer overwrite the latest selection. Network and
+  server internals are replaced by plain customer wording, and the error card offers **Try again**;
+- one dashboard access gate now holds role-specific pages behind **Opening your workspace…** until the
+  profile is known. A failed profile offers **Try account again** and keeps **Return to sign in** as a
+  clear fallback instead of silently locking the customer out;
+- skeleton loading now renders its message inside an accessible polite status region;
+- `next.config.ts` follows the installed Next 16 guidance and allows `127.0.0.1` for development-only
+  assets. `localhost` remains the default and production Cloudflare behavior is unchanged.
+
+Verification and honest boundary:
+
+- focused tests passed for bounded profile retry, temporary versus authoritative response handling,
+  abortable UI requests, optional-summary isolation, request-race protection, plain wording, central
+  role gating and visible loading feedback;
+- the complete TypeScript check passed before the final development-origin setting and is rerun as part
+  of this milestone before commit;
+- the in-app browser confirmed that the server-rendered academic route now shows one calm, accessible
+  **Opening your workspace…** state instead of rendering the academic page underneath unresolved auth;
+- the currently running Next development process must be restarted before it can consume the new
+  `allowedDevOrigins` setting. A fully hydrated authenticated click-through is not claimed here.
+  No production build, database write or score mutation was performed as part of this verification.

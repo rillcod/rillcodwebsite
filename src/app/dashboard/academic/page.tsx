@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { learnerReportHref } from "@/components/reports/LearnerReportFlowStrip";
 import { buildCurriculumHref, buildCertifyHref } from "@/lib/curriculum/href";
@@ -25,6 +25,7 @@ import {
   MOBILE_PAGE_BOTTOM,
   MOBILE_TOUCH_BTN,
 } from "@/components/mobile/mobile-styles";
+import { fetchWithTimeoutOrThrow } from "@/lib/async-timeout";
 
 type SpineData = {
   classes: { id: string; name: string }[];
@@ -155,34 +156,61 @@ export default function AcademicSpinePage() {
   const [error, setError] = useState("");
   const [showTools, setShowTools] = useState(false);
   const [showAllAttention, setShowAllAttention] = useState(false);
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     setLoading(true);
     setError("");
     try {
       const query = classId ? `?class_id=${encodeURIComponent(classId)}` : "";
       const [spineRes, statusRes] = await Promise.all([
-        fetch(`/api/academic-spine${query}`, { cache: "no-store" }),
-        fetch("/api/academic/status", { cache: "no-store" }),
+        fetchWithTimeoutOrThrow(
+          `/api/academic-spine${query}`,
+          { cache: "no-store" },
+          "Your academic work is taking longer than expected. Check your connection and try again.",
+          15_000,
+        ),
+        isAdmin
+          ? fetchWithTimeoutOrThrow(
+              "/api/academic/status",
+              { cache: "no-store" },
+              "The academic summary is taking longer than expected.",
+              12_000,
+            ).catch(() => null)
+          : Promise.resolve(null),
       ]);
       const body = await spineRes.json();
-      if (!spineRes.ok)
-        throw new Error(body.error || "Unable to open the academic view");
+      if (!spineRes.ok) {
+        throw new Error(
+          spineRes.status === 401
+            ? "Your session needs to be refreshed. Sign in again to continue."
+            : spineRes.status === 403
+              ? "This academic area is not available for your account."
+              : "We could not open your academic work. Please try again."
+        );
+      }
+      if (requestId !== loadRequestRef.current) return;
       setData(body.data);
-      if (statusRes.ok) {
+      if (statusRes?.ok) {
         const statusBody = await statusRes.json();
+        if (requestId !== loadRequestRef.current) return;
         setOverview(statusBody.overview ?? null);
+      } else if (isAdmin) {
+        setOverview(null);
       }
     } catch (cause) {
+      if (requestId !== loadRequestRef.current) return;
       setError(
-        cause instanceof Error
+        cause instanceof Error &&
+          !/failed to fetch|networkerror|aborterror/i.test(cause.message)
           ? cause.message
-          : "Unable to open the academic view"
+          : "We could not open your academic work. Check your connection and try again."
       );
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestRef.current) setLoading(false);
     }
-  }, [classId]);
+  }, [classId, isAdmin]);
 
   useEffect(() => {
     load();
@@ -332,14 +360,29 @@ export default function AcademicSpinePage() {
       </MobilePageHero>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
+        <div
+          className="flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between"
+          role="alert"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className={`${MOBILE_TOUCH_BTN} shrink-0 border border-destructive/30 bg-background text-foreground sm:w-auto`}
+          >
+            {loading ? "Trying again…" : "Try again"}
+          </button>
         </div>
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          Loading…
+        <div
+          className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          Opening your academic work…
         </div>
       )}
 

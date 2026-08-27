@@ -27,6 +27,11 @@ const cspReportOnly = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // Local desktop/browser checks use both host spellings. Next 16 blocks
+  // dev-only assets and HMR when 127.0.0.1 opens a server initialized for
+  // localhost unless that hostname is explicitly allowed.
+  allowedDevOrigins: ['127.0.0.1'],
+
   // ── TypeScript: type errors still block builds ────────────────────────────
   typescript: { ignoreBuildErrors: false },
 
