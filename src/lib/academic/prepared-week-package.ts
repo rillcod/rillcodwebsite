@@ -1,8 +1,8 @@
 import { indexFirstByWeekSession, weekSessionLookupKey } from "./week-package";
 
 type AssetRow = {
-  id?: unknown;
-  title?: unknown;
+  id?: string | null;
+  title?: string | null;
   curriculum_week_number?: unknown;
   session?: unknown;
   session_number?: unknown;

@@ -3656,3 +3656,47 @@ Verification and honest boundary:
 - the complete TypeScript check passed and `git diff --check` reported no whitespace errors;
 - no live adoption was changed during verification, so the switch still needs an authenticated
   post-deployment browser exercise against a non-production test school before production certification.
+
+### 16.46 Meeting-safe class preparation and complete package release — locally verified 27 August 2026
+
+Confirmed gaps:
+
+- the AI week modal generated content with plan, week and class-meeting identity, but its read-back
+  searched several broad APIs by plan and calendar week. In a programme with two meetings in one week,
+  preparing Class 2 could therefore offer links belonging to Class 1;
+- the full lesson-plan screen used a separate week-matching rule and manual homework/project creation
+  did not persist the meeting number through the public assignment endpoint;
+- the class workspace did not select the slide deck's `is_public` release flag. Its visibility verdict
+  could therefore follow the lesson alone instead of reporting a held slide deck truthfully;
+- release confirmation copy named only the lesson, assignment and cards even though the package also
+  contains slides and a project, and partial-generation messages exposed internal generator type names.
+
+Implemented:
+
+- generated work is now confirmed through the canonical class teaching workspace and resolved by
+  lesson plan + curriculum week + class meeting. Lesson, slide, practice-card, homework and project
+  links all come from that one response;
+- one shared `assetMatchesMeeting` rule now drives the lesson-plan view, repair inventory and package
+  confirmation. Legacy untagged records remain Class 1; a Class 2 record cannot fall back to Class 1;
+- lesson and assignment list APIs now return `curriculum_week_number` and `session_number`, while the
+  assignment write path validates and accepts the meeting number. Manual homework and projects stamp
+  the same identity in canonical columns and compatibility metadata;
+- the workspace reads slide visibility directly. Migration
+  `20260929000088_release_complete_teaching_package.sql` publishes slides in the same database
+  transaction as the lesson, homework/project rows and practice cards;
+- the teacher confirmation now names all five learning items, successful release has visible feedback,
+  alert-delivery warnings use a warning state instead of looking like a failed release, and generation
+  problems use familiar labels such as **Homework** and **Practice cards**;
+- the saved-package helper's TypeScript contract now preserves asset IDs and titles through the shared
+  meeting index, preventing a type-safe build from masking the runtime fix.
+
+Verification and honest boundary:
+
+- six focused files passed 52 tests across exact meeting selection, legacy Class 1 compatibility,
+  package presence/visibility, generation repair, atomic release contracts and teacher-workspace UX;
+- the complete TypeScript check passed after the helper contract correction;
+- the first test attempt was blocked by Windows sandbox process spawning (`EPERM`); the identical test
+  command passed outside that sandbox, so this is not recorded as a product failure;
+- migration 88 is present and contract-tested in source. This pass did not query production migration
+  history or release real learner content, so live database application and a post-deployment
+  two-meeting browser exercise remain production certification checks.
