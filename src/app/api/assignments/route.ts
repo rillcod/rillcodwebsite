@@ -449,6 +449,10 @@ export async function POST(request: NextRequest) {
     for (const f of allowedFields) {
       if (f in body) payload[f] = body[f] ?? null;
     }
+    // A class-plan item is one part of the five-part teaching package. Saving it
+    // here must never publish that one part ahead of its lesson, slides and cards.
+    // Stand-alone assignments keep their explicit publish choice.
+    if (lessonPlanId) payload.is_active = false;
     if (!payload.grading_mode && Array.isArray(payload.questions) && payload.questions.length > 0) {
       payload.grading_mode = payload.questions.every(isAutoGradableAssignmentQuestion)
         ? 'auto'

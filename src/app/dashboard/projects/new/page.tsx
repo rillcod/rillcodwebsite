@@ -120,6 +120,7 @@ export default function NewProjectActivityPage() {
     const searchParamsRaw = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const preLessonPlanId = searchParamsRaw?.get('lesson_plan_id');
     const preWeek = searchParamsRaw?.get('week');
+    const preSession = searchParamsRaw?.get('session');
     const preClassId = searchParamsRaw?.get('class_id');
     const preCourseId = searchParamsRaw?.get('course_id');
     const preSchoolId = searchParamsRaw?.get('school_id');
@@ -319,12 +320,13 @@ export default function NewProjectActivityPage() {
                 due_date:         dueDate || null,
                 max_points:       gradingMode === 'rubric' ? rubricTotal : (parseInt(maxPoints) || 100),
                 assignment_type:  'project',
-                is_active:        !isDraft,
+                is_active:        preLessonPlanId ? false : !isDraft,
                 course_id:        preCourseId || null,
                 class_id:         targetClassId || preClassId || null,
                 lesson_id:        preLessonId || null,
                 lesson_plan_id:   preLessonPlanId || null,
                 curriculum_week_number: preWeek ? parseInt(preWeek) : null,
+                session_number: preSession ? parseInt(preSession) : 1,
                 project_template_id: preTemplateId || null,
                 grading_mode: 'manual',
                 // use selected school if set, otherwise fall back to teacher's primary school
@@ -356,6 +358,7 @@ export default function NewProjectActivityPage() {
                     target_student_ids: workMode === 'specific'   ? targetStudentIds : [],
                     ...(preLessonPlanId ? { lesson_plan_id: preLessonPlanId } : {}),
                     ...(preWeek ? { week: parseInt(preWeek), week_number: parseInt(preWeek) } : {}),
+                    ...(preSession ? { session: parseInt(preSession), session_number: parseInt(preSession) } : {}),
                     ...(preTemplateId ? { project_template_id: preTemplateId } : {}),
                 },
             };
@@ -1045,8 +1048,14 @@ export default function NewProjectActivityPage() {
                         {step === 4 && (
                             <div className="space-y-6">
                                 <div>
-                                    <h2 className="text-lg font-black text-foreground uppercase tracking-tight italic mb-0.5">Review & Publish</h2>
-                                    <p className="text-xs text-muted-foreground">Review your activity setup before publishing to students</p>
+                                    <h2 className="text-lg font-black text-foreground uppercase tracking-tight italic mb-0.5">
+                                        {preLessonPlanId ? 'Review & Save' : 'Review & Publish'}
+                                    </h2>
+                                    <p className="text-xs text-muted-foreground">
+                                        {preLessonPlanId
+                                            ? 'Save this project to its class plan; the complete week is released together after review.'
+                                            : 'Review your activity setup before publishing to students'}
+                                    </p>
                                 </div>
 
                                 {/* Summary card */}
@@ -1149,17 +1158,23 @@ export default function NewProjectActivityPage() {
 
                                 {/* Publish options */}
                                 <div className="flex flex-col sm:flex-row gap-3">
-                                    <button type="button" onClick={() => handlePublish(false)} disabled={saving}
+                                    <button type="button" onClick={() => handlePublish(Boolean(preLessonPlanId))} disabled={saving}
                                         className="flex-1 flex items-center justify-center gap-2 py-4 bg-primary hover:bg-primary text-white font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
-                                        Publish Activity
+                                        {preLessonPlanId ? 'Save to Class Plan' : 'Publish Activity'}
                                     </button>
-                                    <button type="button" onClick={() => handlePublish(true)} disabled={saving}
-                                        className="flex items-center justify-center gap-2 px-6 py-4 bg-white/5 border border-white/10 hover:border-white/20 text-muted-foreground hover:text-white font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50">
-                                        Save as Draft
-                                    </button>
+                                    {!preLessonPlanId && (
+                                        <button type="button" onClick={() => handlePublish(true)} disabled={saving}
+                                            className="flex items-center justify-center gap-2 px-6 py-4 bg-white/5 border border-white/10 hover:border-white/20 text-muted-foreground hover:text-white font-black uppercase tracking-widest text-sm transition-all disabled:opacity-50">
+                                            Save as Draft
+                                        </button>
+                                    )}
                                 </div>
-                                <p className="text-[10px] text-muted-foreground text-center">Publishing makes the activity visible to students immediately. Drafts are hidden.</p>
+                                <p className="text-[10px] text-muted-foreground text-center">
+                                    {preLessonPlanId
+                                        ? 'Students see it only when the teacher releases the complete teaching week.'
+                                        : 'Publishing makes the activity visible to students immediately. Drafts are hidden.'}
+                                </p>
                             </div>
                         )}
 

@@ -30,6 +30,7 @@ import {
   policyFromClassSchool,
 } from "@/lib/academic/school-programme-standing";
 import { fallbackScheduleRow, readDeliveryPosition } from "@/lib/academic/entry-point";
+import { logAudit } from "@/lib/audit/log";
 
 export const dynamic = "force-dynamic";
 
@@ -839,6 +840,71 @@ export async function POST(
         { status: 400 }
       );
     }
+    await logAudit(db, {
+      action: "release_teaching_package",
+      actorId: user.id,
+      resourceType: "lesson_plan",
+      resourceId: String(body.lesson_plan_id),
+      newValue: `Shared Week ${week}, Class ${result.session ?? session ?? 1} with students`,
+      newValues: {
+        class_id: id,
+        week_number: week,
+        session_number: result.session ?? session ?? 1,
+        lessons_released: result.lessons_released,
+        assignments_released: result.assignments_released,
+        slides_released: result.slides_released,
+        flashcards_released: result.flashcards_released,
+      },
+    });
+    return NextResponse.json({ data: result });
+  }
+
+  // Correction path: withdraw one complete teaching package without deleting
+  // learner submissions, scores, attendance or delivery history.
+  if (body.action === "hold_week") {
+    if (!(await planBelongsToClass(body.lesson_plan_id))) {
+      return NextResponse.json(
+        { error: "That teaching plan does not belong to this class" },
+        { status: 403 }
+      );
+    }
+    const week = Number(body.week_number);
+    if (!Number.isInteger(week) || week <= 0) {
+      return NextResponse.json(
+        { error: "week_number must be a positive whole number" },
+        { status: 400 }
+      );
+    }
+    const session = parseRequestSession(body as Record<string, unknown>);
+    const { holdPreparedWeek } = await import(
+      "@/lib/academic/release-week-content"
+    );
+    const result = await holdPreparedWeek({
+      planId: String(body.lesson_plan_id),
+      week,
+      session,
+    });
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    await logAudit(db, {
+      action: "hold_teaching_package",
+      actorId: user.id,
+      resourceType: "lesson_plan",
+      resourceId: String(body.lesson_plan_id),
+      oldValue: `Visible to students: Week ${week}, Class ${result.session}`,
+      newValue: `Held from students: Week ${week}, Class ${result.session}`,
+      newValues: {
+        class_id: id,
+        week_number: week,
+        session_number: result.session,
+        lessons_held: result.lessons_held,
+        assignments_held: result.assignments_held,
+        slides_held: result.slides_held,
+        flashcards_held: result.flashcards_held,
+        learner_evidence_preserved: true,
+      },
+    });
     return NextResponse.json({ data: result });
   }
 

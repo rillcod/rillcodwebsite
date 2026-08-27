@@ -61,6 +61,7 @@ export default function NewAssignmentPage() {
   const preClassId = searchParams?.get('class_id');
   const preAssignmentType = searchParams?.get('type');
   const preWeek = searchParams?.get('week');
+  const preSession = searchParams?.get('session');
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [availableClasses, setAvailableClasses] = useState<AssignmentClassOption[]>([]);
@@ -347,9 +348,12 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
         class_id: classId || null,
         lesson_plan_id: preLessonPlanId ?? null,
         curriculum_week_number: preWeek && Number.isInteger(Number(preWeek)) ? Number(preWeek) : null,
+        session_number: preSession && Number.isInteger(Number(preSession)) ? Number(preSession) : 1,
         max_points: parseInt(form.max_points) || 100,
         assignment_type: form.assignment_type,
-        is_active: true,
+        // Plan-linked work is reviewed and released with its complete week.
+        // Stand-alone work retains the familiar publish-on-create behaviour.
+        is_active: !preLessonPlanId,
         created_by: profile?.id || '',
         questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
         metadata: (() => {
@@ -359,6 +363,10 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
           if (preLessonPlanId) base.lesson_plan_id = preLessonPlanId;
           if (classId) base.target_class_id = classId;
           if (preWeek) base.week_number = parseInt(preWeek);
+          if (preSession) {
+            base.session = parseInt(preSession);
+            base.session_number = parseInt(preSession);
+          }
           if (form.assignment_type === 'project') {
             base.deliverables = projectMeta.deliverables.filter(d => d.trim());
             base.rubric = projectMeta.rubric.filter(r => r.criterion.trim());
@@ -425,7 +433,11 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
           </div>
           <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-            {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
+            {saving
+              ? 'Saving...'
+              : preLessonPlanId
+                ? 'SAVE TO PLAN'
+                : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
           </button>
         </div>
 
@@ -435,7 +447,8 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">Linked to Lesson Plan</p>
               <p className="text-sm font-bold text-foreground">
-                {preWeek ? `Week ${preWeek} · ` : ''}This assignment will be tracked in the plan
+                {preWeek ? `Week ${preWeek}${preSession ? ` · Class ${preSession}` : ''} · ` : ''}
+                Saved for review, then released with the complete teaching package
               </p>
             </div>
             <Link href={`/dashboard/lesson-plans/${preLessonPlanId}`} className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest">
@@ -1019,7 +1032,7 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating…' : 'Create Assignment'}
+              {saving ? 'Saving…' : preLessonPlanId ? 'Save to Plan' : 'Create Assignment'}
             </button>
           </div>
         </form>

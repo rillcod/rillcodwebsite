@@ -11,6 +11,7 @@ import {
   ChevronUpIcon,
   DocumentChartBarIcon,
   DocumentTextIcon,
+  EyeSlashIcon,
   ExclamationTriangleIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -137,6 +138,7 @@ export function ClassTeachingWorkspace({
   const [pendingRelease, setPendingRelease] = useState<{
     label: string;
     body: Record<string, unknown>;
+    mode?: "release" | "hold";
   } | null>(null);
 
   // Guard against race conditions when switching courses rapidly
@@ -253,6 +255,11 @@ export function ClassTeachingWorkspace({
         setAiStatus({
           tone: "success",
           message: `${completed} teaching package${completed === 1 ? " is" : "s are"} now visible to the class.`,
+        });
+      } else if (body.action === "hold_week") {
+        setAiStatus({
+          tone: "success",
+          message: "The complete teaching package is now held from students. Their submissions, scores and attendance were preserved.",
         });
       }
       return true;
@@ -793,16 +800,20 @@ export function ClassTeachingWorkspace({
       )}
 
       {pendingRelease && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-orange-500/40 bg-orange-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+          pendingRelease.mode === "hold"
+            ? "border-amber-500/40 bg-amber-500/10"
+            : "border-orange-500/40 bg-orange-500/10"
+        }`}>
           <div>
             <p className="text-sm font-black text-foreground">
-              Share with students?
+              {pendingRelease.mode === "hold" ? "Hold from students?" : "Share with students?"}
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {pendingRelease.label} Learners will see every prepared lesson,
-              slide deck, practice-card deck, homework and project in the
-              selected package. Tests stay private until you open them
-              separately.
+              {pendingRelease.label}{" "}
+              {pendingRelease.mode === "hold"
+                ? "The lesson, slides, practice cards, homework and project will be withdrawn together. Existing submissions, scores, attendance and delivery history remain safe."
+                : "Learners will see every prepared lesson, slide deck, practice-card deck, homework and project in the selected package. Tests stay private until you open them separately."}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -818,9 +829,11 @@ export function ClassTeachingWorkspace({
               type="button"
               disabled={busy}
               onClick={() => void confirmPendingRelease()}
-              className="rounded-xl bg-orange-700 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
+              className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50 ${
+                pendingRelease.mode === "hold" ? "bg-amber-700" : "bg-orange-700"
+              }`}
             >
-              Share now
+              {pendingRelease.mode === "hold" ? "Hold package" : "Share now"}
             </button>
           </div>
         </div>
@@ -1041,13 +1054,39 @@ export function ClassTeachingWorkspace({
                         Open class materials
                       </Link>
                       {canEdit && (
-                        <Link
-                          href={resumeWeek.attendanceHref}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary shadow-sm transition-all active:scale-[0.98]"
-                        >
-                          <ClipboardDocumentCheckIcon className="h-4 w-4" />
-                          Take attendance
-                        </Link>
+                        <>
+                          <Link
+                            href={resumeWeek.attendanceHref}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary shadow-sm transition-all active:scale-[0.98]"
+                          >
+                            <ClipboardDocumentCheckIcon className="h-4 w-4" />
+                            Take attendance
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setPendingRelease({
+                                mode: "hold",
+                                label: `${teachingMeetingLabel(
+                                  resumeWeek.week,
+                                  resumeWeek.session,
+                                  resumeWeek.meetingsInWeek
+                                )} will no longer be visible to this class.`,
+                                body: {
+                                  action: "hold_week",
+                                  lesson_plan_id: plan.id,
+                                  week_number: resumeWeek.week,
+                                  session: resumeWeek.session,
+                                },
+                              })
+                            }
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-300"
+                          >
+                            <EyeSlashIcon className="h-4 w-4" />
+                            Hold from students
+                          </button>
+                        </>
                       )}
                     </>
                   )}
@@ -1891,14 +1930,37 @@ export function ClassTeachingWorkspace({
                         {/* Secondary Quick-Access Tools */}
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {canEdit && recommendedAction === "teach" && (
-                            <Link
-                              href={liveSessionHref}
-                              title="Start a live online class if this meeting is remote"
-                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 text-[11px] font-bold text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                            >
-                              <VideoCameraIcon className="h-3.5 w-3.5 text-primary" />
-                              <span className="hidden sm:inline">Live Class</span>
-                            </Link>
+                            <>
+                              <Link
+                                href={liveSessionHref}
+                                title="Start a live online class if this meeting is remote"
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 text-[11px] font-bold text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                              >
+                                <VideoCameraIcon className="h-3.5 w-3.5 text-primary" />
+                                <span className="hidden sm:inline">Live Class</span>
+                              </Link>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                title="Temporarily withdraw this complete package without deleting learner work"
+                                onClick={() =>
+                                  setPendingRelease({
+                                    mode: "hold",
+                                    label: `${slotLabel} will no longer be visible to this class.`,
+                                    body: {
+                                      action: "hold_week",
+                                      lesson_plan_id: plan.id,
+                                      week_number: week,
+                                      session,
+                                    },
+                                  })
+                                }
+                                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 text-[11px] font-bold text-amber-700 transition-colors hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-300"
+                              >
+                                <EyeSlashIcon className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Hold</span>
+                              </button>
+                            </>
                           )}
 
                           {canEdit && taught && (

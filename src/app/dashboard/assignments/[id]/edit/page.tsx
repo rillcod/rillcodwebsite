@@ -56,6 +56,7 @@ export default function EditAssignmentPage() {
     const [selectedClassId, setSelectedClassId] = useState('');
     const [assignmentSchoolId, setAssignmentSchoolId] = useState('');
     const [assignmentMetadata, setAssignmentMetadata] = useState<Record<string, unknown>>({});
+    const [lessonPlanId, setLessonPlanId] = useState('');
     const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
 
     const [form, setForm] = useState({
@@ -114,6 +115,7 @@ export default function EditAssignmentPage() {
                 setSelectedClassId(a.class_id ?? '');
                 setAssignmentSchoolId(a.school_id ?? '');
                 setAssignmentMetadata(metadata);
+                setLessonPlanId(a.lesson_plan_id ?? (typeof metadata.lesson_plan_id === 'string' ? metadata.lesson_plan_id : ''));
                 setAssessmentScope(metadata.assessment_scope === 'practice' || metadata.result_eligible === false
                     ? 'practice'
                     : 'class_result');
@@ -169,7 +171,7 @@ export default function EditAssignmentPage() {
                 program_id: selectedProgramId || null,
                 max_points: parseInt(form.max_points) || 100,
                 assignment_type: form.assignment_type,
-                is_active: form.is_active,
+                ...(!lessonPlanId ? { is_active: form.is_active } : {}),
                 updated_at: new Date().toISOString(),
                 questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
             };
@@ -396,16 +398,31 @@ export default function EditAssignmentPage() {
                     </div>
 
                     {/* Status */}
-                    <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <div
-                                onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
-                                className={`w-10 h-6 rounded-full transition-colors ${form.is_active ? 'bg-amber-500' : 'bg-muted'} flex items-center px-1`}>
-                                <div className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${form.is_active ? 'translate-x-4' : 'translate-x-0'}`} />
-                            </div>
-                            <span className="text-sm text-muted-foreground">Active (visible to students)</span>
-                        </label>
-                    </div>
+                    {lessonPlanId ? (
+                        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <p className="text-sm font-bold text-foreground">
+                                {form.is_active ? 'Released with its teaching week' : 'Held for teaching-week review'}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                Save your changes here. Release or hold the complete lesson, slides, cards, homework and project from the class plan.
+                            </p>
+                            <Link href={`/dashboard/lesson-plans/${lessonPlanId}`}
+                                className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-primary hover:underline">
+                                Open class plan
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <div
+                                    onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
+                                    className={`w-10 h-6 rounded-full transition-colors ${form.is_active ? 'bg-amber-500' : 'bg-muted'} flex items-center px-1`}>
+                                    <div className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${form.is_active ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                                <span className="text-sm text-muted-foreground">Active (visible to students)</span>
+                            </label>
+                        </div>
+                    )}
 
                     {/* Description */}
                     <div>

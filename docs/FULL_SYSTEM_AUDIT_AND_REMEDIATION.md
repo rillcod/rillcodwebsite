@@ -3738,3 +3738,46 @@ Verification and honest boundary:
 - migration 121 is present and contract-tested in source, but its application to the live database was
   not verified in this pass. Until it is applied, the new API guard protects slide streaming, while
   direct Supabase lesson/material reads still depend on the older database policies.
+
+### 16.48 Manual work now joins the complete class package — locally verified 27 August 2026
+
+Confirmed gaps:
+
+- the five AI generators respected the plan's **hold for review / release automatically** setting, but
+  the general assignment and project builders always offered immediate publication. Opening either
+  builder from a class-plan week could therefore publish homework or a project before the lesson,
+  slides and practice cards;
+- the older assignment edit screen exposed an independent **visible to students** switch for
+  plan-linked work. This bypassed the atomic class-week release and could create a partial learner
+  package;
+- the week links carried calendar week but not the meeting number, so manually created Class 2 work
+  could be saved with the legacy Class 1 identity.
+
+Implemented:
+
+- the assignment API now authoritatively saves every plan-linked assignment/project as held. This is
+  enforced server-side even if an old client requests immediate publication;
+- changing one plan-linked item's release state through the generic edit endpoint now returns a plain
+  `PACKAGE_RELEASE_MANAGED` response with the plan ID. The editor removes that misleading switch,
+  shows the real release state and links back to the class plan. Stand-alone assignments still retain
+  their individual publish toggle;
+- the class workspace now provides the missing safe correction path: **Hold from students** confirms
+  the exact week and class meeting, then migration
+  `20260929000122_hold_complete_teaching_package.sql` withdraws the lesson, slides, cards, homework
+  and project in one database operation. It never deletes submissions, scores, attendance or delivery
+  history. Both release and hold actions now write human-readable accountability records;
+- both manual builders say **Save to plan**, explain that students receive the complete week together,
+  and carry the canonical meeting number from the plan into columns and compatibility metadata;
+- the AI lesson, slide, practice-card, homework and project generators remain unchanged. Their explicit
+  `auto_publish` handling is regression-tested, so this consistency fix does not reduce generation
+  richness or disable the administrator-controlled automatic-release option.
+
+Verification and honest boundary:
+
+- five focused files passed 29 tests across learner visibility, exact package release/hold, evidence
+  preservation and manual work. The generator-preservation contract passed all four of its checks;
+- the complete TypeScript check passed and `git diff --check` reported no whitespace errors;
+- migrations 121 and 122 are committed and contract-tested in source but were not applied to the live
+  database in this pass. No learner content was published or held during verification. An authenticated
+  browser exercise should still confirm the plan-linked labels, correction confirmation and return
+  navigation with real Class 1/Class 2 data after deployment.

@@ -21495,6 +21495,15 @@ export type Database = {
         Args: { p_job_name: string; p_run_id: string }
         Returns: boolean
       }
+      hold_prepared_week_atomic: {
+        Args: {
+          p_held_at?: string
+          p_lesson_plan_id: string
+          p_session_number: number
+          p_week_number: number
+        }
+        Returns: Json
+      }
       release_prepared_week_atomic: {
         Args: {
           p_lesson_plan_id: string

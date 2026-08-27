@@ -2464,10 +2464,10 @@ export default function LessonPlanDetailPage() {
                 });
                 const addAssignmentHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${
                   w.week
-                }${plan?.course_id ? `&course_id=${plan.course_id}` : ""}`;
+                }&session=${canonicalMeetingSession(w.session ?? w.session_number)}${plan?.course_id ? `&course_id=${plan.course_id}` : ""}`;
                 const addProjectHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${
                   w.week
-                }&type=project${
+                }&session=${canonicalMeetingSession(w.session ?? w.session_number)}&type=project${
                   plan?.course_id ? `&course_id=${plan.course_id}` : ""
                 }`;
                 const hasAllContent =
@@ -4724,10 +4724,10 @@ export default function LessonPlanDetailPage() {
                   });
                   const addAssignmentHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${
                     w.week
-                  }${plan.course_id ? `&course_id=${plan.course_id}` : ""}`;
+                  }&session=${canonicalMeetingSession(w.session ?? w.session_number)}${plan.course_id ? `&course_id=${plan.course_id}` : ""}`;
                   const addProjectHref = `/dashboard/projects/new?lesson_plan_id=${id}&week=${
                     w.week
-                  }${plan.course_id ? `&course_id=${plan.course_id}` : ""}`;
+                  }&session=${canonicalMeetingSession(w.session ?? w.session_number)}${plan.course_id ? `&course_id=${plan.course_id}` : ""}`;
                   return (
                     <div
                       key={`${w.week}:${w.session ?? w.session_number ?? 1}`}

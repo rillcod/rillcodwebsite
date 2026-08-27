@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  holdPreparedWeek,
   matchesReleaseSession,
   resolveEffectiveReleaseSession,
 } from "./release-week-content";
@@ -123,5 +124,28 @@ describe("matchesReleaseSession", () => {
     expect(
       matchesReleaseSession({ title: "Week 1 · Session 2: Lab" }, 1)
     ).toBe(true);
+  });
+});
+
+describe("holdPreparedWeek input boundary", () => {
+  it("requires one explicit class meeting instead of guessing", async () => {
+    const result = await holdPreparedWeek({
+      planId: "plan-1",
+      week: 3,
+      session: null,
+    });
+
+    expect(result.error).toContain("Choose the class meeting");
+    expect(result.lessons_held).toBe(0);
+  });
+
+  it("rejects an invalid week before making a database request", async () => {
+    const result = await holdPreparedWeek({
+      planId: "plan-1",
+      week: 0,
+      session: 1,
+    });
+
+    expect(result.error).toContain("between 1 and 53");
   });
 });

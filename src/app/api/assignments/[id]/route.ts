@@ -172,7 +172,7 @@ export async function PATCH(
   const admin = adminClient();
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id, title, is_active, term_id, class_id, course_id, program_id, metadata, academic_offering_id, offering_period_id')
+    .select('created_by, school_id, title, is_active, term_id, class_id, course_id, program_id, metadata, lesson_plan_id, academic_offering_id, offering_period_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -186,6 +186,19 @@ export async function PATCH(
   const body = await request.json();
   const inputIssue = validateAssignmentInput(body, true);
   if (inputIssue) return NextResponse.json(inputIssue, { status: 400 });
+  const existingLessonPlanId = existing.lesson_plan_id
+    || (typeof (existing.metadata as any)?.lesson_plan_id === 'string'
+      ? (existing.metadata as any).lesson_plan_id
+      : null);
+  if (existingLessonPlanId
+    && typeof body.is_active === 'boolean'
+    && body.is_active !== existing.is_active) {
+    return NextResponse.json({
+      error: 'This work belongs to a class teaching package. Release or hold the complete week from its class plan so students never receive only one part.',
+      code: 'PACKAGE_RELEASE_MANAGED',
+      lesson_plan_id: existingLessonPlanId,
+    }, { status: 409 });
+  }
   const requestedClassId = typeof body.class_id === 'string' && body.class_id
     ? body.class_id
     : null;

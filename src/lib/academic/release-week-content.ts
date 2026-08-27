@@ -30,6 +30,17 @@ export type WeekReleaseResult = {
   available_sessions?: number[];
 };
 
+export type WeekHoldResult = {
+  planId: string;
+  week: number;
+  session: number;
+  lessons_held: number;
+  assignments_held: number;
+  slides_held: number;
+  flashcards_held: number;
+  error?: string;
+};
+
 type SessionRow = SessionBearing;
 
 /**
@@ -245,5 +256,56 @@ export async function releasePreparedWeek(input: {
     slides_released: Number(payload.slides_released) || 0,
     flashcards_released: Number(payload.flashcards_released) || 0,
     ...notificationSummary,
+  };
+}
+
+/**
+ * Withdraw one released class meeting as a complete package. This changes only
+ * learner visibility; submissions, grades, attendance and delivery records are
+ * intentionally untouched so a teacher can correct content safely.
+ */
+export async function holdPreparedWeek(input: {
+  planId: string;
+  week: number;
+  session: number | null | undefined;
+  now?: string;
+}): Promise<WeekHoldResult> {
+  const session = normalizeMeetingSession(input.session);
+  const empty = (error?: string): WeekHoldResult => ({
+    planId: input.planId,
+    week: input.week,
+    session: session ?? 0,
+    lessons_held: 0,
+    assignments_held: 0,
+    slides_held: 0,
+    flashcards_held: 0,
+    ...(error ? { error } : {}),
+  });
+
+  if (!Number.isInteger(input.week) || input.week < 1 || input.week > 53) {
+    return empty("Week number must be between 1 and 53");
+  }
+  if (session == null) {
+    return empty("Choose the class meeting to hold from students");
+  }
+
+  const db = createAdminClient();
+  const { data, error } = await (db as any).rpc("hold_prepared_week_atomic", {
+    p_lesson_plan_id: input.planId,
+    p_week_number: input.week,
+    p_session_number: canonicalMeetingSession(session),
+    p_held_at: input.now ?? new Date().toISOString(),
+  });
+  if (error) return empty(error.message);
+
+  const payload = (data ?? {}) as Partial<WeekHoldResult>;
+  return {
+    planId: input.planId,
+    week: input.week,
+    session,
+    lessons_held: Number(payload.lessons_held) || 0,
+    assignments_held: Number(payload.assignments_held) || 0,
+    slides_held: Number(payload.slides_held) || 0,
+    flashcards_held: Number(payload.flashcards_held) || 0,
   };
 }
