@@ -117,7 +117,7 @@ describe('the copy that gets written', () => {
   const source = {
     id: 'source-1',
     title: 'Loops and Repetition',
-    content: 'the whole lesson body',
+    content: 'the whole lesson body students will actually teach from this week',
     lesson_plan_id: 'plan-first',
     class_id: 'class-first',
     curriculum_release_id: RELEASE,
@@ -143,7 +143,9 @@ describe('the copy that gets written', () => {
 
   it('carries the teaching across untouched', () => {
     expect(copy.title).toBe('Loops and Repetition');
-    expect(copy.content).toBe('the whole lesson body');
+    expect(copy.content).toBe(
+      'the whole lesson body students will actually teach from this week',
+    );
     expect(copy.curriculum_release_id).toBe(RELEASE);
     expect(copy.curriculum_week_number).toBe(3);
   });

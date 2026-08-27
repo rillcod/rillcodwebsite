@@ -117,6 +117,14 @@ export function decideReuse(
   return source ? { action: 'copy', sourceId: source.id } : { action: 'generate', reason: 'nothing_to_copy' };
 }
 
+/** Whether any candidate is a safe source — for sweep planning without writing a copy. */
+export function hasCopyableSource(
+  candidates: readonly ExistingContent[] | null | undefined,
+  req: ReuseRequest,
+): boolean {
+  return decideReuse(candidates, req).action === 'copy';
+}
+
 /**
  * The row to write for the copying class.
  *

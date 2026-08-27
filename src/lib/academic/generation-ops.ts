@@ -9,7 +9,7 @@
  *
  * Everything here is pure. The cron loads rows, this file says what they mean.
  */
-import { decideReuse, type ExistingContent } from "@/lib/academic/content-reuse";
+import { hasCopyableSource, type ExistingContent } from "@/lib/academic/content-reuse";
 import {
   listPlanMeetings,
   nextMeetingsToGenerate,
@@ -169,14 +169,12 @@ export function siblingLessonCanBeCopied(input: {
   targetPlanId: string;
   candidates: ExistingContent[] | null | undefined;
 }): boolean {
-  return (
-    decideReuse(input.candidates, {
-      releaseId: input.releaseId,
-      week: input.week,
-      session: input.session,
-      targetPlanId: input.targetPlanId,
-    }).action === "copy"
-  );
+  return hasCopyableSource(input.candidates, {
+    releaseId: input.releaseId,
+    week: input.week,
+    session: input.session,
+    targetPlanId: input.targetPlanId,
+  });
 }
 
 export function decideSweepTargets(input: {
