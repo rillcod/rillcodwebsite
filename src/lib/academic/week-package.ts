@@ -81,6 +81,20 @@ export function indexFirstByWeekSession<T extends WeekLinkedAsset>(
   return index;
 }
 
+/** Presence keys used by generators so skip checks match repair and the workspace. */
+export function meetingKeysOf(
+  rows: readonly unknown[] | null | undefined,
+): Set<string> {
+  const keys = new Set<string>();
+  for (const row of rows ?? []) {
+    const asset = row as WeekLinkedAsset;
+    const week = academicWeekNumber(asset);
+    if (week === null) continue;
+    keys.add(weekSessionLookupKey(week, assetMeetingSession(asset)));
+  }
+  return keys;
+}
+
 export function weekSessionLookupKey(
   week: number,
   session?: number | null,

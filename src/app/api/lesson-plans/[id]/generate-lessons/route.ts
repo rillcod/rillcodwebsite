@@ -20,7 +20,6 @@ import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import {
   extractLessonPlanOperationWeeks,
   filterPlanOperationWeeks,
-  getWeekCompositeKey,
   parseWeekTermRefs,
   planWeekSessionMetadata,
 } from "@/lib/progression/lessonPlanOperation";
@@ -33,6 +32,7 @@ import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
+import { meetingKeysOf, weekSessionLookupKey } from "@/lib/academic/week-package";
 import {
   contentTypeForLessonMode,
   inferLessonGenerationMode,
@@ -172,24 +172,14 @@ export async function POST(
       .eq("school_id", planSchoolId)
       .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
 
-    const existingWeekSet = new Set<string>(
-      (existingLessons ?? [])
-        .map((l) =>
-          getWeekCompositeKey({
-            ...((l.metadata as Record<string, unknown> | null) ?? {}),
-            week_number:
-              l.curriculum_week_number ??
-              (l.metadata as Record<string, unknown> | null)?.week_number,
-            session_number:
-              l.session_number ??
-              (l.metadata as Record<string, unknown> | null)?.session_number,
-          })
-        )
-    );
+    const existingWeekSet = meetingKeysOf(existingLessons ?? []);
 
     const projectedSkips = targetWeeks.filter((w) =>
       existingWeekSet.has(
-        getWeekCompositeKey(w as unknown as Record<string, unknown>)
+        weekSessionLookupKey(
+          Number(w.week),
+          planRowMeetingSession(w as unknown as Record<string, unknown>),
+        ),
       )
     ).length;
 
@@ -258,7 +248,10 @@ export async function POST(
 
           if (
             existingWeekSet.has(
-              getWeekCompositeKey(week as unknown as Record<string, unknown>)
+              weekSessionLookupKey(
+                Number(week.week),
+                planRowMeetingSession(week as unknown as Record<string, unknown>),
+              ),
             )
           ) {
             emit({

@@ -23,9 +23,7 @@ import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
   extractLessonPlanOperationWeeks,
   filterPlanOperationWeeks,
-  getMetadataWeekCompositeKey,
   getPlanWeekSession,
-  getWeekCompositeKey,
   parseWeekTermRefs,
   planWeekSessionMetadata,
 } from "@/lib/progression/lessonPlanOperation";
@@ -35,6 +33,7 @@ import {
 } from "@/app/api/lesson-plans/authz";
 import {
   indexFirstByWeekSession,
+  meetingKeysOf,
   weekSessionLookupKey,
 } from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
@@ -171,13 +170,13 @@ export async function POST(
       supabase
         .from("assignments")
         .select(
-          "id,metadata,assignment_type,lesson_plan_id,curriculum_week_number"
+          "id,metadata,assignment_type,lesson_plan_id,curriculum_week_number,session_number"
         )
         .eq("assignment_type", "project")
         .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
       supabase
         .from("lessons")
-        .select("id,curriculum_week_number,metadata")
+        .select("id,curriculum_week_number,session_number,metadata")
         .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
         .order("created_at", { ascending: false }),
     ]);
@@ -186,24 +185,15 @@ export async function POST(
       linkedLessonResult.data ?? []
     );
 
-    const existingWeekSet = new Set<string>(
-      (existingProjects ?? [])
-        // Use the shared helper, which also understands the legacy metadata
-        // shape that only carries `week`. Reading week_number alone made every
-        // older project invisible to this check and silently duplicated it.
-        .map((a) =>
-          getMetadataWeekCompositeKey({
-            ...((a.metadata as Record<string, unknown> | null) ?? {}),
-            ...(a.curriculum_week_number
-              ? { week: a.curriculum_week_number }
-              : {}),
-          })
-        )
-    );
+    const existingWeekSet = meetingKeysOf(existingProjects);
 
     const projectedSkips = targetWeeks.filter((w) =>
       existingWeekSet.has(
-        getWeekCompositeKey(w as unknown as Record<string, unknown>)
+        weekSessionLookupKey(
+          Number(w.week),
+          getPlanWeekSession(w as unknown as Record<string, unknown>) ||
+            onlySession,
+        ),
       )
     ).length;
 
@@ -257,7 +247,11 @@ export async function POST(
 
           if (
             existingWeekSet.has(
-              getWeekCompositeKey(week as unknown as Record<string, unknown>)
+              weekSessionLookupKey(
+                Number(week.week),
+                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                  onlySession,
+              ),
             )
           ) {
             emit({

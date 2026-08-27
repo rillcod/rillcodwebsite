@@ -4,6 +4,7 @@ import {
   assetMatchesMeeting,
   indexFirstByWeek,
   indexFirstByWeekSession,
+  meetingKeysOf,
   weekSessionLookupKey,
   weekPackagePrimaryAction,
   weekPackageStatus,
@@ -72,6 +73,20 @@ describe("indexFirstByWeekSession", () => {
     ]);
     expect(index.get(weekSessionLookupKey(2, 1))?.id).toBe("school");
     expect(index.get(weekSessionLookupKey(2))?.id).toBe("school");
+  });
+});
+
+describe("meetingKeysOf", () => {
+  it("uses the curriculum week column, not a leftover syllabus week_number", () => {
+    const keys = meetingKeysOf([
+      {
+        curriculum_week_number: 5,
+        session_number: 1,
+        metadata: { week_number: 1 },
+      },
+    ]);
+    expect(keys.has(weekSessionLookupKey(5, 1))).toBe(true);
+    expect(keys.has(weekSessionLookupKey(1, 1))).toBe(false);
   });
 });
 

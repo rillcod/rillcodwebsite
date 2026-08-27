@@ -98,4 +98,27 @@ describe('generatePlanWeek', () => {
     expect(JSON.stringify(outcome)).not.toContain('HTTP 503');
     expect(JSON.stringify(outcome)).not.toContain('gateway details');
   });
+
+  it('treats a missing-lesson slides response as retryable', async () => {
+    invokePlanWeekGenerator.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: 'Generate or add the lesson before creating its slides',
+        }),
+        { status: 409 },
+      ),
+    );
+
+    const outcome = await generatePlanWeek({
+      planId: 'plan-1',
+      week: 4,
+      types: ['slides'],
+    });
+
+    expect(outcome.failedTypes).toEqual(['slides']);
+    expect(outcome.byType.slides).toMatchObject({
+      error: 'Generate or add the lesson before creating its slides',
+      retryable: true,
+    });
+  });
 });

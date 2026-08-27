@@ -168,7 +168,11 @@ export async function generatePlanWeek(input: {
         }
         outcome.byType[type] = {
           error: detail,
-          retryable: isRetryableGenerationStatus(res.status),
+          retryable:
+            isRetryableGenerationStatus(res.status) ||
+            // Slides answer 409 when the lesson is not saved yet. That is a
+            // temporary gap in the same week pass, not a policy refusal.
+            (type === "slides" && res.status === 409),
         };
         outcome.failedTypes.push(type);
         continue;

@@ -277,53 +277,47 @@ function mergeRetryOutcome(
 }
 
 /**
- * Reconcile a partial run against durable content, then make at most one
- * transient-only retry for items the database confirms are still missing.
- * This is intentionally inside the existing run claim: it cannot create a
- * second concurrent paid job for the same teaching meeting.
+ * Reconcile a week pass against durable content, then make at most one retry
+ * for items the database confirms are still missing. Skipped dependents and
+ * lost responses are included; policy refusals are not. This stays inside the
+ * existing run claim so it cannot start a second concurrent paid job.
  */
 async function recoverIncompleteOutcome(input: {
   db: any;
   planId: string;
   week: number;
   session: number;
+  requestedTypes: readonly string[];
   outcome: WeekGenerationOutcome;
   cronSecret?: string;
   cookie?: string;
   autoPublish?: boolean;
 }): Promise<WeekGenerationOutcome> {
-  if (input.outcome.failedTypes.length === 0) return input.outcome;
-
-  const failedTypes = [...input.outcome.failedTypes];
   const inventory = await resolveGenerationRepairTypes({
     db: input.db,
     planId: input.planId,
     week: input.week,
     session: input.session,
-    requestedTypes: failedTypes,
+    requestedTypes: input.requestedTypes,
   });
   if (!inventory) return input.outcome;
 
-  const stillMissing = new Set(inventory.typesToRun);
+  const stillMissing = new Set<string>(inventory.typesToRun);
   let outcome = markRecovered(
     input.outcome,
-    failedTypes.filter((type) => !stillMissing.has(type)),
+    input.outcome.failedTypes.filter((type) => !stillMissing.has(type)),
   );
-  const retryCandidates = outcome.failedTypes.filter(
-    (type) => stillMissing.has(type) && failureIsRetryable(outcome, type),
+  const retryCandidates = inventory.typesToRun.filter(
+    (type) =>
+      !outcome.failedTypes.includes(type) || failureIsRetryable(outcome, type),
   );
   if (retryCandidates.length === 0) return outcome;
 
-  // Ask the repair resolver for dependencies too (for example, a missing
-  // lesson before retrying slides) while keeping the retry to one bounded pass.
-  const retryTypes = inventory.typesToRun.filter(
-    (type) => retryCandidates.includes(type) || type === "lessons",
-  );
   const retry = await generatePlanWeek({
     planId: input.planId,
     week: input.week,
     session: input.session,
-    types: retryTypes,
+    types: retryCandidates,
     cronSecret: input.cronSecret,
     cookie: input.cookie,
     autoPublish: input.autoPublish,
@@ -340,7 +334,7 @@ async function recoverIncompleteOutcome(input: {
     requestedTypes: retryCandidates,
   });
   if (!finalInventory) return outcome;
-  const finallyMissing = new Set(finalInventory.typesToRun);
+  const finallyMissing = new Set<string>(finalInventory.typesToRun);
   const unresolvedAfterRetry = retryCandidates.filter((type) =>
     outcome.failedTypes.includes(type)
   );
@@ -455,6 +449,7 @@ export async function generateTrackedPlanWeek(input: {
     planId: input.planId,
     week: input.week,
     session,
+    requestedTypes: effectiveTypes,
     outcome,
     cronSecret: input.cronSecret,
     cookie: input.cookie,

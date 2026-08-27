@@ -135,6 +135,95 @@ describe("tracked week generation recovery", () => {
     });
   });
 
+  it("retries slides after a missing-lesson 409 once the lesson can be saved", async () => {
+    const { db } = trackingDb();
+    resolveGenerationRepairTypes
+      .mockResolvedValueOnce(repair(["lessons", "slides"]))
+      .mockResolvedValueOnce(repair(["lessons", "slides"]))
+      .mockResolvedValueOnce(repair([]));
+    generatePlanWeek
+      .mockResolvedValueOnce({
+        week: 6,
+        generated: 0,
+        skipped: 0,
+        byType: {
+          lessons: { error: "The AI service connection was interrupted.", retryable: true },
+          slides: { error: "Generate or add the lesson before creating its slides", retryable: true },
+        },
+        failedTypes: ["lessons", "slides"],
+      })
+      .mockResolvedValueOnce({
+        week: 6,
+        generated: 2,
+        skipped: 0,
+        byType: {
+          lessons: { generated: 1, skipped: 0 },
+          slides: { generated: 1, skipped: 0 },
+        },
+        failedTypes: [],
+      });
+
+    const result = await generateTrackedPlanWeek({
+      db,
+      planId: "plan-1",
+      week: 6,
+      session: 1,
+      types: ["lessons", "slides"],
+      source: "teacher",
+    });
+
+    expect(generatePlanWeek).toHaveBeenCalledTimes(2);
+    expect(generatePlanWeek.mock.calls[1][0]).toMatchObject({
+      types: ["lessons", "slides"],
+      week: 6,
+      session: 1,
+    });
+    expect(result.outcome).toMatchObject({
+      generated: 2,
+      failedTypes: [],
+      retriedTypes: ["lessons", "slides"],
+    });
+  });
+
+  it("retries a skipped-but-missing item after saved work is confirmed", async () => {
+    const { db } = trackingDb();
+    resolveGenerationRepairTypes
+      .mockResolvedValueOnce(repair(["lessons", "slides"]))
+      .mockResolvedValueOnce(repair(["slides"]))
+      .mockResolvedValueOnce(repair([]));
+    generatePlanWeek
+      .mockResolvedValueOnce({
+        week: 7,
+        generated: 0,
+        skipped: 1,
+        byType: {
+          lessons: { error: "Connection interrupted", retryable: true },
+          slides: { generated: 0, skipped: 1 },
+        },
+        failedTypes: ["lessons"],
+      })
+      .mockResolvedValueOnce({
+        week: 7,
+        generated: 1,
+        skipped: 0,
+        byType: { slides: { generated: 1, skipped: 0 } },
+        failedTypes: [],
+      });
+
+    const result = await generateTrackedPlanWeek({
+      db,
+      planId: "plan-1",
+      week: 7,
+      types: ["lessons", "slides"],
+      source: "teacher",
+    });
+
+    expect(generatePlanWeek.mock.calls[1][0].types).toEqual(["slides"]);
+    expect(result.outcome.failedTypes).toEqual([]);
+    expect(result.outcome.recoveredTypes).toEqual(["lessons"]);
+    expect(result.outcome.retriedTypes).toEqual(["slides"]);
+  });
+
   it("does not repeat a validation or policy refusal", async () => {
     const { db } = trackingDb();
     resolveGenerationRepairTypes
