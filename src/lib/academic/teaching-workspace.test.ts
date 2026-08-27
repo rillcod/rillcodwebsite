@@ -100,6 +100,28 @@ describe("teaching workspace week rows", () => {
     expect(teachingSlotNeedsAttention(row)).toBe(true);
   });
 
+  it("does not treat a title-only lesson shell as a finished week", () => {
+    const [row] = buildTeachingWeekRows({
+      planWeeks: [{ week: 1, topic: "Empty shell" }],
+      lessons: [
+        {
+          id: "shell",
+          title: "Empty shell",
+          curriculum_week_number: 1,
+          status: "draft",
+          description: "",
+          content_layout: [],
+        },
+      ],
+      assignments: [{ curriculum_week_number: 1, is_active: false }],
+      projects: [{ curriculum_week_number: 1, is_active: false }],
+      slideDecks: [{ curriculum_week_number: 1 }],
+      flashcardDecks: [{ curriculum_week_number: 1 }],
+    });
+    expect(row.packageStatus.complete).toBe(false);
+    expect(row.recommendedAction).toBe("prepare");
+  });
+
   it("does not treat a held CBT as an incomplete teaching package", () => {
     const [row] = buildTeachingWeekRows({
       planWeeks: [{ week: 1, topic: "Ready week" }],
@@ -163,6 +185,15 @@ describe("prepare progress uses the same origin words as the class page", () => 
     );
     expect(weekCopiedFromClassStatus(5, "project")).toBe(
       "Week 5 project copied from another class (no AI needed)",
+    );
+  });
+
+  it("names Class 1 and Class 2 when the week meets twice", () => {
+    expect(weekAlreadyGeneratedStatus(3, 1, 2)).toBe(
+      "Skipped Week 3 · Class 1 — already generated for this class",
+    );
+    expect(weekCopiedFromClassStatus(3, "assignment", 2, 2)).toBe(
+      "Week 3 · Class 2 assignment copied from another class (no AI needed)",
     );
   });
 });

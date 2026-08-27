@@ -19,6 +19,8 @@
  * source looks wrong, the caller generates as it does today.
  */
 
+import { generatedLessonIsUsable } from '@/lib/academic/week-package';
+
 export type ExistingContent = {
   id: string;
   curriculum_release_id: string | null;
@@ -30,6 +32,10 @@ export type ExistingContent = {
   status?: string | null;
   is_active?: boolean | null;
   created_at?: string | null;
+  content?: unknown;
+  content_layout?: unknown;
+  description?: unknown;
+  lesson_notes?: unknown;
 };
 
 export type ReuseRequest = {
@@ -80,6 +86,10 @@ export function canBeCopied(row: ExistingContent | null | undefined, req: ReuseR
   if (!row.lesson_plan_id) return false;
 
   if (isCustomised(row)) return false;
+
+  // Title-only shells must not spread. Callers that did not load the body keep
+  // the previous copy rule.
+  if (!generatedLessonIsUsable(row)) return false;
 
   return true;
 }

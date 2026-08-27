@@ -1,5 +1,6 @@
 import {
   buildWeekVisibility,
+  generatedLessonIsUsable,
   indexFirstByWeekSession,
   weekClassroomAction,
   weekPackageStatus,
@@ -10,6 +11,7 @@ import {
   planMeetingLookupKey,
   canonicalMeetingSession,
   parseRequestSession,
+  teachingMeetingLabel,
 } from "./session-identity";
 import {
   calendarRoleLabel,
@@ -41,13 +43,22 @@ export function weekContentOrigin(input: {
   return "generated";
 }
 
-export function weekAlreadyGeneratedStatus(week: number): string {
-  return `Skipped Week ${week} — already generated for this class`;
+export function weekAlreadyGeneratedStatus(
+  week: number,
+  session?: number | null,
+  meetingsInWeek = 1,
+): string {
+  return `Skipped ${teachingMeetingLabel(week, session, meetingsInWeek)} — already generated for this class`;
 }
 
-export function weekCopiedFromClassStatus(week: number, item?: string): string {
+export function weekCopiedFromClassStatus(
+  week: number,
+  item?: string,
+  session?: number | null,
+  meetingsInWeek = 1,
+): string {
   const piece = item ? ` ${item}` : "";
-  return `Week ${week}${piece} copied from another class (no AI needed)`;
+  return `${teachingMeetingLabel(week, session, meetingsInWeek)}${piece} copied from another class (no AI needed)`;
 }
 
 export type TeachingWeekRow = {
@@ -228,7 +239,7 @@ export function buildTeachingWeekRows(
       deliveryBySlot.get(planMeetingLookupKey(week, session)) ?? null;
     const taught = delivery?.status === "delivered";
     const presence = {
-      lesson: Boolean(lesson),
+      lesson: generatedLessonIsUsable(lesson),
       slides: Boolean(slideDeck),
       flashcards: Boolean(flashcardDeck),
       assignment: Boolean(assignment),
@@ -305,7 +316,7 @@ export function buildTeachingWeekRows(
       evaluation,
       topic:
         String(weekMeta.topic || lesson?.title || "").trim() ||
-        `Week ${week}${session ? ` · Class ${session}` : ""}`,
+        teachingMeetingLabel(week, session),
       objectives: textList(weekMeta.objectives),
       activities: textList(weekMeta.activities),
       packageStatus,

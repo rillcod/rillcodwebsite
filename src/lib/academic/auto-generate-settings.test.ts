@@ -97,15 +97,26 @@ describe('describeAutoGenerateSettings', () => {
 });
 
 describe('weeksToGenerateForPlan', () => {
-  it('preps the delivery week and the next in-plan week when ahead is on', () => {
+  it('preps the current week and the configured ahead window, not the whole term', () => {
     expect(
       weeksToGenerateForPlan({
-        planWeekNumbers: [1, 2],
+        planWeekNumbers: [1, 2, 3],
         deliveryWeek: 1,
         prepAheadWeeks: 1,
-        maxWeeksPerBatch: 2,
+        maxWeeksPerBatch: 1,
       }),
     ).toEqual([1, 2]);
+  });
+
+  it('stages every published week before the term starts so approval is not empty', () => {
+    expect(
+      weeksToGenerateForPlan({
+        planWeekNumbers: [1, 2, 3, 4],
+        deliveryWeek: 1,
+        prepAheadWeeks: 0,
+        termHasStarted: false,
+      }),
+    ).toEqual([1, 2, 3, 4]);
   });
 
   it('does not force mid-cohort modules to generate week 1 on the cron path', () => {
@@ -141,14 +152,14 @@ describe('weeksToGenerateForPlan', () => {
     ).toEqual([]);
   });
 
-  it('stops when the delivery week is past the module', () => {
+  it('catches up leftover weeks after the calendar has left the module', () => {
     expect(
       weeksToGenerateForPlan({
         planWeekNumbers: [1, 2],
         deliveryWeek: 5,
         prepAheadWeeks: 1,
       }),
-    ).toEqual([]);
+    ).toEqual([1, 2]);
   });
 });
 

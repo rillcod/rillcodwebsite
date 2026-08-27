@@ -32,6 +32,22 @@ describe("smart teaching-package repair", () => {
     expect(decision.missingAssets).toEqual(["flashcards"]);
   });
 
+  it("rebuilds an empty lesson shell instead of treating the week as done", () => {
+    const decision = decideGenerationRepairTypes({
+      week: 2,
+      session: 1,
+      requestedTypes: ["lessons", "slides", "flashcards", "assignments", "projects"],
+      inventory: {
+        lessons: [row({ description: "", content_layout: [] })],
+        slides: [row()],
+        flashcards: [row()],
+        assignments: [row({ assignment_type: "homework" }), row({ assignment_type: "project" })],
+      },
+    });
+    expect(decision.typesToRun).toEqual(["lessons"]);
+    expect(decision.missingAssets).toEqual(["lesson"]);
+  });
+
   it("rebuilds stale derived content but never customized stale content", () => {
     const base = {
       week: 2,

@@ -7,6 +7,17 @@ import {
   currentDeliveryWeek,
   notifyWeekReady,
 } from '@/lib/academic/week-generation';
+import { calendarHasStarted } from '@/lib/academic/delivery-calendar';
+import {
+  copyableMeetingKeysFromSources,
+  decideSweepTargets,
+  describeGenerationSkip,
+  meetingSeedKey,
+  orderPlansForSweep,
+  planMeetingsForSweep,
+  shouldStampSweepRun,
+} from '@/lib/academic/generation-ops';
+import type { ExistingContent } from '@/lib/academic/content-reuse';
 import {
   generateTrackedPlanWeek,
   markInterruptedTeachingGenerationRuns,
@@ -14,7 +25,6 @@ import {
 import {
   parseAutoGenerateSettings,
   weeksToGenerateForPlan,
-  listPlanMeetings,
   nextMeetingsToGenerate,
   planMeetingKey,
   type AutoGenerateSettings,
@@ -22,6 +32,8 @@ import {
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 import { buildTeachingWeekRows } from '@/lib/academic/teaching-workspace';
 import {
+  cadenceForTeachingPlan,
+  expandPlanWeeksForMeetings,
   hostCalendarForClass,
   keepRillcodTeachingWeeks,
 } from '@/lib/academic/school-programme-standing';
@@ -75,9 +87,8 @@ async function handleRequest(req: NextRequest) {
   // every night instead of moving through the programme.
   const { data: plans, error } = await db
     .from('lesson_plans')
-    .select('id, term_start, class_id, metadata, plan_data, academic_offering_periods:offering_period_id(starts_on)')
-    .eq('status', 'published')
-    .not('metadata', 'is', null);
+    .select('id, term_start, class_id, metadata, plan_data, curriculum_release_id, sessions_per_week, academic_offering_periods:offering_period_id(starts_on)')
+    .eq('status', 'published');
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -105,20 +116,86 @@ async function handleRequest(req: NextRequest) {
     const ms = t ? new Date(t).getTime() : 0;
     return Number.isFinite(ms) ? ms : 0;
   };
-  enabledPlans.sort((a, b) => lastRunAt(a) - lastRunAt(b)); // oldest first
-  const batch = enabledPlans.slice(0, MAX_PLANS_PER_RUN);
-  const classIds = Array.from(
-    new Set(batch.map((plan) => plan.class_id).filter(Boolean)),
+  const allClassIds = Array.from(
+    new Set(enabledPlans.map((plan) => plan.class_id).filter(Boolean)),
   ) as string[];
-  const { data: classRows } = classIds.length
+  const { data: classRows } = allClassIds.length
     ? await db
         .from('classes')
         .select(
           'id, academic_terms(start_date,end_date), schools(programme_standing,sessions_per_week)',
         )
-        .in('id', classIds)
+        .in('id', allClassIds)
     : { data: [] as any[] };
   const classById = new Map((classRows ?? []).map((row: any) => [row.id, row]));
+
+  const prepared = enabledPlans.map((plan) => {
+    const meta = (plan.metadata ?? {}) as Record<string, unknown>;
+    const ags = parseAutoGenerateSettings(meta.auto_generate_settings);
+    const period = Array.isArray((plan as any).academic_offering_periods)
+      ? (plan as any).academic_offering_periods[0]
+      : (plan as any).academic_offering_periods;
+    const periodStart = period?.starts_on ?? null;
+    const currentWeek = currentDeliveryWeek({
+      termStart: plan.term_start ?? null,
+      periodStart,
+    });
+    const termHasStarted = calendarHasStarted(plan.term_start ?? periodStart);
+    const planRows = extractLessonPlanOperationWeeks(plan.plan_data) as Array<
+      Record<string, unknown>
+    >;
+    const planWeekNumbers = planRows
+      .map((w) => Number(w.week))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const host = hostCalendarForClass(classById.get(plan.class_id));
+    const sessionsPerWeek = cadenceForTeachingPlan({
+      planSessionsPerWeek: (plan as { sessions_per_week?: unknown }).sessions_per_week,
+      schoolSessionsPerWeek: host.policy.sessionsPerWeek,
+    });
+    const teachingWeeks = expandPlanWeeksForMeetings(planRows, sessionsPerWeek);
+    const windowWeeks = weeksToGenerateForPlan({
+      planWeekNumbers,
+      deliveryWeek: currentWeek,
+      prepAheadWeeks: ags.prep_ahead_weeks,
+      termHasStarted,
+    });
+    const eligibleWeeks = keepRillcodTeachingWeeks(windowWeeks, {
+      standing: host.policy.standing,
+      termStart: host.termStart ?? plan.term_start,
+      activities: host.activities,
+    });
+    return {
+      id: plan.id,
+      releaseId: (plan as { curriculum_release_id?: string | null }).curriculum_release_id ?? null,
+      lastRunAt: lastRunAt(plan),
+      calendarReady: eligibleWeeks.length > 0,
+      plan,
+      meta,
+      ags,
+      currentWeek,
+      termHasStarted,
+      host,
+      planRows: teachingWeeks,
+      sessionsPerWeek,
+      windowWeeks,
+      eligibleWeeks,
+    };
+  });
+
+  const batch = orderPlansForSweep(prepared).slice(0, MAX_PLANS_PER_RUN);
+  const writtenThisRun = new Set<string>();
+
+  async function stampLastRun(planId: string, meta: Record<string, unknown>) {
+    await db.from('lesson_plans').update({
+      metadata: {
+        ...meta,
+        auto_generate_settings: {
+          ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
+          last_run_at: new Date().toISOString(),
+        },
+      },
+    }).eq('id', planId);
+  }
 
   const results: Array<{
     planId: string;
@@ -132,63 +209,46 @@ async function handleRequest(req: NextRequest) {
   }> = [];
 
   let stoppedEarly = false;
-  for (const plan of batch) {
+  for (const item of batch) {
     if (Date.now() > DEADLINE) { stoppedEarly = true; break; }
+    const {
+      plan,
+      meta,
+      ags,
+      currentWeek,
+      termHasStarted,
+      host,
+      planRows,
+      sessionsPerWeek,
+      windowWeeks,
+      eligibleWeeks,
+      releaseId,
+    } = item;
     try {
-      const meta = plan.metadata as Record<string, unknown>;
-      const ags = parseAutoGenerateSettings(meta.auto_generate_settings);
-      const period = Array.isArray((plan as any).academic_offering_periods)
-        ? (plan as any).academic_offering_periods[0]
-        : (plan as any).academic_offering_periods;
-      const periodStart = period?.starts_on ?? null;
-      const currentWeek = currentDeliveryWeek({
-        termStart: plan.term_start ?? null,
-        periodStart,
-      });
-
-      const planRows = extractLessonPlanOperationWeeks(plan.plan_data) as Array<
-        Record<string, unknown>
-      >;
-      const planWeekNumbers = planRows
-        .map((w) => Number(w.week))
-        .filter((n) => Number.isFinite(n) && n > 0);
-
-      // Special-programme mid-modules (weeks 4–5) must not be forced to generate
-      // calendar week 1. Prep ahead keeps the next in-plan week flowing after
-      // the first is ready — still hold-for-approval unless opted in.
-      const host = hostCalendarForClass(classById.get(plan.class_id));
-      const eligibleWeeks = keepRillcodTeachingWeeks(
-        weeksToGenerateForPlan({
-          planWeekNumbers,
-          deliveryWeek: currentWeek,
-          prepAheadWeeks: ags.prep_ahead_weeks,
-          maxWeeksPerBatch: ags.maxWeeksPerBatch || Math.max(1, ags.prep_ahead_weeks + 1),
-        }),
-        {
-          standing: host.policy.standing,
-          termStart: host.termStart ?? plan.term_start,
-          activities: host.activities,
-        },
-      );
-
-      if (!eligibleWeeks.length) {
-        await db.from('lesson_plans').update({
-          metadata: {
-            ...meta,
-            auto_generate_settings: {
-              ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
-              last_run_at: new Date().toISOString(),
-            },
-          },
-        }).eq('id', plan.id);
+      if (!windowWeeks.length) {
         results.push({
           planId: plan.id,
           status: 'skipped',
           currentWeek,
           weeks: [],
-          error: periodStart
-            ? 'No in-plan week due for this delivery window'
-            : 'Host school is on a test, exam or break week — Rillcod will wait',
+          error: describeGenerationSkip({
+            code: 'waiting_for_module',
+            termHasStarted,
+          }),
+        });
+        continue;
+      }
+
+      if (!eligibleWeeks.length) {
+        results.push({
+          planId: plan.id,
+          status: 'skipped',
+          currentWeek,
+          weeks: [],
+          error: describeGenerationSkip({
+            code: 'host_calendar',
+            termHasStarted,
+          }),
         });
         continue;
       }
@@ -204,7 +264,7 @@ async function handleRequest(req: NextRequest) {
       ] = await Promise.all([
         db
           .from('lessons')
-          .select('id,title,status,curriculum_week_number,session_number,metadata')
+          .select('id,title,status,curriculum_week_number,session_number,metadata,content,content_layout,description,lesson_notes')
           .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`),
         db
           .from('assignments')
@@ -248,30 +308,59 @@ async function handleRequest(req: NextRequest) {
           )
       );
 
-      const targetMeetings = nextMeetingsToGenerate({
-        meetings: listPlanMeetings(planRows),
-        completedKeys,
+      const meetings = planMeetingsForSweep({
+        planWeeks: planRows,
+        sessionsPerWeek,
+      });
+      const incomplete = nextMeetingsToGenerate({
+        meetings,
         eligibleWeeks,
-        // One meeting per plan per sweep — continuous and AI-context safe.
-        maxMeetingsPerBatch: 1,
+        completedKeys,
+        maxMeetingsPerBatch: 10,
+      });
+      let siblings: ExistingContent[] = [];
+      if (releaseId && incomplete.length) {
+        const weeks = [...new Set(incomplete.map((m) => m.week))];
+        const { data } = await db
+          .from('lessons')
+          .select(
+            'id,lesson_plan_id,curriculum_release_id,curriculum_week_number,session_number,metadata,content,content_layout,description,lesson_notes,created_at',
+          )
+          .eq('curriculum_release_id', releaseId)
+          .in('curriculum_week_number', weeks)
+          .neq('lesson_plan_id', plan.id)
+          .limit(40);
+        siblings = (data ?? []) as ExistingContent[];
+      }
+      const copyableKeys = copyableMeetingKeysFromSources({
+        meetings: incomplete,
+        releaseId,
+        targetPlanId: plan.id,
+        siblings,
+        writtenThisRun,
+      });
+      const targetMeetings = decideSweepTargets({
+        meetings,
+        eligibleWeeks,
+        completedKeys,
+        configuredCap: ags.maxWeeksPerBatch,
+        canCopy: copyableKeys.length > 0,
+        copyableMeetingKeys: copyableKeys,
       });
 
       if (!targetMeetings.length) {
-        await db.from('lesson_plans').update({
-          metadata: {
-            ...meta,
-            auto_generate_settings: {
-              ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
-              last_run_at: new Date().toISOString(),
-            },
-          },
-        }).eq('id', plan.id);
+        if (shouldStampSweepRun('all_prepared')) {
+          await stampLastRun(plan.id, meta);
+        }
         results.push({
           planId: plan.id,
           status: 'skipped',
           currentWeek,
           weeks: eligibleWeeks,
-          error: 'All due class meetings already prepared',
+          error: describeGenerationSkip({
+            code: 'all_prepared',
+            termHasStarted,
+          }),
         });
         continue;
       }
@@ -303,21 +392,20 @@ async function handleRequest(req: NextRequest) {
           planId: plan.id,
           classId: plan.class_id ?? null,
           week: meeting.week,
+          session: meeting.session,
           outcome,
           autoPublish: ags.auto_publish,
         });
         if (note === 'sent') notified = note;
+        if (outcome.generated > 0) {
+          const seed = meetingSeedKey(releaseId, meeting.week, meeting.session);
+          if (seed) writtenThisRun.add(seed);
+        }
       }
 
-      await db.from('lesson_plans').update({
-        metadata: {
-          ...meta,
-          auto_generate_settings: {
-            ...((meta.auto_generate_settings as Record<string, unknown>) ?? {}),
-            last_run_at: new Date().toISOString(),
-          },
-        },
-      }).eq('id', plan.id);
+      if (shouldStampSweepRun('worked')) {
+        await stampLastRun(plan.id, meta);
+      }
 
       results.push({
         planId: plan.id,

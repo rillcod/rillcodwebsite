@@ -268,6 +268,7 @@ export async function launchSpecialProgramTeaching(input: {
       planId,
       classId: plan.class_id ?? null,
       week,
+      session: 1,
       outcome,
       autoPublish: false,
     });

@@ -8,6 +8,7 @@ import {
   existingMeetingAsset,
   shouldSkipExistingGeneratedAsset,
   keepPreparedMeetingContent,
+  generatedLessonIsUsable,
   weekSessionLookupKey,
   weekPackagePrimaryAction,
   weekPackageStatus,
@@ -152,6 +153,41 @@ describe("intelligent skip for a class meeting", () => {
     expect(
       keepPreparedMeetingContent(rows, 2, 1, { regenerate: true }),
     ).toBeUndefined();
+  });
+});
+
+describe("generatedLessonIsUsable", () => {
+  it("keeps identity-only rows so skip checks that did not load the body still work", () => {
+    expect(
+      generatedLessonIsUsable({ id: "l", curriculum_week_number: 1 }),
+    ).toBe(true);
+  });
+
+  it("rejects a title-only shell the teacher would see as an empty week", () => {
+    expect(
+      generatedLessonIsUsable({
+        id: "empty",
+        title: "Week 1",
+        description: "",
+        lesson_notes: "",
+        content: "",
+        content_layout: [],
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts a lesson whose body lives in notes or layout", () => {
+    expect(
+      generatedLessonIsUsable({
+        description: "Students write a Scratch sprite that moves on the stage.",
+        content_layout: [],
+      }),
+    ).toBe(true);
+    expect(
+      generatedLessonIsUsable({
+        content_layout: [{ title: "Warm up", content: "Move the sprite." }],
+      }),
+    ).toBe(true);
   });
 });
 

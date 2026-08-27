@@ -116,6 +116,7 @@ describe('bootstrapClassTeachingWeek', () => {
       planId: 'plan-1',
       classId: 'class-1',
       week: 1,
+      session: 1,
       autoPublish: false,
     });
   });

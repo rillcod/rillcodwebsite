@@ -22,6 +22,7 @@ import {
 import { modelQueueFor } from "@/lib/ai/model-policy";
 import { hasHuggingFaceKey } from "@/lib/ai/huggingface";
 import { buildCbtEntrySuggestion } from "@/lib/cbt/predictive-entry";
+import { meetingContinuityInstruction } from "@/lib/academic/session-identity";
 
 export const MODELS = [
   // ── Tier 1: Premium (best quality) ─────────────────────────────
@@ -216,6 +217,11 @@ export interface GenerateRequest {
   difficulty?: string;
   // Curriculum context — used to tailor lessons to specific course/program
   siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
+  /** Calendar week + class meeting — Class 2 must continue Class 1, not copy it. */
+  weekNumber?: number;
+  classMeeting?: number;
+  meetingsThisWeek?: number;
+  alreadyTaughtThisWeek?: string[];
   /** Syllabus week spine (student + teacher lines) — bulk generation */
   syllabusReference?: string;
   planWeekObjectives?: string;
@@ -952,6 +958,13 @@ ${
           )}\n"""`
         : "";
 
+      const meetingContinuityBlock = meetingContinuityInstruction({
+        week: req.weekNumber ?? 0,
+        session: req.classMeeting,
+        meetingsThisWeek: req.meetingsThisWeek,
+        alreadyTaughtThisWeek: req.alreadyTaughtThisWeek,
+      });
+
       return `Generate an IMMERSIVE, ADDICTIVE, and COMPLETE lesson for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${grade}
@@ -959,7 +972,9 @@ Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
 LESSON MODE: ${modeConfig.label}
-${standaloneModeBlock}${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}${sourceMaterialBlock}
+${standaloneModeBlock}${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}${sourceMaterialBlock}${
+        meetingContinuityBlock ? `\nCLASS MEETING CONTINUITY:\n${meetingContinuityBlock}` : ""
+      }
 ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
@@ -1143,6 +1158,12 @@ UNIVERSAL RULES:
             .slice(0, 20)
             .join(" | ")}\n`
         : "";
+      const meetingContinuityBlock = meetingContinuityInstruction({
+        week: req.weekNumber ?? 0,
+        session: req.classMeeting,
+        meetingsThisWeek: req.meetingsThisWeek,
+        alreadyTaughtThisWeek: req.alreadyTaughtThisWeek,
+      });
       return `Generate an assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
@@ -1156,6 +1177,10 @@ ${
 Assignment type hint: ${req.assignmentType ?? "auto-detect"}
 Max Points: 100
 ${syllabusAnchorBlock}${planWeekSection}${dedupAssign}${
+        meetingContinuityBlock
+          ? `\nCLASS MEETING CONTINUITY:\n${meetingContinuityBlock}\n`
+          : ""
+      }${
         req.projectFrame
           ? `
 HOUSE FRAME — the shape every Rillcod practical project takes. Follow it, do not repeat it.

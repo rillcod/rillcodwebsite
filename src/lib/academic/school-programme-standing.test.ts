@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calendarRoleLabel,
+  cadenceForTeachingPlan,
   classifyCalendarWeek,
   defaultCompulsoryTermActivities,
   expandPlanWeeksForMeetings,
@@ -35,6 +36,21 @@ describe("school programme standing", () => {
         exam_capture: "cbt",
       }).examCapture,
     ).toBe("cbt");
+  });
+
+  it("lets a stored plan cadence win over the school default", () => {
+    expect(
+      cadenceForTeachingPlan({
+        planSessionsPerWeek: 1,
+        schoolSessionsPerWeek: 2,
+      }),
+    ).toBe(1);
+    expect(
+      cadenceForTeachingPlan({
+        planSessionsPerWeek: null,
+        schoolSessionsPerWeek: 2,
+      }),
+    ).toBe(2);
   });
 });
 

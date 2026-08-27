@@ -22,11 +22,16 @@ export const WEEK_PACKAGE_ASSETS = [
 export type WeekPackageAsset = (typeof WEEK_PACKAGE_ASSETS)[number];
 
 export type WeekLinkedAsset = {
+  id?: string | null;
   curriculum_week_number?: unknown;
   session?: unknown;
   session_number?: unknown;
   metadata?: unknown;
   title?: string | null;
+  content?: unknown;
+  content_layout?: unknown;
+  description?: unknown;
+  lesson_notes?: unknown;
 };
 
 export type AssetVisibility = "missing" | "held" | "live";
@@ -110,6 +115,47 @@ export function existingMeetingAsset<T>(
   return (rows ?? []).find((row) =>
     assetMatchesMeeting(row as WeekLinkedAsset, week, session),
   );
+}
+
+function lessonBodyFieldPresent(lesson: WeekLinkedAsset): boolean {
+  return (
+    "content_layout" in lesson ||
+    "description" in lesson ||
+    "lesson_notes" in lesson ||
+    "content" in lesson
+  );
+}
+
+function lessonBodyText(lesson: WeekLinkedAsset): string {
+  const layout = Array.isArray(lesson.content_layout) ? lesson.content_layout : [];
+  const layoutText = layout
+    .map((block) => {
+      if (!block || typeof block !== "object") return "";
+      const row = block as { title?: unknown; content?: unknown };
+      return `${row.title ?? ""} ${row.content ?? ""}`;
+    })
+    .join(" ");
+  return [layoutText, lesson.description, lesson.lesson_notes, lesson.content]
+    .map((value) => (typeof value === "string" ? value : ""))
+    .join(" ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * A title-only lesson row is not a prepared week. The sweep used to skip those
+ * shells forever, so later AI weeks never started.
+ *
+ * When the body columns were not loaded, keep the row — callers that only
+ * asked for identity still mean "this meeting has a lesson".
+ */
+export function generatedLessonIsUsable(
+  lesson: WeekLinkedAsset | null | undefined,
+): boolean {
+  if (!lesson) return false;
+  if (!lessonBodyFieldPresent(lesson)) return true;
+  return lessonBodyText(lesson).length > 0;
 }
 
 /**

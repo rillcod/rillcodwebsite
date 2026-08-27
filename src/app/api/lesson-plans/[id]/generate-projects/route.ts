@@ -23,7 +23,7 @@ import {
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
-  extractLessonPlanOperationWeeks,
+  extractTeachingPlanWeeks,
   filterPlanOperationWeeks,
   getPlanWeekSession,
   parseWeekTermRefs,
@@ -43,6 +43,7 @@ import {
   weekCopiedFromClassStatus,
 } from "@/lib/academic/teaching-workspace";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
+import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
@@ -146,7 +147,11 @@ export async function POST(
     // Omitting is_active used to inherit the DB default (true), so unattended
     // sweeps with hold-for-approval still put projects in front of students.
     const projectActive = body.auto_publish === true;
-    const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
+    const sessionsPerWeek = cadenceForTeachingPlan({
+      planSessionsPerWeek: (plan as { sessions_per_week?: unknown })
+        .sessions_per_week,
+    });
+    const weeks = extractTeachingPlanWeeks(plan.plan_data, sessionsPerWeek) as Array<{
       week: number;
       topic: string;
       objectives?: string;
@@ -260,7 +265,12 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: weekAlreadyGeneratedStatus(week.week),
+              status: weekAlreadyGeneratedStatus(
+                week.week,
+                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                  onlySession,
+                sessionsPerWeek,
+              ),
             });
             skipped++;
             continue;
@@ -312,7 +322,13 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: weekCopiedFromClassStatus(week.week, "project"),
+              status: weekCopiedFromClassStatus(
+                week.week,
+                "project",
+                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                  onlySession,
+                sessionsPerWeek,
+              ),
             });
             continue;
           }

@@ -194,6 +194,8 @@ export type ReuseResult =
 /** The lineage columns decideReuse needs, for any of the four tables. */
 const CANDIDATE_COLUMNS =
   'id, curriculum_release_id, curriculum_week_number, session_number, lesson_plan_id, metadata, created_at';
+const LESSON_CANDIDATE_COLUMNS =
+  `${CANDIDATE_COLUMNS}, content, content_layout, description, lesson_notes`;
 
 /**
  * Tables where one master body is mirrored to every class that adopted it.
@@ -273,7 +275,7 @@ export async function reuseWeekContent(input: ReuseInput): Promise<ReuseResult> 
   try {
     let query = db
       .from(table)
-      .select(CANDIDATE_COLUMNS)
+      .select(table === 'lessons' ? LESSON_CANDIDATE_COLUMNS : CANDIDATE_COLUMNS)
       .eq('curriculum_release_id', releaseId)
       .eq('curriculum_week_number', week)
       .eq('session_number', session)

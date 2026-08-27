@@ -155,6 +155,36 @@ describe("old week-only schema is retired", () => {
     expect(read("src/lib/academic/week-package.ts")).toContain(
       "export function keepPreparedMeetingContent"
     );
+    expect(read("src/lib/academic/generation-ops.ts")).toContain(
+      "export function sweepMeetingCap"
+    );
+    expect(read("src/lib/academic/generation-ops.ts")).toContain(
+      "export function planMeetingsForSweep"
+    );
+    expect(read("src/lib/academic/generation-ops.ts")).toContain(
+      "export function orderPlansForSweep"
+    );
+    expect(read("src/app/api/cron/auto-generate-content/route.ts")).toContain(
+      "decideSweepTargets"
+    );
+    expect(read("src/app/api/cron/auto-generate-content/route.ts")).toContain(
+      "planMeetingsForSweep"
+    );
+    expect(read("src/app/api/cron/auto-generate-content/route.ts")).toContain(
+      "writtenThisRun"
+    );
+    expect(read("src/lib/academic/pending-approval.ts")).toContain(
+      "meetingsInWeek"
+    );
+    expect(read("src/lib/academic/pending-approval.ts")).toContain(
+      "weekReadyReviewPath"
+    );
+    expect(read("src/app/dashboard/teaching/approvals/page.tsx")).toContain(
+      "approval-"
+    );
+    expect(read("src/components/lesson-plans/ThisWeekPanel.tsx")).toContain(
+      "teachingMeetingLabel"
+    );
   });
 });
 
@@ -172,6 +202,15 @@ describe("generators and workspace stay on that schema", () => {
       expect(read(path), path).toContain("reuseWeekContent");
       expect(read(path), path).toContain("keepPreparedMeetingContent");
     }
+    expect(
+      read("src/app/api/lesson-plans/[id]/generate-lessons/route.ts"),
+    ).toContain("generatedLessonIsUsable");
+    expect(
+      read("src/app/api/lesson-plans/[id]/generate-lessons/route.ts"),
+    ).toContain("extractTeachingPlanWeeks");
+    expect(
+      read("src/app/api/lesson-plans/[id]/generate-lessons/route.ts"),
+    ).toContain("titlesAlreadyTaughtThisWeek");
     for (const path of [
       "src/app/api/lesson-plans/[id]/generate-lessons/route.ts",
       "src/app/api/lesson-plans/[id]/generate-assignments/route.ts",
@@ -179,6 +218,7 @@ describe("generators and workspace stay on that schema", () => {
     ]) {
       expect(read(path), path).toContain("weekAlreadyGeneratedStatus");
       expect(read(path), path).toContain("weekCopiedFromClassStatus");
+      expect(read(path), path).toContain("extractTeachingPlanWeeks");
     }
   });
 

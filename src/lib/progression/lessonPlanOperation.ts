@@ -1,4 +1,5 @@
 import type { Json } from '@/types/supabase';
+import { expandPlanWeeksForMeetings } from '@/lib/academic/school-programme-standing';
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -129,6 +130,20 @@ export function extractLessonPlanOperationWeeks(
     (a, b) =>
       getWeekNumber(a) - getWeekNumber(b) ||
       getPlanWeekSession(a) - getPlanWeekSession(b),
+  );
+}
+
+/**
+ * Plan rows the generators and sweep should actually teach — including Class 2
+ * when the school meets twice a week but the stored plan still has one row.
+ */
+export function extractTeachingPlanWeeks(
+  planData: unknown,
+  sessionsPerWeek: number,
+): Array<Record<string, unknown>> {
+  return expandPlanWeeksForMeetings(
+    extractLessonPlanOperationWeeks(planData),
+    sessionsPerWeek,
   );
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canGenerateForClass, currentTermWeek, normaliseTypes } from './week-generation';
+import { canGenerateForClass, currentTermWeek, normaliseTypes, weekReadyNotificationTitle, weekReadyReviewPath } from './week-generation';
 
 describe('canGenerateForClass', () => {
   const owner = { id: 'teacher-1', role: 'teacher' };
@@ -84,5 +84,24 @@ describe('normaliseTypes', () => {
 
   it('does not invent lessons for a caller that only wants assignments', () => {
     expect(normaliseTypes(['assignments'])).toEqual(['assignments']);
+  });
+});
+
+describe('week ready delivery', () => {
+  it('opens Approvals on the exact meeting, with Class 2 named in the title', () => {
+    expect(
+      weekReadyReviewPath({
+        planId: 'plan-1',
+        week: 3,
+        session: 2,
+      }),
+    ).toBe('/dashboard/teaching/approvals?week=3&session=2&plan=plan-1');
+    expect(
+      weekReadyNotificationTitle({
+        week: 3,
+        session: 2,
+        className: 'JSS 1A',
+      }),
+    ).toBe('JSS 1A · Week 3 · Class 2 is ready to review');
   });
 });

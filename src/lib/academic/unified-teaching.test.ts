@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assetMeetingSession,
   assetStampedMeetingSession,
+  meetingContinuityInstruction,
   meetingLookupKey,
   normalizeMeetingSession,
   parseRequestSession,
@@ -51,6 +52,24 @@ describe('session-identity', () => {
     expect(teachingMeetingLabel(3, 2)).toBe('Week 3 · Class 2');
     expect(teachingMeetingShortLabel(3, 1)).toBe('W3');
     expect(teachingMeetingShortLabel(3, 2)).toBe('W3 · C2');
+  });
+
+  it('tells Class 2 to continue Class 1 without repeating it', () => {
+    expect(
+      meetingContinuityInstruction({
+        week: 2,
+        session: 2,
+        meetingsThisWeek: 2,
+        alreadyTaughtThisWeek: ['Sprites'],
+      }),
+    ).toMatch(/Class 2/i);
+    expect(
+      meetingContinuityInstruction({
+        week: 2,
+        session: 1,
+        meetingsThisWeek: 1,
+      }),
+    ).toBe('');
   });
 });
 

@@ -15,7 +15,7 @@ import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
 import {
-  extractLessonPlanOperationWeeks,
+  extractTeachingPlanWeeks,
   filterPlanOperationWeeks,
   getPlanWeekSession,
   parseWeekTermRefs,
@@ -34,6 +34,8 @@ import {
   weekAlreadyGeneratedStatus,
   weekCopiedFromClassStatus,
 } from "@/lib/academic/teaching-workspace";
+import { titlesAlreadyTaughtThisWeek } from "@/lib/academic/generation-ops";
+import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
@@ -150,7 +152,11 @@ export async function POST(
     // Opt-in publish: anything other than an explicit true is held for approval.
     // Matches auto-generate-settings and generate-projects — missing must not go live.
     const assignmentActive = body.auto_publish === true;
-    const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
+    const sessionsPerWeek = cadenceForTeachingPlan({
+      planSessionsPerWeek: (plan as { sessions_per_week?: unknown })
+        .sessions_per_week,
+    });
+    const weeks = extractTeachingPlanWeeks(plan.plan_data, sessionsPerWeek) as Array<{
       week: number;
       topic: string;
       objectives?: string;
@@ -170,7 +176,7 @@ export async function POST(
       supabase
         .from("assignments")
         .select(
-          "id,metadata,assignment_type,lesson_plan_id,curriculum_week_number,session_number"
+          "id,title,metadata,assignment_type,lesson_plan_id,curriculum_week_number,session_number"
         )
         .neq("assignment_type", "project")
         .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
@@ -255,7 +261,12 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: weekAlreadyGeneratedStatus(week.week),
+              status: weekAlreadyGeneratedStatus(
+                week.week,
+                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                  onlySession,
+                sessionsPerWeek,
+              ),
             });
             skipped++;
             continue;
@@ -315,7 +326,13 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: weekCopiedFromClassStatus(week.week, "assignment"),
+              status: weekCopiedFromClassStatus(
+                week.week,
+                "assignment",
+                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                  onlySession,
+                sessionsPerWeek,
+              ),
             });
             continue;
           }
@@ -348,7 +365,30 @@ export async function POST(
                 typeof week.objectives === "string" ? week.objectives : "",
               planWeekActivities:
                 typeof week.activities === "string" ? week.activities : "",
-              priorAssignmentTitlesThisRun: [...titlesThisRun],
+              priorAssignmentTitlesThisRun: [
+                ...titlesThisRun,
+                ...titlesAlreadyTaughtThisWeek({
+                  week: Number(week.week),
+                  session:
+                    getPlanWeekSession(
+                      week as unknown as Record<string, unknown>,
+                    ) || onlySession || 1,
+                  lessons: existingAssignments.map((row: { title?: unknown; curriculum_week_number?: unknown; session_number?: unknown }) => ({
+                    title: row.title,
+                    curriculum_week_number: row.curriculum_week_number,
+                    session_number: row.session_number,
+                    description: "homework",
+                  })),
+                }),
+              ],
+              weekNumber: Number(week.week),
+              classMeeting:
+                getPlanWeekSession(
+                  week as unknown as Record<string, unknown>,
+                ) || onlySession || 1,
+              meetingsThisWeek: weeks.filter(
+                (row) => Number(row.week) === Number(week.week),
+              ).length,
             });
           } catch (err) {
             const reason =

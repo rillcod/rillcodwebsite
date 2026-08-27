@@ -8,14 +8,18 @@
  * Generation never publishes. It prepares draft content the teacher still reviews.
  */
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { currentTermWeek } from "@/lib/academic/delivery-calendar";
 import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
+import { teachingMeetingLabel } from "@/lib/academic/session-identity";
+import { weekReadyReviewPath } from "@/lib/academic/pending-approval";
 
 type Props = {
   planId: string;
   termStart: string | null;
   /** Server is still the authority — this only decides whether to show the button at all. */
   canGenerate: boolean;
+  sessionsPerWeek?: number | null;
 };
 
 type Summary = {
@@ -35,11 +39,18 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props) {
+export default function ThisWeekPanel({
+  planId,
+  termStart,
+  canGenerate,
+  sessionsPerWeek,
+}: Props) {
   const [week, setWeek] = useState(1);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string; href?: string } | null>(null);
+  const meetings = Number(sessionsPerWeek) === 2 ? 2 : 1;
+  const meeting = teachingMeetingLabel(week, 1, meetings);
 
   // Derived on the client only, so the server render cannot disagree about "today".
   useEffect(() => setWeek(currentTermWeek(termStart)), [termStart]);
@@ -66,7 +77,7 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
     setBusy(true);
     setMessage(null);
     try {
-      const body = await requestTrackedWeekGeneration({ planId, week });
+      const body = await requestTrackedWeekGeneration({ planId, week, session: 1 });
       if (!body.success) {
         setMessage({
           tone: "error",
@@ -74,10 +85,17 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
         });
         return;
       }
+      const reviewHref = weekReadyReviewPath({
+        planId,
+        week,
+        session: 1,
+        autoPublish: body.auto_publish === true,
+      });
       if (body.alreadyRunning) {
         setMessage({
           tone: "ok",
-          text: `Week ${week} is still being prepared safely. Saved items will appear as they finish; no second AI run was started.`,
+          text: `${meeting} is still being prepared safely. Saved items will appear as they finish; no second AI run was started.`,
+          href: reviewHref,
         });
         await loadProgress();
         return;
@@ -87,10 +105,11 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
       setMessage({
         tone: "ok",
         text: made
-          ? `Week ${week} is ready to review — ${made} item${made === 1 ? "" : "s"} prepared${
+          ? `${meeting} is ready to review — ${made} item${made === 1 ? "" : "s"} prepared${
               skipped ? `, ${skipped} already generated for this class` : ""
-            }. Nothing is published until you publish it.`
-          : `Week ${week} already generated for this class — nothing new to prepare.`,
+            }. Nothing is published until you share it.`
+          : `${meeting} already generated for this class — nothing new to prepare.`,
+        href: reviewHref,
       });
       await loadProgress();
     } catch (error) {
@@ -115,7 +134,12 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
           <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40">
             This week
           </p>
-          <p className="mt-0.5 text-lg font-bold text-card-foreground">Week {week}</p>
+          <p className="mt-0.5 text-lg font-bold text-card-foreground">{meeting}</p>
+          {meetings > 1 && (
+            <p className="mt-0.5 text-[11px] text-card-foreground/50">
+              Prepares Class 1 now. Class 2 stays its own package so the two meetings do not repeat.
+            </p>
+          )}
         </div>
         {canGenerate && (
           <button
@@ -123,24 +147,34 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
             disabled={busy}
             className="px-4 py-2 rounded-xl text-sm font-bold bg-primary text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {busy ? "Preparing…" : "Generate this week now"}
+            {busy ? "Preparing…" : `Prepare ${meeting}`}
           </button>
         )}
       </div>
 
       {message && (
-        <p
-          className={`mt-3 text-sm ${
-            message.tone === "ok" ? "text-emerald-400" : "text-rose-400"
-          }`}
-        >
-          {message.text}
-        </p>
+        <div className="mt-3 space-y-1">
+          <p
+            className={`text-sm ${
+              message.tone === "ok" ? "text-emerald-400" : "text-rose-400"
+            }`}
+          >
+            {message.text}
+          </p>
+          {message.href && message.tone === "ok" && (
+            <Link
+              href={message.href}
+              className="inline-flex text-[11px] font-black uppercase tracking-widest text-primary hover:underline"
+            >
+              Open review
+            </Link>
+          )}
+        </div>
       )}
 
       <div className="mt-4 border-t border-white/[0.08] pt-3">
         <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 mb-2">
-          How the class is doing on week {week}
+          How the class is doing on {meeting}
         </p>
         {hasProgress ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -158,7 +192,7 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
           </div>
         ) : (
           <p className="text-sm text-card-foreground/50">
-            No learner activity recorded for week {week} yet.
+            No learner activity recorded for {meeting} yet.
           </p>
         )}
       </div>

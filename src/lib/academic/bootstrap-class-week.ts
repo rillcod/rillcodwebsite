@@ -87,6 +87,7 @@ export async function bootstrapClassTeachingWeek(
     planId: String(plan.id),
     classId: plan.class_id ?? null,
     week,
+    session: 1,
     outcome,
     autoPublish: false,
   });

@@ -112,11 +112,17 @@ export function parseAutoGenerateSettings(raw: unknown): AutoGenerateSettings {
 }
 
 /**
- * Which plan weeks the sweep / launch should prepare now.
+ * Which plan weeks the sweep / launch may prepare now.
  *
  * Never invents weeks outside the plan. Cron waits until delivery enters the
  * module window (no mid-cohort bleed). Launch may set allowEarlyPrep so a
  * module can be staged before its calendar week arrives.
+ *
+ * Once entered, overdue weeks stay eligible (catch-up) together with the
+ * current week and `prepAheadWeeks` ahead. Before the term starts, the whole
+ * published plan is staged for approval — otherwise August still looks empty
+ * while September waits. `maxWeeksPerBatch` is how many meetings to write this
+ * hour, not this window.
  */
 export function weeksToGenerateForPlan(input: {
   planWeekNumbers: number[];
@@ -125,6 +131,11 @@ export function weeksToGenerateForPlan(input: {
   maxWeeksPerBatch?: number;
   /** When true, prep the module's first week even if delivery is still earlier. */
   allowEarlyPrep?: boolean;
+  /**
+   * False until term_start / period start. Unpublished later weeks would
+   * otherwise wait for a calendar that is still sitting on "week 1".
+   */
+  termHasStarted?: boolean;
 }): number[] {
   const plan = [...new Set(
     input.planWeekNumbers.filter((n) => Number.isFinite(n) && n > 0),
@@ -132,30 +143,18 @@ export function weeksToGenerateForPlan(input: {
   if (!plan.length) return [];
 
   const delivery = Math.max(1, Math.floor(Number(input.deliveryWeek) || 1));
-  const ahead = Math.max(0, Math.floor(Number(input.prepAheadWeeks) || 0));
-  const batchCap = Number(input.maxWeeksPerBatch);
-  const cap =
-    Number.isFinite(batchCap) && batchCap > 0
-      ? Math.min(10, Math.floor(batchCap))
-      : Math.max(1, ahead + 1);
+  const aheadRaw = Number(input.prepAheadWeeks);
+  const ahead = Number.isFinite(aheadRaw)
+    ? Math.max(0, Math.floor(aheadRaw))
+    : DEFAULT_AUTO_GENERATE_SETTINGS.prep_ahead_weeks;
 
-  let anchor: number | null = null;
-  if (plan.includes(delivery)) {
-    anchor = delivery;
-  } else if (delivery < plan[0]) {
-    anchor = input.allowEarlyPrep ? plan[0] : null;
-  } else if (delivery > plan[plan.length - 1]) {
-    return [];
-  } else {
-    // Between sparse plan weeks — wait rather than jump ahead.
-    return [];
-  }
+  if (delivery < plan[0] && !input.allowEarlyPrep) return [];
 
-  if (anchor == null) return [];
+  if (input.termHasStarted === false) return plan;
 
-  const fromAnchor = plan.filter((w) => w >= anchor!);
-  const withAhead = fromAnchor.slice(0, Math.max(1, ahead + 1));
-  return withAhead.slice(0, cap);
+  const anchor = delivery < plan[0] ? plan[0] : delivery;
+  const horizon = anchor + ahead;
+  return plan.filter((week) => week <= horizon);
 }
 
 /** One class meeting on the teaching plan (calendar week + class number). */

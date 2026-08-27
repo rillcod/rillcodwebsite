@@ -11,6 +11,11 @@
  */
 import { consumeSSEUntilDone } from '@/lib/lesson-plans/ai-fetch';
 import { invokePlanWeekGenerator } from '@/lib/academic/plan-week-generators';
+import {
+  canonicalMeetingSession,
+  teachingMeetingLabel,
+} from '@/lib/academic/session-identity';
+import { weekReadyReviewPath } from '@/lib/academic/pending-approval';
 
 // The content types and their order are settings, not generator trivia — see
 // auto-generate-settings, which the cron, the plan page and the readiness
@@ -212,15 +217,26 @@ export async function generatePlanWeek(input: {
  * a notice for a week that generated nothing is noise, and noise is what stops people reading
  * notifications at all.
  *
- * Idempotent per plan+week: the sweep may retry a plan, and a teacher may press the button after
+ * Idempotent per plan+week+meeting: the sweep may retry a plan, and a teacher may press the button after
  * it, without the teacher being told twice.
  */
+export { weekReadyReviewPath };
+
+export function weekReadyNotificationTitle(input: {
+  week: number;
+  session?: number | null;
+  className: string;
+}): string {
+  return `${input.className} · ${teachingMeetingLabel(input.week, input.session)} is ready to review`;
+}
+
 export async function notifyWeekReady(
   db: any,
   input: {
     planId: string;
     classId: string | null;
     week: number;
+    session?: number | null;
     outcome: WeekGenerationOutcome;
     /** When false/undefined, point the teacher at the approvals queue. */
     autoPublish?: boolean;
@@ -236,15 +252,19 @@ export async function notifyWeekReady(
     .maybeSingle();
   if (!klass?.teacher_id) return 'skipped_no_teacher';
 
-  // Held weeks go to the shared approvals inbox; live weeks go to the plan.
-  const actionUrl =
-    input.autoPublish === true
-      ? `/dashboard/lesson-plans/${input.planId}?week=${input.week}`
-      : `/dashboard/teaching/approvals`;
+  const meeting = teachingMeetingLabel(input.week, input.session);
+  const actionUrl = weekReadyReviewPath({
+    planId: input.planId,
+    week: input.week,
+    session: input.session,
+    autoPublish: input.autoPublish,
+  });
 
-  // Same plan + week + teacher = already told. Scoped by title+week so a
-  // held→live change later does not re-notify for the same prep.
-  const title = `Week ${input.week} is ready to review`;
+  const title = weekReadyNotificationTitle({
+    week: input.week,
+    session: input.session,
+    className: klass.name,
+  });
   const { data: existing } = await db
     .from('notifications')
     .select('id')
@@ -260,8 +280,8 @@ export async function notifyWeekReady(
     : '';
   const message =
     input.autoPublish === true
-      ? `${klass.name}: this week's teaching content is live for students${partial}.`
-      : `${klass.name}: this week's teaching content has been prepared${partial}. ` +
+      ? `${klass.name}: ${meeting} teaching content is live for students${partial}.`
+      : `${klass.name}: ${meeting} teaching content has been prepared${partial}. ` +
         `Review it on Approvals and release when you are happy with it.`;
 
   const { error } = await db.from('notifications').insert({

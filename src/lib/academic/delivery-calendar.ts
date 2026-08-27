@@ -30,3 +30,15 @@ export function currentDeliveryWeek(input: {
 }, now = new Date()): number {
   return currentTermWeek(input.termStart ?? input.periodStart ?? null, now);
 }
+
+/** False until the term or duration period's start date (inclusive). */
+export function calendarHasStarted(
+  start: string | null | undefined,
+  now = new Date(),
+): boolean {
+  if (!start) return true;
+  const started = calendarDayStamp(start);
+  const today = calendarDayStamp(now);
+  if (started == null || today == null) return true;
+  return today >= started;
+}

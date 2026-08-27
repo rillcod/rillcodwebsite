@@ -64,6 +64,23 @@ export function schoolWeeklyCadence(raw: unknown): 1 | 2 {
   return n === 1 ? 1 : 2;
 }
 
+/**
+ * How many class meetings this plan actually runs.
+ *
+ * The stored plan cadence wins (a twice-a-week school can still publish a
+ * once-a-week special programme). Missing plan cadence follows the school,
+ * which is how the class workspace already draws Class 1 and Class 2.
+ */
+export function cadenceForTeachingPlan(input: {
+  planSessionsPerWeek?: unknown;
+  schoolSessionsPerWeek?: unknown;
+}): 1 | 2 {
+  const plan = Number(input.planSessionsPerWeek);
+  if (plan === 1) return 1;
+  if (plan === 2) return 2;
+  return schoolWeeklyCadence(input.schoolSessionsPerWeek);
+}
+
 export function parseAssessmentCapture(raw: unknown): AssessmentCapture {
   return raw === "cbt" ? "cbt" : "physical";
 }

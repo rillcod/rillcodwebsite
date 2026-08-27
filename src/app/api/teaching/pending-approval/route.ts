@@ -104,6 +104,7 @@ export async function GET() {
         courseTitle: plan?.courses?.title ?? null,
         week,
         session: sessionNum,
+        meetingsInWeek,
         enrollmentType,
         isSpecial,
         topic: meta?.topic
@@ -182,6 +183,13 @@ export async function GET() {
       title: (slide as any).title,
       state: (slide as any).is_public === false ? "held" : "live",
     });
+  }
+
+  for (const row of byWeek.values()) {
+    const count = [...byWeek.values()].filter(
+      (other) => other.planId === row.planId && other.week === row.week,
+    ).length;
+    row.meetingsInWeek = Math.max(row.meetingsInWeek || 1, count);
   }
 
   const expectedKinds = [

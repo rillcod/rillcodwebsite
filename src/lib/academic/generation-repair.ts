@@ -1,5 +1,6 @@
 import {
   assetMatchesMeeting,
+  generatedLessonIsUsable,
   keepPreparedMeetingContent,
   type WeekPackageAsset,
 } from "@/lib/academic/week-package";
@@ -71,7 +72,12 @@ export function decideGenerationRepairTypes(input: {
     project: projects,
   };
   const missingAssets = (Object.keys(rows) as WeekPackageAsset[]).filter(
-    (asset) => rows[asset].length === 0
+    (asset) =>
+      asset === "lesson"
+        ? !keepPreparedMeetingContent(rows.lesson, input.week, input.session, {
+            usable: generatedLessonIsUsable,
+          })
+        : rows[asset].length === 0,
   );
   const staleAssets = (["slides", "flashcards"] as const).filter(
     (asset) =>

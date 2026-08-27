@@ -55,7 +55,23 @@ import {
   type SyllabusContentImport,
 } from "@/lib/lesson-plans/syllabusImport";
 import { assetMatchesMeeting } from "@/lib/academic/week-package";
-import { canonicalMeetingSession } from "@/lib/academic/session-identity";
+import { canonicalMeetingSession, teachingMeetingLabel } from "@/lib/academic/session-identity";
+
+function planMeetingDomId(week: number, session: number) {
+  return `plan-week-${week}-s${session}`;
+}
+
+function planWeekMeetingLabel(
+  weeks: Array<{ week: number; session?: number; session_number?: number }>,
+  week: { week: number; session?: number; session_number?: number },
+) {
+  const meetings = weeks.filter((row) => Number(row.week) === Number(week.week)).length;
+  return teachingMeetingLabel(
+    week.week,
+    canonicalMeetingSession(week.session ?? week.session_number),
+    meetings,
+  );
+}
 
 interface WeekEntry {
   week: number;
@@ -816,6 +832,17 @@ export default function LessonPlanDetailPage() {
   }, [authLoading, profile, load]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !weeks.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const week = Number(params.get("week"));
+    const session = Number(params.get("session") || 1);
+    if (!Number.isFinite(week) || week < 1) return;
+    const meeting = Number.isFinite(session) && session > 0 ? session : 1;
+    const el = document.getElementById(planMeetingDomId(week, meeting));
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [weeks]);
+
+  useEffect(() => {
     if (!viewWeek) {
       setPreviewLesson(null);
       setPreviewAssignment(null);
@@ -1317,10 +1344,11 @@ export default function LessonPlanDetailPage() {
       for (let index = 0; index < weeks.length; index++) {
         const week = weeks[index];
         const session = Math.max(1, Number(week.session_number ?? week.session ?? 1) || 1);
+        const meetingLabel = planWeekMeetingLabel(weeks, week);
         setGenProgress({
           generated: index,
           total: weeks.length,
-          status: `Week ${week.week}${session > 1 ? ` · Session ${session}` : ""}: preparing all learning content`,
+          status: `${meetingLabel}: preparing all learning content`,
         });
         const result = await requestTrackedWeekGeneration({
           planId: id,
@@ -1331,9 +1359,9 @@ export default function LessonPlanDetailPage() {
         generated += Number(result.generated) || 0;
         skipped += Number(result.skipped) || 0;
         if (result.success === false) {
-          failures.push(`Week ${week.week}: ${result.error || "package generation did not finish"}`);
+          failures.push(`${meetingLabel}: ${result.error || "package generation did not finish"}`);
         } else if (Array.isArray(result.failedTypes) && result.failedTypes.length > 0) {
-          failures.push(`Week ${week.week}: ${result.failedTypes.join(", ")} still need attention`);
+          failures.push(`${meetingLabel}: ${result.failedTypes.join(", ")} still need attention`);
         }
       }
       await load();
@@ -2397,6 +2425,7 @@ export default function LessonPlanDetailPage() {
             planId={id}
             termStart={plan.term_start ?? null}
             canGenerate={canGenerateProgression}
+            sessionsPerWeek={plan.sessions_per_week}
           />
 
           {/* Daily path: one complete package action. Type-by-type repair stays in Advanced. */}
@@ -2473,9 +2502,14 @@ export default function LessonPlanDetailPage() {
                 const hasAllContent =
                   weekLesson && weekAssignment && weekProject;
 
+                const meetingSession = canonicalMeetingSession(
+                  w.session ?? w.session_number,
+                );
+                const meetingLabel = planWeekMeetingLabel(weeks, w);
                 return (
                   <div
-                    key={`${w.week}:${w.session ?? w.session_number ?? 1}`}
+                    id={planMeetingDomId(w.week, meetingSession)}
+                    key={`${w.week}:${meetingSession}`}
                     className={`bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:from-white/[0.06] hover:to-white/[0.02] border rounded-[24px] overflow-hidden hover:border-primary/30 transition-all duration-300 group shadow-xl hover:shadow-primary/5 ${
                       w.completed
                         ? "border-emerald-500/25 bg-emerald-500/[0.01]"
@@ -2491,7 +2525,7 @@ export default function LessonPlanDetailPage() {
                         <div className="space-y-1">
                           <div className="flex items-center flex-wrap gap-2">
                             <span className="text-xs font-black text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
-                              Week {w.week}
+                              {meetingLabel}
                             </span>
                             {(w.gating_state ?? "unlocked") === "locked" && (
                               <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
@@ -4730,12 +4764,12 @@ export default function LessonPlanDetailPage() {
                   }&session=${canonicalMeetingSession(w.session ?? w.session_number)}${plan.course_id ? `&course_id=${plan.course_id}` : ""}`;
                   return (
                     <div
-                      key={`${w.week}:${w.session ?? w.session_number ?? 1}`}
+                      key={`${w.week}:${canonicalMeetingSession(w.session ?? w.session_number)}`}
                       className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl"
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-primary">
-                          Week {w.week}
+                          {planWeekMeetingLabel(weeks, w)}
                         </span>
                         {w.completed && (
                           <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300">

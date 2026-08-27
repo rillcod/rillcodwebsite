@@ -121,3 +121,43 @@ export function teachingMeetingShortLabel(
   }
   return `W${week}`;
 }
+
+/**
+ * Tell the model that Class 1 and Class 2 are two steps in one week, not two
+ * copies of the same lesson. Empty when the week only meets once.
+ */
+export function meetingContinuityInstruction(input: {
+  week: number;
+  session?: number | null;
+  meetingsThisWeek?: number;
+  alreadyTaughtThisWeek?: string[];
+}): string {
+  const session = canonicalMeetingSession(input.session);
+  const meetings = Math.max(
+    1,
+    Math.floor(Number(input.meetingsThisWeek) || 1),
+  );
+  if (meetings <= 1 && session <= 1) return "";
+
+  const label = teachingMeetingLabel(input.week, session, meetings);
+  const taught = (input.alreadyTaughtThisWeek ?? [])
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  if (session === 1) {
+    return (
+      `${label} is the first meeting this calendar week. Teach the core idea ` +
+      `with fresh examples. End with a clear next step — Class 2 must continue ` +
+      `the same skill, not repeat this lesson.`
+    );
+  }
+
+  const prior = taught.length
+    ? `Earlier this week already covered: ${taught.slice(0, 6).join(" | ")}.`
+    : `Class 1 already ran earlier this week on the same topic.`;
+  return (
+    `${label} is the next meeting of the same calendar week. ${prior} ` +
+    `Advance the skill with new activities, examples, quiz and homework. ` +
+    `Do not reuse the earlier meeting's hook, tasks or wording.`
+  );
+}

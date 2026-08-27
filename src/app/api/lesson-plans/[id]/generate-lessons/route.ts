@@ -15,10 +15,12 @@ import { validateLessonPlanForGeneration } from "@/lib/api-guards";
 import {
   parseRequestSession,
   planRowMeetingSession,
+  teachingMeetingLabel,
 } from "@/lib/academic/session-identity";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
+import { isCustomised } from "@/lib/academic/content-reuse";
 import {
-  extractLessonPlanOperationWeeks,
+  extractTeachingPlanWeeks,
   filterPlanOperationWeeks,
   parseWeekTermRefs,
   planWeekSessionMetadata,
@@ -32,7 +34,12 @@ import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
-import { keepPreparedMeetingContent, weekSessionLookupKey } from "@/lib/academic/week-package";
+import {
+  existingMeetingAsset,
+  generatedLessonIsUsable,
+  keepPreparedMeetingContent,
+  weekSessionLookupKey,
+} from "@/lib/academic/week-package";
 import {
   weekAlreadyGeneratedStatus,
   weekCopiedFromClassStatus,
@@ -41,6 +48,8 @@ import {
   contentTypeForLessonMode,
   inferLessonGenerationMode,
 } from "@/lib/lesson-plans/lesson-generation-mode";
+import { titlesAlreadyTaughtThisWeek } from "@/lib/academic/generation-ops";
+import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing";
 
 const ALLOWED_LESSON_TYPES = [
   "lesson",
@@ -148,7 +157,14 @@ export async function POST(
     // Auto-publish generated lessons by default (visible to students immediately).
     // Opt-in publish: anything other than an explicit true stays draft for review.
     const lessonStatus = body.auto_publish === true ? "active" : "draft";
-    const weeks = extractLessonPlanOperationWeeks(plan!.plan_data) as Array<{
+    const sessionsPerWeek = cadenceForTeachingPlan({
+      planSessionsPerWeek: (plan as { sessions_per_week?: unknown })
+        .sessions_per_week,
+    });
+    const weeks = extractTeachingPlanWeeks(
+      plan!.plan_data,
+      sessionsPerWeek,
+    ) as Array<{
       week: number;
       topic: string;
       objectives?: string;
@@ -167,20 +183,24 @@ export async function POST(
     const planCourseId = plan!.course_id as string;
     const planSchoolId = plan!.school_id as string;
 
-    const { data: existingLessons } = await supabase
+    const { data: existingLessonRows } = await supabase
       .from("lessons")
       .select(
-        "id, lesson_plan_id, curriculum_week_number, session_number, metadata"
+        "id, title, lesson_plan_id, curriculum_week_number, session_number, metadata, content, content_layout, description, lesson_notes"
       )
       .eq("course_id", planCourseId)
       .eq("school_id", planSchoolId)
       .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+    const existingLessons = existingLessonRows ?? [];
+
+    const lessonSkipOptions = { usable: generatedLessonIsUsable };
 
     const projectedSkips = targetWeeks.filter((w) =>
       keepPreparedMeetingContent(
-        existingLessons ?? [],
+        existingLessons,
         Number(w.week),
         planRowMeetingSession(w as unknown as Record<string, unknown>),
+        lessonSkipOptions,
       ),
     ).length;
 
@@ -244,24 +264,42 @@ export async function POST(
             generated,
             total,
             current: week.week,
-            status: `Generating lesson for Week ${week.week}: ${week.topic}...`,
+            status: `Generating lesson for ${teachingMeetingLabel(week.week, planRowMeetingSession(week as unknown as Record<string, unknown>), sessionsPerWeek)}: ${week.topic}...`,
           });
 
           if (
             keepPreparedMeetingContent(
-              existingLessons ?? [],
+              existingLessons,
               Number(week.week),
               planRowMeetingSession(week as unknown as Record<string, unknown>),
+              lessonSkipOptions,
             )
           ) {
             emit({
               generated,
               total,
               current: week.week,
-              status: weekAlreadyGeneratedStatus(week.week),
+              status: weekAlreadyGeneratedStatus(
+                week.week,
+                planRowMeetingSession(week as unknown as Record<string, unknown>),
+                sessionsPerWeek,
+              ),
             });
             skipped++;
             continue;
+          }
+
+          const emptyShell = existingMeetingAsset(
+            existingLessons,
+            Number(week.week),
+            planRowMeetingSession(week as unknown as Record<string, unknown>),
+          ) as { id?: string; metadata?: Record<string, unknown> | null } | undefined;
+          if (emptyShell?.id && !isCustomised(emptyShell as any)) {
+            await supabase.from("lessons").delete().eq("id", emptyShell.id);
+            const idx = existingLessons.findIndex(
+              (row: { id?: string }) => row.id === emptyShell.id,
+            );
+            if (idx >= 0) existingLessons.splice(idx, 1);
           }
 
           // Before asking the AI, look for this week already written for this
@@ -313,14 +351,28 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: weekCopiedFromClassStatus(week.week),
+              status: weekCopiedFromClassStatus(
+                week.week,
+                undefined,
+                session,
+                sessionsPerWeek,
+              ),
             });
             continue;
           }
 
-          const siblingLessons = allCurriculumTopics.filter(
-            (t: string) => t !== week.topic
-          );
+          const alreadyTaughtThisWeek = titlesAlreadyTaughtThisWeek({
+            week: Number(week.week),
+            session,
+            lessons: existingLessons,
+          });
+          const siblingLessons = [
+            ...alreadyTaughtThisWeek,
+            ...allCurriculumTopics.filter((t: string) => t !== week.topic),
+          ];
+          const meetingsThisWeek = weeks.filter(
+            (row) => Number(row.week) === Number(week.week),
+          ).length;
           const { yearNumber, effectiveTermNum } = parseWeekTermRefs(
             week,
             termNum,
@@ -353,6 +405,10 @@ export async function POST(
               courseName,
               programName,
               siblingLessons: siblingLessons.slice(0, 10),
+              weekNumber: Number(week.week),
+              classMeeting: session,
+              meetingsThisWeek,
+              alreadyTaughtThisWeek,
               syllabusReference,
               planWeekObjectives:
                 typeof week.objectives === "string" ? week.objectives : "",

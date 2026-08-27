@@ -228,6 +228,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     planId,
     classId: plan.class_id ?? null,
     week,
+    session,
     outcome,
     autoPublish,
   });

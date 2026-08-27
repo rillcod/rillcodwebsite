@@ -99,6 +99,7 @@ export default function ContentApprovalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewWeek, setPreviewWeek] = useState<PendingWeek | null>(null);
   const [pathwayFilter, setPathwayFilter] = useState<'all' | 'special' | 'school'>('all');
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,6 +119,24 @@ export default function ContentApprovalsPage() {
   useEffect(() => {
     if (!authLoading && profile) void load();
   }, [authLoading, profile, load]);
+
+  useEffect(() => {
+    if (loading || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const week = Number(params.get("week"));
+    const session = Number(params.get("session") || 1);
+    const planId = params.get("plan");
+    if (!Number.isFinite(week) || week < 1) return;
+    const match = weeks.find((row) => {
+      if (planId && row.planId !== planId) return false;
+      return row.week === week && row.session === (Number.isFinite(session) && session > 0 ? session : 1);
+    });
+    if (!match) return;
+    const key = pendingKey(match);
+    setFocusKey(key);
+    const el = document.getElementById(`approval-${key}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [loading, weeks]);
 
   const filteredWeeks = weeks.filter((w) => {
     if (pathwayFilter === 'special') return w.isSpecial;
@@ -158,7 +177,7 @@ export default function ContentApprovalsPage() {
         (result?.assignments_released ?? 0) +
         (result?.slides_released ?? 0) +
         (result?.flashcards_released ?? 0);
-      const meeting = teachingMeetingLabel(row.week, row.session);
+      const meeting = teachingMeetingLabel(row.week, row.session, row.meetingsInWeek);
       const warning = result?.warning ?? json.warning;
       if (warning) {
         toast.warning(`${meeting} is live. ${warning}`);
@@ -426,7 +445,12 @@ export default function ContentApprovalsPage() {
             return (
               <div
                 key={key}
-                className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30 space-y-3"
+                id={`approval-${key}`}
+                className={`rounded-2xl border bg-card p-4 transition-colors hover:border-primary/30 space-y-3 ${
+                  focusKey === key
+                    ? "border-primary ring-2 ring-primary/30"
+                    : "border-border"
+                }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex items-start gap-3">
@@ -442,7 +466,7 @@ export default function ContentApprovalsPage() {
                         )
                       }
                       className="mt-1 h-4 w-4 rounded border-border disabled:opacity-40"
-                      aria-label={`Select week ${row.week}${row.session ? ` class ${row.session}` : ""}`}
+                      aria-label={`Select ${teachingMeetingLabel(row.week, row.session, row.meetingsInWeek)}`}
                     />
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -457,7 +481,7 @@ export default function ContentApprovalsPage() {
                         )}
 
                         <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
-                          {teachingMeetingLabel(row.week, row.session)}
+                          {teachingMeetingLabel(row.week, row.session, row.meetingsInWeek)}
                         </span>
                         {row.className && (
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -572,7 +596,7 @@ export default function ContentApprovalsPage() {
                     <div className="flex items-center justify-between border-b border-border/60 pb-2">
                       <h4 className="font-black text-foreground flex items-center gap-2">
                         <EyeIcon className="h-4 w-4 text-primary" />
-                        Weekly package review
+                        {teachingMeetingLabel(row.week, row.session, row.meetingsInWeek)} package review
                       </h4>
                       <button
                         onClick={() => setPreviewWeek(null)}

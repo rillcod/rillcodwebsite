@@ -179,7 +179,7 @@ export async function GET(
           db
             .from("lessons")
             .select(
-              "id,title,description,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
+              "id,title,description,content_layout,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
             )
             .or(
               `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`

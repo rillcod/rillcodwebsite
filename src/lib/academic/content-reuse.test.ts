@@ -64,6 +64,15 @@ describe('what may be copied', () => {
       .toEqual({ action: 'generate', reason: 'nothing_to_copy' });
   });
 
+  it('never copies a title-only shell', () => {
+    expect(
+      decideReuse(
+        [row({ description: '', content_layout: [], content: '', lesson_notes: '' })],
+        req,
+      ),
+    ).toEqual({ action: 'generate', reason: 'nothing_to_copy' });
+  });
+
   it('skips a customised copy and takes an untouched one', () => {
     const decision = decideReuse(
       [row({ id: 'edited', metadata: { is_customized: true }, created_at: '2026-08-01T00:00:00Z' }),
