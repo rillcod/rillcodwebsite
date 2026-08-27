@@ -66,7 +66,7 @@ export async function POST(
     const { data: lesson } = await admin
       .from("lessons")
       .select(
-        "school_id, created_by, class_id, lesson_plan_id, curriculum_week_number"
+        "school_id, created_by, class_id, lesson_plan_id, curriculum_week_number,session_number"
       )
       .eq("id", lesson_id)
       .maybeSingle();
@@ -98,6 +98,7 @@ export async function POST(
     }
 
     const body = await request.json();
+    const isPlanMaterial = Boolean(lesson.lesson_plan_id);
 
     const { data, error } = await admin
       .from("lesson_materials")
@@ -107,9 +108,14 @@ export async function POST(
         class_id: lesson.class_id,
         lesson_plan_id: lesson.lesson_plan_id,
         curriculum_week_number: lesson.curriculum_week_number,
+        session_number: lesson.session_number ?? 1,
         curriculum_release_id: plan?.curriculum_release_id ?? null,
         academic_offering_id: plan?.academic_offering_id ?? null,
         offering_period_id: plan?.offering_period_id ?? null,
+        // Anything attached to a class plan waits for the one package release
+        // action. Stand-alone lessons retain their existing public-by-default
+        // behaviour unless staff explicitly hold the material.
+        is_public: isPlanMaterial ? false : body.is_public !== false,
       })
       .select()
       .single();

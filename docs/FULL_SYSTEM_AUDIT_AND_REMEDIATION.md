@@ -3700,3 +3700,41 @@ Verification and honest boundary:
 - migration 88 is present and contract-tested in source. This pass did not query production migration
   history or release real learner content, so live database application and a post-deployment
   two-meeting browser exercise remain production certification checks.
+
+### 16.47 One learner-release boundary for lessons and slides — locally verified 27 August 2026
+
+Confirmed gaps:
+
+- the protected slide endpoint uses the service-role database client so it can stream private R2
+  objects, but it checked only that the key belonged to the lesson and that the account was enrolled.
+  A learner who retained a valid key could therefore open a held slide deck before the teacher's
+  package release;
+- manually attached class-plan material inherited plan, class and curriculum-week identity, but not
+  the class meeting number. It also inherited the table's public-by-default setting, so a new class
+  deck could disagree with the held lesson;
+- database read policy treated every material with `is_public = true` as public and gave every parent
+  access to every active lesson. It did not require the linked child's class or programme.
+
+Implemented:
+
+- the slide stream now checks the exact deck row, its `is_public` value, the lesson's active state,
+  school/programme scope and exact class before returning bytes. Staff can still preview held work;
+- manually attached class-plan material now inherits `session_number` and waits for the same package
+  release as the generated lesson, slides, cards, homework and project. Stand-alone lesson behaviour
+  remains configurable and was not over-tightened;
+- migration `20260929000121_tighten_released_lesson_content_access.sql` introduces one database
+  `can_read_released_lesson` rule. Active class content requires the learner's exact class; classless
+  content follows an active programme enrolment; a parent inherits only a linked child's legitimate
+  access; anonymous access is limited to active, classless, school-independent catalogue lessons;
+- existing class-plan materials are aligned to their lesson's current release state. Stand-alone
+  materials are deliberately not rewritten. AI prompts, models, generation depth and the five-part
+  week package were not reduced or changed by this work.
+
+Verification and honest boundary:
+
+- the focused run passed 11 checks across release state, staff preview, exact-class matching, service-
+  role proxy enforcement, class-meeting inheritance and database-policy contracts;
+- the complete TypeScript check passed;
+- migration 121 is present and contract-tested in source, but its application to the live database was
+  not verified in this pass. Until it is applied, the new API guard protects slide streaming, while
+  direct Supabase lesson/material reads still depend on the older database policies.

@@ -3,6 +3,10 @@ import { createServerClient } from '@supabase/ssr';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { r2SignedUrl } from '@/lib/r2/client';
 import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
+import {
+  learnerMatchesLessonClass,
+  slideDeckMayStream,
+} from '@/lib/lessons/learner-content-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,37 +75,80 @@ export async function GET(
   {
     const db = createAdminClient();
 
-    // (1) key must belong to this lesson's slide decks
-    const { data: decks } = await db
-      .from('lesson_materials')
-      .select('file_url')
-      .eq('lesson_id', lessonId)
-      .eq('file_type', 'slide-deck');
-    const allowedKeys = new Set<string>();
-    for (const d of decks ?? []) {
-      try {
-        const parsed = JSON.parse((d as any).file_url);
-        // image decks store keys in `slides`; PDF decks store one key in `pdf`
-        if (Array.isArray(parsed?.slides)) for (const k of parsed.slides) if (typeof k === 'string') allowedKeys.add(k);
-        if (typeof parsed?.pdf === 'string') allowedKeys.add(parsed.pdf);
-      } catch { /* ignore malformed */ }
+    const [{ data: prof }, { data: lesson }, { data: decks }] = await Promise.all([
+      db
+        .from('portal_users')
+        .select('role, school_id, class_id')
+        .eq('id', user.id)
+        .maybeSingle(),
+      db
+        .from('lessons')
+        .select('course_id, school_id, class_id, status')
+        .eq('id', lessonId)
+        .maybeSingle(),
+      db
+        .from('lesson_materials')
+        .select('file_url, is_public')
+        .eq('lesson_id', lessonId)
+        .eq('file_type', 'slide-deck'),
+    ]);
+    if (!lesson) {
+      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
     }
-    if (!allowedKeys.has(r2Key)) {
+
+    // The key must belong to one exact deck so its own release flag—not a
+    // different deck on the lesson—decides access.
+    const matchingDeck = (decks ?? []).find((deck) => {
+      try {
+        const parsed = JSON.parse(String(deck.file_url ?? ''));
+        return (
+          (Array.isArray(parsed?.slides) && parsed.slides.includes(r2Key)) ||
+          parsed?.pdf === r2Key
+        );
+      } catch {
+        return false;
+      }
+    });
+    if (!matchingDeck) {
       return NextResponse.json({ error: 'Slide is not part of this lesson' }, { status: 403 });
     }
 
-    // (2) staff bypass; everyone else must be enrolled in the lesson's programme
-    const { data: prof } = await db.from('portal_users').select('role, school_id, class_id').eq('id', user.id).maybeSingle();
     const role = (prof as any)?.role ?? '';
     const isStaff = ['admin', 'teacher', 'school'].includes(role);
+    if (
+      !slideDeckMayStream({
+        role,
+        lessonStatus: lesson.status,
+        isPublic: matchingDeck.is_public,
+      })
+    ) {
+      return NextResponse.json(
+        { error: 'These learning slides have not been released to students.' },
+        { status: 403 },
+      );
+    }
+    if (
+      !learnerMatchesLessonClass({
+        role,
+        learnerClassId: (prof as any)?.class_id ?? null,
+        lessonClassId: lesson.class_id,
+      })
+    ) {
+      return NextResponse.json(
+        { error: 'These learning slides belong to another class.' },
+        { status: 403 },
+      );
+    }
+
+    // Staff may review held content; everyone else must also be enrolled in
+    // the released lesson's programme or course.
     if (!isStaff) {
-      const { data: lesson } = await db.from('lessons').select('course_id, school_id').eq('id', lessonId).maybeSingle();
-      const lessonSchoolId = (lesson as any)?.school_id ?? null;
+      const lessonSchoolId = lesson.school_id ?? null;
       const studentSchoolId = (prof as any)?.school_id ?? null;
       if (studentSchoolId && lessonSchoolId && lessonSchoolId !== studentSchoolId) {
         return NextResponse.json({ error: 'Slide is outside your school scope' }, { status: 403 });
       }
-      const courseId = (lesson as any)?.course_id ?? null;
+      const courseId = lesson.course_id ?? null;
       const { data: course } = courseId
         ? await db.from('courses').select('program_id').eq('id', courseId).maybeSingle()
         : { data: null as any };
