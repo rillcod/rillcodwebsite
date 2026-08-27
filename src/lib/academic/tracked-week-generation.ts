@@ -307,10 +307,22 @@ async function recoverIncompleteOutcome(input: {
     input.outcome,
     input.outcome.failedTypes.filter((type) => !stillMissing.has(type)),
   );
-  const retryCandidates = inventory.typesToRun.filter(
+  let retryCandidates = inventory.typesToRun.filter(
     (type) =>
       !outcome.failedTypes.includes(type) || failureIsRetryable(outcome, type),
   );
+  // Slides and cards cannot be repaired without their lesson. If the lesson
+  // itself was refused by a non-transient guard, do not make a guaranteed-to-
+  // fail dependent call. The teacher sees the original actionable refusal.
+  if (
+    stillMissing.has("lessons") &&
+    outcome.failedTypes.includes("lessons") &&
+    !retryCandidates.includes("lessons")
+  ) {
+    retryCandidates = retryCandidates.filter(
+      (type) => type !== "slides" && type !== "flashcards"
+    );
+  }
   if (retryCandidates.length === 0) return outcome;
 
   const retry = await generatePlanWeek({

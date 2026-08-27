@@ -3808,3 +3808,61 @@ Remaining deployment boundary:
 
 - the database is live and current, but the application commits remain local. No remote Git push or
   Cloudflare application deployment was performed in this pass.
+
+### 16.50 Inventory-aware AI recovery without weaker generation — verified locally and against live read-only data on 27 August 2026
+
+Confirmed gap:
+
+- the central week engine already protected one plan/week/class-meeting with a durable database claim,
+  reused completed content and recovered a lost browser response. However, a genuinely transient
+  provider failure still ended as a partial package and required a teacher to press retry;
+- a failed generator response was treated as the final truth even when that generator had saved its
+  row before the response was lost. This could show a false failure and encourage unnecessary AI use;
+- fallback errors could expose transport wording such as an HTTP status, gateway detail or database
+  implementation phrase instead of a customer-ready explanation.
+
+Implemented:
+
+- all five generators remain active and in their established order: lesson, slides, practice cards,
+  homework and project. Prompt depth, models, curriculum context, approval policy and the optional
+  automatic-release setting were not reduced;
+- after a failed type, the existing tracked run now reads the exact plan/week/session inventory. If
+  the item was saved, it is accepted without another AI call. If it is genuinely missing and the
+  failure is transient, the same claimed run makes one bounded retry for only that missing type and
+  any required lesson dependency;
+- the post-run inventory also verifies generator responses that said an item was skipped. If the
+  exact meeting row is still absent, the item is repaired inside the same claim instead of being
+  falsely presented as complete. All generators now use one meeting-match helper, including legacy
+  Class 1 compatibility and exact Class 2+ separation;
+- validation, ownership, calendar and plan-state refusals are never automatically repeated. A final
+  inventory read verifies the retry, completed or teacher-edited work is never regenerated, and a
+  second concurrent run remains blocked by the database unique claim. Slides and practice cards are
+  not called when their lesson dependency has an authoritative refusal;
+- the reconnect status endpoint now evaluates only the content kinds requested by that durable run.
+  A historical failed/partial response whose content is now present is returned as recovered instead
+  of leaving stale red failure states in the teacher interface;
+- the generator sheet explains recovered saved work and safe retries in plain language. Technical
+  gateway/database details stay in server diagnostics and are not used as customer-facing fallback
+  messages;
+- the permanent read-only academic audit now distinguishes historical partial run rows from teaching
+  meetings that are actually incomplete today, and reports missing requested content by type without
+  printing customer identifiers;
+- the class workspace now labels the source of each prepared item in teacher language: created for
+  this class, safely copied, or changed by the teacher. This makes the reuse intelligence visible
+  without exposing provider, prompt or database internals.
+
+Verification and live evidence:
+
+- nine focused files passed 74 tests covering transient-only retry, lost-response saved-content
+  recovery, skipped-but-missing repair, dependency refusal, exact-meeting matching, project cadence,
+  connection recovery, concurrent-run protection, all five entry surfaces, teacher-facing provenance
+  and safe public error wording;
+- the complete TypeScript check passed and `git diff --check` reported no whitespace errors;
+- the live read-only audit found 397 generation runs: 395 succeeded and two historical partial rows.
+  Both historical partial runs now have their requested content, zero currently tracked meetings are
+  missing requested content, and zero meetings have more than one running generator;
+- no production data, score, submission, curriculum, lesson or release state was changed by the audit.
+  No migration or production build was required. Commits `546a5c8a`, `b89cdc4c`, `c2a67bb8` and
+  `aedca182` reached `origin/main` through the shared workspace while this verification was running;
+  this final dependency guard and audit update remain a local milestone, and no Cloudflare deployment
+  status is claimed here.

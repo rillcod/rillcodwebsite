@@ -251,4 +251,33 @@ describe("tracked week generation recovery", () => {
     expect(result.outcome.failedTypes).toEqual(["projects"]);
     expect(result.outcome.retriedTypes).toBeUndefined();
   });
+
+  it("does not call a derived generator when its lesson dependency was refused", async () => {
+    const { db } = trackingDb();
+    resolveGenerationRepairTypes
+      .mockResolvedValueOnce(repair(["lessons", "slides"]))
+      .mockResolvedValueOnce(repair(["lessons", "slides"]));
+    generatePlanWeek.mockResolvedValueOnce({
+      week: 8,
+      generated: 0,
+      skipped: 0,
+      byType: {
+        lessons: { error: "Publish this plan first.", retryable: false },
+        slides: { error: "Generate or add the lesson first.", retryable: true },
+      },
+      failedTypes: ["lessons", "slides"],
+    });
+
+    const result = await generateTrackedPlanWeek({
+      db,
+      planId: "plan-1",
+      week: 8,
+      types: ["lessons", "slides"],
+      source: "teacher",
+    });
+
+    expect(generatePlanWeek).toHaveBeenCalledTimes(1);
+    expect(result.outcome.failedTypes).toEqual(["lessons", "slides"]);
+    expect(result.outcome.retriedTypes).toBeUndefined();
+  });
 });
