@@ -146,8 +146,14 @@ describe("old week-only schema is retired", () => {
     expect(read("src/lib/academic/generation-repair.ts")).toContain(
       "assetMatchesMeeting"
     );
+    expect(read("src/lib/academic/generation-repair.ts")).toContain(
+      "keepPreparedMeetingContent"
+    );
     expect(read("src/lib/academic/week-package.ts")).toContain(
       "export function assetMatchesMeeting"
+    );
+    expect(read("src/lib/academic/week-package.ts")).toContain(
+      "export function keepPreparedMeetingContent"
     );
   });
 });
@@ -164,13 +170,7 @@ describe("generators and workspace stay on that schema", () => {
     for (const path of generators) {
       expect(read(path), path).toContain("session_number");
       expect(read(path), path).toContain("reuseWeekContent");
-    }
-    for (const path of [
-      "src/app/api/lesson-plans/[id]/generate-lessons/route.ts",
-      "src/app/api/lesson-plans/[id]/generate-assignments/route.ts",
-      "src/app/api/lesson-plans/[id]/generate-projects/route.ts",
-    ]) {
-      expect(read(path), path).toContain("meetingKeysOf");
+      expect(read(path), path).toContain("keepPreparedMeetingContent");
     }
   });
 

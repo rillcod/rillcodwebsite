@@ -32,7 +32,7 @@ import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
-import { meetingKeysOf, weekSessionLookupKey } from "@/lib/academic/week-package";
+import { keepPreparedMeetingContent, weekSessionLookupKey } from "@/lib/academic/week-package";
 import {
   contentTypeForLessonMode,
   inferLessonGenerationMode,
@@ -172,15 +172,12 @@ export async function POST(
       .eq("school_id", planSchoolId)
       .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
 
-    const existingWeekSet = meetingKeysOf(existingLessons ?? []);
-
     const projectedSkips = targetWeeks.filter((w) =>
-      existingWeekSet.has(
-        weekSessionLookupKey(
-          Number(w.week),
-          planRowMeetingSession(w as unknown as Record<string, unknown>),
-        ),
-      )
+      keepPreparedMeetingContent(
+        existingLessons ?? [],
+        Number(w.week),
+        planRowMeetingSession(w as unknown as Record<string, unknown>),
+      ),
     ).length;
 
     if (dryRun) {
@@ -247,11 +244,10 @@ export async function POST(
           });
 
           if (
-            existingWeekSet.has(
-              weekSessionLookupKey(
-                Number(week.week),
-                planRowMeetingSession(week as unknown as Record<string, unknown>),
-              ),
+            keepPreparedMeetingContent(
+              existingLessons ?? [],
+              Number(week.week),
+              planRowMeetingSession(week as unknown as Record<string, unknown>),
             )
           ) {
             emit({

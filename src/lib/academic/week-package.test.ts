@@ -5,6 +5,9 @@ import {
   indexFirstByWeek,
   indexFirstByWeekSession,
   meetingKeysOf,
+  existingMeetingAsset,
+  shouldSkipExistingGeneratedAsset,
+  keepPreparedMeetingContent,
   weekSessionLookupKey,
   weekPackagePrimaryAction,
   weekPackageStatus,
@@ -87,6 +90,68 @@ describe("meetingKeysOf", () => {
     ]);
     expect(keys.has(weekSessionLookupKey(5, 1))).toBe(true);
     expect(keys.has(weekSessionLookupKey(1, 1))).toBe(false);
+  });
+});
+
+describe("intelligent skip for a class meeting", () => {
+  it("finds the row for this meeting, not another week's leftover week_number", () => {
+    const rows = [
+      {
+        id: "wrong-week",
+        curriculum_week_number: 5,
+        session_number: 1,
+        metadata: { week_number: 1 },
+      },
+      { id: "this-week", curriculum_week_number: 1, session_number: 1 },
+    ];
+    expect(existingMeetingAsset(rows, 1, 1)?.id).toBe("this-week");
+    expect(existingMeetingAsset(rows, 5, 1)?.id).toBe("wrong-week");
+  });
+
+  it("keeps a healthy row, rebuilds stale derived content, and never skips a regenerate", () => {
+    expect(
+      shouldSkipExistingGeneratedAsset({ content_stale_at: null }),
+    ).toBe(true);
+    expect(
+      shouldSkipExistingGeneratedAsset({
+        content_stale_at: "2026-08-20T00:00:00Z",
+      }),
+    ).toBe(false);
+    expect(
+      shouldSkipExistingGeneratedAsset({
+        content_stale_at: "2026-08-20T00:00:00Z",
+        metadata: { is_customized: true },
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipExistingGeneratedAsset(
+        { content_stale_at: null },
+        { regenerate: true },
+      ),
+    ).toBe(false);
+  });
+
+  it("is the skip door every generator uses for a named meeting", () => {
+    const rows = [
+      { id: "keep", curriculum_week_number: 2, session_number: 1 },
+      {
+        id: "stale",
+        curriculum_week_number: 2,
+        session_number: 2,
+        content_stale_at: "2026-08-20T00:00:00Z",
+      },
+    ];
+    expect(keepPreparedMeetingContent(rows, 2, 1)?.id).toBe("keep");
+    expect(keepPreparedMeetingContent(rows, 2, 2)).toBeUndefined();
+    expect(keepPreparedMeetingContent(rows, 9, 1)).toBeUndefined();
+    expect(
+      keepPreparedMeetingContent(rows, 2, 1, {
+        usable: () => false,
+      }),
+    ).toBeUndefined();
+    expect(
+      keepPreparedMeetingContent(rows, 2, 1, { regenerate: true }),
+    ).toBeUndefined();
   });
 });
 

@@ -1,5 +1,6 @@
 import {
   assetMatchesMeeting,
+  keepPreparedMeetingContent,
   type WeekPackageAsset,
 } from "@/lib/academic/week-package";
 import {
@@ -30,14 +31,6 @@ const TYPE_FOR_ASSET: Record<WeekPackageAsset, WeekContentType> = {
   assignment: "assignments",
   project: "projects",
 };
-
-function isCustomized(row: Row | null): boolean {
-  return Boolean(
-    row?.customized_at ||
-      row?.metadata?.is_customized === true ||
-      row?.metadata?.customized_at
-  );
-}
 
 /**
  * Decide what actually needs a generator call for one class meeting.
@@ -80,10 +73,10 @@ export function decideGenerationRepairTypes(input: {
   const missingAssets = (Object.keys(rows) as WeekPackageAsset[]).filter(
     (asset) => rows[asset].length === 0
   );
-  const staleAssets = (["slides", "flashcards"] as const).filter((asset) =>
-    rows[asset].some(
-      (row) => Boolean(row.content_stale_at) && !isCustomized(row)
-    )
+  const staleAssets = (["slides", "flashcards"] as const).filter(
+    (asset) =>
+      rows[asset].length > 0 &&
+      !keepPreparedMeetingContent(rows[asset], input.week, input.session),
   );
   const needed = new Set<WeekContentType>([
     ...missingAssets.map((asset) => TYPE_FOR_ASSET[asset]),

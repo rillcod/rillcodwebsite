@@ -25,7 +25,7 @@ export type WeekLinkedAsset = {
   curriculum_week_number?: unknown;
   session?: unknown;
   session_number?: unknown;
-  metadata?: Record<string, unknown> | null;
+  metadata?: unknown;
   title?: string | null;
 };
 
@@ -39,10 +39,16 @@ export function academicWeekNumber(
   asset: WeekLinkedAsset | null | undefined
 ): number | null {
   if (!asset) return null;
+  const meta =
+    asset.metadata &&
+    typeof asset.metadata === "object" &&
+    !Array.isArray(asset.metadata)
+      ? (asset.metadata as Record<string, unknown>)
+      : null;
   const candidates = [
     asset.curriculum_week_number,
-    asset.metadata?.week,
-    asset.metadata?.week_number,
+    meta?.week,
+    meta?.week_number,
   ];
   for (const candidate of candidates) {
     const week = Number(candidate);
@@ -93,6 +99,74 @@ export function meetingKeysOf(
     keys.add(weekSessionLookupKey(week, assetMeetingSession(asset)));
   }
   return keys;
+}
+
+/** The saved row for one class meeting, or none. */
+export function existingMeetingAsset<T>(
+  rows: readonly T[] | null | undefined,
+  week: number,
+  session?: number | null,
+): T | undefined {
+  return (rows ?? []).find((row) =>
+    assetMatchesMeeting(row as WeekLinkedAsset, week, session),
+  );
+}
+
+/**
+ * Keep this meeting's existing generated row instead of paying to write another.
+ * Stale derived content is rebuilt unless a teacher customised it. Empty or
+ * missing rows are never treated as already done.
+ */
+export function shouldSkipExistingGeneratedAsset(
+  row:
+    | {
+        content_stale_at?: unknown;
+        customized_at?: unknown;
+        metadata?: Record<string, unknown> | null;
+      }
+    | null
+    | undefined,
+  options?: { regenerate?: boolean },
+): boolean {
+  if (!row) return false;
+  if (options?.regenerate === true) return false;
+  if (!row.content_stale_at) return true;
+  const meta = row.metadata;
+  return Boolean(
+    row.customized_at ||
+      (meta &&
+        typeof meta === "object" &&
+        (meta.is_customized === true || meta.customized_at)),
+  );
+}
+
+/**
+ * The saved row this class meeting can keep. Every week generator skips
+ * through here so "already exists" cannot mean another week's leftover number,
+ * an empty deck, or stale slides a teacher did not customise.
+ */
+export function keepPreparedMeetingContent<T>(
+  rows: readonly T[] | null | undefined,
+  week: number,
+  session?: number | null,
+  options?: { regenerate?: boolean; usable?: (row: T) => boolean },
+): T | undefined {
+  const existing = existingMeetingAsset(rows, week, session);
+  if (!existing) return undefined;
+  if (
+    !shouldSkipExistingGeneratedAsset(
+      existing as {
+        content_stale_at?: unknown;
+        customized_at?: unknown;
+        metadata?: Record<string, unknown> | null;
+      },
+      options,
+    )
+  ) {
+    return undefined;
+  }
+  if (options?.usable && !options.usable(existing)) return undefined;
+  return existing;
 }
 
 export function weekSessionLookupKey(

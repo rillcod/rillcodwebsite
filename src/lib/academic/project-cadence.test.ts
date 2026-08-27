@@ -4,6 +4,7 @@ import {
   capstoneScope,
   capstoneSlots,
   levelBandFrom,
+  shouldWriteProjectForMeeting,
 } from './project-cadence';
 
 /**
@@ -51,6 +52,14 @@ describe('two capstones a term, at the halfway point and the end', () => {
     // The weeks between are the run-up. They carry teaching, not a hand-in.
     expect(capstoneForWeek(5, 8)).toBeNull();
     expect(capstoneForWeek(1, 8)).toBeNull();
+  });
+
+  it('still writes a project when a teacher prepares that exact meeting', () => {
+    expect(
+      shouldWriteProjectForMeeting({ week: 1, totalWeeks: 8, targetedWeeks: [1] }),
+    ).toBe(true);
+    expect(shouldWriteProjectForMeeting({ week: 1, totalWeeks: 8 })).toBe(false);
+    expect(shouldWriteProjectForMeeting({ week: 4, totalWeeks: 8 })).toBe(true);
   });
 });
 

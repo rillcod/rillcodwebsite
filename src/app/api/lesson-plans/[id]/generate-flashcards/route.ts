@@ -5,7 +5,8 @@ import { requireStaffUser, canAccessLessonScope } from "@/app/api/lesson-plans/a
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { validateLessonPlanForGeneration } from "@/lib/api-guards";
-import { parseRequestSession, assetMeetingSession } from "@/lib/academic/session-identity";
+import { parseRequestSession, canonicalMeetingSession } from "@/lib/academic/session-identity";
+import { keepPreparedMeetingContent, existingMeetingAsset } from "@/lib/academic/week-package";
 import { generateAIContent } from "@/lib/ai/generate-core";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 
@@ -16,6 +17,25 @@ type AiGeneratedCard = {
   back?: string;
   tags?: string[];
   difficulty?: string;
+};
+
+type MeetingLesson = {
+  id: string;
+  title: string;
+  content_layout?: unknown;
+  metadata?: unknown;
+  curriculum_week_number?: unknown;
+  session_number?: unknown;
+};
+
+type MeetingDeck = {
+  id: string;
+  title: string;
+  content_stale_at?: unknown;
+  curriculum_week_number?: unknown;
+  session_number?: unknown;
+  lesson_id?: string | null;
+  metadata?: unknown;
 };
 
 export async function POST(
@@ -117,13 +137,20 @@ export async function POST(
     );
   }
 
-  const { data: weekLessons } = await (db as any)
+  const weekLessons = ((await (db as any)
     .from("lessons")
-    .select("id,title,content_layout,metadata")
+    .select("id,title,content_layout,metadata,curriculum_week_number,session_number")
     .eq("lesson_plan_id", id)
     .eq("curriculum_week_number", week)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(20)).data ?? []) as MeetingLesson[];
+
+  const existingDecks = ((await (db as any)
+    .from("flashcard_decks")
+    .select(
+      "id,title,content_stale_at,curriculum_week_number,session_number,lesson_id,metadata",
+    )
+    .eq("lesson_plan_id", id)).data ?? []) as MeetingDeck[];
 
   let generated = 0;
   let skipped = 0;
@@ -131,16 +158,8 @@ export async function POST(
   let lastError: string | null = null;
 
   for (const weekMeta of weekMetas) {
-    const sessionRaw = Number(weekMeta.session ?? 0);
-    const session =
-      Number.isFinite(sessionRaw) && sessionRaw > 0
-        ? Math.floor(sessionRaw)
-        : null;
-    const lesson =
-      (weekLessons ?? []).find((row: any) => {
-        if (session == null) return true;
-        return assetMeetingSession(row) === session;
-      }) ?? (session == null ? (weekLessons ?? [])[0] : null);
+    const session = canonicalMeetingSession(weekMeta.session);
+    const lesson = existingMeetingAsset(weekLessons, week, session);
 
     // "Already exists" is not the same as "still correct". A deck whose lesson
     // has since been corrected is marked stale by 20260929000046, and skipping
@@ -148,44 +167,23 @@ export async function POST(
     // with nothing on the row to say so. Stale decks are rebuilt: the old one
     // is removed so the copy below can take its place, and for every class
     // after the first that rebuild is a copy from the master, not an AI call.
-    const replaceStaleDeck = async (deck: { id: string; content_stale_at?: string | null }) => {
-      if (!deck.content_stale_at) return false;
-      // Cards are removed with the deck. Leaving them would orphan them against
-      // a deck id that no longer exists.
-      await (db as any).from("flashcard_cards").delete().eq("deck_id", deck.id);
-      await (db as any).from("flashcard_decks").delete().eq("id", deck.id);
-      return true;
-    };
-
-    if (lesson?.id) {
-      const { data: existingForLesson } = await (db as any)
-        .from("flashcard_decks")
-        .select("id,title,content_stale_at")
-        .eq("lesson_plan_id", id)
-        .eq("lesson_id", lesson.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existingForLesson?.id && !(await replaceStaleDeck(existingForLesson))) {
-        results.push(existingForLesson);
+    const keep = keepPreparedMeetingContent(existingDecks, week, session);
+    const existing = existingMeetingAsset(existingDecks, week, session);
+    if (keep?.id) {
+      const { count } = await (db as any)
+        .from("flashcard_cards")
+        .select("id", { count: "exact", head: true })
+        .eq("deck_id", keep.id);
+      if (Number(count) > 0) {
+        results.push(keep);
         skipped += 1;
         continue;
       }
-    } else if (session == null) {
-      const { data: existingDeck } = await (db as any)
-        .from("flashcard_decks")
-        .select("id,title,content_stale_at")
-        .eq("lesson_plan_id", id)
-        .eq("curriculum_week_number", week)
-        .eq("class_id", (plan as any).class_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existingDeck?.id && !(await replaceStaleDeck(existingDeck))) {
-        results.push(existingDeck);
-        skipped += 1;
-        continue;
-      }
+      await (db as any).from("flashcard_cards").delete().eq("deck_id", keep.id);
+      await (db as any).from("flashcard_decks").delete().eq("id", keep.id);
+    } else if (existing?.id) {
+      await (db as any).from("flashcard_cards").delete().eq("deck_id", existing.id);
+      await (db as any).from("flashcard_decks").delete().eq("id", existing.id);
     }
 
     const sessionLabel =

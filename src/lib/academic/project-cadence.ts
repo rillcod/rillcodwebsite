@@ -70,6 +70,24 @@ export function capstoneForWeek(week: number, totalWeeks: number): CapstoneSlot 
 }
 
 /**
+ * Whether this meeting should receive a project row.
+ *
+ * A named class meeting (Prepare this week) always gets the package project.
+ * An unattended bulk pass still writes only capstone hand-ins, so a term sweep
+ * cannot mint eight unrelated builds.
+ */
+export function shouldWriteProjectForMeeting(input: {
+  week: number;
+  totalWeeks: number;
+  targetedWeeks?: number[] | null;
+}): boolean {
+  if (Array.isArray(input.targetedWeeks) && input.targetedWeeks.length > 0) {
+    return true;
+  }
+  return capstoneForWeek(input.week, input.totalWeeks) != null;
+}
+
+/**
  * Read the level from a class or plan name.
  *
  * Names are the only place the level reliably appears — "Gabus Basic · Young

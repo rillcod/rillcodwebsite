@@ -27,7 +27,7 @@ import {
 } from "@/app/api/lesson-plans/authz";
 import {
   indexFirstByWeekSession,
-  meetingKeysOf,
+  keepPreparedMeetingContent,
   weekSessionLookupKey,
 } from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
@@ -181,16 +181,13 @@ export async function POST(
       linkedLessonResult.data ?? []
     );
 
-    const existingWeekSet = meetingKeysOf(existingAssignments);
-
     const projectedSkips = targetWeeks.filter((w) =>
-      existingWeekSet.has(
-        weekSessionLookupKey(
-          Number(w.week),
-          getPlanWeekSession(w as unknown as Record<string, unknown>) ||
-            onlySession,
-        ),
-      )
+      keepPreparedMeetingContent(
+        existingAssignments,
+        Number(w.week),
+        getPlanWeekSession(w as unknown as Record<string, unknown>) ||
+          onlySession,
+      ),
     ).length;
 
     if (dryRun) {
@@ -243,12 +240,11 @@ export async function POST(
           });
 
           if (
-            existingWeekSet.has(
-              weekSessionLookupKey(
-                Number(week.week),
-                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
-                  onlySession,
-              ),
+            keepPreparedMeetingContent(
+              existingAssignments,
+              Number(week.week),
+              getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                onlySession,
             )
           ) {
             emit({

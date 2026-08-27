@@ -16,7 +16,9 @@ import { decideProjectSource, frameFor } from "@/lib/academic/project-canon";
 import {
   capstoneForWeek,
   capstoneScope,
+  capstoneSlots,
   levelBandFrom,
+  shouldWriteProjectForMeeting,
 } from "@/lib/academic/project-cadence";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
 import { parseRequestSession } from "@/lib/academic/session-identity";
@@ -33,7 +35,7 @@ import {
 } from "@/app/api/lesson-plans/authz";
 import {
   indexFirstByWeekSession,
-  meetingKeysOf,
+  keepPreparedMeetingContent,
   weekSessionLookupKey,
 } from "@/lib/academic/week-package";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
@@ -185,16 +187,13 @@ export async function POST(
       linkedLessonResult.data ?? []
     );
 
-    const existingWeekSet = meetingKeysOf(existingProjects);
-
     const projectedSkips = targetWeeks.filter((w) =>
-      existingWeekSet.has(
-        weekSessionLookupKey(
-          Number(w.week),
-          getPlanWeekSession(w as unknown as Record<string, unknown>) ||
-            onlySession,
-        ),
-      )
+      keepPreparedMeetingContent(
+        existingProjects,
+        Number(w.week),
+        getPlanWeekSession(w as unknown as Record<string, unknown>) ||
+          onlySession,
+      ),
     ).length;
 
     if (dryRun) {
@@ -246,12 +245,11 @@ export async function POST(
           });
 
           if (
-            existingWeekSet.has(
-              weekSessionLookupKey(
-                Number(week.week),
-                getPlanWeekSession(week as unknown as Record<string, unknown>) ||
-                  onlySession,
-              ),
+            keepPreparedMeetingContent(
+              existingProjects,
+              Number(week.week),
+              getPlanWeekSession(week as unknown as Record<string, unknown>) ||
+                onlySession,
             )
           ) {
             emit({
@@ -328,15 +326,17 @@ export async function POST(
           );
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
-          // Two capstones a term, not one project a week.
-          //
-          // An eight-week term was producing eight separate builds, none aware
-          // of the others, and a learner finished with eight half-things. The
-          // weeks between are not projectless — they are the run-up, and the
-          // capstone is made of what they taught. Anything that is not a
-          // hand-in week is skipped here rather than generated and ignored.
+          // A named class meeting gets the package project. Bulk term runs still
+          // only write capstone hand-ins, so an unattended sweep cannot mint
+          // eight unrelated builds.
           const capstone = capstoneForWeek(week.week, weeks.length);
-          if (!capstone) {
+          if (
+            !shouldWriteProjectForMeeting({
+              week: week.week,
+              totalWeeks: weeks.length,
+              targetedWeeks: onlyWeeks,
+            })
+          ) {
             emit({
               generated,
               total,
@@ -350,11 +350,16 @@ export async function POST(
           const band = levelBandFrom(
             plan.classes?.name ?? plan.courses?.title ?? null
           );
-          const scope = capstoneScope(band, capstone.index);
-          // The teaching this capstone is assembled from, so the model builds on
-          // the term rather than restating the hand-in week.
+          const scope = capstoneScope(band, capstone?.index ?? 1);
+          const nextHandIn = capstoneSlots(weeks.length).find(
+            (slot) => slot.week >= week.week,
+          );
           const runUpTopics = weeks
-            .filter((w) => capstone.buildsOn.includes(w.week))
+            .filter((w) =>
+              capstone
+                ? capstone.buildsOn.includes(w.week)
+                : w.week === week.week,
+            )
             .map((w) => `Week ${w.week}: ${w.topic}`)
             .join(" · ");
 
@@ -413,15 +418,23 @@ export async function POST(
               // The capstone brief. This is the whole of what makes the two
               // projects a term build on each other rather than repeat.
               projectFrame: [
-                `This is capstone ${capstone.index} of ${capstone.index === 1 ? "two" : "two"} this term, handed in at week ${capstone.week}.`,
+                capstone
+                  ? `This is capstone ${capstone.index} of two this term, handed in at week ${capstone.week}.`
+                  : `This is this week's class project for week ${week.week}, not the term capstone${
+                      nextHandIn
+                        ? ` (that is handed in at week ${nextHandIn.week})`
+                        : ""
+                    }. Keep it finishable from this week's teaching.`,
                 scope.shape,
                 `Learners work in ${scope.grouping}.`,
-                runUpTopics
+                capstone && runUpTopics
                   ? `It must be assembled from what weeks ${capstone.buildsOn.join(", ")} taught — ${runUpTopics} — not from the hand-in week alone.`
                   : "",
-                capstone.extendsPrevious
+                capstone?.extendsPrevious
                   ? "It EXTENDS the mid-term capstone rather than starting a new build: say plainly what is being added to what they already have."
-                  : "It is the first build of the term, so it starts from nothing and must be finishable by every learner.",
+                  : capstone
+                    ? "It is the first build of the term, so it starts from nothing and must be finishable by every learner."
+                    : "",
                 frame?.frame ?? "",
               ]
                 .filter(Boolean)
@@ -527,8 +540,12 @@ export async function POST(
                 // afterwards, and there is no way to see whether rewriting the
                 // catalogue is actually reaching classes.
                 project_source: frame ? "frame" : "ai",
-                capstone_index: capstone.index,
-                capstone_builds_on: capstone.buildsOn,
+                ...(capstone
+                  ? {
+                      capstone_index: capstone.index,
+                      capstone_builds_on: capstone.buildsOn,
+                    }
+                  : { weekly_package_project: true }),
                 capstone_band: scope.band,
                 ...(frame
                   ? { project_frame_id: frame.templateId }

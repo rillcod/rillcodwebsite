@@ -9,7 +9,7 @@
  */
 
 export type SessionBearing = {
-  metadata?: Record<string, unknown> | null;
+  metadata?: unknown;
   title?: string | null;
   session?: unknown;
   session_number?: unknown;
@@ -26,14 +26,20 @@ export function canonicalMeetingSession(raw: unknown): number {
   return normalizeMeetingSession(raw) ?? 1;
 }
 
+function metadataRecord(metadata: unknown): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  return metadata as Record<string, unknown>;
+}
+
 function stampedSession(row: SessionBearing): unknown {
-  const meta = row.metadata;
+  const meta = metadataRecord(row.metadata);
   return (
     row.session_number ??
     row.session ??
-    (meta && typeof meta === "object"
-      ? meta.session ?? meta.session_number
-      : undefined)
+    meta?.session ??
+    meta?.session_number
   );
 }
 

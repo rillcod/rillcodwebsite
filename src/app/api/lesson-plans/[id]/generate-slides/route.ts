@@ -17,9 +17,14 @@ import {
   renderGeneratedSlideSvg,
 } from "@/lib/slides/generated-deck";
 import {
-  assetMeetingSession,
+  canonicalMeetingSession,
   parseRequestSession,
 } from "@/lib/academic/session-identity";
+import {
+  assetMatchesMeeting,
+  existingMeetingAsset,
+  keepPreparedMeetingContent,
+} from "@/lib/academic/week-package";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -72,40 +77,39 @@ function lessonSummary(lesson: Record<string, unknown>): string {
     .slice(0, 7000);
 }
 
-function sessionMatches(
-  metadata: Record<string, unknown> | null | undefined,
-  session: number | null,
-): boolean {
-  if (session == null || session < 1) return true;
-  const got = assetMeetingSession({ metadata });
-  return got === session;
+function generatedSlideDeckIsUsable(fileUrl: unknown): boolean {
+  try {
+    const parsed = JSON.parse(String(fileUrl ?? "{}"));
+    return Array.isArray(parsed.slides) && parsed.slides.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 async function findWeekLesson(
   db: ReturnType<typeof createAdminClient>,
   plan: Record<string, any>,
   week: number,
-  session: number | null = null,
+  session: number,
 ) {
+  const meeting = canonicalMeetingSession(session);
   const { data: candidates } = await db
     .from("lessons")
     .select(
-      "id,title,description,lesson_notes,content_layout,metadata,lesson_plan_id,curriculum_week_number"
+      "id,title,description,lesson_notes,content_layout,metadata,lesson_plan_id,curriculum_week_number,session_number"
     )
     .eq("lesson_plan_id", plan.id)
     .eq("curriculum_week_number", week)
     .order("created_at", { ascending: false })
     .limit(20);
 
-  const canonical = (candidates ?? []).find((lesson) =>
-    sessionMatches(lesson.metadata as Record<string, unknown> | null, session),
-  );
+  const canonical = existingMeetingAsset(candidates ?? [], week, meeting);
   if (canonical) return canonical;
 
   const { data: legacy } = await db
     .from("lessons")
     .select(
-      "id,title,description,lesson_notes,content_layout,metadata,lesson_plan_id,curriculum_week_number"
+      "id,title,description,lesson_notes,content_layout,metadata,lesson_plan_id,curriculum_week_number,session_number"
     )
     .eq("course_id", plan.course_id)
     .eq("school_id", plan.school_id)
@@ -116,8 +120,7 @@ async function findWeekLesson(
       const metadata = lesson.metadata as Record<string, unknown> | null;
       return (
         metadata?.lesson_plan_id === plan.id &&
-        Number(metadata?.week ?? metadata?.week_number) === week &&
-        sessionMatches(metadata, session)
+        assetMatchesMeeting(lesson, week, meeting)
       );
     }) ?? null
   );
@@ -232,11 +235,7 @@ export async function POST(
   let lastError: string | null = null;
 
   for (const planWeek of planWeeks) {
-    const sessionRaw = Number(planWeek.session ?? 0);
-    const session =
-      Number.isFinite(sessionRaw) && sessionRaw > 0
-        ? Math.floor(sessionRaw)
-        : null;
+    const session = canonicalMeetingSession(planWeek.session);
     const lesson = await findWeekLesson(
       db,
       plan as Record<string, any>,
@@ -251,26 +250,33 @@ export async function POST(
 
     const { data: existing } = await db
       .from("lesson_materials")
-      .select("id,title,lesson_id,file_url,content_stale_at")
+      .select("id,title,lesson_id,file_url,content_stale_at,curriculum_week_number,session_number,metadata")
       .eq("lesson_id", lesson.id)
       .eq("file_type", "slide-deck")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    // A deck whose lesson has since been corrected is stale (20260929000046)
-    // and is rebuilt whether or not the caller asked to regenerate. Skipping it
-    // would leave the class being taught from slides the lesson no longer says,
-    // and nothing on the row would show the mismatch.
-    const isStale = Boolean((existing as { content_stale_at?: string | null })?.content_stale_at);
-    const rebuild = regenerate || isStale;
+    const keepExisting = keepPreparedMeetingContent(
+      existing ? [existing] : [],
+      week,
+      session,
+      {
+        regenerate,
+        usable: (row) =>
+          generatedSlideDeckIsUsable(
+            (row as { file_url?: unknown }).file_url,
+          ),
+      },
+    );
 
-    if (existing && !rebuild) {
-      results.push(existing);
+    if (keepExisting) {
+      results.push(keepExisting);
       skipped += 1;
       continue;
     }
-    if (existing && rebuild) {
+
+    if (existing) {
       try {
         const parsed = JSON.parse(String(existing.file_url ?? "{}"));
         const oldKeys: string[] = Array.isArray(parsed?.slides)
