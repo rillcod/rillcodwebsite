@@ -41,6 +41,15 @@ export function weekContentOrigin(input: {
   return "generated";
 }
 
+export function weekAlreadyGeneratedStatus(week: number): string {
+  return `Skipped Week ${week} — already generated for this class`;
+}
+
+export function weekCopiedFromClassStatus(week: number, item?: string): string {
+  const piece = item ? ` ${item}` : "";
+  return `Week ${week}${piece} copied from another class (no AI needed)`;
+}
+
 export type TeachingWeekRow = {
   weekMeta: Row;
   week: number;

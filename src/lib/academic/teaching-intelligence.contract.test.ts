@@ -172,6 +172,14 @@ describe("generators and workspace stay on that schema", () => {
       expect(read(path), path).toContain("reuseWeekContent");
       expect(read(path), path).toContain("keepPreparedMeetingContent");
     }
+    for (const path of [
+      "src/app/api/lesson-plans/[id]/generate-lessons/route.ts",
+      "src/app/api/lesson-plans/[id]/generate-assignments/route.ts",
+      "src/app/api/lesson-plans/[id]/generate-projects/route.ts",
+    ]) {
+      expect(read(path), path).toContain("weekAlreadyGeneratedStatus");
+      expect(read(path), path).toContain("weekCopiedFromClassStatus");
+    }
   });
 
   it("flashcards use the shared AI policy, not a side-door model call", () => {

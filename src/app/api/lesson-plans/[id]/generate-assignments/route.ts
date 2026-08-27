@@ -30,6 +30,10 @@ import {
   keepPreparedMeetingContent,
   weekSessionLookupKey,
 } from "@/lib/academic/week-package";
+import {
+  weekAlreadyGeneratedStatus,
+  weekCopiedFromClassStatus,
+} from "@/lib/academic/teaching-workspace";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
@@ -251,7 +255,7 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: `Skipped Week ${week.week} (already exists)`,
+              status: weekAlreadyGeneratedStatus(week.week),
             });
             skipped++;
             continue;
@@ -311,7 +315,7 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: `Week ${week.week} assignment copied from this curriculum (no AI needed)`,
+              status: weekCopiedFromClassStatus(week.week, "assignment"),
             });
             continue;
           }

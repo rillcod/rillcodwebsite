@@ -3,6 +3,8 @@ import {
   buildTeachingWeekRows,
   parseTeachingTargets,
   teachingSlotNeedsAttention,
+  weekAlreadyGeneratedStatus,
+  weekCopiedFromClassStatus,
 } from "./teaching-workspace";
 
 describe("teaching workspace week rows", () => {
@@ -148,6 +150,20 @@ describe("teaching workspace week rows", () => {
       planWeeks: [{ week: 6, topic: "Empty week" }],
     });
     expect(empty.provenance.origin).toBeNull();
+  });
+});
+
+describe("prepare progress uses the same origin words as the class page", () => {
+  it("says generated or copied, not a vague already-exists", () => {
+    expect(weekAlreadyGeneratedStatus(5)).toBe(
+      "Skipped Week 5 — already generated for this class",
+    );
+    expect(weekCopiedFromClassStatus(5)).toBe(
+      "Week 5 copied from another class (no AI needed)",
+    );
+    expect(weekCopiedFromClassStatus(5, "project")).toBe(
+      "Week 5 project copied from another class (no AI needed)",
+    );
   });
 });
 

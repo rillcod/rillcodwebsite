@@ -88,9 +88,9 @@ export default function ThisWeekPanel({ planId, termStart, canGenerate }: Props)
         tone: "ok",
         text: made
           ? `Week ${week} is ready to review — ${made} item${made === 1 ? "" : "s"} prepared${
-              skipped ? `, ${skipped} already existed` : ""
+              skipped ? `, ${skipped} already generated for this class` : ""
             }. Nothing is published until you publish it.`
-          : `Week ${week} already had everything it needs — nothing new to prepare.`,
+          : `Week ${week} already generated for this class — nothing new to prepare.`,
       });
       await loadProgress();
     } catch (error) {

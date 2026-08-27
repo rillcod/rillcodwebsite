@@ -34,6 +34,10 @@ import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
 import { keepPreparedMeetingContent, weekSessionLookupKey } from "@/lib/academic/week-package";
 import {
+  weekAlreadyGeneratedStatus,
+  weekCopiedFromClassStatus,
+} from "@/lib/academic/teaching-workspace";
+import {
   contentTypeForLessonMode,
   inferLessonGenerationMode,
 } from "@/lib/lesson-plans/lesson-generation-mode";
@@ -254,7 +258,7 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: `Skipped Week ${week.week} (already exists)`,
+              status: weekAlreadyGeneratedStatus(week.week),
             });
             skipped++;
             continue;
@@ -309,7 +313,7 @@ export async function POST(
               generated,
               total,
               current: week.week,
-              status: `Week ${week.week} copied from this curriculum (no AI needed)`,
+              status: weekCopiedFromClassStatus(week.week),
             });
             continue;
           }
