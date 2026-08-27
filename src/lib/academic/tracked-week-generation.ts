@@ -224,6 +224,141 @@ async function finishRun(
   }
 }
 
+function failureIsRetryable(outcome: WeekGenerationOutcome, type: string): boolean {
+  const result = outcome.byType[type];
+  return Boolean(result && "error" in result && result.retryable === true);
+}
+
+function markRecovered(
+  outcome: WeekGenerationOutcome,
+  recoveredTypes: readonly string[],
+): WeekGenerationOutcome {
+  if (recoveredTypes.length === 0) return outcome;
+  const recovered = new Set(recoveredTypes);
+  const failedTypes = outcome.failedTypes.filter((type) => !recovered.has(type));
+  const byType = { ...outcome.byType };
+  for (const type of recovered) {
+    byType[type] = { generated: 0, skipped: 1 };
+  }
+  return {
+    ...outcome,
+    skipped: outcome.skipped + recovered.size,
+    byType,
+    failedTypes,
+    recoveredTypes: [...new Set([...(outcome.recoveredTypes ?? []), ...recovered])],
+  };
+}
+
+function mergeRetryOutcome(
+  first: WeekGenerationOutcome,
+  retry: WeekGenerationOutcome,
+  retryCandidates: readonly string[],
+): WeekGenerationOutcome {
+  const candidates = new Set(retryCandidates);
+  const byType = { ...first.byType };
+  for (const [type, result] of Object.entries(retry.byType)) {
+    // A dependency may be included to make slides/cards valid. Do not replace
+    // a successful first result with a later dependency failure.
+    if (candidates.has(type) || !(type in byType)) byType[type] = result;
+  }
+  const failed = new Set(first.failedTypes);
+  for (const type of retryCandidates) {
+    if (retry.failedTypes.includes(type)) failed.add(type);
+    else failed.delete(type);
+  }
+  return {
+    ...first,
+    generated: first.generated + retry.generated,
+    skipped: first.skipped + retry.skipped,
+    byType,
+    failedTypes: [...failed],
+    retriedTypes: [...new Set([...(first.retriedTypes ?? []), ...retryCandidates])],
+  };
+}
+
+/**
+ * Reconcile a partial run against durable content, then make at most one
+ * transient-only retry for items the database confirms are still missing.
+ * This is intentionally inside the existing run claim: it cannot create a
+ * second concurrent paid job for the same teaching meeting.
+ */
+async function recoverIncompleteOutcome(input: {
+  db: any;
+  planId: string;
+  week: number;
+  session: number;
+  outcome: WeekGenerationOutcome;
+  cronSecret?: string;
+  cookie?: string;
+  autoPublish?: boolean;
+}): Promise<WeekGenerationOutcome> {
+  if (input.outcome.failedTypes.length === 0) return input.outcome;
+
+  const failedTypes = [...input.outcome.failedTypes];
+  const inventory = await resolveGenerationRepairTypes({
+    db: input.db,
+    planId: input.planId,
+    week: input.week,
+    session: input.session,
+    requestedTypes: failedTypes,
+  });
+  if (!inventory) return input.outcome;
+
+  const stillMissing = new Set(inventory.typesToRun);
+  let outcome = markRecovered(
+    input.outcome,
+    failedTypes.filter((type) => !stillMissing.has(type)),
+  );
+  const retryCandidates = outcome.failedTypes.filter(
+    (type) => stillMissing.has(type) && failureIsRetryable(outcome, type),
+  );
+  if (retryCandidates.length === 0) return outcome;
+
+  // Ask the repair resolver for dependencies too (for example, a missing
+  // lesson before retrying slides) while keeping the retry to one bounded pass.
+  const retryTypes = inventory.typesToRun.filter(
+    (type) => retryCandidates.includes(type) || type === "lessons",
+  );
+  const retry = await generatePlanWeek({
+    planId: input.planId,
+    week: input.week,
+    session: input.session,
+    types: retryTypes,
+    cronSecret: input.cronSecret,
+    cookie: input.cookie,
+    autoPublish: input.autoPublish,
+  });
+  outcome = mergeRetryOutcome(outcome, retry, retryCandidates);
+
+  // A generator can save successfully and lose its response. Trust the
+  // database, not the transport, before declaring the retry unsuccessful.
+  const finalInventory = await resolveGenerationRepairTypes({
+    db: input.db,
+    planId: input.planId,
+    week: input.week,
+    session: input.session,
+    requestedTypes: retryCandidates,
+  });
+  if (!finalInventory) return outcome;
+  const finallyMissing = new Set(finalInventory.typesToRun);
+  const unresolvedAfterRetry = retryCandidates.filter((type) =>
+    outcome.failedTypes.includes(type)
+  );
+  outcome = markRecovered(
+    outcome,
+    unresolvedAfterRetry.filter((type) => !finallyMissing.has(type)),
+  );
+  for (const type of retryCandidates) {
+    if (!finallyMissing.has(type)) continue;
+    outcome.byType[type] = {
+      error: "This item is still missing after a safe retry. Completed work was kept.",
+      retryable: false,
+    };
+    if (!outcome.failedTypes.includes(type)) outcome.failedTypes.push(type);
+  }
+  return outcome;
+}
+
 /**
  * Run the existing idempotent generators with durable, best-effort evidence.
  * Tracking failure never blocks teaching generation during a rolling deploy.
@@ -306,11 +441,21 @@ export async function generateTrackedPlanWeek(input: {
     };
   }
 
-  const outcome = await generatePlanWeek({
+  let outcome = await generatePlanWeek({
     planId: input.planId,
     week: input.week,
     session,
     types: effectiveTypes,
+    cronSecret: input.cronSecret,
+    cookie: input.cookie,
+    autoPublish: input.autoPublish,
+  });
+  outcome = await recoverIncompleteOutcome({
+    db: input.db,
+    planId: input.planId,
+    week: input.week,
+    session,
+    outcome,
     cronSecret: input.cronSecret,
     cookie: input.cookie,
     autoPublish: input.autoPublish,

@@ -6,6 +6,7 @@
  */
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import { decideGenerationRepairTypes } from "../src/lib/academic/generation-repair";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -46,10 +47,10 @@ async function main() {
     "id,class_id,course_id,term_id,offering_period_id,status,plan_data,created_at,updated_at"
   );
   const [lessons, assignments, slides, flashcards] = await Promise.all([
-    all("lessons", "lesson_plan_id,metadata"),
-    all("assignments", "lesson_plan_id,metadata"),
-    all("lesson_materials", "lesson_plan_id,metadata"),
-    all("flashcard_decks", "lesson_plan_id,metadata"),
+    all("lessons", "lesson_plan_id,curriculum_week_number,session_number,metadata"),
+    all("assignments", "lesson_plan_id,assignment_type,curriculum_week_number,session_number,metadata"),
+    all("lesson_materials", "lesson_plan_id,file_type,curriculum_week_number,session_number,content_stale_at,metadata"),
+    all("flashcard_decks", "lesson_plan_id,curriculum_week_number,session_number,content_stale_at,metadata"),
   ]);
   const contentPlanIds = new Set(
     [...lessons, ...assignments, ...slides, ...flashcards]
@@ -85,7 +86,7 @@ async function main() {
   try {
     runs = await all(
       "teaching_generation_runs",
-      "lesson_plan_id,curriculum_week_number,session_number,status,requested_types,generated_count,skipped_count,started_at"
+      "lesson_plan_id,curriculum_week_number,session_number,status,requested_types,failed_types,generated_count,skipped_count,started_at,completed_at"
     );
   } catch (error) {
     runsAvailable = false;
@@ -97,6 +98,63 @@ async function main() {
   for (const run of runs.filter((row) => row.status === "running")) {
     const identity = `${run.lesson_plan_id}:${run.curriculum_week_number}:${run.session_number}`;
     runningKeys.set(identity, (runningKeys.get(identity) ?? 0) + 1);
+  }
+  const rowsByPlan = (rows: any[]) => {
+    const index = new Map<string, any[]>();
+    for (const row of rows) {
+      const planId = row.lesson_plan_id ?? row.metadata?.lesson_plan_id;
+      if (!planId) continue;
+      const values = index.get(String(planId)) ?? [];
+      values.push(row);
+      index.set(String(planId), values);
+    }
+    return index;
+  };
+  const lessonRows = rowsByPlan(lessons);
+  const slideRows = rowsByPlan(
+    slides.filter((row) => row.file_type === "slide-deck")
+  );
+  const flashcardRows = rowsByPlan(flashcards);
+  const assignmentRows = rowsByPlan(assignments);
+  const latestByMeeting = new Map<string, any>();
+  for (const run of runs) {
+    const identity = `${run.lesson_plan_id}:${run.curriculum_week_number}:${run.session_number}`;
+    const current = latestByMeeting.get(identity);
+    if (
+      !current ||
+      Date.parse(run.started_at ?? "") > Date.parse(current.started_at ?? "")
+    ) {
+      latestByMeeting.set(identity, run);
+    }
+  }
+  let currentIncompleteMeetings = 0;
+  let historicalPartialNowComplete = 0;
+  const missingByType: Record<string, number> = {};
+  const inspectRun = (run: any) =>
+    decideGenerationRepairTypes({
+      requestedTypes:
+        Array.isArray(run.failed_types) && run.failed_types.length > 0
+          ? run.failed_types
+          : run.requested_types,
+      week: Number(run.curriculum_week_number) || 1,
+      session: Number(run.session_number) || 1,
+      inventory: {
+        lessons: lessonRows.get(String(run.lesson_plan_id)) ?? [],
+        slides: slideRows.get(String(run.lesson_plan_id)) ?? [],
+        flashcards: flashcardRows.get(String(run.lesson_plan_id)) ?? [],
+        assignments: assignmentRows.get(String(run.lesson_plan_id)) ?? [],
+      },
+    });
+  for (const run of latestByMeeting.values()) {
+    const decision = inspectRun(run);
+    if (decision.typesToRun.length === 0) continue;
+    currentIncompleteMeetings += 1;
+    for (const type of decision.typesToRun) {
+      missingByType[type] = (missingByType[type] ?? 0) + 1;
+    }
+  }
+  for (const run of runs.filter((row) => row.status === "partial")) {
+    if (inspectRun(run).typesToRun.length === 0) historicalPartialNowComplete += 1;
   }
 
   console.log("\nAcademic generation audit (read-only)");
@@ -122,6 +180,9 @@ async function main() {
         ...runningKeys.values(),
       ].filter((count) => count > 1).length}`
     );
+    console.log(`Current tracked meetings missing requested content: ${currentIncompleteMeetings}`);
+    console.log(`Missing requested content by type: ${JSON.stringify(missingByType)}`);
+    console.log(`Historical partial runs now complete: ${historicalPartialNowComplete}`);
   }
   console.log("");
 

@@ -129,6 +129,7 @@ describe("week generation connection recovery", () => {
     expect(route).toContain("export async function GET");
     expect(route).toContain("resolveGenerationRepairTypes");
     expect(route).toContain("runQuery.gte('started_at', after)");
-    expect(route).toContain("complete: repair !== null");
+    expect(route).toContain("requestedTypes: run?.requested_types");
+    expect(route).toContain("const durableStatus");
   });
 });

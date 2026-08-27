@@ -584,6 +584,20 @@ export default function WeekAIGenerator({
       const failedTypes = Array.isArray(genJson.failedTypes)
         ? genJson.failedTypes
         : [];
+      if (genJson.recoveredTypes.length > 0) {
+        addLog(
+          `Saved work confirmed after the connection recovered: ${genJson.recoveredTypes
+            .map((type) => labelFor[type] ?? type)
+            .join(", ")}.`
+        );
+      }
+      if (genJson.retriedTypes.length > 0) {
+        addLog(
+          `A safe retry completed for: ${genJson.retriedTypes
+            .map((type) => labelFor[type] ?? type)
+            .join(", ")}. Existing work was not regenerated.`
+        );
+      }
       if (failedTypes.length) {
         addLog(
           `Still outstanding: ${failedTypes

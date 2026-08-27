@@ -9,6 +9,8 @@ export type WeekGenerationClientResult = {
     { generated?: number; skipped?: number; error?: string }
   >;
   failedTypes: string[];
+  retriedTypes: string[];
+  recoveredTypes: string[];
   alreadyRunning: boolean;
   connectionRecovered: boolean;
   complete?: boolean;
@@ -44,6 +46,12 @@ function normalizeResult(
   const failedTypes = Array.isArray(value.failedTypes)
     ? value.failedTypes.map(String)
     : [];
+  const retriedTypes = Array.isArray(value.retriedTypes)
+    ? value.retriedTypes.map(String)
+    : [];
+  const recoveredTypes = Array.isArray(value.recoveredTypes)
+    ? value.recoveredTypes.map(String)
+    : [];
   return {
     success:
       value.success === false
@@ -56,6 +64,8 @@ function normalizeResult(
         ? (value.byType as WeekGenerationClientResult["byType"])
         : {},
     failedTypes,
+    retriedTypes,
+    recoveredTypes,
     alreadyRunning:
       value.alreadyRunning === true || status === "running",
     connectionRecovered,

@@ -77,6 +77,25 @@ describe('generatePlanWeek', () => {
 
     expect(outcome.failedTypes).toEqual(['assignments']);
     expect(outcome.generated).toBe(1);
-    expect(outcome.byType.assignments).toMatchObject({ error: 'blocked' });
+    expect(outcome.byType.assignments).toMatchObject({ error: 'blocked', retryable: false });
+  });
+
+  it('marks temporary provider responses for the inventory-aware retry', async () => {
+    invokePlanWeekGenerator.mockResolvedValueOnce(
+      new Response('upstream gateway details', { status: 503 }),
+    );
+
+    const outcome = await generatePlanWeek({
+      planId: 'plan-1',
+      week: 3,
+      types: ['slides'],
+    });
+
+    expect(outcome.byType.slides).toMatchObject({
+      error: 'The slides could not be prepared. Saved work was kept.',
+      retryable: true,
+    });
+    expect(JSON.stringify(outcome)).not.toContain('HTTP 503');
+    expect(JSON.stringify(outcome)).not.toContain('gateway details');
   });
 });

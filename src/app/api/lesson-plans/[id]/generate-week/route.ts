@@ -107,40 +107,52 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   let runQuery = access.db
     .from('teaching_generation_runs')
     .select(
-      'id,status,generated_count,skipped_count,by_type,failed_types,started_at,completed_at,last_heartbeat_at',
+      'id,status,requested_types,generated_count,skipped_count,by_type,failed_types,started_at,completed_at,last_heartbeat_at',
     )
     .eq('lesson_plan_id', planId)
     .eq('curriculum_week_number', week)
     .eq('session_number', session);
   if (after) runQuery = runQuery.gte('started_at', after);
 
-  const [{ data: run, error: runError }, repair] = await Promise.all([
-    runQuery
-      .order('started_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    resolveGenerationRepairTypes({
-      db: access.db,
-      planId,
-      week,
-      session,
-    }),
-  ]);
+  const { data: run, error: runError } = await runQuery
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const repair = await resolveGenerationRepairTypes({
+    db: access.db,
+    planId,
+    week,
+    session,
+    requestedTypes: run?.requested_types,
+  });
 
   const missingTypes = repair?.typesToRun ?? [];
+  const recordedFailedTypes = Array.isArray(run?.failed_types)
+    ? run.failed_types.map(String)
+    : [];
+  const failedTypes = recordedFailedTypes.filter((type: string) =>
+    missingTypes.includes(type as any)
+  );
+  const recoveredTypes = recordedFailedTypes.filter(
+    (type: string) => !failedTypes.includes(type)
+  );
+  const complete = repair !== null && missingTypes.length === 0;
+  const durableStatus =
+    run?.status !== 'running' && complete ? 'succeeded' : run?.status ?? 'idle';
   return NextResponse.json({
     available: !runError,
     planId,
     week,
     session,
-    status: run?.status ?? 'idle',
+    status: durableStatus,
     generationRunId: run?.id ?? null,
     generated: Number(run?.generated_count) || 0,
     skipped: Number(run?.skipped_count) || 0,
     byType: run?.by_type ?? {},
-    failedTypes: Array.isArray(run?.failed_types) ? run.failed_types : [],
+    failedTypes,
+    recoveredTypes,
     missingTypes,
-    complete: repair !== null && missingTypes.length === 0,
+    complete,
     startedAt: run?.started_at ?? null,
     completedAt: run?.completed_at ?? null,
     lastHeartbeatAt: run?.last_heartbeat_at ?? null,
@@ -231,6 +243,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       skipped: outcome.skipped,
       byType: outcome.byType,
       failedTypes: outcome.failedTypes,
+      retriedTypes: outcome.retriedTypes ?? [],
+      recoveredTypes: outcome.recoveredTypes ?? [],
       generationRunId: runId,
       alreadyRunning,
       preparedTypes: effectiveTypes,

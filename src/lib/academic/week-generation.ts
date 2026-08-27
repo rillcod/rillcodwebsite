@@ -51,9 +51,54 @@ export type WeekGenerationOutcome = {
   week: number;
   generated: number;
   skipped: number;
-  byType: Record<string, { generated: number; skipped: number } | { error: string }>;
+  byType: Record<
+    string,
+    | { generated: number; skipped: number }
+    | { error: string; retryable?: boolean }
+  >;
   failedTypes: string[];
+  /** Types attempted once more after a durable inventory confirmed they were missing. */
+  retriedTypes?: string[];
+  /** Types whose first response failed but whose saved content was found afterwards. */
+  recoveredTypes?: string[];
 };
+
+const RETRYABLE_GENERATION_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+export function isRetryableGenerationStatus(status: number): boolean {
+  return RETRYABLE_GENERATION_STATUSES.has(status);
+}
+
+export function isRetryableGenerationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /failed to fetch|network|timeout|timed out|socket|econn|gateway|temporar|rate limit|too many requests|service unavailable/i.test(
+    message
+  );
+}
+
+function safeGenerationFailureMessage(type: string, error?: unknown): string {
+  if (isRetryableGenerationError(error)) {
+    return "The AI service connection was interrupted. The system will check saved work before retrying.";
+  }
+  const label = type === "assignments" ? "homework" : type;
+  return `The ${label} could not be prepared. Saved work was kept.`;
+}
+
+function safeEndpointGenerationMessage(
+  type: string,
+  candidate: unknown
+): string {
+  const message = typeof candidate === "string" ? candidate.trim() : "";
+  if (
+    !message ||
+    /postgres|postgrest|supabase|sqlstate|column .+ does not exist|relation .+ does not exist|stack trace|unexpected token|cannot read propert|econn|enotfound|fetch failed/i.test(
+      message
+    )
+  ) {
+    return safeGenerationFailureMessage(type);
+  }
+  return message;
+}
 
 /**
  * Generate one specific week for one plan. `only_weeks` keeps each call to a single week so a
@@ -112,16 +157,19 @@ export async function generatePlanWeek(input: {
       });
 
       if (!res.ok) {
-        let detail = `HTTP ${res.status}`;
+        let detail = safeGenerationFailureMessage(type);
         // The plan guards answer with a reason worth keeping — "this plan is a
         // draft" is actionable, "HTTP 422" is not.
         try {
           const body = await res.json();
-          if (body?.error) detail = String(body.error);
+          if (body?.error) detail = safeEndpointGenerationMessage(type, body.error);
         } catch {
           /* not JSON — the status is all there is */
         }
-        outcome.byType[type] = { error: detail };
+        outcome.byType[type] = {
+          error: detail,
+          retryable: isRetryableGenerationStatus(res.status),
+        };
         outcome.failedTypes.push(type);
         continue;
       }
@@ -140,7 +188,14 @@ export async function generatePlanWeek(input: {
       outcome.skipped += skipped;
       outcome.byType[type] = { generated, skipped };
     } catch (error) {
-      outcome.byType[type] = { error: error instanceof Error ? error.message : String(error) };
+      console.warn("[teaching-generation] generator invocation failed", {
+        type,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      outcome.byType[type] = {
+        error: safeGenerationFailureMessage(type, error),
+        retryable: isRetryableGenerationError(error),
+      };
       outcome.failedTypes.push(type);
     }
   }
