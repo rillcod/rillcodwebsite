@@ -237,17 +237,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     const loadPartnerSchools = async () => {
       setSchoolsLoading(true);
       setSchoolsError('');
-      const { data, error } = await createClient()
-        .from('schools')
-        .select('id, name')
-        .eq('status', 'approved')
-        .order('name');
+      const { response: res, data } = await fetchActionJson<{ schools?: { id: string; name: string }[] }>(
+        '/api/schools/public',
+      );
       if (!active) return;
-      if (error) {
+      if (!res.ok) {
         setSchools([]);
         setSchoolsError('Partner schools could not be loaded. Please refresh and try again.');
       } else {
-        setSchools(data ?? []);
+        setSchools(data.schools ?? []);
+        setSchoolsError('');
       }
       setSchoolsLoading(false);
     };

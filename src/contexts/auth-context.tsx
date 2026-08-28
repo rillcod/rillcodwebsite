@@ -5,6 +5,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile, AuthContextType, UserRole } from '@/types';
 import { apiFetch } from '@/lib/api-fetch';
+import { parseJsonResponse } from '@/lib/async-timeout';
 import {
   isInvalidRefreshTokenError,
   recoverInvalidBrowserSession,
@@ -148,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (shouldRetryProfileResponse(res.status, attempt, MAX_RETRIES)) continue;
           return null;
         }
-        const json = await res.json();
+        const json = await parseJsonResponse<{ profile?: UserProfile }>(res);
         if (!json.profile) {
           // 200 but no profile = account genuinely missing; one quick retry in case
           // the auto-heal in /api/auth/me races with the insert

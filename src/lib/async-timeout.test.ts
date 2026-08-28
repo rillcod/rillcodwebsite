@@ -1,5 +1,39 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchWithTimeoutOrThrow, withTimeoutOrThrow } from './async-timeout';
+import {
+  fetchWithTimeoutOrThrow,
+  friendlyActionError,
+  parseJsonResponse,
+  withTimeoutOrThrow,
+} from './async-timeout';
+
+describe('parseJsonResponse', () => {
+  it('returns empty object for empty body', async () => {
+    const response = new Response('', { status: 200 });
+    await expect(parseJsonResponse(response)).resolves.toEqual({});
+  });
+
+  it('returns empty object for invalid JSON', async () => {
+    const response = new Response('not-json', { status: 200 });
+    await expect(parseJsonResponse(response)).resolves.toEqual({});
+  });
+
+  it('parses valid JSON objects', async () => {
+    const response = new Response(JSON.stringify({ ok: true }), { status: 200 });
+    await expect(parseJsonResponse<{ ok: boolean }>(response)).resolves.toEqual({ ok: true });
+  });
+});
+
+describe('friendlyActionError', () => {
+  it('maps empty JSON parse failures to user-safe copy', () => {
+    expect(
+      friendlyActionError(new Error("Failed to execute 'json' on 'Response': Unexpected end of JSON input"), 'fallback'),
+    ).toBe('The server returned an empty response. Please check your connection and try again.');
+  });
+
+  it('returns the original message when present', () => {
+    expect(friendlyActionError(new Error('Invalid credentials'), 'fallback')).toBe('Invalid credentials');
+  });
+});
 
 describe('withTimeoutOrThrow', () => {
   afterEach(() => {

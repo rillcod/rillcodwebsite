@@ -1,5 +1,42 @@
 export const DEFAULT_UI_TIMEOUT_MS = 12_000;
 
+/** Parse JSON without throwing when the body is empty or truncated. */
+export async function parseJsonResponse<T extends Record<string, unknown>>(
+  response: Response,
+): Promise<Partial<T>> {
+  if (response.status === 204 || response.status === 205) return {};
+  const text = await response.text();
+  if (!text.trim()) return {};
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Partial<T>;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/** Turn low-level fetch/JSON failures into copy safe to show on public forms. */
+export function friendlyActionError(
+  error: unknown,
+  fallback: string,
+): string {
+  const message = error instanceof Error ? error.message : '';
+  if (
+    message.includes('Unexpected end of JSON input')
+    || message.includes("Failed to execute 'json' on 'Response'")
+    || message.includes('JSON.parse')
+  ) {
+    return 'The server returned an empty response. Please check your connection and try again.';
+  }
+  if (message.includes('AbortError') || message.includes('aborted')) {
+    return fallback;
+  }
+  return message || fallback;
+}
+
 export async function withTimeout(
   promise: PromiseLike<unknown>,
   fallback: unknown,
@@ -81,7 +118,7 @@ export async function fetchActionJson<T extends Record<string, unknown>>(
   ms?: number,
 ): Promise<{ response: Response; data: Partial<T> }> {
   const response = await fetchWithTimeoutOrThrow(input, init, timeoutMessage, ms);
-  const data = await response.json().catch(() => ({})) as Partial<T>;
+  const data = await parseJsonResponse<T>(response);
   return { response, data };
 }
 
@@ -97,7 +134,8 @@ export async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
   try {
     const res = await fetch(url, { cache: 'no-store', ...init, signal: controller.signal });
     if (!res.ok) return fallback;
-    return await res.json();
+    const data = await parseJsonResponse<T>(res);
+    return { ...fallback, ...data };
   } catch (err) {
     console.warn(`[timeout] ${label} failed`, err);
     return fallback;

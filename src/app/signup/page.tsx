@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft, HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchActionJson, withTimeoutOrThrow } from "@/lib/async-timeout";
+import { fetchActionJson, friendlyActionError, withTimeoutOrThrow } from "@/lib/async-timeout";
 
 type UserRole = 'student' | 'parent';
 
@@ -151,7 +151,7 @@ export default function SignUpPage() {
       router.push('/dashboard');
     } catch (error: unknown) {
       console.error('Public signup failed', error);
-      const message = error instanceof Error ? error.message : '';
+      const message = friendlyActionError(error, '');
       if (message.includes('already registered') || message.includes('already exists')) {
         toast.error("An account with this email already exists");
       } else if (message.includes('taking longer') || message.startsWith('Your account was created')) {

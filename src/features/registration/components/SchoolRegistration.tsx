@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { fetchActionJson, friendlyActionError } from '@/lib/async-timeout';
 import { Building2, Check, Loader2, ChevronDown, MapPin, Phone, Mail, User, Users, Layers, ArrowRight, ShieldCheck, Scale, Globe } from 'lucide-react';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
@@ -150,7 +151,7 @@ export function SchoolRegistration() {
         if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
         setLoading(true); setErr('');
         try {
-            const res = await fetch('/api/schools', {
+            const { response: res, data } = await fetchActionJson<{ error?: string }>('/api/schools', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -167,11 +168,10 @@ export function SchoolRegistration() {
                     programInterest: form.programInterest
                 })
             });
-            const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
             setSubmitted(true);
-        } catch (e: any) {
-            setErr(e.message ?? 'Submission failed. Please try again.');
+        } catch (e: unknown) {
+            setErr(friendlyActionError(e, 'Submission failed. Please try again.'));
         } finally {
             setLoading(false);
         }
@@ -238,11 +238,12 @@ export function SchoolRegistration() {
                                 if (!statusEmail) return;
                                 setStatusLoading(true); setStatusError(''); setStatusResult(null);
                                 try {
-                                    const res = await fetch(`/api/schools?email=${encodeURIComponent(statusEmail)}`);
-                                    const json = await res.json();
+                                    const { response: res, data: json } = await fetchActionJson<{ error?: string; school?: typeof statusResult }>(
+                                        `/api/schools?email=${encodeURIComponent(statusEmail)}`,
+                                    );
                                     if (!res.ok) throw new Error(json.error || 'No application found for this email.');
-                                    setStatusResult(json.school);
-                                } catch (e: any) { setStatusError(e.message ?? 'No application found.'); }
+                                    setStatusResult(json.school ?? null);
+                                } catch (e: unknown) { setStatusError(friendlyActionError(e, 'No application found.')); }
                                 finally { setStatusLoading(false); }
                             }}
                             className="px-5 py-2.5 bg-brand-red-600 hover:bg-brand-red-500 text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all disabled:opacity-50 shadow-md shadow-brand-red-950/40 min-h-[42px]"

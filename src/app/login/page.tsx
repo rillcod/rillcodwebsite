@@ -13,7 +13,7 @@ import Image from 'next/image';
 
 import { useIsNativeApp } from "@/hooks/useIsNativeApp";
 import { isCapacitorNative } from "@/lib/capacitor/platform";
-import { withTimeoutOrThrow } from '@/lib/async-timeout';
+import { withTimeoutOrThrow, friendlyActionError } from '@/lib/async-timeout';
 import { readPostLoginRedirectParam } from '@/lib/auth/post-login-redirect';
 import {
   isInvalidRefreshTokenError,
@@ -143,8 +143,8 @@ function LoginContent() {
         },
       });
       if (oauthError) throw oauthError;
-    } catch (err: any) {
-      setError(err?.message || 'Google sign-in failed. Please try again.');
+    } catch (err: unknown) {
+      setError(friendlyActionError(err, 'Google sign-in failed. Please try again.'));
       setGoogleLoading(false);
     }
   };
@@ -246,7 +246,7 @@ function LoginContent() {
       window.location.href = redirectTo;
 
     } catch (err: any) {
-      const msg = err?.message || '';
+      const msg = friendlyActionError(err, 'Sign in failed. Please check your credentials.');
       if (msg.toLowerCase().includes('invalid login credentials') || msg.toLowerCase().includes('invalid credentials')) {
         setError('Incorrect email or password. Please check your spelling and try again.');
       } else if (msg.toLowerCase().includes('email not confirmed')) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { parseJsonResponse } from '@/lib/async-timeout';
 import {
   formatNaira,
   getSummerDepositAmount,
@@ -8,6 +9,27 @@ import {
   SUMMER_ONSITE_FEE,
   SUMMER_ONLINE_FEE,
 } from '@/lib/summer-school/pricing';
+
+type FeaturedProgramPayload = {
+  data?: {
+    href?: string;
+    button_label?: string;
+    title?: string;
+    banner?: string | null;
+    slug?: string;
+    online_fee?: number;
+    onsite_fee?: number;
+    deposit_percent?: number;
+    registration_deadline?: string | null;
+    season_badge?: string | null;
+    starts_on?: string | null;
+    ends_on?: string | null;
+    duration_label?: string | null;
+    age_min?: number;
+    age_max?: number;
+  };
+  open?: boolean;
+};
 
 export type FeaturedSpecialCta = {
   href: string;
@@ -95,7 +117,7 @@ export function useFeaturedSpecialProgram() {
   useEffect(() => {
     let cancelled = false;
     fetch('/api/special-programs/featured', { cache: 'no-store' })
-      .then((r) => r.json())
+      .then(async (r) => parseJsonResponse<FeaturedProgramPayload>(r))
       .then((j) => {
         if (cancelled) return;
         // No featured programme at all: nothing to promote, keep the fallback
