@@ -35,8 +35,8 @@ describe('class-plan assignment and project release contract', () => {
     const projectPage = read('src/app/dashboard/projects/new/page.tsx');
     const planPage = read('src/app/dashboard/lesson-plans/[id]/page.tsx');
 
-    expect(assignmentPage).toContain('is_active: !preLessonPlanId');
-    expect(assignmentPage).toContain('session_number: preSession');
+    expect(assignmentPage).toContain('is_active: !lessonPlanId');
+    expect(assignmentPage).toContain('session_number: lessonSession');
     expect(projectPage).toContain('preLessonPlanId ? false : !isDraft');
     expect(projectPage).toContain('Save to Class Plan');
     expect(planPage).toContain('&session=${canonicalMeetingSession');

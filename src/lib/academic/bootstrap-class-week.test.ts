@@ -10,9 +10,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * because the generators refuse to run against a draft.
  */
 
-const { generatePlanWeek, notifyWeekReady, planUpdateSpy, trackingUpdateSpy, planRef } = vi.hoisted(() => ({
+const {
+  generatePlanWeek,
+  notifyWeekReady,
+  resolveGenerationRepairTypes,
+  planUpdateSpy,
+  trackingUpdateSpy,
+  planRef,
+} = vi.hoisted(() => ({
   generatePlanWeek: vi.fn(),
   notifyWeekReady: vi.fn(),
+  resolveGenerationRepairTypes: vi.fn(),
   planUpdateSpy: vi.fn(),
   trackingUpdateSpy: vi.fn(),
   planRef: { current: null as Record<string, unknown> | null },
@@ -26,6 +34,10 @@ vi.mock('./week-generation', async (importOriginal) => ({
   generatePlanWeek,
   notifyWeekReady,
   currentDeliveryWeek: () => 1,
+}));
+
+vi.mock('./generation-repair', () => ({
+  resolveGenerationRepairTypes,
 }));
 
 vi.mock('@/lib/supabase/admin', () => {
@@ -67,6 +79,7 @@ describe('bootstrapClassTeachingWeek', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     planRef.current = { ...PLAN };
+    resolveGenerationRepairTypes.mockResolvedValue(null);
     generatePlanWeek.mockResolvedValue({
       week: 1,
       generated: 3,
