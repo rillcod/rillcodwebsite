@@ -19,6 +19,7 @@ import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
 import { onboardSummerStudent, sendSpecialProgramActivation } from '@/lib/summer-school/onboard';
 import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
+import { alertFanoutFailures } from '@/lib/server/cron-fanout-alerts';
 import { claimDailyGuard, claimHourlyGuard, recordFanoutResult } from '@/lib/server/cron-daily-guard';
 import { queuePrepareTeaching } from '@/lib/academic/prepare-teaching';
 import {
@@ -237,6 +238,7 @@ async function handle(req: NextRequest) {
       const failed = fanoutFailures(fan);
       if (failed.length) {
         await claim.release(`fan-out failure: ${failed.map(([p, r]) => `${p}=${r}`).join(', ')}`);
+        await alertFanoutFailures(admin as any, 'onboarding-sweep (daily)', fan);
       }
     } catch (fanErr) {
       console.error('[onboarding-sweep] daily fan-out failed:', fanErr);
@@ -257,6 +259,7 @@ async function handle(req: NextRequest) {
       const failed = fanoutFailures(fan);
       if (failed.length) {
         await claim.release(`hourly fan-out failure: ${failed.map(([p, r]) => `${p}=${r}`).join(', ')}`);
+        await alertFanoutFailures(admin as any, 'onboarding-sweep (hourly)', fan);
       }
     } catch (fanErr) {
       console.error('[onboarding-sweep] hourly fan-out failed:', fanErr);

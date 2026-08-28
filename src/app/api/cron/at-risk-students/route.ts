@@ -4,7 +4,8 @@ import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
-import { fanoutCrons } from '@/lib/server/cron-fanout';
+import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
+import { alertFanoutFailures } from '@/lib/server/cron-fanout-alerts';
 import { loadTermWindow } from '@/lib/notifications/term-window';
 import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { measuredAttendancePercentage } from '@/lib/attendance/policy';
@@ -99,9 +100,10 @@ async function handleRequest(req: NextRequest) {
     const recovery = await fanoutCrons(req.url, ['onboarding-sweep', 'streak-reminder']);
     // Fan-out must not hide a missing run (§12.1): if a child did not succeed, give the day
     // back so the next scheduler call retries instead of reporting a false success.
-    const failed = Object.entries(recovery).filter(([, result]) => result !== 'ok');
+    const failed = fanoutFailures(recovery);
     if (failed.length) {
       await releaseDailyGuard(`fan-out failure: ${failed.map(([p, r]) => `${p}=${r}`).join(', ')}`);
+      await alertFanoutFailures(db as any, 'at-risk-students', recovery);
       return NextResponse.json({
         success: false,
         repurposed: true,
@@ -109,7 +111,7 @@ async function handleRequest(req: NextRequest) {
         recovery,
         date: today,
         error: 'One or more recovery jobs did not succeed; the day was released for retry.',
-      }, { status: 502 });
+      });
     }
     return NextResponse.json({
       success: true,

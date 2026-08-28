@@ -13,6 +13,7 @@ import { fanoutOriginCandidates } from '@/lib/server/cron-fanout';
 import { logAudit } from '@/lib/audit/log';
 import { requireSupabaseWrite } from '@/lib/supabase/require-result';
 import { loadTrafficControls } from '@/lib/operations/traffic-controls';
+import { CRON_RUN_HISTORY_PER_JOB_CAP } from '@/lib/operations/cron-history';
 import { resolveUpstashConfig } from '@/lib/redis-config';
 
 export const dynamic = 'force-dynamic';
@@ -114,7 +115,7 @@ async function waitingOnYou(db: any) {
       label: 'Lessons finished but still draft',
       detail: 'Their slides and flashcards are hidden from learners too.',
       count: lessons,
-      href: '/dashboard/lessons',
+      href: '/dashboard/classes',
     },
     {
       key: 'assignments',
@@ -179,7 +180,7 @@ export async function GET() {
   const [health, deadLetters, history, financeFailures, generationIncidents, fanout, trafficControls] = await Promise.all([
     actor.db.from('cron_job_health').select('*').order('job_name'),
     actor.db.from('notification_dead_letters').select('*').in('status', ['pending', 'retrying']).order('created_at', { ascending: false }).limit(100),
-    actor.db.from('cron_run_history').select('*').order('created_at', { ascending: false }).limit(100),
+    actor.db.from('cron_run_history').select('*').order('created_at', { ascending: false }).limit(CRON_RUN_HISTORY_PER_JOB_CAP),
     // Read state transitions, not only failure rows. A later success closes the
     // incident and must remove the old failure from the staff action queue.
     actor.db.from('finance_automation_log')

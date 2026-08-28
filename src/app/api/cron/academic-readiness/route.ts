@@ -6,6 +6,7 @@ import { runMonitoredCron } from '@/lib/operations/cron-monitor';
 import { cronInterval } from '@/lib/operations/cron-registry';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { fanoutCrons, fanoutFailures } from '@/lib/server/cron-fanout';
+import { alertFanoutFailures } from '@/lib/server/cron-fanout-alerts';
 import { recordFanoutResult } from '@/lib/server/cron-daily-guard';
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +46,7 @@ async function handle(req: NextRequest) {
       const failed = fanoutFailures(fan);
       if (failed.length) {
         console.error('[academic-readiness] auto-generate fan-out failed:', failed);
+        await alertFanoutFailures(admin, 'academic-readiness', fan);
       }
     });
   }

@@ -25,6 +25,7 @@ vi.mock('@/lib/supabase/admin', () => {
           if (monitorState.lease === 'unavailable') return { data: null, error: { message: 'function missing' } };
           return { data: monitorState.lease === 'acquired', error: null };
         }
+        if (name === 'prune_cron_run_history') return { data: 0, error: null };
         return { data: true, error: null };
       },
     }),

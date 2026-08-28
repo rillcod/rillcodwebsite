@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deliverNotificationsOnce } from '@/lib/notifications/deliver-once';
+import { pruneCronRunHistory } from '@/lib/operations/cron-history';
 
 const CRON_LEASE_SECONDS = 10 * 60;
 
@@ -58,6 +59,7 @@ async function recordOutcome(input: {
       result,
     });
     if (historyError) throw new Error(`run history write failed: ${historyError.message}`);
+    await pruneCronRunHistory(db, input.jobName);
 
     const { error: healthError } = await db.from('cron_job_health').upsert({
       job_name: input.jobName,
@@ -138,6 +140,7 @@ async function recordOverlap(jobName: string, startedAt: Date): Promise<void> {
       result: { skipped: true, reason: 'already_running' },
     });
     if (error) throw error;
+    await pruneCronRunHistory(db, jobName);
   } catch (error) {
     console.error(`[cron-monitor] unable to record overlapping ${jobName} request:`, error);
   }
