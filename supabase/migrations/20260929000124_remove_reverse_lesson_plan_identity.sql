@@ -76,7 +76,11 @@ $$;
 
 -- The foreign-key columns are now authoritative. Remove only the duplicated
 -- metadata key; all lesson bodies, slides, cards, assignments and submissions
--- remain untouched.
+-- remain untouched. Published-week locks normally forbid metadata edits; drop
+-- those guards only for this mirror-key cleanup, then restore them.
+drop trigger if exists protect_locked_lesson on public.lessons;
+drop trigger if exists protect_locked_assignment on public.assignments;
+
 do $$
 declare
   asset_table text;
@@ -97,6 +101,14 @@ begin
   end loop;
 end
 $$;
+
+create trigger protect_locked_lesson
+  before update or delete on public.lessons
+  for each row execute function public.protect_locked_generated_content('lesson');
+
+create trigger protect_locked_assignment
+  before update or delete on public.assignments
+  for each row execute function public.protect_locked_generated_content('assignment');
 
 alter table public.lesson_plans
   drop constraint if exists lesson_plans_lesson_id_fkey;
