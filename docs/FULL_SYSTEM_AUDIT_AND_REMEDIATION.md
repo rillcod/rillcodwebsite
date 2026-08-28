@@ -3912,3 +3912,34 @@ Verification and honest boundary:
 - the currently running Next development process must be restarted before it can consume the new
   `allowedDevOrigins` setting. A fully hydrated authenticated click-through is not claimed here.
   No production build, database write or score mutation was performed as part of this verification.
+## 16.52 Cloudflare cold-start recovery without increasing container runtime (2026-08-28)
+
+### Production symptom and verified cause
+
+- Some customer requests occasionally received the raw Cloudflare transport text
+  `Error proxying request to container: The container is not running, consider calling start()`.
+- The application uses one named `NextAppContainer` and deliberately scales it to zero after three
+  idle minutes. `@cloudflare/containers` normally starts it from `containerFetch()`, but its transport
+  can return that raw 500 during the narrow stopped-to-starting race.
+- This is not an application validation error and does not mean a customer's saved work was lost.
+
+### Remediation implemented
+
+- `NextAppContainer.fetch()` now recognises only Cloudflare lifecycle/transport failures. Genuine
+  application 500 responses still pass through unchanged, so product failures are not hidden.
+- A failed read-only request waits for port 3000 once and is replayed once. Writes, WebSockets, and
+  cron executions are never replayed, preventing duplicated submissions, payments, messages, or jobs.
+- If readiness still fails, documents receive a branded **Your workspace is starting** screen and
+  APIs receive a stable `SERVICE_STARTING` 503 response with `Retry-After: 3`; no infrastructure
+  exception is exposed to customers.
+- The three-minute `sleepAfter` remains unchanged. There is no pre-warming, background polling,
+  increased instance count, or longer idle runtime, so this recovery does not consume container or
+  AI allowance while nobody is using the product.
+
+### Verification
+
+- Focused Cloudflare recovery, environment-wiring, and cron-ownership suite: 29/29 tests pass.
+- Separate Cloudflare Worker TypeScript target: pass.
+- Main application TypeScript target: pass.
+- Production requires the normal green-CI Cloudflare deployment before the gateway behavior changes
+  for live users.

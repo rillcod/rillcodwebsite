@@ -9,6 +9,10 @@
  * them into the app program breaks every route that reads a JSON body.
  */
 import { Container, getContainer } from "@cloudflare/containers";
+import {
+  canReplayContainerRequest,
+  classifyContainerFailure,
+} from "../lib/cloudflare/container-request-recovery";
 
 /** Public + secret keys forwarded into the Next.js container process. */
 const CONTAINER_ENV_KEYS = [
@@ -98,6 +102,9 @@ function containerEnvFromWorker(env: GatewayEnv): Record<string, string> {
  */
 export class NextAppContainer extends Container {
   defaultPort = 3000;
+  // Keep the short scale-to-zero window: standard-2 reserves 6 GiB while it is
+  // running. Readiness recovery below fixes cold-start races without paying to
+  // keep an idle container warm.
   sleepAfter = "3m";
   enableInternet = true;
 
@@ -117,6 +124,128 @@ export class NextAppContainer extends Container {
   override onError(error: unknown): void {
     console.error("[NextAppContainer] error", error);
   }
+
+  /**
+   * The library normally starts a sleeping container inside containerFetch().
+   * During the narrow stopped -> starting transition its transport can instead
+   * return a raw 500 saying "consider calling start()". Intercept only those
+   * library responses, wait for port 3000 once, and replay only read-only work.
+   */
+  override async fetch(request: Request): Promise<Response> {
+    const replayRequest = canReplayContainerRequest(request) ? request.clone() : null;
+
+    let response: Response;
+    try {
+      response = await this.containerFetch(request, this.defaultPort);
+    } catch (error) {
+      console.error("[NextAppContainer] proxy transport threw", error);
+      return containerUnavailableResponse(request);
+    }
+
+    const failure = await classifyContainerResponse(response);
+    if (!failure) return response;
+
+    console.warn("[NextAppContainer] intercepted container lifecycle response", {
+      status: response.status,
+      failure,
+      method: request.method,
+      pathname: new URL(request.url).pathname,
+    });
+
+    if (failure !== "retryable" || !replayRequest) {
+      return containerUnavailableResponse(request);
+    }
+
+    try {
+      await this.startAndWaitForPorts({
+        ports: this.defaultPort,
+        cancellationOptions: {
+          abort: replayRequest.signal,
+          instanceGetTimeoutMS: 12_000,
+          portReadyTimeoutMS: 20_000,
+          waitInterval: 250,
+        },
+      });
+
+      // Rebuild the read-only request through the URL overload. Workers Request
+      // carries incoming-CF metadata generics that are deliberately narrower
+      // than the Container library's internal Request type.
+      const retryResponse = await this.containerFetch(
+        replayRequest.url,
+        {
+          method: replayRequest.method,
+          headers: replayRequest.headers,
+          signal: replayRequest.signal,
+        },
+        this.defaultPort,
+      );
+      if (!(await classifyContainerResponse(retryResponse))) return retryResponse;
+    } catch (error) {
+      console.error("[NextAppContainer] one-shot readiness recovery failed", error);
+    }
+
+    return containerUnavailableResponse(request);
+  }
+}
+
+async function classifyContainerResponse(response: Response) {
+  if (response.status < 500) return null;
+  try {
+    return classifyContainerFailure(response.status, await response.clone().text());
+  } catch {
+    return null;
+  }
+}
+
+function containerUnavailableResponse(request: Request): Response {
+  const headers = new Headers({
+    "cache-control": "no-store",
+    "retry-after": "3",
+    "x-rillcod-service-state": "starting",
+  });
+  const isDocument = request.headers.get("sec-fetch-dest") === "document";
+
+  if (!isDocument) {
+    headers.set("content-type", "application/json; charset=utf-8");
+    return new Response(
+      JSON.stringify({
+        error: "Rillcod is starting. Please try again in a few seconds.",
+        code: "SERVICE_STARTING",
+        retryable: true,
+      }),
+      { status: 503, headers },
+    );
+  }
+
+  headers.set("content-type", "text/html; charset=utf-8");
+  return new Response(
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Rillcod is starting</title>
+    <style>
+      :root{color-scheme:light dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+      body{min-height:100vh;margin:0;display:grid;place-items:center;background:#f5f7fb;color:#172033}
+      main{width:min(34rem,calc(100% - 2rem));box-sizing:border-box;padding:2rem;border:1px solid #dce3ee;border-radius:1.25rem;background:#fff;box-shadow:0 18px 50px rgba(23,32,51,.1);text-align:center}
+      .mark{display:grid;place-items:center;width:3rem;height:3rem;margin:0 auto 1rem;border-radius:1rem;background:#e8f1ff;color:#1261a6;font-weight:800}
+      h1{margin:.25rem 0 .5rem;font-size:clamp(1.4rem,5vw,2rem)}p{margin:0 0 1.4rem;color:#526176;line-height:1.6}
+      button{min-height:2.75rem;padding:.7rem 1.1rem;border:0;border-radius:.75rem;background:#1261a6;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+      @media(prefers-color-scheme:dark){body{background:#0d1420;color:#edf4ff}main{background:#141f2e;border-color:#2a3a50}.mark{background:#18395a;color:#b9dcff}p{color:#aebed2}}
+    </style>
+  </head>
+  <body>
+    <main role="status">
+      <div class="mark" aria-hidden="true">R</div>
+      <h1>Your workspace is starting</h1>
+      <p>This normally takes only a few seconds. Your work is safe.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>`,
+    { status: 503, headers },
+  );
 }
 
 /**
