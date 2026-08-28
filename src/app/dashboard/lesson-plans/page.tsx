@@ -50,7 +50,6 @@ import type { PlanContentSummary } from "@/lib/academic/plan-content-summary";
 
 interface LessonPlan {
   id: string;
-  lesson_id?: string | null;
   course_id?: string | null;
   class_id?: string | null;
   school_id?: string | null;
@@ -70,14 +69,6 @@ interface LessonPlan {
   summary_notes?: string | null;
   created_at: string;
   updated_at: string;
-  lessons?: {
-    id: string;
-    title: string;
-    course_id: string;
-    lesson_type: string | null;
-    status: string;
-    courses?: { id: string; title: string };
-  } | null;
   courses?: { id: string; title: string; program_id?: string | null } | null;
   classes?: { id: string; name: string } | null;
   schools?: { id: string; name: string } | null;
@@ -339,7 +330,7 @@ function LessonPlansPageInner() {
         classesJson,
         programsJson,
       ] = await Promise.all([
-        fetchJsonWithTimeout("/api/lesson-plans", { data: [] }, "lesson plans"),
+        fetchJsonWithTimeout("/api/lesson-plans", { data: [] }, "class plans"),
         fetchJsonWithTimeout(
           "/api/courses?limit=500",
           { data: [] },
@@ -380,7 +371,7 @@ function LessonPlansPageInner() {
         setDebrisCount(debrisJson.debris?.total ?? 0);
       }
     } catch {
-      toast.error("Failed to load lesson plans");
+      toast.error("Failed to load class plans");
     } finally {
       setLoading(false);
     }
@@ -471,6 +462,9 @@ function LessonPlansPageInner() {
           sessions_per_week: form.sessions_per_week
             ? Number(form.sessions_per_week)
             : null,
+          // Keep the selected Studio version explicit. The API verifies it is
+          // the official direction for this class before attaching it.
+          curriculum_version_id: form.curriculum_version_id || null,
           status: "draft",
           plan_data: {},
           created_by: profile?.id,
@@ -547,7 +541,7 @@ function LessonPlansPageInner() {
   const filtered = useMemo(() => {
     return plans.filter((p) => {
       if (filterProgramId) {
-        const cId = p.course_id ?? p.lessons?.course_id ?? null;
+        const cId = p.course_id ?? null;
         const course = cId ? courses.find((c) => c.id === cId) : null;
         if (!course || getCourseProgramId(course) !== filterProgramId)
           return false;
@@ -555,8 +549,7 @@ function LessonPlansPageInner() {
       if (filterClassId && p.class_id !== filterClassId) return false;
       if (
         filterCourseId &&
-        p.course_id !== filterCourseId &&
-        p.lessons?.course_id !== filterCourseId
+        p.course_id !== filterCourseId
       )
         return false;
       if (
@@ -566,7 +559,7 @@ function LessonPlansPageInner() {
         return false;
       if (filterStatus && (p.status ?? "draft") !== filterStatus) return false;
       if (!search) return true;
-      const courseTitle = p.courses?.title ?? p.lessons?.courses?.title ?? "";
+      const courseTitle = p.courses?.title ?? "";
       const className = p.classes?.name ?? "";
       const term = p.term ?? "";
       const q = search.toLowerCase();

@@ -368,7 +368,7 @@ export default function AddClassPage() {
               onChange={courseId => set('current_course_id', courseId)}
             />
             <p className="mt-1.5 text-[10px] text-muted-foreground">
-              This is the default course in Write, and the source the teaching plan builds from.
+              This is the default course in Write, and the source the class plan builds from.
               You can still choose another course from the same programme during result entry.
             </p>
           </div>
@@ -481,7 +481,7 @@ export default function AddClassPage() {
               ))}
             </select>
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              Use this to place the class in the correct term. Attendance, rosters, lesson plans, and reports follow this term.
+              Use this to place the class in the correct term. Attendance, rosters, class plans, and reports follow this term.
             </p>
           </div>
 

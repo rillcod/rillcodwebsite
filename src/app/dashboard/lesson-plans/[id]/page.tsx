@@ -1969,7 +1969,7 @@ export default function LessonPlanDetailPage() {
             <p className="text-[10px] font-bold uppercase tracking-wider">
               Document
             </p>
-            <p className="text-xs font-black uppercase">Term Lesson Plan</p>
+            <p className="text-xs font-black uppercase">Class Teaching Plan</p>
             <p className="text-[10px] mt-1">
               {new Date().toLocaleDateString("en-GB")}
             </p>
@@ -2050,7 +2050,7 @@ export default function LessonPlanDetailPage() {
               )}
             </div>
             <h1 className="text-xl font-black text-card-foreground">
-              {plan.term ?? "Term Plan"} — {courseTitle}
+              {plan.term ?? "Class Plan"} — {courseTitle}
             </h1>
             {plan.class_id ? (
               <p className="mt-2 max-w-2xl text-xs leading-5 text-card-foreground/55 print:hidden">

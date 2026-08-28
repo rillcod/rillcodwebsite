@@ -4,6 +4,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { normalizeLessonType } from "@/lib/lessons/lesson-type";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { relinkTeachingWeekAssets } from "@/lib/academic/teaching-scope";
+import { metadataWithLessonTeachingGuide } from "@/lib/lessons/teaching-guide";
 
 function adminClient() {
   return createClient(
@@ -48,6 +49,37 @@ export async function GET(request: NextRequest) {
     const courseId = url.searchParams.get("course_id");
 
     const admin = adminClient();
+    if (lessonPlanId && caller.role !== "admin") {
+      const { data: plan } = await admin
+        .from("lesson_plans")
+        .select("id, school_id, class_id")
+        .eq("id", lessonPlanId)
+        .maybeSingle();
+      if (!plan) {
+        return NextResponse.json({ error: "Class plan not found" }, { status: 404 });
+      }
+
+      if (caller.role === "school" && plan.school_id !== caller.school_id) {
+        return NextResponse.json({ error: "Class plan is outside your school" }, { status: 403 });
+      }
+
+      if (caller.role === "teacher") {
+        const { data: klass } = plan.class_id
+          ? await admin
+              .from("classes")
+              .select("teacher_id")
+              .eq("id", plan.class_id)
+              .maybeSingle()
+          : { data: null };
+        if (!klass || klass.teacher_id !== caller.id) {
+          return NextResponse.json(
+            { error: "You can only view lessons for your assigned class plan" },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     let query = admin
       .from("lessons")
       .select(
@@ -61,15 +93,13 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (lessonPlanId) {
-      query = query.or(
-        `lesson_plan_id.eq.${lessonPlanId},metadata->>lesson_plan_id.eq.${lessonPlanId}`
-      ) as any;
+      query = query.eq("lesson_plan_id", lessonPlanId) as any;
     }
     if (courseId) {
       query = query.eq("course_id", courseId) as any;
     }
 
-    if (caller.role === "teacher") {
+    if (caller.role === "teacher" && !lessonPlanId) {
       query = query.eq("created_by", caller.id) as any;
     } else if (caller.role === "school") {
       if (!caller.school_id) {
@@ -114,6 +144,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    if (!body.lesson_plan_id) {
+      return NextResponse.json(
+        {
+          error:
+            "Choose a class plan before creating a lesson. Lessons are prepared inside the class teaching flow.",
+          code: "CLASS_PLAN_REQUIRED",
+          action_href: "/dashboard/classes",
+        },
+        { status: 409 }
+      );
+    }
     const allowed = [
       "title",
       "description",
@@ -243,8 +284,14 @@ export async function POST(request: NextRequest) {
         ...(typeof body.metadata === "object" && body.metadata
           ? body.metadata
           : {}),
-        lesson_plan_id: plan.id,
       };
+    }
+    const guideInput = body.teaching_guide ?? body.lesson_plan;
+    if (guideInput && typeof guideInput === "object") {
+      payload.metadata = metadataWithLessonTeachingGuide(
+        payload.metadata,
+        guideInput
+      );
     }
     payload.school_id = resolvedSchoolId;
     if (typeof payload.lesson_type === "string") {
@@ -270,31 +317,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // If lesson_plan data is included, save it and return its id
-    let lesson_plan_id: string | null = null;
-    if (body.lesson_plan && data?.id) {
-      const plan = body.lesson_plan;
-      const { data: planRow } = await adminClient()
-        .from("lesson_plans")
-        .insert({
-          lesson_id: data.id,
-          course_id: body.course_id ?? null,
-          objectives: plan.objectives ?? null,
-          activities: plan.activities ?? null,
-          assessment_methods: plan.assessment_methods ?? null,
-          staff_notes: plan.staff_notes ?? null,
-          plan_data: plan.plan_data ?? null,
-          covers_full_course: plan.covers_full_course ?? false,
-        })
-        .select("id")
-        .single();
-      lesson_plan_id = planRow?.id ?? null;
-    }
-
-    return NextResponse.json(
-      { data: { ...data, lesson_plan_id } },
-      { status: 201 }
-    );
+    return NextResponse.json({ data }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Unexpected error" },

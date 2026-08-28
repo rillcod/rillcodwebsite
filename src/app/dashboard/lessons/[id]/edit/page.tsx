@@ -10,7 +10,7 @@ import {
     ArrowLeft, BookOpen, Check,
     Trash2, Plus, Paperclip,
     GraduationCap, Sparkles, Save,
-    Layout, FileText, Settings2, ChevronDown, Eye
+    Layout, Settings2, ChevronDown, Eye
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
@@ -46,7 +46,7 @@ export default function EditLessonPage() {
     const [selectedProgramId, setSelectedProgramId] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'settings' | 'content' | 'plan' | 'materials'>('settings');
+    const [activeTab, setActiveTab] = useState<'details' | 'content' | 'guide' | 'resources'>('details');
 
     // Lesson Form State
     const [form, setForm] = useState({
@@ -63,7 +63,8 @@ export default function EditLessonPage() {
         content_layout: [] as any[]
     });
 
-    // Plan State
+    // The teaching guide is part of this lesson. The parent class plan remains
+    // the single source of truth for course, class, week and release scope.
     const [plan, setPlan] = useState<any>({
         objectives: '',
         activities: '',
@@ -106,7 +107,7 @@ export default function EditLessonPage() {
             if (lessonApiRes.error) throw new Error(lessonApiRes.error);
             const l = lessonApiRes.data;
             setLesson(l);
-            const planRes = l?.lesson_plans?.[0] ?? null;
+            const planRes = l?.teaching_guide ?? null;
             setMaterials(materialsRes.data ?? []);
 
             // Handle courses with school context
@@ -165,8 +166,30 @@ export default function EditLessonPage() {
     }, [id, profile]);
 
     useEffect(() => {
-        if (!authLoading && profile) fetchData();
+        if (!authLoading && profile && profile.role !== 'school') fetchData();
     }, [authLoading, profile, fetchData]);
+
+    if (!authLoading && profile?.role === 'school') {
+        return (
+            <div className="min-h-screen bg-background px-4 py-10 mobile-page-root">
+                <section className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-6 text-center shadow-xl sm:p-10">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <BookOpen className="h-7 w-7" aria-hidden />
+                    </div>
+                    <h1 className="mt-5 text-2xl font-black text-foreground">Lesson preview only</h1>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                        School accounts can review the lesson here, but teachers and administrators make teaching changes so the class plan stays in control.
+                    </p>
+                    <Link
+                        href={`/dashboard/lessons/${id}`}
+                        className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90"
+                    >
+                        View lesson
+                    </Link>
+                </section>
+            </div>
+        );
+    }
 
     const handleAiGenerate = async () => {
         if (!form.title.trim()) { setAiError('Enter a lesson title first.'); return; }
@@ -275,7 +298,7 @@ export default function EditLessonPage() {
                     session_date: form.session_date ? new Date(form.session_date).toISOString() : null,
                     video_url: form.video_url,
                     content_layout: form.content_layout,
-                    lesson_plan: plan,
+                    teaching_guide: plan,
                     metadata: nextMetadata,
                 }),
             });
@@ -290,9 +313,10 @@ export default function EditLessonPage() {
                 const db = createClient();
                 const { data: existing } = await db.from('assignments').select('title').eq('lesson_id', id);
                 const existingTitles = new Set((existing ?? []).map((a: any) => a.title?.trim().toLowerCase()));
+                const assignmentErrors: string[] = [];
                 for (const block of assignmentBlocks) {
                     if (existingTitles.has(block.title.trim().toLowerCase())) continue;
-                    await fetch('/api/assignments', {
+                    const assignmentRes = await fetch('/api/assignments', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -300,11 +324,28 @@ export default function EditLessonPage() {
                             instructions: [block.instructions, block.deliverables?.length ? `\n\nDeliverables:\n${block.deliverables.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}` : ''].filter(Boolean).join(''),
                             course_id: form.course_id,
                             lesson_id: id,
+                            ...(lesson?.lesson_plan_id ? {
+                                lesson_plan_id: lesson.lesson_plan_id,
+                                class_id: lesson.class_id ?? undefined,
+                                curriculum_week_number: lesson.curriculum_week_number ?? undefined,
+                                session_number: lesson.session_number ?? undefined,
+                            } : {}),
                             assignment_type: 'project',
                             max_points: 100,
                             is_active: true,
                         }),
                     });
+                    if (!assignmentRes.ok) {
+                        const assignmentJson = await assignmentRes.json().catch(() => ({}));
+                        assignmentErrors.push(`${block.title}: ${assignmentJson.error || 'could not be created'}`);
+                    } else {
+                        // Avoid duplicate rows when two blocks share a title in
+                        // the same save operation.
+                        existingTitles.add(block.title.trim().toLowerCase());
+                    }
+                }
+                if (assignmentErrors.length > 0) {
+                    setError(`Lesson saved, but ${assignmentErrors.length} task${assignmentErrors.length === 1 ? '' : 's'} need attention: ${assignmentErrors.slice(0, 2).join(' · ')}`);
                 }
             }
 
@@ -360,7 +401,7 @@ export default function EditLessonPage() {
                             </div>
                         )}
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">{isMinimal ? 'Quick Edit' : 'Drafting Lesson'}</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">{isMinimal ? 'Quick edit' : 'Editing class lesson'}</p>
                             <h1 className="text-2xl font-black">{form.title || 'Lesson Title'}</h1>
                         </div>
                     </div>
@@ -395,36 +436,57 @@ export default function EditLessonPage() {
                     </div>
                 )}
 
+                {!isMinimal && lesson?.lesson_plan_id && (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Class plan context</p>
+                            <p className="mt-1 text-sm font-bold text-foreground">
+                                {lesson.class_plan?.term || 'Class plan'}
+                                {lesson.curriculum_week_number ? ` · Week ${lesson.curriculum_week_number}` : ''}
+                                {lesson.session_number ? ` · Session ${lesson.session_number}` : ''}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">Course and learner visibility are managed once from the class plan.</p>
+                        </div>
+                        <Link
+                            href={`/dashboard/lesson-plans/${lesson.lesson_plan_id}`}
+                            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-background px-4 text-xs font-bold text-primary hover:bg-primary/10"
+                        >
+                            Open class plan
+                        </Link>
+                    </div>
+                )}
+
                 {/* Unified Tabs — mobile strip + desktop bar */}
                 {!isMinimal && (
                     <MobileScrollStrip
                         label="Builder"
                         ariaLabel="Lesson builder sections"
                         items={[
-                            { id: 'settings', label: 'Settings', icon: Settings2, selected: activeTab === 'settings', onClick: () => setActiveTab('settings') },
-                            { id: 'content', label: 'Visual Builder', icon: Layout, selected: activeTab === 'content', onClick: () => setActiveTab('content') },
-                            { id: 'plan', label: 'Lesson Plan', icon: GraduationCap, selected: activeTab === 'plan', onClick: () => setActiveTab('plan') },
-                            { id: 'materials', label: 'Materials', icon: Paperclip, selected: activeTab === 'materials', onClick: () => setActiveTab('materials'), hint: materials.length ? String(materials.length) : undefined },
+                            { id: 'details', label: 'Lesson details', icon: Settings2, selected: activeTab === 'details', onClick: () => setActiveTab('details') },
+                            { id: 'content', label: 'Content canvas', icon: Layout, selected: activeTab === 'content', onClick: () => setActiveTab('content') },
+                            { id: 'guide', label: 'Teaching guide', icon: GraduationCap, selected: activeTab === 'guide', onClick: () => setActiveTab('guide') },
+                            { id: 'resources', label: 'Resources', icon: Paperclip, selected: activeTab === 'resources', onClick: () => setActiveTab('resources'), hint: materials.length ? String(materials.length) : undefined },
                         ]}
                     />
                 )}
                 <div className={`${isMinimal ? 'flex' : 'hidden md:flex'} items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-xl w-fit`}>
-                    <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
-                    <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Builder" />
-                    <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={GraduationCap} label="Lesson Plan" />
-                    <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={Paperclip} label="Materials" />
+                    <TabBtn active={activeTab === 'details'} onClick={() => setActiveTab('details')} icon={Settings2} label="Lesson details" />
+                    <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Content canvas" />
+                    <TabBtn active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={GraduationCap} label="Teaching guide" />
+                    <TabBtn active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={Paperclip} label="Resources" />
                 </div>
 
 
                 <div className="grid grid-cols-1 gap-8">
-                    {activeTab === 'settings' && (
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-8 space-y-6 animate-in fade-in duration-500">
+                    {activeTab === 'details' && (
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-4 sm:p-8 space-y-6 animate-in fade-in duration-500">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Field label="Lesson Title" value={form.title} onChange={v => setForm({ ...form, title: v })} />
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme</label>
                                     <div className="relative">
                                         <select value={selectedProgramId}
+                                            disabled={Boolean(lesson?.lesson_plan_id)}
                                             onChange={e => {
                                                 const pid = e.target.value;
                                                 setSelectedProgramId(pid);
@@ -433,7 +495,7 @@ export default function EditLessonPage() {
                                                     setForm(prev => ({ ...prev, course_id: '' }));
                                                 }
                                             }}
-                                            className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                                            className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
                                             <option value="">Select Programme</option>
                                             {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
@@ -449,7 +511,7 @@ export default function EditLessonPage() {
                                     <div className="relative">
                                         <select value={form.course_id}
                                             onChange={e => setForm({ ...form, course_id: e.target.value })}
-                                            disabled={!selectedProgramId}
+                                            disabled={!selectedProgramId || Boolean(lesson?.lesson_plan_id)}
                                             className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer disabled:opacity-40">
                                             <option value="">{selectedProgramId ? 'Select Course' : '— pick a programme first —'}</option>
                                             {(selectedProgramId ? courses.filter((c: any) => c.program_id === selectedProgramId) : courses)
@@ -466,7 +528,16 @@ export default function EditLessonPage() {
                                 <SelectField label="Type" value={form.lesson_type} options={['lesson', 'hands-on', 'video', 'interactive', 'workshop', 'coding', 'reading', 'quiz', 'article', 'project', 'lab', 'live', 'practice', 'robotics', 'electronics', 'ai']} onChange={v => setForm({ ...form, lesson_type: v })} />
                                 <Field label="Duration (min)" value={form.duration_minutes} type="number" onChange={v => setForm({ ...form, duration_minutes: v })} />
                                 <Field label="Sequence Number" value={form.order_index} type="number" onChange={v => setForm({ ...form, order_index: v })} />
-                                <SelectField label="Status" value={form.status} options={['draft', 'scheduled', 'active', 'completed']} onChange={v => setForm({ ...form, status: v })} />
+                                {lesson?.lesson_plan_id ? (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Learner visibility</p>
+                                        <div className="min-h-[46px] rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm font-semibold text-foreground">
+                                            Controlled by class plan release
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <SelectField label="Historical status" value={form.status} options={['draft', 'scheduled', 'active', 'completed']} onChange={v => setForm({ ...form, status: v })} />
+                                )}
                             </div>
 
                             <Field label="Brief Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
@@ -476,9 +547,9 @@ export default function EditLessonPage() {
                                 <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 border-b border-primary/10">
                                     <div className="flex items-center gap-3">
                                         <SparklesIcon className="w-5 h-5 text-primary shrink-0" />
-                                        <span className="text-xs font-black text-foreground uppercase tracking-widest">AI Lesson Engine</span>
+                                        <span className="text-xs font-black text-foreground uppercase tracking-widest">AI lesson assistant</span>
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground sm:ml-1">Regenerate content from current title</span>
+                                    <span className="text-[10px] text-muted-foreground sm:ml-1">Draft from the current lesson details. Review before saving.</span>
                                 </div>
                                 <div className="p-5 space-y-4">
                                     {lastModel && (
@@ -518,7 +589,7 @@ export default function EditLessonPage() {
                                     <div className="flex flex-col sm:flex-row gap-3">
                                         <button onClick={handleAiGenerate} disabled={aiGenerating}
                                             className={`${MOBILE_TOUCH_BTN} flex-1 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all`}>
-                                            {aiGenerating ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Building...</> : <><SparklesIcon className="w-3.5 h-3.5" /> Full Rebuild</>}
+                                            {aiGenerating ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Building...</> : <><SparklesIcon className="w-3.5 h-3.5" /> Draft lesson content</>}
                                         </button>
                                         <button onClick={handleGenerateNotesOnly} disabled={aiGenerating}
                                             className={`${MOBILE_TOUCH_BTN} flex-1 bg-card border border-border hover:border-primary/40 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all`}>
@@ -548,12 +619,15 @@ export default function EditLessonPage() {
                         </div>
                     )}
 
-                    {activeTab === 'plan' && (
-                        <div className="bg-card shadow-sm border border-border rounded-xl p-8 space-y-8 animate-in fade-in duration-500">
+                    {activeTab === 'guide' && (
+                        <div className="bg-card shadow-sm border border-border rounded-xl p-4 sm:p-8 space-y-8 animate-in fade-in duration-500">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <Sparkles className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                                    <h2 className="text-xl font-black uppercase tracking-tight">Structured Lesson Plan</h2>
+                                    <div>
+                                        <h2 className="text-xl font-black tracking-tight">Teaching guide</h2>
+                                        <p className="mt-1 text-xs text-muted-foreground">The practical detail for this lesson, kept inside its parent class plan.</p>
+                                    </div>
                                 </div>
                                 <button
                                     onClick={handleAiGenerate}
@@ -565,17 +639,17 @@ export default function EditLessonPage() {
                                     ) : (
                                         <SparklesIcon className="w-3 h-3" />
                                     )}
-                                    {aiGenerating ? 'GENERATING...' : 'SYNC WITH AI'}
+                                    {aiGenerating ? 'GENERATING...' : 'Draft with AI'}
                                 </button>
                             </div>
 
                             {plan.plan_data && Object.keys(plan.plan_data).length > 0 && (
                                 <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-xl space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">Active Structured Data Detected</p>
-                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
+                                        <p className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">Imported lesson outline</p>
+                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 uppercase font-black">Remove imported outline</button>
                                     </div>
-                                    <p className="text-xs text-muted-foreground">This lesson is linked to a full course plan ({plan.plan_data.course_title}). The curriculum timeline will be rendered in the lesson viewer.</p>
+                                    <p className="text-xs text-muted-foreground">This outline came from {plan.plan_data.course_title || 'the curriculum'}. Your edits remain attached to this lesson.</p>
                                 </div>
                             )}
 
@@ -588,10 +662,10 @@ export default function EditLessonPage() {
                         </div>
                     )}
 
-                    {activeTab === 'materials' && (
+                    {activeTab === 'resources' && (
                         <div className="space-y-6 animate-in fade-in duration-500">
                             <div className="bg-card shadow-sm border border-border rounded-xl p-8">
-                                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-6">Add New Resource</h3>
+                                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-6">Add resource</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <input type="text" placeholder="Title (e.g. Starter Code)" value={newMaterial.title} onChange={e => setNewMaterial({ ...newMaterial, title: e.target.value })}
                                         className="bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />

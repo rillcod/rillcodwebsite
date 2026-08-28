@@ -1888,7 +1888,7 @@ function SettingsPageContent({
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
                               This controls the default term used by class
-                              placement, attendance sessions, lesson plans, and
+                              placement, attendance sessions, class plans, and
                               reports.
                             </p>
                           </div>
@@ -2103,7 +2103,7 @@ function SettingsPageContent({
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
                               Moves a curriculum release, its school adoptions,
-                              the classes on that term, their teaching plans and
+                              the classes on that term, their class plans and
                               everything generated from those plans to a
                               different session. Progress reports, attendance and
                               class sessions are never moved — they are the
@@ -2158,7 +2158,7 @@ function SettingsPageContent({
                                   [
                                     ["School adoptions", "adoptions"],
                                     ["Classes", "classes"],
-                                    ["Teaching plans", "lesson_plans"],
+                                    ["Class plans", "lesson_plans"],
                                     ["Generated lessons", "lessons"],
                                     ["Flashcard decks", "flashcard_decks"],
                                     ["Assignments", "assignments"],
@@ -2200,7 +2200,7 @@ function SettingsPageContent({
                                     rollPreview.summary
                                       .plans_awaiting_live_edition
                                   }{" "}
-                                  teaching plan(s) cannot move — their curriculum
+                                  class plan(s) cannot move — their curriculum
                                   edition has been retired. Publish a live
                                   edition for that course, then run this again.
                                 </p>

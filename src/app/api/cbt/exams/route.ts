@@ -254,7 +254,6 @@ export async function POST(request: NextRequest) {
     if (examType) baseMeta.exam_type = examType;
     baseMeta.assessment_scope = assessmentScope;
     baseMeta.result_eligible = assessmentScope === 'class_result';
-    if (canonicalPlanId) baseMeta.lesson_plan_id = canonicalPlanId;
     if (examFields.lesson_id) baseMeta.lesson_id = examFields.lesson_id;
     if (examFields.curriculum_week_number) baseMeta.week = examFields.curriculum_week_number;
     if (examFields.class_id) {

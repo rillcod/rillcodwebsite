@@ -309,29 +309,25 @@ export async function inspectTeachingOrphans(
     // Fall through to client-side scan
   }
 
-  // Fallback: metadata-orphaned lessons / assignments only
+  // Fallback: detect rows whose canonical foreign key points at a removed plan.
   const { data: plans } = await admin.from("lesson_plans").select("id");
   const planIds = new Set((plans ?? []).map((p: { id: string }) => p.id));
 
   const { data: lessons } = await admin
     .from("lessons")
-    .select("id, title, metadata, lesson_plan_id")
+    .select("id, title, lesson_plan_id")
     .limit(2000);
-  const orphan_lessons = (lessons ?? []).filter((l: any) => {
-    if (l.lesson_plan_id && !planIds.has(l.lesson_plan_id)) return true;
-    const meta = l.metadata?.lesson_plan_id;
-    return meta && !planIds.has(meta);
-  });
+  const orphan_lessons = (lessons ?? []).filter((l: any) =>
+    l.lesson_plan_id && !planIds.has(l.lesson_plan_id)
+  );
 
   const { data: assignments } = await admin
     .from("assignments")
-    .select("id, title, metadata, lesson_plan_id")
+    .select("id, title, lesson_plan_id")
     .limit(2000);
-  const orphan_assignments = (assignments ?? []).filter((a: any) => {
-    if (a.lesson_plan_id && !planIds.has(a.lesson_plan_id)) return true;
-    const meta = a.metadata?.lesson_plan_id;
-    return meta && !planIds.has(meta);
-  });
+  const orphan_assignments = (assignments ?? []).filter((a: any) =>
+    a.lesson_plan_id && !planIds.has(a.lesson_plan_id)
+  );
 
   const { data: decks } = await admin
     .from("flashcard_decks")

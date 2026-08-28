@@ -38,14 +38,13 @@ function canCreateLessonPlan(role: string | undefined) {
   return role === "admin" || role === "teacher";
 }
 
-// GET /api/lesson-plans — list lesson plans for a lesson or all accessible ones
+// GET /api/lesson-plans — list class teaching plans
 export async function GET(request: Request) {
   const user = await getUser();
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const lessonId = searchParams.get("lesson_id");
   const courseId = searchParams.get("course_id");
   const curriculumVersionId = searchParams.get("curriculum_version_id");
   const classId = searchParams.get("class_id");
@@ -55,10 +54,8 @@ export async function GET(request: Request) {
 
   const db = createAdminClient();
 
-  // Two foreign keys join lesson_plans and lessons — lesson_plans.lesson_id
-  // and lessons.lesson_plan_id — so the embed must name one or PostgREST
-  // rejects the whole query. It had been failing with 500 for every
-  // teaching-plan list. These are the lessons belonging to the plan.
+  // One direction only: a class plan owns many lessons through
+  // lessons.lesson_plan_id. lesson_plans is never a per-lesson detail row.
   let query = db
     .from("lesson_plans")
     .select(
@@ -67,17 +64,11 @@ export async function GET(request: Request) {
     created_by,
     courses(id, title, program_id),
     classes!lesson_plans_class_id_fkey(id, name, teacher_id),
-    schools!lesson_plans_school_id_fkey(id, name),
-    lessons!lessons_lesson_plan_id_fkey(id, title, course_id, school_id, created_by,
-      courses(id, title, program_id)
-    )
+    schools!lesson_plans_school_id_fkey(id, name)
   `
     )
     .order("created_at", { ascending: false });
 
-  if (lessonId) {
-    query = query.eq("lesson_id", lessonId);
-  }
   if (courseId) {
     query = query.eq("course_id", courseId);
   }
@@ -108,9 +99,9 @@ export async function GET(request: Request) {
       return canAccessLessonScope(
         { id: user.id, role: user.role, school_id: user.school_id },
         {
-          school_id: p?.lessons?.school_id ?? p?.school_id ?? null,
-          // Prefer the plan's own created_by for term-level plans (no lesson_id).
-          created_by: p?.created_by ?? p?.lessons?.created_by ?? null,
+          school_id: p?.school_id ?? null,
+          // The class plan owns its access scope.
+          created_by: p?.created_by ?? null,
           class_id: p?.class_id ?? null,
           class_teacher_id: klass?.teacher_id ?? null,
         },
@@ -213,7 +204,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ data: plans });
 }
 
-// POST /api/lesson-plans — create a term-level lesson plan (or legacy per-lesson upsert)
+// POST /api/lesson-plans — create one class teaching plan
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user || !canCreateLessonPlan(user.role)) {
@@ -222,20 +213,10 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
-    // Legacy per-lesson fields
-    lesson_id,
-    objectives,
-    activities,
-    assessment_methods,
-    staff_notes,
-    summary_notes,
-    // New term-level fields (Req 15)
     plan_data,
     status,
     version,
     curriculum_version_id,
-    term_start,
-    term_end,
     sessions_per_week,
     school_id,
     course_id,
@@ -246,8 +227,9 @@ export async function POST(request: Request) {
 
   const db = createAdminClient();
 
-  // ── Term-level plan (new flow) ──────────────────────────────────────────
-  if (course_id || (!lesson_id && (term_start || term_end))) {
+  // A class plan is the only plan identity. Detailed objectives, activities
+  // and teacher notes live on each child lesson as its teaching guide.
+  {
     let targetSchoolId = school_id || user.school_id || null;
 
     if (!course_id) {
@@ -575,63 +557,4 @@ export async function POST(request: Request) {
       );
     return NextResponse.json({ data }, { status: 201 });
   }
-
-  // ── Legacy per-lesson upsert ────────────────────────────────────────────
-  if (!lesson_id)
-    return NextResponse.json(
-      { error: "lesson_id or course_id required" },
-      { status: 400 }
-    );
-
-  const { data: lesson, error: lessonErr } = await db
-    .from("lessons")
-    .select("id, school_id, class_id, created_by")
-    .eq("id", lesson_id)
-    .maybeSingle();
-  if (lessonErr || !lesson)
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
-
-  if (user.role === "teacher") {
-    const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
-    const { data: lessonClass } = lesson.class_id
-      ? await db
-          .from("classes")
-          .select("teacher_id")
-          .eq("id", lesson.class_id)
-          .maybeSingle()
-      : { data: null };
-    const allowed = canAccessLessonScope(
-      { id: user.id, role: user.role, school_id: user.school_id },
-      {
-        school_id: lesson.school_id ?? null,
-        created_by: lesson.created_by ?? null,
-        class_id: lesson.class_id ?? null,
-        class_teacher_id: lessonClass?.teacher_id ?? null,
-      },
-      teacherSchoolIds
-    );
-    if (!allowed)
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const { data, error } = await db
-    .from("lesson_plans")
-    .upsert(
-      {
-        lesson_id,
-        objectives: objectives || null,
-        activities: activities || null,
-        assessment_methods: assessment_methods || null,
-        staff_notes: staff_notes || null,
-        summary_notes: summary_notes || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "lesson_id" }
-    )
-    .select()
-    .single();
-
-  if (error)
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data }, { status: 201 });
 }

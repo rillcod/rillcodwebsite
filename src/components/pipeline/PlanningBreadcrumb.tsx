@@ -4,7 +4,7 @@
  * PlanningBreadcrumb
  * ──────────────────
  * A compact, mobile-responsive trio-nav that appears at the top of each of the
- * three connected teaching pages (Curriculum Builder, Teaching Plans, Curriculum Coverage).
+ * three connected teaching pages (Curriculum, Class Plans, Delivery Progress).
  *
  * It shows:
  *   • A coloured pill for the current page (active)
@@ -47,8 +47,8 @@ const PAGES: Record<
     border: "border-primary/30",
   },
   "lesson-plans": {
-    label: "Teaching Plans",
-    short: "Plans",
+    label: "Class Plans",
+    short: "Plan",
     href: "/dashboard/lesson-plans",
     icon: DocumentTextIcon,
     color: "text-violet-600 dark:text-violet-400",

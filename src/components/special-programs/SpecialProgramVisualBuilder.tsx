@@ -394,7 +394,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       return;
     }
     if (form.is_published && !form.school_id) {
-      toast.error('Choose a school before publishing — teaching plans sit on that school');
+      toast.error('Choose a school before publishing — class plans sit on that school');
       setSelection('basics');
       return;
     }
@@ -987,7 +987,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                 <label className={labelCls}>
                   School (required for teaching)
                   <span className="block font-normal text-muted-foreground normal-case tracking-normal mt-0.5">
-                    Where teaching plans and the cohort class sit.
+                    Where class plans and the cohort class sit.
                   </span>
                   <select
                     value={form.school_id}
@@ -1160,7 +1160,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                       onClick={() => {
                         if (
                           !confirm(
-                            'Start again from this page write-up? Old teaching plans for this programme will be put aside, and new ones will be prepared for review.',
+                            'Start again from this page write-up? Old class plans for this programme will be put aside, and new ones will be prepared for review.',
                           )
                         ) {
                           return;

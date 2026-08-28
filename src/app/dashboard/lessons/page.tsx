@@ -5,14 +5,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
-  TrashIcon, ClockIcon, UserGroupIcon, CheckCircleIcon,
+  TrashIcon, ClockIcon, CheckCircleIcon,
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
-  SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
-  ChevronRightIcon, CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
-  AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon, ArrowRightIcon
+  SparklesIcon, BuildingOfficeIcon,
+  CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
+  AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon
 } from '@/lib/icons';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
@@ -88,65 +87,21 @@ export default function LessonsPage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
+    if (!lessonPlanId) {
+      setLessons([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    const scopedLessonPlanId = lessonPlanId;
     let cancelled = false;
     async function load() {
       setLoading(true); setError(null);
       try {
-        let result: any[];
-        if (profile!.role === 'student') {
-          const supabase = createClient();
-          const { data: enr } = await supabase.from('enrollments').select('program_id').eq('user_id', profile!.id);
-          const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean); // Filter out null values
-
-          if (!programIds.length) {
-            // No enrollments or all enrollments have null program_id
-            // Show empty state but don't block - they might have direct course access
-            if (!cancelled) setLessons([]);
-            setLoading(false);
-            return;
-          }
-
-          const { data: courseData } = await supabase.from('courses').select('id').in('program_id', programIds);
-          let courseIds = (courseData ?? []).map((c: any) => c.id);
-
-          // If the student has a class_id, check if the class has a course focus lock
-          let currentCourseId: string | null = null;
-          if (profile?.class_id) {
-            const { data: clsData } = await supabase
-              .from('classes')
-              .select('current_course_id')
-              .eq('id', profile.class_id)
-              .maybeSingle();
-            if (clsData?.current_course_id) {
-              currentCourseId = clsData.current_course_id;
-            }
-          }
-
-          if (currentCourseId) {
-            courseIds = courseIds.filter((id: any) => id === currentCourseId);
-          }
-
-          if (!courseIds.length) {
-            // No courses found for enrolled programs or current course lock
-            if (!cancelled) setLessons([]);
-            setLoading(false);
-            return;
-          }
-
-          const { data, error: err } = await supabase.from('lessons')
-            .select('id, title, description, lesson_type, status, duration_minutes, session_date, video_url, created_by, created_at, courses(id, title, programs(name))')
-            .in('course_id', courseIds)
-            .in('status', ['active', 'published', 'scheduled', 'completed'])
-            .order('created_at', { ascending: false });
-          if (err) throw err;
-          result = data ?? [];
-        } else {
-          const qs = lessonPlanId ? `?lesson_plan_id=${lessonPlanId}` : '';
-          const res = await fetch(`/api/lessons${qs}`, { cache: 'no-store' });
-          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load lessons'); }
-          const json = await res.json();
-          result = json.data ?? [];
-        }
+        const res = await fetch(`/api/lessons?lesson_plan_id=${encodeURIComponent(scopedLessonPlanId)}`, { cache: 'no-store' });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load lessons'); }
+        const json = await res.json();
+        const result = json.data ?? [];
         if (!cancelled) setLessons(result);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load lessons');
@@ -188,6 +143,37 @@ export default function LessonsPage() {
     </div>
   );
 
+  if (!lessonPlanId) {
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-4xl items-center px-4 py-10 mobile-page-root">
+        <section className="w-full overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+          <div className="border-b border-border bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-6 sm:p-10">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+              <BookOpenIcon className="h-7 w-7" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Connected academic workspace</p>
+            <h1 className="mt-2 text-2xl font-black text-foreground sm:text-4xl">Lessons live inside a class plan</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Open a class and its class plan to prepare lessons, resources, assignments and learner release in one place. This prevents separate lesson lists from drifting apart.
+            </p>
+          </div>
+          <div className="grid gap-3 p-6 sm:grid-cols-4 sm:p-10">
+            {['Class', 'Class plan', 'Week & session', 'Lesson delivery'].map((label, index) => (
+              <div key={label} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{index + 1}</span>
+                <span className="text-sm font-bold text-foreground">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3 border-t border-border p-6 sm:flex-row sm:justify-end sm:p-8">
+            <Link href="/dashboard/lesson-plans" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border px-5 text-sm font-bold text-foreground hover:bg-muted">View class plans</Link>
+            <Link href="/dashboard/classes" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90">Open classes</Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className={`space-y-8 ${MOBILE_PAGE_BOTTOM}`}>
 
@@ -197,9 +183,9 @@ export default function LessonsPage() {
       )}
 
       <MobilePageHero
-        badge="Teaching · Lessons"
-        title="Course lessons"
-        description="Manage and track lesson content across courses."
+        badge="Class plan · Lessons"
+        title="Plan lessons"
+        description="Prepare and review the lessons that belong to this class plan."
         icon={BookOpenIcon}
         stats={[
           { label: 'Total', value: lessons.length },
@@ -209,11 +195,11 @@ export default function LessonsPage() {
         actions={
           isStaff ? (
             <Link
-              href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
+              href={`/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}`}
               className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
             >
               <PlusIcon className="w-4 h-4" /> Add lesson
-              {lessonPlanId && <span className="text-[10px] opacity-70 uppercase tracking-widest">· for plan</span>}
+              <span className="text-[10px] opacity-70 uppercase tracking-widest">· in plan</span>
             </Link>
           ) : undefined
         }
@@ -250,9 +236,9 @@ export default function LessonsPage() {
       {lessonPlanId && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary text-sm font-bold">
           <SparklesIcon className="w-4 h-4 shrink-0" />
-          <span>Showing lessons from lesson plan</span>
-          <Link href="/dashboard/lessons" className="ml-auto text-xs underline hover:text-violet-700 dark:hover:text-violet-300 transition-colors">
-            Show all lessons
+          <span>Showing lessons from this class plan</span>
+          <Link href={`/dashboard/lesson-plans/${lessonPlanId}`} className="ml-auto text-xs underline hover:text-violet-700 dark:hover:text-violet-300 transition-colors">
+            Back to plan
           </Link>
         </div>
       )}
@@ -337,7 +323,7 @@ export default function LessonsPage() {
           </p>
           {isStaff && !search && filterStatus === 'all' && (
             <Link
-              href={lessonPlanId ? `/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}` : '/dashboard/lessons/add'}
+              href={`/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}`}
               className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add Lesson
@@ -439,52 +425,6 @@ export default function LessonsPage() {
             );
           })}
         </div>
-      )}
-
-      {/* Quick Actions */}
-      {isStaff && (
-        <div className="bg-card shadow-sm border border-border rounded-xl p-6">
-          <h2 className="text-sm font-bold text-foreground mb-4">Teaching Tools</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { label: 'Add Lesson', desc: 'Create lesson content', icon: BookOpenIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/lessons/add' },
-              { label: 'Assignments', desc: 'Tasks & assessments', icon: DocumentTextIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/assignments/new' },
-              { label: 'CBT Exams', desc: 'Online examinations', icon: AcademicCapIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/cbt' },
-              { label: 'Classes', desc: 'Manage class groups', icon: UserGroupIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/classes' },
-            ].map(a => (
-              <Link
-                key={a.label}
-                href={a.href}
-                className="flex items-center gap-3 p-3 border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors rounded-xl group"
-              >
-                <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
-                  <a.icon className={`w-4 h-4 ${a.color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{a.label}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* AI Lesson Plan Generator — quick shortcut */}
-      {isStaff && (
-        <Link
-          href="/dashboard/academic/build"
-          className="flex items-center gap-4 p-5 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl shadow-xl transition-all hover:border-primary/30 hover:shadow-2xl group"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0 group-hover:scale-105 transition-transform">
-            <SparklesIcon className="w-6 h-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-foreground">Need a lesson plan?</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Open the Curriculum Builder to generate full AI-powered lesson plans, week-by-week syllabi, and assessments.</p>
-          </div>
-          <ArrowRightIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
-        </Link>
       )}
 
     </div>

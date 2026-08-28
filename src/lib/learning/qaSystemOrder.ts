@@ -228,7 +228,7 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     apiRoutes: ["/api/lesson-plans", "/api/lessons"],
     appPaths: [
       { label: "Lesson plans", path: "/dashboard/lesson-plans" },
-      { label: "Add lesson", path: "/dashboard/lessons/add" },
+      { label: "Open a class plan", path: "/dashboard/classes" },
     ],
   },
   {

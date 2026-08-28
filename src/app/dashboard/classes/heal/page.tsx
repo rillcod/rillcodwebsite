@@ -1914,7 +1914,7 @@ function ClassHealPageInner() {
         {/* ── Orphan classes ────────────────────────────────────── */}
         {(data?.orphanClasses.length ?? 0) > 0 && (
           <Section title="Empty Classes" count={data!.orphanClasses.length}
-            description="Classes with no students, teaching plans, assignments, exams, or reports. The same evidence-safe delete as class cleanup.">
+            description="Classes with no students, class plans, assignments, exams, or reports. The same evidence-safe delete as class cleanup.">
             <div className="space-y-2">
               {data!.orphanClasses.map(c => (
                 <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-muted/40 rounded-xl border border-border">

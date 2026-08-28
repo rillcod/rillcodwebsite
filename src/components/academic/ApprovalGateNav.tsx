@@ -29,7 +29,7 @@ export function ApprovalGateNav({
   return (
     <nav aria-label="Approval queues" className="flex flex-wrap gap-2">
       {item("/dashboard/teaching/approvals", "weeks", "Week drafts")}
-      {item("/dashboard/lesson-plans/approvals", "plans", "Teaching plans")}
+      {item("/dashboard/lesson-plans/approvals", "plans", "Class plans")}
     </nav>
   );
 }

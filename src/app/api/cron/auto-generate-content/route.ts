@@ -265,11 +265,11 @@ async function handleRequest(req: NextRequest) {
         db
           .from('lessons')
           .select('id,title,status,curriculum_week_number,session_number,metadata,content,content_layout,description,lesson_notes')
-          .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`),
+          .eq('lesson_plan_id', plan.id),
         db
           .from('assignments')
           .select('id,title,is_active,assignment_type,curriculum_week_number,session_number,metadata')
-          .or(`lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`),
+          .eq('lesson_plan_id', plan.id),
         db
           .from('lesson_materials')
           .select('id,title,lesson_id,curriculum_week_number,session_number,content_stale_at')

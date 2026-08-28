@@ -115,7 +115,7 @@ export default function EditAssignmentPage() {
                 setSelectedClassId(a.class_id ?? '');
                 setAssignmentSchoolId(a.school_id ?? '');
                 setAssignmentMetadata(metadata);
-                setLessonPlanId(a.lesson_plan_id ?? (typeof metadata.lesson_plan_id === 'string' ? metadata.lesson_plan_id : ''));
+                setLessonPlanId(a.lesson_plan_id ?? '');
                 setAssessmentScope(metadata.assessment_scope === 'practice' || metadata.result_eligible === false
                     ? 'practice'
                     : 'class_result');

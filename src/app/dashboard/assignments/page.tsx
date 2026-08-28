@@ -215,7 +215,7 @@ function AssignmentsPageInner() {
           let rawData = (json.data ?? []).map(toStudentAssignmentItem);
           if (filterPlanId) {
             rawData = rawData.filter((a: any) => {
-              const planId = a.assignments?.metadata?.lesson_plan_id || a.metadata?.lesson_plan_id;
+              const planId = a.assignments?.lesson_plan_id || a.lesson_plan_id;
               return planId === filterPlanId;
             });
           }
@@ -577,14 +577,14 @@ function AssignmentsPageInner() {
             <option value="discussion">Discussion</option>
           </select>
 
-          {/* Lesson Plan filter (staff only) */}
+          {/* Class plan filter (staff only) */}
           {isStaff && lessonPlans.length > 0 && (
             <select
               value={filterPlanId}
               onChange={(e) => setFilterPlanId(e.target.value)}
               className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-colors max-w-xs"
             >
-              <option value="">All Lesson Plans</option>
+              <option value="">All Class Plans</option>
               {lessonPlans.map((p) => {
                 const courseName = p.courses?.title || 'Course';
                 const className = p.classes?.name || 'Class';
@@ -601,7 +601,7 @@ function AssignmentsPageInner() {
 
         {filterPlanId && (
           <div className="flex items-center gap-2 bg-primary/15 border border-primary/20 px-3 py-1.5 w-fit text-[10px] font-black uppercase tracking-widest text-primary">
-            <span>Filtered by Lesson Plan</span>
+            <span>Filtered by Class Plan</span>
             <button
               onClick={() => setFilterPlanId('')}
               className="hover:text-foreground text-primary/70 transition-colors ml-1 font-black text-sm"

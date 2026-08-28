@@ -9,8 +9,8 @@
  *
  * Written because the sweep only ever looked at lessons and assignments. Slides
  * and flashcard decks have no `metadata` column at all, so the sweep's
- * `metadata->>lesson_plan_id` rule could not see them even in principle — two of
- * the five assets were structurally invisible to it.
+ * The lesson_plan_id foreign key is now the only identity. Metadata may hold
+ * authoring details, but it must never decide which class receives content.
  */
 import {
   WEEK_PACKAGE_ASSETS,
@@ -46,20 +46,11 @@ export type PlanLinkedRow = {
   metadata?: Record<string, unknown> | null;
 };
 
-/**
- * The plan a row belongs to, preferring the real column over the metadata copy.
- *
- * Rows carry the link in a `lesson_plan_id` column; older rows only wrote it
- * into `metadata`. Reading metadata alone missed every row written by the
- * current flow, and reading the column alone would miss the legacy ones.
- */
+/** The canonical plan link. Metadata is deliberately not an identity fallback. */
 export function planIdOf(row: PlanLinkedRow | null | undefined): string | null {
   if (!row) return null;
   const column = typeof row.lesson_plan_id === "string" ? row.lesson_plan_id.trim() : "";
-  if (column) return column;
-  const fromMetadata = row.metadata?.lesson_plan_id;
-  if (typeof fromMetadata === "string" && fromMetadata.trim()) return fromMetadata.trim();
-  return null;
+  return column || null;
 }
 
 /**

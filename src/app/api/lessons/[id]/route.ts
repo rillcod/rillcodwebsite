@@ -7,6 +7,10 @@ import {
   mayHardDeleteRebuildableContent,
   STRICT_CLEANUP_MESSAGE,
 } from '@/lib/operations/cleanup-policy';
+import {
+  lessonTeachingGuideFromMetadata,
+  metadataWithLessonTeachingGuide,
+} from '@/lib/lessons/teaching-guide';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +40,7 @@ async function callerCanManageLesson(
   caller: Caller,
   lessonSchoolId: string | null,
   lessonCreatedBy: string | null,
+  lessonClassId?: string | null,
 ): Promise<boolean> {
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') {
@@ -43,6 +48,16 @@ async function callerCanManageLesson(
   }
   if (caller.role === 'teacher') {
     if (lessonCreatedBy === caller.id) return true;
+    // A class teacher may maintain shared/AI-created lessons in their class.
+    // Ownership of the row is not the teaching assignment boundary.
+    if (lessonClassId) {
+      const { data: klass } = await adminClient()
+        .from('classes')
+        .select('teacher_id')
+        .eq('id', lessonClassId)
+        .maybeSingle();
+      return klass?.teacher_id === caller.id;
+    }
     return false;
   }
   return false;
@@ -60,19 +75,24 @@ export async function GET(
     const { id } = await context.params;
     const { data, error } = await adminClient()
       .from('lessons')
-      .select('*, courses ( id, title, programs ( name ) ), lesson_plans!lessons_lesson_plan_id_fkey (*)')
+      .select('*, courses ( id, title, programs ( name ) ), class_plan:lesson_plans!lessons_lesson_plan_id_fkey (*)')
       .eq('id', id)
       .maybeSingle();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
 
-    const canManage = await callerCanManageLesson(caller, data.school_id, data.created_by);
+    const canManage = await callerCanManageLesson(caller, data.school_id, data.created_by, data.class_id);
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({
+      data: {
+        ...data,
+        teaching_guide: lessonTeachingGuideFromMetadata(data.metadata),
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
@@ -90,10 +110,14 @@ export async function PATCH(
 
     const { id } = await context.params;
     const admin = adminClient();
-    const { data: existing } = await admin.from('lessons').select('school_id, created_by').eq('id', id).maybeSingle();
+    const { data: existing } = await admin
+      .from('lessons')
+      .select('school_id, created_by, metadata, lesson_plan_id, class_id, course_id')
+      .eq('id', id)
+      .maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
 
-    const canManage = await callerCanManageLesson(caller, existing.school_id, existing.created_by);
+    const canManage = await callerCanManageLesson(caller, existing.school_id, existing.created_by, existing.class_id);
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
     }
@@ -102,7 +126,22 @@ export async function PATCH(
 
     // Verify course_id if updated
     let nextCourseSchoolId: string | null | undefined;
-    if (body.course_id) {
+    if (
+      body.course_id &&
+      existing.lesson_plan_id &&
+      body.course_id !== existing.course_id
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'This lesson belongs to a class plan. Change the course from the class workflow instead of moving one lesson out of its plan.',
+          code: 'CLASS_PLAN_SCOPE_LOCKED',
+        },
+        { status: 409 },
+      );
+    }
+
+    if (body.course_id && !existing.lesson_plan_id) {
       const { data: course } = await admin
         .from('courses')
         .select('school_id')
@@ -125,24 +164,36 @@ export async function PATCH(
     }
 
     const allowed: Record<string, unknown> = {};
-    const allowedFields = ['title', 'description', 'content', 'lesson_notes', 'lesson_type', 'status',
-      'duration_minutes', 'order_index', 'video_url', 'session_date', 'content_layout', 'course_id', 'metadata'];
+    const allowedFields = ['title', 'description', 'content', 'lesson_notes', 'lesson_type',
+      'duration_minutes', 'order_index', 'video_url', 'session_date', 'content_layout'];
     for (const f of allowedFields) {
       if (f in body) allowed[f] = body[f] ?? null;
+    }
+    if ('metadata' in body) allowed.metadata = body.metadata ?? {};
+    // A class lesson becomes visible only through the shared week release.
+    // Standalone historical rows may still retain their old status editor.
+    if ('status' in body && !existing.lesson_plan_id) {
+      allowed.status = body.status ?? 'draft';
+    }
+    if (body.course_id && !existing.lesson_plan_id) {
+      allowed.course_id = body.course_id;
+    }
+
+    // Compatibility: older editor builds called this `lesson_plan`. It is now
+    // folded into the lesson's own teaching guide instead of creating a second,
+    // reverse-linked row in the class-plan table.
+    const guideInput = body.teaching_guide ?? body.lesson_plan;
+    if (guideInput && typeof guideInput === 'object') {
+      allowed.metadata = metadataWithLessonTeachingGuide(
+        allowed.metadata ?? existing.metadata,
+        guideInput,
+      );
     }
     if (nextCourseSchoolId !== undefined) allowed.school_id = nextCourseSchoolId;
     allowed.updated_at = new Date().toISOString();
 
     const { error } = await admin.from('lessons').update(allowed).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-    // Optionally upsert lesson_plan if included in body
-    if (body.lesson_plan && typeof body.lesson_plan === 'object') {
-      await admin.from('lesson_plans').upsert(
-        { ...body.lesson_plan, lesson_id: id, updated_at: new Date().toISOString() },
-        { onConflict: 'lesson_id' },
-      );
-    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
@@ -168,10 +219,19 @@ export async function DELETE(
     const { id } = await context.params;
     const admin = adminClient();
 
-    const { data: existing } = await admin.from('lessons').select('school_id, created_by').eq('id', id).maybeSingle();
+    const { data: existing } = await admin
+      .from('lessons')
+      .select('school_id, created_by, class_id, lesson_plan_id')
+      .eq('id', id)
+      .maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
 
-    const canManage = await callerCanManageLesson(caller, existing.school_id, existing.created_by);
+    const canManage = await callerCanManageLesson(
+      caller,
+      existing.school_id,
+      existing.created_by,
+      existing.class_id,
+    );
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
     }

@@ -91,7 +91,7 @@ export default function SlidesCatalogPage() {
           <p className="text-sm font-bold text-foreground">No learning slides yet</p>
           <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground mobile-page-root">
             {['teacher', 'admin', 'school'].includes(profile?.role ?? '')
-              ? 'Open a class, choose its teaching plan and add slides to a lesson. They will appear here automatically.'
+              ? 'Open a class, choose its class plan and add slides to a lesson. They will appear here automatically.'
               : 'Slides shared through your lessons will appear here automatically.'}
           </p>
           {['teacher', 'admin', 'school'].includes(profile?.role ?? '') && (

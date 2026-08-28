@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Publish teaching plans in bulk.
+ * Publish class plans in bulk.
  *
  * A plan is created as a draft on purpose — draft → published → archived is the
  * Academic Office's gate, and it should stay one. But the only way to pass that
@@ -139,7 +139,7 @@ export default function PlanApprovalsPage() {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-6 text-sm text-muted-foreground">
-          Only an administrator or teacher can publish teaching plans.
+          Only an administrator or teacher can publish class plans.
         </div>
       </div>
     );
@@ -150,7 +150,7 @@ export default function PlanApprovalsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Approvals</p>
-          <h1 className="text-lg font-black tracking-tight text-foreground">Approve teaching plans</h1>
+          <h1 className="text-lg font-black tracking-tight text-foreground">Approve class plans</h1>
           <p className="mt-1 text-xs text-muted-foreground">
             A class can only generate its weeks once its plan is published. Review, then publish.
           </p>
@@ -171,7 +171,7 @@ export default function PlanApprovalsPage() {
         <div className="h-40 rounded-2xl border border-border bg-card/40 animate-pulse" />
       ) : plans.length === 0 ? (
         <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6 text-sm text-emerald-700 dark:text-emerald-400">
-          No plans are waiting. Every class with a teaching plan is published.
+          No plans are waiting. Every class with a class plan is published.
         </div>
       ) : (
         <>

@@ -117,7 +117,7 @@ export async function GET(
             .from('lessons')
             .select('id,lesson_plan_id,curriculum_week_number,session_number,status,updated_at,metadata')
             .eq('course_id', plan.course_id)
-            .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+            .eq('lesson_plan_id', id);
           q = plan.school_id ? q.eq('school_id', plan.school_id) : q.is('school_id', null);
           return q;
         })()
@@ -125,19 +125,19 @@ export async function GET(
     (supabase as any)
       .from('lesson_materials')
       .select('id,lesson_id,curriculum_week_number,session_number,is_public,created_at,metadata')
-      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
+      .eq('lesson_plan_id', id)
       .eq('file_type', 'slide-deck'),
     (supabase as any)
       .from('flashcard_decks')
       .select('id,lesson_id,curriculum_week_number,session_number,is_public,updated_at,metadata')
-      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+      .eq('lesson_plan_id', id),
     plan.course_id
       ? (() => {
           let q = (supabase as any)
             .from('assignments')
             .select('id,lesson_plan_id,curriculum_week_number,session_number,assignment_type,is_active,updated_at,metadata')
             .eq('course_id', plan.course_id)
-            .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+            .eq('lesson_plan_id', id);
           q = plan.school_id ? q.eq('school_id', plan.school_id) : q.is('school_id', null);
           return q;
         })()

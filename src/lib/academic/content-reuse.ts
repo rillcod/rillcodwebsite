@@ -150,6 +150,9 @@ export function buildCopy<T extends Record<string, unknown>>(
   } = source as Record<string, unknown>;
 
   const meta = (carried.metadata && typeof carried.metadata === 'object' ? carried.metadata : {}) as Record<string, unknown>;
+  const cleanMeta = { ...meta };
+  delete cleanMeta.lesson_plan_id;
+  delete cleanMeta.class_id;
 
   return {
     ...carried,
@@ -160,12 +163,10 @@ export function buildCopy<T extends Record<string, unknown>>(
     content_locked_at: null,
     content_locked_by: null,
     metadata: {
-      ...meta,
-      // The real column is authoritative, but legacy operations/readiness
-      // views still understand this metadata mirror. A copied row must never
-      // retain the source plan's id here or disappear from the target plan.
-      lesson_plan_id: target.planId,
-      class_id: target.classId,
+      // Plan and class identity live in their real foreign-key columns. Keep
+      // lineage metadata only for auditability; it must not create a second
+      // route into the academic spine.
+      ...cleanMeta,
       copied_from_content_id: target.sourceId,
       copied_at: new Date().toISOString(),
       // Explicitly not customised — this is curriculum output, and marking it

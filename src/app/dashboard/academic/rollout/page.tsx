@@ -544,7 +544,7 @@ function RolloutWorkspace() {
             // Not "pick up the edition on the next readiness run" — that named
             // two internal things and left a teacher wondering whether they had
             // to do something. The sweep is daily, so say daily.
-            ? `${n} class${n === 1 ? '' : 'es'} now teach this course. Their lesson plans are set up automatically on the next daily run — nothing else to do.`
+            ? `${n} class${n === 1 ? '' : 'es'} now teach this course. Their class plans are set up automatically on the next daily run — nothing else to do.`
             : 'No class needed changing.',
         );
       }

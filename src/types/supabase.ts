@@ -21362,6 +21362,11 @@ export type Database = {
         Returns: Json
       }
       normalize_contact_book_phone: { Args: { raw: string }; Returns: string }
+      prune_all_cron_run_history: { Args: { p_keep_count?: number }; Returns: number }
+      prune_cron_run_history: {
+        Args: { p_job_name: string; p_keep_count?: number }
+        Returns: number
+      }
       process_payment_atomic: {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json

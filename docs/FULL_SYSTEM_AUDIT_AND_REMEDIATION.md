@@ -439,8 +439,9 @@ Required completion:
   class/session; a lesson is a deliverable teaching instance.
 - Preserve linkage with `class_id`, `lesson_plan_id`, `curriculum_week_number`, and
   `lesson_id`.
-- A standalone lesson may exist, but the UI must clearly offer “attach to class plan” and record
-  provenance; it must not become a separate content world.
+- New lessons enter through a class plan so their class, course, week, session, release and
+  downstream assets cannot drift. Historical unlinked content remains readable and is never
+  deleted by this consolidation.
 - One class roster only. Path visibility is a setting/filter on the learner roster, not a second
   competing roster.
 - Class landing hierarchy: attention needed, next teaching action, upcoming assessment, recent
@@ -3943,3 +3944,26 @@ Verification and honest boundary:
 - Main application TypeScript target: pass.
 - Production requires the normal green-CI Cloudflare deployment before the gateway behavior changes
   for live users.
+
+## 16.53 Academic identity and interface consolidation (2026-08-28)
+
+The earlier audit described a compatibility period in which lesson-plan IDs
+could also be found in JSON metadata. The live audit now shows that all active
+plans are class-linked and all 48 lessons use the real `lesson_plan_id` column;
+there are no reverse per-lesson plan rows, duplicate active plan identities, or
+orphan metadata-only assets. The compatibility period is therefore closed.
+
+The canonical customer flow is now **Class → Class Plan → Week/Session → Lesson
+→ Delivery**. The class workspace remains the operational hub. Lesson Studio is
+the rich authoring surface for content canvas, AI drafting, teaching guide,
+resources and learner preview. It no longer creates a second `lesson_plans` row,
+and plan-linked course and release scope cannot be changed from an individual
+lesson.
+
+The guarded migration
+`20260929000124_remove_reverse_lesson_plan_identity.sql` removes the retired
+`lesson_plans.lesson_id` reverse link and metadata identity mirrors only after
+checking for orphan rows. If any appear, it aborts without deleting content.
+Learner scores, submissions, attempts, attendance and published results are not
+modified. Direct lesson creation without a class plan now explains the required
+next step instead of creating an untracked second world.

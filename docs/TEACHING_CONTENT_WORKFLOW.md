@@ -26,8 +26,10 @@ Every new weekly content asset must use these relations:
 `class_id + lesson_plan_id + curriculum_week_number` identifies the intended
 class week. `lesson_id` identifies the concrete lesson that owns the package.
 
-Metadata copies are legacy read fallbacks only. New writes must use real columns.
-Do not introduce a new content generator that writes only IDs inside `metadata`.
+The foreign-key columns are the only identity source. `metadata` may contain
+generation lineage and teaching notes, but it must never decide which class
+receives content. Do not introduce a generator or UI that writes academic IDs
+only inside `metadata`.
 
 ## Asset ownership
 
@@ -49,8 +51,9 @@ slides, flashcards, assignment and project.
   teaching assets for the same plan and week.
 - Generated lessons must record their creator and academic term context.
 - Manual material creation inherits canonical context from its lesson.
-- Read legacy metadata so historical content remains visible, but migrate naturally
-  as users create or regenerate content.
+- Historical metadata mirrors are removed by the guarded migration
+  `20260929000124_remove_reverse_lesson_plan_identity.sql`; it refuses to run
+  when an orphaned metadata-only link exists.
 - Never create a second assignment through a UI-side direct insert after an API
   has already created it.
 
@@ -76,3 +79,18 @@ Re-linking is limited to the relationship field `lesson_id` on:
 It must never mutate or delete learner scores, grades, submissions, attempts,
 feedback, attendance or published results. Those are evidence records and are
 outside content harmonisation.
+
+## Identity consolidation decision — 2026-08-28
+
+The old per-lesson `lesson_plans.lesson_id` model is retired. It made the same
+screen look like two products: one class plan owned the week while a second
+“lesson plan” row owned the lesson detail. The richer class workspace is the
+canonical experience. The Lesson Studio remains the deep authoring surface, but
+its teaching guide is stored on the lesson metadata and its class, course, week,
+session and release are inherited from the parent class plan.
+
+The route `/dashboard/lessons` is now a scoped plan view rather than a second
+global library. Opening it without a plan explains the next step and sends the
+user to Classes or Class Plans. Direct lesson creation without a plan is refused
+with `CLASS_PLAN_REQUIRED`; existing lesson content and learner evidence remain
+untouched.

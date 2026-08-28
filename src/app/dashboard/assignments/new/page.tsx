@@ -50,6 +50,16 @@ const emptyQuestion = (): Question => ({
   metadata: { logic_sentence: '', logic_blocks: ['', '', ''] }
 });
 
+function lessonWeekLabel(
+  lesson: { curriculum_week_number: number | null; session_number: number | null } | null,
+  preWeek: string | null,
+  preSession: string | null,
+): string {
+  const week = preWeek || (lesson?.curriculum_week_number ? String(lesson.curriculum_week_number) : '');
+  const session = preSession || (lesson?.session_number ? String(lesson.session_number) : '');
+  return week ? `Week ${week}${session ? ` · Class ${session}` : ''} · ` : '';
+}
+
 export default function NewAssignmentPage() {
   const router = useRouter();
   const { profile, loading: authLoading, profileLoading } = useAuth();
@@ -68,7 +78,15 @@ export default function NewAssignmentPage() {
   const [classId, setClassId] = useState(preClassId || '');
   const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
   const [selectedProgramId, setSelectedProgramId] = useState('');
-  const [linkedLesson, setLinkedLesson] = useState<{ id: string; title: string } | null>(null);
+  const [linkedLesson, setLinkedLesson] = useState<{
+    id: string;
+    title: string;
+    lesson_plan_id: string | null;
+    class_id: string | null;
+    curriculum_week_number: number | null;
+    session_number: number | null;
+  } | null>(null);
+  const planContextId = preLessonPlanId || linkedLesson?.lesson_plan_id || null;
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -245,6 +263,24 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
       const courseList = data ?? [];
       setCourses(courseList);
 
+      // Plan links from the class-plan workspace intentionally carry only the
+      // plan/week/session. Resolve the class once here so the result-bearing
+      // assignment cannot be saved as an unscoped practice task.
+      if (preLessonPlanId) {
+        const { data: planRow, error: planError } = await db
+          .from('lesson_plans')
+          .select('id, class_id, course_id')
+          .eq('id', preLessonPlanId)
+          .maybeSingle();
+        if (planError) throw planError;
+        if (planRow) {
+          setClassId(current => current || planRow.class_id || '');
+          if (planRow.course_id) {
+            setForm(current => ({ ...current, course_id: current.course_id || planRow.course_id || '' }));
+          }
+        }
+      }
+
       // Auto-select if IDs provided in URL
       if (preCourseId) {
         const c = courseList.find((x: any) => x.id === preCourseId);
@@ -262,10 +298,21 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
 
       // Fetch linked lesson title if lesson_id provided
       if (preLessonId) {
-        const { data: lessonRow, error: lessonError } = await db.from('lessons').select('id, title, course_id').eq('id', preLessonId).single();
+        const { data: lessonRow, error: lessonError } = await db.from('lessons')
+          .select('id, title, course_id, lesson_plan_id, class_id, curriculum_week_number, session_number')
+          .eq('id', preLessonId)
+          .single();
         if (lessonError) throw lessonError;
         if (lessonRow) {
-          setLinkedLesson({ id: lessonRow.id, title: lessonRow.title });
+          setLinkedLesson({
+            id: lessonRow.id,
+            title: lessonRow.title,
+            lesson_plan_id: lessonRow.lesson_plan_id ?? null,
+            class_id: lessonRow.class_id ?? null,
+            curriculum_week_number: lessonRow.curriculum_week_number ?? null,
+            session_number: lessonRow.session_number ?? null,
+          });
+          if (!preLessonPlanId && lessonRow.class_id) setClassId(current => current || lessonRow.class_id || '');
           if (!aiTopicEdited.current) setAiTopic(lessonRow.title);
           const lc = courseList.find((x: any) => x.id === lessonRow.course_id);
           if (lc?.program_id) setSelectedProgramId(lc.program_id);
@@ -277,7 +324,7 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
     fetchData().catch((cause) => {
       setError(cause instanceof Error ? cause.message : 'Assignment context could not be loaded.');
     });
-  }, [profile?.id, authLoading, preProgramId, preCourseId, preLessonId, profile?.school_id]);
+  }, [profile?.id, authLoading, preProgramId, preCourseId, preLessonId, preLessonPlanId, profile?.school_id]);
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
   const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
@@ -338,6 +385,15 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
     setSaving(true);
     setError(null);
     try {
+      // A lesson link is enough context to re-enter the same class plan. Do
+      // not make teachers pick the plan a second time or create an orphan task.
+      const lessonPlanId = preLessonPlanId || linkedLesson?.lesson_plan_id || null;
+      const lessonWeek = preWeek && Number.isInteger(Number(preWeek))
+        ? Number(preWeek)
+        : linkedLesson?.curriculum_week_number ?? null;
+      const lessonSession = preSession && Number.isInteger(Number(preSession))
+        ? Number(preSession)
+        : linkedLesson?.session_number ?? 1;
       const payload: any = {
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -346,26 +402,25 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
         program_id: selectedProgramId || null,
         lesson_id: linkedLesson?.id ?? null,
         class_id: classId || null,
-        lesson_plan_id: preLessonPlanId ?? null,
-        curriculum_week_number: preWeek && Number.isInteger(Number(preWeek)) ? Number(preWeek) : null,
-        session_number: preSession && Number.isInteger(Number(preSession)) ? Number(preSession) : 1,
+        lesson_plan_id: lessonPlanId,
+        curriculum_week_number: lessonWeek,
+        session_number: lessonSession,
         max_points: parseInt(form.max_points) || 100,
         assignment_type: form.assignment_type,
         // Plan-linked work is reviewed and released with its complete week.
         // Stand-alone work retains the familiar publish-on-create behaviour.
-        is_active: !preLessonPlanId,
+        is_active: !lessonPlanId,
         created_by: profile?.id || '',
         questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
         metadata: (() => {
           const base: Record<string, unknown> = {};
           base.assessment_scope = assessmentScope;
           base.result_eligible = assessmentScope === 'class_result';
-          if (preLessonPlanId) base.lesson_plan_id = preLessonPlanId;
           if (classId) base.target_class_id = classId;
-          if (preWeek) base.week_number = parseInt(preWeek);
-          if (preSession) {
-            base.session = parseInt(preSession);
-            base.session_number = parseInt(preSession);
+          if (lessonWeek) base.week_number = lessonWeek;
+          if (lessonSession) {
+            base.session = lessonSession;
+            base.session_number = lessonSession;
           }
           if (form.assignment_type === 'project') {
             base.deliverables = projectMeta.deliverables.filter(d => d.trim());
@@ -385,8 +440,8 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create assignment'); }
       if (classId) {
         router.push(`/dashboard/classes/${classId}?operation=assessment`);
-      } else if (preLessonPlanId) {
-        router.push(`/dashboard/lesson-plans/${preLessonPlanId}`);
+      } else if (lessonPlanId) {
+        router.push(`/dashboard/lesson-plans/${lessonPlanId}`);
       } else if (linkedLesson?.id) {
         router.push(`/dashboard/lessons/${linkedLesson.id}`);
       } else {
@@ -435,23 +490,23 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
             {saving
               ? 'Saving...'
-              : preLessonPlanId
+              : planContextId
                 ? 'SAVE TO PLAN'
                 : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
           </button>
         </div>
 
-        {preLessonPlanId && (
+        {planContextId && (
           <div className="flex items-center gap-3 rounded-2xl bg-primary/10 border border-primary/20 p-4">
             <span className="text-primary flex-shrink-0">📋</span>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Linked to Lesson Plan</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Linked to Class Plan</p>
               <p className="text-sm font-bold text-foreground">
-                {preWeek ? `Week ${preWeek}${preSession ? ` · Class ${preSession}` : ''} · ` : ''}
+                {lessonWeekLabel(linkedLesson, preWeek ?? null, preSession ?? null)}
                 Saved for review, then released with the complete teaching package
               </p>
             </div>
-            <Link href={`/dashboard/lesson-plans/${preLessonPlanId}`} className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest">
+            <Link href={`/dashboard/lesson-plans/${planContextId}`} className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest">
               ← Back to Plan
             </Link>
           </div>
@@ -624,7 +679,7 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
                 {assessmentScope === 'class_result' ? 'Result class *' : 'Limit practice to a class'}
               </label>
               <select value={classId} onChange={event => selectAssignmentClass(event.target.value)}
-                disabled={!!preClassId || !!preLessonPlanId}
+                disabled={!!preClassId || !!planContextId || !!linkedLesson?.class_id}
                 className="mt-2 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground focus:outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:opacity-60">
                 <option value="">{assessmentScope === 'class_result' ? 'Choose the class receiving this work…' : 'Programme/school-wide practice'}</option>
                 {availableClasses.map(item => (
@@ -1032,7 +1087,7 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Saving…' : preLessonPlanId ? 'Save to Plan' : 'Create Assignment'}
+              {saving ? 'Saving…' : planContextId ? 'Save to Plan' : 'Create Assignment'}
             </button>
           </div>
         </form>

@@ -128,34 +128,26 @@ export async function resolveGenerationRepairTypes(input: {
         .select(
           "id,lesson_plan_id,curriculum_week_number,session_number,metadata"
         )
-        .or(
-          `lesson_plan_id.eq.${input.planId},metadata->>lesson_plan_id.eq.${input.planId}`
-        ),
+        .eq("lesson_plan_id", input.planId),
       input.db
         .from("lesson_materials")
         .select(
           "id,lesson_plan_id,curriculum_week_number,session_number,content_stale_at,metadata"
         )
         .eq("file_type", "slide-deck")
-        .or(
-          `lesson_plan_id.eq.${input.planId},metadata->>lesson_plan_id.eq.${input.planId}`
-        ),
+        .eq("lesson_plan_id", input.planId),
       input.db
         .from("flashcard_decks")
         .select(
           "id,lesson_plan_id,curriculum_week_number,session_number,content_stale_at,metadata"
         )
-        .or(
-          `lesson_plan_id.eq.${input.planId},metadata->>lesson_plan_id.eq.${input.planId}`
-        ),
+        .eq("lesson_plan_id", input.planId),
       input.db
         .from("assignments")
         .select(
           "id,lesson_plan_id,assignment_type,curriculum_week_number,session_number,metadata"
         )
-        .or(
-          `lesson_plan_id.eq.${input.planId},metadata->>lesson_plan_id.eq.${input.planId}`
-        ),
+        .eq("lesson_plan_id", input.planId),
     ]);
     const error = lessons.error ?? slides.error ?? flashcards.error ?? assignments.error;
     if (error) {

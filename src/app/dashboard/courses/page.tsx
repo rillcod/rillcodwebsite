@@ -600,7 +600,7 @@ export default function CoursesPage() {
                     </div>
                     <div className="flex-shrink-0">
                       <Link
-                        href={prog?.id ? `/dashboard/lessons?program=${prog.id}` : '/dashboard/lessons'}
+                        href={prog?.id ? `/dashboard/lesson-plans?program_id=${prog.id}` : '/dashboard/lesson-plans'}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${enr.status === 'completed'
                           ? 'bg-muted text-muted-foreground hover:bg-muted'
                           : 'bg-primary text-white hover:bg-primary/90'

@@ -106,24 +106,7 @@ async function findWeekLesson(
   const canonical = existingMeetingAsset(candidates ?? [], week, meeting);
   if (canonical) return canonical;
 
-  const { data: legacy } = await db
-    .from("lessons")
-    .select(
-      "id,title,description,lesson_notes,content_layout,metadata,lesson_plan_id,curriculum_week_number,session_number"
-    )
-    .eq("course_id", plan.course_id)
-    .eq("school_id", plan.school_id)
-    .order("created_at", { ascending: false })
-    .limit(500);
-  return (
-    (legacy ?? []).find((lesson) => {
-      const metadata = lesson.metadata as Record<string, unknown> | null;
-      return (
-        metadata?.lesson_plan_id === plan.id &&
-        assetMatchesMeeting(lesson, week, meeting)
-      );
-    }) ?? null
-  );
+  return null;
 }
 
 export async function POST(

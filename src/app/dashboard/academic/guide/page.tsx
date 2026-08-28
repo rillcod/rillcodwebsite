@@ -25,7 +25,7 @@ const PATHWAYS = [
     name: 'Regular School',
     icon: AcademicCapIcon,
     summary: 'Partner schools such as St Peter.',
-    curriculum: 'Central direction is assigned automatically for future teaching plans.',
+    curriculum: 'Central direction is assigned automatically for future class plans.',
     calendar: 'Academic session, First/Second/Third Term, and the real school or class entry week.',
     delivery: 'Mainly in-school teaching.',
     result: 'School report and regular progression.',
@@ -54,7 +54,7 @@ const AUTOMATIC = [
   'Assign the central direction to Regular Schools.',
   'Give an empty Online or Special path a starting curriculum edition.',
   'Preserve an existing independent Online or Special curriculum edition.',
-  'Attach the correct curriculum edition to a new teaching plan.',
+  'Attach the correct curriculum edition to a new class plan.',
   'Keep assessment, grading and reports inside the correct pathway and period.',
   'Calculate weighted results and check certificate eligibility.',
   'Link confirmed invoices and payments to the correct learning pathway and period.',
@@ -87,7 +87,7 @@ export default function AcademicOfficeGuidePage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Academic Office purpose">
         {[
           [BookOpenIcon, 'Direction', 'Decide what learners should learn and protect the official curriculum edition.'],
-          [UserGroupIcon, 'Teaching', 'Turn the official direction into practical teaching plans and lessons.'],
+  [UserGroupIcon, 'Teaching', 'Turn the official direction into practical class plans and lessons.'],
           [ChartBarIcon, 'Evidence and results', 'Join attendance, assignments, CBT and manual scores in one grading system.'],
           [ShieldCheckIcon, 'Protection', 'Keep pathways, active plans, manual records and published reports safe.'],
         ].map(([Icon, title, text]) => {
@@ -146,7 +146,7 @@ export default function AcademicOfficeGuidePage() {
         <article className="rounded-3xl border border-border bg-card p-6">
           <h2 className="text-xl font-black text-foreground">What the teacher does</h2>
           <ol className="mt-4 space-y-3">
-            {['Open the assigned class and course.', 'Create a draft teaching plan.', 'Receive the correct official curriculum edition automatically.', 'Adapt activities, examples, resources and delivery notes.', 'Teach, record attendance, assess learners and publish when ready.'].map((step, index) => <li key={step} className="flex gap-3 text-sm leading-6 text-muted-foreground"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 font-black text-primary">{index + 1}</span><span>{step}</span></li>)}
+            {['Open the assigned class and course.', 'Create a draft class plan.', 'Receive the correct official curriculum edition automatically.', 'Adapt activities, examples, resources and delivery notes.', 'Teach, record attendance, assess learners and publish when ready.'].map((step, index) => <li key={step} className="flex gap-3 text-sm leading-6 text-muted-foreground"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 font-black text-primary">{index + 1}</span><span>{step}</span></li>)}
           </ol>
         </article>
       </section>
@@ -156,7 +156,7 @@ export default function AcademicOfficeGuidePage() {
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {[
             ['Curriculum direction', 'Learners should understand loops.'],
-            ['Teaching plan', 'Use a dance repetition activity to explain loops.'],
+            ['Class plan', 'Use a dance repetition activity to explain loops.'],
             ['Lesson delivery', 'The teacher completes the activity and records attendance.'],
             ['Evidence', 'The learner completes a loop task or CBT check.'],
           ].map(([title, detail], index) => <div key={title} className="rounded-2xl bg-muted/40 p-4"><p className="text-xs font-black text-primary">STEP {index + 1}</p><h3 className="mt-2 font-black text-foreground">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{detail}</p></div>)}

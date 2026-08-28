@@ -48,6 +48,7 @@ import { createSSEResponse } from "@/lib/sse-stream";
 import { nextGenerationIncidentMetadata } from "@/lib/operations/generation-incidents";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { dueDateForPlanWeek } from "@/lib/academic/plan-week-due-date";
+import { withoutLegacyLessonPlanMetadata } from "@/lib/academic/content-identity";
 
 export async function POST(
   req: NextRequest,
@@ -185,11 +186,11 @@ export async function POST(
           "id,metadata,assignment_type,lesson_plan_id,curriculum_week_number,session_number"
         )
         .eq("assignment_type", "project")
-        .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+        .eq("lesson_plan_id", id),
       supabase
         .from("lessons")
         .select("id,curriculum_week_number,session_number,metadata")
-        .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`)
+        .eq("lesson_plan_id", id)
         .order("created_at", { ascending: false }),
     ]);
     const existingProjects = existingResult.data ?? [];
@@ -540,8 +541,7 @@ export async function POST(
               max_points: week.practical_assessment?.max_score || 100,
               is_active: projectActive,
               metadata: {
-                ...(d.metadata as Record<string, unknown> | undefined),
-                lesson_plan_id: plan.id,
+                ...withoutLegacyLessonPlanMetadata(d.metadata),
                 week: week.week,
                 week_number: week.week,
                 ...planWeekSessionMetadata(

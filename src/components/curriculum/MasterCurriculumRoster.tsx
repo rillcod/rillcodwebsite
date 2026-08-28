@@ -61,7 +61,7 @@ interface MasterCurriculumRosterProps {
 
 const KIND_LABEL: Record<string, string> = {
   official_edition: 'Edition',
-  teaching_plan: 'Teaching plan',
+  teaching_plan: 'Class plan',
   delivery_record: 'Delivery weeks',
   delivery_schedule: 'Schedule',
   school_adoption: 'Adoption',
@@ -184,10 +184,10 @@ export function MasterCurriculumRoster({
               ? plural(json.official_release_count, 'published edition', 'published editions')
               : null,
             json.draft_plan_count
-              ? plural(json.draft_plan_count, 'teaching plan not yet in use', 'teaching plans not yet in use')
+              ? plural(json.draft_plan_count, 'class plan not yet in use', 'class plans not yet in use')
               : null,
             json.live_plan_count
-              ? plural(json.live_plan_count, 'teaching plan in use by a class', 'teaching plans in use by classes')
+              ? plural(json.live_plan_count, 'class plan in use by a class', 'class plans in use by classes')
               : null,
             json.delivery_record_count
               ? plural(json.delivery_record_count, 'week already taught', 'weeks already taught')
@@ -754,7 +754,7 @@ export function MasterCurriculumRoster({
                             {/* The one thing you need to know at a glance: is anyone teaching from this? */}
                             {liveEdition ? (
                               <span
-                                title={`Published for ${liveEdition.academic_session ?? 'the current session'} — schools can build teaching plans from it`}
+                                title={`Published for ${liveEdition.academic_session ?? 'the current session'} — schools can build class plans from it`}
                                 className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30"
                               >
                                 Published{liveEdition.academic_session ? ` · ${liveEdition.academic_session}` : ''}
@@ -937,7 +937,7 @@ export function MasterCurriculumRoster({
                             liveEdition ? (
                               <p className="text-xs text-muted-foreground">
                                 Published, but no class is teaching from it yet. A class picks it up
-                                once its teaching plan is prepared for the term.
+                                once its class plan is prepared for the term.
                               </p>
                             ) : (
                               <p className="text-xs text-emerald-600 font-bold">
@@ -1009,7 +1009,7 @@ export function MasterCurriculumRoster({
             <p className="text-xs text-muted-foreground leading-relaxed">
               Deletes all <strong className="text-foreground">
                 {curricula.length === 1 ? '1 curriculum' : `${curricula.length} curricula`}
-              </strong> and everything built from them — teaching plans, lessons, assignments and
+              </strong> and everything built from them — class plans, lessons, assignments and
               the record of which schools were using them. Anything that fails is listed here.
             </p>
 

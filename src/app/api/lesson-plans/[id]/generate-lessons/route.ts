@@ -190,7 +190,7 @@ export async function POST(
       )
       .eq("course_id", planCourseId)
       .eq("school_id", planSchoolId)
-      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+      .eq("lesson_plan_id", id);
     const existingLessons = existingLessonRows ?? [];
 
     const lessonSkipOptions = { usable: generatedLessonIsUsable };
@@ -464,7 +464,6 @@ export async function POST(
                 source: "lesson-plan-bulk",
                 generated_from: "progression_lesson_route",
                 ai_lesson_mode: lessonMode,
-                lesson_plan_id: id,
                 week: week.week,
                 week_number: week.week,
                 ...planWeekSessionMetadata(

@@ -4996,7 +4996,7 @@ export default function CurriculumPage() {
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           This curriculum cannot be deleted while any of these
-                          teaching plans still use it.
+                          class plans still use it.
                         </p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           {implementationList.map((impl: any) => {
@@ -5029,7 +5029,7 @@ export default function CurriculumPage() {
                                       Teach
                                     </Link>
                                   )}
-                                  {/* Removing a teaching plan is a delivery
+                                  {/* Removing a class plan is a delivery
                                      action, not a curriculum edit: the API
                                      allows a teacher who owns the class. */}
                                   {canTrack && (
@@ -7319,7 +7319,7 @@ export default function CurriculumPage() {
                             Teach this course
                           </p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Open the class and start its teaching plan there.
+                            Open the class and start its class plan there.
                             The class pathway applies the correct official
                             curriculum and delivery period automatically.
                           </p>
@@ -7516,12 +7516,12 @@ export default function CurriculumPage() {
                     stopped there, which is a dead end for whoever can't. */}
                 {activeWeek.type === "lesson" && !activeWeek.lesson_plan && (
                   <div className="text-center py-10 text-muted-foreground text-sm">
-                    <p>No lesson plan data found for this week.</p>
+                    <p>No lesson content found for this week.</p>
                     {canGenerate ? (
                       <>
                         <p className="text-xs mt-1">
-                          Regenerate the curriculum to fill in the missing
-                          lesson plans.
+                          Regenerate this week to fill in the missing lesson
+                          content.
                         </p>
                         <button
                           type="button"
@@ -7532,7 +7532,7 @@ export default function CurriculumPage() {
                           className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-widest transition-colors cursor-pointer"
                         >
                           <SparklesIcon className="w-4 h-4 shrink-0" />
-                          Generate lesson plans
+                          Generate class content
                         </button>
                       </>
                     ) : (
@@ -8292,7 +8292,7 @@ export default function CurriculumPage() {
                     <SparklesIcon className="w-3.5 h-3.5 animate-spin" />
                     <span>
                       {genProgress ||
-                        "Generating complete curriculum with all lesson plans… this takes 60–90 seconds"}
+                        "Generating complete curriculum with all class content… this takes 60–90 seconds"}
                     </span>
                   </div>
                 )}

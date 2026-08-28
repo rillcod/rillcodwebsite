@@ -21,7 +21,8 @@ Curriculum remains in **Curriculum Studio** because it is reusable source materi
 - Every class lesson stores real lesson_plan_id, class_id, and academic_term_id foreign keys.
 - Assignments and projects inherit class, course and term from the canonical plan.
 - Flashcard decks store real class_id, lesson_plan_id, lesson_id, term_id, and curriculum-week scope.
-- JSON metadata is retained only as a compatibility mirror, never as the source of truth.
+- JSON metadata is reserved for lineage and authoring details; class/plan/week
+  identity is read from the real foreign-key and scope columns only.
 - Every plan/week/class-meeting has one lesson foundation, one slide deck, one
   flashcard deck, and at most one assignment/project of each type.
 - Lesson, slides, flashcards, assignment and project are one teaching package.
@@ -62,13 +63,20 @@ Migration `20260921000007_class_teaching_workspace.sql` provides:
 
 Migrations `20260929000087`–`20260929000089` complete the package contract:
 
-- canonical class/plan/week/session columns mirror into legacy metadata;
+- canonical class/plan/week/session columns are the only identity fields;
+  metadata is reserved for authoring details and lineage;
 - lessons, slides, flashcards, assignments and projects release atomically;
 - published records remain locked and immutable;
 - historical generated duplicates are consolidated after all dependent assets
   are relinked;
 - partial unique indexes prevent concurrent or scheduled generation from
   recreating the same plan/week/session asset.
+
+Migration `20260929000124_remove_reverse_lesson_plan_identity.sql` completes the
+identity consolidation. It safely removes the retired `lesson_plans.lesson_id`
+reverse link and cleans duplicated metadata plan IDs only after confirming that
+every asset has a real `lesson_plan_id`; it never touches learner submissions,
+scores, attempts, attendance or published results.
 
 ## Rules for future AI or developer changes
 

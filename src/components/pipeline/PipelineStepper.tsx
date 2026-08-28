@@ -3,7 +3,7 @@
 /**
  * Shared navigation for connected teaching tools.
  *
- * Tools: Curriculum, teaching plans, lessons, practice and resources.
+ * Tools: Curriculum, class plans, weekly delivery, practice and resources.
  *
  * Context (course_id, program_id, curriculum_id) is preserved across steps via
  * query params so the user doesn't have to re-pick a course on every step.
@@ -38,8 +38,8 @@ const META: Record<PipelineStep, {
   ring: string;
 }> = {
   syllabus:    { short: 'Curriculum', label: 'Curriculum direction', href: '/dashboard/academic/build', icon: BookOpenIcon, color: 'text-primary', ring: 'ring-primary/40 bg-primary/10 border-primary/40' },
-  plans:       { short: 'Plans',       label: 'Teaching plans',     href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon, color: 'text-primary',       ring: 'ring-primary/40 bg-primary/10 border-primary/40'           },
-  lessons:     { short: 'Lessons',     label: 'Lessons & delivery',          href: '/dashboard/lessons',      icon: SparklesIcon,              color: 'text-emerald-600 dark:text-emerald-400',   ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40'},
+  plans:       { short: 'Plan',        label: 'Class plan',          href: '/dashboard/lesson-plans', icon: ClipboardDocumentListIcon, color: 'text-primary',       ring: 'ring-primary/40 bg-primary/10 border-primary/40'           },
+  lessons:     { short: 'Teach',       label: 'Weekly delivery',     href: '/dashboard/classes',      icon: SparklesIcon,              color: 'text-emerald-600 dark:text-emerald-400',   ring: 'ring-emerald-500/40 bg-emerald-500/10 border-emerald-500/40'},
   flashcards:  { short: 'Practice', label: 'Flashcard practice', href: '/dashboard/flashcards', icon: BoltIcon, color: 'text-amber-600 dark:text-amber-400', ring: 'ring-amber-500/40 bg-amber-500/10 border-amber-500/40' },
   library:     { short: 'Resources', label: 'Teaching resources', href: '/dashboard/library', icon: ArchiveBoxIcon, color: 'text-cyan-600 dark:text-cyan-400', ring: 'ring-cyan-500/40 bg-cyan-500/10 border-cyan-500/40' },
 };
@@ -63,13 +63,21 @@ export interface PipelineStepperProps {
 }
 
 function buildHref(step: PipelineStep, p: PipelineStepperProps): string {
+  if (step === 'plans' && p.lessonPlanId) {
+    return `/dashboard/lesson-plans/${p.lessonPlanId}`;
+  }
+  if (step === 'lessons') {
+    if (p.lessonPlanId) return `/dashboard/lesson-plans/${p.lessonPlanId}`;
+    if (p.classId) return `/dashboard/classes/${p.classId}`;
+    return '/dashboard/classes';
+  }
   const base = META[step].href;
   const q = new URLSearchParams();
   if (p.courseId) q.set('course_id', p.courseId);
   if (p.programId) q.set('program_id', p.programId);
   if (p.curriculumId) q.set('curriculum_id', p.curriculumId);
   if (p.classId) q.set('return_class_id', p.classId);
-  if (p.lessonPlanId && (step === 'lessons' || step === 'flashcards')) {
+  if (p.lessonPlanId && step === 'flashcards') {
     q.set('lesson_plan_id', p.lessonPlanId);
   }
   const qs = q.toString();

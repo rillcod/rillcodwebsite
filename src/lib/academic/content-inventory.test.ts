@@ -26,20 +26,20 @@ describe('every week-package asset has a home', () => {
   });
 
   it('covers the two tables the sweep could never see', () => {
-    // Neither has a metadata column, so the old metadata->>lesson_plan_id rule
-    // excluded them by construction rather than by chance.
+    // These child tables are part of the same plan package and use their own
+    // lesson_plan_id column for identity.
     expect(ASSET_TABLES).toContain('flashcard_decks');
     expect(ASSET_TABLES).toContain('lesson_materials');
   });
 });
 
 describe('plan link resolution', () => {
-  it('prefers the real column over the metadata copy', () => {
+  it('uses the real foreign-key column as the only identity', () => {
     expect(planIdOf({ lesson_plan_id: 'col', metadata: { lesson_plan_id: 'meta' } })).toBe('col');
   });
 
-  it('still reads legacy rows that only wrote metadata', () => {
-    expect(planIdOf({ lesson_plan_id: null, metadata: { lesson_plan_id: 'meta' } })).toBe('meta');
+  it('does not turn authoring metadata into a plan link', () => {
+    expect(planIdOf({ lesson_plan_id: null, metadata: { lesson_plan_id: 'meta' } })).toBeNull();
   });
 
   it('treats blank and whitespace as no link', () => {
@@ -74,7 +74,7 @@ describe('orphan rule', () => {
       { id: 'c', lesson_plan_id: null },
       { id: 'd', metadata: { lesson_plan_id: 'plan-gone' } },
     ];
-    expect(findOrphanedAssets(rows, plans).map((r) => r.id)).toEqual(['b', 'd']);
+    expect(findOrphanedAssets(rows, plans).map((r) => r.id)).toEqual(['b']);
   });
 });
 

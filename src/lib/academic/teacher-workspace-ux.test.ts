@@ -50,7 +50,7 @@ describe('central teacher workspace UX', () => {
   it('keeps one class-first journey and hides secondary records and diagnostics by default', () => {
     expect(teachingWorkspace).toContain('Class records and results');
     expect(teachingWorkspace).toContain('<details className="rounded-xl');
-    expect(teachingWorkspace).toContain('Weekly teaching plan');
+    expect(teachingWorkspace).toContain('Weekly class plan');
     expect(teachingWorkspace).not.toContain('Weekly Teaching Packages');
     expect(academicOffice).toContain('Detailed progress');
     expect(academicOffice).toContain('More academic tools');

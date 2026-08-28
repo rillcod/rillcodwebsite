@@ -760,7 +760,7 @@ export function ClassTeachingWorkspace({
               }
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
             >
-              Start teaching plan
+              Start class plan
             </button>
           )}
           {canEdit && courseId && plan && (
@@ -786,7 +786,7 @@ export function ClassTeachingWorkspace({
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               The class pathway is present, but it has no programme course to
-              turn into a teaching plan.
+              turn into a class plan.
             </p>
           </div>
           {canEdit && (
@@ -881,7 +881,7 @@ export function ClassTeachingWorkspace({
       {busy && !data && (
         <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
           <ArrowPathIcon className="h-4 w-4 animate-spin text-primary" />
-          Loading teaching records…
+          Loading class plan…
         </div>
       )}
 
@@ -919,7 +919,7 @@ export function ClassTeachingWorkspace({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <BookOpenIcon className="h-6 w-6" />
           </div>
-          <p className="mt-3 text-base font-black">No teaching plan yet</p>
+              <p className="mt-3 text-base font-black">No class plan yet</p>
           <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
             This starts the week list for this class from the official curriculum.
           </p>
@@ -932,7 +932,7 @@ export function ClassTeachingWorkspace({
               }
               className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-xs font-black text-primary-foreground shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
             >
-              Start teaching plan
+              Start class plan
             </button>
           )}
         </div>
@@ -1159,7 +1159,7 @@ export function ClassTeachingWorkspace({
             >
               <div className="min-w-0">
                 <span className="block text-sm font-black text-foreground group-hover:text-primary transition-colors">
-                  Open full teaching plan
+                  Open full class plan
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
                   Edit weeks, syllabus quality, and deep AI generators.
@@ -1295,7 +1295,7 @@ export function ClassTeachingWorkspace({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h3 className="text-base font-black text-foreground">
-                  Weekly teaching plan
+                  Weekly class plan
                 </h3>
                 <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
                   {data?.programme_policy?.usesHostEvaluation
@@ -2196,14 +2196,14 @@ export function ClassTeachingWorkspace({
                   <p className="text-xs leading-5 text-muted-foreground">
                     This plan has no curriculum weeks yet. Its weeks come from
                     the official edition assigned to this class. Try Refresh
-                    academic direction, or open the full teaching plan to add
+                    academic direction, or open the full class plan to add
                     weeks by hand.
                   </p>
                   <Link
                     href={buildLessonPlanHref(plan.id)}
                     className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40"
                   >
-                    Open the full teaching plan
+                    Open the full class plan
                   </Link>
                 </div>
               )}

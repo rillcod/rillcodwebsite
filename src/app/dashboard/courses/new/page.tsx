@@ -194,7 +194,7 @@ export default function NewCoursePage() {
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
               Target Grades / Classes
               <span className="ml-1 text-[10px] text-muted-foreground/70 normal-case font-normal">
-                (pick one or more — drives class filters on lesson plans)
+                (pick one or more — drives class filters on class plans)
               </span>
             </label>
             <div className="flex flex-wrap gap-1.5">

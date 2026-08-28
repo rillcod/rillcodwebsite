@@ -94,12 +94,8 @@ export async function GET(
     const allowed = canAccessLessonScope(
       { id: user.id, role: user.role, school_id: user.school_id },
       {
-        school_id:
-          (data as any)?.lessons?.school_id ?? (data as any)?.school_id ?? null,
-        created_by:
-          (data as any)?.lessons?.created_by ??
-          (data as any)?.created_by ??
-          null,
+        school_id: (data as any)?.school_id ?? null,
+        created_by: (data as any)?.created_by ?? null,
         class_id: (data as any)?.class_id ?? null,
         class_teacher_id: klass?.teacher_id ?? null,
       },
@@ -114,11 +110,11 @@ export async function GET(
     db
       .from("lessons")
       .select("id", { count: "exact", head: true })
-      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+      .eq("lesson_plan_id", id),
     db
       .from("assignments")
       .select("id", { count: "exact", head: true })
-      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+      .eq("lesson_plan_id", id),
     db
       .from("progression_override_audit")
       .select("id", { count: "exact", head: true })
@@ -162,13 +158,11 @@ export async function PATCH(
   if (existingErr || !existingPlan)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // For term-level plans (no lesson_id), scope by plan.school_id or plan.created_by
+  // Scope the canonical class plan by its own school/creator and assigned teacher.
   const planSchoolId =
-    (existingPlan as any)?.lessons?.school_id ??
     (existingPlan as any)?.school_id ??
     null;
   const planCreatedBy =
-    (existingPlan as any)?.lessons?.created_by ??
     (existingPlan as any)?.created_by ??
     null;
   const planClass = Array.isArray((existingPlan as any)?.classes)
@@ -500,7 +494,6 @@ export async function DELETE(
   const lessonIds = lessonRows.map((row: any) => String(row.id || '')).filter(Boolean);
   const assignmentFilters = [
     `lesson_plan_id.eq.${id}`,
-    `metadata->>lesson_plan_id.eq.${id}`,
     ...(lessonIds.length > 0 ? [`lesson_id.in.(${lessonIds.join(',')})`] : []),
   ];
   const { data: linkedAssignments, error: assignmentError } = await (db as any)
@@ -567,7 +560,7 @@ export async function DELETE(
     const { data: assessments, error: assessmentsError } = await (db as any)
       .from(table)
       .select('id,metadata')
-      .or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`);
+      .eq('lesson_plan_id', id);
     if (assessmentsError) throw new Error(`Could not verify ${table}`);
     const ids = (assessments ?? []).map((row: any) => String(row.id)).filter(Boolean);
     if (ids.length === 0) return { preserved: 0, removed: 0 };
@@ -616,7 +609,7 @@ export async function DELETE(
   }
 
   await requireSupabaseWrite(
-    (db as any).from("lessons").delete().or(`lesson_plan_id.eq.${id},metadata->>lesson_plan_id.eq.${id}`),
+    (db as any).from("lessons").delete().eq("lesson_plan_id", id),
     'remove lesson plan content',
   );
 

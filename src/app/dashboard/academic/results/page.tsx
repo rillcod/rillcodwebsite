@@ -464,7 +464,7 @@ function CentralResultsPageInner() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-lg font-black">Choose class & learner</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Auto-fill uses the class programme, reporting period, and teaching plan.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Auto-fill uses the class programme, reporting period, and class plan.</p>
           </div>
           {classId && courseId ? (
             <AutoFillClassSummary students={students} reports={data.reports} courseId={courseId} />
@@ -515,7 +515,7 @@ function CentralResultsPageInner() {
               {courseOptions.map((item) => (
                 <option key={item.id} value={item.course_id}>
                   {item.courses?.title || 'Course'}
-                  {item.curriculum_release_id ? '' : ' (needs teaching plan)'}
+                  {item.curriculum_release_id ? '' : ' (needs class plan)'}
                 </option>
               ))}
             </select>

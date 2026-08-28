@@ -181,9 +181,7 @@ export async function GET(
             .select(
               "id,title,description,content_layout,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
             )
-            .or(
-              `lesson_plan_id.eq.${plan.id},metadata->>lesson_plan_id.eq.${plan.id}`
-            )
+            .eq("lesson_plan_id", plan.id)
             .order("curriculum_week_number")
             .order("order_index"),
           db
@@ -215,12 +213,13 @@ export async function GET(
             .or(
               [
                 `lesson_plan_id.eq.${plan.id}`,
-                `metadata->>lesson_plan_id.eq.${plan.id}`,
                 ...(lessonIds.length
                   ? [`lesson_id.in.(${lessonIds.join(",")})`]
                   : []),
               ].join(",")
             )
+            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+            .order("session_number", { ascending: true, nullsFirst: false })
             .order("created_at", { ascending: false }),
           db
             .from("lesson_materials")
@@ -228,13 +227,18 @@ export async function GET(
               "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
             )
             .or(planOrLessonScope)
-            .eq("file_type", "slide-deck"),
+            .eq("file_type", "slide-deck")
+            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+            .order("session_number", { ascending: true, nullsFirst: false })
+            .order("created_at", { ascending: false }),
           db
             .from("flashcard_decks")
             .select(
               "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
             )
             .or(planOrLessonScope)
+            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+            .order("session_number", { ascending: true, nullsFirst: false })
             .order("created_at", { ascending: false }),
           // exam_type is not a column — it lives in metadata, the way the
           // results views read it (metadata->>'exam_type').
@@ -244,6 +248,8 @@ export async function GET(
               "id,title,is_active,metadata,lesson_id,lesson_plan_id,curriculum_week_number"
             )
             .or(planOrLessonScope)
+            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+            .order("session_number", { ascending: true, nullsFirst: false })
             .order("created_at", { ascending: false }),
         ]);
       const assignmentRows = assignmentResult.data || [];

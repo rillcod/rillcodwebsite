@@ -4390,9 +4390,6 @@ export default function LessonDetailPage() {
               deliverables: data.metadata?.deliverables || [],
               rubric: data.metadata?.rubric || [],
             }),
-            ...(lesson.lesson_plan_id
-              ? { lesson_plan_id: lesson.lesson_plan_id }
-              : {}),
             ...(lesson.curriculum_week_number
               ? { week: lesson.curriculum_week_number }
               : {}),
@@ -4995,10 +4992,10 @@ export default function LessonDetailPage() {
             "Unable to load lesson content. Please check your connection or contact support."}
         </p>
         <Link
-          href={profile?.role === "student" ? "/dashboard/learning" : "/dashboard/lessons"}
+          href={profile?.role === "student" ? "/dashboard/learning" : "/dashboard/classes"}
           className="px-6 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold"
         >
-          {profile?.role === "student" ? "Back to Learning Center" : "Back to Lessons"}
+          {profile?.role === "student" ? "Back to Learning Center" : "Back to Classes"}
         </Link>
       </div>
     );
@@ -5009,6 +5006,11 @@ export default function LessonDetailPage() {
       : null;
   const isCoding = lesson.lesson_type === "coding";
   const isReading = lesson.lesson_type === "reading";
+  const staffReturnHref = classId
+    ? `/dashboard/classes/${classId}`
+    : lesson.lesson_plan_id
+      ? `/dashboard/lesson-plans/${lesson.lesson_plan_id}`
+      : "/dashboard/classes";
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row h-screen overflow-hidden mobile-page-root">
@@ -5197,13 +5199,11 @@ export default function LessonDetailPage() {
 
           <div className="p-10 border-t border-white/10 bg-gradient-to-t from-slate-950 to-transparent">
             <Link
-              href={
-                classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`
-              }
+              href={staffReturnHref}
               className="flex items-center justify-center gap-4 px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-[24px] text-[10px] font-black text-muted-foreground hover:text-white uppercase tracking-[0.4em] transition-all group shadow-2xl"
             >
               <ArrowLeftIcon className="w-5 h-5 transition-transform group-hover:-translate-x-2" />
-              {classId ? "Return to Class" : "System Exit"}
+              {classId ? "Return to Class" : lesson.lesson_plan_id ? "Return to Class Plan" : "Return to Classes"}
             </Link>
           </div>
         </div>
@@ -5251,15 +5251,12 @@ export default function LessonDetailPage() {
                 >
                   <BoltIcon className="w-8 h-8 group-hover:rotate-12 transition-transform duration-500" />
                 </button>
-                {(lesson.lesson_plan_id || lesson.metadata?.lesson_plan_id) &&
-                  isStaff && (
+                {lesson.lesson_plan_id && isStaff && (
                     <Link
-                      href={`/dashboard/lesson-plans/${
-                        lesson.lesson_plan_id || lesson.metadata.lesson_plan_id
-                      }`}
+                      href={`/dashboard/lesson-plans/${lesson.lesson_plan_id}`}
                       className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black text-primary hover:bg-primary/20 transition-all uppercase tracking-widest"
                     >
-                      <AcademicCapIcon className="w-3.5 h-3.5" /> View Plan
+                      <AcademicCapIcon className="w-3.5 h-3.5" /> Class plan
                     </Link>
                   )}
                 {classId && isStaff && (
@@ -5270,7 +5267,7 @@ export default function LessonDetailPage() {
                     })}
                     className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-500/20 dark:text-emerald-300"
                   >
-                    <CheckCircleIcon className="h-3.5 w-3.5" /> Week package
+                    <CheckCircleIcon className="h-3.5 w-3.5" /> Class workspace
                   </Link>
                 )}
                 <div

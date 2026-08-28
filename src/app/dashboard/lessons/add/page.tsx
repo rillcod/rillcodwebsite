@@ -87,7 +87,7 @@ function AddLessonPageContent() {
   const flowOrigin = sp.get("flow_origin");
   const classIdFromUrl = sp.get("class_id");
 
-  // Step 2 → Step 3 handoff: creating a lesson linked to a specific term plan week
+  // Class plan → week → lesson handoff.
   const termPlanId = sp.get("lesson_plan_id");
   const preTopicFromWeek = sp.get("topic");
   const preSubjectFromWeek = sp.get("subject");
@@ -138,13 +138,10 @@ function AddLessonPageContent() {
     duration_minutes: "60",
     video_url: "",
     // Class-plan lessons join the same review/release gate as their slides,
-    // cards and tasks. Truly standalone lessons keep their direct-publish flow.
-    status: termPlanId ? "draft" : "active",
+    // cards and tasks.
+    status: "draft",
     content_layout: [] as any[],
   });
-
-  // Only show advisory when there's no plan or curriculum context at all
-  const showPlanAdvisory = !curriculumSource && !termPlanId;
 
   // Initialize form from curriculum / syllabus deep links
   useEffect(() => {
@@ -483,22 +480,17 @@ function AddLessonPageContent() {
           term: curriculumTerm ? parseInt(curriculumTerm, 10) : null,
           week: parseInt(curriculumWeek, 10),
           ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
-          ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
-          ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
-          ...(classSession ? { session_number: Number(classSession) } : {}),
+           // Class, plan, week and session are persisted in their real columns;
+           // metadata is reserved for generation lineage and authoring notes.
           ...aiMeta,
         };
       } else if (termPlanId) {
         lessonMetadata = {
-          lesson_plan_id: termPlanId,
           ...(curriculumWeek ? { week: parseInt(curriculumWeek, 10) } : {}),
           ...(flowOrigin ? { flow_origin: flowOrigin } : {}),
-          ...(classIdFromUrl ? { class_id: classIdFromUrl } : {}),
           ...aiMeta,
         };
-      } else if (classIdFromUrl) {
-        lessonMetadata = { class_id: classIdFromUrl, ...aiMeta };
-      }
+       }
 
       const payload: any = {
         title: form.title.trim(),
@@ -508,12 +500,22 @@ function AddLessonPageContent() {
         lesson_type: normalizeLessonType(form.lesson_type, "lesson"),
         // A plan-linked lesson belongs to the complete teaching package and
         // must pass the same review/release gate as its slides and activities.
-        status: termPlanId ? "draft" : form.status,
+         status: "draft",
         video_url: form.video_url.trim() || null,
         content_layout: form.content_layout,
         metadata: lessonMetadata,
-          ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
-          ...(classSession ? { session_number: Number(classSession) } : {}),
+        teaching_guide: {
+          objectives: aiObjectives,
+          activities: form.content_layout
+            .filter((block: any) => block.type === "activity")
+            .map((block: any) => `${block.title || "Activity"}: ${block.instructions || ""}`.trim())
+            .filter(Boolean),
+          assessment_methods: form.content_layout
+            .filter((block: any) => block.type === "quiz")
+            .map((block: any) => block.question || block.title || "")
+            .filter(Boolean),
+        },
+        ...(termPlanId ? { lesson_plan_id: termPlanId } : {}),
         ...(curriculumWeek
           ? { curriculum_week_number: parseInt(curriculumWeek, 10) }
           : {}),
@@ -578,7 +580,7 @@ function AddLessonPageContent() {
 
       if (lessonPlanKey) clearStashedCurriculumLessonPlan(lessonPlanKey);
 
-      // Routing: term plan always takes priority, then lesson detail
+      // Return to the class workflow whenever that context is available.
       if (flowOrigin === "class-teaching" && classIdFromUrl) {
         router.push(
           `/dashboard/lessons/${data.id}?return_class_id=${encodeURIComponent(
@@ -604,6 +606,48 @@ function AddLessonPageContent() {
       </div>
     );
 
+  if (!termPlanId) {
+    const primaryHref = classIdFromUrl
+      ? `/dashboard/classes/${classIdFromUrl}?operation=teaching${preCourseId ? `&course_id=${encodeURIComponent(preCourseId)}` : ""}`
+      : "/dashboard/classes";
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center px-4 py-10 mobile-page-root">
+        <section className="w-full overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+          <div className="border-b border-border bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-6 sm:p-10">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+              <BookOpen className="h-7 w-7" aria-hidden />
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">One connected teaching flow</p>
+            <h1 className="mt-2 text-2xl font-black text-foreground sm:text-4xl">Choose a class plan first</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Every lesson belongs to a class, course, week and release decision. Start from the class plan so student access, resources, assignments and progress stay connected automatically.
+            </p>
+          </div>
+          <div className="grid gap-3 p-6 sm:grid-cols-3 sm:p-10">
+            {[
+              ["1", "Open a class"],
+              ["2", "Choose or create its plan"],
+              ["3", "Add the week’s lesson"],
+            ].map(([number, label]) => (
+              <div key={number} className="flex items-center gap-3 rounded-2xl border border-border bg-muted/30 p-4">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{number}</span>
+                <span className="text-sm font-bold text-foreground">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3 border-t border-border p-6 sm:flex-row sm:justify-end sm:p-8">
+            <Link href="/dashboard/lesson-plans" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border px-5 text-sm font-bold text-foreground hover:bg-muted">
+              View class plans
+            </Link>
+            <Link href={primaryHref} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+              Continue from classes
+            </Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   const currentCourse = courses.find((c: any) => c.id === form.course_id);
   const courseSelectDisabled =
     !!selectedProgramId &&
@@ -625,6 +669,7 @@ function AddLessonPageContent() {
           courseTitle={currentCourse?.title ?? null}
           curriculumId={curriculumId}
           lessonPlanId={termPlanId}
+          classId={classIdFromUrl}
         />
       )}
 
@@ -639,7 +684,7 @@ function AddLessonPageContent() {
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px]"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
-          {termPlanId ? "Back to term plan" : "Back to lessons"}
+          Back to class plan
         </Link>
       )}
 
@@ -674,10 +719,10 @@ function AddLessonPageContent() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-black text-primary uppercase tracking-widest">
-                Creating for Term Plan
+                Creating inside class plan
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                This lesson will be linked back to the Term Plan
+                This lesson will be saved to this class plan
                 {curriculumWeek ? ` · Week ${curriculumWeek}` : ""}.
               </p>
             </div>
@@ -715,33 +760,6 @@ function AddLessonPageContent() {
             <span className="self-start sm:self-center px-3 py-1.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-widest rounded-lg border border-emerald-500/30 whitespace-nowrap">
               Curriculum sync
             </span>
-          </div>
-        </div>
-      )}
-
-      {showPlanAdvisory && (
-        <div className="p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest">
-              Standalone lesson
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Not linked to a term plan. To connect this to a syllabus-driven
-              schedule, use{" "}
-              <Link
-                href={
-                  form.course_id
-                    ? `/dashboard/lesson-plans?course_id=${encodeURIComponent(
-                        form.course_id
-                      )}`
-                    : "/dashboard/lesson-plans"
-                }
-                className="text-amber-700 dark:text-amber-300 underline"
-              >
-                lesson plans
-              </Link>{" "}
-              instead.
-            </p>
           </div>
         </div>
       )}

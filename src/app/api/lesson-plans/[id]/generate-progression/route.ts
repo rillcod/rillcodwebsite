@@ -1318,7 +1318,6 @@ export async function POST(
           due_date: dueDate.toISOString(),
           max_points: w.week.practical_assessment.max_score,
           metadata: {
-            lesson_plan_id: plan.id,
             year_number: w.week.syllabus_ref.year_number,
             term_number: w.week.syllabus_ref.term_number,
             week: w.week.week,

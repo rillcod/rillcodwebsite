@@ -239,7 +239,7 @@ describe("generators and workspace stay on that schema", () => {
     expect(workspace).toContain("WEEK_CONTENT_ORIGIN_LABEL");
     expect(workspace).toContain("generated here, copied from");
     expect(parser).toContain("export function weekContentOrigin");
-    expect(workspace).toContain("Weekly teaching plan");
+    expect(workspace).toContain("Weekly class plan");
     expect(workspace).toContain("Prepare all missing packages");
     expect(workspace).toContain("types: WEEK_CONTENT_TYPES");
     expect(workspace).toContain("teachingMeetingLabel");

@@ -142,8 +142,7 @@ export async function GET(request: NextRequest) {
 
     if (lessonPlanIdFilter) {
 
-      // Prefer the canonical FK while retaining metadata-only historical work.
-      query = query.or(`lesson_plan_id.eq.${lessonPlanIdFilter},metadata->>lesson_plan_id.eq.${lessonPlanIdFilter}`) as any;
+      query = query.eq('lesson_plan_id', lessonPlanIdFilter) as any;
     }
 
     // Default: live academic session. Pass all_sessions=1 only for intentional history views.
@@ -278,9 +277,7 @@ export async function POST(request: NextRequest) {
       : {};
     const lessonPlanId = typeof body.lesson_plan_id === 'string'
       ? body.lesson_plan_id
-      : typeof body.metadata?.lesson_plan_id === 'string'
-        ? body.metadata.lesson_plan_id
-        : null;
+      : null;
     const targetClassId = body.metadata?.target_class_id || body.class_id;
     const assessmentScope = requestedMetadata.assessment_scope === 'practice'
       || requestedMetadata.result_eligible === false
@@ -417,7 +414,7 @@ export async function POST(request: NextRequest) {
       body.school_id = plan.school_id;
       body.lesson_plan_id = plan.id;
       body.curriculum_release_id = plan.curriculum_release_id;
-      body.metadata = { ...(body.metadata ?? {}), target_class_id: plan.class_id, lesson_plan_id: plan.id };
+      body.metadata = { ...(body.metadata ?? {}), target_class_id: plan.class_id };
       resolvedSchoolId = plan.school_id;
     }
     if (assessmentScope === 'class_result' && !body.class_id) {

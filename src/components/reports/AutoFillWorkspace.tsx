@@ -77,12 +77,12 @@ export function buildAutoFillReadiness(input: {
     },
     {
       key: 'course',
-      label: 'Teaching plan',
+          label: 'Class plan',
       ok: Boolean(courseId && selectedPlan?.curriculum_release_id),
       detail: selectedPlan?.courses?.title
         ? selectedPlan.curriculum_release_id
           ? selectedPlan.courses.title
-          : `${selectedPlan.courses.title} — needs a teaching plan`
+          : `${selectedPlan.courses.title} — needs a class plan`
         : 'Choose the course being taught',
     },
   ];

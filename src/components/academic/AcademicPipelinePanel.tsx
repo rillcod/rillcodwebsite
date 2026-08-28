@@ -3,7 +3,7 @@
 /**
  * Where teaching content stops, as counts.
  *
- * The chain runs curriculum → published edition → school adoption → class course → teaching plan.
+ * The chain runs curriculum → published edition → school adoption → class course → class plan.
  * Collapsed by default on the overview so it stays a diagnostic, not noise.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -48,7 +48,7 @@ type Pipeline = {
 };
 
 const JOB_LABEL: Record<string, string> = {
-  'academic-readiness': 'Prepare class teaching plans',
+  'academic-readiness': 'Prepare class plans',
   'auto-generate-content': 'Generate weekly content',
 };
 
@@ -103,7 +103,7 @@ export function AcademicPipelinePanel({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-black text-foreground">
-              Where teaching content stops
+              Where class preparation stops
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {data ? `Checked ${when(data.generatedAt)}` : 'Reading the chain…'}

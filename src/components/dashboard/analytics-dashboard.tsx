@@ -212,7 +212,7 @@ export function AnalyticsDashboard() {
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
                   <div>
-                    <p className="font-medium">New lesson plan created</p>
+                    <p className="font-medium">New class plan created</p>
                     <p className="text-sm text-muted-foreground">4 hours ago</p>
                   </div>
                 </div>
@@ -246,4 +246,4 @@ export function AnalyticsDashboard() {
       </div>
     </div>
   )
-} 
+}
