@@ -352,7 +352,13 @@ export async function GET(
         activities: termActivities,
       })
     : [];
-  const coverage = classCoverageFromRows(deliveries);
+  const coverage = classCoverageFromRows(
+    deliveries,
+    weekRows.map((row: any) => ({
+      week_number: row.week,
+      session_number: row.session,
+    })),
+  );
   const today = schoolCalendarDate();
   const week = schoolWeekRange(today);
   let timetableSessionsQuery = db

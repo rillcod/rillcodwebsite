@@ -23,6 +23,12 @@ import {
   pendingWeekKey,
   type PendingWeek,
 } from "@/lib/academic/pending-approval";
+import {
+  assignmentVisibility,
+  flashcardVisibility,
+  lessonVisibility,
+  slidesVisibility,
+} from "@/lib/academic/week-package";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +43,7 @@ async function visiblePlans(
     .from("lesson_plans")
     .select(
       "id,school_id,created_by,status,plan_data,course_id,class_id,academic_offering_id," +
-        "courses(title),classes!lesson_plans_class_id_fkey(id,name,teacher_id,school_id,academic_offering_id,academic_offerings(id,title,enrollment_type,pathway))"
+        "courses(title),classes!lesson_plans_class_id_fkey(id,name,teacher_id,school_id,term_id,academic_offering_id,academic_offerings(id,title,enrollment_type,pathway))"
     )
     .eq("status", "published");
 
@@ -76,6 +82,7 @@ export async function GET() {
 
   const byWeek = new Map<string, PendingWeek>();
   const planById = new Map(plans.map((p: any) => [p.id, p]));
+  const lessonById = new Map((lessons ?? []).map((lesson: any) => [lesson.id, lesson]));
 
   const bucket = (planId: string, week: number, session: number): PendingWeek => {
     const sessionNum = assetMeetingSession({ session_number: session });
@@ -136,7 +143,7 @@ export async function GET() {
       kind: "lesson",
       id: (l as any).id,
       title: (l as any).title,
-      state: String((l as any).status).toLowerCase() === "draft" ? "held" : "live",
+      state: lessonVisibility(l as any) === "live" ? "live" : "held",
     });
   }
   for (const a of assignments ?? []) {
@@ -152,7 +159,7 @@ export async function GET() {
       kind: (a as any).assignment_type === "project" ? "project" : "assignment",
       id: (a as any).id,
       title: (a as any).title,
-      state: (a as any).is_active === true ? "live" : "held",
+      state: assignmentVisibility(a as any) === "live" ? "live" : "held",
     });
   }
   for (const d of decks ?? []) {
@@ -168,7 +175,7 @@ export async function GET() {
       kind: "flashcards",
       id: (d as any).id,
       title: (d as any).title,
-      state: (d as any).is_public === false ? "held" : "live",
+      state: flashcardVisibility(d as any) === "live" ? "live" : "held",
     });
   }
   for (const slide of slides ?? []) {
@@ -181,7 +188,10 @@ export async function GET() {
       // The slide viewer lives on the lesson detail page.
       id: (slide as any).lesson_id ?? (slide as any).id,
       title: (slide as any).title,
-      state: (slide as any).is_public === false ? "held" : "live",
+      state:
+        slidesVisibility(slide as any, lessonById.get((slide as any).lesson_id)) === "live"
+          ? "live"
+          : "held",
     });
   }
 

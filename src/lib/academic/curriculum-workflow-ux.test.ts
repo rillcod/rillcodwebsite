@@ -43,10 +43,12 @@ describe("curriculum to class-plan workflow UX", () => {
     expect(classWorkspace).toContain("Approved curriculum journey");
     expect(classWorkspace).toContain("Review next package");
     expect(classWorkspace).toContain("Ready for your review");
-    expect(classWorkspace).toContain('aria-label="Close review"');
+    expect(classWorkspace).toContain("<ConfirmModal");
     expect(classWorkspace).toContain("nextActionInView");
     expect(classWorkspace).toContain("Content gap detected");
     expect(classWorkspace).toContain("Ready to teach");
+    expect(classWorkspace).toContain('rootMargin: "-64px 0px -80px 0px"');
+    expect(classWorkspace).not.toContain('rootMargin: "-4rem 0px -5rem 0px"');
     expect(classWorkspace).toContain("var(--app-bottom-nav-height)");
     expect(classWorkspace).toContain("From approved curriculum to the classroom");
     expect(classWorkspace).toContain("Curriculum → sessions");

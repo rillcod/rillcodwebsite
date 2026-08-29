@@ -72,8 +72,33 @@ jobs:
     timeout-minutes: 30
     # The deployed artefact is the container, not the repository. A base image
     # can pick up a CVE with no change to this codebase at all.
+    # Dockerfile.cf intentionally packages a host-built Next standalone tree.
+    # Build that exact tree here before Docker; a clean checkout has no .next/
+    # directory and otherwise the scan fails at COPY with an opaque checksum
+    # error without ever producing an image to scan.
+    env:
+      CI: 'true'
+      DOCKER_BUILD: '1'
+      NEXT_PUBLIC_APP_URL: https://www.rillcod.com
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-
+      NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs
+      NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build the standalone tree
+        run: npm run build
 
       - name: Build the deploy image
         run: docker build -f Dockerfile.cf -t rillcod-scan-target:${{ github.sha }} .

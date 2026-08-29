@@ -25,9 +25,19 @@ export type ClassCoverage = {
  * that slot.
  */
 export function classCoverageFromRows(
-  deliveryRows: readonly DeliveryRow[] | null | undefined
+  deliveryRows: readonly DeliveryRow[] | null | undefined,
+  plannedSlots?: readonly Pick<DeliveryRow, "week_number" | "session_number">[] | null,
 ): ClassCoverage {
   const statusBySlot = new Map<string, string>();
+  // The delivery table only contains a row after a teacher records a meeting.
+  // Seed the same map with the plan's expected meetings so a brand-new class
+  // reports 0/N rather than the misleading "no weeks recorded" state.
+  for (const row of plannedSlots ?? []) {
+    const week = Number(row.week_number);
+    if (!Number.isFinite(week)) continue;
+    const key = planMeetingLookupKey(week, row.session_number);
+    if (!statusBySlot.has(key)) statusBySlot.set(key, "planned");
+  }
   for (const row of deliveryRows ?? []) {
     const week = Number(row.week_number);
     if (!Number.isFinite(week)) continue;

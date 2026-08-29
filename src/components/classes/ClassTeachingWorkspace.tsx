@@ -74,7 +74,7 @@ import { pickTimetableSessionForMeeting, schoolCalendarDate } from "@/lib/timeta
 import { createClient } from "@/lib/supabase/client";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
-import BodyPortal, { useOverlayScrollLock } from "@/components/ui/BodyPortal";
+import { ConfirmModal } from "@/components/ui/Modal";
 
 type Props = {
   classId: string;
@@ -148,16 +148,6 @@ export function ClassTeachingWorkspace({
     mode?: "release" | "hold";
   } | null>(null);
   const [nextActionInView, setNextActionInView] = useState(true);
-
-  useEffect(() => {
-    if (!pendingRelease) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) setPendingRelease(null);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [busy, pendingRelease]);
-  useOverlayScrollLock(Boolean(pendingRelease));
 
   // Guard against race conditions when switching courses rapidly
   const loadSeq = useRef(0);
@@ -436,12 +426,18 @@ export function ClassTeachingWorkspace({
   const planBlock = plan ? validateLessonPlanForGeneration(plan) : null;
   const planReady = Boolean(plan) && planBlock === null;
 
-  async function confirmPendingRelease() {
-    if (!pendingRelease) return;
+  async function confirmPendingRelease(): Promise<boolean> {
+    if (!pendingRelease) return false;
     const body = pendingRelease.body;
-    setPendingRelease(null);
     const ok = await act(body);
-    if (ok) setPicked(new Set());
+    // Keep the dialog mounted while the request is running so mobile users see
+    // the pinned "Saving…" state. On a failed request it stays open for a
+    // retry; only a confirmed server success dismisses the action.
+    if (ok) {
+      setPendingRelease(null);
+      setPicked(new Set());
+    }
+    return ok;
   }
 
   const officialDirection = data?.academic_direction?.available
@@ -711,7 +707,10 @@ export function ClassTeachingWorkspace({
     }
     const observer = new IntersectionObserver(
       ([entry]) => setNextActionInView(entry.isIntersecting),
-      { threshold: 0.15, rootMargin: "-4rem 0px -5rem 0px" }
+      // IntersectionObserver margins are CSS lengths in px or %, not rem.
+      // Using rem throws during hydration and sends the whole class page to
+      // the error boundary before the teaching workspace can render.
+      { threshold: 0.15, rootMargin: "-64px 0px -80px 0px" }
     );
     observer.observe(target);
     return () => observer.disconnect();
@@ -872,103 +871,35 @@ export function ClassTeachingWorkspace({
       )}
 
       {pendingRelease && (
-        <BodyPortal>
-          <div
-            className="app-fixed-overlay mobile-native-dialog fixed inset-0 z-[200] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
-            onClick={(event) => {
-              if (event.target === event.currentTarget && !busy) setPendingRelease(null);
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="package-confirm-title"
-              onClick={(event) => event.stopPropagation()}
-              className={`max-h-[calc(100dvh-var(--safe-area-top))] w-full overflow-y-auto rounded-t-3xl border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg sm:rounded-3xl sm:pb-5 ${
-              pendingRelease.mode === "hold"
-                ? "border-amber-500/40 bg-background"
-                : "border-orange-500/40 bg-background"
-            }`}
-            >
-            <div className="flex items-start gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                pendingRelease.mode === "hold"
-                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                  : "bg-orange-500/15 text-orange-700 dark:text-orange-300"
-              }`}>
-                {pendingRelease.mode === "hold" ? (
-                  <EyeSlashIcon className="h-5 w-5" />
-                ) : (
-                  <RocketLaunchIcon className="h-5 w-5" />
-                )}
-              </div>
-              <div className="min-w-0">
-                <p id="package-confirm-title" className="text-base font-black text-foreground">
+        <ConfirmModal
+          isOpen
+          onClose={() => setPendingRelease(null)}
+          onConfirm={confirmPendingRelease}
+          busy={busy}
+          title={
+            pendingRelease.mode === "hold"
+              ? "Hold this package from students?"
+              : "Share this complete package?"
+          }
+          message={
+            <div className="space-y-3">
+              <p>{pendingRelease.label}</p>
+              <div className="rounded-xl border border-border bg-muted/30 p-3 text-foreground/80">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {pendingRelease.mode === "hold" ? "What changes" : "Students will receive"}
+                </p>
+                <p className="mt-1 text-xs leading-5">
                   {pendingRelease.mode === "hold"
-                    ? "Hold this package from students?"
-                    : "Share this complete package?"}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {pendingRelease.label}
+                    ? "Lesson, slides, practice cards, assignment and project will be held together. Existing submissions, scores, attendance and delivery history remain safe."
+                    : "Lesson, slides, practice cards, assignment and project will become visible together. Assessments remain private until you open them separately."}
                 </p>
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setPendingRelease(null);
-                }}
-                aria-label="Close review"
-                className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground disabled:opacity-50"
-              >
-                <XMarkIcon className="h-4 w-4" />
-              </button>
             </div>
-
-            <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                {pendingRelease.mode === "hold" ? "What changes" : "Students will receive"}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-foreground/80">
-                {pendingRelease.mode === "hold"
-                  ? "Lesson, slides, practice cards, assignment and project will be held together. Existing submissions, scores, attendance and delivery history remain safe."
-                  : "Lesson, slides, practice cards, assignment and project will become visible together. Assessments remain private until you open them separately."}
-              </p>
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setPendingRelease(null);
-                }}
-                className="min-h-11 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-black text-muted-foreground disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void confirmPendingRelease()}
-                className={`min-h-11 rounded-xl px-4 py-2.5 text-xs font-black text-white disabled:opacity-50 ${
-                  pendingRelease.mode === "hold" ? "bg-amber-700" : "bg-orange-700"
-                }`}
-              >
-                {busy
-                  ? "Saving…"
-                  : pendingRelease.mode === "hold"
-                    ? "Hold package"
-                    : "Share with students"}
-              </button>
-            </div>
-            </div>
-          </div>
-        </BodyPortal>
+          }
+          confirmText={pendingRelease.mode === "hold" ? "Hold package" : "Share with students"}
+          confirmingText="Saving…"
+          variant={pendingRelease.mode === "hold" ? "warning" : "success"}
+        />
       )}
 
       {canEdit && !pendingRelease && resumeWeek && !nextActionInView && (

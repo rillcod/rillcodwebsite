@@ -68,4 +68,13 @@ describe("class curriculum coverage", () => {
       planned: 0,
     });
   });
+
+  it("uses the plan's expected meetings before any delivery is recorded", () => {
+    expect(
+      classCoverageFromRows([], [
+        { week_number: 1, session_number: 1 },
+        { week_number: 2, session_number: 1 },
+      ]),
+    ).toEqual({ delivered: 0, planned: 2 });
+  });
 });

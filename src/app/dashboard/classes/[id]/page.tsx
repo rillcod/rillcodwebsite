@@ -1246,7 +1246,7 @@ export default function ClassDetailPage() {
       // Weeks taught says how far the class has actually got; the lesson count only
       // says how much material exists. Fall back until the coverage read lands.
       stat: coverage && coverage.planned > 0
-        ? `${coverage.delivered}/${coverage.planned} weeks taught`
+        ? `${coverage.delivered}/${coverage.planned} sessions taught`
         : `${items.lessons.length} lessons`,
       progress: coverage && coverage.planned > 0
         ? Math.round((coverage.delivered / coverage.planned) * 100)
@@ -2105,68 +2105,6 @@ export default function ClassDetailPage() {
               )}
               {activeOperation === 'teaching' && (
                 <div className="space-y-4">
-                  {/* Curriculum delivery sits with the plan it measures, not in the page header. */}
-                  {(() => {
-                    const planned = coverage?.planned ?? 0;
-                    const delivered = coverage?.delivered ?? 0;
-                    const pct = planned > 0 ? Math.round((delivered / planned) * 100) : 0;
-                    const tone = pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-500';
-                    return (
-                      <div className="rounded-2xl border border-border bg-background p-3 sm:p-4">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Curriculum delivery
-                          </p>
-                          <p className="text-xs font-black text-foreground">
-                            {planned > 0
-                              ? <>{delivered} of {planned} weeks taught <span className="ml-1 text-muted-foreground">{pct}%</span></>
-                              : 'No weeks recorded yet'}
-                          </p>
-                        </div>
-                        <div
-                          className="mt-2"
-                          role="progressbar"
-                          aria-valuenow={pct}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          aria-label="Curriculum weeks taught"
-                        >
-                          {planned > 0 && planned <= 16 ? (
-                            <div className="flex gap-1">
-                              {Array.from({ length: planned }, (_, index) => (
-                                <span
-                                  key={index}
-                                  title={`Week ${index + 1}${index < delivered ? ' — taught' : ' — not yet taught'}`}
-                                  className={`h-2.5 min-w-0 flex-1 rounded-sm transition-colors duration-500 sm:h-3 ${
-                                    index < delivered ? tone : 'bg-muted'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-3">
-                              <div className={`h-full rounded-full transition-all duration-500 ${tone}`} style={{ width: `${pct}%` }} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-[10px] text-muted-foreground">
-                            {planned === 0
-                              ? 'Start the plan below, generate lessons, then mark weeks taught.'
-                              : delivered === planned
-                                ? 'Every planned week has been taught.'
-                                : `${planned - delivered} week${planned - delivered === 1 ? '' : 's'} still to teach.`}
-                          </p>
-                          <Link
-                            href="/dashboard/learner-progress?view=delivery"
-                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
-                          >
-                            School delivery overview →
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })()}
                   {profile?.role === 'admin' && (
                     <ClassRangeEditor classId={id} initialRange={cls?.qa_grade_band} canEdit />
                   )}

@@ -150,12 +150,15 @@ const Modal: React.FC<ModalProps> = ({
 export const ConfirmModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  /** Return false to keep the dialog open after a handled failure. */
+  onConfirm: () => void | boolean | Promise<void | boolean>;
   title: string;
-  message: string;
+  message: React.ReactNode;
   confirmText?: string;
+  confirmingText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
+  variant?: 'danger' | 'warning' | 'info' | 'success';
+  busy?: boolean;
 }> = ({
   isOpen,
   onClose,
@@ -163,40 +166,58 @@ export const ConfirmModal: React.FC<{
   title,
   message,
   confirmText = 'Confirm',
+  confirmingText = 'Working…',
   cancelText = 'Cancel',
   variant = 'info',
+  busy = false,
 }) => {
   const variantClasses = {
     danger: 'bg-red-600 text-white hover:bg-red-700',
     warning: 'bg-yellow-600 text-white hover:bg-yellow-700',
     info: 'bg-primary text-primary-foreground hover:opacity-90',
+    success: 'bg-emerald-700 text-white hover:bg-emerald-800',
   };
 
-  const handleConfirm = () => {
-    onConfirm();
-    onClose();
+  const handleConfirm = async () => {
+    if (busy) return;
+    const result = await onConfirm();
+    if (result !== false) onClose();
+  };
+
+  const close = () => {
+    if (!busy) onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <div className="space-y-4">
-        <p className="text-muted-foreground">{message}</p>
-        <div className="flex justify-end space-x-3">
+    <Modal
+      isOpen={isOpen}
+      onClose={close}
+      closeOnBackdrop={!busy}
+      title={title}
+      size="sm"
+      footer={
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:justify-end">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground/80 hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            onClick={close}
+            disabled={busy}
+            className="min-h-11 rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold text-foreground/80 hover:bg-background disabled:opacity-50"
           >
             {cancelText}
           </button>
           <button
             type="button"
-            onClick={handleConfirm}
-            className={`rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${variantClasses[variant]}`}
+            onClick={() => void handleConfirm()}
+            disabled={busy}
+            className={`min-h-11 rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50 ${variantClasses[variant]}`}
           >
-            {confirmText}
+            {busy ? confirmingText : confirmText}
           </button>
         </div>
+      }
+    >
+      <div className="text-sm leading-6 text-muted-foreground">
+        {message}
       </div>
     </Modal>
   );

@@ -39,6 +39,7 @@ import { teachingMeetingLabel } from "@/lib/academic/session-identity";
 import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
 import type { WeekContentType } from "@/lib/academic/auto-generate-settings";
 import { ApprovalGateNav } from "@/components/academic/ApprovalGateNav";
+import { ConfirmModal } from "@/components/ui/Modal";
 
 function pendingKey(row: { planId: string; week: number; session?: number | null }) {
   return pendingWeekKey(row);
@@ -64,7 +65,7 @@ const ITEM_META: Record<
     label: "Flashcards",
     icon: SparklesIcon,
     cls: "text-amber-600 dark:text-amber-400",
-    href: (id) => `/dashboard/flashcards?deck_id=${id}`,
+    href: (id) => `/dashboard/flashcards?deckId=${id}`,
   },
   assignment: {
     label: "Assignment",
@@ -76,7 +77,7 @@ const ITEM_META: Record<
     label: "Project",
     icon: RocketLaunchIcon,
     cls: "text-purple-600 dark:text-purple-400",
-    href: (id) => `/dashboard/assignments/${id}`,
+    href: (id) => `/dashboard/projects/${id}`,
   },
 };
 
@@ -100,6 +101,13 @@ export default function ContentApprovalsPage() {
   const [previewWeek, setPreviewWeek] = useState<PendingWeek | null>(null);
   const [pathwayFilter, setPathwayFilter] = useState<'all' | 'special' | 'school'>('all');
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    variant: "success" | "warning";
+    run: () => Promise<void>;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -278,16 +286,43 @@ export default function ContentApprovalsPage() {
     }
   }
 
-  async function releaseSelected() {
+  function releaseSelected() {
     const selectedSet = new Set(selected);
     const picks = readyWeeks.filter((w) => selectedSet.has(pendingKey(w)));
-    await releasePicks(picks);
+    if (!picks.length) return;
+    setConfirmation({
+      title: `Share ${picks.length} selected package${picks.length === 1 ? "" : "s"}?`,
+      message: "Students will receive the lesson, slides, practice cards, assignment and project prepared for each selected class meeting. Assessments remain private.",
+      confirmText: "Share selected",
+      variant: "success",
+      run: () => releasePicks(picks),
+    });
   }
 
-  async function releaseAll() {
+  function releaseAll() {
     if (!readyWeeks.length) return;
-    if (!confirm(`Share all ${readyWeeks.length} complete, reviewed meeting${readyWeeks.length === 1 ? "" : "s"} with students?`)) return;
-    await releasePicks(readyWeeks);
+    setConfirmation({
+      title: `Share all ${readyWeeks.length} ready package${readyWeeks.length === 1 ? "" : "s"}?`,
+      message: "Every complete package in the current filter will become visible to its class. Saved scores, submissions and attendance are not changed.",
+      confirmText: "Share all ready",
+      variant: "success",
+      run: () => releasePicks(readyWeeks),
+    });
+  }
+
+  function requestRelease(row: PendingWeek, availableOnly = false) {
+    const meeting = teachingMeetingLabel(row.week, row.session, row.meetingsInWeek);
+    setConfirmation({
+      title: availableOnly
+        ? `Share the available items for ${meeting}?`
+        : `Share ${meeting} with students?`,
+      message: availableOnly
+        ? `${row.className || "This class"} will receive ${row.items.length} prepared item${row.items.length === 1 ? "" : "s"}. ${row.missingKinds.length} missing item${row.missingKinds.length === 1 ? " remains" : "s remain"} unavailable until prepared.`
+        : `${row.className || "This class"} will receive the complete package for “${row.topic}”. Assessments remain private until opened separately.`,
+      confirmText: availableOnly ? "Share available items" : "Share with students",
+      variant: availableOnly ? "warning" : "success",
+      run: () => release(row),
+    });
   }
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher";
@@ -342,20 +377,15 @@ export default function ContentApprovalsPage() {
               Share all ready ({readyWeeks.length})
             </button>
           )}
-          <button
-            onClick={() => void releaseSelected()}
-            disabled={loading || bulkBusy || selected.length === 0}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
-          >
-            {bulkBusy ? (
-              <>
-                <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                Sharing…
-              </>
-            ) : (
-              <>Share selected ({selected.length})</>
-            )}
-          </button>
+          {selected.length > 0 && (
+            <button
+              onClick={releaseSelected}
+              disabled={loading || bulkBusy}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-[11px] font-black uppercase tracking-widest text-emerald-700 transition-colors hover:bg-emerald-500/20 disabled:opacity-50 dark:text-emerald-300"
+            >
+              Share selected ({selected.length})
+            </button>
+          )}
           <button
             onClick={() => void load()}
             disabled={loading}
@@ -512,7 +542,7 @@ export default function ContentApprovalsPage() {
 
                     {row.complete ? (
                       <button
-                        onClick={() => void release(row)}
+                        onClick={() => requestRelease(row)}
                         disabled={busy}
                         className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-emerald-800 disabled:opacity-50 shadow-sm"
                       >
@@ -524,7 +554,7 @@ export default function ContentApprovalsPage() {
                         ) : (
                           <>
                             <CheckCircleIcon className="h-3.5 w-3.5" />
-                            Share
+                            Review & share
                           </>
                         )}
                       </button>
@@ -652,11 +682,7 @@ export default function ContentApprovalsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm("Share only the available items? Missing items will remain unavailable to students.")) {
-                                void release(row);
-                              }
-                            }}
+                            onClick={() => requestRelease(row, true)}
                             disabled={busy}
                             className="rounded-lg border border-amber-500/40 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-200 disabled:opacity-50"
                           >
@@ -691,6 +717,20 @@ export default function ContentApprovalsPage() {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(confirmation)}
+        onClose={() => setConfirmation(null)}
+        onConfirm={async () => {
+          if (confirmation) await confirmation.run();
+        }}
+        busy={Boolean(releasing || bulkBusy)}
+        title={confirmation?.title ?? "Confirm sharing"}
+        message={confirmation?.message ?? ""}
+        confirmText={confirmation?.confirmText ?? "Confirm"}
+        confirmingText="Sharing…"
+        variant={confirmation?.variant ?? "success"}
+      />
     </div>
   );
 }
