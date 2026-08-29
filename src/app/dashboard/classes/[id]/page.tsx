@@ -72,6 +72,8 @@ export default function ClassDetailPage() {
     weeksNeedingWork: 0,
     weeksFullyLive: 0,
     planned: 0,
+    missingContent: 0,
+    readyToShare: 0,
   });
 
   useEffect(() => {
@@ -1249,8 +1251,8 @@ export default function ClassDetailPage() {
       progress: coverage && coverage.planned > 0
         ? Math.round((coverage.delivered / coverage.planned) * 100)
         : null,
-      attention: teachingAttention.weeksNeedingWork,
-      attentionLabel: 'Curriculum weeks requiring preparation, review or release',
+      attention: teachingAttention.missingContent + teachingAttention.readyToShare,
+      attentionLabel: 'Teaching sessions requiring content or teacher review',
       tone: 'text-cyan-600 dark:text-cyan-400',
     },
     {
@@ -1303,10 +1305,17 @@ export default function ClassDetailPage() {
   const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
   const pendingTransferCount = pendingIncomingTransfers.length + pendingOutgoingTransfers.length;
   const classPriorities = [
-    ...(teachingAttention.weeksNeedingWork > 0 ? [{
+    ...(teachingAttention.missingContent > 0 ? [{
       id: 'teaching',
-      title: `${teachingAttention.weeksNeedingWork} teaching week${teachingAttention.weeksNeedingWork === 1 ? '' : 's'} need attention`,
-      detail: 'Prepare missing content, review held work or release it to students.',
+      title: `${teachingAttention.missingContent} teaching session${teachingAttention.missingContent === 1 ? '' : 's'} need content`,
+      detail: 'Open Teaching to fill only the missing lesson materials. Existing work will be kept.',
+      operation: 'teaching' as const,
+      tone: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+    }] : []),
+    ...(teachingAttention.readyToShare > 0 ? [{
+      id: 'teaching-review',
+      title: `${teachingAttention.readyToShare} complete package${teachingAttention.readyToShare === 1 ? '' : 's'} ready to review`,
+      detail: 'Open Teaching to check the next package and share it with students.',
       operation: 'teaching' as const,
       tone: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
     }] : []),
@@ -1419,12 +1428,23 @@ export default function ClassDetailPage() {
                       setShowNeedsReportOnly(false);
                       setRosterOpen(true);
                     }
+                    window.setTimeout(() => {
+                      const targetId = priority.id.startsWith('teaching')
+                        ? 'teaching-workflow'
+                        : `class-operation-${priority.operation}`;
+                      document
+                        .getElementById(targetId)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 80);
                   }}
+                  aria-label={`Open solution: ${priority.title}`}
                   title={priority.detail}
                   className={`inline-flex min-h-10 flex-shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-black transition-colors hover:brightness-110 ${priority.tone}`}
                 >
                   <span>{priority.title}</span>
-                  <ChevronRightIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider">
+                    Open <ChevronRightIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                  </span>
                 </button>
               ))}
             </div>
@@ -1498,7 +1518,10 @@ export default function ClassDetailPage() {
               </div>
             </aside>
 
-            <div className="min-h-0 min-w-0 p-2 sm:min-h-[320px] sm:p-5 md:p-6">
+            <div
+              id={`class-operation-${activeOperation}`}
+              className="min-h-0 min-w-0 scroll-mt-20 p-2 sm:min-h-[320px] sm:p-5 md:p-6"
+            >
               {/* The term pill that sat here repeated the identity bar's own
                   subtitle a few pixels above, where it already reads
                   "Programme · Term · Teacher". */}
@@ -2144,11 +2167,14 @@ export default function ClassDetailPage() {
                       </div>
                     );
                   })()}
-                  <ClassRangeEditor classId={id} initialRange={cls?.qa_grade_band} canEdit={isStaff} />
+                  {profile?.role === 'admin' && (
+                    <ClassRangeEditor classId={id} initialRange={cls?.qa_grade_band} canEdit />
+                  )}
                   <ClassTeachingWorkspace
                     classId={id}
                     initialCourseId={searchParams.get('course_id') || cls?.current_course_id}
                     canEdit={isStaff}
+                    canManageCurriculum={profile?.role === 'admin'}
                     onCourseChange={handleSaveCourseFocus}
                     onCoverageChange={setCoverage}
                     onAttentionChange={setTeachingAttention}

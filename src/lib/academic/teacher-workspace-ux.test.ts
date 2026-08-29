@@ -53,8 +53,11 @@ describe('central teacher workspace UX', () => {
     expect(teachingWorkspace).toContain('Teaching sessions');
     expect(teachingWorkspace).toContain('Content for this teaching session');
     expect(teachingWorkspace).toContain('Prepare · review · share here');
-    expect(teachingWorkspace).toContain('Automatic content preparation');
-    expect(teachingWorkspace).toContain('Finish missing content');
+    expect(teachingWorkspace).toContain('One connected workflow');
+    expect(teachingWorkspace).toContain('Review and share');
+    expect(teachingWorkspace).toContain('Teach and record');
+    expect(teachingWorkspace).toContain('Retry missing content');
+    expect(teachingWorkspace).not.toContain('Prepare all missing packages');
     expect(teachingWorkspace).not.toContain('Weekly Teaching Packages');
     expect(academicOffice).toContain('Detailed progress');
     expect(academicOffice).toContain('More academic tools');

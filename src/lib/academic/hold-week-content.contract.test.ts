@@ -29,7 +29,7 @@ describe('complete teaching-package hold contract', () => {
     expect(route).toContain('body.action === "hold_week"');
     expect(route).toContain('action: "hold_teaching_package"');
     expect(route).toContain('learner_evidence_preserved: true');
-    expect(workspace).toContain('Hold from students?');
+    expect(workspace).toContain('Hold this package from students?');
     expect(workspace).toContain('Existing submissions, scores, attendance and delivery history remain safe.');
   });
 });

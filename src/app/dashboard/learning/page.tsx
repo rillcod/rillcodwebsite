@@ -15,6 +15,7 @@ import Link from 'next/link';
 import {
   RocketLaunchIcon, BookOpenIcon, CheckBadgeIcon,
   ArrowRightIcon, PlayIcon, ClipboardDocumentListIcon,
+  PresentationChartLineIcon, BoltIcon,
 } from '@/lib/icons';
 import MyProgressPanel from '@/components/engagement/MyProgressPanel';
 
@@ -69,7 +70,7 @@ export default function StudentLearningPage() {
     const db = createClient();
     
     try {
-      // 1. Fetch Summary Stats â€” grades/lessons/XP prefer live academic session
+      // 1. Fetch summary stats — grades, lessons and XP prefer the live academic session.
       const { resolveAssignmentTermId, filterByAssignmentSession, matchesAssignmentSession } = await import('@/lib/assignments/session');
       const { loadAcademicTermBounds } = await import('@/lib/cbt/session');
       const liveTermId = await resolveAssignmentTermId(db as any, {});
@@ -273,28 +274,9 @@ export default function StudentLearningPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground mobile-page-root">
-
-      {/* â”€â”€ Top bar: quick links â”€â”€ */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-2 flex-wrap">
-          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest shrink-0">Jump to:</span>
-          {[
-            { label: 'Assignments', href: '/dashboard/assignments', icon: 'ðŸ“‹' },
-            { label: 'CBT Exams',   href: '/dashboard/cbt',         icon: 'ðŸŽ¯' },
-            { label: 'Timetable',   href: '/dashboard/timetable',   icon: 'ðŸ“…' },
-            { label: 'Grades',      href: '/dashboard/grades',      icon: 'ðŸ“Š' },
-          ].map(({ label, href, icon }) => (
-            <Link key={label} href={href}
-              className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border rounded-full transition-all">
-              {icon} {label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        {/* â”€â”€ Error banner â”€â”€ */}
+        {/* Error banner */}
         {loadError && (
           <div className="bg-destructive/10 border border-destructive/30 p-4 flex items-center justify-between gap-4">
             <p className="text-destructive text-sm font-bold">{loadError}</p>
@@ -305,7 +287,7 @@ export default function StudentLearningPage() {
           </div>
         )}
 
-        {/* â”€â”€ Hero: greeting + stats â”€â”€ */}
+        {/* Hero: greeting + stats */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Greeting */}
@@ -318,11 +300,10 @@ export default function StudentLearningPage() {
               </span>
               <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight mb-2">
                 {greeting}, <span className="bg-gradient-to-r from-primary to-indigo-500 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">{profile?.full_name?.split(' ')[0]}</span>!
-                {isKids && ' ðŸš€'}
               </h1>
               <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
                 {thisWeekNumber
-                  ? `This week is Week ${thisWeekNumber} â€” the same week your teacher opened for the class.`
+                  ? `This is Week ${thisWeekNumber} — the same learning package your teacher shared with the class.`
                   : 'When your teacher shares this week, it will show up here.'}
               </p>
 
@@ -357,12 +338,25 @@ export default function StudentLearningPage() {
           </div>
         </div>
 
-        <section className="bg-card border border-border p-6">
-          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-4">
-            {thisWeekNumber ? `Week ${thisWeekNumber}` : 'This week'}
-          </h2>
+        <section className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6" aria-labelledby="student-class-package">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Shared by your teacher</p>
+              <h2 id="student-class-package" className="mt-1 text-lg font-black text-foreground">
+                {thisWeekNumber ? `Your Week ${thisWeekNumber} class package` : 'Your class package'}
+              </h2>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+                Your lesson, slides, practice cards, assignment and project stay connected. Open the session once, then move between its learning tools.
+              </p>
+            </div>
+            {thisWeekLessons.length > 0 && (
+              <span className="w-fit rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+                Available to your class
+              </span>
+            )}
+          </div>
           {thisWeekLessons.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="rounded-2xl border border-dashed border-border py-12 text-center">
               <BookOpenIcon className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground font-bold">
                 Your teacher has not shared a week yet.
@@ -372,7 +366,7 @@ export default function StudentLearningPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {thisWeekLessons.map((lesson) => {
                 const isCompleted = completedLessonIds.has(lesson.id);
                 const isNext = nextLesson?.id === lesson.id;
@@ -380,56 +374,77 @@ export default function StudentLearningPage() {
                   <Link
                     key={lesson.id}
                     href={`/dashboard/lessons/${lesson.id}`}
-                    className={`flex items-start gap-3 p-4 border transition-all ${
+                    className={`group flex min-h-40 flex-col rounded-2xl border p-4 transition-all ${
                       isNext
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-card hover:bg-muted/30'
+                        ? 'border-primary/50 bg-primary/5 shadow-sm'
+                        : 'border-border bg-background hover:border-primary/30'
                     }`}
                   >
-                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                      isCompleted
-                        ? 'bg-emerald-500/15 text-emerald-600'
-                        : isNext
-                        ? 'bg-primary text-white'
-                        : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {isCompleted ? (
-                        <CheckBadgeIcon className="h-5 w-5" />
-                      ) : (
-                        <PlayIcon className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      {isNext && (
-                        <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">
-                          This week
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                        isCompleted
+                          ? 'bg-emerald-500/15 text-emerald-600'
+                          : isNext
+                          ? 'bg-primary text-white'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {isCompleted ? (
+                          <CheckBadgeIcon className="h-5 w-5" />
+                        ) : (
+                          <PlayIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-primary">
+                          {isCompleted ? 'Completed session' : 'Continue this session'}
                         </p>
-                      )}
-                      <p className="text-sm font-black text-foreground leading-tight">
-                        {lesson.title}
-                      </p>
+                        <p className="mt-1 text-sm font-black leading-tight text-foreground">
+                          {lesson.title}
+                        </p>
+                      </div>
                     </div>
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {['Lesson', 'Slides', 'Practice', 'Assignment', 'Project'].map((item) => (
+                        <span key={item} className="rounded-full border border-border bg-card px-2 py-1 text-[9px] font-bold text-muted-foreground">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-black text-primary">
+                      Open complete package <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </span>
                   </Link>
                 );
               })}
             </div>
           )}
-          <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-border">
-            <Link href="/dashboard/assignments" className="text-xs font-bold text-primary hover:underline">
-              Assignments{pendingAssignments > 0 ? ` (${pendingAssignments})` : ''}
-            </Link>
-            <Link href="/dashboard/flashcards" className="text-xs font-bold text-primary hover:underline">
-              Practice cards{dueFlashcards > 0 ? ` (${dueFlashcards} due)` : ''}
-            </Link>
+          <div className="mt-6 border-t border-border pt-4">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Learning shortcuts</p>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <Link href="/dashboard/assignments" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40">
+                <ClipboardDocumentListIcon className="h-4 w-4 text-primary" />
+                Assignments{pendingAssignments > 0 ? ` (${pendingAssignments})` : ''}
+              </Link>
+              <Link href="/dashboard/flashcards" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40">
+                <BoltIcon className="h-4 w-4 text-amber-600" />
+                Practice{dueFlashcards > 0 ? ` (${dueFlashcards} due)` : ''}
+              </Link>
+              <Link href="/dashboard/slides" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40">
+                <PresentationChartLineIcon className="h-4 w-4 text-violet-600" /> Slides
+              </Link>
+              <Link href="/dashboard/projects" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40">
+                <RocketLaunchIcon className="h-4 w-4 text-sky-600" /> Projects
+              </Link>
+            </div>
           </div>
         </section>
 
         <ClassReplays heading={isKids ? 'Class replays' : 'Class Replays'} />
 
         {earlierWeeks.length > 0 && (
-          <details className="bg-card border border-border p-4">
+          <details className="rounded-2xl border border-border bg-card p-4">
             <summary className="cursor-pointer text-sm font-black text-foreground">
-              Earlier weeks
+              Earlier shared weeks
             </summary>
             <div className="mt-4 space-y-5">
               {earlierWeeks.map((group) => (

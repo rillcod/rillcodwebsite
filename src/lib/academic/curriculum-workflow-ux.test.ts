@@ -9,6 +9,7 @@ const classPlanList = read("src/app/dashboard/lesson-plans/page.tsx");
 const classPlanRoute = read("src/app/api/lesson-plans/route.ts");
 const rollout = read("src/app/dashboard/academic/rollout/page.tsx");
 const planSyncRoute = read("src/app/api/admin/academics/sync-plans/route.ts");
+const learnerWorkspace = read("src/app/dashboard/learning/page.tsx");
 
 describe("curriculum to class-plan workflow UX", () => {
   it("returns staff to the exact saved curriculum location", () => {
@@ -37,8 +38,28 @@ describe("curriculum to class-plan workflow UX", () => {
     ]) {
       expect(classWorkspace).toContain(item);
     }
-    expect(classWorkspace).toContain("Prepare this week");
-    expect(classWorkspace).toContain("Share with students?");
+    expect(classWorkspace).toContain("Let assistant fill");
+    expect(classWorkspace).toContain("Share this complete package?");
+    expect(classWorkspace).toContain("Approved curriculum journey");
+    expect(classWorkspace).toContain("Review next package");
+    expect(classWorkspace).toContain("Ready for your review");
+    expect(classWorkspace).toContain('aria-label="Close review"');
+    expect(classWorkspace).toContain("nextActionInView");
+    expect(classWorkspace).toContain("Content gap detected");
+    expect(classWorkspace).toContain("Ready to teach");
+    expect(classWorkspace).toContain("var(--app-bottom-nav-height)");
+    expect(classWorkspace).toContain("From approved curriculum to the classroom");
+    expect(classWorkspace).toContain("Curriculum → sessions");
+    expect(classWorkspace).toContain("Students see nothing until a teacher shares the complete package");
+  });
+
+  it("shows learners the same connected package after the teacher shares it", () => {
+    expect(learnerWorkspace).toContain("Your Week ${thisWeekNumber} class package");
+    expect(learnerWorkspace).toContain("lesson, slides, practice cards, assignment and project stay connected");
+    expect(learnerWorkspace).toContain("Open complete package");
+    expect(learnerWorkspace).toContain("Earlier shared weeks");
+    expect(learnerWorkspace).not.toContain("ðŸ");
+    expect(learnerWorkspace).not.toContain("â€”");
   });
 
   it("presents the legacy lesson-plan list as class planning", () => {

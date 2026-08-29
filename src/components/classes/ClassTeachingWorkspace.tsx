@@ -63,6 +63,7 @@ import {
   WEEK_CONTENT_TYPE_LABELS,
 } from "@/lib/academic/auto-generate-settings";
 import { requestTrackedWeekGeneration } from "@/lib/academic/week-generation-client";
+import { summarizeTeachingWorkflow } from "@/lib/academic/teaching-workflow-summary";
 import {
   hostAssessmentSit,
   isHostAssessmentWeek,
@@ -73,11 +74,13 @@ import { pickTimetableSessionForMeeting, schoolCalendarDate } from "@/lib/timeta
 import { createClient } from "@/lib/supabase/client";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
+import BodyPortal, { useOverlayScrollLock } from "@/components/ui/BodyPortal";
 
 type Props = {
   classId: string;
   initialCourseId?: string | null;
   canEdit: boolean;
+  canManageCurriculum: boolean;
   onCourseChange?: (id: string | null) => Promise<void> | void;
   onCoverageChange?: (coverage: {
     delivered: number;
@@ -87,6 +90,8 @@ type Props = {
     weeksNeedingWork: number;
     weeksFullyLive: number;
     planned: number;
+    missingContent: number;
+    readyToShare: number;
   }) => void;
 };
 
@@ -94,6 +99,7 @@ export function ClassTeachingWorkspace({
   classId,
   initialCourseId,
   canEdit,
+  canManageCurriculum,
   onCourseChange,
   onCoverageChange,
   onAttentionChange,
@@ -141,6 +147,17 @@ export function ClassTeachingWorkspace({
     body: Record<string, unknown>;
     mode?: "release" | "hold";
   } | null>(null);
+  const [nextActionInView, setNextActionInView] = useState(true);
+
+  useEffect(() => {
+    if (!pendingRelease) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) setPendingRelease(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [busy, pendingRelease]);
+  useOverlayScrollLock(Boolean(pendingRelease));
 
   // Guard against race conditions when switching courses rapidly
   const loadSeq = useRef(0);
@@ -614,14 +631,24 @@ export function ClassTeachingWorkspace({
   const weeksFullyLive = weekRows.filter(
     (row) => row.visibilitySummary.fullyLive
   ).length;
+  const workflow = summarizeTeachingWorkflow(weekRows);
 
   useEffect(() => {
     onAttentionChange?.({
       weeksNeedingWork,
       weeksFullyLive,
       planned: weekRows.length,
+      missingContent: workflow.missingContent,
+      readyToShare: workflow.readyToShare,
     });
-  }, [onAttentionChange, weekRows.length, weeksFullyLive, weeksNeedingWork]);
+  }, [
+    onAttentionChange,
+    weekRows.length,
+    weeksFullyLive,
+    weeksNeedingWork,
+    workflow.missingContent,
+    workflow.readyToShare,
+  ]);
 
   const termsPresent = useMemo(
     () =>
@@ -676,6 +703,20 @@ export function ClassTeachingWorkspace({
   const resumeWeek = weekRows.find(teachingSlotNeedsAttention) ||
     weekRows.find((row) => !row.taught);
 
+  useEffect(() => {
+    const target = document.getElementById("next-teacher-action");
+    if (!target || typeof IntersectionObserver === "undefined") {
+      setNextActionInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setNextActionInView(entry.isIntersecting),
+      { threshold: 0.15, rootMargin: "-4rem 0px -5rem 0px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [resumeWeek?.rowKey]);
+
   function toggleCardExpanded(rowKey: string) {
     setExpandedCards((prev) => {
       const next = new Set(prev);
@@ -692,6 +733,13 @@ export function ClassTeachingWorkspace({
       el.classList.add("ring-2", "ring-primary", "transition-all");
       setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 1800);
     }
+  }
+
+  function revealWeek(rowKey: string) {
+    setWeekFilter("all");
+    setTermFilter(0);
+    setSearchQuery("");
+    window.setTimeout(() => scrollToWeek(rowKey), 80);
   }
 
   return (
@@ -731,17 +779,31 @@ export function ClassTeachingWorkspace({
       <div className="rounded-2xl border border-border/80 bg-card/60 p-3.5 sm:p-4 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="flex-1">
-            <SmartCourseSelect
-              label="Active Course"
-              labelClass="text-xs font-bold text-muted-foreground flex items-center gap-1.5"
-              classId={classId}
-              value={courseId}
-              disabled={busy}
-              onChange={(id) => void chooseCourse(id)}
-            />
+            {canManageCurriculum ? (
+              <SmartCourseSelect
+                label="Course assigned to this class"
+                labelClass="text-xs font-bold text-muted-foreground flex items-center gap-1.5"
+                classId={classId}
+                value={courseId}
+                disabled={busy}
+                onChange={(id) => void chooseCourse(id)}
+              />
+            ) : (
+              <div>
+                <p className="text-xs font-bold text-muted-foreground">Course being taught</p>
+                <div className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5">
+                  <p className="truncate text-sm font-bold text-foreground">
+                    {selectedCourse?.title || "No course assigned"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Managed by your Academic Office.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex-1 text-xs font-bold text-muted-foreground">
-            Official curriculum
+            Approved curriculum
             <div className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5 shadow-inner">
               {officialDirection ? (
                 <>
@@ -749,19 +811,19 @@ export function ClassTeachingWorkspace({
                     {officialDirection}
                   </p>
                   <p className="mt-0.5 text-[11px] font-normal text-muted-foreground">
-                    Applied automatically for this class.
+                    Supplies the topics used for every teaching session in this class.
                   </p>
                 </>
               ) : (
                 <p className="text-sm font-normal text-muted-foreground">
                   {courseId
-                    ? "Assigned by the Academic Office."
+                    ? "No approved curriculum is assigned yet. An administrator must complete this before delivery can begin."
                     : "Select a course first."}
                 </p>
               )}
             </div>
           </div>
-          {canEdit && courseId && planStage?.state !== "blocked" && !plan && (
+          {canManageCurriculum && courseId && planStage?.state !== "blocked" && !plan && (
             <button
               disabled={busy}
               onClick={() =>
@@ -769,10 +831,10 @@ export function ClassTeachingWorkspace({
               }
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
             >
-              Start class plan
+              Create teaching sessions
             </button>
           )}
-          {canEdit && courseId && plan && (
+          {canManageCurriculum && courseId && plan && (
             <button
               disabled={busy}
               onClick={() =>
@@ -781,7 +843,7 @@ export function ClassTeachingWorkspace({
               className="text-xs font-bold text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
               title="Re-reads the official weeks for this class. Lessons already taught stay as they are."
             >
-              Refresh official weeks
+              Check curriculum updates
             </button>
           )}
         </div>
@@ -810,44 +872,195 @@ export function ClassTeachingWorkspace({
       )}
 
       {pendingRelease && (
-        <div className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
-          pendingRelease.mode === "hold"
-            ? "border-amber-500/40 bg-amber-500/10"
-            : "border-orange-500/40 bg-orange-500/10"
-        }`}>
-          <div>
-            <p className="text-sm font-black text-foreground">
-              {pendingRelease.mode === "hold" ? "Hold from students?" : "Share with students?"}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {pendingRelease.label}{" "}
-              {pendingRelease.mode === "hold"
-                ? "The lesson, slides, practice cards, homework and project will be withdrawn together. Existing submissions, scores, attendance and delivery history remain safe."
-                : "Learners will see every prepared lesson, slide deck, practice-card deck, homework and project in the selected package. Tests stay private until you open them separately."}
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setPendingRelease(null)}
-              className="rounded-xl border border-border bg-card px-3 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground"
+        <BodyPortal>
+          <div
+            className="app-fixed-overlay mobile-native-dialog fixed inset-0 z-[200] flex items-end justify-center bg-black/55 p-0 sm:items-center sm:p-4"
+            onClick={(event) => {
+              if (event.target === event.currentTarget && !busy) setPendingRelease(null);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="package-confirm-title"
+              onClick={(event) => event.stopPropagation()}
+              className={`max-h-[calc(100dvh-var(--safe-area-top))] w-full overflow-y-auto rounded-t-3xl border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg sm:rounded-3xl sm:pb-5 ${
+              pendingRelease.mode === "hold"
+                ? "border-amber-500/40 bg-background"
+                : "border-orange-500/40 bg-background"
+            }`}
             >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void confirmPendingRelease()}
-              className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50 ${
-                pendingRelease.mode === "hold" ? "bg-amber-700" : "bg-orange-700"
-              }`}
-            >
-              {pendingRelease.mode === "hold" ? "Hold package" : "Share now"}
-            </button>
+            <div className="flex items-start gap-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                pendingRelease.mode === "hold"
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                  : "bg-orange-500/15 text-orange-700 dark:text-orange-300"
+              }`}>
+                {pendingRelease.mode === "hold" ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <RocketLaunchIcon className="h-5 w-5" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p id="package-confirm-title" className="text-base font-black text-foreground">
+                  {pendingRelease.mode === "hold"
+                    ? "Hold this package from students?"
+                    : "Share this complete package?"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {pendingRelease.label}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setPendingRelease(null);
+                }}
+                aria-label="Close review"
+                className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {pendingRelease.mode === "hold" ? "What changes" : "Students will receive"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-foreground/80">
+                {pendingRelease.mode === "hold"
+                  ? "Lesson, slides, practice cards, assignment and project will be held together. Existing submissions, scores, attendance and delivery history remain safe."
+                  : "Lesson, slides, practice cards, assignment and project will become visible together. Assessments remain private until you open them separately."}
+              </p>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setPendingRelease(null);
+                }}
+                className="min-h-11 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-black text-muted-foreground disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void confirmPendingRelease()}
+                className={`min-h-11 rounded-xl px-4 py-2.5 text-xs font-black text-white disabled:opacity-50 ${
+                  pendingRelease.mode === "hold" ? "bg-amber-700" : "bg-orange-700"
+                }`}
+              >
+                {busy
+                  ? "Saving…"
+                  : pendingRelease.mode === "hold"
+                    ? "Hold package"
+                    : "Share with students"}
+              </button>
+            </div>
+            </div>
           </div>
-        </div>
+        </BodyPortal>
       )}
+
+      {canEdit && !pendingRelease && resumeWeek && !nextActionInView && (
+          <div className="fixed inset-x-3 bottom-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.75rem)] z-[65] md:hidden">
+            {resumeWeek.recommendedAction === "release" ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                setPendingRelease({
+                  label: `${teachingMeetingLabel(
+                    resumeWeek.week,
+                    resumeWeek.session,
+                    resumeWeek.meetingsInWeek
+                  )} will become visible to this class.`,
+                  body: {
+                    action: "release_week",
+                    lesson_plan_id: plan?.id,
+                    week_number: resumeWeek.week,
+                    session: resumeWeek.session,
+                  },
+                })
+              }
+              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-orange-400/50 bg-orange-700 px-4 py-3 text-left text-white shadow-2xl shadow-black/30 disabled:opacity-50"
+            >
+              <span className="min-w-0">
+                <span className="block text-[9px] font-black uppercase tracking-widest text-orange-100">
+                  Ready for your review
+                </span>
+                <span className="mt-0.5 block truncate text-xs font-black">
+                  {teachingMeetingLabel(
+                    resumeWeek.week,
+                    resumeWeek.session,
+                    resumeWeek.meetingsInWeek
+                  )}: {resumeWeek.topic}
+                </span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black">
+                Review <RocketLaunchIcon className="h-4 w-4" />
+              </span>
+            </button>
+            ) : resumeWeek.recommendedAction === "prepare" || resumeWeek.recommendedAction === "refresh" ? (
+              <button
+                type="button"
+                disabled={busy || aiBusy || !planReady}
+                onClick={() =>
+                  setAiWeek({
+                    week: resumeWeek.week,
+                    session: resumeWeek.session,
+                    topic: resumeWeek.topic,
+                    objectives: resumeWeek.objectives,
+                    activities: resumeWeek.activities,
+                    notes: resumeWeek.weekMeta.notes,
+                    assignment: resumeWeek.weekMeta.assignment,
+                    project: resumeWeek.weekMeta.project,
+                  })
+                }
+                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-violet-400/50 bg-violet-700 px-4 py-3 text-left text-white shadow-2xl shadow-black/30 disabled:opacity-50"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-black uppercase tracking-widest text-violet-100">
+                    {resumeWeek.recommendedAction === "refresh" ? "Curriculum changed" : "Content gap detected"}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs font-black">
+                    {teachingMeetingLabel(resumeWeek.week, resumeWeek.session, resumeWeek.meetingsInWeek)}: {resumeWeek.topic}
+                  </span>
+                </span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black">
+                  {resumeWeek.recommendedAction === "refresh" ? "Update" : "Fill gaps"}
+                  <SparklesIcon className="h-4 w-4" />
+                </span>
+              </button>
+            ) : resumeWeek.lesson ? (
+              <Link
+                href={`/dashboard/lessons/${resumeWeek.lesson.id}`}
+                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary px-4 py-3 text-left text-primary-foreground shadow-2xl shadow-black/30"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-black uppercase tracking-widest text-primary-foreground/80">
+                    Ready to teach
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs font-black">
+                    {teachingMeetingLabel(resumeWeek.week, resumeWeek.session, resumeWeek.meetingsInWeek)}: {resumeWeek.topic}
+                  </span>
+                </span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black">
+                  Open <BookOpenIcon className="h-4 w-4" />
+                </span>
+              </Link>
+            ) : null}
+          </div>
+        )}
 
       {error && (
         <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">
@@ -887,7 +1100,10 @@ export function ClassTeachingWorkspace({
         </div>
       )}
 
-      {plan && preparationStatus?.available && (
+      {plan &&
+        preparationStatus?.available &&
+        (preparationStatus.state === "running" ||
+          preparationStatus.state === "attention") && (
         <div
           className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
             preparationStatus.state === "attention"
@@ -907,7 +1123,9 @@ export function ClassTeachingWorkspace({
             )}
             <div className="min-w-0">
               <p className="text-xs font-black text-foreground">
-                Automatic content preparation
+                {preparationStatus.state === "running"
+                  ? "Content preparation is in progress"
+                  : "Content preparation needs attention"}
               </p>
               <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
                 {preparationStatus.message}
@@ -922,7 +1140,7 @@ export function ClassTeachingWorkspace({
               className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 py-2 text-xs font-black text-white disabled:opacity-50"
             >
               <SparklesIcon className="h-4 w-4" />
-              Finish missing content
+              Retry missing content
             </button>
           )}
         </div>
@@ -969,11 +1187,11 @@ export function ClassTeachingWorkspace({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <BookOpenIcon className="h-6 w-6" />
           </div>
-              <p className="mt-3 text-base font-black">No class plan yet</p>
+          <p className="mt-3 text-base font-black">Teaching sessions have not been created</p>
           <p className="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
-            This starts the week list for this class from the official curriculum.
+            An administrator creates them once from the approved curriculum. This does not generate lessons or share anything with students yet.
           </p>
-          {canEdit && (
+          {canManageCurriculum && (
             <button
               type="button"
               disabled={busy}
@@ -982,7 +1200,7 @@ export function ClassTeachingWorkspace({
               }
               className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 py-2.5 text-xs font-black text-primary-foreground shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
             >
-              Start class plan
+              Create teaching sessions
             </button>
           )}
         </div>
@@ -990,43 +1208,147 @@ export function ClassTeachingWorkspace({
 
       {plan && (
         <>
-          {/* Interactive Metric Cards */}
-          <div className="grid grid-cols-3 gap-2">
-            <StatCard
-              label="Weeks"
-              value={weekRows.length}
-              subtext={`${weeksFullyLive} live`}
-              accent="primary"
-              onClick={() => setWeekFilter("all")}
-              isActive={weekFilter === "all"}
-            />
-            <StatCard
-              label="Taught"
-              value={weeksTaught}
-              subtext={`${Math.round((weeksTaught / (weekRows.length || 1)) * 100)}%`}
-              accent="emerald"
-              onClick={() => setWeekFilter("taught")}
-              isActive={weekFilter === "taught"}
-            />
-            <StatCard
-              label="Needs work"
-              value={weeksNeedingWork}
-              subtext="Prepare or share"
-              accent="amber"
-              onClick={() => setWeekFilter("todo")}
-              isActive={weekFilter === "todo"}
-            />
-          </div>
+          <section
+            id="teaching-workflow"
+            aria-labelledby="teaching-flow-title"
+            className="scroll-mt-24 rounded-2xl border border-border bg-background p-3.5 shadow-sm sm:p-5"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  One connected workflow
+                </p>
+                <h3 id="teaching-flow-title" className="mt-1 text-base font-black text-foreground">
+                  From approved curriculum to the classroom
+                </h3>
+                <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
+                  The curriculum supplies the topics. The class plan turns them into teaching sessions. The assistant fills missing learning materials, you review each complete package, then students receive it and teaching is recorded.
+                </p>
+              </div>
+              {canManageCurriculum && (
+                <Link
+                  href={buildLessonPlanHref(plan.id)}
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/40"
+                >
+                  Edit curriculum mapping
+                </Link>
+              )}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {[
+                {
+                  key: "plan",
+                  number: "1",
+                  title: "Curriculum → sessions",
+                  detail: `${workflow.curriculumWeeks} curriculum week${workflow.curriculumWeeks === 1 ? "" : "s"} expanded into ${workflow.totalSessions} teaching session${workflow.totalSessions === 1 ? "" : "s"}.`,
+                  active: false,
+                },
+                {
+                  key: "prepare",
+                  number: "2",
+                  title: "Prepare content",
+                  detail: workflow.missingContent > 0
+                    ? `${workflow.missingContent} session${workflow.missingContent === 1 ? "" : "s"} still need one or more learning items.`
+                    : "Every session has its five core learning items.",
+                  active: workflow.nextStage === "prepare",
+                },
+                {
+                  key: "review",
+                  number: "3",
+                  title: "Review and share",
+                  detail: workflow.readyToShare > 0
+                    ? `${workflow.readyToShare} complete package${workflow.readyToShare === 1 ? " is" : "s are"} waiting for teacher review.`
+                    : `${workflow.shared} package${workflow.shared === 1 ? " is" : "s are"} currently shared with students.`,
+                  active: workflow.nextStage === "review",
+                },
+                {
+                  key: "teach",
+                  number: "4",
+                  title: "Teach and record",
+                  detail: `${workflow.taught} of ${workflow.totalSessions} session${workflow.totalSessions === 1 ? "" : "s"} recorded as taught. Attendance and results stay linked to this class.`,
+                  active: workflow.nextStage === "teach" || workflow.nextStage === "complete",
+                },
+              ].map((step) => (
+                <div
+                  key={step.key}
+                  className={`min-w-0 rounded-xl border p-3 ${
+                    step.active
+                      ? "border-primary/40 bg-primary/10 shadow-sm"
+                      : "border-border bg-card/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
+                      step.active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {step.number}
+                    </span>
+                    <p className="text-xs font-black text-foreground">{step.title}</p>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{step.detail}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-[11px] leading-5 text-foreground/80">
+                <span className="font-black text-foreground">How automation behaves:</span>{" "}
+                whether a teacher or the assistant completes an item, it is saved in this same teaching session. Completed and teacher-edited work is kept; only genuine gaps are filled.
+                {data?.auto_generate?.auto_publish
+                  ? " Automatic sharing is enabled for complete packages."
+                  : " Students see nothing until a teacher shares the complete package."}
+              </p>
+              <div className="flex shrink-0 flex-wrap gap-2">
+              {canEdit && workflow.missingContent > 0 && (
+                <button
+                  type="button"
+                  disabled={busy || aiBusy || !planReady}
+                  onClick={() => void generateMissingPackages()}
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+                >
+                  {aiBusy ? (
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <SparklesIcon className="h-4 w-4" />
+                  )}
+                  {workflow.missingItems > 0
+                    ? `Fill ${workflow.missingItems} missing item${workflow.missingItems === 1 ? "" : "s"}`
+                    : "Update changed items"}
+                </button>
+              )}
+              {workflow.readyToShare > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    document
+                      .getElementById("next-teacher-action")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-2 text-xs font-black text-orange-800 transition-colors hover:bg-orange-500/20 dark:text-orange-200"
+                >
+                  <RocketLaunchIcon className="h-4 w-4" />
+                  Review next package
+                </button>
+              )}
+              </div>
+            </div>
+          </section>
 
           {/* Up Next / Command Hero Card */}
           {resumeWeek && (
-            <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-background p-4 sm:p-5 shadow-sm">
+            <div
+              id="next-teacher-action"
+              className="relative scroll-mt-24 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-background p-4 shadow-sm sm:p-5"
+            >
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                      Continue teaching
+                      Next teacher action
                     </span>
                     <span className="rounded-full border border-border bg-background/80 px-2 py-0.5 text-[9px] font-bold text-muted-foreground">
                       {teachingMeetingLabel(
@@ -1057,7 +1379,7 @@ export function ClassTeachingWorkspace({
                         : "font-semibold text-amber-600 dark:text-amber-400"
                     }>
                       {resumeWeek.visibilitySummary.needsRelease
-                        ? `${resumeWeek.visibilitySummary.heldCount} not visible to students`
+                        ? "Complete package ready for your review"
                         : resumeWeek.packageStatus.complete
                         ? "Ready for class"
                         : `${resumeWeek.packageStatus.missing.length} learning items still needed`}
@@ -1089,7 +1411,7 @@ export function ClassTeachingWorkspace({
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-700 hover:bg-orange-800 px-5 py-2.5 text-xs font-black text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       <RocketLaunchIcon className="h-4 w-4" />
-                      Share {teachingMeetingLabel(
+                      Review & share {teachingMeetingLabel(
                         resumeWeek.week,
                         resumeWeek.session,
                         resumeWeek.meetingsInWeek
@@ -1167,7 +1489,7 @@ export function ClassTeachingWorkspace({
                       <SparklesIcon className="h-4 w-4" />
                       {resumeWeek.recommendedAction === "refresh"
                         ? "Update changed items"
-                        : "Prepare this week"}
+                        : `Let assistant fill ${resumeWeek.packageStatus.missing.length} missing item${resumeWeek.packageStatus.missing.length === 1 ? "" : "s"}`}
                     </button>
                   )}
 
@@ -1208,7 +1530,7 @@ export function ClassTeachingWorkspace({
                       Content for this teaching session
                     </p>
                     <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
-                      Open any prepared item here to review it. Share the complete package from this same screen when it is ready.
+                      These five items belong to the same session. Open any item to check or edit it, then share all five together.
                     </p>
                   </div>
                   {resumeWeek.visibilitySummary.needsRelease && (
@@ -1224,7 +1546,7 @@ export function ClassTeachingWorkspace({
                     icon={BookOpenIcon}
                     state={resumeWeek.visibility.lesson}
                     href={resumeWeek.lesson ? `/dashboard/lessons/${resumeWeek.lesson.id}` : canEdit ? resumeWeek.manualLessonHref : undefined}
-                    actionLabel={resumeWeek.lesson ? "Open" : "Create"}
+                    actionLabel={resumeWeek.lesson ? "Open lesson" : "Create lesson"}
                   />
                   <AssetCardTile
                     label="Slides"
@@ -1239,7 +1561,13 @@ export function ClassTeachingWorkspace({
                           })
                         : undefined
                     }
-                    actionLabel={resumeWeek.slideDeck ? "Open" : "Create"}
+                    actionLabel={
+                      resumeWeek.slideDeck
+                        ? "Open slides"
+                        : resumeWeek.lesson
+                          ? "Add slides"
+                          : "Create lesson first"
+                    }
                   />
                   <AssetCardTile
                     label="Practice cards"
@@ -1263,7 +1591,7 @@ export function ClassTeachingWorkspace({
                         ? () => void createFlashcardDeck(resumeWeek.lesson || resumeWeek.weekMeta, resumeWeek.week)
                         : undefined
                     }
-                    actionLabel={resumeWeek.flashcardDeck ? "Open" : "Create"}
+                    actionLabel={resumeWeek.flashcardDeck ? "Open cards" : "Create cards"}
                   />
                   <AssetCardTile
                     label="Assignment"
@@ -1283,7 +1611,7 @@ export function ClassTeachingWorkspace({
                             })
                           : undefined
                     }
-                    actionLabel={resumeWeek.assignment ? "Open" : "Create"}
+                    actionLabel={resumeWeek.assignment ? "Open assignment" : "Create assignment"}
                   />
                   <AssetCardTile
                     label="Project"
@@ -1304,32 +1632,21 @@ export function ClassTeachingWorkspace({
                             })
                           : undefined
                     }
-                    actionLabel={resumeWeek.project ? "Open" : "Create"}
+                    actionLabel={resumeWeek.project ? "Open project" : "Create project"}
                   />
                 </div>
+                {!resumeWeek.packageStatus.complete && (
+                  <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200">
+                    <span className="font-black">Prefer to handle it yourself?</span>{" "}
+                    Select any missing item above. Manual work and assistant work use this same teaching session, so completed items are kept and will not be generated again.
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Action Hub Strip */}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Link
-              href={buildLessonPlanHref(plan.id)}
-              className="group flex items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 transition-all hover:border-primary/50 hover:shadow-sm"
-            >
-              <div className="min-w-0">
-                <span className="block text-sm font-black text-foreground group-hover:text-primary transition-colors">
-                  Advanced plan tools
-                </span>
-                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                  Edit the week structure, run syllabus QA and use specialist AI controls.
-                </span>
-              </div>
-              <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary group-hover:translate-x-0.5 transition-transform">
-                Open →
-              </span>
-            </Link>
-
+          {/* A plan problem remains explicit; normal administrator controls stay in the workflow header. */}
+          <div>
             {!planReady && (
               <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
                 <div className="flex items-center gap-2">
@@ -1369,44 +1686,6 @@ export function ClassTeachingWorkspace({
               </div>
             )}
 
-            {canEdit && (
-              <button
-                type="button"
-                disabled={
-                  busy || aiBusy || weekRows.length === 0 || !planReady
-                }
-                onClick={() => void generateMissingPackages()}
-                title={
-                  !planReady
-                    ? `This plan is a ${
-                        plan.status ?? "draft"
-                      }. Publish it before generating.`
-                    : weekRows.length === 0
-                    ? "This plan has no curriculum weeks yet, so there is nothing to generate lessons for."
-                    : undefined
-                }
-                className="flex items-center justify-between gap-3 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4 text-left transition-all hover:border-violet-500/50 hover:shadow-sm disabled:opacity-50"
-              >
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2 text-sm font-black text-foreground">
-                    <SparklesIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    {aiBusy
-                      ? "Preparing teaching packages…"
-                      : "Prepare all missing packages"}
-                  </span>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                    Builds lessons, slides, flashcards, homework and projects together. Existing work is kept.
-                  </span>
-                </span>
-                {aiBusy ? (
-                  <ArrowPathIcon className="h-4 w-4 shrink-0 animate-spin text-violet-600 dark:text-violet-400" />
-                ) : (
-                  <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-300">
-                    Run →
-                  </span>
-                )}
-              </button>
-            )}
           </div>
 
           {/* Cross-class records stay available without becoming a second tab bar. */}
@@ -1437,7 +1716,7 @@ export function ClassTeachingWorkspace({
                 },
                 { label: "Grading", href: buildGradesHref({ classId, courseId }) },
                 { label: "Results", href: buildResultsHref({ classId, courseId }) },
-                { label: "Approvals", href: "/dashboard/teaching/approvals" },
+                { label: "Cross-class review queue", href: "/dashboard/teaching/approvals" },
               ].map((item) => (
                 <Link
                   key={item.label}
@@ -1479,61 +1758,77 @@ export function ClassTeachingWorkspace({
               </span>
             </div>
 
-            {/* Jump to Week Strip (Mobile & Desktop) */}
-            {visibleWeekRows.length > 0 && (
-              <div className="mt-4 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Weeks
-                  </span>
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    {visibleWeekRows.length} shown
+            {/* A read-only curriculum journey belongs in delivery. Teachers can see the
+                whole approved sequence here without entering the administrator editor. */}
+            {weekRows.length > 0 && (
+              <section className="mt-4 border-t border-border/60 pt-4" aria-labelledby="curriculum-journey-title">
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <h4 id="curriculum-journey-title" className="text-xs font-black text-foreground">
+                      Approved curriculum journey
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Every topic in teaching order. Select a card to open its full package below.
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[10px] font-bold text-muted-foreground">
+                    {workflow.curriculumWeeks} weeks · {workflow.totalSessions} sessions
                   </span>
                 </div>
                 <div
-                  className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none snap-x snap-mandatory [-webkit-overflow-scrolling:touch]"
+                  className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 scrollbar-none [-webkit-overflow-scrolling:touch]"
                   style={{ scrollbarWidth: "none" }}
                 >
-                  {visibleWeekRows.map((row) => {
+                  {weekRows.map((row) => {
                     const isTaught = row.taught;
                     const isReady = row.packageStatus.complete;
                     const isHeld = row.visibilitySummary.needsRelease;
-                    const dotClass = isTaught
-                      ? "bg-emerald-500"
+                    const status = isTaught
+                      ? "Taught"
                       : isHeld
-                      ? "bg-orange-500"
+                      ? "Ready to review"
                       : isReady
-                      ? "bg-emerald-400"
-                      : "bg-amber-400";
+                      ? "Shared with students"
+                      : `${row.packageStatus.missing.length} item${row.packageStatus.missing.length === 1 ? "" : "s"} missing`;
+                    const statusClass = isTaught
+                      ? "text-emerald-700 dark:text-emerald-300"
+                      : isHeld
+                        ? "text-orange-700 dark:text-orange-300"
+                        : isReady
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-amber-700 dark:text-amber-300";
                     return (
                       <button
                         key={row.rowKey}
                         type="button"
-                        onClick={() => scrollToWeek(row.rowKey)}
-                        title={`Week ${row.week}: ${row.topic} (${
-                          isTaught
-                            ? "Taught"
-                            : isHeld
-                            ? "Not visible"
-                            : isReady
-                            ? "Ready"
-                            : "Needs preparation"
-                        })`}
-                        className="group snap-start shrink-0 flex items-center gap-1.5 rounded-xl border border-border bg-card/80 px-2.5 py-1.5 text-xs font-bold transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
+                        onClick={() => revealWeek(row.rowKey)}
+                        aria-label={`Open ${teachingMeetingLabel(row.week, row.session, row.meetingsInWeek)}: ${row.topic}. ${status}`}
+                        className="group flex min-h-32 w-[78vw] max-w-64 shrink-0 snap-start flex-col rounded-xl border border-border bg-card/80 p-3 text-left transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-[0.98] sm:w-56"
                       >
-                        <span className="text-foreground">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">
                           {teachingMeetingShortLabel(
                             row.week,
                             row.session,
                             row.meetingsInWeek
                           )}
                         </span>
-                        <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+                        <span className="mt-1 line-clamp-2 text-sm font-black leading-snug text-foreground">
+                          {row.topic}
+                        </span>
+                        <span className={`mt-auto pt-3 text-[10px] font-black ${statusClass}`}>
+                          {status}
+                        </span>
+                        <span className="mt-0.5 text-[10px] text-muted-foreground">
+                          {row.packageStatus.readyCount} of 5 learning items ready
+                        </span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+                <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">
+                  Swipe sideways to see every curriculum session.
+                </p>
+              </section>
             )}
 
             {/* Filter Bar, Term Selector, and Topic Search Input */}
@@ -1659,7 +1954,7 @@ export function ClassTeachingWorkspace({
                     }
                     className="inline-flex min-h-9 items-center rounded-xl border border-orange-500/40 bg-orange-500/10 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 disabled:opacity-50"
                   >
-                    Share with class
+                    Review & share selected
                   </button>
                   <button
                     disabled={busy}
@@ -1854,7 +2149,7 @@ export function ClassTeachingWorkspace({
                           icon={BookOpenIcon}
                           state={visibility.lesson}
                           href={lesson ? `/dashboard/lessons/${lesson.id}` : canEdit ? manualLessonHref : undefined}
-                          actionLabel={lesson ? "Open" : "Create"}
+                          actionLabel={lesson ? "Open lesson" : "Create lesson"}
                         />
                         <AssetCardTile
                           label="Slides"
@@ -1869,7 +2164,7 @@ export function ClassTeachingWorkspace({
                                 })
                               : undefined
                           }
-                          actionLabel={slideDeck ? "Open" : "Create"}
+                          actionLabel={slideDeck ? "Open slides" : lesson ? "Add slides" : "Create lesson first"}
                         />
                         <AssetCardTile
                           label="Practice cards"
@@ -1893,7 +2188,7 @@ export function ClassTeachingWorkspace({
                               ? () => void createFlashcardDeck(lesson || weekMeta, week)
                               : undefined
                           }
-                          actionLabel={flashcardDeck ? "Open" : "Create"}
+                          actionLabel={flashcardDeck ? "Open cards" : "Create cards"}
                         />
                         <AssetCardTile
                           label="Assignment"
@@ -1913,7 +2208,7 @@ export function ClassTeachingWorkspace({
                                 })
                               : undefined
                           }
-                          actionLabel={assignment ? "Open" : "Create"}
+                          actionLabel={assignment ? "Open assignment" : "Create assignment"}
                         />
                         <AssetCardTile
                           label="Project"
@@ -1934,7 +2229,7 @@ export function ClassTeachingWorkspace({
                                 })
                               : undefined
                           }
-                          actionLabel={project ? "Open" : "Create"}
+                          actionLabel={project ? "Open project" : "Create project"}
                         />
                         {!data?.programme_policy?.usesHostEvaluation ? (
                         <AssetCardTile
@@ -1959,7 +2254,7 @@ export function ClassTeachingWorkspace({
                                 })
                               : undefined
                           }
-                          actionLabel={evaluation ? "Open" : "Create"}
+                          actionLabel={evaluation ? "Open assessment" : "Create assessment"}
                         />
                         ) : isHostAssessmentWeek(calendarRole) ? (
                         <AssetCardTile
@@ -1998,6 +2293,13 @@ export function ClassTeachingWorkspace({
                         )}
                       </div>
 
+                      {!packageStatus.complete && (
+                        <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200">
+                          <span className="font-black">Two ways to finish:</span>{" "}
+                          let the assistant fill only the missing items, or select a missing item above to create it yourself. Both paths update this same session and keep completed work.
+                        </p>
+                      )}
+
                       {/* Streamlined Primary & Secondary Action Toolbar */}
                       <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         {/* Primary Action Button */}
@@ -2020,7 +2322,7 @@ export function ClassTeachingWorkspace({
                               className="inline-flex min-h-10 flex-1 sm:flex-initial items-center justify-center gap-2 rounded-xl bg-orange-700 hover:bg-orange-800 px-4 py-2 text-xs font-black text-white shadow-sm transition-transform active:scale-[0.98] disabled:opacity-50"
                             >
                               <RocketLaunchIcon className="h-4 w-4" />
-                              Share with class
+                              Review & share
                             </button>
                           )}
 
@@ -2071,9 +2373,7 @@ export function ClassTeachingWorkspace({
                               <SparklesIcon className="h-4 w-4" />
                               {recommendedAction === "refresh"
                                 ? "Update changed items"
-                                : lesson
-                                  ? `Prepare ${packageStatus.missing.length} missing`
-                                  : "Prepare teaching package"}
+                                : `Let assistant fill ${packageStatus.missing.length} missing item${packageStatus.missing.length === 1 ? "" : "s"}`}
                             </button>
                           )}
 
@@ -2411,50 +2711,6 @@ export function ClassTeachingWorkspace({
 const toolLinkClass =
   "inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 py-1.5 text-[10px] font-black text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5";
 
-function StatCard({
-  label,
-  value,
-  subtext,
-  accent = "primary",
-  onClick,
-  isActive,
-}: {
-  label: string;
-  value: string | number;
-  subtext?: string;
-  accent?: "primary" | "emerald" | "amber" | "violet" | "cyan" | "rose";
-  onClick?: () => void;
-  isActive?: boolean;
-}) {
-  const borderTone =
-    isActive
-      ? "border-primary ring-2 ring-primary/20 bg-primary/5"
-      : "border-border/80 bg-card/70 hover:border-border";
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className={`rounded-2xl border p-3 sm:p-4 text-left transition-all ${borderTone} ${
-        onClick ? "cursor-pointer active:scale-95" : "cursor-default"
-      }`}
-    >
-      <p className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-        {value}
-      </p>
-      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mt-0.5 truncate">
-        {label}
-      </p>
-      {subtext && (
-        <p className="text-[10px] font-semibold text-muted-foreground/80 mt-1 truncate">
-          {subtext}
-        </p>
-      )}
-    </button>
-  );
-}
-
 function AssetCardTile({
   label,
   itemTitle,
@@ -2507,7 +2763,7 @@ function AssetCardTile({
           {itemTitle?.trim() || (isMissing ? "Not prepared yet" : `${label} ready`)}
         </p>
         <p className="mt-1 text-[9px] font-black uppercase tracking-wide opacity-75">
-          {isLive ? "Visible · Open" : isHeld ? "Review · Not visible" : actionLabel || "Add"}
+          {isLive ? "Shared with students" : isHeld ? "Ready for review" : actionLabel || "Add"}
         </p>
       </div>
     </div>
