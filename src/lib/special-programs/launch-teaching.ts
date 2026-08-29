@@ -1,7 +1,7 @@
 /**
  * Special-programme launch pipeline:
  *
- * Publish page → bridge curriculum from write-up → prepare Week 1 · Class 1 only
+ * Publish page → bridge curriculum from write-up → prepare Week 1 · Session 1 only
  * (fast, AI-context safe). Remaining class meetings and later weeks continue
  * via the nightly sweep and the teacher's Prepare button — one meeting at a time.
  */

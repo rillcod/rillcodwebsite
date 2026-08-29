@@ -11,6 +11,7 @@ import {
 } from './week-generation';
 import { generateTrackedPlanWeek } from './tracked-week-generation';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
+import { ensureGenerationPlanReady } from './generation-plan-state';
 
 export async function bootstrapClassTeachingWeek(
   classId: string,
@@ -34,14 +35,10 @@ export async function bootstrapClassTeachingWeek(
   const weeks = extractLessonPlanOperationWeeks(plan.plan_data);
   if (!weeks.length) return null;
 
-  // The RPC seeds draft plans; generators require published. Automation-prepared
-  // plans are ready for the content engine — generated assets stay held for approval.
-  if (plan.status !== 'published') {
-    await db
-      .from('lesson_plans')
-      .update({ status: 'published', updated_at: new Date().toISOString() })
-      .eq('id', plan.id);
-  }
+  // Activating the class plan only enables generation. Every generated child
+  // item still stays held until a teacher shares the package.
+  const planState = await ensureGenerationPlanReady(db, plan);
+  if (!planState.ready) return null;
 
   const period = Array.isArray(plan.academic_offering_periods)
     ? plan.academic_offering_periods[0]

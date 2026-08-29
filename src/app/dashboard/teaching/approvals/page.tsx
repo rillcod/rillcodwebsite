@@ -9,8 +9,8 @@
  * one and publish it by hand. This is the one screen that says what is waiting
  * and lets a teacher release a whole week after reading it.
  *
- * Special programmes with multiple class meetings per week release one meeting
- * at a time (Week N · Class M) so Class 2 homework never goes live with Class 1.
+ * Special programmes with multiple teaching sessions per week release one session
+ * at a time (Week N · Session M) so Session 2 homework never goes live with Session 1.
  */
 
 import { useCallback, useEffect, useState } from "react";

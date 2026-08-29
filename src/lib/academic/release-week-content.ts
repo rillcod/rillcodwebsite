@@ -9,7 +9,7 @@ import {
 
 /**
  * One release path for prepared teaching — Regular School and Special Programme.
- * Every release names a class meeting. School weeks are Class 1.
+ * Every release names a teaching session. Single-session school weeks are Session 1.
  */
 export type WeekReleaseResult = {
   planId: string;
@@ -185,7 +185,7 @@ export async function releasePreparedWeek(input: {
       ...empty(null),
       needs_session: true,
       available_sessions: stamped,
-      error: `${teachingMeetingLabel(week)} has ${stamped.length} class meetings held for review. Choose which class meeting to release (Class ${stamped.join(", Class ")}).`,
+      error: `${teachingMeetingLabel(week)} has ${stamped.length} teaching sessions held for review. Choose which session to release (Session ${stamped.join(", Session ")}).`,
     };
   }
 
@@ -286,7 +286,7 @@ export async function holdPreparedWeek(input: {
     return empty("Week number must be between 1 and 53");
   }
   if (session == null) {
-    return empty("Choose the class meeting to hold from students");
+    return empty("Choose the teaching session to hold from students");
   }
 
   const db = createAdminClient();

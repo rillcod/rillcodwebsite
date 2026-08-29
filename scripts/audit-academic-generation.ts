@@ -7,6 +7,9 @@
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { decideGenerationRepairTypes } from "../src/lib/academic/generation-repair";
+import { parseAutoGenerateSettings } from "../src/lib/academic/auto-generate-settings";
+import { expandPlanWeeksForMeetings } from "../src/lib/academic/school-programme-standing";
+import { buildTeachingWeekRows } from "../src/lib/academic/teaching-workspace";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -44,13 +47,14 @@ function countBy(rows: any[], field: string): Record<string, number> {
 async function main() {
   const plans = await all(
     "lesson_plans",
-    "id,class_id,course_id,term_id,offering_period_id,status,plan_data,created_at,updated_at"
+    "id,class_id,course_id,term_id,offering_period_id,status,plan_data,metadata,sessions_per_week,created_at,updated_at"
   );
-  const [lessons, assignments, slides, flashcards] = await Promise.all([
-    all("lessons", "lesson_plan_id,curriculum_week_number,session_number,metadata"),
-    all("assignments", "lesson_plan_id,assignment_type,curriculum_week_number,session_number,metadata"),
-    all("lesson_materials", "lesson_plan_id,file_type,curriculum_week_number,session_number,content_stale_at,metadata"),
-    all("flashcard_decks", "lesson_plan_id,curriculum_week_number,session_number,content_stale_at,metadata"),
+  const [lessons, assignments, slides, flashcards, deliveries] = await Promise.all([
+    all("lessons", "lesson_plan_id,curriculum_week_number,session_number,status,metadata"),
+    all("assignments", "lesson_plan_id,assignment_type,curriculum_week_number,session_number,is_active,metadata"),
+    all("lesson_materials", "lesson_plan_id,file_type,curriculum_week_number,session_number,is_public,content_stale_at,metadata"),
+    all("flashcard_decks", "lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at,metadata"),
+    all("class_lesson_delivery", "lesson_plan_id,week_number,session_number,status"),
   ]);
   const contentPlanIds = new Set(
     [...lessons, ...assignments, ...slides, ...flashcards]
@@ -116,6 +120,88 @@ async function main() {
   );
   const flashcardRows = rowsByPlan(flashcards);
   const assignmentRows = rowsByPlan(assignments);
+  const deliveryRows = rowsByPlan(deliveries);
+
+  // A generation run proves an attempt; the teacher and learner experience is
+  // proven by the durable package inventory, visibility and delivery rows.
+  let plannedMeetings = 0;
+  let meetingsWithContent = 0;
+  let completeMeetings = 0;
+  let fullyVisibleMeetings = 0;
+  let partlyVisibleMeetings = 0;
+  let heldCompleteMeetings = 0;
+  let taughtMeetings = 0;
+  const activePlanIds = new Set(active.map((plan) => String(plan.id)));
+  for (const plan of active) {
+    const planWeeks = expandPlanWeeksForMeetings(
+      Array.isArray(plan.plan_data?.weeks) ? plan.plan_data.weeks : [],
+      Number(plan.sessions_per_week) || 1,
+    );
+    const planAssignments = assignmentRows.get(String(plan.id)) ?? [];
+    const rows = buildTeachingWeekRows({
+      planWeeks,
+      lessons: lessonRows.get(String(plan.id)) ?? [],
+      assignments: planAssignments.filter(
+        (row) => String(row.assignment_type ?? "").toLowerCase() !== "project",
+      ),
+      projects: planAssignments.filter(
+        (row) => String(row.assignment_type ?? "").toLowerCase() === "project",
+      ),
+      slideDecks: slideRows.get(String(plan.id)) ?? [],
+      flashcardDecks: flashcardRows.get(String(plan.id)) ?? [],
+      deliveries: deliveryRows.get(String(plan.id)) ?? [],
+    });
+    plannedMeetings += rows.length;
+    for (const row of rows) {
+      if (row.packageStatus.readyCount > 0) meetingsWithContent += 1;
+      if (row.packageStatus.complete) completeMeetings += 1;
+      if (row.visibilitySummary.fullyLive) fullyVisibleMeetings += 1;
+      if (
+        row.visibilitySummary.liveCount > 0 &&
+        !row.visibilitySummary.fullyLive
+      ) {
+        partlyVisibleMeetings += 1;
+      }
+      if (row.packageStatus.complete && row.visibilitySummary.needsRelease) {
+        heldCompleteMeetings += 1;
+      }
+      if (row.taught) taughtMeetings += 1;
+    }
+  }
+
+  const activeAssets = {
+    lessons: lessons.filter((row) => activePlanIds.has(String(row.lesson_plan_id))),
+    assignments: assignments.filter(
+      (row) =>
+        activePlanIds.has(String(row.lesson_plan_id)) &&
+        String(row.assignment_type ?? "").toLowerCase() !== "project",
+    ),
+    projects: assignments.filter(
+      (row) =>
+        activePlanIds.has(String(row.lesson_plan_id)) &&
+        String(row.assignment_type ?? "").toLowerCase() === "project",
+    ),
+    slides: slides.filter(
+      (row) =>
+        activePlanIds.has(String(row.lesson_plan_id)) &&
+        row.file_type === "slide-deck",
+    ),
+    flashcards: flashcards.filter((row) =>
+      activePlanIds.has(String(row.lesson_plan_id)),
+    ),
+  };
+  const visibleAssets = {
+    lessons: activeAssets.lessons.filter((row) =>
+      ["active", "published", "scheduled"].includes(String(row.status)),
+    ).length,
+    assignments: activeAssets.assignments.filter((row) => row.is_active === true).length,
+    projects: activeAssets.projects.filter((row) => row.is_active === true).length,
+    slides: activeAssets.slides.filter((row) => row.is_public === true).length,
+    flashcards: activeAssets.flashcards.filter((row) => row.is_public === true).length,
+  };
+  const autoGeneration = active.map((plan) =>
+    parseAutoGenerateSettings(plan.metadata?.auto_generate_settings),
+  );
   const latestByMeeting = new Map<string, any>();
   for (const run of runs) {
     const identity = `${run.lesson_plan_id}:${run.curriculum_week_number}:${run.session_number}`;
@@ -171,6 +257,29 @@ async function main() {
   console.log(
     `Largest duplicate identity: ${Math.max(1, ...duplicateActiveIdentities)}`
   );
+  console.log(
+    `Automatic generation enabled: ${autoGeneration.filter((row) => row.enabled).length}/${active.length}`
+  );
+  console.log(
+    `Automatic learner release enabled: ${autoGeneration.filter((row) => row.auto_publish).length}/${active.length}`
+  );
+  console.log(`Planned teaching sessions (future included): ${plannedMeetings}`);
+  console.log(`Teaching sessions with any prepared content: ${meetingsWithContent}`);
+  console.log(`Teaching sessions with complete five-item packages: ${completeMeetings}`);
+  console.log(`Complete packages held for teacher review: ${heldCompleteMeetings}`);
+  console.log(`Complete packages visible to learners: ${fullyVisibleMeetings}`);
+  console.log(`Partly visible packages requiring cleanup: ${partlyVisibleMeetings}`);
+  console.log(`Teaching sessions recorded as taught: ${taughtMeetings}`);
+  console.log(
+    `Prepared assets on active plans: ${JSON.stringify({
+      lessons: activeAssets.lessons.length,
+      slides: activeAssets.slides.length,
+      flashcards: activeAssets.flashcards.length,
+      assignments: activeAssets.assignments.length,
+      projects: activeAssets.projects.length,
+    })}`
+  );
+  console.log(`Learner-visible assets on active plans: ${JSON.stringify(visibleAssets)}`);
   console.log(`Generation history available: ${runsAvailable ? "yes" : "no"}`);
   if (runsAvailable) {
     console.log(`Generation runs: ${runs.length}`);

@@ -47,6 +47,7 @@ import {
   parseCanonicalTermLabel,
 } from "@/lib/reports/session-scope";
 import type { PlanContentSummary } from "@/lib/academic/plan-content-summary";
+import { buildClassTeachingHref } from "@/lib/curriculum/href";
 
 interface LessonPlan {
   id: string;
@@ -1012,21 +1013,21 @@ function LessonPlansPageInner() {
               onClick={() => setShowForm(true)}
               className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground shadow-lg shadow-primary/25 w-full sm:w-auto`}
             >
-              <PlusIcon className="w-4 h-4" /> New Plan
+              <PlusIcon className="w-4 h-4" /> New Class Plan
             </button>
           </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Pick a class and course, then tap <span className="font-bold text-foreground">New Plan</span>. The class plan expands the approved curriculum into weekly teaching packages.
+            Pick a class and course, then tap <span className="font-bold text-foreground">New Class Plan</span>. The class plan expands the approved curriculum into weekly teaching packages.
           </p>
           <button
             type="button"
             onClick={() => setShowForm(true)}
             className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground shrink-0 w-full sm:w-auto`}
           >
-            <PlusIcon className="w-4 h-4" /> New Plan
+            <PlusIcon className="w-4 h-4" /> New Class Plan
           </button>
         </div>
 
@@ -1169,7 +1170,14 @@ function LessonPlansPageInner() {
                   className="group"
                 >
                   <Link
-                    href={`/dashboard/lesson-plans/${plan.id}`}
+                    href={
+                      plan.class_id
+                        ? buildClassTeachingHref({
+                            classId: plan.class_id,
+                            courseId: plan.course_id,
+                          })
+                        : `/dashboard/lesson-plans/${plan.id}?view=advanced`
+                    }
                     className="block bg-card border border-border hover:border-primary/50 p-5 rounded-lg transition-all hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-4">
@@ -1219,7 +1227,7 @@ function LessonPlansPageInner() {
                       </div>
                       <div
                         className="h-1.5 overflow-hidden rounded-full bg-muted"
-                        aria-label={`${readinessPercentage}% of the five-part teaching package is prepared`}
+                        aria-label={`${readinessPercentage}% of the five-part core learning package is prepared`}
                       >
                         <div
                           className={`h-full rounded-full transition-all ${
@@ -1480,7 +1488,7 @@ function LessonPlansPageInner() {
                 disabled={submitting || !form.term || !form.course_id}
                 className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-bold rounded-xl transition-all"
               >
-                {submitting ? "Creating…" : "Create Plan"}
+                {submitting ? "Creating…" : "Create Class Plan"}
               </button>
             </div>
           </motion.div>

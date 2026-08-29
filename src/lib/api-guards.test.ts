@@ -23,7 +23,7 @@ describe('validateLessonPlanForGeneration', () => {
     expect(block).not.toBeNull();
     expect(block!.status).toBe(422);
     expect(block!.reason).toBe('not_published');
-    expect(block!.action_href).toBe('/dashboard/lesson-plans/plan-1');
+    expect(block!.action_href).toBe('/dashboard/lesson-plans/plan-1?view=advanced');
     expect(block!.action_label).toBeTruthy();
     // The teacher must be told which state the plan is actually in.
     expect(block!.detail).toContain('draft');

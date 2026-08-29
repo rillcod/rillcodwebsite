@@ -66,6 +66,19 @@ describe("academic identity authority", () => {
     expect(assignmentPage).toContain("setClassId(current => current || planRow.class_id || '')");
   });
 
+  it("keeps one everyday interface for the five-part teaching package", () => {
+    const detail = read("src/app/dashboard/lesson-plans/[id]/page.tsx");
+    const list = read("src/app/dashboard/lesson-plans/page.tsx");
+    const workspace = read("src/components/classes/ClassTeachingWorkspace.tsx");
+    const hrefs = read("src/lib/curriculum/href.ts");
+    expect(detail).toContain("router.replace(");
+    expect(detail).toContain("buildClassTeachingHref");
+    expect(list).toContain("buildClassTeachingHref");
+    expect(hrefs).toContain("?view=advanced");
+    expect(workspace).toContain("Core package:");
+    expect(workspace).toContain("Assessment stays separate");
+  });
+
   it("sanitises AI metadata before generated rows are written", () => {
     const helper = read("src/lib/academic/content-identity.ts");
     expect(helper).toContain("delete record.lesson_plan_id");

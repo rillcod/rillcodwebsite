@@ -407,6 +407,15 @@ export function ClassTeachingWorkspace({
 
   const plan = data?.plan;
   const progress = data?.progress;
+  const preparationStatus = data?.preparation_status as
+    | {
+        available: boolean;
+        state: "idle" | "running" | "healthy" | "attention";
+        message: string;
+        week: number | null;
+        session: number | null;
+      }
+    | undefined;
   const planBlock = plan ? validateLessonPlanForGeneration(plan) : null;
   const planReady = Boolean(plan) && planBlock === null;
 
@@ -878,6 +887,47 @@ export function ClassTeachingWorkspace({
         </div>
       )}
 
+      {plan && preparationStatus?.available && (
+        <div
+          className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
+            preparationStatus.state === "attention"
+              ? "border-amber-500/30 bg-amber-500/10"
+              : preparationStatus.state === "running"
+                ? "border-violet-500/30 bg-violet-500/10"
+                : "border-border bg-card/60"
+          }`}
+        >
+          <div className="flex min-w-0 items-start gap-2.5">
+            {preparationStatus.state === "running" ? (
+              <ArrowPathIcon className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-violet-600 dark:text-violet-300" />
+            ) : preparationStatus.state === "attention" ? (
+              <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
+            ) : (
+              <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-300" />
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-black text-foreground">
+                Automatic content preparation
+              </p>
+              <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
+                {preparationStatus.message}
+              </p>
+            </div>
+          </div>
+          {canEdit && preparationStatus.state === "attention" && (
+            <button
+              type="button"
+              disabled={busy || aiBusy || !planReady}
+              onClick={() => void generateMissingPackages()}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-700 px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              Finish missing content
+            </button>
+          )}
+        </div>
+      )}
+
       {busy && !data && (
         <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
           <ArrowPathIcon className="h-4 w-4 animate-spin text-primary" />
@@ -995,7 +1045,9 @@ export function ClassTeachingWorkspace({
                     {resumeWeek.topic}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
-                    <span>{resumeWeek.packageStatus.readyCount} of 5 learning items ready</span>
+                    <span>
+                      Core package: {resumeWeek.packageStatus.readyCount} of 5 ready
+                    </span>
                     <span>•</span>
                     <span className={
                       resumeWeek.visibilitySummary.needsRelease
@@ -1148,6 +1200,114 @@ export function ClassTeachingWorkspace({
                   )}
                 </div>
               </div>
+
+              <div className="mt-4 border-t border-primary/15 pt-4">
+                <div className="mb-2.5 flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-black text-foreground">
+                      Content for this teaching session
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
+                      Open any prepared item here to review it. Share the complete package from this same screen when it is ready.
+                    </p>
+                  </div>
+                  {resumeWeek.visibilitySummary.needsRelease && (
+                    <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[10px] font-black text-orange-700 dark:text-orange-300">
+                      Waiting for your review
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  <AssetCardTile
+                    label="Lesson"
+                    itemTitle={resumeWeek.lesson?.title}
+                    icon={BookOpenIcon}
+                    state={resumeWeek.visibility.lesson}
+                    href={resumeWeek.lesson ? `/dashboard/lessons/${resumeWeek.lesson.id}` : canEdit ? resumeWeek.manualLessonHref : undefined}
+                    actionLabel={resumeWeek.lesson ? "Open" : "Create"}
+                  />
+                  <AssetCardTile
+                    label="Slides"
+                    itemTitle={resumeWeek.slideDeck?.title}
+                    icon={PresentationChartLineIcon}
+                    state={resumeWeek.visibility.slides}
+                    href={
+                      resumeWeek.lesson
+                        ? buildLessonSlidesHref({
+                            lessonId: resumeWeek.lesson.id,
+                            returnClassId: classId,
+                          })
+                        : undefined
+                    }
+                    actionLabel={resumeWeek.slideDeck ? "Open" : "Create"}
+                  />
+                  <AssetCardTile
+                    label="Practice cards"
+                    itemTitle={resumeWeek.flashcardDeck?.title}
+                    icon={BoltIcon}
+                    state={resumeWeek.visibility.flashcards}
+                    href={
+                      resumeWeek.flashcardDeck
+                        ? buildFlashcardsHref({
+                            deckId: resumeWeek.flashcardDeck.id,
+                            classId,
+                            courseId,
+                            lessonId: resumeWeek.lesson?.id || null,
+                            lessonPlanId: plan.id,
+                            topic: resumeWeek.topic,
+                          })
+                        : undefined
+                    }
+                    onClick={
+                      !resumeWeek.flashcardDeck && canEdit
+                        ? () => void createFlashcardDeck(resumeWeek.lesson || resumeWeek.weekMeta, resumeWeek.week)
+                        : undefined
+                    }
+                    actionLabel={resumeWeek.flashcardDeck ? "Open" : "Create"}
+                  />
+                  <AssetCardTile
+                    label="Assignment"
+                    itemTitle={resumeWeek.assignment?.title}
+                    icon={ClipboardDocumentListIcon}
+                    state={resumeWeek.visibility.assignment}
+                    href={
+                      resumeWeek.assignment
+                        ? `/dashboard/assignments/${resumeWeek.assignment.id}`
+                        : canEdit
+                          ? buildAssignmentNewHref({
+                              classId,
+                              courseId,
+                              lessonPlanId: plan.id,
+                              lessonId: resumeWeek.lesson?.id || null,
+                              week: resumeWeek.week,
+                            })
+                          : undefined
+                    }
+                    actionLabel={resumeWeek.assignment ? "Open" : "Create"}
+                  />
+                  <AssetCardTile
+                    label="Project"
+                    itemTitle={resumeWeek.project?.title}
+                    icon={RocketLaunchIcon}
+                    state={resumeWeek.visibility.project}
+                    href={
+                      resumeWeek.project
+                        ? `/dashboard/projects/${resumeWeek.project.id}`
+                        : canEdit
+                          ? buildProjectNewHref({
+                              classId,
+                              courseId,
+                              schoolId: data?.class?.school_id,
+                              lessonPlanId: plan.id,
+                              lessonId: resumeWeek.lesson?.id || null,
+                              week: resumeWeek.week,
+                            })
+                          : undefined
+                    }
+                    actionLabel={resumeWeek.project ? "Open" : "Create"}
+                  />
+                </div>
+              </div>
             </div>
           )}
 
@@ -1159,10 +1319,10 @@ export function ClassTeachingWorkspace({
             >
               <div className="min-w-0">
                 <span className="block text-sm font-black text-foreground group-hover:text-primary transition-colors">
-                  Open full class plan
+                  Advanced plan tools
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                  Edit weeks, syllabus quality, and deep AI generators.
+                  Edit the week structure, run syllabus QA and use specialist AI controls.
                 </span>
               </div>
               <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary group-hover:translate-x-0.5 transition-transform">
@@ -1295,30 +1455,27 @@ export function ClassTeachingWorkspace({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h3 className="text-base font-black text-foreground">
-                  Weekly class plan
+                  Teaching sessions
                 </h3>
                 <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
                   {data?.programme_policy?.usesHostEvaluation
                     ? `Teaching follows this school's calendar. First Test, Second Test and Examination are the official assessments; Rillcod still prepares the lesson materials for teaching weeks.`
                     : "Lessons, practice and Rillcod assessments feed the same class record and term result."}
                 </p>
+                <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                  Every session shows its lesson, slides, practice cards, assignment and project below. Open an item to review it, then share the complete package here. Assessment stays separate because a school may use its own paper or CBT.
+                </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-black text-primary">
                     {data?.programme_policy?.usesHostEvaluation ? "School assessments" : "Rillcod assessments"}
                   </span>
                   <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
-                    {data?.programme_policy?.sessionsPerWeek === 1 ? "1 teaching session / week" : "2 teaching sessions / week"}
+                    {`${data?.programme_policy?.sessionsPerWeek ?? 1} teaching session${data?.programme_policy?.sessionsPerWeek === 1 ? "" : "s"} / week`}
                   </span>
-                  <Link
-                    href="/dashboard/teaching/approvals"
-                    className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/15"
-                  >
-                    Approvals
-                  </Link>
                 </div>
               </div>
               <span className="w-fit rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                Prepare here · review in Approvals
+                Prepare · review · share here
               </span>
             </div>
 
@@ -1671,7 +1828,7 @@ export function ClassTeachingWorkspace({
                           </h4>
 
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {packageStatus.readyCount} of 5 learning items ready
+                            Core package: {packageStatus.readyCount} of 5 ready
                             {visibilitySummary.heldCount > 0
                               ? ` · ${visibilitySummary.heldCount} not visible to students`
                               : visibilitySummary.fullyLive
@@ -1693,6 +1850,7 @@ export function ClassTeachingWorkspace({
                       <div className="mt-3.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-6">
                         <AssetCardTile
                           label="Lesson"
+                          itemTitle={lesson?.title}
                           icon={BookOpenIcon}
                           state={visibility.lesson}
                           href={lesson ? `/dashboard/lessons/${lesson.id}` : canEdit ? manualLessonHref : undefined}
@@ -1700,6 +1858,7 @@ export function ClassTeachingWorkspace({
                         />
                         <AssetCardTile
                           label="Slides"
+                          itemTitle={slideDeck?.title}
                           icon={PresentationChartLineIcon}
                           state={visibility.slides}
                           href={
@@ -1714,6 +1873,7 @@ export function ClassTeachingWorkspace({
                         />
                         <AssetCardTile
                           label="Practice cards"
+                          itemTitle={flashcardDeck?.title}
                           icon={BoltIcon}
                           state={visibility.flashcards}
                           href={
@@ -1737,6 +1897,7 @@ export function ClassTeachingWorkspace({
                         />
                         <AssetCardTile
                           label="Assignment"
+                          itemTitle={assignment?.title}
                           icon={ClipboardDocumentListIcon}
                           state={visibility.assignment}
                           href={
@@ -1756,6 +1917,7 @@ export function ClassTeachingWorkspace({
                         />
                         <AssetCardTile
                           label="Project"
+                          itemTitle={project?.title}
                           icon={RocketLaunchIcon}
                           state={visibility.project}
                           href={
@@ -1777,6 +1939,7 @@ export function ClassTeachingWorkspace({
                         {!data?.programme_policy?.usesHostEvaluation ? (
                         <AssetCardTile
                           label="Assessment"
+                          itemTitle={evaluation?.title}
                           icon={DocumentChartBarIcon}
                           state={evaluationStatus}
                           href={
@@ -1801,6 +1964,7 @@ export function ClassTeachingWorkspace({
                         ) : isHostAssessmentWeek(calendarRole) ? (
                         <AssetCardTile
                           label={hostPaperName || (hostSit === "cbt" ? "CBT exam" : "Paper")}
+                          itemTitle={evaluation?.title}
                           icon={DocumentChartBarIcon}
                           state={
                             evaluation
@@ -2196,14 +2360,14 @@ export function ClassTeachingWorkspace({
                   <p className="text-xs leading-5 text-muted-foreground">
                     This plan has no curriculum weeks yet. Its weeks come from
                     the official edition assigned to this class. Try Refresh
-                    academic direction, or open the full class plan to add
+                    academic direction, or open Advanced plan tools to add
                     weeks by hand.
                   </p>
                   <Link
                     href={buildLessonPlanHref(plan.id)}
                     className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40"
                   >
-                    Open the full class plan
+                    Advanced plan tools
                   </Link>
                 </div>
               )}
@@ -2293,6 +2457,7 @@ function StatCard({
 
 function AssetCardTile({
   label,
+  itemTitle,
   icon: Icon,
   state,
   href,
@@ -2300,6 +2465,7 @@ function AssetCardTile({
   actionLabel,
 }: {
   label: string;
+  itemTitle?: string | null;
   icon: React.ComponentType<{ className?: string }>;
   state: AssetVisibility;
   href?: string;
@@ -2324,19 +2490,24 @@ function AssetCardTile({
 
   const content = (
     <div
-      className={`group flex flex-col justify-between rounded-xl border p-2 text-left transition-all duration-150 ${colorClass} ${
+      className={`group flex min-h-[5.75rem] flex-col justify-between rounded-xl border p-2.5 text-left transition-all duration-150 ${colorClass} ${
         href || onClick ? "hover:border-primary/50 hover:shadow-xs active:scale-95 cursor-pointer" : ""
       }`}
       title={`${label}: ${isLive ? "Visible to students" : isHeld ? "Prepared · Not visible to students" : "Missing"}`}
     >
-      <div className="flex items-center justify-between gap-1">
-        <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+          <span className="truncate text-[10px] font-black uppercase tracking-wide">{label}</span>
+        </span>
         <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotClass}`} />
       </div>
-      <div className="mt-1.5">
-        <p className="text-[10px] font-black truncate">{label}</p>
-        <p className="text-[9px] font-bold opacity-75 truncate uppercase">
-          {isLive ? "Visible" : isHeld ? "Not visible" : actionLabel || "Add"}
+      <div className="mt-2 min-w-0">
+        <p className="line-clamp-2 text-[11px] font-bold leading-4 text-foreground">
+          {itemTitle?.trim() || (isMissing ? "Not prepared yet" : `${label} ready`)}
+        </p>
+        <p className="mt-1 text-[9px] font-black uppercase tracking-wide opacity-75">
+          {isLive ? "Visible · Open" : isHeld ? "Review · Not visible" : actionLabel || "Add"}
         </p>
       </div>
     </div>

@@ -47,7 +47,8 @@ export type SchoolProgrammePolicy = {
   standing: ProgrammeStanding;
   usesRillcodEvaluation: boolean;
   usesHostEvaluation: boolean;
-  sessionsPerWeek: 1 | 2;
+  /** School default is 1–2; an explicit special-programme plan may use 1–7. */
+  sessionsPerWeek: number;
   /** Compulsory default is a printed paper. Advanced labs can sit the exam as CBT. */
   examCapture: AssessmentCapture;
   /** Compulsory tests stay physical unless a school is explicitly set to CBT. */
@@ -74,10 +75,14 @@ export function schoolWeeklyCadence(raw: unknown): 1 | 2 {
 export function cadenceForTeachingPlan(input: {
   planSessionsPerWeek?: unknown;
   schoolSessionsPerWeek?: unknown;
-}): 1 | 2 {
+}): number {
   const plan = Number(input.planSessionsPerWeek);
-  if (plan === 1) return 1;
-  if (plan === 2) return 2;
+  // Partner schools default to one or two meetings, while special programmes
+  // may deliberately meet up to seven times. The plan is the authority for
+  // its own pathway and must not be silently collapsed to two sessions.
+  if (Number.isFinite(plan) && plan >= 1) {
+    return Math.max(1, Math.min(7, Math.floor(plan)));
+  }
   return schoolWeeklyCadence(input.schoolSessionsPerWeek);
 }
 
@@ -119,12 +124,19 @@ export function policyFromClassSchool(
       }
     | null
     | undefined;
-  return resolveSchoolProgrammePolicy({
+  const policy = resolveSchoolProgrammePolicy({
     programme_standing: row?.programme_standing,
-    sessions_per_week: sessionsPerWeek ?? row?.sessions_per_week,
+    sessions_per_week: row?.sessions_per_week,
     exam_capture: row?.exam_capture,
     test_capture: row?.test_capture,
   });
+  return {
+    ...policy,
+    sessionsPerWeek: cadenceForTeachingPlan({
+      planSessionsPerWeek: sessionsPerWeek,
+      schoolSessionsPerWeek: row?.sessions_per_week,
+    }),
+  };
 }
 
 export function hostCalendarForClass(klass: {
@@ -378,7 +390,10 @@ export function expandPlanWeeksForMeetings<T extends Record<string, unknown>>(
   sessionsPerWeek: number,
 ): Array<T & { session?: number; session_number?: number }> {
   const rows = Array.isArray(weeks) ? weeks : [];
-  const spw = sessionsPerWeek === 2 ? 2 : 1;
+  const rawCadence = Number(sessionsPerWeek);
+  const spw = Number.isFinite(rawCadence)
+    ? Math.max(1, Math.min(7, Math.floor(rawCadence)))
+    : 1;
   if (spw === 1 || rows.length === 0) return rows;
   const firstWeek = Number(rows[0]?.week);
   const sameWeekCount = rows.filter((row) => Number(row.week) === firstWeek).length;

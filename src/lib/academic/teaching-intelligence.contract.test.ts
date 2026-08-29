@@ -20,6 +20,12 @@ const releaseOneMeetingMigration = read(
 const completePackageReleaseMigration = read(
   "supabase/migrations/20260929000088_release_complete_teaching_package.sql"
 );
+const guardedPackageReleaseMigration = read(
+  "supabase/migrations/20260929000125_require_complete_teaching_package_release.sql"
+);
+const planActivationMigration = read(
+  "supabase/migrations/20260929000126_activate_executable_automated_class_plans.sql"
+);
 
 describe("generated types match the teaching schema", () => {
   it("delivery rows carry a meeting and may sit on a period instead of a term", () => {
@@ -132,6 +138,29 @@ describe("old week-only schema is retired", () => {
     );
   });
 
+  it("refuses partial package release and repairs old partial visibility", () => {
+    expect(guardedPackageReleaseMigration).toContain(
+      "Complete this teaching package before sharing it"
+    );
+    expect(guardedPackageReleaseMigration).toContain(
+      "partial_teaching_package_slots"
+    );
+    expect(guardedPackageReleaseMigration).toContain(
+      "and not (lesson_live and slides_live and cards_live and assignment_live and project_live)"
+    );
+    expect(guardedPackageReleaseMigration).not.toContain(
+      "assignment_submissions"
+    );
+  });
+
+  it("activates old executable plans without publishing learner content", () => {
+    expect(planActivationMigration).toContain("update public.lesson_plans");
+    expect(planActivationMigration).toContain("status = 'published'");
+    expect(planActivationMigration).toContain("auto_generate_settings,enabled");
+    expect(planActivationMigration).not.toContain("update public.lessons");
+    expect(planActivationMigration).not.toContain("update public.assignments");
+  });
+
   it("week prep confirms saved work through the class workspace, by meeting", () => {
     const generator = read("src/components/ai/WeekAIGenerator.tsx");
     const workspaceRoute = read(
@@ -172,6 +201,18 @@ describe("old week-only schema is retired", () => {
     );
     expect(read("src/app/api/cron/auto-generate-content/route.ts")).toContain(
       "writtenThisRun"
+    );
+    expect(read("src/app/api/cron/auto-generate-content/route.ts")).toContain(
+      "ensureGenerationPlanReady"
+    );
+    expect(read("src/app/api/cron/auto-generate-content/route.ts")).toContain(
+      ".in('status', ['draft', 'published'])"
+    );
+    expect(read("src/app/api/lesson-plans/[id]/generate-week/route.ts")).toContain(
+      "ensureGenerationPlanReady"
+    );
+    expect(read("src/lib/academic/bootstrap-class-week.ts")).toContain(
+      "ensureGenerationPlanReady"
     );
     expect(read("src/lib/academic/pending-approval.ts")).toContain(
       "meetingsInWeek"
@@ -239,7 +280,8 @@ describe("generators and workspace stay on that schema", () => {
     expect(workspace).toContain("WEEK_CONTENT_ORIGIN_LABEL");
     expect(workspace).toContain("generated here, copied from");
     expect(parser).toContain("export function weekContentOrigin");
-    expect(workspace).toContain("Weekly class plan");
+    expect(workspace).toContain("Teaching sessions");
+    expect(workspace).toContain("Prepare · review · share here");
     expect(workspace).toContain("Prepare all missing packages");
     expect(workspace).toContain("types: WEEK_CONTENT_TYPES");
     expect(workspace).toContain("teachingMeetingLabel");
@@ -254,6 +296,8 @@ describe("generators and workspace stay on that schema", () => {
     expect(route).toContain("releasePreparedWeek");
     expect(route).toContain("timetable_sessions");
     expect(route).toContain("programme_policy");
+    expect(route).toContain("teaching_generation_runs");
+    expect(route).toContain("preparation_status");
     // Customization belongs to lessons/assignments metadata. Selecting a
     // top-level customized_at column makes Supabase reject the whole workspace.
     expect(route).not.toContain(",customized_at");

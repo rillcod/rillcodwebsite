@@ -48,13 +48,13 @@ describe('session-identity', () => {
   it('labels a physical school week as Week N, and only shows Class when the week meets more than once', () => {
     expect(teachingMeetingLabel(3)).toBe('Week 3');
     expect(teachingMeetingLabel(3, 1)).toBe('Week 3');
-    expect(teachingMeetingLabel(3, 1, 2)).toBe('Week 3 · Class 1');
-    expect(teachingMeetingLabel(3, 2)).toBe('Week 3 · Class 2');
+    expect(teachingMeetingLabel(3, 1, 2)).toBe('Week 3 · Session 1');
+    expect(teachingMeetingLabel(3, 2)).toBe('Week 3 · Session 2');
     expect(teachingMeetingShortLabel(3, 1)).toBe('W3');
-    expect(teachingMeetingShortLabel(3, 2)).toBe('W3 · C2');
+    expect(teachingMeetingShortLabel(3, 2)).toBe('W3 · S2');
   });
 
-  it('tells Class 2 to continue Class 1 without repeating it', () => {
+  it('tells Session 2 to continue Session 1 without repeating it', () => {
     expect(
       meetingContinuityInstruction({
         week: 2,
@@ -62,7 +62,7 @@ describe('session-identity', () => {
         meetingsThisWeek: 2,
         alreadyTaughtThisWeek: ['Sprites'],
       }),
-    ).toMatch(/Class 2/i);
+    ).toMatch(/Session 2/i);
     expect(
       meetingContinuityInstruction({
         week: 2,

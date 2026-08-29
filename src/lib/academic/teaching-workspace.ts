@@ -122,7 +122,7 @@ export type TeachingTarget = { week: number; session: number };
 
 /**
  * Week+meeting targets for bulk release and delivery.
- * Body: `{ targets: [{ week_number, session }] }`. Session defaults to Class 1.
+ * Body: `{ targets: [{ week_number, session }] }`. Session defaults to Session 1.
  */
 export function parseTeachingTargets(
   body: Record<string, unknown>

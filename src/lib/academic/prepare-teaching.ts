@@ -1,7 +1,7 @@
 /**
  * One teaching-preparation boundary for special programmes and regular schools.
  *
- * Special: page → offering → cohort → bridge → Week 1 · Class 1 (held).
+ * Special: page → offering → cohort → bridge → Week 1 · Session 1 (held).
  * School: class → teacher/course/period/direction → teaching plan.
  *
  * Callers (publish, Prepare, featured, payment, cron) queue or await this —

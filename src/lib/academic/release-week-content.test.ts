@@ -135,7 +135,7 @@ describe("holdPreparedWeek input boundary", () => {
       session: null,
     });
 
-    expect(result.error).toContain("Choose the class meeting");
+    expect(result.error).toContain("Choose the teaching session");
     expect(result.lessons_held).toBe(0);
   });
 

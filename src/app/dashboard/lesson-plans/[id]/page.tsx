@@ -2,9 +2,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { buildCurriculumHref } from "@/lib/curriculum/href";
+import {
+  buildClassTeachingHref,
+  buildCurriculumHref,
+} from "@/lib/curriculum/href";
 import { useAuth } from "@/contexts/auth-context";
 import ThisWeekPanel from "@/components/lesson-plans/ThisWeekPanel";
 import {
@@ -539,6 +542,7 @@ const PROGRESSION_SCOPE_OPTIONS: Array<{
 export default function LessonPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile, loading: authLoading } = useAuth();
   const [plan, setPlan] = useState<LessonPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -560,7 +564,13 @@ export default function LessonPlanDetailPage() {
   const [overrideReason, setOverrideReason] = useState("");
   const [activeTab, setActiveTab] = useState<
     "plan" | "release" | "advanced"
-  >("plan");
+  >(
+    searchParams.get("view") === "advanced"
+      ? "advanced"
+      : searchParams.get("view") === "release" || searchParams.has("week")
+        ? "release"
+        : "plan",
+  );
   const [generating, setGenerating] = useState<
     "lessons" | "assignments" | "projects" | "progression" | "package" | null
   >(null);
@@ -704,7 +714,6 @@ export default function LessonPlanDetailPage() {
           session_number: session,
           metadata: {
             source: "lesson-plan",
-            lesson_plan_id: plan.id,
             curriculum_id: plan.curriculum_version_id,
             term: plan.term,
             week: week.week,
@@ -755,7 +764,6 @@ export default function LessonPlanDetailPage() {
           session_number: session,
           metadata: {
             source: "lesson-plan",
-            lesson_plan_id: plan.id,
             curriculum_id: plan.curriculum_version_id,
             term: plan.term,
             week: week.week,
@@ -830,6 +838,29 @@ export default function LessonPlanDetailPage() {
   useEffect(() => {
     if (!authLoading && profile) load();
   }, [authLoading, profile, load]);
+
+  // The class teaching workspace is the one everyday interface. This legacy
+  // detail route remains available only for specialist release/QA tools, so a
+  // normal link cannot drop the user into a second competing week workspace.
+  useEffect(() => {
+    const requestedView = searchParams.get("view");
+    if (requestedView === "advanced") {
+      setActiveTab("advanced");
+      return;
+    }
+    if (requestedView === "release" || searchParams.has("week")) {
+      setActiveTab("release");
+      return;
+    }
+    if (!loading && plan?.class_id) {
+      router.replace(
+        buildClassTeachingHref({
+          classId: plan.class_id,
+          courseId: plan.course_id,
+        }),
+      );
+    }
+  }, [loading, plan?.class_id, plan?.course_id, router, searchParams]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !weeks.length) return;
@@ -1775,6 +1806,22 @@ export default function LessonPlanDetailPage() {
 
   if (!plan) return null;
 
+  const requestedPlanView = searchParams.get("view");
+  const isSpecialistView =
+    requestedPlanView === "advanced" ||
+    requestedPlanView === "release" ||
+    searchParams.has("week");
+  if (plan.class_id && !isSpecialistView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-sm font-bold text-muted-foreground">
+          Opening the class teaching workspace…
+        </p>
+      </div>
+    );
+  }
+
   const status = plan.status ?? "draft";
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
   const nextStatuses = STATUS_TRANSITIONS[status] ?? [];
@@ -1985,6 +2032,7 @@ export default function LessonPlanDetailPage() {
           courseTitle={courseTitle}
           curriculumId={plan.curriculum_version_id ?? null}
           lessonPlanId={plan.id}
+          classId={plan.class_id ?? null}
         />
 
         {/* AI Lesson Assistant banner — discoverable entry point */}

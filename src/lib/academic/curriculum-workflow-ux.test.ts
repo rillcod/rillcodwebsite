@@ -48,6 +48,8 @@ describe("curriculum to class-plan workflow UX", () => {
       "The class plan expands the approved curriculum into weekly teaching packages."
     );
     expect(classPlanList).not.toContain("New Lesson Plan");
+    expect(classPlanList).toContain("buildClassTeachingHref");
+    expect(classPlanRoute).toContain("expandPlanWeeksForMeetings");
   });
 
   it("creates one plan through the database identity authority", () => {

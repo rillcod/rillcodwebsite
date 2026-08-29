@@ -5,7 +5,9 @@
  * online timetable those classes follow, so attendance, generated lessons and
  * recorded student work stay on the same session for accountability. School
  * weeks store session_number = 1 and the teacher sees "Week 3". Programmes that
- * meet more than once in a calendar week use Class 1, 2, … on that timetable.
+ * meet more than once in a calendar week use Session 1, 2, … on that timetable.
+ * "Session" deliberately avoids confusing a meeting with the learner cohort
+ * stored in `classes.id`.
  */
 
 export type SessionBearing = {
@@ -94,7 +96,7 @@ export function planMeetingLookupKey(
 /**
  * Teacher-facing slot name.
  *
- * A physical school week is "Week 3". "Class 2" only appears when that
+ * A physical school week is "Week 3". "Session 2" only appears when that
  * calendar week actually has more than one meeting, or the row itself is
  * meeting 2+.
  */
@@ -105,7 +107,7 @@ export function teachingMeetingLabel(
 ): string {
   const meeting = canonicalMeetingSession(session);
   if (meeting > 1 || meetingsInWeek > 1) {
-    return `Week ${week} · Class ${meeting}`;
+    return `Week ${week} · Session ${meeting}`;
   }
   return `Week ${week}`;
 }
@@ -117,13 +119,13 @@ export function teachingMeetingShortLabel(
 ): string {
   const meeting = canonicalMeetingSession(session);
   if (meeting > 1 || meetingsInWeek > 1) {
-    return `W${week} · C${meeting}`;
+    return `W${week} · S${meeting}`;
   }
   return `W${week}`;
 }
 
 /**
- * Tell the model that Class 1 and Class 2 are two steps in one week, not two
+ * Tell the model that Session 1 and Session 2 are two steps in one week, not two
  * copies of the same lesson. Empty when the week only meets once.
  */
 export function meetingContinuityInstruction(input: {
@@ -147,14 +149,14 @@ export function meetingContinuityInstruction(input: {
   if (session === 1) {
     return (
       `${label} is the first meeting this calendar week. Teach the core idea ` +
-      `with fresh examples. End with a clear next step — Class 2 must continue ` +
+      `with fresh examples. End with a clear next step — Session 2 must continue ` +
       `the same skill, not repeat this lesson.`
     );
   }
 
   const prior = taught.length
     ? `Earlier this week already covered: ${taught.slice(0, 6).join(" | ")}.`
-    : `Class 1 already ran earlier this week on the same topic.`;
+    : `Session 1 already ran earlier this week on the same topic.`;
   return (
     `${label} is the next meeting of the same calendar week. ${prior} ` +
     `Advance the skill with new activities, examples, quiz and homework. ` +

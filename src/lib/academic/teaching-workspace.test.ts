@@ -188,12 +188,12 @@ describe("prepare progress uses the same origin words as the class page", () => 
     );
   });
 
-  it("names Class 1 and Class 2 when the week meets twice", () => {
+  it("names Session 1 and Session 2 when the week meets twice", () => {
     expect(weekAlreadyGeneratedStatus(3, 1, 2)).toBe(
-      "Skipped Week 3 · Class 1 — already generated for this class",
+      "Skipped Week 3 · Session 1 — already generated for this class",
     );
     expect(weekCopiedFromClassStatus(3, "assignment", 2, 2)).toBe(
-      "Week 3 · Class 2 assignment copied from another class (no AI needed)",
+      "Week 3 · Session 2 assignment copied from another class (no AI needed)",
     );
   });
 });

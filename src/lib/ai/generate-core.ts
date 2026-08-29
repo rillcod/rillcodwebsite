@@ -217,7 +217,7 @@ export interface GenerateRequest {
   difficulty?: string;
   // Curriculum context — used to tailor lessons to specific course/program
   siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
-  /** Calendar week + class meeting — Class 2 must continue Class 1, not copy it. */
+  /** Calendar week + teaching session — Session 2 must continue Session 1, not copy it. */
   weekNumber?: number;
   classMeeting?: number;
   meetingsThisWeek?: number;

@@ -24,6 +24,7 @@ import {
   BoltIcon,
   ArchiveBoxIcon,
 } from '@/lib/icons';
+import { buildClassTeachingHref } from '@/lib/curriculum/href';
 
 export type PipelineStep = 'syllabus' | 'plans' | 'lessons' | 'flashcards' | 'library';
 
@@ -63,12 +64,21 @@ export interface PipelineStepperProps {
 }
 
 function buildHref(step: PipelineStep, p: PipelineStepperProps): string {
-  if (step === 'plans' && p.lessonPlanId) {
-    return `/dashboard/lesson-plans/${p.lessonPlanId}`;
+  if (step === 'plans') {
+    if (p.classId) {
+      return buildClassTeachingHref({ classId: p.classId, courseId: p.courseId });
+    }
+    if (p.lessonPlanId) {
+      return `/dashboard/lesson-plans/${p.lessonPlanId}?view=advanced`;
+    }
   }
   if (step === 'lessons') {
-    if (p.lessonPlanId) return `/dashboard/lesson-plans/${p.lessonPlanId}`;
-    if (p.classId) return `/dashboard/classes/${p.classId}`;
+    if (p.classId) {
+      return buildClassTeachingHref({ classId: p.classId, courseId: p.courseId });
+    }
+    if (p.lessonPlanId) {
+      return `/dashboard/lessons?lesson_plan_id=${encodeURIComponent(p.lessonPlanId)}`;
+    }
     return '/dashboard/classes';
   }
   const base = META[step].href;

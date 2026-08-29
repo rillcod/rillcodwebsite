@@ -105,7 +105,7 @@ export function buildClassAssessmentHref(args: {
 }
 
 export function buildLessonPlanHref(planId: string): string {
-  return `/dashboard/lesson-plans/${planId}`;
+  return `/dashboard/lesson-plans/${planId}?view=advanced`;
 }
 
 export function buildLessonNewHref(args: {

@@ -51,6 +51,12 @@ describe("school programme standing", () => {
         schoolSessionsPerWeek: 2,
       }),
     ).toBe(2);
+    expect(
+      cadenceForTeachingPlan({
+        planSessionsPerWeek: 5,
+        schoolSessionsPerWeek: 2,
+      }),
+    ).toBe(5);
   });
 });
 
@@ -169,5 +175,14 @@ describe("Royhills-shaped compulsory calendars", () => {
     );
     expect(rows.map((row) => row.session)).toEqual([1, 2]);
     expect(expandPlanWeeksForMeetings(rows, 2)).toEqual(rows);
+  });
+
+  it("keeps the full special-programme cadence instead of collapsing it to two", () => {
+    const rows = expandPlanWeeksForMeetings(
+      [{ week: 3, topic: "Robotics lab" }],
+      5,
+    );
+    expect(rows.map((row) => row.session)).toEqual([1, 2, 3, 4, 5]);
+    expect(expandPlanWeeksForMeetings(rows, 5)).toEqual(rows);
   });
 });

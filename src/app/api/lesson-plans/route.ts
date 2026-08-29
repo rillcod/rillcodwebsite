@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { canAccessLessonScope } from "./authz";
 import { getTeacherSchoolIds } from "@/lib/auth-utils";
 import { summarisePlanContent } from "@/lib/academic/plan-content-summary";
+import { expandPlanWeeksForMeetings } from "@/lib/academic/school-programme-standing";
 
 export const dynamic = "force-dynamic";
 import { inferTermNumberFromPlanTerm } from "@/lib/lesson-plans/syllabusImport";
@@ -182,9 +183,10 @@ export async function GET(request: Request) {
       return {
         ...plan,
         content_summary: summarisePlanContent({
-          planWeeks: Array.isArray(plan.plan_data?.weeks)
-            ? plan.plan_data.weeks
-            : [],
+          planWeeks: expandPlanWeeksForMeetings(
+            Array.isArray(plan.plan_data?.weeks) ? plan.plan_data.weeks : [],
+            Number(plan.sessions_per_week) || 1,
+          ),
           lessons: rowsForPlan(lessonRows.data, plan.id),
           assignments: assignments.filter(
             (row: any) =>

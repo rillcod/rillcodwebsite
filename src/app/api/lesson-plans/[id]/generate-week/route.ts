@@ -31,6 +31,7 @@ import {
   hostCalendarForClass,
   rillcodTeachesThisWeek,
 } from '@/lib/academic/school-programme-standing';
+import { ensureGenerationPlanReady } from '@/lib/academic/generation-plan-state';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -48,7 +49,7 @@ async function loadGenerationAccess(planId: string, userId: string) {
 
   const { data: plan } = await db
     .from('lesson_plans')
-    .select('id, class_id, term_start, status, metadata, academic_offering_periods:offering_period_id(starts_on)')
+    .select('id, class_id, term_start, status, plan_data, metadata, academic_offering_periods:offering_period_id(starts_on)')
     .eq('id', planId)
     .maybeSingle();
   if (!plan) {
@@ -171,6 +172,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
   const { db, plan, klass } = access;
+
+  const planState = await ensureGenerationPlanReady(db, plan);
+  if (!planState.ready) {
+    return NextResponse.json(
+      { error: planState.reason || 'This class plan is not ready to prepare content.' },
+      { status: 409 },
+    );
+  }
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const requestedWeek = Number((body as any).week);

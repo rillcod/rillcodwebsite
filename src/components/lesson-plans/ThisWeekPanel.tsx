@@ -137,7 +137,7 @@ export default function ThisWeekPanel({
           <p className="mt-0.5 text-lg font-bold text-card-foreground">{meeting}</p>
           {meetings > 1 && (
             <p className="mt-0.5 text-[11px] text-card-foreground/50">
-              Prepares Class 1 now. Class 2 stays its own package so the two meetings do not repeat.
+              Prepares Session 1 now. Session 2 stays its own package so the two meetings do not repeat.
             </p>
           )}
         </div>

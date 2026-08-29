@@ -33,7 +33,7 @@ type GenerationRunRow = {
 const CONTENT_LABELS: Record<string, string> = {
   lessons: "lesson",
   slides: "slides",
-  flashcards: "flashcards",
+  flashcards: "practice cards",
   assignments: "assignment",
   projects: "project",
 };

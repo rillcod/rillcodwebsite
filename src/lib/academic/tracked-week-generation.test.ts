@@ -40,7 +40,7 @@ describe("teaching generation run status", () => {
       state: "attention",
       week: 2,
       session: 1,
-      message: "Some content still needs attention: slides, flashcards. Retry safely; completed items will be kept.",
+      message: "Some content still needs attention: slides, practice cards. Retry safely; completed items will be kept.",
     });
     expect(summarizeTeachingGenerationRuns([{ status: "interrupted" }]).message)
       .toContain("completed items will be kept");

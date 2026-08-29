@@ -85,7 +85,9 @@ export function validateLessonPlanForGeneration(
     course_id?: string | null;
     school_id?: string | null;
   };
-  const planHref = p.id ? `/dashboard/lesson-plans/${p.id}` : undefined;
+  const planHref = p.id
+    ? `/dashboard/lesson-plans/${p.id}?view=advanced`
+    : undefined;
 
   if (p.status !== 'published') {
     return {
@@ -93,10 +95,10 @@ export function validateLessonPlanForGeneration(
       status: 422,
       reason: 'not_published',
       detail:
-        `This teaching plan is still a ${p.status ?? 'draft'}. Publish it and the ` +
+        `This class plan is still a ${p.status ?? 'draft'}. Publish it and the ` +
         'whole week — lesson, slides, flashcards, assignment and project — will generate.',
       action_href: planHref,
-      action_label: planHref ? 'Open plan to publish' : undefined,
+      action_label: planHref ? 'Open advanced tools to publish' : undefined,
     };
   }
   if (!hasPlanBindings(p)) {
@@ -107,7 +109,7 @@ export function validateLessonPlanForGeneration(
       detail:
         'The plan is not linked to both a course and a school, so there is no syllabus to generate from.',
       action_href: planHref,
-      action_label: planHref ? 'Open plan' : undefined,
+      action_label: planHref ? 'Open advanced plan tools' : undefined,
     };
   }
   return null;

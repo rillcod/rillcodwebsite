@@ -31,6 +31,7 @@ import {
 } from "@/lib/academic/school-programme-standing";
 import { fallbackScheduleRow, readDeliveryPosition } from "@/lib/academic/entry-point";
 import { logAudit } from "@/lib/audit/log";
+import { summarizeTeachingGenerationRuns } from "@/lib/academic/tracked-week-generation";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,8 @@ export async function GET(
   // not, and "Evaluation" always reopened the create form.
   let exams: any[] = [];
   let deliveries: any[] = [];
+  let generationRuns: any[] = [];
+  let generationHistoryAvailable = true;
   let progress: any = null;
   let direction: any = null;
 
@@ -174,7 +177,7 @@ export async function GET(
       pinnedReleaseId: plan?.curriculum_release_id,
     });
     if (plan) {
-      const [lessonResult, deliveryResult, progressResult] =
+      const [lessonResult, deliveryResult, progressResult, generationResult] =
         await Promise.all([
           db
             .from("lessons")
@@ -194,10 +197,20 @@ export async function GET(
             .select("*")
             .eq("lesson_plan_id", plan.id)
             .maybeSingle(),
+          db
+            .from("teaching_generation_runs")
+            .select(
+              "status,curriculum_week_number,session_number,failed_types,started_at,completed_at"
+            )
+            .eq("lesson_plan_id", plan.id)
+            .order("started_at", { ascending: false })
+            .limit(1),
         ]);
       lessons = lessonResult.data || [];
       deliveries = deliveryResult.data || [];
       progress = progressResult.data;
+      generationRuns = generationResult.data || [];
+      generationHistoryAvailable = !generationResult.error;
       const lessonIds = lessons.map((lesson: any) => lesson.id).filter(Boolean);
       const planOrLessonScope = [
         `lesson_plan_id.eq.${plan.id}`,
@@ -421,6 +434,10 @@ export async function GET(
       term_activities: termActivities,
       auto_generate: autoGenerate,
       prep_policy: describeAutoGenerateSettings(autoGenerate),
+      preparation_status: summarizeTeachingGenerationRuns(
+        generationRuns,
+        generationHistoryAvailable
+      ),
     },
   });
 }
@@ -653,9 +670,12 @@ export async function POST(
           sessionsPerWeek
         )
       : null;
-    await db
+    const { error: planUpdateError } = await db
       .from("lesson_plans")
       .update({
+        // The plan itself is now executable because it follows an official
+        // direction. Child content remains held until the teacher shares it.
+        status: "published",
         curriculum_release_id: direction.id,
         curriculum_version_id: direction.source_curriculum_id,
         plan_data: {
@@ -677,6 +697,12 @@ export async function POST(
         updated_at: new Date().toISOString(),
       })
       .eq("id", result.plan_id);
+    if (planUpdateError) {
+      return NextResponse.json(
+        { error: planUpdateError.message || "The class plan could not be activated." },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { data: { ...result, official_direction: direction.title } },
       { status: result.created ? 201 : 200 }

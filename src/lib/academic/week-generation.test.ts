@@ -88,7 +88,7 @@ describe('normaliseTypes', () => {
 });
 
 describe('week ready delivery', () => {
-  it('opens Approvals on the exact meeting, with Class 2 named in the title', () => {
+  it('opens review on the exact meeting, with Session 2 named in the title', () => {
     expect(
       weekReadyReviewPath({
         planId: 'plan-1',
@@ -102,6 +102,6 @@ describe('week ready delivery', () => {
         session: 2,
         className: 'JSS 1A',
       }),
-    ).toBe('JSS 1A · Week 3 · Class 2 is ready to review');
+    ).toBe('JSS 1A · Week 3 · Session 2 is ready to review');
   });
 });

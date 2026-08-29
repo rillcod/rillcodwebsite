@@ -542,8 +542,8 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
       toast.success(
         j.teaching_message ||
           (opts?.forceRebuild
-            ? 'Started fresh. Week 1 · Class 1 is ready for review; the rest keeps preparing automatically.'
-            : 'Week 1 · Class 1 prepared for review. Class 2 and later weeks continue automatically.'),
+            ? 'Started fresh. Week 1 · Session 1 is ready for review; the rest keeps preparing automatically.'
+            : 'Week 1 · Session 1 prepared for review. Session 2 and later weeks continue automatically.'),
       );
       onSaved();
     } catch (e: any) {
@@ -1114,7 +1114,7 @@ export default function SpecialProgramVisualBuilder({ editing, initialForm, onCl
                 </div>
 
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Prepare teaching makes the full plan from this page, then prepares only the first class meeting (Week 1 · Class 1) so AI stays sharp. Class 2 and later weeks keep preparing automatically overnight, or a teacher can prepare the next meeting from the class workspace. Everything waits under Teaching Approvals first.
+                  Prepare teaching makes the full plan from this page, then prepares only the first teaching session (Week 1 · Session 1) so AI stays sharp. Session 2 and later weeks keep preparing automatically overnight, or a teacher can prepare the next session from the class workspace. Each prepared package can be reviewed and shared directly in that workspace; Teaching Approvals remains a cross-class queue.
                 </p>
                 {teachingStatus ? (
                   <p

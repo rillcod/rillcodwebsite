@@ -37,6 +37,7 @@ import {
   hostCalendarForClass,
   keepRillcodTeachingWeeks,
 } from '@/lib/academic/school-programme-standing';
+import { ensureGenerationPlanReady } from '@/lib/academic/generation-plan-state';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 min — each plan generates up to N weeks
@@ -53,7 +54,9 @@ function adminClient() {
 }
 
 // GET or POST /api/cron/auto-generate-content
-// Finds all published plans with auto_generate_settings.enabled = true
+// Finds all executable class plans with auto_generate_settings.enabled = true.
+// Older draft plans with teaching weeks are activated here; child content is
+// still held for teacher review and is never exposed by this status change.
 // and generates the next N weeks of content for each plan.
 // Chained once a day from academic-readiness, so the health interval is daily. A shorter one
 // marks this job Late for most of every day.
@@ -87,8 +90,8 @@ async function handleRequest(req: NextRequest) {
   // every night instead of moving through the programme.
   const { data: plans, error } = await db
     .from('lesson_plans')
-    .select('id, term_start, class_id, metadata, plan_data, curriculum_release_id, sessions_per_week, academic_offering_periods:offering_period_id(starts_on)')
-    .eq('status', 'published');
+    .select('id, term_start, class_id, status, metadata, plan_data, curriculum_release_id, sessions_per_week, academic_offering_periods:offering_period_id(starts_on)')
+    .in('status', ['draft', 'published']);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -225,6 +228,17 @@ async function handleRequest(req: NextRequest) {
       releaseId,
     } = item;
     try {
+      const planState = await ensureGenerationPlanReady(db, plan);
+      if (!planState.ready) {
+        results.push({
+          planId: plan.id,
+          status: 'skipped',
+          currentWeek,
+          weeks: [],
+          error: planState.reason || 'The class plan is not ready for generation.',
+        });
+        continue;
+      }
       if (!windowWeeks.length) {
         results.push({
           planId: plan.id,
