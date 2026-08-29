@@ -148,6 +148,22 @@ export async function PATCH(
   const body = asObject(bodyRaw);
   const db = createAdminClient();
 
+  // Class ownership is a workflow transition, not ordinary plan metadata.
+  // The old UI sent { class_id } here even though this PATCH whitelist never
+  // persisted it, creating a false-success state. Require the single atomic
+  // adoption endpoint so plan, child content, visibility and evidence guards
+  // always move together.
+  if ("class_id" in body) {
+    return NextResponse.json(
+      {
+        error:
+          "Class ownership is changed through the historical-plan adoption flow.",
+        code: "USE_ADOPT_CLASS_ENDPOINT",
+      },
+      { status: 409 },
+    );
+  }
+
   const { data: existingPlan, error: existingErr } = await db
     .from("lesson_plans")
     .select(

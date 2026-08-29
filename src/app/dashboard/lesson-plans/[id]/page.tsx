@@ -11,6 +11,10 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import ThisWeekPanel from "@/components/lesson-plans/ThisWeekPanel";
 import {
+  HistoricalPlanAdoptionDialog,
+  type AdoptionClassOption,
+} from "@/components/lesson-plans/HistoricalPlanAdoptionDialog";
+import {
   ArrowLeftIcon,
   PencilIcon,
   CheckCircleIcon,
@@ -25,7 +29,6 @@ import {
   XMarkIcon,
   TrophyIcon,
   AcademicCapIcon,
-  ArrowUpTrayIcon,
   ClipboardDocumentListIcon,
   RocketLaunchIcon,
   StarIcon,
@@ -561,14 +564,10 @@ export default function LessonPlanDetailPage() {
     weekNum: number;
   } | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
-  const [activeTab, setActiveTab] = useState<
-    "plan" | "release" | "advanced"
-  >(
+  const [activeTab, setActiveTab] = useState<"plan" | "advanced">(
     searchParams.get("view") === "advanced"
       ? "advanced"
-      : searchParams.get("view") === "release" || searchParams.has("week")
-        ? "release"
-        : "plan",
+      : "plan",
   );
   const [generating, setGenerating] = useState<
     "lessons" | "assignments" | "projects" | "progression" | "package" | null
@@ -653,11 +652,11 @@ export default function LessonPlanDetailPage() {
       schools?: { id: string; name: string } | null;
     }[]
   >([]);
-  const [assigningClass, setAssigningClass] = useState(false);
-  const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [classesLoading, setClassesLoading] = useState(false);
   const [classLoadError, setClassLoadError] = useState<string | null>(null);
-  const [cloneModalOpen, setCloneModalOpen] = useState(false);
-  const [cloning, setCloning] = useState(false);
+  const [adoptionOpen, setAdoptionOpen] = useState(false);
+  const [adopting, setAdopting] = useState(false);
+  const [adoptionError, setAdoptionError] = useState<string | null>(null);
   const [progressionRunConfirm, setProgressionRunConfirm] = useState<{
     scopeLabel: string;
     preview: ProgressionPreview;
@@ -847,10 +846,6 @@ export default function LessonPlanDetailPage() {
       setActiveTab("advanced");
       return;
     }
-    if (requestedView === "release" || searchParams.has("week")) {
-      setActiveTab("release");
-      return;
-    }
     if (!loading && plan?.class_id) {
       router.replace(
         buildClassTeachingHref({
@@ -1008,7 +1003,7 @@ export default function LessonPlanDetailPage() {
 
   useEffect(() => {
     if (
-      (activeTab !== "release" && activeTab !== "advanced") ||
+      activeTab !== "advanced" ||
       !canGenerateProgression ||
       !id
     )
@@ -1298,9 +1293,9 @@ export default function LessonPlanDetailPage() {
 
     if (!plan.class_id) {
       toast.error(
-        "Assign this plan to a class first — click the class badge in the header above."
+        "Move this historical plan into a class before generating new content."
       );
-      setClassPickerOpen(true);
+      setAdoptionOpen(true);
       return;
     }
 
@@ -1356,8 +1351,8 @@ export default function LessonPlanDetailPage() {
       return;
     }
     if (!plan.class_id) {
-      toast.error("Assign this plan to a class first so every item has one teaching destination.");
-      setClassPickerOpen(true);
+      toast.error("Move this historical plan into a class so every item has one teaching destination.");
+      setAdoptionOpen(true);
       return;
     }
     if (weeks.length === 0) {
@@ -1697,101 +1692,86 @@ export default function LessonPlanDetailPage() {
   const loadAssignableClasses = useCallback(async () => {
     if (!profile?.id || !["teacher", "admin"].includes(profile.role ?? ""))
       return;
+    // A class-bound plan never needs a second class lookup. Keeping this
+    // request historical-only also prevents the canonical teaching workspace
+    // from doing work for a specialist page it cannot use.
+    if (plan?.class_id) return;
     const url =
       profile.role === "teacher" ? "/api/classes?mine=true" : "/api/classes";
     setClassLoadError(null);
+    setClassesLoading(true);
     try {
       const response = await fetch(url, { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error("Classes could not be loaded.");
-      setMyClasses(
-        (payload.data ?? []) as {
+      const classes = (payload.data ?? []) as {
           id: string;
           name: string;
           teacher_id?: string | null;
-        }[]
+          school_id?: string | null;
+          schools?: { id: string; name: string } | null;
+        }[];
+      // A school-owned historical plan must not invite a teacher to choose a
+      // class from another school. The database function repeats this guard;
+      // this filter simply keeps the picker honest and quieter.
+      setMyClasses(
+        plan?.school_id
+          ? classes.filter((item) => item.school_id === plan.school_id)
+          : classes,
       );
     } catch {
       setClassLoadError(
         "Class options could not be loaded. The lesson plan is unchanged."
       );
-    }
-  }, [profile?.id, profile?.role]);
-
-  // Load teacher's own classes for inline class assignment.
-  useEffect(() => {
-    void loadAssignableClasses();
-  }, [loadAssignableClasses]);
-
-  async function assignClass(classId: string | null) {
-    setAssigningClass(true);
-    try {
-      const res = await fetch(`/api/lesson-plans/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ class_id: classId }),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      toast.success(classId ? "Class assigned" : "Class removed");
-      setClassPickerOpen(false);
-      load();
-    } catch {
-      toast.error("Failed to assign class");
     } finally {
-      setAssigningClass(false);
+      setClassesLoading(false);
     }
-  }
+  }, [plan?.class_id, plan?.school_id, profile?.id, profile?.role]);
 
-  async function cloneToClass(targetClass: {
-    id: string;
-    school_id?: string | null;
-  }) {
+  // Load class choices only when a historical plan needs adoption.
+  useEffect(() => {
+    if (loading || !plan || plan.class_id) return;
+    void loadAssignableClasses();
+  }, [loadAssignableClasses, loading, plan?.class_id]);
+
+  async function adoptHistoricalPlan(targetClass: AdoptionClassOption) {
     if (!plan) return;
-    setCloning(true);
+    setAdopting(true);
+    setAdoptionError(null);
     try {
-      const targetSchoolId = targetClass.school_id ?? null;
-      // Only carry curriculum_version_id if it's platform-wide (school_id = null) or same school as target
-      const curriculumIdToUse =
-        plan.curriculum_version_id &&
-        (plan.curriculum?.school_id == null ||
-          plan.curriculum.school_id === targetSchoolId)
-          ? plan.curriculum_version_id
-          : null;
-
-      const res = await fetch("/api/lesson-plans", {
+      const res = await fetch(`/api/lesson-plans/${id}/adopt-class`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          course_id: plan.course_id,
-          class_id: targetClass.id,
-          school_id: targetSchoolId,
-          term: plan.term,
-          term_start: plan.term_start,
-          term_end: plan.term_end,
-          sessions_per_week: plan.sessions_per_week,
-          curriculum_version_id: null,
-          plan_data: plan.plan_data,
-          status: "draft",
-          version: 1,
-        }),
+        body: JSON.stringify({ class_id: targetClass.id }),
       });
-      const json = await res.json();
-      if (res.status === 409 && json.existing_id) {
-        toast.success(
-          "That class already has this lesson plan. Opening it now."
-        );
-        setCloneModalOpen(false);
-        router.push(`/dashboard/lesson-plans/${json.existing_id}`);
-        return;
-      }
-      if (!res.ok) throw new Error(json.error || "Deploy failed");
-      toast.success("Plan deployed — opening new plan");
-      setCloneModalOpen(false);
-      router.push(`/dashboard/lesson-plans/${json.data.id}`);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to deploy plan");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "The plan could not be moved.");
+
+      const preserved = json.data?.preserved as Record<string, number> | undefined;
+      const preservedCount = preserved
+        ? Object.values(preserved).reduce((total, value) => total + Number(value || 0), 0)
+        : 0;
+      toast.success(
+        preservedCount > 0
+          ? `Plan moved into ${targetClass.name}; ${preservedCount} existing learning items were kept.`
+          : `Plan moved into ${targetClass.name}.`,
+      );
+      setAdoptionOpen(false);
+      router.replace(
+        buildClassTeachingHref({
+          classId: targetClass.id,
+          courseId: plan.course_id,
+        }),
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "The plan could not be moved. Nothing was changed.";
+      setAdoptionError(message);
+      toast.error(message);
     } finally {
-      setCloning(false);
+      setAdopting(false);
     }
   }
 
@@ -1806,10 +1786,7 @@ export default function LessonPlanDetailPage() {
   if (!plan) return null;
 
   const requestedPlanView = searchParams.get("view");
-  const isSpecialistView =
-    requestedPlanView === "advanced" ||
-    requestedPlanView === "release" ||
-    searchParams.has("week");
+  const isSpecialistView = requestedPlanView === "advanced";
   if (plan.class_id && !isSpecialistView) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
@@ -2040,6 +2017,27 @@ export default function LessonPlanDetailPage() {
         </div>
       )}
 
+      {!plan.class_id && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 print:hidden sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-black text-foreground">Historical plan ready to merge</p>
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
+              This plan predates the class-centred workflow. Review its existing content, then move the same record into one class. No plan or learning item will be copied.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setAdoptionError(null);
+              setAdoptionOpen(true);
+            }}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-primary px-4 text-sm font-black text-primary-foreground"
+          >
+            Move into a class
+          </button>
+        </div>
+      )}
+
       {/* Back + Print */}
       <div className="flex items-center justify-between print:hidden">
         <Link
@@ -2097,91 +2095,27 @@ export default function LessonPlanDetailPage() {
             ) : null}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {plan.classes?.name ? (
-                <button
-                  onClick={() => setClassPickerOpen((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm text-card-foreground/60 hover:text-card-foreground transition-colors group"
-                >
+                <span className="flex items-center gap-1.5 text-sm text-card-foreground/60">
                   <AcademicCapIcon className="w-3.5 h-3.5" />
                   <span>{plan.classes.name}</span>
-                  <span className="text-xs text-primary/60 group-hover:text-primary">
-                    (change)
-                  </span>
-                </button>
+                </span>
               ) : (
                 <button
-                  onClick={() => setClassPickerOpen((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20"
+                  type="button"
+                  onClick={() => {
+                    setAdoptionError(null);
+                    setAdoptionOpen(true);
+                  }}
+                  className="flex min-h-10 items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 text-sm font-black text-amber-700 transition-colors hover:bg-amber-500/15 dark:text-amber-300"
                 >
                   <AcademicCapIcon className="w-3.5 h-3.5" />
-                  No class assigned — click to assign
+                  Historical plan · Move into class
                 </button>
               )}
             </div>
-            {classPickerOpen && (
-              <div className="mt-2 p-3 bg-card border border-white/[0.12] rounded-xl shadow-xl z-10 w-full max-w-xs">
-                <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/50 mb-2">
-                  Assign to class
-                </p>
-                <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {classLoadError ? (
-                    <div className="space-y-2 rounded-lg border border-amber-500/25 bg-amber-500/10 p-2.5">
-                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                        {classLoadError}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => void loadAssignableClasses()}
-                        className="text-xs font-black text-primary hover:underline"
-                      >
-                        Retry classes
-                      </button>
-                    </div>
-                  ) : myClasses.length === 0 ? (
-                    <p className="text-xs text-card-foreground/40">
-                      No classes found — ensure you are assigned as teacher to a
-                      class first.
-                    </p>
-                  ) : null}
-                  {myClasses.map((cls) => (
-                    <button
-                      key={cls.id}
-                      onClick={() => assignClass(cls.id)}
-                      disabled={assigningClass}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
-                        plan.class_id === cls.id
-                          ? "bg-primary/20 text-primary"
-                          : "hover:bg-white/[0.06] text-card-foreground/80"
-                      }`}
-                    >
-                      {cls.name}
-                    </button>
-                  ))}
-                  {plan.class_id && (
-                    <button
-                      onClick={() => assignClass(null)}
-                      disabled={assigningClass}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-rose-600/70 dark:text-rose-400/70 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                    >
-                      Remove class
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2 print:hidden">
-            {(profile?.role === "teacher" || profile?.role === "admin") &&
-              myClasses.filter((c) => c.id !== plan.class_id).length > 0 && (
-                <button
-                  onClick={() => setCloneModalOpen(true)}
-                  title="Copy this plan to another class"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground/70 hover:text-card-foreground text-sm font-bold rounded-xl transition-all"
-                >
-                  <ArrowUpTrayIcon className="w-3.5 h-3.5" />
-                  Copy to class…
-                </button>
-              )}
-            {nextStatuses.map((ns) => (
+            {plan.class_id && nextStatuses.map((ns) => (
               <button
                 key={ns}
                 onClick={() => transitionStatus(ns)}
@@ -2424,41 +2358,39 @@ export default function LessonPlanDetailPage() {
         }
       `}</style>
 
-      {/* Teacher workflow: everyday work stays visible; specialist controls do not compete with it. */}
-      <nav
-        aria-label="Lesson plan workspace"
-        className="sticky top-0 z-20 grid grid-cols-3 gap-1.5 rounded-2xl border border-border bg-background/95 p-1.5 shadow-sm backdrop-blur-xl print:hidden"
-      >
-        {(
-          [
-            ["plan", "Plan & teach", "Weeks and packages"],
-            ["release", "Review & release", "Student visibility"],
-            ["advanced", "Advanced", "QA and automation"],
-          ] as const
-        ).map(([tab, label, detail]) => {
-          const selected = activeTab === tab;
-          return (
-            <button
-              key={tab}
-              type="button"
-              aria-current={selected ? "page" : undefined}
-              onClick={() => setActiveTab(tab)}
-              className={`min-h-14 min-w-0 rounded-xl px-2 py-2 text-center transition-colors sm:px-4 ${
-                selected
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <span className="block truncate text-[10px] font-black uppercase tracking-wide sm:text-xs">
+      {/* Historical plans need only a content preview and the retained specialist
+          engine. Class-bound plans enter this route at ?view=advanced and have
+          no second navigation competing with the class workspace. */}
+      {!plan.class_id && (
+        <nav
+          aria-label="Historical plan tools"
+          className="grid grid-cols-2 gap-1.5 rounded-2xl border border-border bg-background p-1.5 print:hidden"
+        >
+          {(
+            [
+              ["plan", "Review content"],
+              ["advanced", "Specialist tools"],
+            ] as const
+          ).map(([tab, label]) => {
+            const selected = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                aria-current={selected ? "page" : undefined}
+                onClick={() => setActiveTab(tab)}
+                className={`min-h-11 rounded-xl px-3 text-xs font-black transition-colors ${
+                  selected
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
                 {label}
-              </span>
-              <span className={`mt-0.5 hidden text-[10px] sm:block ${selected ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
-                {detail}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Week Entries */}
       {activeTab === "plan" && (
@@ -2877,187 +2809,6 @@ export default function LessonPlanDetailPage() {
         </div>
       )}
 
-      {activeTab === "release" && (
-        <div className="space-y-4">
-          {(() => {
-            const visibleLessons = linkedLessons.filter((lesson) =>
-              ["active", "published"].includes(lesson.status)
-            ).length;
-            const heldLessons = Math.max(0, linkedLessons.length - visibleLessons);
-            const releasedWeeks =
-              operations?.release_board.filter(
-                (row) => row.release_status === "released"
-              ).length ?? 0;
-            const attentionWeeks =
-              operations?.release_board.filter(
-                (row) => row.release_status !== "released"
-              ).length ?? 0;
-
-            return (
-              <>
-                <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                  <div className="border-b border-border bg-gradient-to-br from-primary/10 via-transparent to-emerald-500/10 p-4 sm:p-6">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="max-w-2xl">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                          Student delivery gate
-                        </p>
-                        <h2 className="mt-1 text-xl font-black text-foreground sm:text-2xl">
-                          Review once, release the complete package
-                        </h2>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          Lessons, learning slides, flashcards, homework and projects stay together. Review held work before students see it; released work remains available from the same week record.
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[30rem]">
-                        {[
-                          ["Held lessons", heldLessons],
-                          ["Visible lessons", visibleLessons],
-                          ["Released weeks", releasedWeeks],
-                          ["Need attention", attentionWeeks],
-                        ].map(([label, value]) => (
-                          <div key={label} className="rounded-xl border border-border bg-background/80 p-3">
-                            <p className="text-xl font-black text-foreground">{value}</p>
-                            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-muted-foreground">{label}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-4">
-                    <Link
-                      href="/dashboard/teaching/approvals"
-                      className="flex min-h-20 flex-col justify-center rounded-xl bg-primary p-4 text-primary-foreground shadow-sm"
-                    >
-                      <span className="text-sm font-black">Review held packages</span>
-                      <span className="mt-1 text-xs text-primary-foreground/75">Approve what students will receive →</span>
-                    </Link>
-                    {plan.class_id ? (
-                      <Link
-                        href={`/dashboard/classes/${plan.class_id}?course_id=${encodeURIComponent(plan.course_id ?? "")}#teaching`}
-                        className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-background p-4"
-                      >
-                        <span className="text-sm font-black text-foreground">Open class teaching</span>
-                        <span className="mt-1 text-xs text-muted-foreground">Teach, attend and track delivery →</span>
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setClassPickerOpen(true)}
-                        className="flex min-h-20 flex-col justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left"
-                      >
-                        <span className="text-sm font-black text-foreground">Assign a class</span>
-                        <span className="mt-1 text-xs text-muted-foreground">Required before student delivery →</span>
-                      </button>
-                    )}
-                    <Link
-                      href={`/dashboard/lessons?lesson_plan_id=${id}`}
-                      className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-background p-4"
-                    >
-                      <span className="text-sm font-black text-foreground">Lesson library</span>
-                      <span className="mt-1 text-xs text-muted-foreground">Open the exact student lesson content →</span>
-                    </Link>
-                    <Link
-                      href={`/dashboard/assignments?lesson_plan_id=${id}`}
-                      className="flex min-h-20 flex-col justify-center rounded-xl border border-border bg-background p-4"
-                    >
-                      <span className="text-sm font-black text-foreground">Tasks & submissions</span>
-                      <span className="mt-1 text-xs text-muted-foreground">Homework, projects and grading →</span>
-                    </Link>
-                  </div>
-                </section>
-
-                <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Weekly visibility</p>
-                      <h3 className="mt-1 text-lg font-black text-foreground">What is ready and what students can see</h3>
-                    </div>
-                    {opsLoading && (
-                      <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                        <ArrowPathIcon className="h-4 w-4 animate-spin" /> Refreshing…
-                      </span>
-                    )}
-                  </div>
-                  {opsError && (
-                    <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300">{opsError}</p>
-                  )}
-                  {operations?.generation?.available &&
-                    ["running", "attention"].includes(operations.generation.state) && (
-                      <div className={`mt-4 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
-                        operations.generation.state === "attention"
-                          ? "border-amber-500/30 bg-amber-500/10"
-                          : "border-primary/25 bg-primary/5"
-                      }`}>
-                        <div>
-                          <p className="text-xs font-black text-foreground">
-                            {operations.generation.week
-                              ? `Week ${operations.generation.week} · Class ${operations.generation.session ?? 1}`
-                              : "Teaching package"}
-                          </p>
-                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                            {operations.generation.message}
-                          </p>
-                        </div>
-                        {operations.generation.state === "attention" && (
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab("plan")}
-                            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-background px-4 text-xs font-black text-foreground"
-                          >
-                            Review and retry
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  {!opsLoading && !opsError && !operations?.release_board.length && (
-                    <p className="mt-4 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                      No teaching weeks are ready yet. Return to Plan &amp; teach to prepare the first complete package.
-                    </p>
-                  )}
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {operations?.release_board.map((row) => (
-                      <div key={row.key} className="rounded-xl border border-border bg-background p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Week {row.week_number} · Class {row.session_number}</p>
-                            <p className="mt-1 truncate text-sm font-black text-foreground">{row.topic}</p>
-                          </div>
-                          <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${
-                            row.release_status === "released"
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                              : row.release_status === "partial"
-                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                : "bg-muted text-muted-foreground"
-                          }`}>
-                            {row.release_status}
-                          </span>
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
-                          <span>{row.lessons_published}/{row.lessons_total} lessons live</span>
-                          <span>{row.assignments_active}/{row.assignments_total} assignments live</span>
-                          <span>{row.projects_active}/{row.projects_total} projects live</span>
-                          <span>{row.slides_public}/{row.slides_total} slide decks live</span>
-                          <span>{row.flashcards_public}/{row.flashcards_total} card decks live</span>
-                        </div>
-                        {(row.missing_assets.length > 0 || row.held_assets.length > 0) && (
-                          <p className="mt-3 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">
-                            {row.prepared_count}/{row.total_count} prepared
-                            {row.missing_assets.length > 0 ? ` · Add ${row.missing_assets.join(", ")}` : ""}
-                            {row.held_assets.length > 0 ? ` · Release ${row.held_assets.join(", ")}` : ""}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </>
-            );
-          })()}
-        </div>
-      )}
-
       {/* ── Week AI Generator modal ── */}
       {aiWeek && (
         <WeekAIGenerator
@@ -3164,30 +2915,43 @@ export default function LessonPlanDetailPage() {
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-widest text-primary">Do this next</p>
                     <h3 className="text-lg sm:text-xl font-black text-foreground mt-1">
-                      {nextOps?.title ?? "Open the Weeks tab"}
+                      {nextOps?.title ?? (plan.class_id ? "Open class teaching" : "Review content")}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed max-w-2xl">
-                      {nextOps?.detail ?? "Build or teach week by week from the Weeks tab."}
+                      {nextOps?.detail ?? (plan.class_id
+                        ? "Prepare and teach from the class workspace."
+                        : "Review this historical plan, then move it into one class when ready.")}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("plan")}
-                    className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-black"
-                  >
-                    Go to Weeks
-                  </button>
+                  {plan.class_id ? (
+                    <Link
+                      href={buildClassTeachingHref({ classId: plan.class_id, courseId: plan.course_id })}
+                      className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-black"
+                    >
+                      Open class teaching
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("plan")}
+                      className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-black"
+                    >
+                      Review content
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {blockedCount > 0
                     ? `${blockedCount} item${blockedCount === 1 ? "" : "s"} blocked`
                     : watchCount > 0
                     ? `${watchCount} item${watchCount === 1 ? "" : "s"} need attention`
-                    : "Everything looks ready — teach from Weeks."}
+                    : plan.class_id
+                    ? "Everything looks ready — continue in class teaching."
+                    : "Review the content, then move this plan into a class."}
                 </p>
                 <details className="rounded-xl border border-border bg-muted/30">
                   <summary className="cursor-pointer list-none px-4 py-3 text-sm font-bold text-foreground flex items-center justify-between gap-2">
-                    <span>Advanced status (8 checks)</span>
+                    <span>Specialist status (8 checks)</span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Optional</span>
                   </summary>
                   <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -5081,92 +4845,23 @@ export default function LessonPlanDetailPage() {
         </div>
       )}
 
-      {/* ── Clone / Deploy Plan Modal ─────────────────────────────────────── */}
-      {cloneModalOpen && (
-        <div className="app-fixed-overlay fixed inset-0 z-[120] flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
-          <div role="dialog" aria-modal="true" className="bg-card border border-white/10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-black text-card-foreground">
-                  Deploy to Another Class
-                </h2>
-                <p className="text-xs text-card-foreground/50 mt-0.5">
-                  Copies plan content and week schedule to a new class. Opens as
-                  a draft.
-                </p>
-              </div>
-              <button
-                onClick={() => setCloneModalOpen(false)}
-                className="p-2 hover:bg-white/10 rounded-xl transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
-              >
-                <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
-              </button>
-            </div>
-            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
-              {/* Group classes by school */}
-              {(() => {
-                const otherClasses = myClasses.filter(
-                  (c) => c.id !== plan.class_id
-                );
-                const bySchool: Record<
-                  string,
-                  { schoolName: string; classes: typeof otherClasses }
-                > = {};
-                otherClasses.forEach((c) => {
-                  const sid = c.school_id ?? "unknown";
-                  if (!bySchool[sid])
-                    bySchool[sid] = {
-                      schoolName: c.schools?.name ?? "Unknown School",
-                      classes: [],
-                    };
-                  bySchool[sid].classes.push(c);
-                });
-                const groups = Object.entries(bySchool);
-                if (groups.length === 0)
-                  return (
-                    <p className="text-sm text-card-foreground/50 text-center py-4">
-                      No other classes found. You need to be assigned as teacher
-                      to other classes first.
-                    </p>
-                  );
-                return groups.map(([sid, { schoolName, classes }]) => (
-                  <div key={sid} className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40">
-                      {schoolName}
-                    </p>
-                    {classes.map((cls) => (
-                      <button
-                        key={cls.id}
-                        onClick={() =>
-                          cloneToClass({ id: cls.id, school_id: cls.school_id })
-                        }
-                        disabled={cloning}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-primary/40 rounded-xl text-left transition-all disabled:opacity-50 group"
-                      >
-                        <div>
-                          <p className="text-sm font-bold text-card-foreground group-hover:text-primary transition-colors">
-                            {cls.name}
-                          </p>
-                          <p className="text-[10px] text-card-foreground/40 mt-0.5">
-                            {schoolName}
-                          </p>
-                        </div>
-                        <ArrowUpTrayIcon className="w-4 h-4 text-card-foreground/30 group-hover:text-primary shrink-0 transition-colors" />
-                      </button>
-                    ))}
-                  </div>
-                ));
-              })()}
-            </div>
-            {cloning && (
-              <div className="px-5 py-3 border-t border-white/10 flex items-center gap-2 text-xs text-card-foreground/50">
-                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Deploying
-                plan…
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <HistoricalPlanAdoptionDialog
+        open={adoptionOpen}
+        classes={myClasses}
+        courseTitle={courseTitle}
+        busy={adopting}
+        loading={classesLoading}
+        loadError={classLoadError}
+        actionError={adoptionError}
+        onClose={() => {
+          if (adopting) return;
+          setAdoptionOpen(false);
+          setAdoptionError(null);
+        }}
+        onRetryClasses={() => void loadAssignableClasses()}
+        onAdopt={(target) => void adoptHistoricalPlan(target)}
+      />
+
 
       {/* Week View Panel */}
       {viewWeek && (

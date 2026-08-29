@@ -42,6 +42,20 @@ an Academic Office overview. `/dashboard/lesson-plans/[id]?view=advanced` is a
 specialist diagnostics/bulk-repair view. A normal class-plan link must open the
 class teaching workspace, not the specialist page.
 
+### Historical plans are adopted, never copied
+
+Plans created before the class-centred workflow may have no `class_id`. They
+remain available as **Historical plans** until an administrator or their owning
+teacher chooses a class. The adoption action calls
+`adopt_legacy_lesson_plan_into_class`, moves the same plan row and re-scopes its
+existing lesson, slides, practice cards, assignments, projects and assessments
+in one transaction. It never creates a second plan or changes learner evidence.
+If submissions, attempts, progress, delivery records or scores already exist,
+the operation stops and leaves the historical plan untouched for deliberate
+reconciliation. After adoption, all everyday links open the class teaching
+workspace; the specialist engine remains available only as an optional review
+surface.
+
 ---
 
 ## How weekly content is written, shared and corrected

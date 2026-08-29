@@ -1138,7 +1138,7 @@ function LessonPlansPageInner() {
                     classId: plan.class_id,
                     courseId: plan.course_id,
                   })
-                : `/dashboard/lesson-plans/${plan.id}?view=advanced`;
+                : `/dashboard/lesson-plans/${plan.id}`;
 
               return (
                 <motion.div
@@ -1166,6 +1166,11 @@ function LessonPlansPageInner() {
                         {plan.classes?.name && (
                           <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                             {plan.classes.name}
+                          </span>
+                        )}
+                        {!plan.class_id && (
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                            Historical plan · needs a class
                           </span>
                         )}
                         {plan.schools?.name && (
@@ -1265,7 +1270,7 @@ function LessonPlansPageInner() {
                       </span>
                       <div className="flex items-center gap-1">
                         <Link href={planHref} className="inline-flex min-h-9 items-center rounded-lg px-2 text-[10px] font-bold text-primary hover:bg-primary/10">
-                          {plan.class_id ? "Open class teaching →" : "Open plan details →"}
+                          {plan.class_id ? "Open class teaching →" : "Review & move to class →"}
                         </Link>
                         {canManage && (
                           <button
