@@ -168,25 +168,60 @@ export async function GET(
       .limit(1)
       .maybeSingle();
     plan = foundPlan;
-    direction = await resolveOfficialCurriculumDirection(db, {
+    const directionScope = {
       schoolId: klass.school_id,
       offeringId: klass.academic_offering_id,
       courseId,
       academicSession: klass.academic_terms?.academic_year ?? null,
       academicTermNumber: klass.academic_terms?.term_number ?? null,
       pinnedReleaseId: plan?.curriculum_release_id,
-    });
+    };
     if (plan) {
-      const [lessonResult, deliveryResult, progressResult, generationResult] =
+      // Curriculum direction and the lesson spine depend on the plan, but not on
+      // each other. Starting them together removes a full database round trip
+      // from every class visit.
+      const [resolvedDirection, lessonResult] = await Promise.all([
+        resolveOfficialCurriculumDirection(db, directionScope),
+        db
+          .from("lessons")
+          .select(
+            "id,title,description,content_layout,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
+          )
+          .eq("lesson_plan_id", plan.id)
+          .order("curriculum_week_number")
+          .order("order_index"),
+      ]);
+      direction = resolvedDirection;
+      if (lessonResult.error) {
+        console.error("[teaching-workspace] lessons failed", lessonResult.error);
+        return NextResponse.json(
+          {
+            error:
+              "The class plan could not be loaded completely. Please retry; no teaching content has been changed.",
+          },
+          { status: 503 }
+        );
+      }
+      lessons = lessonResult.data || [];
+      const lessonIds = lessons.map((lesson: any) => lesson.id).filter(Boolean);
+      const planOrLessonScope = [
+        `lesson_plan_id.eq.${plan.id}`,
+        ...(lessonIds.length ? [`lesson_id.in.(${lessonIds.join(",")})`] : []),
+      ].join(",");
+
+      // Once the lesson identities are known, every remaining class-plan read
+      // is independent. Keep one parallel fan-out so an optional tracking read
+      // can never hold the five learning items behind another phase.
+      const [
+        deliveryResult,
+        progressResult,
+        generationResult,
+        assignmentResult,
+        slideResult,
+        flashcardResult,
+        examResult,
+      ] =
         await Promise.all([
-          db
-            .from("lessons")
-            .select(
-              "id,title,description,content_layout,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
-            )
-            .eq("lesson_plan_id", plan.id)
-            .order("curriculum_week_number")
-            .order("order_index"),
           db
             .from("class_lesson_delivery")
             .select("*")
@@ -205,19 +240,6 @@ export async function GET(
             .eq("lesson_plan_id", plan.id)
             .order("started_at", { ascending: false })
             .limit(1),
-        ]);
-      lessons = lessonResult.data || [];
-      deliveries = deliveryResult.data || [];
-      progress = progressResult.data;
-      generationRuns = generationResult.data || [];
-      generationHistoryAvailable = !generationResult.error;
-      const lessonIds = lessons.map((lesson: any) => lesson.id).filter(Boolean);
-      const planOrLessonScope = [
-        `lesson_plan_id.eq.${plan.id}`,
-        ...(lessonIds.length ? [`lesson_id.in.(${lessonIds.join(",")})`] : []),
-      ].join(",");
-      const [assignmentResult, slideResult, flashcardResult, examResult] =
-        await Promise.all([
           db
             .from("assignments")
             .select(
@@ -262,9 +284,35 @@ export async function GET(
             )
             .or(planOrLessonScope)
             .order("curriculum_week_number", { ascending: true, nullsFirst: false })
-            .order("session_number", { ascending: true, nullsFirst: false })
             .order("created_at", { ascending: false }),
         ]);
+
+      const failedReads = [
+        ["delivery", deliveryResult.error],
+        ["progress", progressResult.error],
+        ["assignments and projects", assignmentResult.error],
+        ["slides", slideResult.error],
+        ["practice cards", flashcardResult.error],
+        ["assessments", examResult.error],
+      ].filter(([, queryError]) => Boolean(queryError));
+      if (failedReads.length > 0) {
+        console.error(
+          "[teaching-workspace] incomplete class-plan response",
+          Object.fromEntries(failedReads)
+        );
+        return NextResponse.json(
+          {
+            error:
+              "The class plan could not be loaded completely. Please retry; no teaching content has been changed.",
+          },
+          { status: 503 }
+        );
+      }
+
+      deliveries = deliveryResult.data || [];
+      progress = progressResult.data;
+      generationRuns = generationResult.data || [];
+      generationHistoryAvailable = !generationResult.error;
       const assignmentRows = assignmentResult.data || [];
       const isLegacyAssignmentBlock = (row: any) =>
         row.metadata?.source === "week-ai-generator";
@@ -279,6 +327,8 @@ export async function GET(
       slideDecks = slideResult.data || [];
       flashcardDecks = flashcardResult.data || [];
       exams = examResult.data || [];
+    } else {
+      direction = await resolveOfficialCurriculumDirection(db, directionScope);
     }
     // Auto-heal plan_data.weeks if missing Week 1 or truncated from legacy term-slicing
     if (direction?.content && plan?.plan_data) {

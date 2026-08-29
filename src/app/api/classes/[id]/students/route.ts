@@ -70,61 +70,106 @@ export async function GET(
       }
     }
 
-    // ── Primary: students directly assigned via class_id FK ─────────────────
-    const { data: directStudents, error: directErr } = await admin
-      .from('portal_users')
-      .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
-      .eq('class_id', classId)
-      .eq('role', 'student')
-      .order('full_name');
+    // The roster, direct assignments and legacy section candidates are three
+    // views of the same class identity. Read them together, and reuse the one
+    // roster result for both withdrawn guards and status enrichment below.
+    let rosterQuery = (admin as any)
+      .from('class_term_rosters')
+      .select('id, student_id, status, started_at, ended_at, reinstated_at, term_id')
+      .eq('class_id', classId);
+    rosterQuery = cls.term_id ? rosterQuery.eq('term_id', cls.term_id) : rosterQuery.is('term_id', null);
 
-    if (directErr) return NextResponse.json({ error: directErr.message }, { status: 500 });
+    const sectionQuery = cls.school_id && cls.name
+      ? admin
+          .from('portal_users')
+          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
+          .eq('school_id', cls.school_id)
+          .eq('section_class', cls.name)
+          .is('class_id', null)
+          .eq('role', 'student')
+          .order('full_name')
+      : Promise.resolve({ data: [], error: null });
 
-    const knownIds = new Set((directStudents ?? []).map((s: any) => s.id));
-
-    // Students deliberately WITHDRAWN from this class must never be silently re-added by the
-    // name-match heal below — otherwise a teacher who removed a name sees it reappear.
-    const withdrawnFromThisClass = new Set<string>();
-    {
-      let wq = (admin as any)
-        .from('class_term_rosters')
-        .select('student_id, status')
-        .eq('class_id', classId)
-        .neq('status', 'active');
-      wq = cls.term_id ? wq.eq('term_id', cls.term_id) : wq.is('term_id', null);
-      const { data: wRows } = await wq;
-      (wRows ?? []).forEach((r: any) => r.student_id && withdrawnFromThisClass.add(r.student_id));
-    }
-
-    // ── Section-name fallback: students at same school whose section_class text ─
-    // matches the class name but class_id was never set (legacy bulk registration)
-    let sectionStudents: any[] = [];
-    if (cls.school_id && cls.name) {
-      const { data: bySection } = await admin
+    const [directResult, rosterResult, sectionResult] = await Promise.all([
+      admin
         .from('portal_users')
         .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
-        .eq('school_id', cls.school_id)   // hard school boundary
-        .eq('section_class', cls.name)
-        .is('class_id', null)             // only heal those with no class_id set
+        .eq('class_id', classId)
         .eq('role', 'student')
-        .order('full_name');
+        .order('full_name'),
+      rosterQuery,
+      sectionQuery,
+    ]);
+    const { data: directStudents, error: directErr } = directResult;
+    if (directErr) return NextResponse.json({ error: directErr.message }, { status: 500 });
+    if (rosterResult.error) {
+      console.warn('[class_term_rosters] unable to enrich class roster', rosterResult.error);
+    }
+    if (sectionResult.error) {
+      console.warn('[students API] legacy section candidates unavailable', sectionResult.error);
+    }
+    const rosterRows: any[] = !rosterResult.error && Array.isArray(rosterResult.data)
+      ? rosterResult.data
+      : [];
+    const knownIds = new Set((directStudents ?? []).map((s: any) => s.id));
 
-      // Skip anyone already known AND anyone previously withdrawn from this class.
-      sectionStudents = (bySection ?? []).filter((s: any) => !knownIds.has(s.id) && !withdrawnFromThisClass.has(s.id));
+    // Students deliberately withdrawn from this class must never be silently
+    // re-added by the section-name compatibility heal.
+    const withdrawnFromThisClass = new Set<string>();
+    rosterRows
+      .filter((row: any) => row.status !== 'active')
+      .forEach((row: any) => row.student_id && withdrawnFromThisClass.add(row.student_id));
 
-      if (sectionStudents.length > 0) {
-        const sectionIds = sectionStudents.map((s: any) => s.id);
-        await admin
-          .from('portal_users')
-          .update({ class_id: classId })
-          .in('id', sectionIds)
-          .eq('role', 'student');
-        sectionStudents = sectionStudents.map((s: any) => ({ ...s, class_id: classId }));
-        console.log(`[students API] class="${cls.name}" (${classId}) auto-healed ${sectionIds.length} section_class-matched student(s)`);
+    let sectionStudents = (sectionResult.data ?? []).filter(
+      (student: any) => !knownIds.has(student.id) && !withdrawnFromThisClass.has(student.id),
+    );
+    if (sectionStudents.length > 0) {
+      const sectionIds = sectionStudents.map((student: any) => student.id);
+      const { error: healError } = await admin
+        .from('portal_users')
+        .update({ class_id: classId })
+        .in('id', sectionIds)
+        .eq('role', 'student');
+      if (healError) {
+        console.error('[students API] section-class repair failed', healError);
+        return NextResponse.json(
+          { error: 'Student records need repair before this roster can be loaded. Please retry.' },
+          { status: 503 },
+        );
       }
+      sectionStudents = sectionStudents.map((student: any) => ({ ...student, class_id: classId }));
+      console.log(`[students API] class="${cls.name}" (${classId}) auto-healed ${sectionIds.length} section_class-matched student(s)`);
     }
 
     let students = [...(directStudents ?? []), ...sectionStudents];
+
+    // Settings, current-count verification and the reporting period do not
+    // depend on the profile enrichment below. Start them now so opening the
+    // roster does not pay for those reads one after another.
+    const academicPeriod = currentAcademicPeriod();
+    const rosterSettingsPromise: Promise<[boolean, boolean]> = light
+      ? Promise.resolve([false, false])
+      : Promise.all([
+          isReportIndicatorEnabled(admin),
+          isPasteClaimEnabled(admin),
+        ]);
+    const canonicalTermPromise = light
+      ? Promise.resolve({ data: null as { id?: string } | null })
+      : Promise.resolve(
+          admin
+            .from('academic_terms')
+            .select('id')
+            .eq('term_label', academicPeriod.termLabel)
+            .eq('academic_year', academicPeriod.periodLabel)
+            .maybeSingle(),
+        );
+    const liveCountPromise = Promise.resolve(
+      admin
+        .from('portal_users')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', classId)
+        .eq('role', 'student'),
+    );
 
     // Recovery: if this teacher has already entered progress reports for this
     // class, keep those students visible on the roster even if their class_id
@@ -156,52 +201,43 @@ export async function GET(
     }
 
     let formerStudents: any[] = [];
-    try {
-      let rosterQuery = (admin as any)
-        .from('class_term_rosters')
-        .select('id, student_id, status, started_at, ended_at, reinstated_at, term_id')
-        .eq('class_id', classId);
-      rosterQuery = cls.term_id ? rosterQuery.eq('term_id', cls.term_id) : rosterQuery.is('term_id', null);
-      const { data: rosterRows, error: rosterErr } = await rosterQuery;
-      if (!rosterErr && Array.isArray(rosterRows)) {
-        const rosterByStudent = new Map(rosterRows.map((row: any) => [row.student_id, row]));
-        students = students.map((student: any) => {
-          const roster = rosterByStudent.get(student.id);
-          return {
-            ...student,
-            roster_status: roster?.status ?? 'active',
-            roster_started_at: roster?.started_at ?? null,
-            roster_ended_at: roster?.ended_at ?? null,
-            is_current_term_active: (roster?.status ?? 'active') === 'active',
-          };
-        });
+    const rosterByStudent = new Map(rosterRows.map((row: any) => [row.student_id, row]));
+    students = students.map((student: any) => {
+      const roster = rosterByStudent.get(student.id);
+      return {
+        ...student,
+        roster_status: roster?.status ?? 'active',
+        roster_started_at: roster?.started_at ?? null,
+        roster_ended_at: roster?.ended_at ?? null,
+        is_current_term_active: (roster?.status ?? 'active') === 'active',
+      };
+    });
 
-        const currentIds = new Set(students.map((student: any) => student.id));
-        const inactiveIds = rosterRows
-          .filter((row: any) => row.status !== 'active' && !currentIds.has(row.student_id))
-          .map((row: any) => row.student_id)
-          .filter(Boolean);
-        if (inactiveIds.length > 0) {
-          const { data: inactiveProfiles } = await admin
-            .from('portal_users')
-            .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
-            .in('id', inactiveIds)
-            .eq('role', 'student')
-            .order('full_name');
-          formerStudents = (inactiveProfiles ?? []).map((student: any) => {
-            const roster = rosterByStudent.get(student.id);
-            return {
-              ...student,
-              roster_status: roster?.status ?? 'withdrawn',
-              roster_started_at: roster?.started_at ?? null,
-              roster_ended_at: roster?.ended_at ?? null,
-              is_current_term_active: false,
-            };
-          });
-        }
+    const currentIds = new Set(students.map((student: any) => student.id));
+    const inactiveIds = rosterRows
+      .filter((row: any) => row.status !== 'active' && !currentIds.has(row.student_id))
+      .map((row: any) => row.student_id)
+      .filter(Boolean);
+    if (inactiveIds.length > 0) {
+      const { data: inactiveProfiles, error: inactiveError } = await admin
+        .from('portal_users')
+        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
+        .in('id', inactiveIds)
+        .eq('role', 'student')
+        .order('full_name');
+      if (inactiveError) {
+        console.warn('[class_term_rosters] former student profiles unavailable', inactiveError);
       }
-    } catch (err) {
-      console.warn('[class_term_rosters] unable to enrich class roster', err);
+      formerStudents = (inactiveProfiles ?? []).map((student: any) => {
+        const roster = rosterByStudent.get(student.id);
+        return {
+          ...student,
+          roster_status: roster?.status ?? 'withdrawn',
+          roster_started_at: roster?.started_at ?? null,
+          roster_ended_at: roster?.ended_at ?? null,
+          is_current_term_active: false,
+        };
+      });
     }
 
     // ── Progress-report status per student — flags who still needs a published report THIS
@@ -211,17 +247,12 @@ export async function GET(
       ...students.map((s: any) => s.id),
       ...formerStudents.map((s: any) => s.id),
     ].filter(Boolean);
-    const reportIndicatorEnabled = light ? false : await isReportIndicatorEnabled(admin);
-    const pasteClaimEnabled = light ? false : await isPasteClaimEnabled(admin);
+    const [[reportIndicatorEnabled, pasteClaimEnabled], canonicalTermResult, liveCountResult] =
+      await Promise.all([rosterSettingsPromise, canonicalTermPromise, liveCountPromise]);
     if (reportIndicatorEnabled) {
-      const academicPeriod = currentAcademicPeriod();
-      const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
-        .eq('term_label', academicPeriod.termLabel)
-        .eq('academic_year', academicPeriod.periodLabel)
-        .maybeSingle();
       const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds, {
         ...academicPeriod,
-        termId: (canonicalTerm as { id?: string } | null)?.id ?? null,
+        termId: (canonicalTermResult.data as { id?: string } | null)?.id ?? null,
       });
       const withReport = (s: any) => ({
         ...s,
@@ -235,12 +266,7 @@ export async function GET(
     }
 
     // ── Sync current_students count from DB (not from local array) ───────────
-    const { count: liveCount } = await admin
-      .from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_id', classId)
-      .eq('role', 'student');
-    const actualCount = liveCount ?? students.length;
+    const actualCount = liveCountResult.count ?? students.length;
     if (actualCount !== cls.current_students) {
       await admin.from('classes').update({ current_students: actualCount }).eq('id', classId);
     }

@@ -75,6 +75,7 @@ import { createClient } from "@/lib/supabase/client";
 import { SmartCourseSelect } from "@/components/courses/SmartCourseSelect";
 import WeekAIGenerator from "@/components/ai/WeekAIGenerator";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { fetchActionJson } from "@/lib/async-timeout";
 
 type Props = {
   classId: string;
@@ -159,8 +160,15 @@ export function ClassTeachingWorkspace({
       setErrorAction(null);
       try {
         const q = cid ? `?course_id=${encodeURIComponent(cid)}` : "";
-        const r = await fetch(`/api/classes/${classId}/teaching-workspace${q}`);
-        const j = await r.json();
+        const { response: r, data: j } = await fetchActionJson<{
+          data: any;
+          error: string;
+        }>(
+          `/api/classes/${classId}/teaching-workspace${q}`,
+          { cache: "no-store" },
+          "The class plan is taking longer than expected. Please retry; no work has been changed.",
+          30_000
+        );
         if (seq !== loadSeq.current) return;
         if (!r.ok)
           throw new Error(j.error || "Unable to load teaching workspace");
@@ -236,12 +244,23 @@ export function ClassTeachingWorkspace({
     setError("");
     setErrorAction(null);
     try {
-      const r = await fetch(`/api/classes/${classId}/teaching-workspace`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const j = await r.json();
+      const { response: r, data: j } = await fetchActionJson<{
+        data: any;
+        detail: string;
+        error: string;
+        warning: string;
+        action_href: string;
+        action_label: string;
+      }>(
+        `/api/classes/${classId}/teaching-workspace`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+        "This action is taking longer than expected. Please retry; the class plan will keep any completed work.",
+        30_000
+      );
       if (!r.ok) {
         if (j.action_href && j.action_label) {
           setErrorAction({ href: j.action_href, label: j.action_label });
@@ -756,7 +775,69 @@ export function ClassTeachingWorkspace({
         </div>
       ) : null}
 
-      {/* Course & Official Direction Header */}
+      {/* The source is important, but it is setup context once a plan exists.
+          Keep it compact so a returning teacher lands on the next lesson. */}
+      {plan ? (
+        <details className="group rounded-xl border border-border/80 bg-card/60 shadow-sm">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3.5 py-2.5 marker:content-none sm:px-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <BookOpenIcon className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                Class plan source
+              </p>
+              <p className="truncate text-sm font-bold text-foreground">
+                {selectedCourse?.title || "Course not assigned"}
+                {officialDirection ? " · approved curriculum connected" : " · curriculum needs attention"}
+              </p>
+            </div>
+            <span className="hidden text-[10px] font-bold text-muted-foreground sm:inline">
+              Course & curriculum
+            </span>
+            <ChevronDownIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid gap-3 border-t border-border p-3.5 lg:grid-cols-2 lg:items-end sm:p-4">
+            <div>
+              {canManageCurriculum ? (
+                <SmartCourseSelect
+                  label="Course assigned to this class"
+                  labelClass="text-xs font-bold text-muted-foreground flex items-center gap-1.5"
+                  classId={classId}
+                  value={courseId}
+                  disabled={busy}
+                  onChange={(id) => void chooseCourse(id)}
+                />
+              ) : (
+                <>
+                  <p className="text-xs font-bold text-muted-foreground">Course being taught</p>
+                  <p className="mt-1 text-sm font-bold text-foreground">
+                    {selectedCourse?.title || "No course assigned"}
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-2">
+              <div>
+                <p className="text-xs font-bold text-muted-foreground">Approved curriculum</p>
+                <p className="mt-1 truncate text-sm font-bold text-foreground">
+                  {officialDirection || "No approved curriculum assigned"}
+                </p>
+              </div>
+              {canManageCurriculum && courseId && (
+                <button
+                  disabled={busy}
+                  onClick={() => void act({ action: "ensure_plan", course_id: courseId })}
+                  className="inline-flex min-h-9 w-fit items-center rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground disabled:opacity-50"
+                  title="Re-read the approved curriculum. Completed and teacher-edited work stays unchanged."
+                >
+                  Check curriculum updates
+                </button>
+              )}
+            </div>
+          </div>
+        </details>
+      ) : (
       <div className="rounded-2xl border border-border/80 bg-card/60 p-3.5 sm:p-4 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="flex-1">
@@ -817,20 +898,9 @@ export function ClassTeachingWorkspace({
               Create teaching sessions
             </button>
           )}
-          {canManageCurriculum && courseId && plan && (
-            <button
-              disabled={busy}
-              onClick={() =>
-                void act({ action: "ensure_plan", course_id: courseId })
-              }
-              className="text-xs font-bold text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
-              title="Re-reads the official weeks for this class. Lessons already taught stay as they are."
-            >
-              Check curriculum updates
-            </button>
-          )}
         </div>
       </div>
+      )}
 
       {data && !data.courses?.length && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -899,6 +969,16 @@ export function ClassTeachingWorkspace({
             >
               {errorAction.label}
             </Link>
+          )}
+          {!data && !busy && (
+            <button
+              type="button"
+              onClick={() => void load(courseId || undefined)}
+              className="ml-6 inline-flex min-h-9 w-fit items-center gap-2 rounded-lg border border-red-500/40 bg-background px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-800 transition-colors hover:bg-red-500/10 dark:text-red-200"
+            >
+              <ArrowPathIcon className="h-3.5 w-3.5" />
+              Retry class plan
+            </button>
           )}
         </div>
       )}

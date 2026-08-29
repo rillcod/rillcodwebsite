@@ -19,7 +19,7 @@ import {
 import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
-import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
+import { fetchActionJson, fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import {
   buildAssignmentNewHref,
   buildCbtNewHref,
@@ -62,6 +62,10 @@ export default function ClassDetailPage() {
   const [formerEnrollments, setFormerEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [operationLoadState, setOperationLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [operationLoadError, setOperationLoadError] = useState<string | null>(null);
+  const [studentRecordsLoaded, setStudentRecordsLoaded] = useState(false);
+  const [assessmentRecordsLoaded, setAssessmentRecordsLoaded] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'cbt' | 'gradebook' | 'sessions'>('overview');
   // Teaching is the class's daily job. Roster administration stays available,
@@ -244,48 +248,89 @@ export default function ClassDetailPage() {
       // Show the teacher's class and daily-work controls as soon as the class
       // itself is known. Secondary records continue loading progressively.
       setLoading(false);
-      const [destinationJson, studentsRes, visJson] = await Promise.all([
-        fetchJsonWithTimeout(
-          `/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`,
-          { data: [] },
-          'destination classes',
-        ),
-        fetchJsonWithTimeout(
-          `/api/classes/${id}/students`,
-          { students: [], former_students: [] },
-          'class students',
-        ),
-        isStaff
-          ? fetchJsonWithTimeout(
-              `/api/progression/path-visibility?class_id=${id}`,
-              { data: { class_mode: 'full', students: [] } },
-              'class path visibility',
-            )
-          : Promise.resolve(null),
-      ]);
-      const currentEnrollmentType = clsData.academic_offerings?.enrollment_type ?? null;
-      setDestinationClasses((destinationJson.data ?? []).filter((candidate: any) => {
-        if (candidate.id === id || candidate.status === 'archived') return false;
-        if (!currentEnrollmentType) return true;
-        return candidate.academic_offerings?.enrollment_type === currentEnrollmentType;
-      }));
-
       const program_id = clsData.program_id || clsData.academic_offerings?.programme_id || null;
-      setEnrollments(studentsRes.students ?? []);
-      setFormerEnrollments(studentsRes.former_students ?? []);
-      setReportIndicatorEnabled((studentsRes as any).report_indicator_enabled !== false);
-      setPasteClaimEnabled((studentsRes as any).paste_claim_enabled === true);
-      if (isStaff && visJson) {
-        const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
-        for (const row of ((visJson.data?.students ?? []) as any[])) {
-          const mode = row.mode === 'full' || row.mode === 'milestone' ? row.mode : 'inherit';
-          nextModes[row.student_id] = mode;
+      const needsStudentRecords = activeOperation !== 'teaching';
+      if (needsStudentRecords) {
+        setOperationLoadState('loading');
+        setOperationLoadError(null);
+        const isRosterWork = activeOperation === 'roster';
+        const studentPromise = fetchActionJson<{
+          students: any[];
+          former_students: any[];
+          report_indicator_enabled: boolean;
+          paste_claim_enabled: boolean;
+          error: string;
+        }>(
+          `/api/classes/${id}/students${isRosterWork ? '' : '?light=1'}`,
+          { cache: 'no-store' },
+          'Student records are taking longer than expected. Please retry this work area.',
+          30_000,
+        );
+        const destinationPromise = isRosterWork
+          ? fetchActionJson<{ data: any[]; error: string }>(
+              `/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`,
+              { cache: 'no-store' },
+              'Class transfer choices are taking longer than expected.',
+              30_000,
+            )
+          : Promise.resolve(null);
+        const visibilityPromise = isRosterWork && isStaff
+          ? fetchActionJson<{ data: { class_mode: string; students: any[] }; error: string }>(
+              `/api/progression/path-visibility?class_id=${id}`,
+              { cache: 'no-store' },
+              'Learner visibility settings are taking longer than expected.',
+              30_000,
+            )
+          : Promise.resolve(null);
+
+        const { response: studentResponse, data: studentsRes } = await studentPromise;
+        if (!studentResponse.ok) {
+          throw new Error(studentsRes.error || 'Student records could not be loaded.');
         }
-        setPathStudentModes(nextModes);
+        setEnrollments(studentsRes.students ?? []);
+        setFormerEnrollments(studentsRes.former_students ?? []);
+        setStudentRecordsLoaded(true);
+        setReportIndicatorEnabled(studentsRes.report_indicator_enabled !== false);
+        setPasteClaimEnabled(studentsRes.paste_claim_enabled === true);
+
+        const [destinationOutcome, visibilityOutcome] = await Promise.allSettled([
+          destinationPromise,
+          visibilityPromise,
+        ]);
+        const unavailableTools: string[] = [];
+        if (destinationOutcome.status === 'fulfilled' && destinationOutcome.value) {
+          const destinationResult = destinationOutcome.value;
+          if (destinationResult.response.ok) {
+            const currentEnrollmentType = clsData.academic_offerings?.enrollment_type ?? null;
+            setDestinationClasses((destinationResult.data.data ?? []).filter((candidate: any) => {
+              if (candidate.id === id || candidate.status === 'archived') return false;
+              if (!currentEnrollmentType) return true;
+              return candidate.academic_offerings?.enrollment_type === currentEnrollmentType;
+            }));
+          } else unavailableTools.push('class transfer choices');
+        } else if (destinationOutcome.status === 'rejected') {
+          unavailableTools.push('class transfer choices');
+        }
+        if (visibilityOutcome.status === 'fulfilled' && visibilityOutcome.value) {
+          const visibilityResult = visibilityOutcome.value;
+          if (visibilityResult.response.ok) {
+            const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
+            for (const row of (visibilityResult.data.data?.students ?? [])) {
+              const mode = row.mode === 'full' || row.mode === 'milestone' ? row.mode : 'inherit';
+              nextModes[row.student_id] = mode;
+            }
+            setPathStudentModes(nextModes);
+          } else unavailableTools.push('learner visibility settings');
+        } else if (visibilityOutcome.status === 'rejected') {
+          unavailableTools.push('learner visibility settings');
+        }
+        if (unavailableTools.length > 0) {
+          setOperationLoadError(`${unavailableTools.join(' and ')} did not load. Student records are still available; retry before using those tools.`);
+        }
       }
 
       // Only fetch program-related data if program_id exists
-      if (program_id) {
+      if (program_id && activeOperation === 'assessment') {
         let cbtQuery = supabase
           .from('cbt_exams')
           .select('id, title, duration_minutes, total_questions, is_active, school_id, start_date, end_date, metadata')
@@ -355,8 +400,9 @@ export default function ClassDetailPage() {
           submissions,
           cbtSessions
         });
+        setAssessmentRecordsLoaded(true);
 
-      } else {
+      } else if (activeOperation === 'assessment') {
         // No program_id, set empty items
         setItems({
           lessons: [],
@@ -365,10 +411,16 @@ export default function ClassDetailPage() {
           submissions: [],
           cbtSessions: []
         });
+        setAssessmentRecordsLoaded(true);
       }
+      if (needsStudentRecords) setOperationLoadState('ready');
     } catch (e: any) {
       if (!classLoaded) setError(e.message);
-      else console.warn('[class workspace] secondary records did not finish loading', e);
+      else {
+        setOperationLoadState('error');
+        setOperationLoadError(e.message || 'This work area did not finish loading. Please retry.');
+        console.warn('[class workspace] secondary records did not finish loading', e);
+      }
     } finally {
       setLoading(false);
     }
@@ -458,9 +510,12 @@ export default function ClassDetailPage() {
   };
   useEffect(() => {
     if (authLoading) return;
-    if (profile && id) { fetchData(); void loadTransferRequests(); }
+    if (profile && id) {
+      void fetchData();
+      if (activeOperation === 'roster') void loadTransferRequests();
+    }
     else setLoading(false);
-  }, [id, profile?.id, authLoading]);
+  }, [id, profile?.id, authLoading, activeOperation]);
 
   // Keep the realtime matcher in step with this class's loaded work.
   // Must stay above early returns — conditional hooks crash the page after load.
@@ -1244,14 +1299,18 @@ export default function ClassDetailPage() {
       icon: BookOpenIcon,
       // Weeks taught says how far the class has actually got; the lesson count only
       // says how much material exists. Fall back until the coverage read lands.
-      stat: coverage && coverage.planned > 0
-        ? `${coverage.delivered}/${coverage.planned} sessions taught`
-        : `${items.lessons.length} lessons`,
+      stat: teachingAttention.readyToShare > 0
+        ? `${teachingAttention.readyToShare} ready to review`
+        : coverage && coverage.planned > 0
+          ? `${coverage.delivered}/${coverage.planned} sessions taught`
+          : `${items.lessons.length} lessons`,
       progress: coverage && coverage.planned > 0
         ? Math.round((coverage.delivered / coverage.planned) * 100)
         : null,
-      attention: teachingAttention.missingContent + teachingAttention.readyToShare,
-      attentionLabel: 'Teaching sessions requiring content or teacher review',
+      // A complete package awaiting the teacher is normal workflow, not an
+      // alarm. Reserve the red badge for genuine missing learning items.
+      attention: teachingAttention.missingContent,
+      attentionLabel: 'Teaching sessions still missing learning items',
       tone: 'text-cyan-600 dark:text-cyan-400',
     },
     {
@@ -1259,7 +1318,9 @@ export default function ClassDetailPage() {
       title: 'Assessment',
       desc: 'Assignments, CBT, grades and reports',
       icon: ChartBarIcon,
-      stat: `${openAssignments + activeExamCount} open · ${gradedSubmissionCount} marked`,
+      stat: assessmentRecordsLoaded
+        ? `${openAssignments + activeExamCount} open · ${gradedSubmissionCount} marked`
+        : 'Open to load class work',
       progress: null as number | null,
       attention: ungradedSubmissionCount,
       attentionLabel: 'Submissions still to mark',
@@ -1281,10 +1342,15 @@ export default function ClassDetailPage() {
       title: 'Students',
       desc: 'Roster, transfers and term movement',
       icon: UserGroupIcon,
-      stat: `${currentTermStudents.length} active · ${inactiveTermStudents.length} withdrawn`,
+      stat: studentRecordsLoaded
+        ? `${currentTermStudents.length} active · ${inactiveTermStudents.length} withdrawn`
+        : 'Open to load students',
       progress: null as number | null,
-      attention: transferRequests.filter((request: any) => request.status === 'pending').length,
-      attentionLabel: 'Transfer requests awaiting a decision',
+      attention:
+        transferRequests.filter((request: any) => request.status === 'pending').length
+        + (reportIndicatorEnabled ? needsReportCount : 0)
+        + offBandCount,
+      attentionLabel: 'Learners needing a report, placement check or transfer decision',
       tone: 'text-primary',
     },
   ];
@@ -1302,52 +1368,6 @@ export default function ClassDetailPage() {
   ].filter(tab => (!tab.staffOnly || isStaff) && tab.modes.includes(activeOperation));
   const pendingIncomingTransfers = transferRequests.filter((request: any) => request.status === 'pending' && (profile?.role === 'admin' || request.from_teacher_id === profile?.id));
   const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
-  const pendingTransferCount = pendingIncomingTransfers.length + pendingOutgoingTransfers.length;
-  const classPriorities = [
-    ...(teachingAttention.missingContent > 0 ? [{
-      id: 'teaching',
-      title: `${teachingAttention.missingContent} teaching session${teachingAttention.missingContent === 1 ? '' : 's'} need content`,
-      detail: 'Open Teaching to fill only the missing lesson materials. Existing work will be kept.',
-      operation: 'teaching' as const,
-      tone: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
-    }] : []),
-    ...(teachingAttention.readyToShare > 0 ? [{
-      id: 'teaching-review',
-      title: `${teachingAttention.readyToShare} complete package${teachingAttention.readyToShare === 1 ? '' : 's'} ready to review`,
-      detail: 'Open Teaching to check the next package and share it with students.',
-      operation: 'teaching' as const,
-      tone: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
-    }] : []),
-    ...(ungradedSubmissionCount > 0 ? [{
-      id: 'grading',
-      title: `${ungradedSubmissionCount} submission${ungradedSubmissionCount === 1 ? '' : 's'} waiting to be marked`,
-      detail: 'Open assessment to continue grading from the central gradebook.',
-      operation: 'assessment' as const,
-      tone: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    }] : []),
-    ...(reportIndicatorEnabled && needsReportCount > 0 ? [{
-      id: 'reports',
-      title: `${needsReportCount} learner report${needsReportCount === 1 ? '' : 's'} not published`,
-      detail: 'The affected learners are already sorted first in Students.',
-      operation: 'roster' as const,
-      tone: 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300',
-    }] : []),
-    ...(pendingTransferCount > 0 ? [{
-      id: 'transfers',
-      title: `${pendingTransferCount} transfer request${pendingTransferCount === 1 ? '' : 's'} awaiting action`,
-      detail: 'Review ownership before the learner moves class.',
-      operation: 'roster' as const,
-      tone: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    }] : []),
-    ...(offBandCount > 0 ? [{
-      id: 'band',
-      title: `${offBandCount} learner${offBandCount === 1 ? '' : 's'} outside this class band`,
-      detail: 'Check grade placement before publishing academic records.',
-      operation: 'roster' as const,
-      tone: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    }] : []),
-  ];
-
   return (
     <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
       <div className={`space-y-4 sm:space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
@@ -1406,48 +1426,6 @@ export default function ClassDetailPage() {
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-snug text-rose-600 dark:text-rose-400">
             Class capacity has been reached. Move students to another class or increase capacity before adding more.
           </div>
-        )}
-
-        {classPriorities.length > 0 && (
-          <section aria-label="Class priorities" className="flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-2">
-            <span className="inline-flex flex-shrink-0 items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
-              <ExclamationTriangleIcon className="h-3.5 w-3.5" /> {classPriorities.length} need attention
-            </span>
-            <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto no-scrollbar">
-              {classPriorities.slice(0, 4).map((priority) => (
-                <button
-                  key={priority.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveOperation(priority.operation);
-                    if (priority.id === 'reports') {
-                      setShowNeedsReportOnly(true);
-                      setRosterOpen(true);
-                    } else if (priority.id === 'band') {
-                      setShowNeedsReportOnly(false);
-                      setRosterOpen(true);
-                    }
-                    window.setTimeout(() => {
-                      const targetId = priority.id.startsWith('teaching')
-                        ? 'teaching-sessions'
-                        : `class-operation-${priority.operation}`;
-                      document
-                        .getElementById(targetId)
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 80);
-                  }}
-                  aria-label={`Open solution: ${priority.title}`}
-                  title={priority.detail}
-                  className={`inline-flex min-h-10 flex-shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-black transition-colors hover:brightness-110 ${priority.tone}`}
-                >
-                  <span>{priority.title}</span>
-                  <span className="inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider">
-                    Open <ChevronRightIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
         )}
 
         {/* ── The work ──────────────────────────────────────────────────────────
@@ -1528,6 +1506,29 @@ export default function ClassDetailPage() {
                 <h2 className="break-words text-base font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
                 <p className="mt-0.5 break-words text-xs leading-relaxed text-muted-foreground">{selectedOperation.desc}</p>
               </div>
+
+              {activeOperation !== 'teaching' && operationLoadState === 'loading' && (
+                <div role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-3 text-xs font-semibold text-muted-foreground">
+                  <ArrowPathIcon className="h-4 w-4 animate-spin text-primary" />
+                  Loading {selectedOperation.title.toLowerCase()} records…
+                </div>
+              )}
+              {activeOperation !== 'teaching' && operationLoadError && operationLoadState !== 'loading' && (
+                <div className={`mb-4 flex flex-col gap-3 rounded-xl border p-3 text-xs sm:flex-row sm:items-center sm:justify-between ${
+                  operationLoadState === 'error'
+                    ? 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                }`}>
+                  <span className="font-semibold">{operationLoadError}</span>
+                  <button
+                    type="button"
+                    onClick={() => void fetchData()}
+                    className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-current/30 bg-background px-3 py-1.5 text-[10px] font-black uppercase tracking-wider"
+                  >
+                    <ArrowPathIcon className="h-3.5 w-3.5" /> Retry
+                  </button>
+                </div>
+              )}
 
               {activeOperation === 'roster' && (
                 <div className="min-w-0 space-y-3 sm:space-y-4 sm:rounded-2xl sm:border sm:border-border sm:bg-background sm:p-4">
