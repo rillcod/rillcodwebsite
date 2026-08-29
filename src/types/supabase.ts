@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -10683,7 +10683,6 @@ export type Database = {
           curriculum_release_id: string | null
           curriculum_version_id: string | null
           id: string
-          lesson_id: string | null
           metadata: Json | null
           objectives: string | null
           offering_period_id: string | null
@@ -10711,7 +10710,6 @@ export type Database = {
           curriculum_release_id?: string | null
           curriculum_version_id?: string | null
           id?: string
-          lesson_id?: string | null
           metadata?: Json | null
           objectives?: string | null
           offering_period_id?: string | null
@@ -10739,7 +10737,6 @@ export type Database = {
           curriculum_release_id?: string | null
           curriculum_version_id?: string | null
           id?: string
-          lesson_id?: string | null
           metadata?: Json | null
           objectives?: string | null
           offering_period_id?: string | null
@@ -10825,13 +10822,6 @@ export type Database = {
             columns: ["curriculum_release_id"]
             isOneToOne: false
             referencedRelation: "academic_curriculum_releases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lesson_plans_lesson_id_fkey"
-            columns: ["lesson_id"]
-            isOneToOne: true
-            referencedRelation: "lessons"
             referencedColumns: ["id"]
           },
           {
@@ -20860,6 +20850,10 @@ export type Database = {
         Returns: Json
       }
       admin_purge_teaching_orphans: { Args: never; Returns: Json }
+      adopt_legacy_lesson_plan_into_class: {
+        Args: { p_actor_id: string; p_class_id: string; p_plan_id: string }
+        Returns: Json
+      }
       allocate_payment_to_invoice: {
         Args: {
           p_actor_id?: string
@@ -21362,11 +21356,6 @@ export type Database = {
         Returns: Json
       }
       normalize_contact_book_phone: { Args: { raw: string }; Returns: string }
-      prune_all_cron_run_history: { Args: { p_keep_count?: number }; Returns: number }
-      prune_cron_run_history: {
-        Args: { p_job_name: string; p_keep_count?: number }
-        Returns: number
-      }
       process_payment_atomic: {
         Args: { p_amount: number; p_invoice_id: string; p_reference: string }
         Returns: Json
@@ -21380,6 +21369,14 @@ export type Database = {
           p_teacher_notes?: string
         }
         Returns: Json
+      }
+      prune_all_cron_run_history: {
+        Args: { p_keep_count?: number }
+        Returns: number
+      }
+      prune_cron_run_history: {
+        Args: { p_job_name: string; p_keep_count?: number }
+        Returns: number
       }
       publish_academic_assessment_scheme: {
         Args: {

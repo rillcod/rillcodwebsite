@@ -49,4 +49,10 @@ describe("historical class-plan merge", () => {
     expect(list).toContain("Review & move to class →");
     expect(list).toContain("One plan connects an approved curriculum to one class, course and teaching period.");
   });
+
+  it("keeps generated database types synchronized with the live adoption function", () => {
+    const types = read("src/types/supabase.ts");
+    expect(types).toContain("adopt_legacy_lesson_plan_into_class");
+    expect(types).not.toContain("lesson_plans_lesson_id_fkey");
+  });
 });

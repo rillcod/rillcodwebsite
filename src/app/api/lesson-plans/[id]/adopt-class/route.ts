@@ -109,7 +109,7 @@ export async function POST(
 
   const { id } = await context.params;
   const admin = createAdminClient();
-  const { data, error } = await (admin as any).rpc(
+  const { data, error } = await admin.rpc(
     "adopt_legacy_lesson_plan_into_class",
     {
       p_plan_id: id,

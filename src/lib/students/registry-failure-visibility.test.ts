@@ -16,7 +16,7 @@ describe('staff workflow failure visibility', () => {
 
   it('distinguishes a failed class lookup from an empty class list', () => {
     expect(lessonPlan).toContain('classLoadError');
-    expect(lessonPlan).toContain('Retry classes');
+    expect(lessonPlan).toContain('onRetryClasses');
     expect(lessonPlan).toContain('The lesson plan is unchanged.');
   });
 

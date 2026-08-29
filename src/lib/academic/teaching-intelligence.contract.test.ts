@@ -282,8 +282,8 @@ describe("generators and workspace stay on that schema", () => {
     expect(parser).toContain("export function weekContentOrigin");
     expect(workspace).toContain("Teaching sessions");
     expect(workspace).toContain("Prepare · review · share here");
-    expect(workspace).toContain("Fill ${workflow.missingItems} missing item");
-    expect(workspace).toContain("only genuine gaps are filled");
+    expect(workspace).toContain("Let assistant fill ${resumeWeek.packageStatus.missing.length} missing item");
+    expect(workspace).toContain("completed items are kept and will not be generated again");
     expect(workspace).toContain("types: WEEK_CONTENT_TYPES");
     expect(workspace).toContain("teachingMeetingLabel");
     expect(workspace).toContain("Take attendance");
