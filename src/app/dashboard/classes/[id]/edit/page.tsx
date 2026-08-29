@@ -12,6 +12,7 @@ import {
     UserGroupIcon, ArrowsRightLeftIcon,
 } from '@/lib/icons';
 import { liveAcademicSession } from '@/lib/reports/academic-period';
+import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
 
 type AcademicTermOption = {
     id: string;
@@ -35,6 +36,7 @@ export default function EditClassPage() {
     const [schools, setSchools] = useState<any[]>([]);
     const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
     const [pathClassMode, setPathClassMode] = useState<'full' | 'milestone'>('full');
+    const [qaGradeBand, setQaGradeBand] = useState<string | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -76,6 +78,7 @@ export default function EditClassPage() {
                 const clsApiRes = await fetch(`/api/classes/${id}`, { cache: 'no-store' });
                 if (!clsApiRes.ok) { const j = await clsApiRes.json(); throw new Error(j.error || 'Class not found'); }
                 const { data: cls } = await clsApiRes.json();
+                setQaGradeBand(cls.qa_grade_band ?? null);
 
                 // class_id FK is the enrollment key — no need to track originalName
                 setForm({
@@ -221,18 +224,15 @@ export default function EditClassPage() {
                     <ArrowLeftIcon className="w-4 h-4" /> Back to Class Details
                 </Link>
 
-                <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
-                    <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-                    <div className="relative z-10 flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 shrink-0">
+                <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             <BookOpenIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
-                                Class Operations &amp; Administration
-                            </span>
-                            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-foreground leading-none">Edit Class</h1>
-                            <p className="text-muted-foreground text-sm mt-1.5 font-medium">Update class settings, schedule, and enrolled students</p>
+                            <p className="text-xs font-bold text-primary">Class setup</p>
+                            <h1 className="text-2xl font-black tracking-tight text-foreground">Edit class</h1>
+                            <p className="mt-1 text-sm text-muted-foreground">Update class identity, teaching period, schedule and learning-path settings.</p>
                         </div>
                     </div>
                 </div>
@@ -433,6 +433,16 @@ export default function EditClassPage() {
                     </button>
 
                 </form>
+
+                {profile?.role === 'admin' && (
+                    <section className="space-y-2">
+                        <div>
+                            <h2 className="text-base font-black text-foreground">Grade coverage</h2>
+                            <p className="text-xs text-muted-foreground">Used to match the correct curriculum and reporting range.</p>
+                        </div>
+                        <ClassRangeEditor classId={id} initialRange={qaGradeBand} canEdit />
+                    </section>
+                )}
             </div>
         </div>
     );

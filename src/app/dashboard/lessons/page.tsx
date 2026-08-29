@@ -6,16 +6,16 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  BookOpenIcon, PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
-  TrashIcon, ClockIcon, CheckCircleIcon,
+  BookOpenIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
+  TrashIcon, ClockIcon,
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
-  SparklesIcon, BuildingOfficeIcon,
+  BuildingOfficeIcon,
   CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
   AcademicCapIcon, ClipboardDocumentListIcon, TrophyIcon
 } from '@/lib/icons';
-import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+import { buildClassTeachingHref } from '@/lib/curriculum/href';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -59,6 +59,7 @@ export default function LessonsPage() {
   const searchParams = useSearchParams();
   const lessonPlanId = searchParams.get('lesson_plan_id');
   const [lessons, setLessons] = useState<any[]>([]);
+  const [planContext, setPlanContext] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -89,6 +90,7 @@ export default function LessonsPage() {
     if (authLoading || !profile) return;
     if (!lessonPlanId) {
       setLessons([]);
+      setPlanContext(null);
       setLoading(false);
       setError(null);
       return;
@@ -98,11 +100,18 @@ export default function LessonsPage() {
     async function load() {
       setLoading(true); setError(null);
       try {
-        const res = await fetch(`/api/lessons?lesson_plan_id=${encodeURIComponent(scopedLessonPlanId)}`, { cache: 'no-store' });
+        const [res, planRes] = await Promise.all([
+          fetch(`/api/lessons?lesson_plan_id=${encodeURIComponent(scopedLessonPlanId)}`, { cache: 'no-store' }),
+          fetch(`/api/lesson-plans/${encodeURIComponent(scopedLessonPlanId)}`, { cache: 'no-store' }),
+        ]);
         if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load lessons'); }
         const json = await res.json();
         const result = json.data ?? [];
-        if (!cancelled) setLessons(result);
+        const planJson = planRes.ok ? await planRes.json() : null;
+        if (!cancelled) {
+          setLessons(result);
+          setPlanContext(planJson?.data ?? null);
+        }
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load lessons');
       } finally {
@@ -136,6 +145,11 @@ export default function LessonsPage() {
   const completed = lessons.filter(l => l.status === 'completed').length;
   const active = lessons.filter(l => l.status === 'active').length;
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const planClass = Array.isArray(planContext?.classes) ? planContext.classes[0] : planContext?.classes;
+  const planCourse = Array.isArray(planContext?.courses) ? planContext.courses[0] : planContext?.courses;
+  const classPlanHref = planContext?.class_id
+    ? buildClassTeachingHref({ classId: planContext.class_id, courseId: planContext.course_id })
+    : `/dashboard/lesson-plans/${lessonPlanId}?view=advanced`;
 
   if (authLoading || (profileLoading && !profile) || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
@@ -177,32 +191,21 @@ export default function LessonsPage() {
   return (
     <div className={`space-y-8 ${MOBILE_PAGE_BOTTOM}`}>
 
-      {/* Pipeline steps */}
-      {isStaff && (
-        <PipelineStepper current="lessons" lessonPlanId={lessonPlanId} />
-      )}
-
       <MobilePageHero
-        badge="Class plan · Lessons"
-        title="Plan lessons"
-        description="Prepare and review the lessons that belong to this class plan."
+        badge="Class plan · Lesson guides"
+        title={planClass?.name ? `Lessons for ${planClass.name}` : "Lesson guides"}
+        description={`These are the lesson guides inside this class plan${planCourse?.title ? ` for ${planCourse.title}` : ""}. Slides, cards, assignments and projects remain in each week's complete package.`}
         icon={BookOpenIcon}
         stats={[
           { label: 'Total', value: lessons.length },
           { label: 'Active', value: active, tone: 'primary' },
           { label: 'Done', value: completed, tone: 'emerald' },
         ]}
-        actions={
-          isStaff ? (
-            <Link
-              href={`/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}`}
-              className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
-            >
-              <PlusIcon className="w-4 h-4" /> Add lesson
-              <span className="text-[10px] opacity-70 uppercase tracking-widest">· in plan</span>
-            </Link>
-          ) : undefined
-        }
+        actions={isStaff ? (
+          <Link href={classPlanHref} className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}>
+            Return to class plan
+          </Link>
+        ) : undefined}
       />
 
       {/* Error */}
@@ -211,35 +214,6 @@ export default function LessonsPage() {
           <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
           <button onClick={() => window.location.reload()} className="text-xs underline hover:text-rose-700 dark:hover:text-rose-300">Retry</button>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Lessons', value: lessons.length, icon: BookOpenIcon, bg: 'bg-primary/10', color: 'text-primary' },
-          { label: 'Active', value: active, icon: BoltIcon, bg: 'bg-primary/10', color: 'text-primary' },
-          { label: 'Completed', value: completed, icon: CheckCircleIcon, bg: 'bg-emerald-500/10', color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Completion Rate', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, bg: 'bg-purple-500/10', color: 'text-purple-600 dark:text-purple-400' },
-        ].map(s => (
-          <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
-            <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-              <s.icon className={`w-5 h-5 ${s.color}`} />
-            </div>
-            <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Lesson plan filter banner */}
-      {lessonPlanId && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/30 text-primary text-sm font-bold">
-          <SparklesIcon className="w-4 h-4 shrink-0" />
-          <span>Showing lessons from this class plan</span>
-          <Link href={`/dashboard/lesson-plans/${lessonPlanId}`} className="ml-auto text-xs underline hover:text-violet-700 dark:hover:text-violet-300 transition-colors">
-            Back to plan
-          </Link>
         </div>
       )}
 
@@ -319,14 +293,11 @@ export default function LessonsPage() {
           <p className="text-sm text-muted-foreground max-w-xs">
             {filterStatus !== 'all' || search
               ? 'No lessons match your search. Try adjusting the filters.'
-              : 'No lessons yet. Click "Add Lesson" to create your first one.'}
+              : 'No lesson guide is prepared yet. Return to the class plan and choose the exact week or session to fill.'}
           </p>
           {isStaff && !search && filterStatus === 'all' && (
-            <Link
-              href={`/dashboard/lessons/add?lesson_plan_id=${lessonPlanId}`}
-              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors"
-            >
-              <PlusIcon className="w-4 h-4" /> Add Lesson
+            <Link href={classPlanHref} className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+              Return to class plan
             </Link>
           )}
         </div>

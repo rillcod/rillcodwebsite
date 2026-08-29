@@ -53,9 +53,11 @@ describe('central teacher workspace UX', () => {
     expect(teachingWorkspace).toContain('Teaching sessions');
     expect(teachingWorkspace).toContain('Content for this teaching session');
     expect(teachingWorkspace).toContain('Prepare · review · share here');
-    expect(teachingWorkspace).toContain('One connected workflow');
-    expect(teachingWorkspace).toContain('Review and share');
-    expect(teachingWorkspace).toContain('Teach and record');
+    expect(teachingWorkspace).toContain('Next teacher action');
+    expect(teachingWorkspace).not.toContain('One connected workflow');
+    expect(teachingWorkspace).toContain('Review & share');
+    expect(teachingWorkspace).toContain('Open class materials');
+    expect(teachingWorkspace).toContain('View full teaching order');
     expect(teachingWorkspace).toContain('Retry missing content');
     expect(teachingWorkspace).not.toContain('Prepare all missing packages');
     expect(teachingWorkspace).not.toContain('Weekly Teaching Packages');
@@ -94,16 +96,13 @@ describe('central teacher workspace UX', () => {
   // queues and exceptions share one secondary disclosure.
   it('keeps diagnostics behind one secondary academic-tools disclosure', () => {
     const nextAction = academicOffice.indexOf('<NextActionCard');
-    const curriculum = academicOffice.indexOf('id="curriculum-lanes"');
     const tools = academicOffice.indexOf('id="supporting-tools"');
     const exceptions = academicOffice.lastIndexOf('<AcademicExceptionsWorkspace');
     expect(nextAction).toBeGreaterThan(-1);
-    expect(curriculum).toBeGreaterThan(-1);
     expect(academicOffice).toContain("What to teach");
     expect(tools).toBeGreaterThan(-1);
     expect(exceptions).toBeGreaterThan(-1);
-    expect(nextAction).toBeLessThan(curriculum);
-    expect(curriculum).toBeLessThan(tools);
+    expect(nextAction).toBeLessThan(tools);
     expect(tools).toBeLessThan(exceptions);
     expect(academicOffice).not.toContain('showPipeline');
   });

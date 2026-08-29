@@ -11,25 +11,17 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import PipelineStepper from "@/components/pipeline/PipelineStepper";
-import PlanningBreadcrumb from "@/components/pipeline/PlanningBreadcrumb";
 import { fetchJsonWithTimeout } from "@/lib/async-timeout";
 import {
   DocumentTextIcon,
   PlusIcon,
   PencilIcon,
-  CheckCircleIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
-  BookOpenIcon,
   ArrowPathIcon,
-  ClipboardDocumentListIcon,
-  SparklesIcon,
-  AcademicCapIcon,
   TrashIcon,
-  RocketLaunchIcon,
 } from "@/lib/icons";
 import { toast } from "sonner";
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
@@ -178,6 +170,7 @@ function inferTermNumberFromLabel(term: string): number {
 }
 
 function LessonPlansPageInner() {
+  const router = useRouter();
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const sp = useSearchParams();
   const qpCourseId = sp.get("course_id");
@@ -230,7 +223,9 @@ function LessonPlansPageInner() {
   const [programCoursesLoading, setProgramCoursesLoading] = useState(false);
   const isAdmin = profile?.role === "admin";
   const isTeacher = profile?.role === "teacher";
-  const canManage = isAdmin || isTeacher;
+  // Teachers prepare and deliver content from the class workspace. Plan
+  // identity, curriculum attachment and deletion remain Academic Office work.
+  const canManage = isAdmin;
   const [debrisCount, setDebrisCount] = useState<number | null>(null);
   const [cleaningDebris, setCleaningDebris] = useState(false);
 
@@ -397,9 +392,9 @@ function LessonPlansPageInner() {
     } else {
       setForm((f) => ({ ...f, course_id: qpCourseId }));
     }
-    setShowForm(true);
+    if (isAdmin) setShowForm(true);
     setPrefilledFromUrl(true);
-  }, [qpCourseId, courses, prefilledFromUrl]);
+  }, [qpCourseId, courses, prefilledFromUrl, isAdmin]);
 
   function resetForm() {
     setForm({
@@ -471,14 +466,27 @@ function LessonPlansPageInner() {
           created_by: profile?.id,
         }),
       });
-      if (!res.ok) {
-        const j = await res.json();
-        throw new Error(j.error);
+      const response = await res.json();
+      if (res.status === 409 && response.existing_id) {
+        toast.info("This class already has one plan. Opening it now.");
+        router.push(
+          buildClassTeachingHref({
+            classId: form.class_id,
+            courseId: form.course_id,
+          })
+        );
+        return;
       }
-      toast.success("Class plan created");
+      if (!res.ok) throw new Error(response.error);
+      toast.success("Class plan ready");
       setShowForm(false);
       resetForm();
-      load();
+      router.push(
+        buildClassTeachingHref({
+          classId: form.class_id,
+          courseId: form.course_id,
+        })
+      );
     } catch (e: any) {
       toast.error(e.message || "Failed to save");
     } finally {
@@ -936,7 +944,6 @@ function LessonPlansPageInner() {
     );
   }
 
-  const currentCourse = courses.find((c) => c.id === form.course_id);
   const planSummary = {
     total: filtered.length,
     published: filtered.filter((p) => (p.status ?? "draft") === "published")
@@ -948,44 +955,28 @@ function LessonPlansPageInner() {
   return (
     <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-        {/* Planning trio breadcrumb */}
-        <PlanningBreadcrumb current="lesson-plans" />
-
-        {/* Shared pipeline stepper */}
-        <div className="bg-card border border-border p-2 sm:p-3 rounded-lg w-full">
-          <PipelineStepper
-            current="plans"
-            courseId={form.course_id || null}
-            programId={form.program_id || filterProgramId || null}
-            courseTitle={currentCourse?.title ?? null}
-            curriculumId={form.curriculum_version_id || null}
-          />
-        </div>
-
         {/* Header */}
-        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
-              <DocumentTextIcon className="w-6 h-6 text-white" />
+        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <DocumentTextIcon className="h-5 w-5" />
             </div>
             <div>
-              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
-                Academic Office
-              </span>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground uppercase tracking-tight">
-                Class Plans
+              <h1 className="text-2xl font-black tracking-tight text-foreground">
+                Class plans
               </h1>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 {filterCourseId
                   ? `Showing plans for ${
                       courses.find((c) => c.id === filterCourseId)?.title
                     }`
-                  : "Schedule your teaching weeks and track class progress"}
+                  : isTeacher
+                    ? "Open a class to prepare, review and share its weekly teaching packages."
+                    : "One plan connects an approved curriculum to one class, course and teaching period."}
               </p>
             </div>
           </div>
-          <div className="relative z-10 flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {filterCourseId && (
               <button
                 onClick={() => {
@@ -1009,47 +1000,30 @@ function LessonPlansPageInner() {
                 }`}
               />
             </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground shadow-lg shadow-primary/25 w-full sm:w-auto`}
-            >
-              <PlusIcon className="w-4 h-4" /> New Class Plan
-            </button>
+            {canManage && (
+              <button
+                onClick={() => setShowForm(true)}
+                className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
+              >
+                <PlusIcon className="w-4 h-4" /> Start class plan
+              </button>
+            )}
+            {isTeacher && (
+              <Link
+                href="/dashboard/classes"
+                className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}
+              >
+                Open my classes
+              </Link>
+            )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Pick a class and course, then tap <span className="font-bold text-foreground">New Class Plan</span>. The class plan expands the approved curriculum into weekly teaching packages.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground shrink-0 w-full sm:w-auto`}
-          >
-            <PlusIcon className="w-4 h-4" /> New Class Plan
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            ["Plans", planSummary.total],
-            ["Published", planSummary.published],
-            ["Draft", planSummary.draft],
-            ["Linked to curriculum", planSummary.directed],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="bg-card border border-border rounded-lg p-4"
-            >
-              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                {label}
-              </p>
-              <p className="text-2xl font-black text-foreground mt-1">
-                {value}
-              </p>
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 px-1 text-xs text-muted-foreground" aria-label="Class plan summary">
+          <span><strong className="text-foreground">{planSummary.total}</strong> plans</span>
+          <span><strong className="text-foreground">{planSummary.published}</strong> published</span>
+          <span><strong className="text-foreground">{planSummary.draft}</strong> drafts</span>
+          <span><strong className="text-foreground">{planSummary.directed}</strong> linked to approved curriculum</span>
         </div>
 
         {/* Filters */}
@@ -1159,6 +1133,12 @@ function LessonPlansPageInner() {
                       : contentState === "in_progress"
                         ? "In progress"
                         : "Not prepared";
+              const planHref = plan.class_id
+                ? buildClassTeachingHref({
+                    classId: plan.class_id,
+                    courseId: plan.course_id,
+                  })
+                : `/dashboard/lesson-plans/${plan.id}?view=advanced`;
 
               return (
                 <motion.div
@@ -1169,17 +1149,7 @@ function LessonPlansPageInner() {
                   exit={{ opacity: 0, scale: 0.97 }}
                   className="group"
                 >
-                  <Link
-                    href={
-                      plan.class_id
-                        ? buildClassTeachingHref({
-                            classId: plan.class_id,
-                            courseId: plan.course_id,
-                          })
-                        : `/dashboard/lesson-plans/${plan.id}?view=advanced`
-                    }
-                    className="block bg-card border border-border hover:border-primary/50 p-5 rounded-lg transition-all hover:shadow-md"
-                  >
+                  <div className="bg-card border border-border hover:border-primary/50 p-5 rounded-lg transition-all hover:shadow-md">
                     <div className="flex items-start justify-between mb-4">
                       <span
                         className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${status.cls}`}
@@ -1294,15 +1264,14 @@ function LessonPlansPageInner() {
                         {updatedAgo}
                       </span>
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-all">
-                          Open →
-                        </span>
+                        <Link href={planHref} className="inline-flex min-h-9 items-center rounded-lg px-2 text-[10px] font-bold text-primary hover:bg-primary/10">
+                          {plan.class_id ? "Open class teaching →" : "Open plan details →"}
+                        </Link>
                         {canManage && (
                           <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openEdit(plan);
-                            }}
+                            onClick={() => openEdit(plan)}
+                            aria-label={`Edit ${plan.courses?.title || "class plan"}`}
+                            title="Edit plan settings"
                             className="p-1.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded-md transition-all"
                           >
                             <PencilIcon className="w-3.5 h-3.5" />
@@ -1310,10 +1279,9 @@ function LessonPlansPageInner() {
                         )}
                         {canManage && (
                           <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openDeleteConfirm(plan);
-                            }}
+                            onClick={() => openDeleteConfirm(plan)}
+                            aria-label={`Delete ${plan.courses?.title || "class plan"}`}
+                            title="Delete plan"
                             className="p-1.5 text-rose-600/30 dark:text-rose-400/30 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-all"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
@@ -1321,7 +1289,7 @@ function LessonPlansPageInner() {
                         )}
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 </motion.div>
               );
             })}
@@ -1373,7 +1341,7 @@ function LessonPlansPageInner() {
       `}</style>
 
       {/* Create Form Modal */}
-      {showForm && (
+      {showForm && canManage && (
         <div className="mobile-native-dialog fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
@@ -1383,10 +1351,10 @@ function LessonPlansPageInner() {
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
                 <h3 className="text-base font-black text-foreground">
-                  New Class Plan
+                  Start class plan
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Choose the teaching context. The approved curriculum supplies the direction.
+                  Choose the class and course. The system uses the approved curriculum and keeps one plan for this teaching period.
                 </p>
               </div>
               <button
@@ -1485,10 +1453,10 @@ function LessonPlansPageInner() {
               </button>
               <button
                 onClick={save}
-                disabled={submitting || !form.term || !form.course_id}
+                disabled={submitting || !form.term || !form.course_id || !form.class_id}
                 className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-bold rounded-xl transition-all"
               >
-                {submitting ? "Creating…" : "Create Class Plan"}
+                {submitting ? "Opening…" : "Continue to class plan"}
               </button>
             </div>
           </motion.div>

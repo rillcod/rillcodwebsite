@@ -29,7 +29,6 @@ import {
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 
-import { ClassRangeEditor } from '@/components/classes/ClassRangeEditor';
 import { ClassPromotionPanel } from '@/components/classes/ClassPromotionPanel';
 import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
@@ -1430,7 +1429,7 @@ export default function ClassDetailPage() {
                     }
                     window.setTimeout(() => {
                       const targetId = priority.id.startsWith('teaching')
-                        ? 'teaching-workflow'
+                        ? 'teaching-sessions'
                         : `class-operation-${priority.operation}`;
                       document
                         .getElementById(targetId)
@@ -2105,9 +2104,6 @@ export default function ClassDetailPage() {
               )}
               {activeOperation === 'teaching' && (
                 <div className="space-y-4">
-                  {profile?.role === 'admin' && (
-                    <ClassRangeEditor classId={id} initialRange={cls?.qa_grade_band} canEdit />
-                  )}
                   <ClassTeachingWorkspace
                     classId={id}
                     initialCourseId={searchParams.get('course_id') || cls?.current_course_id}

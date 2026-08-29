@@ -31,7 +31,6 @@ import {
   StarIcon,
 } from "@/lib/icons";
 import { toast } from "sonner";
-import PipelineStepper from "@/components/pipeline/PipelineStepper";
 import {
   SyllabusPreview,
   type SyllabusContent,
@@ -2024,53 +2023,30 @@ export default function LessonPlanDetailPage() {
         </div>
       </div>
 
-      {/* Shared pipeline */}
-      <div className="print:hidden">
-        <PipelineStepper
-          current="plans"
-          courseId={plan.course_id ?? null}
-          courseTitle={courseTitle}
-          curriculumId={plan.curriculum_version_id ?? null}
-          lessonPlanId={plan.id}
-          classId={plan.class_id ?? null}
-        />
-
-        {/* AI Lesson Assistant banner — discoverable entry point */}
-        {weeks.some(
-          (w) => !linkedLessons.find((l) => matchesPlanWeek(l, w))
-        ) && (
-          <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-primary/30 bg-primary/[0.05]">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-md bg-primary/20 flex items-center justify-center shrink-0">
-                <SparklesIcon className="w-4 h-4 text-violet-700 dark:text-violet-300" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-widest text-violet-700 dark:text-violet-300">
-                  AI Lesson Assistant
-                </p>
-                <p className="text-xs text-card-foreground/70 mt-0.5 leading-snug">
-                  Click{" "}
-                  <span className="font-bold text-violet-700 dark:text-violet-300">
-                    Create Lesson
-                  </span>{" "}
-                  on any week below — with a linked syllabus, student activities
-                  and objectives are carried into the builder automatically.
-                  Pick a mode (Academic · Project · Interactive) and generate a
-                  full rich lesson in seconds.
-                </p>
-              </div>
-            </div>
+      {plan.class_id && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 print:hidden sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-foreground">Specialist plan tools</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Use this page for diagnostics, bulk repair and export. Prepare, review and share normal weekly packages from the class workspace.
+            </p>
           </div>
-        )}
-      </div>
+          <Link
+            href={buildClassTeachingHref({ classId: plan.class_id, courseId: plan.course_id })}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+          >
+            Return to class teaching
+          </Link>
+        </div>
+      )}
 
       {/* Back + Print */}
       <div className="flex items-center justify-between print:hidden">
         <Link
-          href="/dashboard/lesson-plans"
+          href={plan.class_id ? buildClassTeachingHref({ classId: plan.class_id, courseId: plan.course_id }) : "/dashboard/lesson-plans"}
           className="flex items-center gap-2 text-card-foreground/50 hover:text-card-foreground text-sm font-bold transition-colors min-h-[44px]"
         >
-          <ArrowLeftIcon className="w-4 h-4" /> Back to Plans
+          <ArrowLeftIcon className="w-4 h-4" /> {plan.class_id ? "Back to class teaching" : "Back to class plans"}
         </Link>
         <button
           onClick={() => window.print()}
@@ -2102,7 +2078,7 @@ export default function LessonPlanDetailPage() {
             </h1>
             {plan.class_id ? (
               <p className="mt-2 max-w-2xl text-xs leading-5 text-card-foreground/55 print:hidden">
-                Day-to-day teaching lives in the{" "}
+                This is the specialist view. Day-to-day preparation and delivery live in the{" "}
                 <a
                   href={`/dashboard/classes/${plan.class_id}?course_id=${encodeURIComponent(plan.course_id ?? "")}#teaching`}
                   className="font-bold text-primary hover:underline"
@@ -2116,7 +2092,7 @@ export default function LessonPlanDetailPage() {
                 >
                   Approvals
                 </a>
-                . This page is the curriculum editor.
+                . The curriculum remains a separate approved source and is not edited here.
               </p>
             ) : null}
             <div className="flex items-center gap-2 mt-1 flex-wrap">

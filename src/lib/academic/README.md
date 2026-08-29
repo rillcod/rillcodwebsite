@@ -1,4 +1,50 @@
-# Weekly teaching content — how it is written, shared and corrected
+# Academic workflow and weekly teaching content
+
+## Canonical product model
+
+These objects are connected, but they are not interchangeable:
+
+1. **Curriculum** — the approved direction for a course. It defines the years,
+   terms, weeks, topics and intended outcomes. Academic Office owns approval.
+2. **Class plan** — the curriculum arranged for one class, course and teaching
+   period. The historical database table is named `lesson_plans`; do not expose
+   that legacy name as a second product concept and do not create another plan
+   row for the same class/course/period.
+3. **Teaching package** — one week/session inside the class plan. It contains
+   exactly five core learning items: lesson, slides, practice cards, assignment
+   and project. Review and learner visibility happen at this package boundary.
+4. **Lesson** — the teacher's lesson guide inside one teaching package. A lesson
+   is a child of the class plan through `lessons.lesson_plan_id`; it is never the
+   plan itself and must not create a reverse plan record.
+5. **Delivery and evidence** — attendance, completed teaching, submissions and
+   grades record what happened after a package was shared. These records must
+   keep the same class, plan, curriculum week and lesson identity.
+
+“Unified” means one workflow and one identity chain, not one giant record:
+
+`curriculum release → class plan → week/session package → lesson and learning items → delivery → evidence → result`
+
+### Role-aware path
+
+- **Administrator:** Overview → Curriculum → Approve & assign → Classes →
+  Results. Administrators control official curriculum direction and class-plan
+  identity.
+- **Teacher:** My Classes → recommended week/session → prepare missing items →
+  review → share → record delivery → mark work. Teachers do not need the
+  curriculum authoring or plan-diagnostics screens for everyday work.
+- **School reviewer:** read curriculum direction, package readiness, delivery
+  and results for their school; no authoring controls.
+- **Learner:** Learning Center → released weekly package → lesson/resources →
+  submit work → view feedback/results. Draft or held items never appear.
+
+The class teaching workspace is the everyday interface. The class-plan list is
+an Academic Office overview. `/dashboard/lesson-plans/[id]?view=advanced` is a
+specialist diagnostics/bulk-repair view. A normal class-plan link must open the
+class teaching workspace, not the specialist page.
+
+---
+
+## How weekly content is written, shared and corrected
 
 Read this before changing anything under `src/app/api/lesson-plans/[id]/generate-*`
 or the migrations `20260929000041`–`20260929000047`.

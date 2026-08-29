@@ -30,11 +30,11 @@ import {
   Eye,
 } from "lucide-react";
 import CanvaEditor from "@/features/lessons/components/CanvaEditor";
-import PipelineStepper from "@/components/pipeline/PipelineStepper";
 import LessonPreviewModal from "@/features/lessons/components/LessonPreviewModal";
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from "@/components/mobile/mobile-styles";
 import { AnimatePresence } from "framer-motion";
 import { consumeJsonSSE } from "@/lib/http/json-sse";
+import { buildClassTeachingHref } from "@/lib/curriculum/href";
 
 function parseLessonPlanFromQuery(
   raw: string | null
@@ -649,38 +649,22 @@ function AddLessonPageContent() {
   }
 
   const currentCourse = courses.find((c: any) => c.id === form.course_id);
+  const classPlanHref = classIdFromUrl
+    ? buildClassTeachingHref({
+        classId: classIdFromUrl,
+        courseId: form.course_id || preCourseId,
+      })
+    : `/dashboard/lesson-plans/${termPlanId}?view=advanced`;
   const courseSelectDisabled =
     !!selectedProgramId &&
     courses.filter((c: any) => c.program_id === selectedProgramId).length === 0;
 
   return (
     <div className={`space-y-6 ${MOBILE_STICKY_ACTIONS_BOTTOM}`}>
-      {/* Pipeline stepper — hidden in minimal embed mode */}
-      {!isMinimal && (
-        <PipelineStepper
-          current="lessons"
-          courseId={form.course_id || preCourseId || null}
-          programId={
-            selectedProgramId ||
-            preProgramId ||
-            currentCourse?.program_id ||
-            null
-          }
-          courseTitle={currentCourse?.title ?? null}
-          curriculumId={curriculumId}
-          lessonPlanId={termPlanId}
-          classId={classIdFromUrl}
-        />
-      )}
-
       {/* Back link */}
       {!isMinimal && (
         <Link
-          href={
-            termPlanId
-              ? `/dashboard/lesson-plans/${termPlanId}`
-              : "/dashboard/lessons"
-          }
+          href={classPlanHref}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px]"
         >
           <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
@@ -693,14 +677,14 @@ function AddLessonPageContent() {
         <div className="flex items-center gap-2 mb-1">
           <BookOpen className="w-5 h-5 text-primary" />
           <span className="text-xs font-bold text-primary uppercase tracking-widest">
-            New Lesson
+            Class plan · Lesson guide
           </span>
         </div>
         <h1 className="text-3xl font-extrabold text-foreground">
-          Create Lesson
+          {curriculumWeek ? `Add the lesson for Week ${curriculumWeek}` : "Add a lesson guide"}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Fill in the details below or use the AI assistant to generate content.
+          Write it yourself or let the assistant prepare a draft for your review.
         </p>
       </div>
 
@@ -719,18 +703,17 @@ function AddLessonPageContent() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-black text-primary uppercase tracking-widest">
-                Creating inside class plan
+                Lesson guide{curriculumWeek ? ` · Week ${curriculumWeek}` : ""}{classSession ? ` · Session ${classSession}` : ""}
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                This lesson will be saved to this class plan
-                {curriculumWeek ? ` · Week ${curriculumWeek}` : ""}.
+                This saves the lesson only. Slides, practice cards, assignment and project stay together in the same teaching package.
               </p>
             </div>
             <Link
-              href={`/dashboard/lesson-plans/${termPlanId}`}
+              href={classPlanHref}
               className="self-start sm:self-center px-3 py-2 sm:py-1.5 bg-primary/20 text-primary text-xs font-bold uppercase tracking-widest rounded-lg border border-primary/30 whitespace-nowrap hover:bg-primary/30 transition-colors"
             >
-              View plan →
+              Return to class plan →
             </Link>
           </div>
         </div>
@@ -1599,7 +1582,7 @@ function AddLessonPageContent() {
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {termPlanId ? "Save for review" : "Create lesson"}
+                  {termPlanId ? "Save lesson to package" : "Create lesson"}
                 </>
               )}
             </button>

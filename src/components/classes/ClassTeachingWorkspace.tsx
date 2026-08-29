@@ -147,7 +147,6 @@ export function ClassTeachingWorkspace({
     body: Record<string, unknown>;
     mode?: "release" | "hold";
   } | null>(null);
-  const [nextActionInView, setNextActionInView] = useState(true);
 
   // Guard against race conditions when switching courses rapidly
   const loadSeq = useRef(0);
@@ -699,23 +698,6 @@ export function ClassTeachingWorkspace({
   const resumeWeek = weekRows.find(teachingSlotNeedsAttention) ||
     weekRows.find((row) => !row.taught);
 
-  useEffect(() => {
-    const target = document.getElementById("next-teacher-action");
-    if (!target || typeof IntersectionObserver === "undefined") {
-      setNextActionInView(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => setNextActionInView(entry.isIntersecting),
-      // IntersectionObserver margins are CSS lengths in px or %, not rem.
-      // Using rem throws during hydration and sends the whole class page to
-      // the error boundary before the teaching workspace can render.
-      { threshold: 0.15, rootMargin: "-64px 0px -80px 0px" }
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [resumeWeek?.rowKey]);
-
   function toggleCardExpanded(rowKey: string) {
     setExpandedCards((prev) => {
       const next = new Set(prev);
@@ -815,14 +797,16 @@ export function ClassTeachingWorkspace({
                 </>
               ) : (
                 <p className="text-sm font-normal text-muted-foreground">
-                  {courseId
+                  {busy
+                    ? "Checking the approved curriculum…"
+                    : courseId
                     ? "No approved curriculum is assigned yet. An administrator must complete this before delivery can begin."
                     : "Select a course first."}
                 </p>
               )}
             </div>
           </div>
-          {canManageCurriculum && courseId && planStage?.state !== "blocked" && !plan && (
+          {canManageCurriculum && courseId && planStage && planStage.state !== "blocked" && !plan && (
             <button
               disabled={busy}
               onClick={() =>
@@ -901,97 +885,6 @@ export function ClassTeachingWorkspace({
           variant={pendingRelease.mode === "hold" ? "warning" : "success"}
         />
       )}
-
-      {canEdit && !pendingRelease && resumeWeek && !nextActionInView && (
-          <div className="fixed inset-x-3 bottom-[calc(var(--app-bottom-nav-height)+var(--app-sticky-actions-height)+0.75rem)] z-[65] md:hidden">
-            {resumeWeek.recommendedAction === "release" ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                setPendingRelease({
-                  label: `${teachingMeetingLabel(
-                    resumeWeek.week,
-                    resumeWeek.session,
-                    resumeWeek.meetingsInWeek
-                  )} will become visible to this class.`,
-                  body: {
-                    action: "release_week",
-                    lesson_plan_id: plan?.id,
-                    week_number: resumeWeek.week,
-                    session: resumeWeek.session,
-                  },
-                })
-              }
-              className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-orange-400/50 bg-orange-700 px-4 py-3 text-left text-white shadow-2xl shadow-black/30 disabled:opacity-50"
-            >
-              <span className="min-w-0">
-                <span className="block text-[9px] font-black uppercase tracking-widest text-orange-100">
-                  Ready for your review
-                </span>
-                <span className="mt-0.5 block truncate text-xs font-black">
-                  {teachingMeetingLabel(
-                    resumeWeek.week,
-                    resumeWeek.session,
-                    resumeWeek.meetingsInWeek
-                  )}: {resumeWeek.topic}
-                </span>
-              </span>
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black">
-                Review <RocketLaunchIcon className="h-4 w-4" />
-              </span>
-            </button>
-            ) : resumeWeek.recommendedAction === "prepare" || resumeWeek.recommendedAction === "refresh" ? (
-              <button
-                type="button"
-                disabled={busy || aiBusy || !planReady}
-                onClick={() =>
-                  setAiWeek({
-                    week: resumeWeek.week,
-                    session: resumeWeek.session,
-                    topic: resumeWeek.topic,
-                    objectives: resumeWeek.objectives,
-                    activities: resumeWeek.activities,
-                    notes: resumeWeek.weekMeta.notes,
-                    assignment: resumeWeek.weekMeta.assignment,
-                    project: resumeWeek.weekMeta.project,
-                  })
-                }
-                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-violet-400/50 bg-violet-700 px-4 py-3 text-left text-white shadow-2xl shadow-black/30 disabled:opacity-50"
-              >
-                <span className="min-w-0">
-                  <span className="block text-[9px] font-black uppercase tracking-widest text-violet-100">
-                    {resumeWeek.recommendedAction === "refresh" ? "Curriculum changed" : "Content gap detected"}
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs font-black">
-                    {teachingMeetingLabel(resumeWeek.week, resumeWeek.session, resumeWeek.meetingsInWeek)}: {resumeWeek.topic}
-                  </span>
-                </span>
-                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black">
-                  {resumeWeek.recommendedAction === "refresh" ? "Update" : "Fill gaps"}
-                  <SparklesIcon className="h-4 w-4" />
-                </span>
-              </button>
-            ) : resumeWeek.lesson ? (
-              <Link
-                href={`/dashboard/lessons/${resumeWeek.lesson.id}`}
-                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary px-4 py-3 text-left text-primary-foreground shadow-2xl shadow-black/30"
-              >
-                <span className="min-w-0">
-                  <span className="block text-[9px] font-black uppercase tracking-widest text-primary-foreground/80">
-                    Ready to teach
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs font-black">
-                    {teachingMeetingLabel(resumeWeek.week, resumeWeek.session, resumeWeek.meetingsInWeek)}: {resumeWeek.topic}
-                  </span>
-                </span>
-                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-black">
-                  Open <BookOpenIcon className="h-4 w-4" />
-                </span>
-              </Link>
-            ) : null}
-          </div>
-        )}
 
       {error && (
         <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">
@@ -1113,7 +1006,7 @@ export function ClassTeachingWorkspace({
         </div>
       )}
 
-      {courseId && !plan && !busy && planStage?.state !== "blocked" && (
+      {courseId && !plan && !busy && planStage && planStage.state !== "blocked" && (
         <div className="rounded-2xl border border-dashed border-border p-8 text-center bg-card/40">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <BookOpenIcon className="h-6 w-6" />
@@ -1139,135 +1032,6 @@ export function ClassTeachingWorkspace({
 
       {plan && (
         <>
-          <section
-            id="teaching-workflow"
-            aria-labelledby="teaching-flow-title"
-            className="scroll-mt-24 rounded-2xl border border-border bg-background p-3.5 shadow-sm sm:p-5"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                  One connected workflow
-                </p>
-                <h3 id="teaching-flow-title" className="mt-1 text-base font-black text-foreground">
-                  From approved curriculum to the classroom
-                </h3>
-                <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
-                  The curriculum supplies the topics. The class plan turns them into teaching sessions. The assistant fills missing learning materials, you review each complete package, then students receive it and teaching is recorded.
-                </p>
-              </div>
-              {canManageCurriculum && (
-                <Link
-                  href={buildLessonPlanHref(plan.id)}
-                  className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/40"
-                >
-                  Edit curriculum mapping
-                </Link>
-              )}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
-              {[
-                {
-                  key: "plan",
-                  number: "1",
-                  title: "Curriculum → sessions",
-                  detail: `${workflow.curriculumWeeks} curriculum week${workflow.curriculumWeeks === 1 ? "" : "s"} expanded into ${workflow.totalSessions} teaching session${workflow.totalSessions === 1 ? "" : "s"}.`,
-                  active: false,
-                },
-                {
-                  key: "prepare",
-                  number: "2",
-                  title: "Prepare content",
-                  detail: workflow.missingContent > 0
-                    ? `${workflow.missingContent} session${workflow.missingContent === 1 ? "" : "s"} still need one or more learning items.`
-                    : "Every session has its five core learning items.",
-                  active: workflow.nextStage === "prepare",
-                },
-                {
-                  key: "review",
-                  number: "3",
-                  title: "Review and share",
-                  detail: workflow.readyToShare > 0
-                    ? `${workflow.readyToShare} complete package${workflow.readyToShare === 1 ? " is" : "s are"} waiting for teacher review.`
-                    : `${workflow.shared} package${workflow.shared === 1 ? " is" : "s are"} currently shared with students.`,
-                  active: workflow.nextStage === "review",
-                },
-                {
-                  key: "teach",
-                  number: "4",
-                  title: "Teach and record",
-                  detail: `${workflow.taught} of ${workflow.totalSessions} session${workflow.totalSessions === 1 ? "" : "s"} recorded as taught. Attendance and results stay linked to this class.`,
-                  active: workflow.nextStage === "teach" || workflow.nextStage === "complete",
-                },
-              ].map((step) => (
-                <div
-                  key={step.key}
-                  className={`min-w-0 rounded-xl border p-3 ${
-                    step.active
-                      ? "border-primary/40 bg-primary/10 shadow-sm"
-                      : "border-border bg-card/60"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
-                      step.active
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}>
-                      {step.number}
-                    </span>
-                    <p className="text-xs font-black text-foreground">{step.title}</p>
-                  </div>
-                  <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{step.detail}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex flex-col gap-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-[11px] leading-5 text-foreground/80">
-                <span className="font-black text-foreground">How automation behaves:</span>{" "}
-                whether a teacher or the assistant completes an item, it is saved in this same teaching session. Completed and teacher-edited work is kept; only genuine gaps are filled.
-                {data?.auto_generate?.auto_publish
-                  ? " Automatic sharing is enabled for complete packages."
-                  : " Students see nothing until a teacher shares the complete package."}
-              </p>
-              <div className="flex shrink-0 flex-wrap gap-2">
-              {canEdit && workflow.missingContent > 0 && (
-                <button
-                  type="button"
-                  disabled={busy || aiBusy || !planReady}
-                  onClick={() => void generateMissingPackages()}
-                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-xs font-black text-white disabled:opacity-50"
-                >
-                  {aiBusy ? (
-                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <SparklesIcon className="h-4 w-4" />
-                  )}
-                  {workflow.missingItems > 0
-                    ? `Fill ${workflow.missingItems} missing item${workflow.missingItems === 1 ? "" : "s"}`
-                    : "Update changed items"}
-                </button>
-              )}
-              {workflow.readyToShare > 0 && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    document
-                      .getElementById("next-teacher-action")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                  }
-                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-2 text-xs font-black text-orange-800 transition-colors hover:bg-orange-500/20 dark:text-orange-200"
-                >
-                  <RocketLaunchIcon className="h-4 w-4" />
-                  Review next package
-                </button>
-              )}
-              </div>
-            </div>
-          </section>
-
           {/* Up Next / Command Hero Card */}
           {resumeWeek && (
             <div
@@ -1661,7 +1425,7 @@ export function ClassTeachingWorkspace({
           </details>
 
           {/* Main Teaching Packages Hub */}
-          <div className="rounded-2xl border border-border bg-background p-3.5 sm:p-5 shadow-sm">
+          <div id="teaching-sessions" className="scroll-mt-24 rounded-2xl border border-border bg-background p-3.5 sm:p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h3 className="text-base font-black text-foreground">
@@ -1689,25 +1453,21 @@ export function ClassTeachingWorkspace({
               </span>
             </div>
 
-            {/* A read-only curriculum journey belongs in delivery. Teachers can see the
-                whole approved sequence here without entering the administrator editor. */}
+            {/* Keep the full approved order available without placing a second
+                row of week cards in front of today's teaching action. */}
             {weekRows.length > 0 && (
-              <section className="mt-4 border-t border-border/60 pt-4" aria-labelledby="curriculum-journey-title">
-                <div className="mb-3 flex items-end justify-between gap-3">
-                  <div>
-                    <h4 id="curriculum-journey-title" className="text-xs font-black text-foreground">
-                      Approved curriculum journey
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Every topic in teaching order. Select a card to open its full package below.
-                    </p>
-                  </div>
+              <details className="group/order mt-4 rounded-xl border border-border bg-card/50">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+                  <span>
+                    <span className="block text-xs font-black text-foreground">View full teaching order</span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">All approved topics, kept out of the way until needed.</span>
+                  </span>
                   <span className="shrink-0 text-[10px] font-bold text-muted-foreground">
                     {workflow.curriculumWeeks} weeks · {workflow.totalSessions} sessions
                   </span>
-                </div>
+                </summary>
                 <div
-                  className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 scrollbar-none [-webkit-overflow-scrolling:touch]"
+                  className="mx-3 flex snap-x snap-mandatory gap-2 overflow-x-auto border-t border-border py-3 scrollbar-none [-webkit-overflow-scrolling:touch]"
                   style={{ scrollbarWidth: "none" }}
                 >
                   {weekRows.map((row) => {
@@ -1756,10 +1516,10 @@ export function ClassTeachingWorkspace({
                     );
                   })}
                 </div>
-                <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">
+                <p className="px-3 pb-3 text-[10px] text-muted-foreground sm:hidden">
                   Swipe sideways to see every curriculum session.
                 </p>
-              </section>
+              </details>
             )}
 
             {/* Filter Bar, Term Selector, and Topic Search Input */}

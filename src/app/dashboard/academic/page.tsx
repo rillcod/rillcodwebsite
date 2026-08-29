@@ -297,7 +297,7 @@ export default function AcademicSpinePage() {
     ...(isAdmin
       ? [
           {
-            label: "Approved courses",
+            label: "Approved curricula",
             value:
               overview != null
                 ? `${overview.certified_courses}/${overview.central_courses}`
@@ -324,10 +324,10 @@ export default function AcademicSpinePage() {
     >
       <MobilePageHero
         badge={isAdmin ? "Academic Office" : "Teaching"}
-        title={isAdmin ? "Academic Office" : "What to teach"}
+        title={isAdmin ? "Academic overview" : "What to teach"}
         description={
           isAdmin
-            ? "See the next academic action across curriculum, classes, evidence and results."
+            ? "Continue the single next action from curriculum to class teaching and results."
             : "Open a class to continue the current week and all its learning activities."
         }
         icon={AcademicCapIcon}
@@ -500,31 +500,6 @@ export default function AcademicSpinePage() {
                 )}
               </section>
             )}
-
-          <nav
-            id="curriculum-lanes"
-            aria-label="Academic work areas"
-            className="grid grid-cols-3 gap-2"
-          >
-            <Link
-              href={isAdmin ? "/dashboard/academic/build" : "/dashboard/classes"}
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-sm font-bold text-foreground hover:border-primary/40"
-            >
-              {isAdmin ? "Curricula" : "Classes"}
-            </Link>
-            <Link
-              href="/dashboard/classes"
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-sm font-bold text-foreground hover:border-primary/40"
-            >
-              Teaching
-            </Link>
-            <Link
-              href="/dashboard/academic/results"
-              className="rounded-xl border border-border bg-card px-3 py-3 text-center text-sm font-bold text-foreground hover:border-primary/40"
-            >
-              Results
-            </Link>
-          </nav>
 
           {data && data.attention.length > 0 && (
             <section className="rounded-2xl border border-border bg-card p-5">

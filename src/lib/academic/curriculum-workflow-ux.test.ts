@@ -40,19 +40,18 @@ describe("curriculum to class-plan workflow UX", () => {
     }
     expect(classWorkspace).toContain("Let assistant fill");
     expect(classWorkspace).toContain("Share this complete package?");
-    expect(classWorkspace).toContain("Approved curriculum journey");
-    expect(classWorkspace).toContain("Review next package");
-    expect(classWorkspace).toContain("Ready for your review");
+    expect(classWorkspace).toContain("View full teaching order");
+    expect(classWorkspace).toContain("Ready for review");
     expect(classWorkspace).toContain("<ConfirmModal");
-    expect(classWorkspace).toContain("nextActionInView");
-    expect(classWorkspace).toContain("Content gap detected");
-    expect(classWorkspace).toContain("Ready to teach");
-    expect(classWorkspace).toContain('rootMargin: "-64px 0px -80px 0px"');
-    expect(classWorkspace).not.toContain('rootMargin: "-4rem 0px -5rem 0px"');
-    expect(classWorkspace).toContain("var(--app-bottom-nav-height)");
-    expect(classWorkspace).toContain("From approved curriculum to the classroom");
-    expect(classWorkspace).toContain("Curriculum → sessions");
-    expect(classWorkspace).toContain("Students see nothing until a teacher shares the complete package");
+    expect(classWorkspace).not.toContain("nextActionInView");
+    expect(classWorkspace).toContain("learning items still needed");
+    expect(classWorkspace).toContain("Ready for class");
+    expect(classWorkspace).not.toContain("IntersectionObserver");
+    expect(classWorkspace).not.toContain("var(--app-bottom-nav-height)");
+    expect(classWorkspace).toContain("Next teacher action");
+    expect(classWorkspace).not.toContain("From approved curriculum to the classroom");
+    expect(classWorkspace).not.toContain("Curriculum → sessions");
+    expect(classWorkspace).toContain("will become visible together");
   });
 
   it("shows learners the same connected package after the teacher shares it", () => {
@@ -65,13 +64,15 @@ describe("curriculum to class-plan workflow UX", () => {
   });
 
   it("presents the legacy lesson-plan list as class planning", () => {
-    expect(classPlanList).toContain("Class Plans");
-    expect(classPlanList).toContain("New Class Plan");
+    expect(classPlanList).toContain("Class plans");
+    expect(classPlanList).toContain("Start class plan");
     expect(classPlanList).toContain(
-      "The class plan expands the approved curriculum into weekly teaching packages."
+      "One plan connects an approved curriculum to one class, course and teaching period."
     );
     expect(classPlanList).not.toContain("New Lesson Plan");
     expect(classPlanList).toContain("buildClassTeachingHref");
+    expect(classPlanList).toContain("Open my classes");
+    expect(classPlanList).toContain("This class already has one plan. Opening it now.");
     expect(classPlanRoute).toContain("expandPlanWeeksForMeetings");
   });
 

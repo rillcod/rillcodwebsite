@@ -388,20 +388,19 @@ export default function DashboardNavigation() {
 
           { divider: true, label: "Academic Office" },
           {
-            name: "0 · Overview",
+            name: "Overview",
             href: "/dashboard/academic",
             icon: ShieldCheckIcon,
           },
-          // Curriculum lane, in the order of src/lib/academic/lanes.ts.
           {
-            name: "1 · Build",
+            name: "Curriculum",
             href: "/dashboard/academic/build",
             icon: BookOpenIcon,
           },
           {
             // Certify, distribute and timing were three pages, but publishing already
             // performs the rollout — they were never three decisions, only three screens.
-            name: "2 · Rollout",
+            name: "Approve & assign",
             href: "/dashboard/academic/rollout",
             icon: ShieldCheckIcon,
           },

@@ -5,23 +5,13 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CheckCircleIcon } from "@/lib/icons";
 import { useAuth } from "@/contexts/auth-context";
 import { mergeAssetLaneHref } from "@/lib/curriculum/href";
-import {
-  LANES,
-  canSeeAssetLaneChrome,
-  navigationStepsInLane,
-  type AcademicRole,
-  type LaneId,
-  type StageId,
-} from "@/lib/academic/lanes";
+import { canSeeAssetLaneChrome, type AcademicRole, type LaneId, type StageId } from "@/lib/academic/lanes";
+import { ACADEMIC_WORKFLOW } from "@/lib/academic/object-model";
 
 /**
- * One stepper for a lane, built from the kernel. Any page inside a lane mounts
- * this instead of writing its own stage list, so the order and wording can
- * never disagree between screens.
- *
- * Teachers and schools never see the asset-lane strip. It is Academic Office
- * work (Overview / Build / Rollout), and offering it made the curriculum
- * pages look like an admin console.
+ * One quiet, end-to-end path for Academic Office work. Detailed business
+ * states remain in the kernel; people see only the five places they actually
+ * move through. Teachers and schools enter through Classes instead.
  */
 export function LaneChrome({
   lane,
@@ -37,89 +27,40 @@ export function LaneChrome({
   if (lane === "asset" && !canSeeAssetLaneChrome(profile?.role as AcademicRole | undefined)) {
     return null;
   }
-  const stages = navigationStepsInLane(lane);
 
-  const activeIndex = (() => {
-    if (current) {
-      const byId = stages.findIndex((s) => s.stageIds.includes(current));
-      if (byId >= 0) return byId;
-    }
-    // Longest matching href wins, so /studio/schools beats /studio.
-    let best = -1;
-    let bestLength = -1;
-    stages.forEach((s, index) => {
-      const path = s.href.split("?")[0];
-      if (
-        (pathname === path || pathname.startsWith(`${path}/`)) &&
-        path.length > bestLength
-      ) {
-        best = index;
-        bestLength = path.length;
-      }
-    });
-    return best;
-  })();
+  // Guide and diagnostic pages are supporting tools, not workflow stages.
+  if (pathname === "/dashboard/academic/guide") return null;
 
-  // The Academic home shows Overview as the start of the lane.
-  // Stage pages show their step. Guide/results show nothing.
-  const isOverviewHome = pathname === "/dashboard/academic";
-  if (activeIndex < 0 && !isOverviewHome) return null;
+  const activeIndex = ACADEMIC_WORKFLOW.findIndex((item) => {
+    if (item.id === "overview") return pathname === item.href;
+    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+  });
 
-  const stageHref = (href: string) =>
-    lane === "asset" ? mergeAssetLaneHref(href, searchParams) : href;
-
-  const displayIndex = isOverviewHome ? -1 : activeIndex;
+  const workflowHref = (id: string, href: string) =>
+    lane === "asset" && (id === "curriculum" || id === "approval")
+      ? mergeAssetLaneHref(href, searchParams)
+      : href;
 
   return (
-    // Stay in document flow on mobile/PWA — sticky under the fixed header ate
-    // the first screen of content and competed with page chrome for the
-    // scrollport. Desktop can keep a light sticky strip.
     <div className="border-b border-border bg-background/95 px-4 py-3 sm:px-6 md:sticky md:top-0 md:z-30 md:backdrop-blur lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="text-sm font-black text-foreground">
-            {LANES[lane].label}
-          </p>
+          <p className="text-sm font-black text-foreground">Academic journey</p>
           <p className="text-xs text-muted-foreground">
-            {isOverviewHome
-              ? "Start at Overview"
-              : `Step ${displayIndex + 1} of ${stages.length}`}
+            {activeIndex <= 0 ? "Start here" : `Step ${activeIndex} of 4`}
           </p>
         </div>
-        <nav aria-label={`${LANES[lane].label} stages`} className="overflow-x-auto">
+        <nav aria-label="Academic workflow" className="overflow-x-auto">
           <ol className="flex min-w-max items-center gap-2" role="list">
-            <li>
-              <Link
-                href="/dashboard/academic"
-                aria-current={isOverviewHome ? "page" : undefined}
-                title="Academic Overview — start of the flow"
-                className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  isOverviewHome
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                    isOverviewHome
-                      ? "bg-primary-foreground/20"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  0
-                </span>
-                <span>Overview</span>
-              </Link>
-            </li>
-            {stages.map((stage, index) => {
-              const active = !isOverviewHome && index === activeIndex;
-              const earlier = !isOverviewHome && activeIndex >= 0 && index < activeIndex;
+            {ACADEMIC_WORKFLOW.map((item, index) => {
+              const active = index === activeIndex;
+              const earlier = activeIndex > index;
               return (
-                <li key={stage.id}>
+                <li key={item.id}>
                   <Link
-                    href={stageHref(stage.href)}
-                    aria-current={active ? "step" : undefined}
-                    title={stage.purpose}
+                    href={workflowHref(item.id, item.href)}
+                    aria-current={active ? (item.id === "overview" ? "page" : "step") : undefined}
+                    title={item.purpose}
                     className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       active
                         ? "border-primary bg-primary text-primary-foreground"
@@ -138,10 +79,11 @@ export function LaneChrome({
                       {earlier ? (
                         <CheckCircleIcon className="h-4 w-4" />
                       ) : (
-                        stage.step
+                        item.step
                       )}
                     </span>
-                    <span>{stage.label}</span>
+                    <span className="sm:hidden">{item.shortLabel}</span>
+                    <span className="hidden sm:inline">{item.label}</span>
                   </Link>
                 </li>
               );
