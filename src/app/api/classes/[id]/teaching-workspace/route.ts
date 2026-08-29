@@ -32,6 +32,7 @@ import {
 import { fallbackScheduleRow, readDeliveryPosition } from "@/lib/academic/entry-point";
 import { logAudit } from "@/lib/audit/log";
 import { summarizeTeachingGenerationRuns } from "@/lib/academic/tracked-week-generation";
+import { readSupabaseWithTransientRetry } from "@/lib/supabase/read-retry";
 
 export const dynamic = "force-dynamic";
 
@@ -182,14 +183,21 @@ export async function GET(
       // from every class visit.
       const [resolvedDirection, lessonResult] = await Promise.all([
         resolveOfficialCurriculumDirection(db, directionScope),
-        db
-          .from("lessons")
-          .select(
-            "id,title,description,content_layout,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
-          )
-          .eq("lesson_plan_id", plan.id)
-          .order("curriculum_week_number")
-          .order("order_index"),
+        readSupabaseWithTransientRetry(
+          () =>
+            db
+              .from("lessons")
+              .select(
+                "id,title,description,content_layout,status,session_date,session_number,duration_minutes,curriculum_week_number,lesson_plan_id,metadata,shared_master_id"
+              )
+              .eq("lesson_plan_id", plan.id)
+              .order("curriculum_week_number")
+              .order("order_index"),
+          {
+            onRetry: (error) =>
+              console.warn("[teaching-workspace] retrying lessons read", error),
+          }
+        ),
       ]);
       direction = resolvedDirection;
       if (lessonResult.error) {
@@ -222,69 +230,83 @@ export async function GET(
         examResult,
       ] =
         await Promise.all([
-          db
-            .from("class_lesson_delivery")
-            .select("*")
-            .eq("lesson_plan_id", plan.id)
-            .order("week_number"),
-          db
-            .from("class_term_teaching_progress")
-            .select("*")
-            .eq("lesson_plan_id", plan.id)
-            .maybeSingle(),
-          db
-            .from("teaching_generation_runs")
-            .select(
-              "status,curriculum_week_number,session_number,failed_types,started_at,completed_at"
-            )
-            .eq("lesson_plan_id", plan.id)
-            .order("started_at", { ascending: false })
-            .limit(1),
-          db
-            .from("assignments")
-            .select(
-              "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,session_number,metadata,assignment_type,shared_master_id"
-            )
-            .or(
-              [
-                `lesson_plan_id.eq.${plan.id}`,
-                ...(lessonIds.length
-                  ? [`lesson_id.in.(${lessonIds.join(",")})`]
-                  : []),
-              ].join(",")
-            )
-            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
-            .order("session_number", { ascending: true, nullsFirst: false })
-            .order("created_at", { ascending: false }),
-          db
-            .from("lesson_materials")
-            .select(
-              "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
-            )
-            .or(planOrLessonScope)
-            .eq("file_type", "slide-deck")
-            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
-            .order("session_number", { ascending: true, nullsFirst: false })
-            .order("created_at", { ascending: false }),
-          db
-            .from("flashcard_decks")
-            .select(
-              "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
-            )
-            .or(planOrLessonScope)
-            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
-            .order("session_number", { ascending: true, nullsFirst: false })
-            .order("created_at", { ascending: false }),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("class_lesson_delivery")
+              .select("*")
+              .eq("lesson_plan_id", plan.id)
+              .order("week_number")
+          ),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("class_term_teaching_progress")
+              .select("*")
+              .eq("lesson_plan_id", plan.id)
+              .maybeSingle()
+          ),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("teaching_generation_runs")
+              .select(
+                "status,curriculum_week_number,session_number,failed_types,started_at,completed_at"
+              )
+              .eq("lesson_plan_id", plan.id)
+              .order("started_at", { ascending: false })
+              .limit(1)
+          ),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("assignments")
+              .select(
+                "id,title,is_active,due_date,lesson_id,lesson_plan_id,curriculum_week_number,session_number,metadata,assignment_type,shared_master_id"
+              )
+              .or(
+                [
+                  `lesson_plan_id.eq.${plan.id}`,
+                  ...(lessonIds.length
+                    ? [`lesson_id.in.(${lessonIds.join(",")})`]
+                    : []),
+                ].join(",")
+              )
+              .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+              .order("session_number", { ascending: true, nullsFirst: false })
+              .order("created_at", { ascending: false })
+          ),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("lesson_materials")
+              .select(
+                "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
+              )
+              .or(planOrLessonScope)
+              .eq("file_type", "slide-deck")
+              .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+              .order("session_number", { ascending: true, nullsFirst: false })
+              .order("created_at", { ascending: false })
+          ),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("flashcard_decks")
+              .select(
+                "id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,is_public,content_stale_at"
+              )
+              .or(planOrLessonScope)
+              .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+              .order("session_number", { ascending: true, nullsFirst: false })
+              .order("created_at", { ascending: false })
+          ),
           // exam_type is not a column — it lives in metadata, the way the
           // results views read it (metadata->>'exam_type').
-          db
-            .from("cbt_exams")
-            .select(
-              "id,title,is_active,metadata,lesson_id,lesson_plan_id,curriculum_week_number"
-            )
-            .or(planOrLessonScope)
-            .order("curriculum_week_number", { ascending: true, nullsFirst: false })
-            .order("created_at", { ascending: false }),
+          readSupabaseWithTransientRetry(() =>
+            db
+              .from("cbt_exams")
+              .select(
+                "id,title,is_active,metadata,lesson_id,lesson_plan_id,curriculum_week_number"
+              )
+              .or(planOrLessonScope)
+              .order("curriculum_week_number", { ascending: true, nullsFirst: false })
+              .order("created_at", { ascending: false })
+          ),
         ]);
 
       const failedReads = [

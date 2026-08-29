@@ -49,6 +49,7 @@ describe('class workspace resilience and focus', () => {
     expect(teachingWorkspace).toContain('Retry class plan');
     expect(teachingRoute).toContain('incomplete class-plan response');
     expect(teachingRoute).toContain('no teaching content has been changed');
+    expect(teachingRoute).toContain('readSupabaseWithTransientRetry');
     const assessmentRead = teachingRoute.slice(
       teachingRoute.indexOf('.from("cbt_exams")'),
       teachingRoute.indexOf('.from("cbt_exams")') + 700,
