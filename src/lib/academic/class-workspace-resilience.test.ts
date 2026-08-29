@@ -19,6 +19,22 @@ describe('class workspace resilience and focus', () => {
     expect(classPage).toContain('Open to load class work');
   });
 
+  it('keeps the selected work mode in sync with the class URL', () => {
+    expect(classPage).toContain('const selectOperation =');
+    expect(classPage).toContain("url.searchParams.set('operation', operation)");
+    expect(classPage).toContain("window.history.replaceState(null, '', url.toString())");
+    expect(classPage).toContain('[requestedOperation, requestedCourseId]');
+    expect(classPage).not.toContain('}, [searchParams]);');
+  });
+
+  it('treats assignments and projects as one assessment record with correct destinations', () => {
+    expect(classPage).toContain("label: 'Tasks & projects'");
+    expect(classPage).toContain("a.assignment_type === 'project' ? `/dashboard/projects/${a.id}` : `/dashboard/assignments/${a.id}`");
+    expect(classPage).toContain('buildProjectNewHref');
+    expect(classPage).not.toContain('> New Assignment');
+    expect(classPage).not.toContain('Full Gradebook →');
+  });
+
   it('does not duplicate the teaching next action in a page-level alert strip', () => {
     expect(classPage).not.toContain('classPriorities');
     expect(classPage).not.toContain('aria-label="Class priorities"');

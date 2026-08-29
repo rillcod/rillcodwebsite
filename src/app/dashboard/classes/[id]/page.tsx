@@ -23,7 +23,7 @@ import { fetchActionJson, fetchJsonWithTimeout, withTimeout } from '@/lib/async-
 import {
   buildAssignmentNewHref,
   buildCbtNewHref,
-  buildGradesHref,
+  buildProjectNewHref,
   buildResultsHref,
 } from '@/lib/curriculum/href';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
@@ -78,16 +78,26 @@ export default function ClassDetailPage() {
     missingContent: 0,
     readyToShare: 0,
   });
+  const requestedOperation = searchParams.get('operation');
+  const requestedCourseId = searchParams.get('course_id');
 
   useEffect(() => {
-    const requested = searchParams.get('operation');
+    const requested = requestedOperation;
     if (requested === 'teaching' || requested === 'assessment' || requested === 'communication' || requested === 'roster') {
       setActiveOperation(requested);
       return;
     }
     // Deep links with a course should open Teaching — not leave curriculum buried under Roster.
-    if (searchParams.get('course_id')) setActiveOperation('teaching');
-  }, [searchParams]);
+    if (requestedCourseId) setActiveOperation('teaching');
+  }, [requestedOperation, requestedCourseId]);
+
+  const selectOperation = (operation: 'roster' | 'teaching' | 'assessment' | 'communication') => {
+    setActiveOperation(operation);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('operation', operation);
+    window.history.replaceState(null, '', url.toString());
+  };
 
   // The record strip belongs to the work mode, so switching mode lands on that mode's
   // first record rather than leaving a tab selected that the strip no longer offers.
@@ -1360,7 +1370,7 @@ export default function ClassDetailPage() {
   // "Class record" (details + session history) is reachable from every mode; the rest
   // only appear where they are the work in hand.
   const recordTabs = [
-    { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon, count: items.assignments.length, modes: ['assessment'] },
+    { id: 'assignments', label: 'Tasks & projects', icon: ClipboardDocumentListIcon, count: items.assignments.length, modes: ['assessment'] },
     { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon, count: items.cbt.length, modes: ['assessment'] },
     { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, count: undefined, modes: ['assessment'], staffOnly: true },
     { id: 'sessions', label: 'Sessions', icon: CalendarIcon, count: sessions.length, modes: ['communication'] },
@@ -1445,7 +1455,7 @@ export default function ClassDetailPage() {
                   : card.stat,
                 icon: card.icon,
                 selected: activeOperation === card.id,
-                onClick: () => setActiveOperation(card.id),
+                onClick: () => selectOperation(card.id),
               }))}
             />
           </div>
@@ -1459,7 +1469,7 @@ export default function ClassDetailPage() {
                   <button
                     key={card.id}
                     type="button"
-                    onClick={() => setActiveOperation(card.id)}
+                    onClick={() => selectOperation(card.id)}
                     className={`rounded-2xl border p-3 text-left transition-all ${
                       activeOperation === card.id
                         ? 'border-primary/40 bg-primary/10 shadow-sm'
@@ -2142,9 +2152,9 @@ export default function ClassDetailPage() {
                       }),
                     },
                     {
-                      label: 'Full gradebook',
-                      primary: false,
-                      href: buildGradesHref({
+                      label: 'New project',
+                      primary: true,
+                      href: buildProjectNewHref({
                         classId: id,
                         courseId: searchParams.get('course_id') || cls?.current_course_id,
                       }),
@@ -2331,19 +2341,14 @@ export default function ClassDetailPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ClipboardDocumentListIcon className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">Assignments</h2>
+                    <h2 className="text-sm font-bold text-foreground">Tasks & projects</h2>
                     <span className="text-xs text-muted-foreground">({items.assignments.length})</span>
                   </div>
-                  {isStaff && (
-                    <Link href={`/dashboard/assignments/new?class_id=${id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
-                      <PlusIcon className="w-3.5 h-3.5 text-primary" /> New Assignment
-                    </Link>
-                  )}
                 </div>
                 {items.assignments.length === 0 ? (
                   <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No assignments found for this programme.</p>
+                    <p className="text-sm text-muted-foreground">No tasks or projects have been set for this class.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
@@ -2356,13 +2361,15 @@ export default function ClassDetailPage() {
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
                           <p className="text-xs text-muted-foreground">
+                            <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
+                            {' · '}
                             Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
-                            {a.weight ? ` · ${a.weight} pts` : ''}
+                            {a.max_points ? ` · ${a.max_points} pts` : ''}
                           </p>
                         </div>
                       </div>
                     ) : (
-                      <Link key={a.id} href={`/dashboard/assignments/${a.id}`}
+                      <Link key={a.id} href={a.assignment_type === 'project' ? `/dashboard/projects/${a.id}` : `/dashboard/assignments/${a.id}`}
                         className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-4">
                         <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
@@ -2370,8 +2377,10 @@ export default function ClassDetailPage() {
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{a.title}</h4>
                           <p className="text-xs text-muted-foreground">
+                            <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
+                            {' · '}
                             Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
-                            {a.weight ? ` · ${a.weight} pts` : ''}
+                            {a.max_points ? ` · ${a.max_points} pts` : ''}
                           </p>
                         </div>
                         <ChevronRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -2390,11 +2399,6 @@ export default function ClassDetailPage() {
                     <h2 className="text-sm font-bold text-foreground">CBT Exams</h2>
                     <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
                   </div>
-                  {isStaff && (
-                    <Link href={`/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
-                      <PlusIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> New Exam
-                    </Link>
-                  )}
                 </div>
                 {items.cbt.length === 0 ? (
                   <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
@@ -2459,14 +2463,11 @@ export default function ClassDetailPage() {
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <Link href={`/dashboard/grades?class_id=${id}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
-                      Mark work →
+                      Open full gradebook →
                     </Link>
                     <Link href={learnerReportHref('write', { classId: id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
-                      Write scores →
+                      Write reports →
                     </Link>
-                    <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-primary hover:text-primary transition-colors whitespace-nowrap">
-                      Full Gradebook →
-                    </button>
                   </div>
                 </div>
                 {matrixError && (
