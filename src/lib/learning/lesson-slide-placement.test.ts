@@ -18,14 +18,14 @@ describe('lesson slide recap placement', () => {
     expect(lessonPage).toContain('<LessonSlideStrip');
   });
 
-  it('places the recap after the study notes, not above the hook', () => {
-    const hook = lessonPage.indexOf('STAGE 1: HOOK');
+  it('places the recap after the study notes, not above the opener', () => {
+    const opener = lessonPage.indexOf('Optional opener: saved content only');
     const notes = lessonPage.indexOf('STAGE 4: STUDY NOTES');
     const recap = lessonPage.indexOf('STAGE 5: SLIDE RECAP');
-    expect(hook).toBeGreaterThan(-1);
+    expect(opener).toBeGreaterThan(-1);
     expect(notes).toBeGreaterThan(-1);
     expect(recap).toBeGreaterThan(-1);
-    expect(hook).toBeLessThan(notes);
+    expect(opener).toBeLessThan(notes);
     expect(notes).toBeLessThan(recap);
   });
 

@@ -11,10 +11,11 @@ describe('lesson optional-generation fallbacks', () => {
     expect(lessonPage.match(/!response\.ok/g)).toHaveLength(3);
   });
 
-  it('keeps learner-facing fallbacks for explanation, recap and opener failures', () => {
+  it('keeps learner-facing fallbacks for explanation and recap, and surfaces opener failures', () => {
     expect(lessonPage).toContain('Your quiz result is safe');
     expect(lessonPage).toContain('Your lesson is complete and your progress is saved');
-    expect(lessonPage).toContain('the prepared lesson is unaffected');
+    expect(lessonPage).toContain('setHookError');
+    expect(lessonPage).toContain('Could not create the lesson opener');
   });
 
   it('does not silently swallow optional lesson generation failures', () => {
