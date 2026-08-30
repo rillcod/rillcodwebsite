@@ -50,6 +50,7 @@ import {
 } from "@/lib/lesson-plans/lesson-generation-mode";
 import { titlesAlreadyTaughtThisWeek } from "@/lib/academic/generation-ops";
 import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing";
+import { parseLessonHook } from "@/lib/lessons/lesson-hook";
 
 const ALLOWED_LESSON_TYPES = [
   "lesson",
@@ -437,6 +438,7 @@ export async function POST(
           }
 
           const d = aiData.data as Record<string, unknown>;
+          const savedLessonHook = parseLessonHook(d.lesson_hook);
           const { data: savedLesson, error: insertErr } = await supabase
             .from("lessons")
             .insert({
@@ -477,6 +479,7 @@ export async function POST(
                   Number.isFinite(effectiveTermNum) && effectiveTermNum > 0
                     ? effectiveTermNum
                     : null,
+                ...(savedLessonHook ? { lesson_hook: savedLessonHook } : {}),
               },
             })
             .select("id")

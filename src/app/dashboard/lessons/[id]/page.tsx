@@ -6,7 +6,6 @@ import {
   useEffect,
   useCallback,
   useMemo,
-  useRef,
   Fragment,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -79,6 +78,7 @@ import {
 } from "@/lib/learning/lesson-plan-scope";
 import NeuralVoiceReader from "@/components/ai/NeuralVoiceReader";
 import StudyAssistant from "@/components/ai/StudyAssistant";
+import { parseLessonHook, type LessonHookData } from "@/lib/lessons/lesson-hook";
 
 type ResourceItem = {
   id: string;
@@ -4242,15 +4242,9 @@ export default function LessonDetailPage() {
   const [generatingNotes, setGeneratingNotes] = useState(false);
   const startTimeRef = useState<number>(() => Date.now())[0];
   const [notesRead, setNotesRead] = useState(false);
-  const [lessonHook, setLessonHook] = useState<{
-    hook_title: string;
-    hook: string;
-    real_world_example: string;
-    challenge_question: string;
-  } | null>(null);
+  const [lessonHook, setLessonHook] = useState<LessonHookData | null>(null);
   const [hookLoading, setHookLoading] = useState(false);
   const [hookError, setHookError] = useState<string | null>(null);
-  const hookFetchedRef = useRef(false);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [viewerItem, setViewerItem] = useState<ResourceItem | null>(null);
@@ -4685,6 +4679,55 @@ export default function LessonDetailPage() {
 
   const isStaff = profile?.role === "admin" || profile?.role === "teacher";
 
+  const handleGenerateHook = async () => {
+    if (!lesson || !isStaff || hookLoading) return;
+    setHookLoading(true);
+    setHookError(null);
+    try {
+      const response = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "lesson-hook",
+          topic: lesson.title,
+          gradeLevel: lesson.grade_level || "JSS1–SS3",
+          courseName: lesson.courses?.title || undefined,
+          programName: lesson.courses?.programs?.name || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Lesson opener generation failed");
+      const generatedHook = parseLessonHook(payload.data);
+      if (!generatedHook) throw new Error("The AI returned an incomplete lesson opener");
+
+      const currentMetadata =
+        lesson.metadata && typeof lesson.metadata === "object"
+          ? lesson.metadata
+          : {};
+      const nextMetadata = {
+        ...currentMetadata,
+        lesson_hook: generatedHook,
+        lesson_hook_source: "teacher_ai",
+        lesson_hook_updated_at: new Date().toISOString(),
+      };
+      const saveResponse = await fetch(`/api/lessons/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metadata: nextMetadata }),
+      });
+      const savePayload = await saveResponse.json().catch(() => ({}));
+      if (!saveResponse.ok) {
+        throw new Error(savePayload.error || "Could not save the lesson opener");
+      }
+      setLessonHook(generatedHook);
+      setLesson((previous: any) => ({ ...previous, metadata: nextMetadata }));
+    } catch (error: any) {
+      setHookError(error?.message || "Could not create the lesson opener");
+    } finally {
+      setHookLoading(false);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     const user = profile as any;
     if (!id || !user) return;
@@ -4714,6 +4757,8 @@ export default function LessonDetailPage() {
         return;
       }
       const lessonObj = lessonData as any;
+      setLessonHook(parseLessonHook(lessonObj.metadata?.lesson_hook));
+      setHookError(null);
 
       // If the user is a student, check if their class has a course lock focus active
       if (user.role === "student" && user.class_id) {
@@ -4894,39 +4939,6 @@ export default function LessonDetailPage() {
     }
     fetchData();
   }, [authLoading, profileLoading, profile, fetchData]);
-
-  // Auto-fetch lesson hook once when lesson loads
-  useEffect(() => {
-    if (!lesson || hookFetchedRef.current) return;
-    hookFetchedRef.current = true;
-    setHookLoading(true);
-    setHookError(null);
-    fetch("/api/ai/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "lesson-hook",
-        topic: lesson.title,
-        gradeLevel: lesson.grade_level || "JSS1–SS3",
-        courseName: lesson.courses?.title || undefined,
-        programName: lesson.courses?.programs?.name || undefined,
-      }),
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || typeof payload.data?.hook !== "string" || !payload.data.hook.trim()) {
-          throw new Error("Lesson opener unavailable");
-        }
-        return payload;
-      })
-      .then((payload) => setLessonHook(payload.data))
-      .catch(() => {
-        setHookError(
-          "The optional lesson opener is temporarily unavailable. Continue with the objectives below; the prepared lesson is unaffected."
-        );
-      })
-      .finally(() => setHookLoading(false));
-  }, [lesson]);
 
   const handleMarkComplete = async () => {
     if (!profile || !id || marking || completed) return;
@@ -5395,94 +5407,86 @@ export default function LessonDetailPage() {
                       after the material it recaps, so it now renders inline as
                       STAGE 5, below the study notes. */}
 
-                  {/* ── STAGE 1: HOOK — cinematic opener ────────────────── */}
-                  <AnimatePresence>
-                    {(hookLoading || lessonHook || hookError) && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                        className="relative overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-indigo-500/5 to-amber-500/5"
+                  {/* Optional opener: saved content only. It never calls AI just
+                      because a learner opened the lesson; staff can generate it
+                      once and reuse the saved result for every viewer. */}
+                  {lessonHook ? (
+                    <motion.section
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl border border-primary/15 bg-primary/[0.03] p-5 sm:p-7 space-y-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[0.25em] text-primary/70">
+                            Optional lesson opener
+                          </p>
+                          <h3 className="mt-1 text-lg font-black tracking-tight text-foreground">
+                            {lessonHook.hook_title}
+                          </h3>
+                        </div>
+                        {isStaff && (
+                          <button
+                            type="button"
+                            onClick={handleGenerateHook}
+                            disabled={hookLoading}
+                            className="shrink-0 rounded-lg border border-border px-3 py-2 text-[11px] font-bold text-muted-foreground hover:border-primary/40 disabled:opacity-50"
+                          >
+                            {hookLoading ? "Refreshing…" : "Refresh"}
+                          </button>
+                        )}
+                      </div>
+                      {hookError && (
+                        <p className="text-xs font-semibold text-destructive">{hookError}</p>
+                      )}
+                      <BlockMarkdown
+                        content={lessonHook.hook}
+                        className="text-sm leading-relaxed text-muted-foreground"
+                      />
+                      {(lessonHook.real_world_example || lessonHook.challenge_question) && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {lessonHook.real_world_example && (
+                            <div className="rounded-xl border border-amber-500/15 bg-amber-500/[0.05] p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                                Real-world connection
+                              </p>
+                              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                                {lessonHook.real_world_example}
+                              </p>
+                            </div>
+                          )}
+                          {lessonHook.challenge_question && (
+                            <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.05] p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+                                Think about it
+                              </p>
+                              <p className="mt-1 text-sm font-semibold italic leading-relaxed text-foreground">
+                                {lessonHook.challenge_question}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.section>
+                  ) : isStaff ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Add an optional opener once for this lesson. It will be saved and reused.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleGenerateHook}
+                        disabled={hookLoading}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground disabled:opacity-50"
                       >
-                        {/* Animated scanline */}
-                        <motion.div
-                          animate={{ x: ["-100%", "200%"] }}
-                          transition={{
-                            duration: 3.5,
-                            repeat: Infinity,
-                            ease: "linear",
-                            repeatDelay: 4,
-                          }}
-                          className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-primary/8 to-transparent pointer-events-none z-0"
-                        />
-                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-
-                        {hookLoading ? (
-                          <div className="p-8 sm:p-12 flex items-center gap-4">
-                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                            <div className="space-y-1.5">
-                              <div className="h-2 w-48 bg-primary/20 rounded animate-pulse" />
-                              <div className="h-2 w-72 bg-muted/30 rounded animate-pulse" />
-                            </div>
-                          </div>
-                        ) : lessonHook ? (
-                            <div className="relative z-10 p-8 sm:p-12 space-y-6">
-                              <div className="flex items-start gap-4">
-                                <div className="shrink-0 w-10 h-10 bg-primary/20 border border-primary/30 flex items-center justify-center text-lg">
-                                  🔥
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-[9px] font-black text-primary/70 uppercase tracking-[0.4em]">
-                                    Lesson Hook
-                                  </p>
-                                  <h3 className="text-lg sm:text-xl font-black text-foreground leading-snug tracking-tight">
-                                    {lessonHook.hook_title}
-                                  </h3>
-                                </div>
-                              </div>
-                              <BlockMarkdown
-                                content={lessonHook.hook}
-                                className="text-sm sm:text-base text-muted-foreground leading-relaxed pl-14"
-                              />
-                              <div className="grid sm:grid-cols-2 gap-3 pl-14">
-                                {lessonHook.real_world_example && (
-                                  <div className="flex gap-3 p-4 bg-amber-500/8 border border-amber-500/15">
-                                    <span className="shrink-0 mt-0.5">🌍</span>
-                                    <div>
-                                      <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">
-                                        Real-World Connection
-                                      </p>
-                                      <p className="text-sm text-muted-foreground leading-relaxed">
-                                        {lessonHook.real_world_example}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
-                                {lessonHook.challenge_question && (
-                                  <div className="flex gap-3 p-4 bg-indigo-500/8 border border-indigo-500/15">
-                                    <span className="shrink-0 mt-0.5">💭</span>
-                                    <div>
-                                      <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">
-                                        Think About It
-                                      </p>
-                                      <p className="text-sm font-semibold text-foreground italic leading-relaxed">
-                                        {lessonHook.challenge_question}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                        ) : hookError ? (
-                          <div className="relative z-10 p-6 sm:p-8">
-                            <p className="text-sm font-semibold leading-relaxed text-muted-foreground">
-                              {hookError}
-                            </p>
-                          </div>
-                        ) : null}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        <SparklesIcon className="h-4 w-4" />
+                        {hookLoading ? "Creating…" : "Create opener"}
+                      </button>
+                      {hookError && (
+                        <p className="basis-full text-xs font-semibold text-destructive">{hookError}</p>
+                      )}
+                    </div>
+                  ) : null}
 
                   {/* ── STAGE 2: OBJECTIVES — scannable before diving in ─ */}
                   {lesson.objectives?.length > 0 && (

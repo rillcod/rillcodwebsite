@@ -252,6 +252,10 @@ describe("generators and workspace stay on that schema", () => {
     expect(
       read("src/app/api/lesson-plans/[id]/generate-lessons/route.ts"),
     ).toContain("titlesAlreadyTaughtThisWeek");
+    expect(
+      read("src/app/api/lesson-plans/[id]/generate-lessons/route.ts"),
+    ).toContain("parseLessonHook");
+    expect(read("src/lib/ai/generate-core.ts")).toContain('"lesson_hook"');
     for (const path of [
       "src/app/api/lesson-plans/[id]/generate-lessons/route.ts",
       "src/app/api/lesson-plans/[id]/generate-assignments/route.ts",

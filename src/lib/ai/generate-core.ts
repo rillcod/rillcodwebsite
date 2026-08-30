@@ -1027,6 +1027,12 @@ Return a JSON object with this exact shape:
         req.topic
       }",
   "description": "string — 2-sentence overview at the right reading level",
+  "lesson_hook": {
+    "hook_title": "string — short optional opener title",
+    "hook": "string — 2 short paragraphs that connect the topic to a real situation",
+    "real_world_example": "string — one concise local or everyday example",
+    "challenge_question": "string — one question to activate curiosity"
+  },
   "lesson_notes": "string — ${modeConfig.notesInstruction}",
   "objectives": ["string — at least 5 objectives. ${
     modeConfig.objectivesNote

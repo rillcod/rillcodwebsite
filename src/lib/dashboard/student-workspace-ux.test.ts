@@ -57,6 +57,8 @@ describe("student workspace UX", () => {
     expect(lessonPlayer).toContain("filterLessonsForClassPlans");
     expect(lessonPlayer).toContain("loadLessonsForClassPlans");
     expect(lessonPlayer).toContain("learningAssetMatchesLesson");
+    expect(lessonPlayer).toContain("handleGenerateHook");
+    expect(lessonPlayer).not.toContain("Auto-fetch lesson hook");
     expect(lessonPlayer).toContain('materialsQuery.eq("is_public", true)');
     expect(lessonPlayer).toContain('flashcardQuery.eq("is_public", true)');
     expect(lessonPlayer).toContain('scopedAssignmentQuery.eq("is_active", true)');
