@@ -72,7 +72,7 @@ export default function StudentLearningPage() {
     
     try {
       // 1. Fetch summary stats — grades, lessons and XP prefer the live academic session.
-      const { resolveAssignmentTermId, filterByAssignmentSession, matchesAssignmentSession } = await import('@/lib/assignments/session');
+      const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
       const { loadAcademicTermBounds } = await import('@/lib/cbt/session');
       const [liveTermId, pack] = await Promise.all([
         resolveAssignmentTermId(db as any, {}),
@@ -134,39 +134,18 @@ export default function StudentLearningPage() {
       const pendingScoped = filterByAssignmentSession((pendingRows ?? []) as any[], liveTermId);
       setPendingAssignments(pendingScoped.length);
 
-      // 3.5 Due flashcards in live-session decks only (skip held-for-approval decks)
-      const { data: decks } = await withTimeout(
-        db.from('flashcard_decks').select('id, term_id, is_public, lesson_plan_id'),
-        { data: [], error: null },
-        'learning flashcard decks',
+      // 3.5 Use the same server-side visibility rule as the flashcard library.
+      // This prevents another class's decks from affecting this learner's count.
+      const flashcardStatsResponse = await withTimeoutOrThrow(
+        fetch('/api/flashcards/stats', { cache: 'no-store' }),
+        'Your practice-card count is taking longer than expected. Please retry.',
+        15_000,
       );
-      const liveDeckIds = ((decks ?? []) as any[])
-        .filter((d) => !(d.is_public === false && d.lesson_plan_id))
-        .filter((d) => matchesAssignmentSession(d.term_id, liveTermId, true))
-        .map((d) => d.id);
-      let dueFlashcardsCount = 0;
-      if (liveDeckIds.length > 0) {
-        const { data: cards } = await withTimeout(
-          db.from('flashcard_cards').select('id').in('deck_id', liveDeckIds),
-          { data: [], error: null },
-          'learning flashcard cards',
-        );
-        const cardIds = ((cards ?? []) as any[]).map((c) => c.id);
-        if (cardIds.length > 0) {
-          const { data: dueCards } = await withTimeout(
-            db
-              .from('flashcard_reviews')
-              .select('card_id, next_review_at')
-              .eq('student_id', profile.id)
-              .in('card_id', cardIds),
-            { data: [], error: null },
-            'learning due flashcards',
-          );
-          const nowVal = new Date();
-          dueFlashcardsCount = (dueCards ?? []).filter((r: any) => !r.next_review_at || new Date(r.next_review_at) <= nowVal).length;
-        }
+      const flashcardStats = await flashcardStatsResponse.json();
+      if (!flashcardStatsResponse.ok) {
+        throw new Error(flashcardStats.error || 'Could not load practice-card count');
       }
-      setDueFlashcards(dueFlashcardsCount);
+      setDueFlashcards(Number(flashcardStats.data?.due_today ?? 0));
 
       const { data: completedIds } = await withTimeout(
         db

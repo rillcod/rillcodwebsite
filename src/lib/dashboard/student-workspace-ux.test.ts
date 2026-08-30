@@ -41,6 +41,8 @@ describe("student workspace UX", () => {
     expect(learning).toContain("Open class session");
     expect(learning).not.toContain("['Lesson', 'Slides', 'Practice', 'Assignment', 'Project'].map");
     expect(learning).toContain("All learning tools");
+    expect(learning).toContain("fetch('/api/flashcards/stats'");
+    expect(learning).not.toContain("db.from('flashcard_decks')");
     expect(learning).not.toContain("/dashboard/learning/stats");
     expect(learning).not.toContain(".order('id', { ascending: true })");
     expect(learning).not.toContain("Skill Revision Gym");

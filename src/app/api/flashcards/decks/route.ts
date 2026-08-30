@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
-import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
-import { canReadFlashcardDeck, getFlashcardCaller } from '@/lib/flashcards/auth';
+import {
+  filterReadableFlashcardDecks,
+  getFlashcardCaller,
+} from '@/lib/flashcards/auth';
 import type { Database, Json } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,9 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient();
   const profile = await getFlashcardCaller(db as any, user.id);
+  if (!profile) {
+    return NextResponse.json({ error: 'User profile not found' }, { status: 403 });
+  }
   const url = new URL(req.url);
   const courseId = url.searchParams.get('course_id');
   const lessonId = url.searchParams.get('lesson_id');
@@ -41,7 +46,7 @@ export async function GET(req: NextRequest) {
   // (or null) school_id than the student isn't hidden by RLS/school mismatch.
   let query = db
     .from('flashcard_decks')
-    .select('*, flashcard_cards(count), courses(program_id)')
+    .select('*, flashcard_cards(count), courses(program_id), lesson_plans(class_id)')
     .order('created_at', { ascending: false });
 
   if (role === 'admin') {
@@ -54,14 +59,11 @@ export async function GET(req: NextRequest) {
   } else if (role === 'school') {
     if (profile?.school_id) query = query.eq('school_id', profile.school_id) as any;
   } else {
-    // student — decks for enrolled programmes/courses only, with school boundary.
-    const scope = await resolveStudentProgramScope(db as any, user.id, profile?.class_id ?? null);
-    const enrolledCourseIds = Array.from(scope.courseIds);
-    const ors: string[] = [];
-    if (enrolledCourseIds.length > 0) ors.push(`course_id.in.(${enrolledCourseIds.join(',')})`);
-    if (profile?.school_id) ors.push(`school_id.eq.${profile.school_id}`);
-    if (ors.length === 0) return NextResponse.json({ data: [] });
-    query = query.or(ors.join(',')) as any;
+    // Student candidates stay inside their school boundary. Programme/course
+    // and exact class checks are then applied together by the shared helper.
+    query = profile.school_id
+      ? query.or(`school_id.eq.${profile.school_id},school_id.is.null`) as any
+      : query.is('school_id', null) as any;
   }
   if (courseId) query = query.eq('course_id', courseId) as any;
   if (lessonId) query = query.eq('lesson_id', lessonId) as any;
@@ -88,10 +90,12 @@ export async function GET(req: NextRequest) {
         )
       : sessionScoped;
 
-  const scopedData = role === 'student'
-    ? await Promise.all(visibleToRole.map(async (deck: any) => (profile && await canReadFlashcardDeck(db as any, profile, deck)) ? deck : null))
-    : visibleToRole;
-  return NextResponse.json({ data: scopedData.filter(Boolean) });
+  const scopedData = await filterReadableFlashcardDecks(
+    db as any,
+    profile,
+    visibleToRole as any[],
+  );
+  return NextResponse.json({ data: scopedData });
 }
 
 // POST /api/flashcards/decks
