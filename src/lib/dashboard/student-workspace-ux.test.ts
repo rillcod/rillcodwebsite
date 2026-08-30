@@ -37,6 +37,10 @@ describe("student workspace UX", () => {
     expect(learning).toContain("loadLearnerClassWeek");
     expect(learning).toContain("thisWeekLessons");
     expect(learning).toContain("Your teacher has not shared a week yet.");
+    expect(learning).toContain("lesson.learner_package?.[key] === true");
+    expect(learning).toContain("Open class session");
+    expect(learning).not.toContain("['Lesson', 'Slides', 'Practice', 'Assignment', 'Project'].map");
+    expect(learning).toContain("All learning tools");
     expect(learning).not.toContain("/dashboard/learning/stats");
     expect(learning).not.toContain(".order('id', { ascending: true })");
     expect(learning).not.toContain("Skill Revision Gym");
@@ -50,6 +54,10 @@ describe("student workspace UX", () => {
     const lessonPlayer = read("src/app/dashboard/lessons/[id]/page.tsx");
     expect(lessonPlayer).toContain("filterLessonsForClassPlans");
     expect(lessonPlayer).toContain("loadLessonsForClassPlans");
+    expect(lessonPlayer).toContain('materialsQuery.eq("is_public", true)');
+    expect(lessonPlayer).toContain('flashcardQuery.eq("is_public", true)');
+    expect(lessonPlayer).toContain('scopedAssignmentQuery.eq("is_active", true)');
+    expect(lessonPlayer).toContain('quizQuery.eq("is_active", true)');
     expect(lessonPlayer).not.toContain("class-week-package");
   });
 

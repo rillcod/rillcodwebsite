@@ -56,7 +56,8 @@ describe("curriculum to class-plan workflow UX", () => {
 
   it("shows learners the same connected package after the teacher shares it", () => {
     expect(learnerWorkspace).toContain("Your Week ${thisWeekNumber} class package");
-    expect(learnerWorkspace).toContain("lesson, slides, practice cards, assignment and project stay connected");
+    expect(learnerWorkspace).toContain("shared lesson and learning tools stay together");
+    expect(learnerWorkspace).toContain("lesson.learner_package?.[key] === true");
     expect(learnerWorkspace).toContain("Open complete package");
     expect(learnerWorkspace).toContain("Earlier shared weeks");
     expect(learnerWorkspace).not.toContain("ðŸ");

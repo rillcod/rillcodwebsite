@@ -183,7 +183,7 @@ export async function GET(
       // from every class visit.
       const [resolvedDirection, lessonResult] = await Promise.all([
         resolveOfficialCurriculumDirection(db, directionScope),
-        readSupabaseWithTransientRetry(
+        readSupabaseWithTransientRetry<any[]>(
           () =>
             db
               .from("lessons")
@@ -230,21 +230,21 @@ export async function GET(
         examResult,
       ] =
         await Promise.all([
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any[]>(() =>
             db
               .from("class_lesson_delivery")
               .select("*")
               .eq("lesson_plan_id", plan.id)
               .order("week_number")
           ),
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any>(() =>
             db
               .from("class_term_teaching_progress")
               .select("*")
               .eq("lesson_plan_id", plan.id)
               .maybeSingle()
           ),
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any[]>(() =>
             db
               .from("teaching_generation_runs")
               .select(
@@ -254,7 +254,7 @@ export async function GET(
               .order("started_at", { ascending: false })
               .limit(1)
           ),
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any[]>(() =>
             db
               .from("assignments")
               .select(
@@ -272,7 +272,7 @@ export async function GET(
               .order("session_number", { ascending: true, nullsFirst: false })
               .order("created_at", { ascending: false })
           ),
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any[]>(() =>
             db
               .from("lesson_materials")
               .select(
@@ -284,7 +284,7 @@ export async function GET(
               .order("session_number", { ascending: true, nullsFirst: false })
               .order("created_at", { ascending: false })
           ),
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any[]>(() =>
             db
               .from("flashcard_decks")
               .select(
@@ -297,7 +297,7 @@ export async function GET(
           ),
           // exam_type is not a column — it lives in metadata, the way the
           // results views read it (metadata->>'exam_type').
-          readSupabaseWithTransientRetry(() =>
+          readSupabaseWithTransientRetry<any[]>(() =>
             db
               .from("cbt_exams")
               .select(

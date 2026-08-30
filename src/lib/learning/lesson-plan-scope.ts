@@ -30,6 +30,21 @@ export type LearnerClassWeek = {
   lessons: any[];
 };
 
+export type LearnerPackageAvailability = {
+  lesson: true;
+  slides: boolean;
+  practice: boolean;
+  assignment: boolean;
+  project: boolean;
+  availableCount: number;
+};
+
+type LearnerPackageRows = {
+  slides?: readonly any[];
+  flashcards?: readonly any[];
+  assignments?: readonly any[];
+};
+
 export function lessonPlanIdOf(lesson: any): string | null {
   // Canonical column first — generators write lesson_plan_id directly.
   const column = lesson?.lesson_plan_id;
@@ -139,6 +154,59 @@ export function nextLessonInClassOrder(
   const ordered = sortLessonsByClassWeek(lessons);
   if (ordered.length === 0) return null;
   return ordered.find((lesson) => !completedIds.has(lesson.id)) ?? ordered[ordered.length - 1] ?? null;
+}
+
+function packageRowMatchesLesson(row: any, lesson: any): boolean {
+  const rowLessonId = String(row?.lesson_id ?? '').trim();
+  if (rowLessonId) return rowLessonId === String(lesson?.id ?? '').trim();
+
+  const rowPlanId = String(row?.lesson_plan_id ?? '').trim();
+  const lessonPlanId = lessonPlanIdOf(lesson);
+  if (!rowPlanId || !lessonPlanId || rowPlanId !== lessonPlanId) return false;
+  if (academicWeekNumber(row) !== academicWeekNumber(lesson)) return false;
+  return assetMeetingSession(row) === assetMeetingSession(lesson);
+}
+
+function isProjectRow(row: any): boolean {
+  return (
+    String(row?.assignment_type ?? '').toLowerCase() === 'project' &&
+    row?.metadata?.source !== 'week-ai-generator'
+  );
+}
+
+/**
+ * Add the real learner-visible contents of each shared teaching session.
+ * The dashboard uses this instead of advertising five items unconditionally.
+ */
+export function attachLearnerPackageAvailability(
+  lessons: readonly any[],
+  rows: LearnerPackageRows,
+): any[] {
+  return lessons.map((lesson) => {
+    const linkedAssignments = (rows.assignments ?? []).filter((row) =>
+      packageRowMatchesLesson(row, lesson),
+    );
+    const availability: LearnerPackageAvailability = {
+      lesson: true,
+      slides: (rows.slides ?? []).some((row) =>
+        packageRowMatchesLesson(row, lesson),
+      ),
+      practice: (rows.flashcards ?? []).some((row) =>
+        packageRowMatchesLesson(row, lesson),
+      ),
+      assignment: linkedAssignments.some((row) => !isProjectRow(row)),
+      project: linkedAssignments.some(isProjectRow),
+      availableCount: 1,
+    };
+    availability.availableCount = [
+      availability.lesson,
+      availability.slides,
+      availability.practice,
+      availability.assignment,
+      availability.project,
+    ].filter(Boolean).length;
+    return { ...lesson, learner_package: availability };
+  });
 }
 
 /**
@@ -263,20 +331,22 @@ export async function loadLearnerClassWeek(
   };
   if (!cid) return empty;
 
-  const { data: klass } = await db
+  const { data: klass, error: classError } = await db
     .from('classes')
     .select(CLASS_SELECT)
     .eq('id', cid)
     .maybeSingle();
+  if (classError) throw classError;
 
   const currentWeek = currentWeekFromClass(klass);
 
-  const { data: planRows } = await db
+  const { data: planRows, error: planError } = await db
     .from('lesson_plans')
     .select(
       'id, class_id, course_id, term_id, offering_period_id, curriculum_release_id, status, courses(id, title, program_id, programs(name))',
     )
     .eq('class_id', cid);
+  if (planError) throw planError;
 
   const plans = selectClassPlansForScope(planRows ?? [], {
     classId: cid,
@@ -286,15 +356,16 @@ export async function loadLearnerClassWeek(
   }).map((plan) => ({ ...plan, courses: asOne(plan.courses) }));
   if (plans.length === 0) return { ...empty, currentWeek };
 
-  const { data: lessonRows } = await db
+  const { data: lessonRows, error: lessonError } = await db
     .from('lessons')
     .select(LESSON_SELECT)
     .in(
       'lesson_plan_id',
       plans.map((plan) => plan.id),
     );
+  if (lessonError) throw lessonError;
 
-  const lessons = visibleLessonsOnClassPlans(
+  const visibleLessons = visibleLessonsOnClassPlans(
     (lessonRows ?? []).map((lesson: any) => ({
       ...lesson,
       courses: asOne(lesson.courses),
@@ -303,6 +374,51 @@ export async function loadLearnerClassWeek(
     cid,
     { currentWeek },
   );
+  if (visibleLessons.length === 0) {
+    return { ...empty, currentWeek };
+  }
+
+  const lessonIds = visibleLessons.map((lesson) => lesson.id).filter(Boolean);
+  const planIds = [...new Set(visibleLessons.map(lessonPlanIdOf).filter(Boolean))];
+  const packageScope = [
+    lessonIds.length ? `lesson_id.in.(${lessonIds.join(',')})` : '',
+    planIds.length ? `lesson_plan_id.in.(${planIds.join(',')})` : '',
+  ]
+    .filter(Boolean)
+    .join(',');
+  const [slideResult, flashcardResult, assignmentResult] = await Promise.all([
+    db
+      .from('lesson_materials')
+      .select(
+        'id, lesson_id, lesson_plan_id, curriculum_week_number, session_number, is_public',
+      )
+      .or(packageScope)
+      .eq('file_type', 'slide-deck')
+      .eq('is_public', true),
+    db
+      .from('flashcard_decks')
+      .select(
+        'id, lesson_id, lesson_plan_id, curriculum_week_number, session_number, is_public',
+      )
+      .or(packageScope)
+      .eq('is_public', true),
+    db
+      .from('assignments')
+      .select(
+        'id, lesson_id, lesson_plan_id, curriculum_week_number, session_number, assignment_type, metadata, is_active',
+      )
+      .or(packageScope)
+      .eq('is_active', true),
+  ]);
+  const packageError =
+    slideResult.error ?? flashcardResult.error ?? assignmentResult.error;
+  if (packageError) throw packageError;
+
+  const lessons = attachLearnerPackageAvailability(visibleLessons, {
+    slides: slideResult.data ?? [],
+    flashcards: flashcardResult.data ?? [],
+    assignments: assignmentResult.data ?? [],
+  });
   const week = thisWeekNumber(lessons, currentWeek);
   return {
     currentWeek,

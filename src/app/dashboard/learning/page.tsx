@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { withTimeout } from '@/lib/async-timeout';
+import { withTimeout, withTimeoutOrThrow } from '@/lib/async-timeout';
 import { academicWeekNumber } from '@/lib/academic/week-package';
 import {
   loadLearnerClassWeek,
@@ -67,13 +67,21 @@ export default function StudentLearningPage() {
   const loadData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
+    setLoadError(null);
     const db = createClient();
     
     try {
       // 1. Fetch summary stats — grades, lessons and XP prefer the live academic session.
       const { resolveAssignmentTermId, filterByAssignmentSession, matchesAssignmentSession } = await import('@/lib/assignments/session');
       const { loadAcademicTermBounds } = await import('@/lib/cbt/session');
-      const liveTermId = await resolveAssignmentTermId(db as any, {});
+      const [liveTermId, pack] = await Promise.all([
+        resolveAssignmentTermId(db as any, {}),
+        withTimeoutOrThrow(
+          loadLearnerClassWeek(db, profile.class_id),
+          'Your class package is taking longer than expected. Please retry.',
+          20_000,
+        ),
+      ]);
       const termBounds = await loadAcademicTermBounds(db as any, liveTermId);
 
       const [xpRes, streakRes, progressRes, subsRes] = await withTimeout(Promise.all([
@@ -176,11 +184,6 @@ export default function StudentLearningPage() {
       );
       setCompletedLessonIds(doneSet);
 
-      const pack = await withTimeout(
-        loadLearnerClassWeek(db, profile.class_id),
-        { currentWeek: 1, week: null, thisWeekLessons: [], lessons: [] },
-        'learning class week',
-      );
       setLessons(pack.lessons);
       setThisWeekNumber(pack.week);
       setThisWeekLessons(pack.thisWeekLessons);
@@ -346,7 +349,7 @@ export default function StudentLearningPage() {
                 {thisWeekNumber ? `Your Week ${thisWeekNumber} class package` : 'Your class package'}
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-                Your lesson, slides, practice cards, assignment and project stay connected. Open the session once, then move between its learning tools.
+                Your teacher's shared lesson and learning tools stay together. Open the session once, then move through what is available.
               </p>
             </div>
             {thisWeekLessons.length > 0 && (
@@ -370,6 +373,14 @@ export default function StudentLearningPage() {
               {thisWeekLessons.map((lesson) => {
                 const isCompleted = completedLessonIds.has(lesson.id);
                 const isNext = nextLesson?.id === lesson.id;
+                const packageItems = [
+                  { key: 'lesson', label: 'Lesson' },
+                  { key: 'slides', label: 'Slides' },
+                  { key: 'practice', label: 'Practice' },
+                  { key: 'assignment', label: 'Assignment' },
+                  { key: 'project', label: 'Project' },
+                ].filter(({ key }) => lesson.learner_package?.[key] === true);
+                const completePackage = lesson.learner_package?.availableCount === 5;
                 return (
                   <Link
                     key={lesson.id}
@@ -404,23 +415,23 @@ export default function StudentLearningPage() {
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-1.5">
-                      {['Lesson', 'Slides', 'Practice', 'Assignment', 'Project'].map((item) => (
-                        <span key={item} className="rounded-full border border-border bg-card px-2 py-1 text-[9px] font-bold text-muted-foreground">
-                          {item}
+                      {packageItems.map((item) => (
+                        <span key={item.key} className="rounded-full border border-border bg-card px-2 py-1 text-[9px] font-bold text-muted-foreground">
+                          {item.label}
                         </span>
                       ))}
                     </div>
                     <span className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-black text-primary">
-                      Open complete package <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      {completePackage ? 'Open complete package' : 'Open class session'} <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </span>
                   </Link>
                 );
               })}
             </div>
           )}
-          <div className="mt-6 border-t border-border pt-4">
-            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Learning shortcuts</p>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <details className="mt-6 border-t border-border pt-4">
+            <summary className="cursor-pointer text-xs font-black text-muted-foreground">All learning tools</summary>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               <Link href="/dashboard/assignments" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-primary/40">
                 <ClipboardDocumentListIcon className="h-4 w-4 text-primary" />
                 Assignments{pendingAssignments > 0 ? ` (${pendingAssignments})` : ''}
@@ -436,7 +447,7 @@ export default function StudentLearningPage() {
                 <RocketLaunchIcon className="h-4 w-4 text-sky-600" /> Projects
               </Link>
             </div>
-          </div>
+          </details>
         </section>
 
         <ClassReplays heading={isKids ? 'Class replays' : 'Class Replays'} />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rowMatchesTeachingPeriod } from '@/lib/academic/teaching-period';
 import {
+  attachLearnerPackageAvailability,
   compareLessonsByClassWeek,
   lessonsOnWeek,
   nextLessonInClassOrder,
@@ -100,6 +101,66 @@ describe('learner lesson order', () => {
     const b = lesson({ id: 'zzz', title: 'First week', curriculum_week_number: 1 });
     expect(compareLessonsByClassWeek(a, b)).toBeGreaterThan(0);
     expect(nextLessonInClassOrder([a, b], new Set())?.id).toBe('zzz');
+  });
+});
+
+describe('learner class package', () => {
+  it('reports only items that are linked to the exact lesson session', () => {
+    const rows = [
+      lesson({ id: 'lesson-1', title: 'One', curriculum_week_number: 1 }),
+      lesson({ id: 'lesson-2', title: 'Two', curriculum_week_number: 2 }),
+    ];
+    const attached = attachLearnerPackageAvailability(rows, {
+      slides: [
+        { lesson_id: 'lesson-1' },
+        {
+          lesson_plan_id: 'plan-1',
+          curriculum_week_number: 2,
+          session_number: 1,
+        },
+      ],
+      flashcards: [{ lesson_id: 'lesson-1' }],
+      assignments: [
+        { lesson_id: 'lesson-1', assignment_type: 'homework' },
+        { lesson_id: 'lesson-1', assignment_type: 'project' },
+      ],
+    });
+
+    expect(attached[0].learner_package).toEqual({
+      lesson: true,
+      slides: true,
+      practice: true,
+      assignment: true,
+      project: true,
+      availableCount: 5,
+    });
+    expect(attached[1].learner_package).toMatchObject({
+      lesson: true,
+      slides: true,
+      practice: false,
+      assignment: false,
+      project: false,
+      availableCount: 2,
+    });
+  });
+
+  it('keeps legacy week-generator work under assignment, matching the teacher view', () => {
+    const [attached] = attachLearnerPackageAvailability(
+      [lesson({ id: 'lesson-1', title: 'One', curriculum_week_number: 1 })],
+      {
+        assignments: [
+          {
+            lesson_id: 'lesson-1',
+            assignment_type: 'project',
+            metadata: { source: 'week-ai-generator' },
+          },
+        ],
+      },
+    );
+    expect(attached.learner_package).toMatchObject({
+      assignment: true,
+      project: false,
+    });
   });
 });
 

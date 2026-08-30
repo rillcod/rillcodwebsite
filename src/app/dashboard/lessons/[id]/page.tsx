@@ -4751,16 +4751,25 @@ export default function LessonDetailPage() {
         .select(
           "id, title, assignment_type, due_date, instructions, description, metadata, max_points, term_id, lesson_id, lesson_plan_id, curriculum_week_number"
         );
-      const scopedAssignmentQuery = lessonObj.lesson_plan_id
+      let scopedAssignmentQuery = lessonObj.lesson_plan_id
         ? assignmentQuery.or(
             `lesson_id.eq.${lessonObj.id},lesson_plan_id.eq.${lessonObj.lesson_plan_id}`
           )
         : assignmentQuery.eq("lesson_id", lessonObj.id);
-      const materialsRes = await db
+      if (user.role === "student") {
+        scopedAssignmentQuery = scopedAssignmentQuery.eq("is_active", true);
+      }
+      let materialsQuery = db
         .from("lesson_materials")
         .select("*")
-        .eq("lesson_id", id)
-        .order("created_at", { ascending: true });
+        .eq("lesson_id", id);
+      if (user.role === "student") {
+        materialsQuery = materialsQuery.eq("is_public", true);
+      }
+      const materialsRes = await materialsQuery.order("created_at", {
+        ascending: true,
+      });
+      if (materialsRes.error) throw materialsRes.error;
       setMaterials(materialsRes.data ?? []);
 
       if (lessonObj.course_id) {
@@ -4780,27 +4789,36 @@ export default function LessonDetailPage() {
                 .select("id, title, order_index, lesson_type")
                 .eq("course_id", lessonObj.course_id)
                 .order("order_index", { ascending: true });
+        let quizQuery = db
+          .from("cbt_exams")
+          .select(
+            "id, title, duration_minutes, term_id, metadata, start_date, end_date"
+          )
+          .eq(
+            "program_id",
+            lessonObj.courses?.program_id ||
+              lessonObj.courses?.programs?.id ||
+              ""
+          );
+        let flashcardQuery = db
+          .from("flashcard_decks")
+          .select("id, title, term_id, is_public, flashcard_cards(count)")
+          .eq("lesson_id", id);
+        if (user.role === "student") {
+          quizQuery = quizQuery.eq("is_active", true);
+          flashcardQuery = flashcardQuery.eq("is_public", true);
+        }
         const [cLessons, cAsgns, cQuizzes, fDecks] = await Promise.all([
           siblingLessonsPromise,
           scopedAssignmentQuery,
           // cbt_exams has no total_points column; asking for it failed this read, so the lesson
           // page showed no exams at all. Nothing rendered the value.
-          db
-            .from("cbt_exams")
-            .select(
-              "id, title, duration_minutes, term_id, metadata, start_date, end_date"
-            )
-            .eq(
-              "program_id",
-              lessonObj.courses?.program_id ||
-                lessonObj.courses?.programs?.id ||
-                ""
-            ),
-          db
-            .from("flashcard_decks")
-            .select("id, title, term_id, flashcard_cards(count)")
-            .eq("lesson_id", id),
+          quizQuery,
+          flashcardQuery,
         ]);
+        const relatedError =
+          cAsgns.error ?? cQuizzes.error ?? fDecks.error;
+        if (relatedError) throw relatedError;
         setCourseLessons(
           Array.isArray(cLessons) ? cLessons : (cLessons.data ?? []),
         );
