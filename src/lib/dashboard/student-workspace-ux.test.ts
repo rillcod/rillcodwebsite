@@ -56,10 +56,12 @@ describe("student workspace UX", () => {
     const lessonPlayer = read("src/app/dashboard/lessons/[id]/page.tsx");
     expect(lessonPlayer).toContain("filterLessonsForClassPlans");
     expect(lessonPlayer).toContain("loadLessonsForClassPlans");
+    expect(lessonPlayer).toContain("learningAssetMatchesLesson");
     expect(lessonPlayer).toContain('materialsQuery.eq("is_public", true)');
     expect(lessonPlayer).toContain('flashcardQuery.eq("is_public", true)');
     expect(lessonPlayer).toContain('scopedAssignmentQuery.eq("is_active", true)');
     expect(lessonPlayer).toContain('quizQuery.eq("is_active", true)');
+    expect(lessonPlayer).toContain("lesson_plan_id.eq.${lessonObj.lesson_plan_id}");
     expect(lessonPlayer).not.toContain("class-week-package");
   });
 

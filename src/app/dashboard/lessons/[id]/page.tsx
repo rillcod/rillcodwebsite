@@ -74,6 +74,7 @@ import {
 } from "@/lib/curriculum/href";
 import {
   filterLessonsForClassPlans,
+  learningAssetMatchesLesson,
   loadLessonsForClassPlans,
 } from "@/lib/learning/lesson-plan-scope";
 import NeuralVoiceReader from "@/components/ai/NeuralVoiceReader";
@@ -4749,7 +4750,7 @@ export default function LessonDetailPage() {
       const assignmentQuery = db
         .from("assignments")
         .select(
-          "id, title, assignment_type, due_date, instructions, description, metadata, max_points, term_id, lesson_id, lesson_plan_id, curriculum_week_number"
+          "id, title, assignment_type, due_date, instructions, description, metadata, max_points, term_id, lesson_id, lesson_plan_id, curriculum_week_number, session_number"
         );
       let scopedAssignmentQuery = lessonObj.lesson_plan_id
         ? assignmentQuery.or(
@@ -4761,8 +4762,12 @@ export default function LessonDetailPage() {
       }
       let materialsQuery = db
         .from("lesson_materials")
-        .select("*")
-        .eq("lesson_id", id);
+        .select("*");
+      materialsQuery = lessonObj.lesson_plan_id
+        ? materialsQuery.or(
+            `lesson_id.eq.${lessonObj.id},lesson_plan_id.eq.${lessonObj.lesson_plan_id}`
+          )
+        : materialsQuery.eq("lesson_id", id);
       if (user.role === "student") {
         materialsQuery = materialsQuery.eq("is_public", true);
       }
@@ -4770,7 +4775,11 @@ export default function LessonDetailPage() {
         ascending: true,
       });
       if (materialsRes.error) throw materialsRes.error;
-      setMaterials(materialsRes.data ?? []);
+      setMaterials(
+        ((materialsRes.data ?? []) as any[]).filter((row) =>
+          learningAssetMatchesLesson(row, lessonObj)
+        )
+      );
 
       if (lessonObj.course_id) {
         const { resolveAssignmentTermId, matchesAssignmentSession } =
@@ -4789,21 +4798,26 @@ export default function LessonDetailPage() {
                 .select("id, title, order_index, lesson_type")
                 .eq("course_id", lessonObj.course_id)
                 .order("order_index", { ascending: true });
-        let quizQuery = db
+        const examQuery = db
           .from("cbt_exams")
           .select(
-            "id, title, duration_minutes, term_id, metadata, start_date, end_date"
-          )
-          .eq(
-            "program_id",
-            lessonObj.courses?.program_id ||
-              lessonObj.courses?.programs?.id ||
-              ""
+            "id, title, duration_minutes, term_id, metadata, start_date, end_date, lesson_id, lesson_plan_id, class_id, curriculum_week_number"
           );
-        let flashcardQuery = db
+        let quizQuery = lessonObj.lesson_plan_id
+          ? examQuery.or(
+              `lesson_id.eq.${lessonObj.id},lesson_plan_id.eq.${lessonObj.lesson_plan_id}`
+            )
+          : examQuery.eq("lesson_id", lessonObj.id);
+        const deckQuery = db
           .from("flashcard_decks")
-          .select("id, title, term_id, is_public, flashcard_cards(count)")
-          .eq("lesson_id", id);
+          .select(
+            "id, title, term_id, is_public, lesson_id, lesson_plan_id, curriculum_week_number, session_number, flashcard_cards(count)"
+          );
+        let flashcardQuery = lessonObj.lesson_plan_id
+          ? deckQuery.or(
+              `lesson_id.eq.${lessonObj.id},lesson_plan_id.eq.${lessonObj.lesson_plan_id}`
+            )
+          : deckQuery.eq("lesson_id", id);
         if (user.role === "student") {
           quizQuery = quizQuery.eq("is_active", true);
           flashcardQuery = flashcardQuery.eq("is_public", true);
@@ -4817,29 +4831,19 @@ export default function LessonDetailPage() {
           flashcardQuery,
         ]);
         const relatedError =
-          cAsgns.error ?? cQuizzes.error ?? fDecks.error;
+          (!Array.isArray(cLessons) ? cLessons.error : null) ??
+          cAsgns.error ??
+          cQuizzes.error ??
+          fDecks.error;
         if (relatedError) throw relatedError;
         setCourseLessons(
           Array.isArray(cLessons) ? cLessons : (cLessons.data ?? []),
-        );
-        const lessonWeek = Number(
-          lessonObj.curriculum_week_number ??
-            lessonObj.metadata?.week ??
-            lessonObj.metadata?.week_number
         );
         setCourseAssignments(
           ((cAsgns.data ?? []) as any[]).filter((assignment) => {
             if (!matchesAssignmentSession(assignment.term_id, liveTermId, true))
               return false;
-            if (assignment.lesson_id === lessonObj.id) return true;
-            const assignmentWeek = Number(
-              assignment.curriculum_week_number ??
-                assignment.metadata?.week ??
-                assignment.metadata?.week_number
-            );
-            return (
-              Number.isInteger(lessonWeek) && assignmentWeek === lessonWeek
-            );
+            return learningAssetMatchesLesson(assignment, lessonObj);
           })
         );
         setProgramQuizzes(
@@ -4850,20 +4854,23 @@ export default function LessonDetailPage() {
             {
               includeUntagged: true,
             }
-          )
+          ).filter((exam) => learningAssetMatchesLesson(exam, lessonObj))
         );
         setFlashcardDecks(
-          ((fDecks.data ?? []) as any[]).filter((d) =>
-            matchesAssignmentSession(d.term_id, liveTermId, true)
+          ((fDecks.data ?? []) as any[]).filter(
+            (deck) =>
+              matchesAssignmentSession(deck.term_id, liveTermId, true) &&
+              learningAssetMatchesLesson(deck, lessonObj)
           )
         );
       }
 
       if (user.role === "student") {
-        const { data: progress } = await db
+        const { data: progress, error: progressError } = await db
           .from("lesson_progress")
           .select("lesson_id, completed_at")
           .eq("portal_user_id", user.id);
+        if (progressError) throw progressError;
         const cIds = new Set<string>();
         progress?.forEach((p: any) => {
           if (p.completed_at) cIds.add(p.lesson_id);

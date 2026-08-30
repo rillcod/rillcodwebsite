@@ -3,6 +3,7 @@ import { rowMatchesTeachingPeriod } from '@/lib/academic/teaching-period';
 import {
   attachLearnerPackageAvailability,
   compareLessonsByClassWeek,
+  learningAssetMatchesLesson,
   lessonsOnWeek,
   nextLessonInClassOrder,
   releasedWeekCap,
@@ -105,6 +106,47 @@ describe('learner lesson order', () => {
 });
 
 describe('learner class package', () => {
+  it('uses lesson id first, then exact plan, week and class meeting', () => {
+    const target = lesson({
+      id: 'lesson-1',
+      title: 'One',
+      curriculum_week_number: 3,
+      session_number: 2,
+    });
+    expect(learningAssetMatchesLesson({ lesson_id: 'lesson-1' }, target)).toBe(true);
+    expect(
+      learningAssetMatchesLesson(
+        {
+          lesson_plan_id: 'plan-1',
+          curriculum_week_number: 3,
+          session_number: 2,
+        },
+        target,
+      ),
+    ).toBe(true);
+    expect(
+      learningAssetMatchesLesson(
+        {
+          lesson_plan_id: 'plan-1',
+          curriculum_week_number: 3,
+          session_number: 1,
+        },
+        target,
+      ),
+    ).toBe(false);
+    expect(
+      learningAssetMatchesLesson(
+        {
+          lesson_id: 'another-lesson',
+          lesson_plan_id: 'plan-1',
+          curriculum_week_number: 3,
+          session_number: 2,
+        },
+        target,
+      ),
+    ).toBe(false);
+  });
+
   it('reports only items that are linked to the exact lesson session', () => {
     const rows = [
       lesson({ id: 'lesson-1', title: 'One', curriculum_week_number: 1 }),

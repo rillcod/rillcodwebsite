@@ -156,7 +156,8 @@ export function nextLessonInClassOrder(
   return ordered.find((lesson) => !completedIds.has(lesson.id)) ?? ordered[ordered.length - 1] ?? null;
 }
 
-function packageRowMatchesLesson(row: any, lesson: any): boolean {
+/** Match one child asset to one teaching session using the canonical identity. */
+export function learningAssetMatchesLesson(row: any, lesson: any): boolean {
   const rowLessonId = String(row?.lesson_id ?? '').trim();
   if (rowLessonId) return rowLessonId === String(lesson?.id ?? '').trim();
 
@@ -184,15 +185,15 @@ export function attachLearnerPackageAvailability(
 ): any[] {
   return lessons.map((lesson) => {
     const linkedAssignments = (rows.assignments ?? []).filter((row) =>
-      packageRowMatchesLesson(row, lesson),
+      learningAssetMatchesLesson(row, lesson),
     );
     const availability: LearnerPackageAvailability = {
       lesson: true,
       slides: (rows.slides ?? []).some((row) =>
-        packageRowMatchesLesson(row, lesson),
+        learningAssetMatchesLesson(row, lesson),
       ),
       practice: (rows.flashcards ?? []).some((row) =>
-        packageRowMatchesLesson(row, lesson),
+        learningAssetMatchesLesson(row, lesson),
       ),
       assignment: linkedAssignments.some((row) => !isProjectRow(row)),
       project: linkedAssignments.some(isProjectRow),
