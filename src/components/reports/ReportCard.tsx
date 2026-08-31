@@ -168,7 +168,7 @@ export default function ReportCard({ report, orgSettings }: {
         theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
         attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
-    const overall = board ? board.total.percent : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
+    const overall = board ? (board.total?.percent ?? 0) : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
     const grade = letterGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
 
@@ -364,7 +364,7 @@ export default function ReportCard({ report, orgSettings }: {
                                             </div>
                                         ))}
                                         <div className="flex justify-between items-end pt-1 border-t border-border">
-                                            <span className="text-[11px] font-black uppercase tracking-widest">Total</span>
+                                            <span className="text-[11px] font-black uppercase tracking-widest">School paper total</span>
                                             <span className="text-base font-black">{formatHostMark(board.total)}</span>
                                         </div>
                                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pt-2">{copy.learningCaption}</p>
@@ -409,10 +409,10 @@ export default function ReportCard({ report, orgSettings }: {
                             <div className="flex flex-col items-center justify-center bg-background rounded-[32px] p-4 relative overflow-hidden border border-border" style={{ borderLeft: '4px solid #1a1a2e' }}>
                                 <div className="relative z-10 text-center">
                                     <SparklesIcon className="w-10 h-10 text-amber-500 mx-auto mb-2" />
-                                    <p className="text-[11px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-1">WAEC Grade</p>
-                                    <h3 className="text-5xl font-black tracking-tight" style={{ color: grade.color }}>{grade.g}</h3>
+                                    <p className="text-[11px] font-black text-muted-foreground/70 uppercase tracking-[0.2em] mb-1">{board && !board.complete ? 'Result status' : 'WAEC Grade'}</p>
+                                    <h3 className="text-5xl font-black tracking-tight" style={{ color: grade.color }}>{board && !board.complete ? '—' : grade.g}</h3>
                                     <div className="mt-4 px-4 py-1.5 bg-card rounded-full border border-border">
-                                        <span className="text-xs font-black uppercase tracking-widest text-foreground/80">{grade.label}</span>
+                                        <span className="text-xs font-black uppercase tracking-widest text-foreground/80">{board && !board.complete ? 'Awaiting all papers' : grade.label}</span>
                                     </div>
                                     <p className="text-xl font-black text-muted-foreground mt-3">{board ? formatHostMark(board.total) : `${overall}%`}</p>
                                 </div>

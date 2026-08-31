@@ -50,13 +50,22 @@ const STUDENT_PATH_LABELS: Record<string, string> = {
   '/dashboard/assignments': 'My Work',
 };
 
+export function humanizePathLabel(value: string): string {
+  return decodeURIComponent(value)
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export default function DesktopTopNavbar() {
   const pathname = usePathname() || '/dashboard';
   const { profile } = useAuth();
   const currentLabel =
     (profile?.role === 'student' && STUDENT_PATH_LABELS[pathname])
     || PATH_LABELS[pathname]
-    || pathname.split('/').pop()?.replace(/-/g, ' ')
+    || humanizePathLabel(pathname.split('/').pop() || '')
     || 'Dashboard';
 
   return (

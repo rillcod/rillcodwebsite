@@ -25,6 +25,7 @@ import {
   buildCbtNewHref,
   buildProjectNewHref,
   buildResultsHref,
+  hostPaperDatasheetHref,
 } from '@/lib/curriculum/href';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
@@ -2111,6 +2112,36 @@ export default function ClassDetailPage() {
                       {assessmentCopy?.description ?? 'Review class work and results from one place.'}
                     </p>
                   </div>
+
+                  {!isSchool && assessmentPolicy?.usesHostEvaluation ? (
+                    <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <h3 className="text-sm font-black text-foreground">Record official school papers</h3>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the exact paper. Each link opens one class mark sheet; report cards read the saved marks automatically.</p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">One class · one result record</span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        {(['first_test', 'second_test', 'examination'] as const).map((kind) => (
+                          <Link
+                            key={kind}
+                            href={hostPaperDatasheetHref({
+                              kind,
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                              programId: cls?.program_id,
+                              schoolId: cls?.school_id,
+                            })}
+                            className="inline-flex min-h-12 items-center justify-between rounded-xl border border-border bg-background px-3 text-sm font-black text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                          >
+                            {kind === 'first_test' ? 'First Test' : kind === 'second_test' ? 'Second Test' : 'Examination'}
+                            <ChevronRightIcon className="h-4 w-4" />
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     {!isSchool && !assessmentPolicy?.usesHostEvaluation && (

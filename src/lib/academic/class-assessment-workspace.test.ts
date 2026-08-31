@@ -14,7 +14,7 @@ describe('class assessment workspace', () => {
     expect(assessmentExperience({ standing: 'compulsory', usesHostEvaluation: true })).toMatchObject({
       standingLabel: 'Compulsory subject',
       resultLabel: 'School examination results',
-      resultsAction: 'Open school results',
+      resultsAction: 'Prepare report cards',
     });
   });
 

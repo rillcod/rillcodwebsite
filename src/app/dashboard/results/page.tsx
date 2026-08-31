@@ -39,6 +39,8 @@ import {
   rosterSessionQueryFilters,
 } from '@/lib/reports/session-workflows';
 import { automaticResultHasNoEvidence } from '@/lib/reports/score';
+import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
+import { escapeHtml } from '@/lib/cbt/print-utils';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
@@ -1372,7 +1374,7 @@ function ResultsPageInner() {
         const ids = studentsToSheet.map(s => s.id);
         let sheetQuery = db2
             .from('student_progress_reports')
-            .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, instructor_name, updated_at')
+            .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, participation_score, overall_score, overall_grade, engagement_metrics, is_published, instructor_name, updated_at')
             .in('student_id', ids)
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false });
@@ -1389,6 +1391,7 @@ function ResultsPageInner() {
         // Latest report per student within the confirmed session
         const fullRMap: Record<string, any> = {};
         (allReports ?? []).forEach(r => { if (!fullRMap[r.student_id]) fullRMap[r.student_id] = r; });
+        const usesHostPapers = Object.values(fullRMap).some((report: any) => !!hostSchoolScoreboard(report?.engagement_metrics));
 
         const org = orgSettings;
         const titleLine = [filterClass, filterSchool].filter(Boolean).join(' — ');
@@ -1418,29 +1421,51 @@ function ResultsPageInner() {
             const r = fullRMap[s.id];
             const cls = studentClassName(s) || '—';
             const sch = studentSchoolName(s) || '—';
-            const hasTh = r?.theory_score != null;
-            const hasPr = r?.practical_score != null;
-            const hasAt = r?.attendance_score != null;
+            const board = hostSchoolScoreboard(r?.engagement_metrics);
+            const evidence = hostLearningEvidence(r ?? {});
+            const paperMark = (kind: 'first_test' | 'second_test' | 'examination') =>
+                board?.papers.find((paper) => paper.kind === kind)?.mark ?? null;
             const gColor = gradeColor(r?.overall_grade);
+            const scoreCell = (value: string | number | null | undefined, strong = false) =>
+                `<td style="padding:5px 6px;font-size:11px;text-align:center;${strong ? 'font-weight:800;color:#111827' : 'color:#374151'}">${value ?? '—'}</td>`;
+            const performanceCells = usesHostPapers
+                ? [
+                    scoreCell(formatHostMark(paperMark('first_test'))),
+                    scoreCell(formatHostMark(paperMark('second_test'))),
+                    scoreCell(formatHostMark(paperMark('examination'))),
+                    scoreCell(board ? `${formatHostMark(board.total)}${board.complete ? '' : ' *'}` : '—', true),
+                    scoreCell(evidence.classwork != null ? `${evidence.classwork}%` : '—'),
+                    scoreCell(evidence.practical != null ? `${evidence.practical}%` : '—'),
+                    scoreCell(evidence.assignments != null ? `${evidence.assignments}%` : '—'),
+                    scoreCell(evidence.attendance != null ? `${evidence.attendance}%` : '—'),
+                ].join('')
+                : [
+                    scoreCell(r?.theory_score != null ? `${r.theory_score}%` : '—'),
+                    scoreCell(r?.practical_score != null ? `${r.practical_score}%` : '—'),
+                    scoreCell(r?.attendance_score != null ? `${r.attendance_score}%` : '—'),
+                    scoreCell(r?.participation_score != null ? `${r.participation_score}%` : '—'),
+                    scoreCell(r?.overall_score != null ? `${r.overall_score}%` : '—', true),
+                ].join('');
             return `<tr style="border-bottom:1px solid #e5e7eb">
                 <td style="padding:5px 6px;text-align:center;font-size:11px;color:#6b7280">${i + 1}</td>
-                <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#111827">${s.full_name ?? '—'}</td>
-                <td style="padding:5px 6px;font-size:11px;color:#374151">${cls}</td>
-                <td style="padding:5px 6px;font-size:11px;color:#374151">${sch}</td>
-                <td style="padding:5px 6px;font-size:11px;text-align:center;color:#374151">${r?.course_name ?? '—'}</td>
-                <td style="padding:5px 6px;font-size:11px;text-align:center">${hasTh ? r.theory_score : '—'}</td>
-                <td style="padding:5px 6px;font-size:11px;text-align:center">${hasPr ? r.practical_score : '—'}</td>
-                <td style="padding:5px 6px;font-size:11px;text-align:center">${hasAt ? r.attendance_score : '—'}</td>
-                <td style="padding:5px 6px;font-size:11px;text-align:center;font-weight:700;color:#111827">${r?.overall_score ?? '—'}</td>
-                <td style="padding:5px 6px;text-align:center"><span style="display:inline-block;padding:2px 10px;border-radius:20px;font-weight:800;font-size:12px;color:white;background:${gColor}">${r?.overall_grade ?? 'N/A'}</span></td>
+                <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#111827">${escapeHtml(s.full_name ?? '—')}</td>
+                <td style="padding:5px 6px;font-size:11px;color:#374151">${escapeHtml(cls)}</td>
+                <td style="padding:5px 6px;font-size:11px;color:#374151">${escapeHtml(sch)}</td>
+                <td style="padding:5px 6px;font-size:11px;text-align:center;color:#374151">${escapeHtml(r?.course_name ?? '—')}</td>
+                ${performanceCells}
+                <td style="padding:5px 6px;text-align:center"><span style="display:inline-block;padding:2px 10px;border-radius:20px;font-weight:800;font-size:12px;color:white;background:${gColor}">${escapeHtml(r?.overall_grade ?? 'N/A')}</span></td>
                 <td style="padding:5px 6px;text-align:center;font-size:10px;color:${r?.is_published ? '#10b981' : r ? '#f59e0b' : '#9ca3af'}">${r?.is_published ? '✓ Published' : r ? 'Draft' : 'No Report'}</td>
             </tr>`;
         }).join('');
 
+        const performanceHeadings = usesHostPapers
+            ? '<th>First Test</th><th>Second Test</th><th>Examination</th><th>School Paper Total</th><th>Classwork</th><th>Projects</th><th>Assignments</th><th>Attendance</th>'
+            : '<th>Theory / Written</th><th>Practical / Projects</th><th>Assignments</th><th>Attendance</th><th>Overall</th>';
+
         const statsLine = `Total: ${studentsToSheet.length} | Published: ${studentsToSheet.filter(s => fullRMap[s.id]?.is_published).length} | Draft: ${studentsToSheet.filter(s => fullRMap[s.id] && !fullRMap[s.id].is_published).length} | No Report: ${studentsToSheet.filter(s => !fullRMap[s.id]).length}`;
 
         const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Student Performance Sheet — ${titleLine || 'All Students'}</title>
+<title>Student Performance Sheet — ${escapeHtml(titleLine || 'All Students')}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:20px}
@@ -1459,8 +1484,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
 .stats-bar{font-size:10px;color:#374151;background:#f3f4f6;border-radius:6px;padding:4px 12px;white-space:nowrap}
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead tr{background:#4c1d95;color:white}
-thead th{padding:7px 6px;text-align:left;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
-thead th:nth-child(1),thead th:nth-child(6),thead th:nth-child(7),thead th:nth-child(8),thead th:nth-child(9),thead th:nth-child(10),thead th:nth-child(11){text-align:center}
+thead th{padding:7px 6px;text-align:center;font-size:9px;font-weight:700;letter-spacing:0.35px;text-transform:uppercase}
+thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4){text-align:left}
 tbody tr:nth-child(even){background:#f9fafb}
 tbody tr:hover{background:#f3f4f6}
 .footer{margin-top:24px;border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
@@ -1473,29 +1498,28 @@ tbody tr:hover{background:#f3f4f6}
   <div class="logo-block">
     <div class="logo-circle">R</div>
     <div>
-      <div class="org-name">${org?.org_name ?? 'Rillcod Technologies'}</div>
-      <div class="org-sub">${org?.org_address ?? 'Technology &amp; Innovation in Education'}</div>
+      <div class="org-name">${escapeHtml(org?.org_name ?? 'Rillcod Technologies')}</div>
+      <div class="org-sub">${escapeHtml(org?.org_address ?? 'Technology & Innovation in Education')}</div>
     </div>
   </div>
   <div class="doc-meta">
     <div><strong>Document Ref:</strong> ${docRef}</div>
     <div><strong>Generated:</strong> ${dateStr}</div>
-    <div><strong>Generated by:</strong> ${profile?.full_name ?? 'Staff'}</div>
+    <div><strong>Generated by:</strong> ${escapeHtml(profile?.full_name ?? 'Staff')}</div>
     <div><strong>Classification:</strong> Official — Confidential</div>
   </div>
 </div>
 <div class="title-row">
   <div>
-    <div class="title-main">Student Performance &amp; Score Sheet${titleLine ? ' — ' + titleLine : ''}</div>
-    <div class="title-sub">Academic Progress Report Summary · ${org?.org_name ?? 'Rillcod Technologies'}</div>
+    <div class="title-main">${usesHostPapers ? 'School Papers & Learning Evidence Sheet' : 'Student Performance & Score Sheet'}${titleLine ? ' — ' + escapeHtml(titleLine) : ''}</div>
+    <div class="title-sub">${usesHostPapers ? 'Official papers are separate from Rillcod learning evidence' : 'Academic Progress Report Summary'} · ${escapeHtml(org?.org_name ?? 'Rillcod Technologies')}</div>
   </div>
   <div class="stats-bar">${statsLine}</div>
 </div>
 <table>
 <thead><tr>
   <th>#</th><th>Student Name</th><th>Class/Grade</th><th>School</th>
-  <th>Course</th><th>Theory</th><th>Practical</th><th>Attendance</th>
-  <th>Overall</th><th>Grade</th><th>Status</th>
+  <th>Course</th>${performanceHeadings}<th>Grade</th><th>Status</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
@@ -1504,7 +1528,8 @@ tbody tr:hover{background:#f3f4f6}
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Academic Coordinator</div></div>
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">School Authority / Stamp</div></div>
 </div>
-<div class="watermark">This document is computer-generated and constitutes an official academic record of ${org?.org_name ?? 'Rillcod Technologies'}. Document Reference: ${docRef}</div>
+${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* School Paper Total remains incomplete until First Test, Second Test and Examination are all recorded.</p>' : ''}
+<div class="watermark">This document is computer-generated and constitutes an official academic record of ${escapeHtml(org?.org_name ?? 'Rillcod Technologies')}. Document Reference: ${docRef}</div>
 </body></html>`;
 
         const w = window.open('', '_blank', 'width=1100,height=800');

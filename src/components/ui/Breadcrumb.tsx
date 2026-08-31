@@ -57,7 +57,7 @@ export const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     
     // Convert segment to readable label
     const label = segment
-      .split('-')
+      .split(/[-_]+/)
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
 
@@ -70,4 +70,4 @@ export const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
   return breadcrumbs;
 };
 
-export default Breadcrumb; 
+export default Breadcrumb;

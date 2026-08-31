@@ -133,14 +133,36 @@ export function parseHallMarkInput(
   row: { earned?: unknown; score?: unknown; max?: unknown },
   defaultMax: number,
 ): HostMark | null {
-  const max = markFromEarned(0, row.max ?? defaultMax)?.max ?? defaultMax;
+  const rawMax = Number(row.max ?? defaultMax);
+  if (!Number.isInteger(rawMax) || rawMax <= 0) return null;
+  const max = rawMax;
   if (row.earned != null && row.earned !== "") {
-    return markFromEarned(row.earned, max);
+    const earned = Number(row.earned);
+    // Hall entry is an authoritative school mark. Never turn a typing error
+    // such as 25/20 into 20/20 behind the teacher's back.
+    if (!Number.isInteger(earned) || earned < 0 || earned > max) return null;
+    return {
+      earned,
+      max,
+      percent: Math.round((earned / max) * 100),
+    };
   }
   const raw = Number(row.score);
   if (!Number.isFinite(raw)) return null;
   if (raw <= max) return markFromEarned(raw, max);
   return markFromPercent(raw, max);
+}
+
+/** Human-readable validation for a mark sheet input. Empty means not entered. */
+export function hallMarkDraftError(value: unknown, max: unknown): string | null {
+  if (String(value ?? "").trim() === "") return null;
+  const ceiling = Number(max);
+  if (!Number.isInteger(ceiling) || ceiling <= 0) return "Set a valid paper total first.";
+  const earned = Number(value);
+  if (!Number.isFinite(earned)) return "Enter a number.";
+  if (!Number.isInteger(earned)) return "Enter a whole-number mark.";
+  if (earned < 0 || earned > ceiling) return `Enter a mark from 0 to ${ceiling}.`;
+  return null;
 }
 
 export function emptyHostPaperMarks(): HostPaperMarks {
@@ -373,8 +395,8 @@ function markFromStored(
 }
 
 export type HostSchoolScoreboard = {
-  papers: Array<{ kind: HostAssessmentKind; label: string; mark: HostMark }>;
-  total: HostMark;
+  papers: Array<{ kind: HostAssessmentKind; label: string; mark: HostMark | null }>;
+  total: HostMark | null;
   complete: boolean;
 };
 
@@ -387,9 +409,8 @@ export function hostSchoolScoreboard(metrics: unknown): HostSchoolScoreboard | n
   const papers = (["first_test", "second_test", "examination"] as const)
     .map((kind) => {
       const mark = markFromStored(rec, kind);
-      return mark ? { kind, label: hostPaperLabel(kind), mark } : null;
-    })
-    .filter((row): row is { kind: HostAssessmentKind; label: string; mark: HostMark } => !!row);
+      return { kind, label: hostPaperLabel(kind), mark };
+    });
   const derivedTotal = hostSchoolTotal({
       first_test: papers.find((row) => row.kind === "first_test")?.mark ?? null,
       second_test: papers.find((row) => row.kind === "second_test")?.mark ?? null,
@@ -401,11 +422,10 @@ export function hostSchoolScoreboard(metrics: unknown): HostSchoolScoreboard | n
   // The paper rows are authoritative. A stored total is only a fallback for
   // older records that predate individual paper persistence.
   const total = derivedTotal || storedTotal;
-  if (!total || papers.length === 0) return null;
   return {
     papers,
     total,
-    complete: papers.length === 3,
+    complete: papers.every((paper) => !!paper.mark),
   };
 }
 
@@ -414,7 +434,7 @@ export function parentFacingOverall(input: {
   engagementMetrics?: unknown;
 }): number {
   const board = hostSchoolScoreboard(input.engagementMetrics);
-  if (board) return board.total.percent;
+  if (board) return board.total?.percent ?? 0;
   const overall = Number(input.overallScore);
   return Number.isFinite(overall) ? overall : 0;
 }

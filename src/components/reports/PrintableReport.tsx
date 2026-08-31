@@ -77,7 +77,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
         theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
         attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
-    const overall = board ? board.total.percent : (Number(report.overall_score) || computed);
+    const overall = board ? (board.total?.percent ?? 0) : (Number(report.overall_score) || computed);
     const grade = getWAECGrade(overall);
 
     const metrics = [
@@ -247,7 +247,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                                 </div>
                             ))}
                             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${C.slate200}`, paddingTop: 6 }}>
-                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase' }}>Total</span>
+                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase' }}>School paper total</span>
                                 <span style={{ fontSize: '18px', fontWeight: 900 }}>{formatHostMark(board.total)}</span>
                             </div>
                             <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 8 }}>{copy.learningCaption}</p>
@@ -339,10 +339,10 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     boxShadow: '0 16px 40px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
                 }}>
                     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: C.accent }} />
-                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.4em', marginBottom: '8px', fontStyle: 'italic' }}>WAEC Grade</p>
-                    <h3 style={{ fontSize: '60px', fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: grade.color, letterSpacing: '-0.03em', marginBottom: '8px' }}>{grade.g}</h3>
+                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.4em', marginBottom: '8px', fontStyle: 'italic' }}>{board && !board.complete ? 'Result status' : 'WAEC Grade'}</p>
+                    <h3 style={{ fontSize: '60px', fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: grade.color, letterSpacing: '-0.03em', marginBottom: '8px' }}>{board && !board.complete ? '—' : grade.g}</h3>
                     <div style={{ padding: '5px 16px', background: C.accent, color: C.black, fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em' }}>
-                        {grade.label}
+                        {board && !board.complete ? 'Awaiting all papers' : grade.label}
                     </div>
                     <p style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginTop: '8px', fontVariantNumeric: 'tabular-nums' }}>SCORE: {board ? formatHostMark(board.total) : `${overall}%`}</p>
                 </div>

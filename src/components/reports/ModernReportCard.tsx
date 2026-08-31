@@ -135,7 +135,7 @@ export default function ModernReportCard({ report, orgSettings }: {
         theory * weights.theory + classwork * weights.classwork + practical * weights.practical +
         assignments * weights.assignments + attendance * weights.attendance + assessment * weights.assessment
     );
-    const overall = board ? board.total.percent : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
+    const overall = board ? (board.total?.percent ?? 0) : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
     const grade = waecGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
     const showScores = reportHasDisplayableScores(report) || !!board;
@@ -357,7 +357,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                                             </div>
                                         ))}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 6, borderTop: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb' }}>
-                                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827' }}>Total</span>
+                                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827' }}>School paper total</span>
                                             <span style={{ fontSize: 18, fontWeight: 900, fontStyle: 'italic', color: '#111827' }}>{formatHostMark(board.total)}</span>
                                         </div>
                                     </div>
@@ -438,10 +438,10 @@ export default function ModernReportCard({ report, orgSettings }: {
                         }}>
                             {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
                             <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 2 }}><TrophyIcon className="w-5 h-5" /></span>
-                            <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>{copy.overallCaption}</p>
-                            <h3 style={{ fontSize: 64, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 4 }}>{grade.code}</h3>
+                            <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>{board && !board.complete ? 'Result status' : copy.overallCaption}</p>
+                            <h3 style={{ fontSize: 64, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 4 }}>{board && !board.complete ? '—' : grade.code}</h3>
                             <div style={{ padding: '3px 10px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 4 }}>
-                                <span style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{grade.label}</span>
+                                <span style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{board && !board.complete ? 'Awaiting all papers' : grade.label}</span>
                             </div>
                             <p style={{ fontSize: 14, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{board ? formatHostMark(board.total) : `${overall}%`}</p>
                             <p style={{ fontSize: 6, fontWeight: 700, color: isExecutive ? 'rgba(197,160,89,0.5)' : 'rgba(255,255,255,0.35)', marginTop: 2, textAlign: 'center', letterSpacing: '0.05em' }}>{grade.remark}</p>

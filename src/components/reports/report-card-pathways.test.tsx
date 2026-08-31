@@ -61,11 +61,30 @@ describe('progress report pathway rendering used by PDF capture', () => {
       expect(html).toContain('Examination');
       expect(html).toContain('50/60');
       expect(html).toContain('80/100');
+      expect(html).toContain('School paper total');
       expect(html).toContain('Learning we taught');
       expect(html).toContain('Assignments');
       expect(html).toContain('Practical / Projects');
       expect(html).toContain('Classwork');
       expect(html).toContain('Attendance');
+    });
+
+    it(`${name} names missing school papers without assigning a failing grade`, () => {
+      const html = renderToStaticMarkup(render({
+        ...baseReport,
+        engagement_metrics: {
+          score_authority: 'host_school',
+          programme_standing: 'compulsory',
+          first_test_earned: 14,
+          first_test_max: 20,
+        },
+      }));
+
+      expect(html).toContain('First Test');
+      expect(html).toContain('Second Test');
+      expect(html).toContain('Examination');
+      expect(html).toContain('Awaiting all papers');
+      expect(html).not.toContain('>F9</h3>');
     });
   }
 

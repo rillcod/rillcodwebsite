@@ -15,6 +15,7 @@ import {
   withPersistedHostMax,
 } from '@/lib/cbt/paper-capture';
 import {
+  hostAssessmentKindFromExam,
   hostMaxFromExam,
   parseHallMarkInput,
 } from '@/lib/academic/host-marks';
@@ -124,7 +125,7 @@ async function finalizeExpiredSession(
 async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller: Caller, examId: string) {
   const { data: exam } = await admin
     .from('cbt_exams')
-    .select('id, school_id, created_by')
+    .select('id, school_id, created_by, class_id, metadata')
     .eq('id', examId)
     .maybeSingle();
 
@@ -132,8 +133,19 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') return !!caller.school_id && exam.school_id === caller.school_id;
   if (caller.role === 'teacher') {
+    const metadata = exam.metadata && typeof exam.metadata === 'object' && !Array.isArray(exam.metadata)
+      ? exam.metadata as Record<string, unknown>
+      : {};
+    const targetClassId = exam.class_id || (typeof metadata.target_class_id === 'string' ? metadata.target_class_id : null);
+    if (targetClassId) {
+      const { data: klass } = await admin
+        .from('classes')
+        .select('teacher_id')
+        .eq('id', targetClassId)
+        .maybeSingle();
+      return klass?.teacher_id === caller.id;
+    }
     if (exam.created_by === caller.id) return true;
-    if (exam.school_id && exam.school_id === caller.school_id) return true;
     if (!exam.school_id) return false;
     const { data: assignment } = await admin
       .from('teacher_schools')
@@ -178,10 +190,34 @@ async function recordPaperScores(
     examRow.metadata && typeof examRow.metadata === 'object' && !Array.isArray(examRow.metadata)
       ? (examRow.metadata as Record<string, unknown>)
       : {};
+  const paperKind = hostAssessmentKindFromExam(examRow);
+  if (!paperKind) {
+    return NextResponse.json({ error: 'This is not a First Test, Second Test or Examination mark sheet.' }, { status: 422 });
+  }
+  if (body.paper_kind && body.paper_kind !== paperKind) {
+    return NextResponse.json({ error: 'This mark sheet no longer matches the selected school paper. Refresh it before saving.' }, { status: 409 });
+  }
   const targetClassId =
     (typeof examRow.class_id === 'string' && examRow.class_id) ||
     (typeof metadata.target_class_id === 'string' ? metadata.target_class_id : null);
-  const paperMax = hostMaxFromExam({ metadata }) ?? 100;
+  const storedPaperMax = hostMaxFromExam({ metadata }) ?? 100;
+  const rowMaxima = new Set(
+    rawScores
+      .filter((row: any) => row?.max !== undefined && row?.max !== null && row?.max !== '')
+      .map((row: any) => Number(row.max)),
+  );
+  if (rowMaxima.size > 1) {
+    return NextResponse.json({ error: 'Every learner on this sheet must use the same paper total.' }, { status: 400 });
+  }
+  const requestedPaperMax = Number(body.paper_max ?? [...rowMaxima][0] ?? storedPaperMax);
+  if (!Number.isInteger(requestedPaperMax) || requestedPaperMax <= 0 || requestedPaperMax > 1000) {
+    return NextResponse.json({ error: 'Set the paper total to a whole number from 1 to 1000.' }, { status: 400 });
+  }
+
+  const suppliedUsers = rawScores.map((row: any) => typeof row?.user_id === 'string' ? row.user_id : '');
+  if (new Set(suppliedUsers.filter(Boolean)).size !== suppliedUsers.filter(Boolean).length) {
+    return NextResponse.json({ error: 'A learner appears more than once on this mark sheet. Refresh it before saving.' }, { status: 400 });
+  }
 
   const parsed: Array<{
     user_id: string;
@@ -192,9 +228,9 @@ async function recordPaperScores(
   }> = [];
   for (const row of rawScores) {
     const userId = typeof row?.user_id === 'string' ? row.user_id : '';
-    const mark = parseHallMarkInput(row, paperMax);
+    const mark = parseHallMarkInput({ ...row, max: requestedPaperMax }, requestedPaperMax);
     if (!userId || !mark) {
-      return NextResponse.json({ error: `Each hall mark needs a student and marks out of ${paperMax}` }, { status: 400 });
+      return NextResponse.json({ error: `Each ${paperKind === 'examination' ? 'Examination' : paperKind === 'second_test' ? 'Second Test' : 'First Test'} mark must be a whole number from 0 to ${requestedPaperMax}. No marks were changed.` }, { status: 400 });
     }
     const suppliedVersion = row?.expected_version;
     const expectedVersion = suppliedVersion === undefined || suppliedVersion === null
@@ -342,7 +378,7 @@ async function recordPaperScores(
   const savedMax = parsed.find((row) =>
     saved.some((entry) => entry.user_id === row.user_id),
   )?.max;
-  const nextMetadata = withPersistedHostMax(metadata, savedMax ?? paperMax);
+  const nextMetadata = withPersistedHostMax(metadata, savedMax ?? requestedPaperMax);
   if (nextMetadata && saved.length > 0) {
     const { error: metaErr } = await admin
       .from('cbt_exams')
@@ -362,7 +398,7 @@ async function recordPaperScores(
       skipped: skipped.length,
       failed: failed.length,
       exam_id: examId,
-      host_max: nextMetadata?.host_max ?? hostMaxFromExam({ metadata }),
+      host_max: nextMetadata?.host_max ?? requestedPaperMax,
       changes,
     },
   });
@@ -372,7 +408,7 @@ async function recordPaperScores(
       skipped,
       failed,
       warnings,
-      host_max: nextMetadata?.host_max ?? hostMaxFromExam({ metadata }) ?? paperMax,
+      host_max: nextMetadata?.host_max ?? requestedPaperMax,
     },
   }, { status: failed.length > 0 || warnings.length > 0 ? 207 : 200 });
 }

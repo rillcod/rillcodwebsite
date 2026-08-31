@@ -7,6 +7,7 @@ import {
   hostPapersFromMetrics,
   hostSchoolScoreboard,
   hostSchoolTotal,
+  hallMarkDraftError,
   markFromEarned,
   mergeHostPaperExamIds,
   mergeHostPaperMarks,
@@ -65,6 +66,15 @@ describe("host school marks", () => {
     });
   });
 
+  it("rejects a mistyped hall mark instead of silently clamping it", () => {
+    expect(parseHallMarkInput({ earned: 25, max: 20 }, 20)).toBeNull();
+    expect(parseHallMarkInput({ earned: -1, max: 20 }, 20)).toBeNull();
+    expect(parseHallMarkInput({ earned: 10.5, max: 20 }, 20)).toBeNull();
+    expect(hallMarkDraftError("25", 20)).toBe("Enter a mark from 0 to 20.");
+    expect(hallMarkDraftError("10.5", 20)).toBe("Enter a whole-number mark.");
+    expect(hallMarkDraftError("", 20)).toBeNull();
+  });
+
   it("shows parents the school papers without mixing assignments into them", () => {
     const metrics = {
       score_authority: "host_school",
@@ -117,6 +127,22 @@ describe("host school marks", () => {
       second_test: markFromEarned(16, 20),
       examination: markFromEarned(50, 60),
     })).toBe(true);
+  });
+
+  it("keeps all three paper names visible while an official result is incomplete", () => {
+    const board = hostSchoolScoreboard({
+      score_authority: "host_school",
+      first_test_earned: 14,
+      first_test_max: 20,
+    });
+    expect(board?.complete).toBe(false);
+    expect(board?.papers.map((paper) => paper.label)).toEqual([
+      "First Test",
+      "Second Test",
+      "Examination",
+    ]);
+    expect(board?.papers.map((paper) => formatHostMark(paper.mark))).toEqual(["14/20", "—", "—"]);
+    expect(formatHostMark(board?.total)).toBe("14/20");
   });
 
   it("uses the paper’s own max from hall capture, not a default /20", () => {

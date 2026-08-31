@@ -23,7 +23,7 @@ export function assessmentExperience(
         'First Test, Second Test and Examination are the official result. Rillcod assignments, projects and practice remain beside them as learning evidence.',
       workLabel: 'Learning work',
       cbtLabel: 'CBT and digital papers',
-      resultsAction: 'Open school results',
+      resultsAction: 'Prepare report cards',
     };
   }
   return {

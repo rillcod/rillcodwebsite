@@ -366,8 +366,8 @@ function ParentResultsContent() {
                             const board = hostSchoolScoreboard(report.engagement_metrics);
                             const rings = board
                               ? board.papers.map((row) => ({
-                                  label: row.kind === 'examination' ? 'Ex' : row.kind === 'second_test' ? '2' : '1',
-                                  value: row.mark.percent,
+                                  label: row.label,
+                                  value: row.mark?.percent ?? null,
                                   title: `${row.label}: ${formatHostMark(row.mark)}`,
                                   display: formatHostMark(row.mark),
                                 }))
@@ -377,22 +377,27 @@ function ParentResultsContent() {
                                   { label: 'As', value: report.attendance_score, title: copy.assignments, display: report.attendance_score != null ? String(report.attendance_score) : '—' },
                                   { label: 'At', value: report.participation_score, title: copy.attendance, display: report.participation_score != null ? String(report.participation_score) : '—' },
                                 ];
-                            return rings.map(({ label, value, title, display }) => (
-                            <div key={label} title={title} className="flex flex-col items-center gap-1">
-                              <div className="w-8 h-8 relative">
-                                <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
-                                  <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/50" />
-                                  <circle
-                                    cx="18" cy="18" r="14" fill="none" strokeWidth="3"
-                                    stroke={value != null && value >= 70 ? '#10b981' : value != null && value >= 55 ? '#f59e0b' : '#f43f5e'}
-                                    strokeDasharray={`${(value ?? 0) * 0.88} 88`}
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                                <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-foreground">{label}</span>
+                            return rings.map(({ label, value, title, display }) => board ? (
+                              <div key={label} title={title} className="min-w-20 rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
+                                <span className="block text-[8px] font-black uppercase tracking-wide text-muted-foreground">{label}</span>
+                                <span className="mt-0.5 block text-xs font-black tabular-nums text-foreground">{display}</span>
                               </div>
-                              <span className="text-[8px] font-black text-muted-foreground">{display}</span>
-                            </div>
+                            ) : (
+                              <div key={label} title={title} className="flex flex-col items-center gap-1">
+                                <div className="w-8 h-8 relative">
+                                  <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/50" />
+                                    <circle
+                                      cx="18" cy="18" r="14" fill="none" strokeWidth="3"
+                                      stroke={value != null && value >= 70 ? '#10b981' : value != null && value >= 55 ? '#f59e0b' : '#f43f5e'}
+                                      strokeDasharray={`${(value ?? 0) * 0.88} 88`}
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-foreground">{label}</span>
+                                </div>
+                                <span className="text-[8px] font-black text-muted-foreground">{display}</span>
+                              </div>
                             ));
                           })()}
                         </div>

@@ -59,7 +59,7 @@ export function deriveHostSchoolReportResult(metrics: unknown): {
   overallGrade: string;
 } | null {
   const board = hostSchoolScoreboard(metrics);
-  if (!board?.complete) return null;
+  if (!board?.complete || !board.total) return null;
   return {
     overallScore: board.total.percent,
     overallGrade: getWAECGrade(board.total.percent).code,

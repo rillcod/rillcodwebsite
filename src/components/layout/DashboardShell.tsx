@@ -54,7 +54,8 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   const isMinimal = searchParams.get('minimal') === 'true';
   const isFullscreen = FULLSCREEN_PATHS.some((p) => pathname?.startsWith(p));
   const isImmersive = isImmersiveLearning(pathname);
-  const hideQr = QR_HIDDEN_PATHS.some((p) => pathname?.startsWith(p)) || isImmersive;
+  const isSchoolPaperSheet = !!pathname && /^\/dashboard\/classes\/[^/]+\/papers\/[^/]+$/.test(pathname);
+  const hideQr = QR_HIDDEN_PATHS.some((p) => pathname?.startsWith(p)) || isImmersive || isSchoolPaperSheet;
 
   if (isMinimal) {
     return (
