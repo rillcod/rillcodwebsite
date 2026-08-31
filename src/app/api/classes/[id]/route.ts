@@ -83,7 +83,7 @@ export async function GET(
   // Fetch the class first so we can do a pre-query school check
   const { data, error } = await admin
     .from('classes')
-    .select('*, programs(id, name, difficulty_level), portal_users!classes_teacher_id_fkey(id, full_name), schools(id, name), academic_terms(id, academic_year, term_label, term_number), academic_offerings(id, title, enrollment_type, pathway, programme_id), academic_offering_periods(id, label, sequence_number, starts_on, ends_on)')
+    .select('*, programs(id, name, difficulty_level), portal_users!classes_teacher_id_fkey(id, full_name), schools(id, name, programme_standing, exam_capture, test_capture), academic_terms(id, academic_year, term_label, term_number), academic_offerings(id, title, enrollment_type, pathway, programme_id), academic_offering_periods(id, label, sequence_number, starts_on, ends_on)')
     .eq('id', id)
     .maybeSingle();
 

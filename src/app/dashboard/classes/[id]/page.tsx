@@ -28,6 +28,8 @@ import {
 } from '@/lib/curriculum/href';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
+import { assessmentExperience, type AssessmentExperience } from '@/lib/academic/assessment-experience';
+import { resolveSchoolProgrammePolicy, type SchoolProgrammePolicy } from '@/lib/academic/school-programme-standing';
 
 import { ClassPromotionPanel } from '@/components/classes/ClassPromotionPanel';
 import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
@@ -66,8 +68,11 @@ export default function ClassDetailPage() {
   const [operationLoadError, setOperationLoadError] = useState<string | null>(null);
   const [studentRecordsLoaded, setStudentRecordsLoaded] = useState(false);
   const [assessmentRecordsLoaded, setAssessmentRecordsLoaded] = useState(false);
+  const [assessmentPolicy, setAssessmentPolicy] = useState<SchoolProgrammePolicy | null>(null);
+  const [assessmentCopy, setAssessmentCopy] = useState<AssessmentExperience | null>(null);
+  const [assessmentSummary, setAssessmentSummary] = useState({ open: 0, marked: 0, awaiting_review: 0 });
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'cbt' | 'gradebook' | 'sessions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'gradebook' | 'sessions'>('overview');
   // Teaching is the class's daily job. Roster administration stays available,
   // but it must not be the first thing a teacher sees on every visit.
   const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('teaching');
@@ -253,12 +258,19 @@ export default function ClassDetailPage() {
       if (!clsData) throw new Error(String(clsJson.error || 'Class not found'));
       setCls(clsData);
       setSessions(sessRes.data ?? []);
+      const schoolRecord = Array.isArray(clsData.schools) ? clsData.schools[0] : clsData.schools;
+      const classPolicy = resolveSchoolProgrammePolicy({
+        programme_standing: schoolRecord?.programme_standing,
+        exam_capture: schoolRecord?.exam_capture,
+        test_capture: schoolRecord?.test_capture,
+      });
+      setAssessmentPolicy(classPolicy);
+      setAssessmentCopy(assessmentExperience(classPolicy));
       classLoaded = true;
 
       // Show the teacher's class and daily-work controls as soon as the class
       // itself is known. Secondary records continue loading progressively.
       setLoading(false);
-      const program_id = clsData.program_id || clsData.academic_offerings?.programme_id || null;
       const needsStudentRecords = activeOperation !== 'teaching';
       if (needsStudentRecords) {
         setOperationLoadState('loading');
@@ -292,8 +304,31 @@ export default function ClassDetailPage() {
               30_000,
             )
           : Promise.resolve(null);
+        const assessmentPromise = activeOperation === 'assessment'
+          ? fetchActionJson<{
+              data: {
+                programme_policy: SchoolProgrammePolicy;
+                experience: AssessmentExperience;
+                assignments: any[];
+                exams: any[];
+                submissions: any[];
+                cbt_sessions: any[];
+                summary: { open: number; marked: number; awaiting_review: number };
+              };
+              error: string;
+            }>(
+              `/api/classes/${id}/assessment-workspace`,
+              { cache: 'no-store' },
+              'The class assessment record is taking longer than expected. Please retry; no marks have been changed.',
+              30_000,
+            )
+          : Promise.resolve(null);
 
-        const { response: studentResponse, data: studentsRes } = await studentPromise;
+        const [studentResult, assessmentResult] = await Promise.all([
+          studentPromise,
+          assessmentPromise,
+        ]);
+        const { response: studentResponse, data: studentsRes } = studentResult;
         if (!studentResponse.ok) {
           throw new Error(studentsRes.error || 'Student records could not be loaded.');
         }
@@ -302,6 +337,27 @@ export default function ClassDetailPage() {
         setStudentRecordsLoaded(true);
         setReportIndicatorEnabled(studentsRes.report_indicator_enabled !== false);
         setPasteClaimEnabled(studentsRes.paste_claim_enabled === true);
+
+        if (assessmentResult) {
+          if (!assessmentResult.response.ok) {
+            throw new Error(assessmentResult.data.error || 'The class assessment record could not be loaded.');
+          }
+          const workspace = assessmentResult.data.data;
+          if (!workspace) {
+            throw new Error('The class assessment record returned no data. Please retry.');
+          }
+          setAssessmentPolicy(workspace.programme_policy);
+          setAssessmentCopy(workspace.experience);
+          setAssessmentSummary(workspace.summary);
+          setItems({
+            lessons: [],
+            assignments: workspace.assignments ?? [],
+            cbt: workspace.exams ?? [],
+            submissions: workspace.submissions ?? [],
+            cbtSessions: workspace.cbt_sessions ?? [],
+          });
+          setAssessmentRecordsLoaded(true);
+        }
 
         const [destinationOutcome, visibilityOutcome] = await Promise.allSettled([
           destinationPromise,
@@ -339,90 +395,6 @@ export default function ClassDetailPage() {
         }
       }
 
-      // Only fetch program-related data if program_id exists
-      if (program_id && activeOperation === 'assessment') {
-        let cbtQuery = supabase
-          .from('cbt_exams')
-          .select('id, title, duration_minutes, total_questions, is_active, school_id, start_date, end_date, metadata')
-          .eq('program_id', program_id);
-        if (clsData.school_id) {
-          cbtQuery = cbtQuery.eq('school_id', clsData.school_id);
-        } else {
-          cbtQuery = cbtQuery.is('school_id', null);
-        }
-
-        // The programme's course list is no longer fetched here — the course picker asks
-        // /api/courses/recommend, which also knows which of them are actually adopted.
-        const [lessonRes, asgnRes, cbtRes] = await withTimeout(Promise.all([
-          supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
-          supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, class_id, term_id, metadata, courses!inner(program_id)').eq('courses.program_id', program_id),
-          cbtQuery,
-        ]), [{ data: [] }, { data: [] }, { data: [] }], 'class learning artifacts');
-
-        const { matchesAssignmentSession } = await import('@/lib/assignments/session');
-        const { matchesCbtSession, loadAcademicTermBounds } = await import('@/lib/cbt/session');
-        const classTermId = clsData.term_id ?? null;
-        const termBounds = await loadAcademicTermBounds(supabase as any, classTermId);
-
-        const assignments = (asgnRes.data ?? []).filter((assignment: any) => {
-          const targetClassId = assignment.metadata?.target_class_id || assignment.class_id;
-          if (targetClassId !== id) return false;
-          return matchesAssignmentSession(assignment.term_id, classTermId, true);
-        });
-        const assignmentIds = assignments.map((a: any) => a.id);
-        const cbtExams = (cbtRes.data ?? []).filter((exam: any) => {
-          const targetClassId = exam.metadata?.target_class_id;
-          if (targetClassId !== id) return false;
-          return matchesCbtSession(
-            { end_time: exam.end_date ?? exam.start_date ?? null, cbt_exams: { metadata: exam.metadata } },
-            classTermId,
-            termBounds,
-            true,
-          );
-        });
-        const cbtIds = cbtExams.map((e: any) => e.id);
-
-        let submissions: any[] = [];
-        let cbtSessions: any[] = [];
-
-        const subQueries: any[] = [];
-        if (assignmentIds.length > 0) {
-          subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, user_id, grade, status, version').in('assignment_id', assignmentIds));
-        }
-        if (cbtIds.length > 0) {
-          subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
-        }
-
-        const subResults = await withTimeout(Promise.all(subQueries), [], 'class submission summaries');
-        let resIdx = 0;
-        if (assignmentIds.length > 0) {
-          submissions = subResults[resIdx]?.data ?? [];
-          resIdx++;
-        }
-        if (cbtIds.length > 0) {
-          cbtSessions = subResults[resIdx]?.data ?? [];
-        }
-
-        setItems({
-          lessons: lessonRes.data ?? [],
-          assignments: assignments,
-          cbt: cbtExams,
-          submissions,
-          cbtSessions
-        });
-        setAssessmentRecordsLoaded(true);
-
-      } else if (activeOperation === 'assessment') {
-        // No program_id, set empty items
-        setItems({
-          lessons: [],
-          assignments: [],
-          cbt: [],
-          submissions: [],
-          cbtSessions: []
-        });
-        setAssessmentRecordsLoaded(true);
-      }
       if (needsStudentRecords) setOperationLoadState('ready');
     } catch (e: any) {
       if (!classLoaded) setError(e.message);
@@ -1291,14 +1263,6 @@ export default function ClassDetailPage() {
   const visibleCurrent = currentTermStudents.filter(matchesRoster).slice().sort(byNeedsReport);
   const visibleInactive = inactiveTermStudents.filter(matchesRoster);
   const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 6;
-  const openAssignments = items.assignments.filter((assignment: any) => {
-    if (!assignment.due_date) return true;
-    return new Date(assignment.due_date).getTime() >= Date.now();
-  }).length;
-  const activeExamCount = items.cbt.filter((exam: any) => exam.is_active).length;
-  const gradedSubmissionCount = items.submissions.filter((submission: any) => submission.grade !== null && submission.grade !== undefined).length + items.cbtSessions.filter((session: any) => session.score !== null && session.score !== undefined).length;
-  const totalSubmissionCount = items.submissions.length + items.cbtSessions.length;
-  const ungradedSubmissionCount = Math.max(0, totalSubmissionCount - gradedSubmissionCount);
   // Each mode carries its own numbers, so the page header does not have to repeat them.
   // `attention` is work waiting on a person — it is the only thing that gets a red badge.
   const operationCards = [
@@ -1313,7 +1277,7 @@ export default function ClassDetailPage() {
         ? `${teachingAttention.readyToShare} ready to review`
         : coverage && coverage.planned > 0
           ? `${coverage.delivered}/${coverage.planned} sessions taught`
-          : `${items.lessons.length} lessons`,
+          : 'Open class plan',
       progress: coverage && coverage.planned > 0
         ? Math.round((coverage.delivered / coverage.planned) * 100)
         : null,
@@ -1325,14 +1289,14 @@ export default function ClassDetailPage() {
     },
     {
       id: 'assessment' as const,
-      title: 'Assessment',
-      desc: 'Assignments, CBT, grades and reports',
+      title: assessmentPolicy?.usesHostEvaluation ? 'School results' : 'Assessment',
+      desc: assessmentCopy?.resultLabel ?? 'Class work, grading and results',
       icon: ChartBarIcon,
       stat: assessmentRecordsLoaded
-        ? `${openAssignments + activeExamCount} open · ${gradedSubmissionCount} marked`
+        ? `${assessmentSummary.open} open · ${assessmentSummary.marked} marked`
         : 'Open to load class work',
       progress: null as number | null,
-      attention: ungradedSubmissionCount,
+      attention: assessmentSummary.awaiting_review,
       attentionLabel: 'Submissions still to mark',
       tone: 'text-amber-600 dark:text-amber-400',
     },
@@ -1370,8 +1334,7 @@ export default function ClassDetailPage() {
   // "Class record" (details + session history) is reachable from every mode; the rest
   // only appear where they are the work in hand.
   const recordTabs = [
-    { id: 'assignments', label: 'Tasks & projects', icon: ClipboardDocumentListIcon, count: items.assignments.length, modes: ['assessment'] },
-    { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon, count: items.cbt.length, modes: ['assessment'] },
+    { id: 'assignments', label: assessmentCopy?.workLabel ?? 'Assessment work', icon: ClipboardDocumentListIcon, count: items.assignments.length + items.cbt.length, modes: ['assessment'] },
     { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, count: undefined, modes: ['assessment'], staffOnly: true },
     { id: 'sessions', label: 'Sessions', icon: CalendarIcon, count: sessions.length, modes: ['communication'] },
     { id: 'overview', label: 'Class record', icon: UserGroupIcon, count: undefined, modes: ['roster'] },
@@ -2131,55 +2094,93 @@ export default function ClassDetailPage() {
                   is just the things you cannot do from a list: create work, and open the
                   full-screen tools. Four stat cards here only repeated what is already there. */}
               {activeOperation === 'assessment' && (
-                <div className="flex min-w-0 flex-wrap gap-2">
-                  {[
-                    {
-                      label: 'New assignment',
-                      primary: true,
-                      href: buildAssignmentNewHref({
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                      }),
-                    },
-                    {
-                      label: 'New CBT exam',
-                      primary: true,
-                      href: buildCbtNewHref({
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                        programId: cls?.program_id,
-                        schoolId: cls?.school_id,
-                      }),
-                    },
-                    {
-                      label: 'New project',
-                      primary: true,
-                      href: buildProjectNewHref({
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                      }),
-                    },
-                    {
-                      label: `Results (${items.submissions.length + items.cbtSessions.length})`,
-                      primary: false,
-                      href: buildResultsHref({
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                      }),
-                    },
-                  ].map(action => (
+                <div className="min-w-0 space-y-3">
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-primary/20 bg-background px-2.5 py-1 text-[10px] font-black text-primary">
+                        {assessmentCopy?.standingLabel ?? 'School arrangement'}
+                      </span>
+                      <span className="text-[10px] font-bold text-muted-foreground">
+                        {assessmentCopy?.resultLabel ?? 'Class results'}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 text-sm font-black text-foreground">
+                      {assessmentCopy?.title ?? 'Class assessment and results'}
+                    </h3>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
+                      {assessmentCopy?.description ?? 'Review class work and results from one place.'}
+                    </p>
+                  </div>
+
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    {!isSchool && !assessmentPolicy?.usesHostEvaluation && (
+                      <Link
+                        href={buildCbtNewHref({
+                          classId: id,
+                          courseId: searchParams.get('course_id') || cls?.current_course_id,
+                          programId: cls?.program_id,
+                          schoolId: cls?.school_id,
+                        })}
+                        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90"
+                      >
+                        New CBT assessment
+                      </Link>
+                    )}
                     <Link
-                      key={action.label}
-                      href={action.href}
-                      className={`inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-xs font-black transition-colors ${
-                        action.primary
+                      href={buildResultsHref({
+                        classId: id,
+                        courseId: searchParams.get('course_id') || cls?.current_course_id,
+                      })}
+                      className={`inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-xs font-black transition-colors ${
+                        assessmentPolicy?.usesHostEvaluation
                           ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90'
                           : 'border border-border bg-background text-foreground hover:border-primary/40'
                       }`}
                     >
-                      {action.label}
+                      {assessmentCopy?.resultsAction ?? 'Open results'}
                     </Link>
-                  ))}
+                    {!isSchool && (
+                      <details className="group relative">
+                        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-black text-foreground hover:border-primary/40 [&::-webkit-details-marker]:hidden">
+                          Add learning work
+                          <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="absolute left-0 z-30 mt-2 grid min-w-52 gap-1 rounded-xl border border-border bg-card p-2 shadow-xl">
+                          <Link
+                            href={buildAssignmentNewHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="rounded-lg px-3 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                          >
+                            New assignment
+                          </Link>
+                          <Link
+                            href={buildProjectNewHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="rounded-lg px-3 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                          >
+                            New project
+                          </Link>
+                          {assessmentPolicy?.usesHostEvaluation && (
+                            <Link
+                              href={buildCbtNewHref({
+                                classId: id,
+                                courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                programId: cls?.program_id,
+                                schoolId: cls?.school_id,
+                              })}
+                              className="rounded-lg px-3 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                            >
+                              New practice CBT
+                            </Link>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -2341,7 +2342,7 @@ export default function ClassDetailPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ClipboardDocumentListIcon className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">Tasks & projects</h2>
+                    <h2 className="text-sm font-bold text-foreground">{assessmentCopy?.workLabel ?? 'Assessment work'}</h2>
                     <span className="text-xs text-muted-foreground">({items.assignments.length})</span>
                   </div>
                 </div>
@@ -2391,19 +2392,23 @@ export default function ClassDetailPage() {
               </div>
             )}
 
-            {activeTab === 'cbt' && (
+            {activeTab === 'assignments' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <h2 className="text-sm font-bold text-foreground">CBT Exams</h2>
+                    <h2 className="text-sm font-bold text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT assessments'}</h2>
                     <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
                   </div>
                 </div>
                 {items.cbt.length === 0 ? (
                   <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
                     <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No CBT exams found for this programme.</p>
+                    <p className="text-sm text-muted-foreground">
+                      {assessmentPolicy?.usesHostEvaluation
+                        ? 'No digital school paper or practice CBT has been set for this class.'
+                        : 'No CBT assessment has been set for this class.'}
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2450,14 +2455,23 @@ export default function ClassDetailPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
                   <div className="flex items-center gap-3">
                     <ChartBarIcon className="w-4 h-4 text-primary" />
-                    <h3 className="text-sm font-bold text-foreground">Gradebook</h3>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">
+                        {assessmentPolicy?.usesHostEvaluation ? 'Learning evidence gradebook' : 'Result evidence gradebook'}
+                      </h3>
+                      <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                        {assessmentPolicy?.usesHostEvaluation
+                          ? 'These marks show the Rillcod work taught. Official First Test, Second Test and Examination marks are entered in School results.'
+                          : 'Marked class work and CBT feed the Rillcod-managed result after review.'}
+                      </p>
+                    </div>
                     {isStaff && (
                       <button
                         onClick={() => setManualEntry(!manualEntry)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${manualEntry ? 'bg-emerald-600 text-white' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
                       >
                         {manualEntry ? <CheckIconOutline className="w-3.5 h-3.5" /> : <PencilSquareIconOutline className="w-3.5 h-3.5" />}
-                        {manualEntry ? 'Done Editing' : 'Edit Grades'}
+                        {manualEntry ? 'Finish entering marks' : 'Enter marks'}
                       </button>
                     )}
                   </div>
@@ -2465,8 +2479,8 @@ export default function ClassDetailPage() {
                     <Link href={`/dashboard/grades?class_id=${id}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
                       Open full gradebook →
                     </Link>
-                    <Link href={learnerReportHref('write', { classId: id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
-                      Write reports →
+                    <Link href={buildResultsHref({ classId: id, courseId: searchParams.get('course_id') || cls?.current_course_id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
+                      {assessmentCopy?.resultsAction ?? 'Open results'} →
                     </Link>
                   </div>
                 </div>
