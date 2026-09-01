@@ -33,7 +33,25 @@ type SubmissionAttachment = {
     name: string;
     type?: string | null;
     size?: number | null;
+    file_id?: string;
+    storage_path?: string;
+    sha256?: string | null;
+    integrity_status?: 'sha256_recorded' | 'metadata_only' | 'legacy_preserved';
+    scan_status?: 'clean' | 'pending' | 'unavailable';
 };
+
+type SubmissionSnapshot = SubmissionAttachment & { caption: string };
+
+function attachmentFromUpload(payload: any, displayName: string): SubmissionAttachment {
+    const receipt = payload?.data?.receipt;
+    if (!receipt?.file_id || !receipt?.url || !receipt?.storage_path) {
+        throw new Error('The upload finished without a verification receipt. Please retry this file.');
+    }
+    return {
+        ...receipt,
+        name: displayName || receipt.name || 'Submission',
+    };
+}
 
 function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
     const [copied, setCopied] = useState(false);
@@ -942,7 +960,7 @@ export default function AssignmentDetailPage() {
     const [uploadingFile, setUploadingFile] = useState(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
-    const [snapshots, setSnapshots] = useState<Array<{ url: string; caption: string }>>([]);
+    const [snapshots, setSnapshots] = useState<SubmissionSnapshot[]>([]);
     const [uploadingSnap, setUploadingSnap] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     const [shareOpen, setShareOpen] = useState(false);
@@ -1138,12 +1156,7 @@ export default function AssignmentDetailPage() {
                 const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
                 const payload = await res.json();
                 if (!res.ok) throw new Error(payload.error ?? `Could not upload "${file.name}"`);
-                uploaded.push({
-                    url: payload.data.public_url,
-                    name: file.name,
-                    type: file.type || null,
-                    size: file.size,
-                });
+                uploaded.push(attachmentFromUpload(payload, file.name));
             }
             setAttachments((prev) => {
                 const next = [...prev, ...uploaded];
@@ -1193,7 +1206,7 @@ export default function AssignmentDetailPage() {
             const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
             const payload = await res.json();
             if (!res.ok) throw new Error(payload.error ?? 'Upload failed');
-            setSnapshots(prev => [...prev, { url: payload.data.public_url, caption: '' }]);
+            setSnapshots(prev => [...prev, { ...attachmentFromUpload(payload, file.name), caption: '' }]);
         } catch (e: any) {
             setFileError(e.message ?? 'Snapshot upload failed');
         } finally {
@@ -1830,6 +1843,7 @@ export default function AssignmentDetailPage() {
                                         key={attachment.url}
                                         url={attachment.url}
                                         name={attachment.name}
+                                        integrityStatus={attachment.integrity_status}
                                         onOpenPreview={isSubmissionImageUrl(attachment.url) ? () => setLightboxUrl(attachment.url) : undefined}
                                     />
                                 ))}
@@ -1984,6 +1998,7 @@ export default function AssignmentDetailPage() {
                                                 key={attachment.url}
                                                 url={attachment.url}
                                                 name={attachment.name}
+                                                integrityStatus={attachment.integrity_status}
                                                 onOpenPreview={
                                                     isSubmissionImageUrl(attachment.url)
                                                         ? () => setLightboxUrl(attachment.url)
@@ -2224,6 +2239,7 @@ export default function AssignmentDetailPage() {
                                                     key={att.url}
                                                     url={att.url}
                                                     name={att.name}
+                                                    integrityStatus={att.integrity_status}
                                                     onRemove={() => removeAttachment(att.url)}
                                                     onOpenPreview={
                                                         (att.type?.startsWith('image/') || isSubmissionImageUrl(att.url))

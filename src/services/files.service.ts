@@ -148,8 +148,10 @@ export class FilesService {
                 storage_path: storagePath,
                 storage_provider: 'r2',
                 public_url: proxyUrl(storagePath),
-                is_virus_scanned: true,
-                virus_scan_result: 'clean',
+                // Signature validation and SHA-256 integrity are not a malware
+                // scan. Keep this honest until an external scanner confirms it.
+                is_virus_scanned: false,
+                virus_scan_result: 'pending_external_scan',
                 metadata: fileHash ? { file_hash: fileHash } : {},
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
@@ -216,8 +218,8 @@ export class FilesService {
                 storage_path: metadata.path,
                 storage_provider: 'r2',
                 public_url: proxyUrl(metadata.path),
-                is_virus_scanned: true,
-                virus_scan_result: 'clean',
+                is_virus_scanned: false,
+                virus_scan_result: 'pending_external_scan',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -316,6 +318,8 @@ export class FilesService {
                 storage_path: storagePath,
                 storage_provider: 'r2',
                 public_url: proxyUrl(storagePath),
+                is_virus_scanned: false,
+                virus_scan_result: 'pending_external_scan',
                 metadata: fileHash ? { file_hash: fileHash } : {},
                 updated_at: new Date().toISOString(),
             })

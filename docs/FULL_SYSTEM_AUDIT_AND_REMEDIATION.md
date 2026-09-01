@@ -908,7 +908,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-005 | P0 | Partially remediated; shared-store deployment proof pending | Central wrapper and sensitive public routes use the Upstash-aware limiter; reads no longer consume write capacity, authenticated writers use per-user/per-feature counters, and the policy is administrator-configurable. Direct-route inventory and shared-store production proof remain | Configure the shared store, finish all-sensitive-action inventory, then pass concurrency, school-NAT, disable/tune, and bypass tests |
 | SYS-006 | P0 | Locally remediated; production resend proof pending | Financial correction/resend now uses one canonical document route and a trusted issued-account snapshot | Deploy and prove the same invoice version matches save/preview/download/email/resend |
 | SYS-007 | P0 | Class merge/delete verified against the live schema; remaining call sites unclassified | Atomic `merge_duplicate_classes` and `delete_rebuildable_class` are applied and live (migrations 100–102). **Verified against the live database, not by reading the SQL**: all 32 foreign keys referencing `classes` are accounted for by the merge — none cascades without being re-pointed first — and the four learner-evidence tables (`academic_assessment_evidence`, `exams`, `student_progress_reports`, `student_transfer_requests`) are ON DELETE RESTRICT, so the database itself refuses to drop a class while evidence exists. The four deletes inside the merge are conditional dedupe (`and exists (…)`), removing a source row only where an equivalent survivor row already exists. The `students.class_id` write is guarded by a table-and-column check, which matters because that column does not exist on this database; `current_class`, `section` and `user_id` do | Classify the remaining literal and dynamic delete sites outside the class/lesson-plan paths, and exercise a real merge and a real class delete against a disposable database before trusting either in production |
-| SYS-008 | P0 | Partially remediated; full evaluation E2E pending | Assignment grading now routes through the canonical submission-review authority. A staff mark without a portal submission is recorded as staff-entered work, not fabricated as a learner submission, and optimistic-version checks remain central | Complete assignment/project/CBT/result role E2E and production proof without changing historical manual scores |
+| SYS-008 | P0 | Partially remediated; full evaluation E2E pending | Assignment grading routes through the canonical submission-review authority. New uploaded evidence now retains a file ID and SHA-256 receipt, is checked against storage ownership/school/path before submission, and no longer falsely claims a malware scan occurred. Historical evidence remains readable and manual scores remain protected | Complete assignment/project/CBT/result role E2E, add a real external malware scanner when operationally funded, and obtain production proof without changing historical manual scores |
 | SYS-009 | P1 | Partially remediated; observation/deployment proof pending | CSP report-only policy, sanitized observation ledger, Operations Health summary, and production HSTS are implemented locally; CSP is deliberately not enforced yet | Apply migration 99, deploy, inspect real browser/native violations, tighten directives, then enforce CSP and verify HTTPS/HSTS |
 | SYS-010 | P1 | Locally remediated; device proof pending | Android, iOS, and Capacitor now display Rillcod Technologies and regenerated native assets are checked in | Android/iOS/PWA installed-app visual proof |
 | SYS-011 | P1 | At risk | 70 client pages directly query database | Critical paths migrated to domain gateways with parity tests |
@@ -3967,3 +3967,40 @@ checking for orphan rows. If any appear, it aborts without deleting content.
 Learner scores, submissions, attempts, attendance and published results are not
 modified. Direct lesson creation without a class plan now explains the required
 next step instead of creating an untracked second world.
+
+## 16.54 Durable submission upload receipts and honest file safety (2026-09-01)
+
+Confirmed gaps:
+
+- the file service calculated SHA-256 but the assignment form retained only a bare URL, so the
+  submission could not prove which stored file, uploader or school produced the evidence;
+- newly posted attachment arrays accepted arbitrary URLs and silently discarded malformed entries;
+- uploads were written as `is_virus_scanned = true` and `virus_scan_result = clean` even though no
+  malware-scanning provider exists. A renamed executable could also rely on a browser-supplied MIME
+  value without its file signature being checked.
+
+Implemented:
+
+- JPEG, PNG, WebP and PDF assignment uploads now validate filename, declared MIME type and magic
+  bytes before storage. A renamed or mismatched file is refused with a customer-ready explanation;
+- the upload response includes a client-safe receipt containing file ID, storage path, SHA-256,
+  size, type and an honest safety state. The learner draft preserves this receipt across retry;
+- submission save resolves every new receipt against the authoritative `files` row and checks path,
+  hash, uploader and school. Cross-account, cross-school, missing and altered receipts are refused
+  before the submission changes. Work snapshots use the same contract. Older installed clients that
+  send only an internal media URL are upgraded server-side from the owned storage row rather than
+  being locked out by a rolling deployment;
+- historical URL-only evidence remains available and is labelled `legacy_preserved`, so this
+  hardening does not lock old work or alter scores. The interface says **Upload verified** for
+  hash-backed evidence without making a false malware-safety claim;
+- standard, resumable and replacement uploads now record `pending_external_scan`, not `clean`.
+  Schools are not blocked while no scanner is configured; a future scanner can move the same file
+  record to a proven clean or quarantined state without inventing a parallel upload system.
+
+Verification and boundary:
+
+- focused upload/submission/grading tests cover real and spoofed signatures, hash/path mismatch,
+  durable receipt wiring, historical preservation and the canonical grading authority;
+- TypeScript and schema-drift gates are rerun for this milestone before commit;
+- no database migration is required because `files.metadata`, scan-state columns and submission JSON
+  already hold the receipt. No learner score or historical submission is rewritten.

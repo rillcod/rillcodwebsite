@@ -59,6 +59,8 @@ type Props = {
   url: string;
   /** Optional display name when known (e.g. local File.name before submit). */
   name?: string | null;
+  /** Human-facing integrity state retained with the submission evidence. */
+  integrityStatus?: 'sha256_recorded' | 'metadata_only' | 'legacy_preserved' | null;
   /** Student name for lightbox header */
   studentName?: string | null;
   /** default = dashboard tokens; onDark = GradeCanvas dark shell */
@@ -79,6 +81,7 @@ type Props = {
 export function SubmissionAttachmentCard({
   url,
   name,
+  integrityStatus,
   studentName,
   tone = 'default',
   preview = true,
@@ -96,6 +99,13 @@ export function SubmissionAttachmentCard({
   const isCode = isCodeOrTextUrl(url);
   const { label, Icon } = submissionFileKind(url);
   const displayName = name?.trim() || submissionFileName(url);
+  const integrityLabel = integrityStatus === 'sha256_recorded'
+    ? 'Upload verified'
+    : integrityStatus === 'metadata_only'
+      ? 'Upload recorded'
+      : integrityStatus === 'legacy_preserved'
+        ? 'Previously submitted file'
+        : null;
   const dark = tone === 'onDark';
 
   const triggerPreview = () => {
@@ -138,7 +148,7 @@ export function SubmissionAttachmentCard({
           </div>
           <div className="min-w-0 flex-1">
             <p className={`truncate text-sm font-semibold ${title}`}>{displayName}</p>
-            <p className={`text-[11px] ${muted}`}>{label}</p>
+            <p className={`text-[11px] ${muted}`}>{label}{integrityLabel ? ` · ${integrityLabel}` : ''}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -182,7 +192,7 @@ export function SubmissionAttachmentCard({
           </div>
           <div className="min-w-0 flex-1">
             <p className={`truncate text-sm font-semibold leading-snug ${title}`}>{displayName}</p>
-            <p className={`mt-0.5 text-[11px] ${muted}`}>{label}</p>
+            <p className={`mt-0.5 text-[11px] ${muted}`}>{label}{integrityLabel ? ` · ${integrityLabel}` : ''}</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <button

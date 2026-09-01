@@ -20,6 +20,7 @@ import { generateAIContent, type GenerateRequest } from '@/lib/ai/generate-core'
 import { logAudit } from '@/lib/audit/log';
 import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
 import { normalizeGradeValueWithMax } from '@/lib/api-guards';
+import { buildUploadReceipt, mediaStoragePath, receiptMatchesStoredFile, type UploadReceipt } from '@/lib/files/upload-safety';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,144 @@ async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, c
   return data?.teacher_id ?? null;
 }
 
+type SubmissionEvidenceInput = Partial<UploadReceipt> & {
+  url?: unknown;
+  name?: unknown;
+  type?: unknown;
+  size?: unknown;
+  caption?: unknown;
+};
+
+type StoredSubmissionFile = {
+  id: string;
+  public_url: string | null;
+  original_filename: string;
+  mime_type: string | null;
+  file_size: number | null;
+  storage_path: string;
+  uploaded_by: string | null;
+  school_id: string | null;
+  is_virus_scanned: boolean | null;
+  virus_scan_result: string | null;
+  metadata: unknown;
+};
+
+function previousEvidenceUrls(existing: { attachments?: unknown; file_url?: unknown; answers?: unknown } | null): Set<string> {
+  const urls = new Set<string>();
+  if (typeof existing?.file_url === 'string' && existing.file_url) urls.add(existing.file_url);
+  if (Array.isArray(existing?.attachments)) {
+    for (const item of existing.attachments) {
+      if (item && typeof item === 'object' && typeof (item as { url?: unknown }).url === 'string') {
+        urls.add((item as { url: string }).url);
+      }
+    }
+  }
+  const answers = existing?.answers;
+  if (answers && typeof answers === 'object' && !Array.isArray(answers)) {
+    const snapshots = (answers as { snapshots?: unknown }).snapshots;
+    if (Array.isArray(snapshots)) {
+      for (const item of snapshots) {
+        if (item && typeof item === 'object' && typeof (item as { url?: unknown }).url === 'string') {
+          urls.add((item as { url: string }).url);
+        }
+      }
+    }
+  }
+  return urls;
+}
+
+async function verifySubmissionEvidence(
+  admin: ReturnType<typeof adminClient>,
+  value: unknown,
+  options: {
+    limit: number;
+    callerId: string;
+    learnerId: string;
+    schoolId: string | null;
+    previousUrls: Set<string>;
+    includeCaption?: boolean;
+  },
+): Promise<{ data: Array<Record<string, unknown>> | null; error?: string; code?: string }> {
+  if (value === undefined) return { data: null };
+  if (!Array.isArray(value)) {
+    return { data: null, error: 'Submission files must be sent as a list.', code: 'INVALID_UPLOAD_RECEIPT' };
+  }
+  if (value.length > options.limit) {
+    return { data: null, error: `You can attach up to ${options.limit} files.`, code: 'TOO_MANY_SUBMISSION_FILES' };
+  }
+
+  const inputs = value as SubmissionEvidenceInput[];
+  if (inputs.some((item) => !item || typeof item !== 'object' || typeof item.url !== 'string' || !item.url.trim())) {
+    return { data: null, error: 'One attachment is incomplete. Remove it and upload it again.', code: 'INVALID_UPLOAD_RECEIPT' };
+  }
+
+  const fileIds = [...new Set(inputs
+    .map((item) => typeof item.file_id === 'string' ? item.file_id : '')
+    .filter(Boolean))];
+  const storagePaths = [...new Set(inputs
+    .map((item) => mediaStoragePath(String(item.url ?? '')))
+    .filter((path): path is string => !!path))];
+  const columns = 'id,public_url,original_filename,mime_type,file_size,storage_path,uploaded_by,school_id,is_virus_scanned,virus_scan_result,metadata';
+  const [idResult, pathResult] = await Promise.all([
+    fileIds.length
+      ? admin.from('files').select(columns).in('id', fileIds)
+      : Promise.resolve({ data: [], error: null }),
+    storagePaths.length
+      ? admin.from('files').select(columns).in('storage_path', storagePaths)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (idResult.error || pathResult.error) {
+    return { data: null, error: 'The upload receipts could not be checked. Your work remains on this device; retry shortly.', code: 'UPLOAD_RECEIPT_CHECK_FAILED' };
+  }
+  const storedRows = [...(idResult.data ?? []), ...(pathResult.data ?? [])] as StoredSubmissionFile[];
+  const byId = new Map(storedRows.map((row) => [row.id, row]));
+  const byPath = new Map(storedRows.map((row) => [row.storage_path, row]));
+  const verified: Array<Record<string, unknown>> = [];
+
+  for (const item of inputs) {
+    const url = String(item.url).trim();
+    const fileId = typeof item.file_id === 'string' ? item.file_id : '';
+    if (!fileId && !mediaStoragePath(url)) {
+      if (!options.previousUrls.has(url)) {
+        return { data: null, error: 'A new attachment is missing its verification receipt. Upload it again before submitting.', code: 'UPLOAD_RECEIPT_REQUIRED' };
+      }
+      verified.push({
+        url,
+        name: typeof item.name === 'string' && item.name.trim() ? item.name.slice(0, 240) : 'Submission',
+        type: typeof item.type === 'string' ? item.type : null,
+        size: Number.isFinite(Number(item.size)) ? Number(item.size) : null,
+        integrity_status: 'legacy_preserved',
+        ...(options.includeCaption ? { caption: typeof item.caption === 'string' ? item.caption.slice(0, 200) : '' } : {}),
+      });
+      continue;
+    }
+
+    // Older installed app versions retained only the internal /api/media URL.
+    // Resolve it back to the same owned file row and upgrade the evidence to a
+    // full receipt instead of blocking that learner after a server deployment.
+    const row = fileId ? byId.get(fileId) : byPath.get(mediaStoragePath(url) ?? '');
+    const candidateReceipt = fileId ? item : { ...item, file_id: row?.id };
+    if (!row || !receiptMatchesStoredFile(candidateReceipt, row)) {
+      return { data: null, error: 'An attachment no longer matches its upload receipt. Upload it again; no submission was changed.', code: 'UPLOAD_RECEIPT_MISMATCH' };
+    }
+    if (row.uploaded_by !== options.callerId && row.uploaded_by !== options.learnerId) {
+      return { data: null, error: 'This attachment belongs to another account and cannot be submitted.', code: 'UPLOAD_OWNER_MISMATCH' };
+    }
+    if (options.schoolId && row.school_id && row.school_id !== options.schoolId) {
+      return { data: null, error: 'This attachment belongs to another school and cannot be submitted.', code: 'UPLOAD_SCHOOL_MISMATCH' };
+    }
+
+    const receipt = buildUploadReceipt(row);
+    verified.push({
+      ...receipt,
+      name: typeof item.name === 'string' && item.name.trim() ? item.name.slice(0, 240) : receipt.name,
+      uploaded_at: new Date().toISOString(),
+      ...(options.includeCaption ? { caption: typeof item.caption === 'string' ? item.caption.slice(0, 200) : '' } : {}),
+    });
+  }
+  return { data: verified };
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/assignments/[id]/submit
@@ -86,12 +225,7 @@ export async function POST(
     // Free-form work snapshots (multi-step submissions). Stored inside the JSON
     // `answers` column under `snapshots` — no migration needed, and the auto-grader
     // only reads numeric question indices so it ignores this key.
-    const snapshots = Array.isArray(body.snapshots)
-      ? body.snapshots
-          .filter((s: any) => s && typeof s.url === 'string' && s.url.trim())
-          .slice(0, 20)
-          .map((s: any) => ({ url: String(s.url), caption: typeof s.caption === 'string' ? s.caption.slice(0, 200) : '' }))
-      : null;
+    const rawSnapshots = body.snapshots;
 
     // Only admin/teacher may submit on behalf of another student
     const isStaff = ['admin', 'teacher'].includes(caller.role);
@@ -156,7 +290,7 @@ export async function POST(
     // dedicated grading route, which keeps a before/after audit trail.
     const { data: existingSub, error: existingError } = await admin
       .from('assignment_submissions')
-      .select('id,status,grade,weighted_score,graded_at,graded_by,grading_mode,version')
+      .select('id,status,grade,weighted_score,graded_at,graded_by,grading_mode,version,attachments,file_url,answers')
       .eq('assignment_id', assignment_id)
       .eq('portal_user_id', effectiveUserId)
       .maybeSingle();
@@ -204,6 +338,29 @@ export async function POST(
     const desiredStatus = existingSubmissionStatus === 'returned_for_revision'
       ? 'resubmitted'
       : isLate ? 'late' : 'submitted';
+    const oldUrls = previousEvidenceUrls(existingSub);
+    const verifiedAttachments = await verifySubmissionEvidence(admin, attachments, {
+      limit: 10,
+      callerId: caller.id,
+      learnerId: effectiveUserId,
+      schoolId: assignment.school_id ?? caller.school_id ?? null,
+      previousUrls: oldUrls,
+    });
+    if (verifiedAttachments.error) {
+      return NextResponse.json({ error: verifiedAttachments.error, code: verifiedAttachments.code }, { status: 422 });
+    }
+    const verifiedSnapshots = await verifySubmissionEvidence(admin, rawSnapshots, {
+      limit: 20,
+      callerId: caller.id,
+      learnerId: effectiveUserId,
+      schoolId: assignment.school_id ?? caller.school_id ?? null,
+      previousUrls: oldUrls,
+      includeCaption: true,
+    });
+    if (verifiedSnapshots.error) {
+      return NextResponse.json({ error: verifiedSnapshots.error, code: verifiedSnapshots.code }, { status: 422 });
+    }
+
     const upsertData: Record<string, unknown> = {
       assignment_id,
       portal_user_id: effectiveUserId,
@@ -219,26 +376,12 @@ export async function POST(
     // the sync_submission_attachments trigger rejects the rest and mirrors the
     // first into file_url, so the older single-file readers keep working.
     if (Array.isArray(attachments)) {
-        upsertData.attachments = attachments
-            .filter((a: unknown): a is { url: string } =>
-                !!a && typeof a === 'object' && typeof (a as { url?: unknown }).url === 'string'
-                && (a as { url: string }).url.trim() !== '')
-            .slice(0, 10)
-            .map((a) => {
-                const raw = a as { url: string; name?: unknown; type?: unknown; size?: unknown };
-                return {
-                    url: raw.url,
-                    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'Submission',
-                    type: typeof raw.type === 'string' ? raw.type : null,
-                    size: typeof raw.size === 'number' ? raw.size : null,
-                    uploaded_at: new Date().toISOString(),
-                };
-            });
+        upsertData.attachments = verifiedAttachments.data ?? [];
     }
     // Merge snapshots into answers without clobbering quiz answers.
-    if (snapshots && snapshots.length > 0) {
+    if (verifiedSnapshots.data && verifiedSnapshots.data.length > 0) {
       const base = answers && typeof answers === 'object' && !Array.isArray(answers) ? answers : {};
-      upsertData.answers = { ...base, snapshots };
+      upsertData.answers = { ...base, snapshots: verifiedSnapshots.data };
     } else if (answers != null) {
       upsertData.answers = answers;
     }

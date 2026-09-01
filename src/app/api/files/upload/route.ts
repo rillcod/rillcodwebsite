@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { filesService } from '@/services/files.service';
 import { AppError, ValidationError } from '@/lib/errors';
+import { buildUploadReceipt, validateAllowedUploadSignature } from '@/lib/files/upload-safety';
 
 async function postHandler(req: Request, ctx: ApiContext) {
     // Students can upload (e.g. assignment photo submissions); library uploads are role-gated at the content-library layer
@@ -51,11 +52,25 @@ async function postHandler(req: Request, ctx: ApiContext) {
         throw err;
     }
 
+    const signatureError = validateAllowedUploadSignature({
+        filename: file.name,
+        mimeType: file.type,
+        bytes: new Uint8Array(await file.slice(0, 16).arrayBuffer()),
+    });
+    if (signatureError) {
+        const err = new ValidationError(signatureError);
+        (err as any).field = 'file';
+        throw err;
+    }
+
     // Handle standard small-file upload
     const fileData = await filesService.uploadFile(file, ctx.user!.id, ctx.user?.tenantId);
     return NextResponse.json({
         success: true,
-        data: fileData,
+        data: {
+            ...fileData,
+            receipt: buildUploadReceipt(fileData),
+        },
         message: 'File uploaded successfully'
     }, { status: 201 });
 }

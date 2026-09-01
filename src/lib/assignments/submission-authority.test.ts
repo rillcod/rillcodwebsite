@@ -88,4 +88,21 @@ describe('assignment submission mutation authority', () => {
     expect(migration).toContain('not valid');
     expect(migration).not.toMatch(/update\s+public\.(cbt_sessions|assignment_submissions|exam_attempts)\s+set/i);
   });
+
+  it('binds new submission files to durable upload receipts while preserving historical evidence', () => {
+    const learnerRoute = read('src/app/api/assignments/[id]/submit/route.ts');
+    const uploadRoute = read('src/app/api/files/upload/route.ts');
+    const filesService = read('src/services/files.service.ts');
+    const assignmentPage = read('src/app/dashboard/assignments/[id]/page.tsx');
+
+    expect(uploadRoute).toContain('validateAllowedUploadSignature');
+    expect(uploadRoute).toContain('buildUploadReceipt(fileData)');
+    expect(assignmentPage).toContain('attachmentFromUpload');
+    expect(learnerRoute).toContain('receiptMatchesStoredFile');
+    expect(learnerRoute).toContain("byPath.get(mediaStoragePath(url) ?? '')");
+    expect(learnerRoute).toContain("code: 'UPLOAD_RECEIPT_REQUIRED'");
+    expect(learnerRoute).toContain("integrity_status: 'legacy_preserved'");
+    expect(filesService).not.toContain("virus_scan_result: 'clean'");
+    expect(filesService).toContain("virus_scan_result: 'pending_external_scan'");
+  });
 });
