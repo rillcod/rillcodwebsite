@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/client';
 import { gradeAssignmentRubric } from '@/lib/assignments/grading';
 import { SyntaxHighlight } from '@/components/ui/SyntaxHighlight';
 import ActivityInstructions from '@/components/activities/ActivityInstructions';
+import { SubmissionAttachmentCard } from '@/components/submissions/SubmissionAttachmentCard';
+import type { UploadReceipt } from '@/lib/files/upload-safety';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     CheckCircleIcon, PencilSquareIcon, ChevronDownIcon, ChevronUpIcon,
@@ -486,9 +488,12 @@ export default function ProjectBuilderPage() {
     // submission extra fields
     const [links, setLinks]                = useState<string[]>(['']);
     const [fileUrl, setFileUrl]            = useState('');
+    const [fileAttachment, setFileAttachment] = useState<UploadReceipt | null>(null);
     const [screenshotUrl, setScreenshotUrl]= useState('');
+    const [screenshotAttachment, setScreenshotAttachment] = useState<UploadReceipt | null>(null);
     const [textExplanation, setTextExplanation] = useState('');
     const [submitting, setSubmitting]      = useState(false);
+    const [uploadingEvidence, setUploadingEvidence] = useState<'file' | 'screenshot' | null>(null);
     const [capturing, setCapturing]        = useState(false);
 
     // (AI builder removed — students learn independently)
@@ -528,7 +533,15 @@ export default function ProjectBuilderPage() {
                     setLinks(ans.links?.length ? ans.links : ['']);
                     setEditorCode(ans.code || ans.playground_code || '');
                     setFileUrl(sub.file_url || '');
+                    const savedAttachment = Array.isArray(sub.attachments)
+                        ? sub.attachments.find((item: any) => item?.file_id && item?.url)
+                        : null;
+                    setFileAttachment(savedAttachment || null);
                     setScreenshotUrl(ans.screenshot_url || '');
+                    const savedSnapshot = Array.isArray(ans.snapshots)
+                        ? ans.snapshots.find((item: any) => item?.file_id && item?.url)
+                        : null;
+                    setScreenshotAttachment(savedSnapshot || null);
                     setTextExplanation(sub.submission_text || ans.text_explanation || '');
                 }
 
@@ -586,8 +599,45 @@ export default function ProjectBuilderPage() {
 
     // ── Student submit ────────────────────────────────────────────────────────
 
+    async function uploadEvidence(file: File | null, target: 'file' | 'screenshot') {
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            setError('Choose a file no larger than 10 MB.');
+            return;
+        }
+        if (target === 'screenshot' && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            setError('Screenshots must be JPEG, PNG or WebP images.');
+            return;
+        }
+        setUploadingEvidence(target);
+        setError('');
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch('/api/files/upload', { method: 'POST', body: formData });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'The file could not be uploaded.');
+            const receipt = payload.data?.receipt as UploadReceipt | undefined;
+            if (!receipt?.file_id || !receipt.url || !receipt.storage_path) {
+                throw new Error('The upload finished without a verification receipt. Please retry.');
+            }
+            if (target === 'file') {
+                setFileAttachment(receipt);
+                setFileUrl(receipt.url);
+            } else {
+                setScreenshotAttachment(receipt);
+                setScreenshotUrl(receipt.url);
+            }
+        } catch (uploadError) {
+            setError(uploadError instanceof Error ? uploadError.message : 'The file could not be uploaded.');
+        } finally {
+            setUploadingEvidence(null);
+        }
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (uploadingEvidence) return;
         const meta  = activity?.metadata || {};
         const types: string[] = meta.submission_types || ['link', 'code', 'text'];
 
@@ -608,7 +658,18 @@ export default function ProjectBuilderPage() {
             const res = await fetch(`/api/assignments/${id}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ portal_user_id: profile?.id, submission_text: submissionText, file_url: fUrl, answers }),
+                body: JSON.stringify({
+                    portal_user_id: profile?.id,
+                    submission_text: submissionText,
+                    file_url: fUrl,
+                    attachments: fUrl && fileAttachment
+                        ? [fileAttachment]
+                        : fUrl ? [{ url: fUrl, name: 'Previously submitted file', integrity_status: 'legacy_preserved' }] : [],
+                    snapshots: types.includes('screenshot') && screenshotAttachment
+                        ? [{ ...screenshotAttachment, caption: 'Project screenshot' }]
+                        : types.includes('screenshot') && screenshotUrl ? [{ url: screenshotUrl, caption: 'Previously submitted project screenshot', integrity_status: 'legacy_preserved' }] : [],
+                    answers,
+                }),
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Submission failed');
@@ -1076,26 +1137,58 @@ export default function ProjectBuilderPage() {
                                         </div>
                                     )}
 
-                                    {/* File */}
+                                    {/* File — same verified evidence flow used by assignments. */}
                                     {submissionTypes.includes('file') && (
                                         <div>
-                                            <label className={LABEL}>📎 File URL</label>
-                                            <input value={fileUrl} onChange={e => setFileUrl(e.target.value)}
-                                                placeholder="https://drive.google.com/..." className={INPUT} />
+                                            <label className={LABEL}>📎 Project file</label>
+                                            {fileUrl ? (
+                                                <SubmissionAttachmentCard
+                                                    url={fileUrl}
+                                                    name={fileAttachment?.name || 'Project file'}
+                                                    integrityStatus={fileAttachment?.integrity_status || (mySubmission ? 'legacy_preserved' : null)}
+                                                    compact
+                                                    onRemove={() => { setFileUrl(''); setFileAttachment(null); }}
+                                                />
+                                            ) : null}
+                                            <label className="mt-2 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/5 px-4 text-sm font-bold text-foreground hover:border-primary/50">
+                                                {uploadingEvidence === 'file' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PaperClipIcon className="h-4 w-4" />}
+                                                {uploadingEvidence === 'file' ? 'Uploading safely…' : fileUrl ? 'Replace project file' : 'Choose PDF or image'}
+                                                <input
+                                                    type="file"
+                                                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                                                    disabled={!!uploadingEvidence}
+                                                    className="sr-only"
+                                                    onChange={(event) => { void uploadEvidence(event.target.files?.[0] || null, 'file'); event.target.value = ''; }}
+                                                />
+                                            </label>
+                                            <p className="mt-1 text-xs text-muted-foreground">Maximum 10 MB. Code stays in the editor; repository and demo URLs belong in Project Links.</p>
                                         </div>
                                     )}
 
                                     {/* Screenshot */}
                                     {submissionTypes.includes('screenshot') && (
                                         <div>
-                                            <label className={LABEL}>🖼️ Screenshot URL</label>
-                                            <input value={screenshotUrl} onChange={e => setScreenshotUrl(e.target.value)}
-                                                placeholder="https://i.imgur.com/..." className={INPUT} />
-                                            {screenshotUrl?.startsWith('http') && (
-                                                <img src={screenshotUrl} alt="Preview"
-                                                    className="mt-2 max-h-40 border border-white/10 object-contain"
-                                                    onError={e => (e.target as any).style.display = 'none'} />
-                                            )}
+                                            <label className={LABEL}>🖼️ Project screenshot</label>
+                                            {screenshotUrl ? (
+                                                <SubmissionAttachmentCard
+                                                    url={screenshotUrl}
+                                                    name={screenshotAttachment?.name || 'Project screenshot'}
+                                                    integrityStatus={screenshotAttachment?.integrity_status || (mySubmission ? 'legacy_preserved' : null)}
+                                                    compact
+                                                    onRemove={() => { setScreenshotUrl(''); setScreenshotAttachment(null); }}
+                                                />
+                                            ) : null}
+                                            <label className="mt-2 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/5 px-4 text-sm font-bold text-foreground hover:border-primary/50">
+                                                {uploadingEvidence === 'screenshot' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <EyeIcon className="h-4 w-4" />}
+                                                {uploadingEvidence === 'screenshot' ? 'Uploading safely…' : screenshotUrl ? 'Replace screenshot' : 'Choose screenshot'}
+                                                <input
+                                                    type="file"
+                                                    accept="image/jpeg,image/png,image/webp"
+                                                    disabled={!!uploadingEvidence}
+                                                    className="sr-only"
+                                                    onChange={(event) => { void uploadEvidence(event.target.files?.[0] || null, 'screenshot'); event.target.value = ''; }}
+                                                />
+                                            </label>
                                         </div>
                                     )}
 
@@ -1122,7 +1215,7 @@ export default function ProjectBuilderPage() {
                                         </div>
                                     )}
 
-                                    <button type="submit" disabled={submitting}
+                                    <button type="submit" disabled={submitting || !!uploadingEvidence}
                                         className="flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary text-white text-sm font-black uppercase tracking-widest transition-all disabled:opacity-50 w-full justify-center">
                                         {submitting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                                         {submitting ? 'Submitting...' : mySubmission ? 'Update Submission' : 'Submit Project Work'}

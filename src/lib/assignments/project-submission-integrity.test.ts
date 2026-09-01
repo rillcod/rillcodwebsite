@@ -45,4 +45,14 @@ describe('project submission and grading integrity', () => {
     expect(submitRoute).toContain('gradeAssignmentAnswers(questions, answers, maxPts)');
     expect(submitRoute).toContain("status: 'pending_review'");
   });
+
+  it('uses the same verified upload receipts as ordinary assignments', () => {
+    expect(project).toContain("fetch('/api/files/upload'");
+    expect(project).toContain('payload.data?.receipt as UploadReceipt');
+    expect(project).toContain('attachments: fUrl && fileAttachment');
+    expect(project).toContain('snapshots: types.includes(\'screenshot\') && screenshotAttachment');
+    expect(project).toContain('SubmissionAttachmentCard');
+    expect(project).not.toContain('📎 File URL');
+    expect(project).not.toContain('🖼️ Screenshot URL');
+  });
 });

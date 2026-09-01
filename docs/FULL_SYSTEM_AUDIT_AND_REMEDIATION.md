@@ -3993,6 +3993,9 @@ Implemented:
 - historical URL-only evidence remains available and is labelled `legacy_preserved`, so this
   hardening does not lock old work or alter scores. The interface says **Upload verified** for
   hash-backed evidence without making a false malware-safety claim;
+- the project learner page no longer asks for raw file and screenshot URLs. It uses the same verified
+  upload receipt, preview card, retry state and server submission authority as ordinary assignments;
+  repository and live-demo URLs remain separate project links;
 - standard, resumable and replacement uploads now record `pending_external_scan`, not `clean`.
   Schools are not blocked while no scanner is configured; a future scanner can move the same file
   record to a proven clean or quarantined state without inventing a parallel upload system.
