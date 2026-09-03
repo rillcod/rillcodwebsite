@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeSchoolReportPdfFilename } from './pdf-delivery';
+import { hashRenderedPdf, safeSchoolReportPdfFilename } from './pdf-delivery';
 
 describe('safeSchoolReportPdfFilename', () => {
   it('slugifies report titles for attachment names', () => {
@@ -10,5 +10,14 @@ describe('safeSchoolReportPdfFilename', () => {
 
   it('falls back when title is empty', () => {
     expect(safeSchoolReportPdfFilename('')).toBe('school-performance-report.pdf');
+  });
+
+  it('fingerprints the exact rendered PDF bytes', () => {
+    const first = hashRenderedPdf(Buffer.from('%PDF-1.7\nfirst'));
+    const same = hashRenderedPdf(Buffer.from('%PDF-1.7\nfirst'));
+    const changed = hashRenderedPdf(Buffer.from('%PDF-1.7\nsecond'));
+    expect(first).toMatch(/^[a-f0-9]{64}$/);
+    expect(first).toBe(same);
+    expect(first).not.toBe(changed);
   });
 });

@@ -83,13 +83,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const termLabel = row.term_label || row.snapshot?.period?.termLabel || 'Term';
   const academicYear = row.academic_year || row.snapshot?.period?.academicYear || '';
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
-  const portalUrl = `${appUrl}/dashboard/school-reports/${id}`;
+  const portalPath = `/dashboard/school-reports/${id}${revision ? `?revision=${encodeURIComponent(revision)}` : ''}`;
+  const portalUrl = `${appUrl}${portalPath}`;
   const recipientName = toName || to.split('@')[0] || 'Recipient';
   const senderName = actor.profile.full_name || 'Rillcod staff';
   const subject = `School performance report — ${schoolName} (${termLabel}${academicYear ? ` · ${academicYear}` : ''})`;
 
   try {
-    const { buffer, filename } = await buildSchoolReportPdfBuffer(
+    const { buffer, filename, pdfHash, revisionNumber } = await buildSchoolReportPdfBuffer(
       actor.admin,
       row,
       actor.profile.role,
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           message: `${senderName} shared the ${termLabel} performance report for ${schoolName}. Open the report in your dashboard to view or download the PDF.`,
           type: 'info',
           is_read: false,
-          action_url: `/dashboard/school-reports/${id}`,
+          action_url: portalPath,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -157,7 +158,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           to,
           toName: toName || null,
           filename,
-          revision: revision ? Number(revision) : null,
+          revision: revisionNumber,
+          pdfHash,
           channel: isInAppEmail(to) ? 'in_app' : 'smtp',
         },
       });
@@ -178,6 +180,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         to,
         subject,
         filename,
+        revision: revisionNumber,
+        pdfHash,
         ...(auditWarning ? { auditWarning } : {}),
       },
     });

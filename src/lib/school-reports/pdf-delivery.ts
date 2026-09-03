@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 import { getPublishedRevision } from './revisions';
 import { renderSchoolReportPdf } from './pdf';
 import { resolveSchoolReportAudience, shapeSchoolReportForAudience } from './audience';
@@ -19,17 +20,20 @@ export async function resolveSchoolReportRenderSource(
   admin: AnyClient,
   report: SchoolPerformanceReportRow,
   revisionParam?: string | null,
-): Promise<{ source: SchoolPerformanceReportRow; pdfHash: string | null }> {
+): Promise<{
+  source: SchoolPerformanceReportRow;
+  revisionNumber: number | null;
+}> {
   let renderSource = report;
-  let pdfHash: string | null = null;
+  let revisionNumber: number | null = null;
 
   if (revisionParam) {
-    const revisionNumber = Number(revisionParam);
+    const revNum = Number(revisionParam);
     const { data: revision } = await admin
       .from('school_report_revisions')
       .select('*')
       .eq('report_id', report.id)
-      .eq('revision_number', revisionNumber)
+      .eq('revision_number', revNum)
       .maybeSingle();
     if (!revision || revision.status !== 'published') {
       throw new Error('Published revision not found.');
@@ -41,7 +45,7 @@ export async function resolveSchoolReportRenderSource(
       design: revision.design,
       status: 'published',
     };
-    pdfHash = revision.pdf_hash;
+    revisionNumber = revision.revision_number;
   } else if (report.status === 'published') {
     const publishedRevision = await getPublishedRevision(admin, report);
     if (publishedRevision) {
@@ -51,11 +55,15 @@ export async function resolveSchoolReportRenderSource(
         narrative: publishedRevision.narrative,
         design: publishedRevision.design,
       };
-      pdfHash = publishedRevision.pdf_hash;
+      revisionNumber = publishedRevision.revision_number;
     }
   }
 
-  return { source: renderSource, pdfHash };
+  return { source: renderSource, revisionNumber };
+}
+
+export function hashRenderedPdf(buffer: Buffer): string {
+  return createHash('sha256').update(buffer).digest('hex');
 }
 
 export async function buildSchoolReportPdfBuffer(
@@ -63,8 +71,13 @@ export async function buildSchoolReportPdfBuffer(
   report: SchoolPerformanceReportRow,
   actorRole: string,
   revisionParam?: string | null,
-): Promise<{ buffer: Buffer; filename: string; pdfHash: string | null }> {
-  const { source, pdfHash } = await resolveSchoolReportRenderSource(admin, report, revisionParam);
+): Promise<{
+  buffer: Buffer;
+  filename: string;
+  pdfHash: string;
+  revisionNumber: number | null;
+}> {
+  const { source, revisionNumber } = await resolveSchoolReportRenderSource(admin, report, revisionParam);
   const audience = resolveSchoolReportAudience(actorRole);
   const shapedSource =
     audience === 'school' ? shapeSchoolReportForAudience(source, audience) : source;
@@ -72,7 +85,8 @@ export async function buildSchoolReportPdfBuffer(
   return {
     buffer,
     filename: safeSchoolReportPdfFilename(report.title),
-    pdfHash,
+    pdfHash: hashRenderedPdf(buffer),
+    revisionNumber,
   };
 }
 

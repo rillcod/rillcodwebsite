@@ -93,7 +93,7 @@ export default function SchoolReportHistoryPage({ params }: { params: Promise<{ 
                     <th className="p-3">Status</th>
                     <th className="p-3">Published</th>
                     <th className="p-3">Reason</th>
-                    <th className="p-3">PDF hash</th>
+                    <th className="p-3">Document version</th>
                   </tr>
                 </thead>
                 <tbody>
