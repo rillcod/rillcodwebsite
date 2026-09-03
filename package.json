@@ -194,6 +194,8 @@
       "jose": "^5.10.0"
     },
     "dompurify": "3.4.13",
+    "@xmldom/xmldom": "0.9.12",
+    "@humanfs/node": "0.16.8",
     "tar": "7.5.22",
     "esbuild": "0.28.1"
   }
