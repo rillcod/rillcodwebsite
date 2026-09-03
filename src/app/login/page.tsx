@@ -56,6 +56,7 @@ function LoginContent() {
     const sessionRecoveredParam = searchParams?.get('session_recovered') === '1';
     const sessionExpiredParam = searchParams?.get('session_expired') === '1';
     const profileMissing = searchParams?.get('account_error') === 'profile_missing';
+    const accountInactive = searchParams?.get('account_error') === 'inactive';
 
     if (sessionRecoveredParam || sessionExpiredParam) {
       setSessionNotice(
@@ -66,6 +67,40 @@ function LoginContent() {
     }
     if (profileMissing) {
       setError('Your account setup could not be confirmed. Please contact your school or Rillcod support.');
+    }
+    if (accountInactive) {
+      setError('Your account is inactive. Please contact your school or Rillcod support.');
+    }
+
+    // Proxy has already expired the server cookies for an invalid profile, but
+    // Supabase may still have the same session in browser storage. Clear both
+    // sides before checking for an existing session or the user can bounce
+    // straight back to /dashboard in a loop.
+    if (profileMissing || accountInactive) {
+      setClearingSession(true);
+      void (async () => {
+        try {
+          await fetch('/api/auth/signout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              Accept: 'application/json',
+              'x-rillcod-signout': '1',
+            },
+            redirect: 'manual',
+          }).catch(() => null);
+          await supabase.auth.signOut({ scope: 'global' }).catch(() => null);
+          try {
+            Object.keys(localStorage).forEach((key) => {
+              if (key.startsWith('sb-') || key.startsWith('rillcod_')) localStorage.removeItem(key);
+            });
+            sessionStorage.clear();
+          } catch { /* Browser storage can be unavailable in private mode. */ }
+        } finally {
+          setClearingSession(false);
+        }
+      })();
+      return;
     }
 
     if (clearParam || signedOutParam) {
@@ -170,7 +205,7 @@ function LoginContent() {
       const { data: profileData, error: profileError } = await withTimeoutOrThrow(
         supabase
           .from('portal_users')
-          .select('role, is_active, full_name, metadata, school_id, class_id')
+          .select('role, is_active, is_deleted, full_name, metadata, school_id, class_id')
           .eq('id', authData.user.id)
           .maybeSingle(),
         'Your account details could not be confirmed. Please try again.',
@@ -182,7 +217,7 @@ function LoginContent() {
         await supabase.auth.signOut();
         throw new Error("No account found. Please contact your school administrator.");
       }
-      if (!profileData.is_active) {
+      if (!profileData.is_active || profileData.is_deleted) {
         await supabase.auth.signOut();
         const role = profileData.role ?? '';
         const needsSchool = ['student', 'parent', 'teacher', 'school'].includes(role) && !profileData.school_id;

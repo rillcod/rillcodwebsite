@@ -3,6 +3,13 @@ import type { NextRequest } from 'next/server';
 import { createMiddlewareSupabase } from '@/lib/supabase/middleware';
 import { isDashboardPathBlockedForRole } from '@/lib/dashboard/route-access';
 import {
+  createDashboardGateToken,
+  DASHBOARD_GATE_COOKIE,
+  DASHBOARD_GATE_TTL_SECONDS,
+  isDashboardGateRole,
+  verifyDashboardGateToken,
+} from '@/lib/auth/dashboard-gate';
+import {
   isInvalidRefreshTokenError,
   isSupabaseAuthStorageKey,
 } from '@/lib/auth/session-recovery';
@@ -12,7 +19,7 @@ function expireSupabaseAuthCookies(
   response: NextResponse,
 ): NextResponse {
   for (const cookie of request.cookies.getAll()) {
-    if (!isSupabaseAuthStorageKey(cookie.name)) continue;
+    if (!isSupabaseAuthStorageKey(cookie.name) && cookie.name !== DASHBOARD_GATE_COOKIE) continue;
     response.cookies.set({
       name: cookie.name,
       value: '',
@@ -27,11 +34,39 @@ function expireSupabaseAuthCookies(
 
 function copyResponseCookies(source: NextResponse, target: NextResponse): void {
   source.cookies.getAll().forEach((cookie) => {
-    target.cookies.set(cookie.name, cookie.value);
+    target.cookies.set(cookie);
   });
 }
 
-export async function middleware(request: NextRequest) {
+function setDashboardGateCookie(response: NextResponse, token: string): void {
+  response.cookies.set({
+    name: DASHBOARD_GATE_COOKIE,
+    value: token,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: DASHBOARD_GATE_TTL_SECONDS,
+  });
+}
+
+function redirectForAccountProblem(
+  request: NextRequest,
+  authResponse: NextResponse,
+  problem: 'profile_missing' | 'inactive',
+): NextResponse {
+  const url = request.nextUrl.clone();
+  const requestedDestination = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+  url.pathname = '/login';
+  url.search = '';
+  url.searchParams.set('redirectedFrom', requestedDestination);
+  url.searchParams.set('account_error', problem);
+  const redirectResponse = NextResponse.redirect(url);
+  copyResponseCookies(authResponse, redirectResponse);
+  return expireSupabaseAuthCookies(request, redirectResponse);
+}
+
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const host = request.headers.get('host');
@@ -125,24 +160,51 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && pathname.startsWith('/dashboard')) {
-    const { data: row } = await supabase
-      .from('portal_users')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
+    const cached = verifyDashboardGateToken(
+      request.cookies.get(DASHBOARD_GATE_COOKIE)?.value,
+      user.id,
+    );
+    let role = cached?.role;
 
-    const role = row?.role;
-    if (!role) {
-      const url = request.nextUrl.clone();
-      const requestedDestination = `${pathname}${request.nextUrl.search}`;
-      url.pathname = '/login';
-      url.search = '';
-      url.searchParams.set('redirectedFrom', requestedDestination);
-      url.searchParams.set('account_error', 'profile_missing');
-      const redirectResponse = NextResponse.redirect(url);
-      copyResponseCookies(getResponse(), redirectResponse);
-      return expireSupabaseAuthCookies(request, redirectResponse);
+    if (cached && !cached.active) {
+      return redirectForAccountProblem(request, getResponse(), 'inactive');
     }
+
+    if (!cached) {
+      let row: { role: string | null; is_active: boolean | null; is_deleted: boolean | null } | null = null;
+      let profileError: unknown = null;
+      try {
+        const result = await supabase
+          .from('portal_users')
+          .select('role,is_active,is_deleted')
+          .eq('id', user.id)
+          .maybeSingle();
+        row = result.data;
+        profileError = result.error;
+      } catch (error) {
+        profileError = error;
+      }
+
+      // A temporary profile read failure must not sign a valid user out. The
+      // dashboard guard will retry /api/auth/me and all protected APIs/RLS
+      // still perform authoritative authorization.
+      if (profileError) return getResponse();
+      if (!row?.role || !isDashboardGateRole(row.role)) {
+        return redirectForAccountProblem(request, getResponse(), 'profile_missing');
+      }
+      if (row.is_active !== true || row.is_deleted === true) {
+        return redirectForAccountProblem(request, getResponse(), 'inactive');
+      }
+
+      role = row.role;
+      const token = createDashboardGateToken({
+        userId: user.id,
+        role,
+        active: true,
+      });
+      if (token) setDashboardGateCookie(getResponse(), token);
+    }
+
     if (isDashboardPathBlockedForRole(pathname, role)) {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';

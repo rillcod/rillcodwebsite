@@ -28,7 +28,7 @@ export default function DashboardAccessGuard({ children }: { children: React.Rea
     !profile.school_id;
   const needsClass = !!profile && profile.role === 'student' && !profile.class_id;
   const pendingPlacement = needsSchool || needsClass;
-  const structureBlocked = !!profile && (!profile.is_active || pendingPlacement);
+  const structureBlocked = !!profile && (!profile.is_active || profile.is_deleted === true || pendingPlacement);
   const profileMissing = !loading && !profileLoading && !profile;
 
   useEffect(() => {

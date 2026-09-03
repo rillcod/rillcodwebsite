@@ -943,7 +943,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-040 | P3 | Governance | Page ownership and task definition incomplete | Owner/role/task/status recorded for all 229 pages |
 | SYS-041 | P1 | Verified locally; deployment pending | Duplicate `UserRole` type omitted `parent` in `src/types/auth.ts` | Deploy and keep exhaustive role tests green |
 | SYS-042 | P1 | Verified locally | Vitest excluded `.test.tsx`; report-card PDF renderer guard never ran | TSX collection remains enabled and full CI reports 333 files including the guard |
-| SYS-043 | P1 | At risk | Dashboard middleware performs a role database read on each matched navigation | Measured latency budget and invalidation-safe role authorization with revoked/changed-role tests |
+| SYS-043 | P1 | Locally remediated; production latency proof pending | Next 16 Proxy reuses a server-signed 60-second role/account snapshot, validates user binding and expiry, and falls back to `portal_users` only on cache miss. Login, profile, dashboard guard and sign-out now agree on inactive/deleted accounts | Deploy, measure p50/p95 navigation and run revoked/changed-role canaries; Route Handlers and RLS remain the authorization authority |
 | SYS-044 | P1 | Locally implemented on the existing abuse gate; production canary pending | After the keyword list, learner and parent messages are classified with Llama Guard 3. Violence/criminal categories block. Self-harm (S11) and child-exploitation (S4) escalate and still deliver. The check fails open. It is not a grooming detector | Live canary: a violent message is refused, a self-harm message is delivered and logged as `escalated_classifier`, and an unconfigured/slow model still lets a parent message through |
 
 ## 8. Mandatory journey certification matrix
@@ -4021,3 +4021,39 @@ Verification and boundary:
   installed tree confirms `tar` 7.5.22, xmldom 0.9.12 and humanfs 0.16.8;
 - TypeScript passed and the complete suite passed 447 files / 3,090 tests. A fresh GitHub push must
   rebuild and scan the Cloudflare image before the remote container gate is claimed green.
+
+## 16.56 Dashboard access latency and account-state consistency (2026-09-03)
+
+Confirmed gaps:
+
+- every dashboard navigation validated the Supabase session and then queried `portal_users` again only
+  to obtain the role. This made client navigation depend on an avoidable database round trip;
+- that second check selected only `role`, while login and customer-facing guards treated `is_active`
+  separately and did not consistently include `is_deleted`;
+- a temporary profile-query failure was indistinguishable from a genuinely missing profile and could
+  clear a valid session; the project also still used Next 16's deprecated `middleware.ts` convention.
+
+Implemented:
+
+- the boundary is now the installed Next 16 `proxy.ts` convention and retains Supabase `getUser()` for
+  authenticated-session validation;
+- a compact HttpOnly cookie caches the user ID, known role, active state and expiry for 60 seconds. It
+  is HMAC-signed with a server-only secret, bound to the authenticated user and rejected when altered,
+  expired or carrying an unknown role. The database remains the fallback when no valid snapshot exists;
+- inactive, deleted, missing and unexpected-role profiles fail closed. A temporary database error soft
+  passes to the central dashboard profile retry instead of signing the customer out. This is safe because
+  Proxy is only the optimistic navigation gate: protected Route Handlers and Supabase RLS remain the
+  operation-level authorization authority;
+- `/api/auth/me`, password login, the dashboard access guard and sign-out now share the deleted-account
+  rule, and sign-out/session recovery also expires the signed gate cookie. The account-error login path
+  clears browser and server session state before checking for an existing session, preventing a stale
+  client token from bouncing an inactive customer back into the dashboard;
+
+Verification and boundary:
+
+- token tests cover valid round-trip, tampering, cross-user replay, expiry and missing-secret fallback;
+- integration guards cover the Next 16 convention, database fallback, transient-error behavior and
+  inactive/deleted-state alignment. Focused role/profile tests and TypeScript pass;
+- no database migration, score mutation or change to the five-minute client profile display cache is
+  involved. The maximum role/profile routing hint lifetime is 60 seconds; live p50/p95 navigation and
+  revoked/changed-role canaries remain deployment evidence, not a local claim.

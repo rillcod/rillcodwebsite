@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
     const admin = adminClient();
     const profileSelect =
-      'id, email, full_name, role, is_active, phone, bio, profile_image_url, class_id, school_id, school_name, section_class, grade, current_module, date_of_birth, enrollment_type, last_login, created_at, updated_at';
+      'id, email, full_name, role, is_active, is_deleted, phone, bio, profile_image_url, class_id, school_id, school_name, section_class, grade, current_module, date_of_birth, enrollment_type, last_login, created_at, updated_at';
     const { data, error } = await admin
       .from('portal_users')
       .select(profileSelect)

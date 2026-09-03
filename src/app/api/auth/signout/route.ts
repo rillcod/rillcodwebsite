@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { isSupabaseAuthStorageKey } from '@/lib/auth/session-recovery';
+import { DASHBOARD_GATE_COOKIE } from '@/lib/auth/dashboard-gate';
 
 async function handleSignOut(req: NextRequest) {
     const cookieStore = await cookies();
@@ -38,7 +39,7 @@ async function handleSignOut(req: NextRequest) {
     await supabase.auth.signOut().catch(() => null);
 
     for (const cookie of cookieStore.getAll()) {
-        if (!isSupabaseAuthStorageKey(cookie.name)) continue;
+        if (!isSupabaseAuthStorageKey(cookie.name) && cookie.name !== DASHBOARD_GATE_COOKIE) continue;
         cookieStore.set({
             name: cookie.name,
             value: '',
