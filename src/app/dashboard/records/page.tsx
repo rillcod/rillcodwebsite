@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { roleHasCapability } from '@/lib/auth/capabilities';
@@ -8,6 +8,7 @@ import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, Rec
 import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { fetchCardConfig, buildBulkPrintHtml, openPrintWindow, type CardHolder, type CardFieldConfig } from '@/lib/cards/printCard';
+import { fetchActionJson, friendlyActionError } from '@/lib/async-timeout';
 
 type Rec = {
   id: string; type: string; name: string; email: string; school: string;
@@ -81,6 +82,9 @@ export default function RecordsPage() {
   const [regs, setRegs] = useState<Reg[]>([]);
   const [loading, setLoading] = useState(true);
   const [regsLoaded, setRegsLoaded] = useState(false);
+  const [regsLoading, setRegsLoading] = useState(false);
+  const [regsError, setRegsError] = useState('');
+  const regsRequestInFlight = useRef(false);
   const [err, setErr] = useState('');
 
   const [q, setQ] = useState('');
@@ -97,6 +101,7 @@ export default function RecordsPage() {
   const [sortKey, setSortKey] = useState<SortKey>('registered');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [visibleLimit, setVisibleLimit] = useState(60);
 
   useEffect(() => {
     if (authLoading || !isStaff) return;
@@ -112,17 +117,38 @@ export default function RecordsPage() {
     })();
   }, [authLoading, isStaff]);
 
+  const loadRegistrations = useCallback(async () => {
+    if (authLoading || !isStaff || regsRequestInFlight.current) return;
+    regsRequestInFlight.current = true;
+    setRegsLoading(true);
+    setRegsError('');
+    try {
+      const { response, data } = await fetchActionJson<{
+        registrations: Reg[];
+        error: string;
+      }>(
+        '/api/records/registrations',
+        { cache: 'no-store' },
+        'Registration records are taking longer than expected. Please retry.',
+        30_000,
+      );
+      if (!response.ok) throw new Error(data.error || 'Registration records could not be loaded.');
+      if (!Array.isArray(data.registrations)) throw new Error('Registration records could not be loaded.');
+      setRegs(data.registrations);
+      setRegsLoaded(true);
+    } catch (error) {
+      setRegsError(friendlyActionError(error, 'Registration records could not be loaded. Please retry.'));
+    } finally {
+      regsRequestInFlight.current = false;
+      setRegsLoading(false);
+    }
+  }, [authLoading, isStaff]);
+
   useEffect(() => {
-    if (tab !== 'registrations' || regsLoaded || authLoading || !isStaff) return;
-    (async () => {
-      try {
-        const res = await fetch('/api/records/registrations', { cache: 'no-store' });
-        const json = await res.json();
-        if (res.ok) { setRegs(json.registrations ?? []); setRegsLoaded(true); }
-        else setErr(json.error || 'Failed to load registrations');
-      } catch (e: any) { setErr(e.message ?? 'Failed to load registrations'); }
-    })();
-  }, [tab, regsLoaded, authLoading, isStaff]);
+    if (tab !== 'registrations' || regsLoaded) return;
+    const timer = window.setTimeout(() => void loadRegistrations(), 0);
+    return () => window.clearTimeout(timer);
+  }, [tab, regsLoaded, loadRegistrations]);
 
   const uniq = (arr: any[], key: string) => [...new Set(arr.map(r => r[key]).filter(Boolean) as string[])].sort();
   const typeCounts = useMemo(() => { const c: Record<string, number> = {}; for (const r of rows) c[r.type] = (c[r.type] || 0) + 1; return c; }, [rows]);
@@ -171,6 +197,7 @@ export default function RecordsPage() {
   }).sort(compareRows), [regs, q, fSchool, fClass, fSource, fBatch, fAccount, sortKey, sortDir]);
 
   const activeRows: Array<Rec | Reg> = tab === 'people' ? peopleFiltered : regsFiltered;
+  const visibleRows = activeRows.slice(0, visibleLimit);
   const rowSelectionKey = (row: Rec | Reg) => `${tab}:${row.id}`;
   const selectedVisibleRows = activeRows.filter((row) => selectedRows.has(rowSelectionKey(row)));
   const allVisibleSelected = activeRows.length > 0 && selectedVisibleRows.length === activeRows.length;
@@ -322,6 +349,20 @@ export default function RecordsPage() {
   const activeCount = tab === 'people' ? peopleFiltered.length : regsFiltered.length;
   const totalCount = tab === 'people' ? rows.length : regs.length;
 
+  function switchTab(nextTab: 'people' | 'registrations') {
+    setTab(nextTab);
+    setVisibleLimit(60);
+    setSelectedRows(new Set());
+    setFSchool('all');
+    setFClass('all');
+    setFSource('all');
+    setFStatus('all');
+    setFAccount('all');
+    setFBatch('all');
+    const query = nextTab === 'registrations' ? '?tab=registrations' : '';
+    router.replace(`/dashboard/records${query}`, { scroll: false });
+  }
+
   return (
     <div className="space-y-5 p-1 pb-10 mobile-page-root">
       {/* Header */}
@@ -352,7 +393,7 @@ export default function RecordsPage() {
       {/* Tabs */}
       <div className="inline-flex rounded-xl border border-border bg-card p-1">
         {(['people', 'registrations'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${tab === t ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>
+          <button key={t} onClick={() => switchTab(t)} className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${tab === t ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}>
             {t === 'people' ? 'People' : 'Registrations & Logins'}
           </button>
         ))}
@@ -437,12 +478,23 @@ export default function RecordsPage() {
         </div>
       </div>
 
-      {err && <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-sm">{err}</div>}
+      {err && tab === 'people' && <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-sm">{err}</div>}
+      {tab === 'registrations' && regsError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <div>
+            <p className="text-sm font-black text-foreground">Registration records are temporarily unavailable</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Your data is safe. Retry the live register without leaving this page.</p>
+          </div>
+          <button onClick={() => void loadRegistrations()} disabled={regsLoading} className="rounded-xl bg-foreground px-4 py-2 text-xs font-black text-background disabled:opacity-50">
+            {regsLoading ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
+      )}
 
       {/* Datasheet */}
       {view === 'cards' ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {(tab === 'people' ? peopleFiltered : regsFiltered).map((row: any) => (
+          {visibleRows.map((row: any) => (
             <div key={`${tab}-${row.id}`} className="rounded-2xl border border-border bg-card p-4 hover:bg-muted/60 transition-colors">
               <div className="flex items-start justify-between gap-3">
                 <input type="checkbox" checked={selectedRows.has(rowSelectionKey(row))} onChange={() => toggleRow(row)} className="mt-1 accent-primary" aria-label={`Select ${row.name}`} />
@@ -496,7 +548,8 @@ export default function RecordsPage() {
               </div>
             </div>
           ))}
-          {activeCount === 0 && <div className="sm:col-span-2 xl:col-span-3 px-3 py-12 text-center text-muted-foreground text-sm">No records match your filters.</div>}
+          {activeCount === 0 && !regsLoading && !regsError && <div className="sm:col-span-2 xl:col-span-3 px-3 py-12 text-center text-muted-foreground text-sm">No records match your filters.</div>}
+          {tab === 'registrations' && regsLoading && <div className="sm:col-span-2 xl:col-span-3 px-3 py-12 text-center text-muted-foreground text-sm">Loading registration records…</div>}
         </div>
       ) : (
       <div className="border border-border rounded-2xl overflow-hidden bg-card">
@@ -507,7 +560,7 @@ export default function RecordsPage() {
                 <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered records" /></th>{['Name', 'Type', 'Email', 'School', 'Grade', 'Program', 'Source', 'Status', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
-                {peopleFiltered.map(r => (
+                {peopleFiltered.slice(0, visibleLimit).map(r => (
                   <tr key={`${r.type}-${r.id}`} onClick={() => router.push(r.href)} className="border-t border-border even:bg-muted/30 hover:bg-primary/5 cursor-pointer transition-colors">
                     <td className="px-3 py-2.5"><input type="checkbox" checked={selectedRows.has(rowSelectionKey(r))} onChange={() => toggleRow(r)} onClick={(e) => e.stopPropagation()} className="accent-primary" aria-label={`Select ${r.name}`} /></td>
                     <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.name}</td>
@@ -530,7 +583,7 @@ export default function RecordsPage() {
                 <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered registrations" /></th>{['Name', 'Login Email', ...(canViewCredentials ? ['Password'] : []), 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
-                {regsFiltered.map(r => (
+                {regsFiltered.slice(0, visibleLimit).map(r => (
                   <tr key={r.id} className="border-t border-border even:bg-muted/30 hover:bg-primary/5 transition-colors">
                     <td className="px-3 py-2.5"><input type="checkbox" checked={selectedRows.has(rowSelectionKey(r))} onChange={() => toggleRow(r)} className="accent-primary" aria-label={`Select ${r.name}`} /></td>
                     <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.name}</td>
@@ -556,15 +609,22 @@ export default function RecordsPage() {
                     </td>
                   </tr>
                 ))}
-                {regsFiltered.length === 0 && <tr><td colSpan={12} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
+                {regsFiltered.length === 0 && <tr><td colSpan={12} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsError ? 'Use Retry above to load registration records.' : regsLoading || !regsLoaded ? 'Loading registration records…' : 'No registrations match your filters.'}</td></tr>}
               </tbody>
             </table>
           )}
         </div>
       </div>
       )}
+      {activeCount > visibleLimit && (
+        <div className="flex justify-center">
+          <button onClick={() => setVisibleLimit((current) => current + 60)} className="rounded-xl border border-border bg-card px-5 py-2.5 text-xs font-black text-foreground hover:bg-muted">
+            Show 60 more
+          </button>
+        </div>
+      )}
       <p className="text-[10px] text-muted-foreground px-1">
-        Showing <span className="text-foreground font-bold">{activeCount}</span> of {totalCount} {tab === 'people' ? 'records' : 'registrations'} ·
+        Showing <span className="text-foreground font-bold">{Math.min(activeCount, visibleLimit)}</span> of {activeCount} filtered ({totalCount} total) {tab === 'people' ? 'records' : 'registrations'} ·
         {tab === 'people' ? ' click a row to open the full profile ·' : canViewCredentials ? ' reveal credentials before copying ·' : ' credential secrets are restricted ·'} live data, no stale copies.
       </p>
     </div>

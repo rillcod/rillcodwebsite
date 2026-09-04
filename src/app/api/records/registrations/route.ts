@@ -12,20 +12,32 @@ async function fetchAll(q: any) {
   if (result.error) throw new Error(`Registration record source unavailable: ${result.error.message}`);
   return result.data;
 }
+async function fetchAllInChunks(
+  values: string[],
+  buildQuery: (chunk: string[]) => any,
+  chunkSize = 100,
+) {
+  const rows: any[] = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    rows.push(...await fetchAll(buildQuery(values.slice(index, index + chunkSize))));
+  }
+  return rows;
+}
 const norm = (e?: string | null) => (e || '').trim().toLowerCase();
 
 // GET /api/records/registrations — ALL registration credentials across every batch,
 // consolidated into one filterable list (no more per-batch silos). School-scoped.
 export async function GET() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { data: profile } = await supabase.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
-  if (!profile || !roleHasCapability(profile.role, 'view_records')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-  const sb = admin();
-  const canViewCredentials = roleHasCapability(profile.role, 'view_registration_credentials');
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { data: profile } = await supabase.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
+    if (!profile || !roleHasCapability(profile.role, 'view_records')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const sb = admin();
+    const canViewCredentials = roleHasCapability(profile.role, 'view_registration_credentials');
 
 
   let scopeSchoolIds: string[] | null = null;
@@ -59,33 +71,27 @@ export async function GET() {
   const batchIds = batches.map((b: any) => b.id);
   const creatorIds = [...new Set(batches.map((b: any) => b.created_by).filter(Boolean))];
   const creators = creatorIds.length > 0
-    ? await fetchAll(
-      sb
+    ? await fetchAllInChunks(creatorIds, (chunk) => sb
         .from('portal_users')
         .select('id, full_name, role, email')
-        .in('id', creatorIds),
-    )
+        .in('id', chunk))
     : [];
   const creatorById = new Map(creators.map((c: any) => [c.id, c]));
-  const results = await fetchAll(
-    sb
+  const results = await fetchAllInChunks(batchIds, (chunk) => sb
       .from('registration_results')
       .select(canViewCredentials
         ? 'id, batch_id, full_name, email, password, class_name, status, created_at'
         : 'id, batch_id, full_name, email, class_name, status, created_at')
-      .in('batch_id', batchIds),
-  );
+      .in('batch_id', chunk));
 
   const emails = [...new Set(results.map((r: any) => norm(r.email)).filter(Boolean))];
   const users = emails.length > 0
-    ? await fetchAll(
-      sb
+    ? await fetchAllInChunks(emails, (chunk) => sb
         .from('portal_users')
         .select('id, email, is_active')
         .eq('role', 'student')
         .neq('is_deleted', true)
-        .in('email', emails),
-    )
+        .in('email', chunk))
     : [];
   const userByEmail = new Map(users.map((u: any) => [norm(u.email), u]));
   const liveByEmail = new Map(users.map((u: any) => [norm(u.email), u.is_active !== false]));
@@ -121,5 +127,15 @@ export async function GET() {
   });
 
   rows.sort((a: any, b: any) => String(b.registered || '').localeCompare(String(a.registered || '')));
-  return NextResponse.json({ registrations: rows, count: rows.length, canViewCredentials });
+    return NextResponse.json(
+      { registrations: rows, count: rows.length, canViewCredentials },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    );
+  } catch (error) {
+    console.error('[records/registrations] load failed:', error);
+    return NextResponse.json(
+      { error: 'Registration records could not be loaded. Please retry.' },
+      { status: 503, headers: { 'Cache-Control': 'private, no-store' } },
+    );
+  }
 }

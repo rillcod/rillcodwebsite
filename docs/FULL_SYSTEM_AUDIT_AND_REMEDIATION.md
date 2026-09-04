@@ -921,7 +921,7 @@ snapshots, not current certification. This register is the current product-level
 | SYS-018 | P0 | Dependency tree clean; container rerun pending | Production and full npm audits report zero findings. `tar` is pinned to 7.5.22, clearing CVE-2026-59874 and CVE-2026-73566; newly disclosed xmldom and humanfs advisories are pinned to 0.9.12 and 0.16.8. Dependabot, CodeQL and Trivy gates remain active | Confirm the new GitHub container scan is green, assign an owner for each alert stream, and decide which findings become release-blocking | Patched lockfile, zero accepted critical/high findings or documented exception, CI gates and ownership active |
 | SYS-019 | P1 | Database lease applied; application deployment and operational proof pending | All routes are registered and monitored; durable history, health, alerts, operator run/retry controls and cross-instance overlap leases are implemented. Migration 112 is live | Deploy the application code, verify cron-job.org cadence, deliberately overlap one disposable run, and prove history/alert/operator recovery in production |
 | SYS-020 | P1 | On production `main` (`1004d148`); provider receipt proof pending | Email and WhatsApp now share a correlated delivery record and append-only event history with provider IDs, attempts, timestamps, monotonic callback reconciliation, atomic WhatsApp enqueue, idempotent retries and recoverable dead letters. Broadcast surfaces only claim a recorded send. The Office delivery page exposes both channels and recovery state. Live migration 118 is applied | Verify real Resend/Meta webhook subscriptions and secrets, then pass accepted/delivered/read/failed/out-of-order callback and alerting canaries in production |
-| SYS-021 | P1 | At risk | PDF parity across invoice/report/exam/certificate | Golden/semantic PDF checks and version linkage |
+| SYS-021 | P1 | Partially remediated | School-report download and email now render the same saved revision, identify both its saved-content hash and exact PDF-byte hash, and force customer-safe report shaping for external attachments. Invoice/exam/certificate parity remains open | Add equivalent revision/hash contracts and golden/semantic checks for invoice, exam and certificate PDFs |
 | SYS-022 | P1 | Locally remediated; deployment proof pending | Source-controlled worker replaces Workbox/fallback artifacts, excludes private/API traffic, and has update/push/cleanup guards | Clean checkout/build owns all worker assets; cache-upgrade and old-client deploy tests pass |
 | SYS-023 | P2 | **Withdrawn — false positive** | “EducationAcross” is a `textContent` artifact of a real `<br />` in `src/components/landing/About.tsx`; the rendered copy is correct | None. Re-verified 23 August 2026. A scan reading `textContent` must not treat a `<br>` join as a copy defect |
 | SYS-024 | P1 | Far larger than recorded; entry points fixed, backlog gated | Recorded as a contact-form defect. A full scan found **1,553 of 1,668 form controls (93%) with no programmatic accessible name** across 214 files. The public contact form is fixed, and all five shared primitives in `src/components/ui/Form.tsx` (Input, Textarea, Select, Checkbox, Radio) now pair label and control through `useId` and wire `aria-invalid`/`aria-describedby`, which fixes every consumer of those components at once. Raised to P1: this is the product's largest single WCAG 1.3.1/4.1.2 exposure, not a cosmetic one | Pay the 1,553 down against the ratchet in `npm run audit:a11y`, worst files first, then confirm with a real browser accessible-name check. **The static count overstates what is left**: the learner and school enrolment forms are fixed through their `Field` wrapper, which injects the id at runtime, and a source scan cannot see that. Trust `src/components/ui/form-accessible-names.test.tsx` over the counter for anything routed through a wrapper |
@@ -4057,3 +4057,42 @@ Verification and boundary:
 - no database migration, score mutation or change to the five-minute client profile display cache is
   involved. The maximum role/profile routing hint lifetime is 60 seconds; live p50/p95 navigation and
   revoked/changed-role canaries remain deployment evidence, not a local claim.
+
+## 16.57 School-report PDF revision and audience agreement (2026-09-04)
+
+- download and email now resolve the same saved report revision rather than allowing delivery to drift
+  to the current draft;
+- every generated file receives an SHA-256 hash of the actual PDF bytes, while the saved revision's
+  existing content hash remains separately labelled. Download headers, email results and audit evidence
+  can therefore identify both the source version and the exact attachment;
+- emailed attachments always use the school-safe audience, even when an administrator or teacher starts
+  delivery, so internal diagnostics cannot escape through the external document path;
+- focused PDF delivery/source/audience tests passed and TypeScript passed. This closes the school-report
+  portion of SYS-021; invoice, exam and certificate equivalence remains explicitly open.
+
+## 16.58 Registration ledger recovery and large-data UX (2026-09-04)
+
+Confirmed failure:
+
+- the live Registration & Logins tab passed roughly nine hundred email addresses to PostgREST in one
+  filter. The upstream fetch failed, the Route Handler terminated with an empty response, and the client
+  exposed `Unexpected end of JSON input` while simultaneously claiming there were no records;
+- the default card view rendered the entire ledger, producing a very large mobile DOM even before the
+  user searched or filtered it.
+
+Implemented and live-verified locally:
+
+- registration batches, creators and account-email lookups are bounded to 100 values per database
+  request. The same endpoint now returned all 899 live registration logins in 5.3 seconds instead of
+  failing after 14.4 seconds;
+- the endpoint always returns structured, customer-safe JSON on an upstream failure and never caches
+  credential-bearing responses;
+- the client allows one request at a time, uses a 30-second bounded fetch, distinguishes loading,
+  failure and genuine-empty states, and offers an in-place Retry without discarding the working People
+  directory;
+- large results render 60 at a time with an explicit **Show 60 more** action. Search, export, print and
+  counts still operate on the full filtered data, while mobile and desktop avoid mounting hundreds of
+  cards at once;
+- tab choice is preserved in the URL and cross-tab filters are reset, preventing a valid login ledger
+  from appearing empty because of a filter inherited from People. No account, credential or score was
+  changed.
