@@ -45,6 +45,13 @@ import { describeTerms, type PartnershipTerms } from '../terms';
 import { PROPRIETOR_FAQS } from '../faqs';
 import { defaultStudioConfig, type ProposalStudioConfig } from '../studio-config';
 
+export type ProposalValueCopy = {
+  title?: string | null;
+  kicker?: string | null;
+  body?: string | null;
+  note?: string | null;
+};
+
 export type ProposalInput = {
   school: { name: string; address?: string | null; city?: string | null; state?: string | null };
   curriculum: CurriculumProgression | null;
@@ -54,6 +61,8 @@ export type ProposalInput = {
   /** Reference shown on the cover, e.g. RC-PROP-0007. */
   reference: string;
   dateLabel: string;
+  /** Custom editable text for "What a parent would be paying for" value section. */
+  valueCopy?: ProposalValueCopy | null;
   /**
    * Deliberately absent. The masthead and the footer both name the company, so
    * a third "Prepared by Rillcod Technologies" only orphaned a fifth item onto
@@ -972,17 +981,26 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
    */
   const reasonToPayBlock = (): string => {
     if (!on('upside') && !on('split')) return '';
+    const title = input.valueCopy?.title?.trim() || 'What a parent would be paying for';
+    const kicker = input.valueCopy?.kicker?.trim() || 'What the fee actually buys';
+    const body =
+      input.valueCopy?.body?.trim() ||
+      'A specialist in the room, every child on a machine, and a build they take home at the end of term. That is what a parent is paying for — and what they tell the next parent.';
+    const note =
+      input.valueCopy?.note?.trim() ||
+      'Your share follows who enrols. How it is released would be written into the agreement before anything is signed.';
+
     return `  <section>
     <div class="rule"></div>
-    <h2>What a parent would be paying for</h2>
+    <h2>${esc(title)}</h2>
     <article class="value">
       <figure class="value-photo">
         <img src="${esc(assetUrl(REASON_TO_PAY_PHOTO))}" alt="A Rillcod facilitator teaching coding and AI to a full class" />
       </figure>
       <div class="value-copy">
-        <span class="value-kicker">What the fee actually buys</span>
-        <p>A specialist in the room, every child on a machine, and a build they take home at the end of term. That is what a parent is paying for — and what they tell the next parent.</p>
-        <p class="value-note">Your share follows who enrols. How it is released would be written into the agreement before anything is signed.</p>
+        <span class="value-kicker">${esc(kicker)}</span>
+        <p>${esc(body)}</p>
+        <p class="value-note">${esc(note)}</p>
       </div>
     </article>
   </section>`;
@@ -2111,32 +2129,34 @@ ${body}
     on one A4 that clips rather than spills.
   */
   .value {
-    display: grid; grid-template-columns: 1.2fr 1fr; align-items: stretch;
+    display: grid; grid-template-columns: 0.95fr 1.35fr; align-items: stretch;
     border: 1px solid #e2e8f0; border-radius: 2.5mm; overflow: hidden;
     background: #fff;
   }
-  .value-photo { margin: 0; height: 44mm; overflow: hidden; background: #0f172a; }
+  .value-photo { margin: 0; min-height: 42mm; overflow: hidden; background: #0f172a; }
   .value-photo img {
-    width: 100%; height: 44mm; object-fit: cover; display: block;
+    width: 100%; height: 100%; object-fit: cover; display: block;
   }
   .value-copy {
-    padding: 4.2mm 5mm 4.5mm; display: flex; flex-direction: column; justify-content: center;
+    padding: 3.5mm 4.5mm; display: flex; flex-direction: column; justify-content: center;
     background: #f8fafc; border-left: 3.5px solid #991b1b;
   }
   .value-kicker {
     font-size: 10pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-    color: #991b1b; margin-bottom: 2mm;
+    color: #991b1b; margin-bottom: 1.5mm;
   }
-  .value-copy p { font-size: 10pt; color: #334155; line-height: 1.42; margin: 0; }
+  .value-copy p { font-size: 10pt; color: #334155; line-height: 1.4; margin: 0; }
   .value-note {
-    font-size: 10pt; color: #64748b; margin: 2.4mm 0 0; padding-top: 2.2mm;
-    border-top: 1px solid #e2e8f0; line-height: 1.4;
+    font-size: 10pt; color: #64748b; margin: 1.8mm 0 0; padding-top: 1.8mm;
+    border-top: 1px solid #e2e8f0; line-height: 1.35;
   }
-  /* The panel is as tall as the photograph beside it; the copy spreads to meet
-     it instead of stacking at the top and leaving a band of grey. */
-  .page-money .value-copy { justify-content: space-between; padding: 3.6mm 4.5mm; }
-  .page-money .value-copy p { line-height: 1.45; }
-  .page-money .value-note { margin-top: 2mm; }
+  /* The panel adapts to its copy without clipping the bottom note. */
+  .page-money .value { flex: none; min-height: 42mm; height: auto; }
+  .page-money .value-photo { height: 100%; min-height: 42mm; }
+  .page-money .value-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .page-money .value-copy { justify-content: center; padding: 3.2mm 4.5mm; }
+  .page-money .value-copy p { line-height: 1.4; }
+  .page-money .value-note { margin-top: 1.8mm; padding-top: 1.8mm; }
   /* Portrait frame in a landscape slot: hold the crop on the table, where the
      hands and the board are, rather than centring on a row of heads. */
   .page-money .value-photo img { object-position: center 62%; }

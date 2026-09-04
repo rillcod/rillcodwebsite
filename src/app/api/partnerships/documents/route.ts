@@ -167,6 +167,27 @@ export async function POST(req: NextRequest) {
           ? null
           : Number(body.validity_days),
       proposedSchoolSharePercent: normaliseSchoolSharePercent(body.proposed_school_share_percent),
+      customFeePerStudent:
+        body.custom_fee_per_student != null && body.custom_fee_per_student !== ''
+          ? Number(body.custom_fee_per_student)
+          : null,
+      valueCopy:
+        body.value_copy && typeof body.value_copy === 'object'
+          ? (() => {
+              const sanitizeWords = (val: unknown, maxWords: number, maxChars: number): string | null => {
+                if (!val || typeof val !== 'string') return null;
+                const words = val.trim().split(/\s+/).filter(Boolean);
+                const truncated = words.slice(0, maxWords).join(' ').slice(0, maxChars).trim();
+                return truncated || null;
+              };
+              return {
+                title: sanitizeWords((body.value_copy as any).title, 8, 50),
+                kicker: sanitizeWords((body.value_copy as any).kicker, 6, 35),
+                body: sanitizeWords((body.value_copy as any).body, 37, 185),
+                note: sanitizeWords((body.value_copy as any).note, 20, 125),
+              };
+            })()
+          : null,
       // Studio settings ride with the request so a preview and the issue that
       // follows it describe the same document.
       studio: body.studio ? normaliseStudioConfig(body.studio) : null,

@@ -112,6 +112,15 @@ export type IssueInput = {
   validityDays?: number | null;
   /** Custom proposed school revenue share percentage (e.g., 30, 40, 50, 20). */
   proposedSchoolSharePercent?: number | null;
+  /** Custom dynamic fee per student per term overriding option default (e.g. 15000). */
+  customFeePerStudent?: number | null;
+  /** Custom editable text for "What a parent would be paying for" value section. */
+  valueCopy?: {
+    title?: string | null;
+    kicker?: string | null;
+    body?: string | null;
+    note?: string | null;
+  } | null;
   /**
    * What the studio decided this school should see. Absent renders the whole
    * document, which is what every caller before the studio expects.
@@ -688,6 +697,25 @@ async function renderDocument(ctx: {
     // Option A, and using it as a silent default priced the return sheet off
     // ₦25,000 while page 4 still showed three equal options.
     const quotedOffer = chosen ?? recommendation?.offer ?? null;
+
+    const customFee = Number(input.customFeePerStudent);
+    const hasCustomFee = Number.isFinite(customFee) && customFee > 0;
+
+    const effectiveFeePerStudent =
+      agreedTerms?.billing_model === 'per_student'
+        ? (agreedTerms.amount_per_student ?? 0)
+        : hasCustomFee
+          ? customFee
+          : (quotedOffer?.priceFrom ?? 0);
+
+    const adjustedOffers = hasCustomFee && quotedOffer
+      ? PARTNERSHIP_OFFERS.map((o) =>
+          o.code === quotedOffer.code
+            ? { ...o, priceFrom: customFee, priceTo: customFee }
+            : o,
+        )
+      : PARTNERSHIP_OFFERS;
+
     /**
      * The money page, from whichever shape the deal actually takes.
      *
@@ -707,10 +735,7 @@ async function renderDocument(ctx: {
         to go, on the one page a head teacher rereads.
       */
       roll: Number(input.illustrativeStudents) || Number(school.student_count) || 0,
-      feePerStudent:
-        agreedTerms?.billing_model === 'per_student'
-          ? (agreedTerms.amount_per_student ?? 0)
-          : (quotedOffer?.priceFrom ?? 0),
+      feePerStudent: effectiveFeePerStudent,
       sections: agreedTerms?.billing_model === 'tiered' ? agreedTerms.tiers : null,
       // A package is one price for the school; uptake does not move it.
       fixedPackage:
@@ -721,7 +746,7 @@ async function renderDocument(ctx: {
       // rate has been agreed. Otherwise this page would invent a single fee.
       menuOffers:
         !agreedTerms && showFullMenu
-          ? PARTNERSHIP_OFFERS.map((o) => ({ code: o.code, priceFrom: o.priceFrom }))
+          ? adjustedOffers.map((o) => ({ code: o.code, priceFrom: o.priceFrom }))
           : null,
       // The standard deal is 70/30, or the custom proposed / agreed split.
       sharePercent: agreedTerms?.school_share_percent ?? input.proposedSchoolSharePercent ?? 30,
@@ -763,18 +788,12 @@ async function renderDocument(ctx: {
       accessQrDataUrl,
       accessPending,
       validUntilLabel: validUntil,
-      // Counted now, so the cover cannot claim a footprint we have grown out of
-      // or shrunk below. The recipient is excluded from its own proof, and null
-      // simply drops the band.
       proof: await loadProofPoints(db, schoolId),
       upside,
-      photos: PARTNERSHIP_PHOTOS,
-      // The studio owns which sections print and in whose words. Normalised
-      // here rather than trusted, because it arrives from a browser.
+      photos: input.studio?.photos || PARTNERSHIP_PHOTOS,
       studio: input.studio ? normaliseStudioConfig(input.studio, PARTNERSHIP_PHOTOS) : null,
-      // Read from the brand record, not typed again. The name that used to be
-      // hardcoded here — "Rillcod Academy" — is not a company we have, and the
-      // MoU already learned that lesson.
+      offers: adjustedOffers,
+      valueCopy: input.valueCopy,
     });
   }
 

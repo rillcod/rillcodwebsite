@@ -491,4 +491,30 @@ describe('the money page', () => {
     expect(returnPage).toContain('class="picked"');
     expect(returnPage).toContain('What a parent would be paying for');
   });
+
+  it('renders custom valueCopy text when provided and falls back to defaults when omitted', () => {
+    const withCustom = buildPartnershipProposalHTML({
+      ...base,
+      scopeToOffer: 'B1',
+      valueCopy: {
+        title: 'Custom Parent Investment',
+        kicker: 'Transparent Value',
+        body: 'Every learner builds their own hardware project every term.',
+        note: 'School payout is sent within 5 days of parent fee receipt.',
+      },
+    });
+    expect(withCustom).toContain('Custom Parent Investment');
+    expect(withCustom).toContain('Transparent Value');
+    expect(withCustom).toContain('Every learner builds their own hardware project every term.');
+    expect(withCustom).toContain('School payout is sent within 5 days of parent fee receipt.');
+
+    const withDefault = buildPartnershipProposalHTML({
+      ...base,
+      scopeToOffer: 'B1',
+    });
+    expect(withDefault).toContain('What a parent would be paying for');
+    expect(withDefault).toContain('What the fee actually buys');
+    expect(withDefault).toContain('A specialist in the room, every child on a machine');
+    expect(withDefault).toContain('Your share follows who enrols.');
+  });
 });

@@ -31,6 +31,7 @@ import {
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
     CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon, MagnifyingGlassIcon, TrashIcon,
+    ClockIcon, DocumentDuplicateIcon,
 } from '@/lib/icons';
 import { permanentWipePortalUserClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
@@ -902,6 +903,12 @@ function ReportBuilderInner() {
     // ── Per-student module suggestion (derived from student's previous report) ──
     const [suggestedModule, setSuggestedModule] = useState<{ current: string; next: string } | null>(null);
 
+    // ── Student Historical Reports (for seamless UX across terms & sessions) ──
+    const [studentHistoryReports, setStudentHistoryReports] = useState<StudentReport[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [viewingHistoryReport, setViewingHistoryReport] = useState<StudentReport | null>(null);
+    const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+
     // ── Refs for restoring session after data load ────────────────────────────
     const pendingRestoreStudentId = useRef<string | null>(null);
     const pendingRestoreStudentIdx = useRef<number>(-1);
@@ -1698,6 +1705,8 @@ function ReportBuilderInner() {
         const isManual = s.id?.startsWith('manual-');
         if (isManual) {
             setExistingReport(null);
+            setStudentHistoryReports([]);
+            setViewingHistoryReport(null);
             isHydrating.current = true;
             setForm(f => ({ ...f, student_name: s.full_name ?? '', section_class: sessionConfig.section_class }));
             snapForm.current = null; // manual entries have no reference snapshot
@@ -1888,6 +1897,23 @@ function ReportBuilderInner() {
                 setSuggestedModule({ current: prevReport.next_module, next: autoNext });
             }
         }
+
+        // ── Load Learner History across terms & sessions for immediate view & reuse ──
+        setLoadingHistory(true);
+        void withTimeout(
+            baseSelect()
+                .order('report_period', { ascending: false })
+                .order('report_term', { ascending: false })
+                .order('created_at', { ascending: false })
+                .limit(10),
+            { data: [], error: null },
+            'learner history lookup',
+        ).then(({ data }) => {
+            setStudentHistoryReports((data as StudentReport[]) ?? []);
+            setLoadingHistory(false);
+        }).catch(() => {
+            setLoadingHistory(false);
+        });
 
         // Hydrate session from the loaded report. Course/section always sync so returning
         // to a published report does not drift from what is stored. Full term/school hydrate
@@ -2634,6 +2660,50 @@ function ReportBuilderInner() {
         }
     };
 
+    const returnToRoster = async () => {
+        if (saving || publishing) return;
+        if (isDirty) {
+            const saved = await handleSave(false);
+            if (!saved) return;
+            setSuccessMsg(fromPrepare ? 'Draft saved — back to Auto-fill' : fromResults ? 'Draft saved — back to Publish' : 'Draft saved — back to roster');
+        }
+        if (fromPrepare) {
+            router.push(returnToPrepareHref);
+            return;
+        }
+        if (fromResults) {
+            router.push(returnToResultsHref);
+            return;
+        }
+        skipAutoPickRef.current = true;
+        setSelectedStudent(null);
+        setExistingReport(null);
+        setStudentHistoryReports([]);
+        setViewingHistoryReport(null);
+        setCurrentStudentIdx(-1);
+        setStep('pick');
+        setEditSearch('');
+    };
+
+    const reusePastReportRemarks = (past: StudentReport) => {
+        const strengths = past.key_strengths || '';
+        const growth = past.areas_for_growth || '';
+        const nextMod = past.next_module || '';
+        const curMod = past.current_module || '';
+
+        setForm(f => ({
+            ...f,
+            key_strengths: strengths || f.key_strengths,
+            areas_for_growth: growth || f.areas_for_growth,
+            student_next_module: nextMod || f.student_next_module,
+            student_current_module: curMod || f.student_current_module,
+        }));
+        setIsDirty(true);
+        setSuccessMsg(`Remarks from ${past.report_term || 'previous term'}${past.report_period ? ` (${past.report_period})` : ''} copied into current draft.`);
+        setShowHistoryPanel(false);
+        if (viewingHistoryReport) setViewingHistoryReport(null);
+    };
+
     function prepareNextClass() {
         const finishedClassName = sessionConfig.section_class;
         sessionStudents.current = [];
@@ -3135,21 +3205,13 @@ function ReportBuilderInner() {
                         icon={DocumentTextIcon}
                         actions={
                             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                                {fromResults ? (
-                                    <Link
-                                        href={returnToResultsHref}
-                                        className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
-                                    >
-                                        <ArrowLeftIcon className="h-3.5 w-3.5" /> Publish
-                                    </Link>
-                                ) : fromPrepare ? (
-                                    <Link
-                                        href={returnToPrepareHref}
-                                        className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
-                                    >
-                                        <ArrowLeftIcon className="h-3.5 w-3.5" /> Auto-fill
-                                    </Link>
-                                ) : null}
+                                <Link
+                                    href={fromPrepare ? returnToPrepareHref : returnToResultsHref}
+                                    className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
+                                >
+                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                    <span>{fromPrepare ? "Auto-fill" : "Results Roster"}</span>
+                                </Link>
                                 <button
                                     type="button"
                                     onClick={() => setShowSettings(true)}
@@ -3166,25 +3228,14 @@ function ReportBuilderInner() {
                 <div className="hidden md:flex items-center justify-between gap-2">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            {fromResults ? (
-                                <Link
-                                    href={returnToResultsHref}
-                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted"
-                                    title="Back to publish"
-                                >
-                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
-                                    <span>Publish</span>
-                                </Link>
-                            ) : fromPrepare ? (
-                                <Link
-                                    href={returnToPrepareHref}
-                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted"
-                                    title="Back to auto-fill"
-                                >
-                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
-                                    <span>Auto-fill</span>
-                                </Link>
-                            ) : null}
+                            <Link
+                                href={fromPrepare ? returnToPrepareHref : returnToResultsHref}
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted shadow-sm transition-colors"
+                                title={fromPrepare ? "Back to Auto-fill" : "Back to Results & Roster"}
+                            >
+                                <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
+                                <span>{fromPrepare ? "Back to Auto-fill" : "Back to Results Roster"}</span>
+                            </Link>
                             <h1 className="truncate text-base font-extrabold sm:text-lg">
                                 {sessionDone && selectedStudent
                                     ? selectedStudent.full_name || 'Write'
@@ -3855,6 +3906,193 @@ function ReportBuilderInner() {
                                 </button>
                             </div>
                         )}
+
+                        {/* ── Learner Navigation & History Header Bar ── */}
+                        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <button
+                                        type="button"
+                                        disabled={saving || publishing}
+                                        onClick={() => void returnToRoster()}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-bold text-foreground transition-colors shadow-sm disabled:opacity-50"
+                                        title="Return to results roster (auto-saves dirty draft)"
+                                    >
+                                        <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
+                                        <span>{fromPrepare ? "Back to Auto-fill" : "Back to Results Roster"}</span>
+                                    </button>
+                                    <div className="h-4 w-px bg-border hidden sm:block" />
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h2 className="text-sm sm:text-base font-extrabold text-foreground truncate">
+                                                {form.student_name || selectedStudent?.full_name || 'Student'}
+                                            </h2>
+                                            {selectedStudent && (
+                                                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-bold">
+                                                    {(selectedStudent as any)?.grade_level || (selectedStudent as any)?.grade || profileGrade || 'Learner'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground truncate">
+                                            {sessionConfig.section_class || 'Class'} · {sessionConfig.course_name || 'Course'} · {sessionConfig.report_term || 'Term'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                    {/* Auto-save / Dirty status */}
+                                    <div className="text-[11px] font-semibold flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/40 border border-border">
+                                        {isDirty ? (
+                                            <>
+                                                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                                                <span className="text-amber-600 dark:text-amber-400">Unsaved edits</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckIcon className="h-3.5 w-3.5 text-emerald-500" />
+                                                <span className="text-emerald-600 dark:text-emerald-400">Draft saved</span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Historical Records Toggle */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowHistoryPanel(prev => !prev)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                                            showHistoryPanel
+                                                ? "bg-primary text-white border-primary shadow-sm"
+                                                : studentHistoryReports.length > 0
+                                                    ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                                                    : "bg-muted/30 border-border text-muted-foreground hover:bg-muted"
+                                        }`}
+                                        title="View learner's past term reports and reuse remarks"
+                                    >
+                                        <ClockIcon className="h-3.5 w-3.5" />
+                                        <span>Past Records</span>
+                                        <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                                            showHistoryPanel ? "bg-white/20 text-white" : "bg-primary/20 text-primary"
+                                        }`}>
+                                            {studentHistoryReports.length}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Expanded Learner History Panel */}
+                            {showHistoryPanel && (
+                                <div className="pt-3 border-t border-border space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <ClockIcon className="h-4 w-4 text-primary" />
+                                            <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
+                                                Learner Academic History &amp; Previous Terms
+                                            </h3>
+                                        </div>
+                                        <span className="text-[11px] text-muted-foreground">
+                                            Access and reuse feedback without leaving the editor
+                                        </span>
+                                    </div>
+
+                                    {loadingHistory ? (
+                                        <div className="py-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                                            <ArrowPathIcon className="h-4 w-4 animate-spin text-primary" />
+                                            Loading past records...
+                                        </div>
+                                    ) : studentHistoryReports.length === 0 ? (
+                                        <div className="py-4 text-center rounded-xl border border-dashed border-border bg-muted/10 text-xs text-muted-foreground">
+                                            No previous term reports found for this student. This may be their first term on file.
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                                            {studentHistoryReports.map((report) => {
+                                                const isCurrentReport = report.id === existingReport?.id;
+                                                const score = report.overall_score != null ? Math.round(Number(report.overall_score)) : null;
+                                                const grade = report.overall_grade || (score != null ? reportGrade(score).g : null);
+                                                return (
+                                                    <div
+                                                        key={report.id}
+                                                        className={`p-3 rounded-xl border transition-all ${
+                                                            isCurrentReport
+                                                                ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                                                                : "border-border bg-card hover:border-primary/30"
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                                                            <div>
+                                                                <span className="text-xs font-black text-foreground">
+                                                                    {report.report_term || 'Term'} {report.report_period ? `· ${report.report_period}` : ''}
+                                                                </span>
+                                                                <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+                                                                    {report.course_name || report.section_class || 'Course'}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                                {score != null && (
+                                                                    <span className="px-2 py-0.5 rounded-md bg-muted text-[11px] font-black text-foreground">
+                                                                        {score}% {grade ? `· ${grade}` : ''}
+                                                                    </span>
+                                                                )}
+                                                                {report.is_published ? (
+                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                                                        Published
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                                                        Draft
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {report.key_strengths || report.areas_for_growth ? (
+                                                            <div className="space-y-1 bg-muted/20 p-2 rounded-lg mb-2 text-[11px]">
+                                                                {report.key_strengths && (
+                                                                    <p className="text-muted-foreground line-clamp-2 italic">
+                                                                        <strong className="not-italic text-foreground">Strengths:</strong> "{report.key_strengths}"
+                                                                    </p>
+                                                                )}
+                                                                {report.areas_for_growth && (
+                                                                    <p className="text-muted-foreground line-clamp-1 italic">
+                                                                        <strong className="not-italic text-foreground">Growth:</strong> "{report.areas_for_growth}"
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[10px] text-muted-foreground/60 italic mb-2">
+                                                                No remarks recorded on this report.
+                                                            </p>
+                                                        )}
+
+                                                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-border/50">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setViewingHistoryReport(report)}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-muted/30 hover:bg-muted text-[11px] font-bold text-foreground transition-colors"
+                                                            >
+                                                                <EyeIcon className="h-3 w-3 text-muted-foreground" />
+                                                                View Card
+                                                            </button>
+                                                            {(report.key_strengths || report.areas_for_growth) && !isCurrentReport && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => reusePastReportRemarks(report)}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-[11px] font-bold text-primary transition-colors"
+                                                                    title="Copy feedback &amp; recommendations into current editor form"
+                                                                >
+                                                                    <DocumentDuplicateIcon className="h-3 w-3" />
+                                                                    Reuse Remarks
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         {/* Setup — collapsed so teachers land on scores immediately */}
                         <Section
@@ -4620,40 +4858,18 @@ function ReportBuilderInner() {
                                 const selectedGrade = String(
                                     (selectedStudent as any)?.grade_level || (selectedStudent as any)?.grade || '',
                                 ).trim();
-                                const returnToRoster = async () => {
-                                    if (saving || publishing) return;
-                                    if (isDirty) {
-                                        const saved = await handleSave(false);
-                                        if (!saved) return;
-                                        setSuccessMsg(fromPrepare ? 'Draft saved — back to Auto-fill' : fromResults ? 'Draft saved — back to Publish' : 'Draft saved — back to roster');
-                                    }
-                                    if (fromPrepare) {
-                                        router.push(returnToPrepareHref);
-                                        return;
-                                    }
-                                    if (fromResults) {
-                                        router.push(returnToResultsHref);
-                                        return;
-                                    }
-                                    skipAutoPickRef.current = true;
-                                    setSelectedStudent(null);
-                                    setExistingReport(null);
-                                    setCurrentStudentIdx(-1);
-                                    setStep('pick');
-                                    setEditSearch('');
-                                };
                                 return (
                             <div className="mx-auto flex max-w-7xl items-center gap-1 px-2 py-1" aria-label="Student navigation">
                                 <button
                                     type="button"
                                     disabled={saving || publishing}
                                     onClick={() => void returnToRoster()}
-                                    className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-1.5 text-[11px] font-bold text-foreground disabled:opacity-50"
-                                    title={fromPrepare ? 'Save draft and return to Auto-fill' : fromResults ? 'Save draft and return to Publish' : 'Save draft and return to student list'}
+                                    className="flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50 shadow-sm"
+                                    title={fromPrepare ? 'Save draft and return to Auto-fill' : fromResults ? 'Save draft and return to Results' : 'Save draft and return to student list'}
                                 >
-                                    <ArrowLeftIcon className="h-3 w-3" />
-                                    <span className={fromResults || fromPrepare ? 'inline' : 'hidden sm:inline'}>
-                                        {fromPrepare ? 'Auto-fill' : fromResults ? 'Publish' : 'Roster'}
+                                    <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
+                                    <span>
+                                        {fromPrepare ? 'Auto-fill' : fromResults ? 'Results' : 'Roster'}
                                     </span>
                                 </button>
                                 <button
@@ -5041,6 +5257,67 @@ function ReportBuilderInner() {
                     </div>
                 </div>
                 </>
+            )}
+
+            {/* ── Viewing Past Historical Report Modal ── */}
+            {viewingHistoryReport && (
+                <div className="fixed inset-0 z-50 flex flex-col bg-background">
+                    <div className="no-print flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-border bg-card shadow-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <button
+                                type="button"
+                                onClick={() => setViewingHistoryReport(null)}
+                                className="p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0"
+                                title="Close past report view"
+                            >
+                                <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
+                            </button>
+                            <div className="min-w-0">
+                                <h3 className="text-foreground font-black text-sm truncate">
+                                    Past Record: {viewingHistoryReport.student_name}
+                                </h3>
+                                <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
+                                    {viewingHistoryReport.report_term || 'Term'} · {viewingHistoryReport.report_period || 'Session'} · {viewingHistoryReport.course_name || viewingHistoryReport.section_class}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {(viewingHistoryReport.key_strengths || viewingHistoryReport.areas_for_growth) && viewingHistoryReport.id !== existingReport?.id && (
+                                <button
+                                    type="button"
+                                    onClick={() => reusePastReportRemarks(viewingHistoryReport)}
+                                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-primary text-white text-xs font-black rounded-xl shadow-md transition-colors"
+                                >
+                                    <DocumentDuplicateIcon className="w-3.5 h-3.5" />
+                                    <span>Reuse Remarks in Current Draft</span>
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setViewingHistoryReport(null)}
+                                className="p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
+                                title="Close"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-muted/20 flex justify-center">
+                        <div className="w-full max-w-4xl">
+                            <ScaledReportCard report={viewingHistoryReport as any} responsive>
+                                {reportStyle === 'modern' ? (
+                                    <ModernReportCard report={viewingHistoryReport as any} orgSettings={branding as any} />
+                                ) : reportStyle === 'printable' ? (
+                                    <PrintableReport report={viewingHistoryReport as any} orgSettings={branding as any} />
+                                ) : (
+                                    <ReportCard report={viewingHistoryReport as any} orgSettings={branding as any} />
+                                )}
+                            </ScaledReportCard>
+                        </div>
+                    </div>
+                </div>
             )}
 
             <div id="pdf-print-target" style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>

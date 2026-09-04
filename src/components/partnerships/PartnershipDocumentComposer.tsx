@@ -37,9 +37,63 @@ const INPUT =
   "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
 const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2";
 
+export const DEFAULT_VALUE_TITLE = "What a parent would be paying for";
+export const DEFAULT_VALUE_KICKER = "What the fee actually buys";
+export const DEFAULT_VALUE_BODY =
+  "A specialist in the room, every child on a machine, and a build they take home at the end of term. That is what a parent is paying for — and what they tell the next parent.";
+export const DEFAULT_VALUE_NOTE =
+  "Your share follows who enrols. How it is released would be written into the agreement before anything is signed.";
+
+export const MAX_TITLE_WORDS = 8;
+export const MAX_KICKER_WORDS = 6;
+export const MAX_BODY_WORDS = 37;
+export const MAX_NOTE_WORDS = 20;
+
+export const MAX_TITLE_CHARS = 50;
+export const MAX_KICKER_CHARS = 35;
+export const MAX_BODY_CHARS = 185;
+export const MAX_NOTE_CHARS = 125;
+
+export const countWords = (text: string): number => {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).filter(Boolean).length;
+};
+
+export const enforceWordLimit = (text: string, maxWords: number): string => {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return text;
+  let count = 0;
+  let inWord = false;
+  let cutIndex = text.length;
+  for (let i = 0; i < text.length; i++) {
+    const isSpace = /\s/.test(text[i]);
+    if (!isSpace && !inWord) {
+      inWord = true;
+      count++;
+      if (count > maxWords) {
+        cutIndex = i;
+        break;
+      }
+    } else if (isSpace && inWord) {
+      inWord = false;
+    }
+  }
+  return text.slice(0, cutIndex).trimEnd();
+};
+
+export type ValueSectionCopy = {
+  title?: string;
+  kicker?: string;
+  body?: string;
+  note?: string;
+};
+
 export type ComposerRedrawPayload = {
   use_ai: boolean;
   scope_to_offer: string | null;
+  custom_fee_per_student: number | null;
+  value_copy: ValueSectionCopy | null;
   stage: "primary" | "secondary" | "both" | null;
   notes: string | null;
   validity_days: number | null;
@@ -90,6 +144,12 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   ) {
   const [offerCode, setOfferCode] = useState<string>("");
   const [offerTouched, setOfferTouched] = useState(false);
+  const [customFee, setCustomFee] = useState<string>("");
+  const [valueTitle, setValueTitle] = useState(DEFAULT_VALUE_TITLE);
+  const [valueKicker, setValueKicker] = useState(DEFAULT_VALUE_KICKER);
+  const [valueBody, setValueBody] = useState(DEFAULT_VALUE_BODY);
+  const [valueNote, setValueNote] = useState(DEFAULT_VALUE_NOTE);
+  const [showValueEditor, setShowValueEditor] = useState(false);
   const [stage, setStage] = useState<"primary" | "secondary" | "both">("both");
   const [useAI, setUseAI] = useState(false);
   /*
@@ -131,6 +191,11 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   useEffect(() => {
     const rec = recommendOffer({ studentCount: school.student_count, stage: "both" });
     setOfferCode(rec.offer.code);
+    setCustomFee(String(rec.offer.priceFrom));
+    setValueTitle(DEFAULT_VALUE_TITLE);
+    setValueKicker(DEFAULT_VALUE_KICKER);
+    setValueBody(DEFAULT_VALUE_BODY);
+    setValueNote(DEFAULT_VALUE_NOTE);
     setOfferTouched(false);
     setStage("both");
     setUseAI(false);
@@ -250,6 +315,13 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       // sending it identified two options at once — and the proposal emphasised
       // both, which is the same as emphasising neither.
       scope_to_offer: kind === 'proposal' ? (selectedOffer?.code ?? '') : null,
+      custom_fee_per_student: kind === 'proposal' && customFee.trim() ? Number(customFee) : null,
+      value_copy: kind === 'proposal' ? {
+        title: valueTitle.trim() || undefined,
+        kicker: valueKicker.trim() || undefined,
+        body: valueBody.trim() || undefined,
+        note: valueNote.trim() || undefined,
+      } : null,
       stage,
       notes: kind === 'proposal' ? notes.trim() || null : null,
       validity_days: kind === 'proposal' ? Number(validityDays) : null,
@@ -284,6 +356,8 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       return {
         use_ai: p.use_ai,
         scope_to_offer: p.scope_to_offer,
+        custom_fee_per_student: p.custom_fee_per_student,
+        value_copy: p.value_copy,
         stage: p.stage,
         notes: p.notes,
         validity_days: p.validity_days,
@@ -453,6 +527,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 onClick={() => {
                 setOfferTouched(true);
                 setOfferCode("");
+                setCustomFee("");
               }}
                 className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
                   offerCode === ""
@@ -472,6 +547,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                   onClick={() => {
                     setOfferTouched(true);
                     setOfferCode(offer.code);
+                    setCustomFee(String(offer.priceFrom));
                   }}
                   className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
                     offerCode === offer.code
@@ -500,6 +576,180 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 ? " You have overridden that — the document will quote the option you picked."
                 : " Override it if you know something the roll does not."}
             </p>
+          </div>
+
+          {/* Dynamic Fee Editing for Proposal */}
+          {selectedOffer && (
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <label htmlFor="proposal-custom-fee" className="text-xs font-bold text-foreground">
+                  Fee per student per term for Option {selectedOffer.code} (₦)
+                </label>
+                {customFee && Number(customFee) !== selectedOffer.priceFrom ? (
+                  <button
+                    type="button"
+                    onClick={() => setCustomFee(String(selectedOffer.priceFrom))}
+                    className="text-[10px] font-bold text-primary hover:underline"
+                  >
+                    Reset to default (₦{selectedOffer.priceFrom.toLocaleString()})
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">
+                    Standard catalogue rate: ₦{selectedOffer.priceFrom.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₦</span>
+                <input
+                  id="proposal-custom-fee"
+                  className={`${INPUT} pl-8 font-semibold`}
+                  inputMode="numeric"
+                  placeholder={String(selectedOffer.priceFrom)}
+                  value={customFee}
+                  onChange={(e) => setCustomFee(e.target.value.replace(/[^0-9]/g, ""))}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-muted-foreground">Quick amounts:</span>
+                {[10000, 15000, 20000, 25000, 30000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setCustomFee(String(amt))}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      Number(customFee) === amt
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/40 text-muted-foreground border-border hover:border-foreground/30"
+                    }`}
+                  >
+                    ₦{(amt / 1000)}k
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Override the proposal fee quote dynamically. This updates the proposal card and all projected financial returns on the PDF.
+              </p>
+            </div>
+          )}
+
+          {/* Editable "What the Fee Actually Buys" Section */}
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-foreground">
+                  What a Parent is Paying For (Value Copy)
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Customise the message on the money page. Word limits prevent layout shifting on the PDF.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowValueEditor(!showValueEditor)}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                {showValueEditor ? "Hide editor" : "Edit copy"}
+              </button>
+            </div>
+
+            {showValueEditor && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={LABEL} htmlFor="value-title">Section Heading</label>
+                    <span className={`text-[10px] tabular-nums ${countWords(valueTitle) >= MAX_TITLE_WORDS ? "text-amber-500 font-semibold" : "text-muted-foreground"}`}>
+                      {countWords(valueTitle)}/{MAX_TITLE_WORDS} words · {valueTitle.length}/{MAX_TITLE_CHARS} chars
+                    </span>
+                  </div>
+                  <input
+                    id="value-title"
+                    className={INPUT}
+                    maxLength={MAX_TITLE_CHARS}
+                    value={valueTitle}
+                    onChange={(e) => setValueTitle(enforceWordLimit(e.target.value, MAX_TITLE_WORDS))}
+                    placeholder={DEFAULT_VALUE_TITLE}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={LABEL} htmlFor="value-kicker">Kicker Tag</label>
+                    <span className={`text-[10px] tabular-nums ${countWords(valueKicker) >= MAX_KICKER_WORDS ? "text-amber-500 font-semibold" : "text-muted-foreground"}`}>
+                      {countWords(valueKicker)}/{MAX_KICKER_WORDS} words · {valueKicker.length}/{MAX_KICKER_CHARS} chars
+                    </span>
+                  </div>
+                  <input
+                    id="value-kicker"
+                    className={INPUT}
+                    maxLength={MAX_KICKER_CHARS}
+                    value={valueKicker}
+                    onChange={(e) => setValueKicker(enforceWordLimit(e.target.value, MAX_KICKER_WORDS))}
+                    placeholder={DEFAULT_VALUE_KICKER}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={LABEL} htmlFor="value-body">What the Fee Buys (Body)</label>
+                    <span className={`text-[10px] tabular-nums ${countWords(valueBody) >= MAX_BODY_WORDS ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+                      {countWords(valueBody)}/{MAX_BODY_WORDS} words (default limit · prevents shift)
+                    </span>
+                  </div>
+                  <textarea
+                    id="value-body"
+                    rows={2}
+                    className={`${INPUT} resize-none`}
+                    maxLength={MAX_BODY_CHARS}
+                    value={valueBody}
+                    onChange={(e) => setValueBody(enforceWordLimit(e.target.value, MAX_BODY_WORDS))}
+                    placeholder={DEFAULT_VALUE_BODY}
+                  />
+                  {countWords(valueBody) >= MAX_BODY_WORDS && (
+                    <p className="text-[10px] text-amber-500 font-medium mt-0.5">
+                      Word limit reached based on the default layout so the PDF proposal page stays perfectly aligned.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={LABEL} htmlFor="value-note">Share / Settlement Note</label>
+                    <span className={`text-[10px] tabular-nums ${countWords(valueNote) >= MAX_NOTE_WORDS ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+                      {countWords(valueNote)}/{MAX_NOTE_WORDS} words (default limit)
+                    </span>
+                  </div>
+                  <input
+                    id="value-note"
+                    className={INPUT}
+                    maxLength={MAX_NOTE_CHARS}
+                    value={valueNote}
+                    onChange={(e) => setValueNote(enforceWordLimit(e.target.value, MAX_NOTE_WORDS))}
+                    placeholder={DEFAULT_VALUE_NOTE}
+                  />
+                  {countWords(valueNote) >= MAX_NOTE_WORDS && (
+                    <p className="text-[10px] text-amber-500 font-medium mt-0.5">
+                      Word limit reached to prevent shifting the money page layout.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValueTitle(DEFAULT_VALUE_TITLE);
+                      setValueKicker(DEFAULT_VALUE_KICKER);
+                      setValueBody(DEFAULT_VALUE_BODY);
+                      setValueNote(DEFAULT_VALUE_NOTE);
+                    }}
+                    className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Reset to default wording
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Proposed Commercial Split Selector for Proposal */}
