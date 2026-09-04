@@ -2225,8 +2225,13 @@ function ReportBuilderInner() {
         }
     }, [existingReport?.id]);
 
-    const guardAutomaticScoreEdit = useCallback((apply: () => void) => {
+    const guardAutomaticScoreEdit = useCallback((apply: () => void, fieldKey?: keyof typeof form) => {
         if (!isAutomaticDraft) {
+            apply();
+            return;
+        }
+        // If the field is currently unset, filling it is adding missing evidence, not destroying existing auto-fill
+        if (fieldKey && isUnsetScore(form[fieldKey])) {
             apply();
             return;
         }
@@ -2236,7 +2241,7 @@ function ReportBuilderInner() {
         }
         pendingScoreEditRef.current = apply;
         setAutoFillEditPromptOpen(true);
-    }, [existingReport?.id, isAutomaticDraft]);
+    }, [existingReport?.id, isAutomaticDraft, form]);
 
     const confirmAutomaticScoreEdit = useCallback(() => {
         if (existingReport?.id) autoFillEditConfirmedRef.current = existingReport.id;
@@ -2263,6 +2268,25 @@ function ReportBuilderInner() {
     const overallScore = reportScoreAuthority === 'host_school' && studentStats.hostTotal != null
         ? studentStats.hostTotal
         : rawOverallScore;
+
+    const standardScoreKeys = [
+        'theory_score',
+        'classwork_score',
+        'practical_score',
+        'attendance_score',
+        'participation_score',
+        'assessment_score',
+    ] as const;
+
+    const filledScoresCount = reportScoreAuthority === 'host_school'
+        ? Object.values(studentStats.hostPapers).filter((v) => v != null).length
+        : standardScoreKeys.filter((k) => !isUnsetScore(form[k])).length;
+
+    const totalScoresCount = reportScoreAuthority === 'host_school' ? 3 : 6;
+    const isAllScoresFilled = reportScoreAuthority === 'host_school'
+        ? hostPapersComplete(studentStats.hostPapers)
+        : filledScoresCount === totalScoresCount;
+    const isPartiallyFilled = filledScoresCount > 0 && !isAllScoresFilled;
     const hostPaperRows = reportScoreAuthority === 'host_school'
         ? (['first_test', 'second_test', 'examination'] as HostAssessmentKind[]).map((kind) => {
             const examId = studentStats.hostPaperExamIds[kind];
@@ -3953,6 +3977,44 @@ function ReportBuilderInner() {
                                         )}
                                     </div>
 
+                                    {/* Score Completeness Status */}
+                                    <div
+                                        className={`text-[11px] font-semibold flex items-center gap-1.5 px-2.5 py-1.5 min-h-9 rounded-lg border ${
+                                            existingReport?.is_published
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                                                : isAllScoresFilled
+                                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                                : isPartiallyFilled
+                                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                                                : 'bg-muted/40 text-muted-foreground border-border'
+                                        }`}
+                                        title={
+                                            existingReport?.is_published
+                                                ? 'Report is published'
+                                                : isAllScoresFilled
+                                                ? 'All scores completed — ready to publish'
+                                                : isPartiallyFilled
+                                                ? `Incomplete draft: ${filledScoresCount} of ${totalScoresCount} scores entered. Missing scores are held as draft.`
+                                                : 'No scores entered yet'
+                                        }
+                                    >
+                                        {existingReport?.is_published ? (
+                                            <span>Published</span>
+                                        ) : isAllScoresFilled ? (
+                                            <>
+                                                <CheckCircleIcon className="h-3.5 w-3.5 text-blue-500" />
+                                                <span>Draft · Ready</span>
+                                            </>
+                                        ) : isPartiallyFilled ? (
+                                            <>
+                                                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                <span>Draft ({filledScoresCount}/{totalScoresCount})</span>
+                                            </>
+                                        ) : (
+                                            <span>Draft · Unrated</span>
+                                        )}
+                                    </div>
+
                                     {/* Historical Records Toggle */}
                                     <button
                                         type="button"
@@ -4415,79 +4477,143 @@ function ReportBuilderInner() {
                                             (
                                                 reportScoreAuthority === 'host_school'
                                                     ? [
-                                                        { key: 'classwork_score',    label: 'Classwork',             weight: '', color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
-                                                        { key: 'practical_score',    label: 'Projects',              weight: '', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
-                                                        { key: 'attendance_score',   label: 'Assignments',           weight: '', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
-                                                        { key: 'participation_score',label: 'Attendance',            weight: '', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
+                                                        { key: 'classwork_score',    label: 'Classwork',             weight: '', color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}`, autoValue: studentStats.assignmentAvg > 0 ? String(studentStats.assignmentAvg) : null },
+                                                        { key: 'practical_score',    label: 'Projects',              weight: '', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}`, autoValue: null },
+                                                        { key: 'attendance_score',   label: 'Assignments',           weight: '', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)`, autoValue: studentStats.totalAssignments > 0 ? String(studentStats.assignmentPct) : null },
+                                                        { key: 'participation_score',label: 'Attendance',            weight: '', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}`, autoValue: studentStats.totalSessions > 0 ? String(Math.round((studentStats.attendance / studentStats.totalSessions) * 100)) : null },
                                                     ]
                                                     : [
-                                            { key: 'theory_score',       label: 'Theory / Written',      weight: `${weightPct('theory')}%`, color: '#6366f1', hint: studentStats.examination != null ? `Exam: ${studentStats.examination}%` : `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}` },
-                                            { key: 'classwork_score',    label: 'Classwork',             weight: `${weightPct('classwork')}%`, color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
-                                            { key: 'practical_score',    label: 'Practical / Projects',  weight: `${weightPct('practical')}%`, color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}` },
-                                            { key: 'attendance_score',   label: 'Assignments',           weight: `${weightPct('assignments')}%`, color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)` },
-                                            { key: 'participation_score',label: 'Attendance',            weight: `${weightPct('attendance')}%`, color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}` },
-                                            { key: 'assessment_score',   label: 'Mid-term',              weight: `${weightPct('assessment')}%`, color: '#f43f5e', hint: studentStats.firstTest != null || studentStats.secondTest != null ? `1st ${studentStats.firstTest ?? '—'} · 2nd ${studentStats.secondTest ?? '—'}` : `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}` },
+                                                        { key: 'theory_score',       label: 'Theory / Written',      weight: `${weightPct('theory')}%`, color: '#6366f1', hint: studentStats.examination != null ? `Exam: ${studentStats.examination}%` : `CBT: ${studentStats.cbtScore > 0 ? studentStats.cbtScore + '%' : '—'}`, autoValue: studentStats.examination != null ? String(studentStats.examination) : (studentStats.cbtScore > 0 ? String(studentStats.cbtScore) : null) },
+                                                        { key: 'classwork_score',    label: 'Classwork',             weight: `${weightPct('classwork')}%`, color: '#06b6d4', hint: `Asgn avg: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}`, autoValue: studentStats.assignmentAvg > 0 ? String(studentStats.assignmentAvg) : null },
+                                                        { key: 'practical_score',    label: 'Practical / Projects',  weight: `${weightPct('practical')}%`, color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''}`, autoValue: null },
+                                                        { key: 'attendance_score',   label: 'Assignments',           weight: `${weightPct('assignments')}%`, color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} (${studentStats.assignmentPct}%)`, autoValue: studentStats.totalAssignments > 0 ? String(studentStats.assignmentPct) : null },
+                                                        { key: 'participation_score',label: 'Attendance',            weight: `${weightPct('attendance')}%`, color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions}`, autoValue: studentStats.totalSessions > 0 ? String(Math.round((studentStats.attendance / studentStats.totalSessions) * 100)) : null },
+                                                        { key: 'assessment_score',   label: 'Mid-term',              weight: `${weightPct('assessment')}%`, color: '#f43f5e', hint: studentStats.firstTest != null || studentStats.secondTest != null ? `1st ${studentStats.firstTest ?? '—'} · 2nd ${studentStats.secondTest ?? '—'}` : `Eval: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}`, autoValue: studentStats.firstTest != null ? String(studentStats.firstTest) : (studentStats.evalScore > 0 ? String(studentStats.evalScore) : null) },
                                                     ]
-                                            ) as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]
-                                        ).map(({ key, label, weight, color, hint }) => {
+                                            ) as { key: keyof typeof form; label: string; weight: string; color: string; hint: string; autoValue: string | null }[]
+                                        ).map(({ key, label, weight, color, hint, autoValue }) => {
+                                            const isUnset = isUnsetScore(form[key]);
+                                            const isAuto = isAutomaticDraft && !isUnset;
                                             const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
                                             return (
-                                                <div key={key} className="rounded-lg border border-border/50 bg-muted/10 px-2 py-1.5">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="flex min-w-0 items-center gap-1">
+                                                <div key={key} className={`rounded-lg border px-2 py-1.5 transition-colors ${isUnset ? 'border-border/40 bg-muted/5' : 'border-border/60 bg-muted/15'}`}>
+                                                    <div className="flex items-center justify-between gap-1.5">
+                                                        <div className="flex min-w-0 items-center gap-1.5">
                                                             <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: color }} />
                                                             <label className="truncate text-[11px] font-bold text-foreground">{label}</label>
                                                             <span className="flex-shrink-0 text-[9px] font-bold text-muted-foreground">{weight}</span>
+                                                            {isUnset ? (
+                                                                <span className="rounded bg-muted/60 px-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground/70">Unset</span>
+                                                            ) : isAuto ? (
+                                                                <span className="rounded bg-indigo-500/10 px-1 text-[8px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Auto</span>
+                                                            ) : (
+                                                                <span className="rounded bg-muted px-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Typed</span>
+                                                            )}
                                                         </div>
-                                                        <span className="truncate text-[9px] text-muted-foreground" title={hint}>{hint}</span>
+                                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                            {isUnset && autoValue && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: autoValue })), key)}
+                                                                    className="text-[9px] font-bold text-primary hover:underline"
+                                                                    title={`Fill from LMS evidence: ${autoValue}%`}
+                                                                >
+                                                                    Use auto ({autoValue}%)
+                                                                </button>
+                                                            )}
+                                                            <span className="truncate text-[9px] text-muted-foreground max-w-[7rem] sm:max-w-[9rem]" title={hint}>{hint}</span>
+                                                        </div>
                                                     </div>
                                                     <div className="mt-1 flex items-center gap-1.5">
                                                         <input
-                                                            type="range" min="0" max="100" value={String(form[key])}
-                                                            onChange={e => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: e.target.value })))}
-                                                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted/40 outline-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:shadow-sm"
-                                                            style={{ background: `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
+                                                            type="range" min="0" max="100"
+                                                            value={isUnset ? '0' : String(form[key])}
+                                                            onChange={e => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: e.target.value })), key)}
+                                                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted/40 outline-none touch-pan-y [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:shadow-sm"
+                                                            style={{
+                                                                touchAction: 'pan-y',
+                                                                background: isUnset
+                                                                    ? 'rgba(255,255,255,0.06)'
+                                                                    : `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)`
+                                                            }}
                                                             aria-label={label}
                                                         />
                                                         <input
                                                             type="text" inputMode="numeric" pattern="[0-9]*"
-                                                            value={parseInt(String(form[key])) === 0 ? '' : String(parseInt(String(form[key])) || '')}
-                                                            placeholder="0"
+                                                            value={isUnset ? '' : String(form[key])}
+                                                            placeholder="—"
                                                             onChange={e => {
                                                                 const raw = e.target.value.replace(/[^0-9]/g, '');
                                                                 guardAutomaticScoreEdit(() => setForm(f => ({
                                                                     ...f,
-                                                                    [key]: raw === '' ? '0' : String(Math.min(100, parseInt(raw))),
-                                                                })));
+                                                                    [key]: raw === '' ? '' : String(Math.min(100, parseInt(raw))),
+                                                                })), key);
                                                             }}
                                                             onFocus={e => { if (!e.target.value) e.target.select(); }}
                                                             className="h-7 w-11 flex-shrink-0 rounded-lg border border-border bg-card text-center text-xs font-black text-foreground focus:border-primary focus:outline-none"
-                                                            style={{ color }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                        </div>
-
-                                        {/* Overall — weighted score display */}
-                                        <div className="mt-1 flex items-center justify-between border-t border-border pt-2">
-                                            <div>
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">{reportScoreAuthority === 'host_school' ? 'First Test + Second Test + Examination' : 'Overall'}</p>
-                                                <p className="text-xl font-black tabular-nums text-foreground leading-none">
-                                                    {previewShowsScores ? (
-                                                        reportScoreAuthority === 'host_school' && studentStats.hostTotalMark ? (
-                                                            <>{formatHostMark(studentStats.hostTotalMark)}</>
-                                                        ) : (
-                                                        <>{overallScore}<span className="ml-0.5 text-xs text-muted-foreground/50">%</span></>
-                                                        )
-                                                    ) : (
-                                                        <span className="text-muted-foreground">—</span>
+                                                        style={{ color: isUnset ? 'inherit' : color }}
+                                                    />
+                                                    {!isUnset && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: '' })), key)}
+                                                            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/60 hover:bg-muted hover:text-foreground transition-colors flex-shrink-0"
+                                                            title={`Clear ${label} (restore to unrated draft)`}
+                                                            aria-label={`Clear ${label}`}
+                                                        >
+                                                            <XMarkIcon className="h-3.5 w-3.5" />
+                                                        </button>
                                                     )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    </div>
+
+                                    {/* Incomplete Draft Safety Banner */}
+                                    {isPartiallyFilled && (
+                                        <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                            <ExclamationTriangleIcon className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                            <div className="space-y-0.5">
+                                                <span className="font-bold">Incomplete Draft ({filledScoresCount} of {totalScoresCount} components entered)</span>
+                                                <p className="text-[11px] text-muted-foreground">
+                                                    Unfilled criteria are safely held as drafts and not counted as failing zeros. Fill all components to compute the official WAEC grade.
                                                 </p>
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                        </div>
+                                    )}
+
+                                    {/* Overall — weighted score display */}
+                                    <div className="mt-1 flex items-center justify-between border-t border-border pt-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">{reportScoreAuthority === 'host_school' ? 'First Test + Second Test + Examination' : 'Overall Score'}</p>
+                                            <p className="text-xl font-black tabular-nums text-foreground leading-none">
                                                 {previewShowsScores ? (
+                                                    reportScoreAuthority === 'host_school' && studentStats.hostTotalMark ? (
+                                                        <>{formatHostMark(studentStats.hostTotalMark)}</>
+                                                    ) : isPartiallyFilled ? (
+                                                        <span className="text-amber-600 dark:text-amber-400 text-lg font-bold">
+                                                            ~{overallScore}% <span className="text-[10px] font-normal uppercase text-muted-foreground">(Draft)</span>
+                                                        </span>
+                                                    ) : (
+                                                        <>{overallScore}<span className="ml-0.5 text-xs text-muted-foreground/50">%</span></>
+                                                    )
+                                                ) : (
+                                                    <span className="text-muted-foreground">—</span>
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {previewShowsScores ? (
+                                                isPartiallyFilled ? (
+                                                    <div
+                                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-bold"
+                                                        title="Incomplete draft: Enter remaining scores to compute official WAEC grade"
+                                                    >
+                                                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                                        <span>DRAFT ({filledScoresCount}/{totalScoresCount})</span>
+                                                    </div>
+                                                ) : (
                                                     <>
                                                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
                                                         <div className="flex h-9 w-9 flex-col items-center justify-center rounded-lg border-2 border-primary/40 bg-primary/10 font-black text-primary">
@@ -4495,11 +4621,12 @@ function ReportBuilderInner() {
                                                             <span className="text-[7px] font-bold text-primary/60">{overallGradeLetter}</span>
                                                         </div>
                                                     </>
-                                                ) : (
-                                                    <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">Awaiting evidence</span>
-                                                )}
-                                            </div>
+                                                )
+                                            ) : (
+                                                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">Awaiting evidence</span>
+                                            )}
                                         </div>
+                                    </div>
 
                                         {reportScoreAuthority !== 'host_school' && (
                                         <div className="mt-1 space-y-1 rounded-lg border border-border bg-muted/20 px-2 py-1.5">
