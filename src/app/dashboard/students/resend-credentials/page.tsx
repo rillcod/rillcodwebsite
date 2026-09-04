@@ -9,7 +9,7 @@ import {
   XCircleIcon, MagnifyingGlassIcon, UserGroupIcon, BoltIcon,
   ClockIcon, BuildingOfficeIcon, ExclamationTriangleIcon,
   ChevronLeftIcon, FunnelIcon, ShieldCheckIcon, BanknotesIcon,
-  DocumentTextIcon, EyeIcon,
+  DocumentTextIcon, EyeIcon, XMarkIcon, PaperAirplaneIcon, ChatBubbleLeftRightIcon,
 } from '@/lib/icons';
 import { isSpecialEnrollment, normalizeEnrollmentType } from '@/lib/registration/enrollment-types';
 import { fetchActionJson } from '@/lib/async-timeout';
@@ -34,6 +34,24 @@ interface StudentRow {
 }
 
 type FilterType = 'all' | 'not_activated' | 'activated';
+type DispatchAction = 'activate' | 'resend' | 'whatsapp' | 'receipt' | 'balance';
+
+interface DispatchModalState {
+  isOpen: boolean;
+  action: DispatchAction;
+  student: StudentRow;
+  result?: {
+    success: boolean;
+    message: string;
+    studentEmail?: string;
+    studentPassword?: string;
+    parentEmail?: string;
+    parentPassword?: string;
+    destinationEmail?: string;
+    via?: string;
+    sentAt: string;
+  } | null;
+}
 
 export default function ResendCredentialsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -53,6 +71,8 @@ export default function ResendCredentialsPage() {
   const [sendingReceipt, setSendingReceipt] = useState<Record<string, boolean>>({});
   const [sendingBalance, setSendingBalance] = useState<Record<string, boolean>>({});
   const [sendingWa, setSendingWa] = useState<Record<string, boolean>>({});
+  const [dispatchModal, setDispatchModal] = useState<DispatchModalState | null>(null);
+  const [dispatching, setDispatching] = useState(false);
 
   // Ask the server to deliver existing credentials. Passwords never cross the
   // listing API or enter the page DOM; the server resolves the authorised student.
@@ -150,6 +170,108 @@ export default function ResendCredentialsPage() {
 
   const notActivatedCount = students.filter(s => !s.user_id).length;
   const activatedCount = students.filter(s => !!s.user_id).length;
+
+  async function executeDispatch(modalState: DispatchModalState) {
+    const { action, student } = modalState;
+    setDispatching(true);
+    try {
+      const destEmail = student.parent_email || student.student_email || 'recipient';
+      if (action === 'activate' || action === 'resend') {
+        const forceResend = action === 'resend';
+        const res = await fetch('/api/students/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: student.id, forceResend }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to dispatch credentials');
+        
+        const successMsg = data.message || (forceResend ? 'Credentials reset and delivered' : 'Account activated and credentials sent');
+        toast.success(successMsg);
+        setDone(p => ({ ...p, [student.id]: true }));
+        
+        setDispatchModal({
+          ...modalState,
+          result: {
+            success: true,
+            message: successMsg,
+            studentEmail: data.email,
+            studentPassword: data.tempPassword,
+            parentEmail: data.parentLogin?.email,
+            parentPassword: data.parentLogin?.password,
+            destinationEmail: destEmail,
+            sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        });
+        await load();
+      } else if (action === 'whatsapp') {
+        const res = await fetch('/api/students/send-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: student.id }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error || 'Failed to dispatch credentials');
+        const via = [j.whatsapp ? 'WhatsApp' : null, j.email ? 'Email' : null].filter(Boolean).join(' + ') || 'Email';
+        const successMsg = `Login sent securely via ${via}.`;
+        toast.success(successMsg);
+        setDone(p => ({ ...p, [student.id]: true }));
+        setDispatchModal({
+          ...modalState,
+          result: {
+            success: true,
+            message: successMsg,
+            destinationEmail: destEmail,
+            via,
+            sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        });
+        await load();
+      } else if (action === 'receipt') {
+        const res = await fetch('/api/students/send-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: student.id }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to send receipt');
+        const successMsg = data.message || 'Payment receipt sent successfully';
+        toast.success(successMsg);
+        setDispatchModal({
+          ...modalState,
+          result: {
+            success: true,
+            message: successMsg,
+            destinationEmail: destEmail,
+            sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        });
+      } else if (action === 'balance') {
+        const res = await fetch('/api/students/send-balance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: student.id }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to send balance reminder');
+        const successMsg = data.message || 'Outstanding balance reminder sent successfully';
+        toast.success(successMsg);
+        setDispatchModal({
+          ...modalState,
+          result: {
+            success: true,
+            message: successMsg,
+            destinationEmail: destEmail,
+            sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        });
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Something went wrong');
+    } finally {
+      setDispatching(false);
+    }
+  }
 
   async function handleSend(studentId: string, forceResend: boolean) {
     setSending(p => ({ ...p, [studentId]: true }));
@@ -704,38 +826,31 @@ export default function ResendCredentialsPage() {
                           {/* Receipt Resend Button */}
                           {isSpecialEnrollment(s.enrollment_type) && (
                             <button
-                              onClick={() => handleSendReceipt(s.id)}
-                              disabled={sendingReceipt[s.id]}
-                              title="Resend payment receipt email"
+                              type="button"
+                              onClick={() => setDispatchModal({ isOpen: true, action: 'receipt', student: s, result: null })}
+                              title="Preview and send payment receipt email"
                               className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {sendingReceipt[s.id] ? (
-                                <ArrowPathIcon className="w-4.5 h-4.5 animate-spin" />
-                              ) : (
-                                <DocumentTextIcon className="w-4.5 h-4.5" />
-                              )}
+                              <DocumentTextIcon className="w-4.5 h-4.5" />
                             </button>
                           )}
 
                           {/* Outstanding Tuition Reminder Button */}
                           {isSpecialEnrollment(s.enrollment_type) && (
                             <button
-                              onClick={() => handleSendBalance(s.id)}
-                              disabled={sendingBalance[s.id]}
-                              title="Send outstanding tuition balance reminder email"
+                              type="button"
+                              onClick={() => setDispatchModal({ isOpen: true, action: 'balance', student: s, result: null })}
+                              title="Preview and send tuition balance reminder email"
                               className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-amber-600/20 border border-border hover:border-amber-500/40 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {sendingBalance[s.id] ? (
-                                <ArrowPathIcon className="w-4.5 h-4.5 animate-spin" />
-                              ) : (
-                                <BanknotesIcon className="w-4.5 h-4.5" />
-                              )}
+                              <BanknotesIcon className="w-4.5 h-4.5" />
                             </button>
                           )}
 
-                          {/* Credentials Resend / Activate Button */}
+                          {/* Credentials View Button */}
                           {isActivated && (
                             <button
+                              type="button"
                               onClick={() => setLastCreatedCredentials({
                                 studentId: s.id,
                                 studentName: s.full_name || 'Student',
@@ -750,44 +865,36 @@ export default function ResendCredentialsPage() {
                           )}
                           {isActivated && !!s.parent_email && (
                             <button
-                              onClick={() => handleWhatsApp(s)}
-                              disabled={sendingWa[s.id]}
-                              title="Securely resend the existing login by WhatsApp and email"
+                              type="button"
+                              onClick={() => setDispatchModal({ isOpen: true, action: 'whatsapp', student: s, result: null })}
+                              title="Preview and securely send login by WhatsApp and email"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                             >
-                              {sendingWa[s.id] ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <span aria-hidden>💬</span>}
-                              WhatsApp
+                              <ChatBubbleLeftRightIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span>WhatsApp</span>
                             </button>
                           )}
                           {isDone ? (
                             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold px-2">Sent</span>
                           ) : isActivated ? (
                             <button
-                              onClick={() => handleSend(s.id, true)}
-                              disabled={isSending}
-                              title="Reset password and resend credentials email"
+                              type="button"
+                              onClick={() => setDispatchModal({ isOpen: true, action: 'resend', student: s, result: null })}
+                              title="Preview, reset password and resend credentials email"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-violet-600/20 border border-border hover:border-violet-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                             >
-                              {isSending ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <EnvelopeIcon className="w-3.5 h-3.5" />
-                              )}
-                              Resend
+                              <EnvelopeIcon className="w-3.5 h-3.5" />
+                              <span>Resend</span>
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleSend(s.id, false)}
-                              disabled={isSending}
-                              title="Create portal account and send login credentials"
+                              type="button"
+                              onClick={() => setDispatchModal({ isOpen: true, action: 'activate', student: s, result: null })}
+                              title="Preview, create portal account and send login credentials"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                             >
-                              {isSending ? (
-                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <KeyIcon className="w-3.5 h-3.5" />
-                              )}
-                              Activate
+                              <KeyIcon className="w-3.5 h-3.5" />
+                              <span>Activate</span>
                             </button>
                           )}
                         </div>
@@ -902,6 +1009,259 @@ export default function ResendCredentialsPage() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── Interactive Dispatch & Preview Modal ── */}
+      {dispatchModal && dispatchModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-border pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl border ${
+                  dispatchModal.action === 'activate' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' :
+                  dispatchModal.action === 'resend' ? 'bg-violet-500/10 border-violet-500/30 text-violet-600 dark:text-violet-400' :
+                  dispatchModal.action === 'whatsapp' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' :
+                  dispatchModal.action === 'receipt' ? 'bg-sky-500/10 border-sky-500/30 text-sky-600 dark:text-sky-400' :
+                  'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                }`}>
+                  {dispatchModal.action === 'activate' ? <KeyIcon className="w-5 h-5" /> :
+                   dispatchModal.action === 'resend' ? <ArrowPathIcon className="w-5 h-5" /> :
+                   dispatchModal.action === 'whatsapp' ? <ChatBubbleLeftRightIcon className="w-5 h-5" /> :
+                   dispatchModal.action === 'receipt' ? <DocumentTextIcon className="w-5 h-5" /> :
+                   <BanknotesIcon className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">
+                    {dispatchModal.action === 'activate' ? 'Activate Student & Send Login' :
+                     dispatchModal.action === 'resend' ? 'Reset Password & Resend Login' :
+                     dispatchModal.action === 'whatsapp' ? 'Dispatch Login via WhatsApp & Email' :
+                     dispatchModal.action === 'receipt' ? 'Send Official Payment Receipt' :
+                     'Send Tuition Balance Reminder'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {dispatchModal.student.full_name} · {dispatchModal.student.school_name || 'Rillcod Academy'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDispatchModal(null)}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Close"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Success state if already sent */}
+            {dispatchModal.result ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-sm font-bold">{dispatchModal.result.message}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Delivered to <strong className="text-foreground">{dispatchModal.result.destinationEmail}</strong> at {dispatchModal.result.sentAt}.
+                  </p>
+                </div>
+
+                {/* If credentials were generated, show copyable credentials */}
+                {dispatchModal.result.studentEmail && (
+                  <div className="bg-muted/30 border border-border rounded-xl p-3.5 space-y-2 text-xs">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-violet-600 dark:text-violet-400">Issued Login Credentials</p>
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground">Student Login: <span className="font-mono font-bold text-foreground select-all">{dispatchModal.result.studentEmail}</span></p>
+                      {dispatchModal.result.studentPassword && (
+                        <p className="text-muted-foreground">Temporary Password: <span className="font-mono font-bold text-amber-600 dark:text-amber-400 select-all">{dispatchModal.result.studentPassword}</span></p>
+                      )}
+                      {dispatchModal.result.parentEmail && (
+                        <p className="text-muted-foreground">Parent Login: <span className="font-mono font-bold text-foreground select-all">{dispatchModal.result.parentEmail}</span></p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  {dispatchModal.result.studentEmail && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const r = dispatchModal.result!;
+                        let txt = `Rillcod Technologies login details for ${dispatchModal.student.full_name}\n\n`;
+                        txt += `🎓 Student Portal:\nEmail: ${r.studentEmail}${r.studentPassword ? `\nPassword: ${r.studentPassword}` : ''}\n\n`;
+                        if (r.parentEmail) {
+                          txt += `👨‍👩‍👧 Parent Portal:\nEmail: ${r.parentEmail}${r.parentPassword ? `\nPassword: ${r.parentPassword}` : ''}\n`;
+                        }
+                        txt += `\nLog in: ${typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com'}/login`;
+                        navigator.clipboard.writeText(txt);
+                        toast.success('Login details copied to clipboard');
+                      }}
+                      className="px-3.5 py-2 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-bold text-foreground transition-colors"
+                    >
+                      Copy All Details
+                    </button>
+                  )}
+                  {dispatchModal.result.studentEmail && (
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(
+                        `Rillcod Technologies login details for ${dispatchModal.student.full_name}\n\n🎓 Student Portal:\nEmail: ${dispatchModal.result.studentEmail}${dispatchModal.result.studentPassword ? `\nPassword: ${dispatchModal.result.studentPassword}` : ''}\n\nLog in: https://www.rillcod.com/login`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 rounded-xl bg-[#25D366] hover:brightness-110 text-foreground text-xs font-bold transition-all inline-flex items-center gap-1.5"
+                    >
+                      Share on WhatsApp
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setDispatchModal(null)}
+                    className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Pre-send confirmation & live preview */
+              <div className="space-y-3.5">
+                {/* Routing info */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-xl border border-border bg-muted/20">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Recipient</p>
+                    <p className="font-bold text-foreground truncate">{dispatchModal.student.full_name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{dispatchModal.student.school_name || 'School not set'}</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl border border-border bg-muted/20">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Destination Email</p>
+                    <p className="font-bold text-foreground truncate font-mono text-[11px]">
+                      {dispatchModal.student.parent_email || dispatchModal.student.student_email || 'No email on file'}
+                    </p>
+                    <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-primary/10 text-primary">
+                      {dispatchModal.student.parent_email ? 'Parent Inbox' : 'Student Inbox'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Impact Notice */}
+                {dispatchModal.action === 'resend' && (
+                  <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <ExclamationTriangleIcon className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span>Password Reset Confirmation</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Confirming will generate a <strong>fresh temporary password</strong>, update the database record, and deliver the new login details to the parent. Any previous password will be invalidated.
+                    </p>
+                  </div>
+                )}
+                {dispatchModal.action === 'activate' && (
+                  <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <BoltIcon className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span>New Account Creation</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      This will create a new <code className="text-foreground">@rillcod.com</code> portal account, link it to the parent profile, issue a digital student ID card, and email initial login credentials.
+                    </p>
+                  </div>
+                )}
+
+                {/* Email Live Preview Container */}
+                <div className="border border-border rounded-xl overflow-hidden bg-background">
+                  <div className="px-3.5 py-2 border-b border-border bg-muted/30 flex items-center justify-between text-[11px]">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
+                      <span>Live Message Preview</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">support@rillcod.com</span>
+                  </div>
+                  <div className="p-3.5 space-y-2 text-xs">
+                    <div className="border-b border-border/40 pb-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        <strong className="text-foreground">Subject: </strong>
+                        {dispatchModal.action === 'activate'
+                          ? 'Your Rillcod Technologies Parent & Student Login Details'
+                          : dispatchModal.action === 'resend'
+                          ? 'Your Rillcod Technologies Parent & Student Login Details (Password Reset)'
+                          : dispatchModal.action === 'whatsapp'
+                          ? 'Your Rillcod Technologies Login Credentials'
+                          : dispatchModal.action === 'receipt'
+                          ? 'Payment Receipt — Rillcod Technologies'
+                          : 'Outstanding Tuition Balance Reminder — Rillcod Technologies'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5 text-muted-foreground text-[11px]">
+                      <p>Dear Parent / Guardian of <strong className="text-foreground">{dispatchModal.student.full_name}</strong>,</p>
+                      {dispatchModal.action === 'receipt' ? (
+                        <p>Thank you for your confirmed payment. An official receipt has been issued and linked to your student's profile.</p>
+                      ) : dispatchModal.action === 'balance' ? (
+                        <p>This is a friendly reminder regarding the outstanding tuition balance for {dispatchModal.student.full_name}. Please check your parent portal to complete payment.</p>
+                      ) : (
+                        <>
+                          <p>Below are the portal login details to access lessons, class materials, and track academic progress:</p>
+                          <div className="p-2 rounded-lg bg-muted/40 border border-border space-y-1 font-mono text-[10px]">
+                            <p>🎓 Student: <span className="text-foreground font-bold">{dispatchModal.student.student_email || 'student@rillcod.com'}</span></p>
+                            <p>🔑 Password: <span className="text-amber-600 dark:text-amber-400 font-bold">[Generated temporary password]</span></p>
+                            {dispatchModal.student.parent_email && (
+                              <p>👨‍👩‍👧 Parent: <span className="text-foreground font-bold">{dispatchModal.student.parent_email}</span></p>
+                            )}
+                            <p>🌐 Login: <span className="text-primary font-bold">https://www.rillcod.com/login</span></p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                  <button
+                    type="button"
+                    disabled={dispatching}
+                    onClick={() => setDispatchModal(null)}
+                    className="px-4 py-2 rounded-xl border border-border bg-muted/30 hover:bg-muted text-xs font-bold text-foreground transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={dispatching}
+                    onClick={() => executeDispatch(dispatchModal)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-colors shadow-sm disabled:opacity-50 inline-flex items-center gap-1.5 ${
+                      dispatchModal.action === 'activate'
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : dispatchModal.action === 'resend'
+                        ? 'bg-violet-600 hover:bg-violet-500 text-white'
+                        : dispatchModal.action === 'whatsapp'
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                    }`}
+                  >
+                    {dispatching ? (
+                      <>
+                        <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <PaperAirplaneIcon className="w-3.5 h-3.5" />
+                        <span>
+                          {dispatchModal.action === 'activate' ? 'Confirm & Activate' :
+                           dispatchModal.action === 'resend' ? 'Confirm & Resend' :
+                           dispatchModal.action === 'whatsapp' ? 'Confirm & Send' :
+                           'Confirm & Send Email'}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

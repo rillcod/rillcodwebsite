@@ -3184,86 +3184,84 @@ function ReportBuilderInner() {
         <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
 
-                {/* Mobile hero */}
-                <div className="md:hidden">
-                    <MobilePageHero
-                        badge="Write"
-                        title={
-                            sessionDone && selectedStudent
-                                ? selectedStudent.full_name || 'Write'
-                                : sessionDone
+                {/* Mobile hero — shown on Step 0/1 (picking class/student) to avoid duplicate headers in editor */}
+                {!selectedStudent && (
+                    <div className="md:hidden">
+                        <MobilePageHero
+                            badge="Write"
+                            title={
+                                sessionDone
                                     ? 'Pick a student'
                                     : 'Write'
-                        }
-                        description={
-                            !sessionDone
-                                ? 'Choose school and class.'
-                                : selectedStudent
-                                    ? undefined
+                            }
+                            description={
+                                !sessionDone
+                                    ? 'Choose school and class.'
                                     : 'Tap a student to start.'
-                        }
-                        icon={DocumentTextIcon}
-                        actions={
-                            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                            }
+                            icon={DocumentTextIcon}
+                            actions={
+                                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                                    <Link
+                                        href={fromPrepare ? returnToPrepareHref : returnToResultsHref}
+                                        className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
+                                    >
+                                        <ArrowLeftIcon className="h-3.5 w-3.5" />
+                                        <span>{fromPrepare ? "Auto-fill" : "Results Roster"}</span>
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettings(true)}
+                                        className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-muted-foreground`}
+                                    >
+                                        <Cog6ToothIcon className="h-3.5 w-3.5" /> Branding
+                                    </button>
+                                </div>
+                            }
+                        />
+                    </div>
+                )}
+
+                {/* ── Page header (desktop) — shown on Step 0/1 ── */}
+                {!selectedStudent && (
+                    <div className="hidden md:flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
                                 <Link
                                     href={fromPrepare ? returnToPrepareHref : returnToResultsHref}
-                                    className={`${MOBILE_TOUCH_BTN} border border-primary/40 bg-primary/10 text-primary font-bold`}
+                                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted shadow-sm transition-colors"
+                                    title={fromPrepare ? "Back to Auto-fill" : "Back to Results & Roster"}
                                 >
-                                    <ArrowLeftIcon className="h-3.5 w-3.5" />
-                                    <span>{fromPrepare ? "Auto-fill" : "Results Roster"}</span>
+                                    <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
+                                    <span>{fromPrepare ? "Back to Auto-fill" : "Back to Results Roster"}</span>
                                 </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSettings(true)}
-                                    className={`${MOBILE_TOUCH_BTN} border border-border bg-card text-muted-foreground`}
-                                >
-                                    <Cog6ToothIcon className="h-3.5 w-3.5" /> Branding
-                                </button>
+                                <h1 className="truncate text-base font-extrabold sm:text-lg">
+                                    {sessionDone ? 'Pick a student' : 'Write'}
+                                </h1>
                             </div>
-                        }
-                    />
-                </div>
-
-                {/* ── Page header (desktop) ── */}
-                <div className="hidden md:flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <Link
-                                href={fromPrepare ? returnToPrepareHref : returnToResultsHref}
-                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-[11px] font-black text-foreground hover:bg-muted shadow-sm transition-colors"
-                                title={fromPrepare ? "Back to Auto-fill" : "Back to Results & Roster"}
-                            >
-                                <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
-                                <span>{fromPrepare ? "Back to Auto-fill" : "Back to Results Roster"}</span>
-                            </Link>
-                            <h1 className="truncate text-base font-extrabold sm:text-lg">
-                                {sessionDone && selectedStudent
-                                    ? selectedStudent.full_name || 'Write'
-                                    : sessionDone
-                                        ? 'Pick a student'
-                                        : 'Write'}
-                            </h1>
                         </div>
+                        <button type="button" onClick={() => setShowSettings(true)}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted">
+                            <Cog6ToothIcon className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Branding</span>
+                        </button>
                     </div>
-                    <button type="button" onClick={() => setShowSettings(true)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground hover:bg-muted">
-                        <Cog6ToothIcon className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Branding</span>
-                    </button>
-                </div>
+                )}
 
-                <LearnerReportFlowStrip
-                    current="write"
-                    compact={sessionDone}
-                    studentId={selectedStudent?.id || prefStudentId}
-                    classId={sessionConfig.class_id}
-                    courseId={sessionConfig.course_id}
-                    schoolId={sessionConfig.school_id}
-                    term={sessionConfig.report_term}
-                    period={sessionConfig.report_period}
-                    reportId={existingReport?.id}
-                    from={fromPrepare ? 'prepare' : fromResults ? 'results' : undefined}
-                />
+                {!selectedStudent && (
+                    <LearnerReportFlowStrip
+                        current="write"
+                        compact={sessionDone}
+                        studentId={prefStudentId}
+                        classId={sessionConfig.class_id}
+                        courseId={sessionConfig.course_id}
+                        schoolId={sessionConfig.school_id}
+                        term={sessionConfig.report_term}
+                        period={sessionConfig.report_period}
+                        reportId={existingReport?.id}
+                        from={fromPrepare ? 'prepare' : fromResults ? 'results' : undefined}
+                    />
+                )}
                 {storageWarning && (
                     <div className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs text-muted-foreground">
                         <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
@@ -3878,7 +3876,7 @@ function ReportBuilderInner() {
                                 </button>
                             </div>
                         )}
-                        {duplicateWarning === 'published' && (
+                        {duplicateWarning === 'published' && !existingReport?.is_published && (
                             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
                                 <p className="min-w-0 flex-1">
                                     This published report is read-only. To correct it, open Publish &amp; Share, choose <strong className="text-foreground">Unpublish to edit</strong>, then return here. The same report record is reused.
@@ -3907,7 +3905,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
 
-                        {/* ── Learner Navigation & History Header Bar ── */}
+                        {/* ── Learner Command Ribbon ── */}
                         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm space-y-3">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
                                 <div className="flex items-start sm:items-center gap-2.5 min-w-0">
@@ -3975,6 +3973,17 @@ function ReportBuilderInner() {
                                         }`}>
                                             {studentHistoryReports.length}
                                         </span>
+                                    </button>
+
+                                    {/* Report Branding Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettings(true)}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-9 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                                        title="Configure report branding & logo"
+                                    >
+                                        <Cog6ToothIcon className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">Branding</span>
                                     </button>
                                 </div>
                             </div>
@@ -4096,35 +4105,16 @@ function ReportBuilderInner() {
 
                         {/* Setup — collapsed so teachers land on scores immediately */}
                         <Section
-                            title="Setup"
+                            title="Student Profile &amp; Template (Optional)"
                             description={
                                 suggestedModule
                                     ? 'Module tip ready — expand to apply · class, design, identity'
-                                    : `${sessionConfig.section_class || 'Class'} · ${sessionConfig.course_name || 'Course'} · ${sessionConfig.report_term || 'Term'}`
+                                    : 'Template style, photo, class section & modules (defaults active)'
                             }
                             priority="secondary"
                             collapsible
                             defaultOpen={false}
-                            actions={
-                                <button
-                                    type="button"
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
-                                        prepareNextClass();
-                                    }}
-                                    className="rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-[10px] font-bold text-foreground hover:bg-muted"
-                                >
-                                    Another class
-                                </button>
-                            }
                         >
-                            <div ref={classProgressRef} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
-                                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-600 dark:text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-300/70">Drafts</p></div>
-                                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-300/70">Published</p></div>
-                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
-                            </div>
                             <div className="space-y-3">
                                 <p className="text-xs font-bold text-foreground">Report Design</p>
                                 <div className="flex bg-muted/30 border border-border p-1 rounded-xl overflow-hidden">

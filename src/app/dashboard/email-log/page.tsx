@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowPathIcon, EnvelopeIcon, ShieldCheckIcon, ExclamationTriangleIcon,
+  EyeIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, PaperAirplaneIcon,
+  ArrowTopRightOnSquareIcon, ClipboardIcon, ClipboardDocumentCheckIcon,
 } from '@/lib/icons';
 
 /**
@@ -167,6 +169,24 @@ export default function EmailLogPage() {
   const [provider, setProvider] = useState('');              // provider column
   const [school, setSchool] = useState('');                  // resolved from portal_users
   const [role, setRole] = useState('');                      // recipient's role
+  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyToClipboard = useCallback((text: string, key: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(text);
+    }
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2200);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedRow(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -476,32 +496,42 @@ export default function EmailLogPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left">
-                {['To', 'Status', 'Subject', 'Type', 'Sent'].map((h) => (
+                {['To', 'Status', 'Subject', 'Type', 'Sent', ''].map((h) => (
                   <th key={h} className={`${LABEL} px-4 py-3 whitespace-nowrap`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-accent/40 align-top">
+                <tr
+                  key={r.id}
+                  onClick={() => setSelectedRow(r)}
+                  className="hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30 transition-colors align-top cursor-pointer group"
+                >
                   <td className="px-4 py-2.5 whitespace-nowrap">
-                    <div className="text-foreground">{r.recipient_name || r.recipient || '—'}</div>
+                    <div className="font-semibold text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {r.recipient_name || r.recipient || '—'}
+                    </div>
                     {r.recipient_name && (
-                      <div className="text-xs text-muted-foreground">{r.recipient}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{r.recipient}</div>
                     )}
                     {r.school && (
                       <div className="text-xs text-muted-foreground/80">{r.school}</div>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-1.5 mt-1">
                       {r.recipient_role && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{r.recipient_role}</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                          {r.recipient_role}
+                        </span>
                       )}
                       {r.channel && r.channel !== 'email' && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{r.channel}</span>
+                        <span className="rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide">
+                          {r.channel}
+                        </span>
                       )}
                       {r.internal && (
                         <span
-                          className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70"
+                          className="rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
                           title="A portal login identifier, not a real mailbox — delivery can never be confirmed"
                         >
                           internal id
@@ -512,27 +542,47 @@ export default function EmailLogPage() {
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <StatusPill r={r} />
                     {(r.error || r.provider_reason) && (
-                      <div className="mt-1 max-w-[16rem] text-xs text-rose-600 dark:text-rose-400">{r.error || r.provider_reason}</div>
+                      <div className="mt-1 max-w-[16rem] text-xs text-rose-600 dark:text-rose-400 truncate" title={r.error || r.provider_reason || ''}>
+                        {r.error || r.provider_reason}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground">
-                    <div className="max-w-[26rem] truncate" title={r.subject ?? ''}>{r.subject || '—'}</div>
+                    <div className="max-w-[26rem] truncate font-medium text-foreground" title={r.subject ?? ''}>
+                      {r.subject || '—'}
+                    </div>
                     {r.template_key && (
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">{r.template_key}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70 font-mono">
+                        {r.template_key}
+                      </div>
                     )}
                     {(r.source_type || r.event_count != null) && (
                       <div className="text-[10px] text-muted-foreground/70">
                         {r.source_type ? `Source: ${r.source_type}` : 'Direct send'}
-                        {r.event_count != null ? ` · ${r.event_count} lifecycle event${r.event_count === 1 ? '' : 's'}` : ''}
+                        {r.event_count != null ? ` · ${r.event_count} event${r.event_count === 1 ? '' : 's'}` : ''}
                         {r.attempt_count && r.attempt_count > 1 ? ` · ${r.attempt_count} attempts` : ''}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                  <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
                     {r.automated ? 'Triggered' : 'By hand'}
                   </td>
-                  <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground" title={r.created_at}>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground text-xs" title={r.created_at}>
                     {ago(r.created_at)}
+                  </td>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRow(r);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-muted-foreground bg-muted/60 hover:bg-indigo-600 hover:text-white transition-colors"
+                      title="Inspect delivery details"
+                    >
+                      <EyeIcon className="w-3.5 h-3.5" />
+                      <span>Inspect</span>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -548,6 +598,322 @@ export default function EmailLogPage() {
           )}
         </div>
       </section>
+
+      {/* Interactive Delivery Inspection Drawer */}
+      {selectedRow && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSelectedRow(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-card border-l border-border h-full overflow-y-auto shadow-2xl flex flex-col animate-in slide-in-from-right duration-250"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border p-5 flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill r={selectedRow} />
+                  <span className="text-xs text-muted-foreground font-mono">
+                    ID: {selectedRow.id.slice(0, 8)}…
+                  </span>
+                  {selectedRow.channel && (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {selectedRow.channel}
+                    </span>
+                  )}
+                  {selectedRow.provider && (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {selectedRow.provider}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-foreground leading-snug">
+                  {selectedRow.subject || '(No subject line)'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRow(null)}
+                className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title="Close inspector (Esc)"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-6 space-y-6 flex-1">
+              {/* Delivery Outcome Banner */}
+              {selectedRow.status === 'failed' || selectedRow.status === 'suppressed' ? (
+                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 flex items-start gap-3">
+                  <XCircleIcon className="w-5 h-5 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                  <div className="space-y-1 text-xs">
+                    <div className="font-bold text-sm">Delivery Unsuccessful</div>
+                    <div>
+                      {selectedRow.error || selectedRow.provider_reason || 'The mail provider reported a delivery failure or suppression.'}
+                    </div>
+                  </div>
+                </div>
+              ) : selectedRow.internal ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 flex items-start gap-3">
+                  <ExclamationTriangleIcon className="w-5 h-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <div className="space-y-1 text-xs">
+                    <div className="font-bold text-sm">Internal Portal Identifier</div>
+                    <div>
+                      This message was addressed to a synthetic login ID (<span className="font-mono">{selectedRow.recipient}</span>). It cannot receive external SMTP emails. If credentials need to be delivered to a guardian, update their account with an actual inbox or use WhatsApp delivery.
+                    </div>
+                  </div>
+                </div>
+              ) : selectedRow.status === 'delivered' || selectedRow.status === 'read' ? (
+                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
+                  <CheckCircleIcon className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="space-y-1 text-xs">
+                    <div className="font-bold text-sm">Confirmed Delivered</div>
+                    <div>
+                      The provider accepted and handed off this communication to the destination mail server.
+                      {selectedRow.provider_event && ` Event: ${selectedRow.provider_event}.`}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-800 dark:text-blue-300 flex items-start gap-3">
+                  <PaperAirplaneIcon className="w-5 h-5 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                  <div className="space-y-1 text-xs">
+                    <div className="font-bold text-sm">Dispatched / Sent</div>
+                    <div>
+                      Transmitted through {selectedRow.provider || 'gateway'}. Awaiting provider delivery receipt or webhook confirmation.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Lifecycle Progress Pipeline */}
+              <div className={`${CARD} p-4 space-y-3`}>
+                <h4 className={LABEL}>Lifecycle Audit Trail</h4>
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  {[
+                    {
+                      label: 'Created',
+                      done: true,
+                      timestamp: selectedRow.created_at,
+                    },
+                    {
+                      label: 'Sent',
+                      done: selectedRow.sent_at != null || selectedRow.status !== 'queued',
+                      timestamp: selectedRow.sent_at,
+                    },
+                    {
+                      label: 'Delivered',
+                      done: selectedRow.delivered_at != null || selectedRow.status === 'delivered' || selectedRow.status === 'read',
+                      timestamp: selectedRow.delivered_at,
+                    },
+                    {
+                      label: selectedRow.status === 'failed' ? 'Failed' : 'Read / Opened',
+                      done: selectedRow.status === 'failed' || selectedRow.read_at != null || (selectedRow.provider_event?.includes('open') ?? false),
+                      isError: selectedRow.status === 'failed',
+                      timestamp: selectedRow.failed_at || selectedRow.read_at,
+                    },
+                  ].map((step, idx) => (
+                    <div key={step.label} className="flex flex-col items-center text-center p-2 rounded-lg bg-muted/40 border border-border/50">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                        {step.label}
+                      </div>
+                      <div className="my-1.5">
+                        {step.isError ? (
+                          <XCircleIcon className="w-5 h-5 text-rose-500" />
+                        ) : step.done ? (
+                          <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-[10px] text-muted-foreground">
+                            {idx + 1}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground truncate w-full">
+                        {step.timestamp ? ago(step.timestamp) : step.done ? 'Recorded' : 'Pending'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recipient Profile Card */}
+              <div className={`${CARD} p-5 space-y-4`}>
+                <div className="flex items-center justify-between">
+                  <h4 className={LABEL}>Recipient Information</h4>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedRow.internal ? 'Internal Login' : 'Standard Mailbox'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Target Name:</span>
+                    <div className="font-semibold text-foreground text-sm mt-0.5">
+                      {selectedRow.recipient_name || 'Not associated with a named portal user'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Destination Address:</span>
+                    <div className="font-mono text-foreground font-semibold text-xs mt-0.5 flex items-center gap-1.5">
+                      <span className="truncate">{selectedRow.recipient || '—'}</span>
+                      {selectedRow.recipient && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(selectedRow.recipient || '', 'recipient')}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Copy address"
+                        >
+                          {copiedKey === 'recipient' ? (
+                            <ClipboardDocumentCheckIcon className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <ClipboardIcon className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">School / Organization:</span>
+                    <div className="font-medium text-foreground mt-0.5">
+                      {selectedRow.school || 'Unassigned / Global'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Portal Role:</span>
+                    <div className="font-medium text-foreground mt-0.5 capitalize">
+                      {selectedRow.recipient_role || 'General Contact'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technical & Dispatch Trace */}
+              <div className={`${CARD} p-5 space-y-3`}>
+                <div className="flex items-center justify-between">
+                  <h4 className={LABEL}>Technical & Dispatch Details</h4>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(JSON.stringify(selectedRow, null, 2), 'json')}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    {copiedKey === 'json' ? (
+                      <>
+                        <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Copied JSON</span>
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardIcon className="w-3.5 h-3.5" />
+                        <span>Copy Diagnostic JSON</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-muted/30 p-2.5 rounded-lg border border-border">
+                    <div className="text-muted-foreground">Template Key:</div>
+                    <div className="font-mono font-bold text-foreground mt-0.5">
+                      {selectedRow.template_key || 'direct_send'}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 p-2.5 rounded-lg border border-border">
+                    <div className="text-muted-foreground">Dispatch Type:</div>
+                    <div className="font-medium text-foreground mt-0.5">
+                      {selectedRow.automated ? 'Triggered (Automated)' : 'Manual (Admin Action)'}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 p-2.5 rounded-lg border border-border">
+                    <div className="text-muted-foreground">Delivery Provider:</div>
+                    <div className="font-medium text-foreground mt-0.5 capitalize">
+                      {selectedRow.provider || 'default'} ({selectedRow.channel || 'email'})
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 p-2.5 rounded-lg border border-border">
+                    <div className="text-muted-foreground">Source Context:</div>
+                    <div className="font-medium text-foreground mt-0.5">
+                      {selectedRow.source_type ? `${selectedRow.source_type} (${selectedRow.source_id || 'no id'})` : 'Direct API Send'}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 p-2.5 rounded-lg border border-border">
+                    <div className="text-muted-foreground">Total Attempts:</div>
+                    <div className="font-medium text-foreground mt-0.5">
+                      {selectedRow.attempt_count ?? 1}
+                    </div>
+                  </div>
+                  <div className="bg-muted/30 p-2.5 rounded-lg border border-border">
+                    <div className="text-muted-foreground">Lifecycle Events:</div>
+                    <div className="font-medium text-foreground mt-0.5">
+                      {selectedRow.event_count ?? 0} recorded
+                    </div>
+                  </div>
+                </div>
+
+                {/* Error diagnostics trace if any */}
+                {(selectedRow.error || selectedRow.provider_reason) && (
+                  <div className="mt-3 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                      Error Diagnostics Trace
+                    </span>
+                    <pre className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/30 text-rose-600 dark:text-rose-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap">
+                      {selectedRow.error || selectedRow.provider_reason}
+                    </pre>
+                  </div>
+                )}
+              </div>
+
+              {/* Recovery & Action Strip */}
+              <div className="space-y-2 pt-2">
+                <h4 className={LABEL}>Resolution & Quick Actions</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard/students/resend-credentials?search=${encodeURIComponent(selectedRow.recipient || selectedRow.recipient_name || '')}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-colors"
+                  >
+                    <span>Inspect & Resend in Student Credentials</span>
+                    <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(selectedRow.id, 'id')}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition-colors"
+                  >
+                    {copiedKey === 'id' ? (
+                      <>
+                        <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Copied ID</span>
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardIcon className="w-3.5 h-3.5" />
+                        <span>Copy Message ID</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="sticky bottom-0 bg-card/95 backdrop-blur border-t border-border p-4 flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">
+                Recorded {new Date(selectedRow.created_at).toLocaleString()}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedRow(null)}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
