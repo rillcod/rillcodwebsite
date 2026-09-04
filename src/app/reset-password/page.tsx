@@ -1,36 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import Link from "next/link";
-import { Lock, Mail, Eye, EyeOff, GraduationCap, ArrowLeft, ArrowRight, Loader2, CheckCircle } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ArrowLeft, ArrowRight, Loader2, CheckCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { withTimeoutOrThrow } from "@/lib/async-timeout";
+import Image from "next/image";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<"email" | "reset">("email");
+  const [step, setStep] = useState<"email" | "checking" | "reset" | "invalid">(() =>
+    searchParams?.get('recovery_error')
+      ? 'invalid'
+      : searchParams?.get('step') === 'reset'
+        ? 'checking'
+        : 'email',
+  );
   const [done, setDone] = useState(false);
+  const [actionError, setActionError] = useState('');
 
-  // Supabase sends ?step=reset after email click
   useEffect(() => {
-    if (searchParams?.get("step") === "reset") setStep("reset");
-  }, [searchParams]);
+    if (searchParams?.get('recovery_error') || searchParams?.get('step') !== 'reset') return;
+
+    let cancelled = false;
+    void withTimeoutOrThrow(
+      supabase.auth.getUser(),
+      'The recovery link could not be verified. Request a new link.',
+      12_000,
+    ).then(({ data, error }) => {
+      if (!cancelled) setStep(!error && data.user ? 'reset' : 'invalid');
+    }).catch(() => {
+      if (!cancelled) setStep('invalid');
+    });
+    return () => { cancelled = true; };
+  }, [searchParams, supabase]);
 
   const handleSendLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setActionError('');
     try {
       const { error } = await withTimeoutOrThrow(
-        createClient().auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password?step=reset`,
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/recovery`,
         }),
         'Sending the reset link is taking longer than expected. Please try again.',
       );
@@ -42,7 +63,9 @@ export default function ResetPasswordPage() {
       setDone(true);
     } catch (err: unknown) {
       console.error('Password reset email action failed', err);
-      toast.error(err instanceof Error ? err.message : "We could not send the reset link. Please try again.");
+      const message = err instanceof Error ? err.message : "We could not send the reset link. Please try again.";
+      setActionError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -50,12 +73,13 @@ export default function ResetPasswordPage() {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirm) { toast.error("Passwords do not match"); return; }
-    if (password.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    setActionError('');
+    if (password !== confirm) { setActionError("Passwords do not match."); return; }
+    if (password.length < 8) { setActionError("Password must be at least 8 characters."); return; }
     setLoading(true);
     try {
       const { error } = await withTimeoutOrThrow(
-        createClient().auth.updateUser({ password }),
+        supabase.auth.updateUser({ password }),
         'Updating the password is taking longer than expected. Please try again.',
       );
       if (error) {
@@ -65,11 +89,14 @@ export default function ResetPasswordPage() {
           ? 'This reset link is no longer valid. Request a new reset link and try again.'
           : 'We could not update the password just now. Please try again.');
       }
-      toast.success("Password updated! Redirecting to login…");
-      setTimeout(() => router.push('/login'), 2000);
+      await supabase.auth.signOut({ scope: 'global' }).catch(() => null);
+      toast.success("Password updated. Sign in with your new password.");
+      router.replace('/login?password_reset=1');
     } catch (err: unknown) {
       console.error('Password update action failed', err);
-      toast.error(err instanceof Error ? err.message : "We could not update the password. Please try again.");
+      const message = err instanceof Error ? err.message : "We could not update the password. Please try again.";
+      setActionError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -87,7 +114,7 @@ export default function ResetPasswordPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 group justify-center mb-4">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center dark:bg-white dark:shadow-md dark:border dark:border-white/20 group-hover:shadow-xl transition-all">
-              <img src="/images/logo.png" alt="Rillcod" className="object-contain w-[85%] h-[85%]" />
+              <Image src="/images/logo.png" alt="Rillcod Technologies" width={56} height={56} className="object-contain w-[85%] h-[85%]" priority />
             </div>
             <div className="text-left leading-tight">
               <span className="text-2xl font-bold tracking-tight block text-foreground">
@@ -97,24 +124,41 @@ export default function ResetPasswordPage() {
             </div>
           </Link>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mt-4">
-            {step === "email" ? "Reset password" : "Set new password"}
+            {step === "email" ? "Reset password" : step === 'invalid' ? 'Request a new link' : "Set new password"}
           </h1>
           <p className="text-muted-foreground text-sm mt-1.5">
             {step === "email"
               ? "Enter your email to receive a secure reset link"
+              : step === 'invalid'
+                ? 'This recovery link is invalid or has expired.'
               : "Choose a strong new password for your account"}
           </p>
         </div>
 
-        <div className="mb-6 flex justify-start">
-          <Link href="/login" className="inline-flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted border border-border rounded-xl text-foreground text-xs font-bold transition-all">
-            <ArrowLeft className="w-3.5 h-3.5 text-primary" />
-            <span>Back to Login</span>
-          </Link>
-        </div>
-
         {/* Card */}
         <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl">
+
+          {actionError && (
+            <div role="alert" className="mb-4 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm font-medium text-destructive">
+              {actionError}
+            </div>
+          )}
+
+          {step === 'checking' && (
+            <div role="status" aria-live="polite" className="py-10 text-center">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-primary" />
+              <p className="mt-3 text-sm font-bold text-foreground">Verifying your secure link…</p>
+            </div>
+          )}
+
+          {step === 'invalid' && (
+            <div className="py-4 text-center">
+              <p className="text-sm leading-6 text-muted-foreground">For your security, recovery links work once and expire. Request another link to continue.</p>
+              <button onClick={() => { setStep('email'); setActionError(''); }} className="mt-5 min-h-11 w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">
+                Request a new reset link
+              </button>
+            </div>
+          )}
 
           {/* ── STEP: EMAIL ── */}
           {step === "email" && !done && (
@@ -207,5 +251,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-background" />}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

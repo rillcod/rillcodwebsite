@@ -113,6 +113,41 @@ interface Result {
   skipped: string[];
 }
 
+const STEP_FOR_TYPE: Record<string, keyof StepStatus> = {
+  lessons: "lesson",
+  slides: "slides",
+  flashcards: "flashcard",
+  assignments: "assignment",
+  projects: "project",
+};
+
+const LABEL_FOR_TYPE: Record<string, string> = {
+  lessons: "Lesson",
+  slides: "Slides",
+  flashcards: "Practice cards",
+  assignments: "Homework",
+  projects: "Project",
+};
+
+function initialStepStatus(existing?: ExistingContent): StepStatus {
+  return {
+    lesson: existing?.lessonId ? "skipped" : "pending",
+    slides: existing?.slideDeckId ? "skipped" : "pending",
+    flashcard: existing?.deckId ? "skipped" : "pending",
+    assignment: existing?.assignmentId ? "skipped" : "pending",
+    project: existing?.projectId ? "skipped" : "pending",
+  };
+}
+
+function activateNextPending(status: StepStatus): StepStatus {
+  const next = { ...status };
+  const pending = Object.values(STEP_FOR_TYPE).find(
+    (step) => next[step] === "pending",
+  );
+  if (pending) next[pending] = "active";
+  return next;
+}
+
 // ── Helper ───────────────────────────────────────────────────────────────────
 
 function humanStepState(state: StepState): string {
@@ -396,6 +431,7 @@ export default function WeekAIGenerator({
   const { profile } = useAuth();
   const canPublish = profile?.role === "admin" || profile?.role === "teacher";
   const [mounted, setMounted] = useState(false);
+  const progressSeen = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setMounted(true);
@@ -475,15 +511,10 @@ export default function WeekAIGenerator({
     setConnectionUnknown(false);
     setBlocked(null);
     setLog([]);
+    progressSeen.current = new Set();
     setLiveMessage("Getting ready for this week…");
     setResult({ skipped: [] });
-    setStatus({
-      lesson: "pending",
-      slides: "pending",
-      flashcard: "pending",
-      assignment: "pending",
-      project: "pending",
-    });
+    setStatus(activateNextPending(initialStepStatus(existing)));
 
     // Ask once whether this plan can generate at all, before spending anything.
     const readiness = await checkPlanReadiness(planId);
@@ -506,17 +537,51 @@ export default function WeekAIGenerator({
       // Do not re-implement lesson/slides/flashcards/assignments here; that
       // drifted from generatePlanWeek and skipped hold-for-approval rules.
       addLog("Preparing this week through the academy pipeline…");
-      setStep("lesson", "active");
-      setStep("slides", "active");
-      setStep("flashcard", "active");
-      setStep("assignment", "active");
-      setStep("project", "active");
 
       const sessionVal = Number((week as any)?.session ?? (week as any)?.session_number ?? 0);
       const genJson = await requestTrackedWeekGeneration({
         planId,
         week: week.week,
         session: sessionVal > 0 ? Math.floor(sessionVal) : 1,
+        onProgress: (progress) => {
+          const byType = progress.byType ?? {};
+          setStatus((current) => {
+            const next = { ...current };
+            for (const [type, step] of Object.entries(STEP_FOR_TYPE)) {
+              const outcome = byType[type];
+              if (!outcome) continue;
+              next[step] = outcome.error
+                ? "error"
+                : Number(outcome.skipped) > 0 && Number(outcome.generated) === 0
+                  ? "skipped"
+                  : "done";
+            }
+            for (const step of Object.values(STEP_FOR_TYPE)) {
+              if (next[step] === "active") next[step] = "pending";
+            }
+            return activateNextPending(next);
+          });
+
+          for (const [type, outcome] of Object.entries(byType)) {
+            if (progressSeen.current.has(type)) continue;
+            progressSeen.current.add(type);
+            const label = LABEL_FOR_TYPE[type] ?? type;
+            if (outcome.error) addLog(`${label} needs a retry. Moving to the next item.`);
+            else if (Number(outcome.skipped) > 0 && Number(outcome.generated) === 0) addLog(`${label} already exists — kept unchanged.`);
+            else addLog(`${label} is ready.`);
+          }
+
+          const startingStatus = initialStepStatus(existing);
+          const nextType = Object.keys(STEP_FOR_TYPE).find((type) => {
+            const step = STEP_FOR_TYPE[type];
+            return !byType[type] && startingStatus[step] === "pending";
+          });
+          setLiveMessage(
+            nextType
+              ? `Now preparing ${LABEL_FOR_TYPE[nextType].toLowerCase()}…`
+              : "Checking the completed package…",
+          );
+        },
       });
       if (genJson.connectionRecovered) {
         addLog(
@@ -544,41 +609,26 @@ export default function WeekAIGenerator({
         string,
         { generated?: number; skipped?: number; error?: string }
       >;
-      const stepForType: Record<string, keyof StepStatus> = {
-        lessons: "lesson",
-        slides: "slides",
-        flashcards: "flashcard",
-        assignments: "assignment",
-        projects: "project",
-      };
-      const labelFor: Record<string, string> = {
-        lessons: "Lesson",
-        slides: "Slides",
-        flashcards: "Flashcards",
-        assignments: "Homework",
-        projects: "Project",
-      };
-
-      for (const [type, step] of Object.entries(stepForType)) {
+      for (const [type, step] of Object.entries(STEP_FOR_TYPE)) {
         const outcome = byType[type];
         if (!outcome) {
           setStep(step, "skipped");
-          res.skipped.push(labelFor[type] ?? type);
+          res.skipped.push(LABEL_FOR_TYPE[type] ?? type);
           continue;
         }
         if (outcome.error) {
           setStep(step, "error");
-          addLog(`${labelFor[type]}: ${outcome.error}`);
+          if (!progressSeen.current.has(type)) addLog(`${LABEL_FOR_TYPE[type]}: ${outcome.error}`);
           continue;
         }
         if (Number(outcome.skipped) > 0 && Number(outcome.generated) === 0) {
           setStep(step, "skipped");
-          res.skipped.push(labelFor[type] ?? type);
-          addLog(`${labelFor[type]} already ready — keeping it.`);
+          res.skipped.push(LABEL_FOR_TYPE[type] ?? type);
+          if (!progressSeen.current.has(type)) addLog(`${LABEL_FOR_TYPE[type]} already ready — keeping it.`);
           continue;
         }
         setStep(step, "done");
-        addLog(`${labelFor[type]} prepared.`);
+        if (!progressSeen.current.has(type)) addLog(`${LABEL_FOR_TYPE[type]} prepared.`);
       }
 
       const failedTypes = Array.isArray(genJson.failedTypes)
@@ -587,21 +637,21 @@ export default function WeekAIGenerator({
       if (genJson.recoveredTypes.length > 0) {
         addLog(
           `Saved work confirmed after the connection recovered: ${genJson.recoveredTypes
-            .map((type) => labelFor[type] ?? type)
+            .map((type) => LABEL_FOR_TYPE[type] ?? type)
             .join(", ")}.`
         );
       }
       if (genJson.retriedTypes.length > 0) {
         addLog(
           `A safe retry completed for: ${genJson.retriedTypes
-            .map((type) => labelFor[type] ?? type)
+            .map((type) => LABEL_FOR_TYPE[type] ?? type)
             .join(", ")}. Existing work was not regenerated.`
         );
       }
       if (failedTypes.length) {
         addLog(
           `Still outstanding: ${failedTypes
-            .map((t: string) => labelFor[t] ?? t)
+            .map((t: string) => LABEL_FOR_TYPE[t] ?? t)
             .join(", ")}`
         );
       }
@@ -888,7 +938,7 @@ export default function WeekAIGenerator({
               <strong className="font-bold text-foreground">homework</strong>, and a{" "}
               <strong className="font-bold text-foreground">project</strong>.
               Anything you already have is kept as-is. Students only see it after
-              you release it.
+              you release it. Progress is saved and shown one item at a time.
             </p>
           )}
 
@@ -902,7 +952,7 @@ export default function WeekAIGenerator({
                     : "This week’s package is ready for you to review."
                   : liveMessage
               }
-              progress={done ? 100 : stepProgress}
+              progress={done ? 100 : Math.min(95, stepProgress)}
             />
           )}
 

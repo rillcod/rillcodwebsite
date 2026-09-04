@@ -119,6 +119,25 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     .order('started_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  const progressOnly = req.nextUrl.searchParams.get('progress') === '1';
+  if (progressOnly) {
+    return NextResponse.json({
+      available: !runError,
+      planId,
+      week,
+      session,
+      status: run?.status ?? 'idle',
+      generationRunId: run?.id ?? null,
+      generated: Number(run?.generated_count) || 0,
+      skipped: Number(run?.skipped_count) || 0,
+      byType: run?.by_type ?? {},
+      failedTypes: Array.isArray(run?.failed_types) ? run.failed_types.map(String) : [],
+      complete: run?.status === 'succeeded',
+      startedAt: run?.started_at ?? null,
+      completedAt: run?.completed_at ?? null,
+      lastHeartbeatAt: run?.last_heartbeat_at ?? null,
+    });
+  }
   const repair = await resolveGenerationRepairTypes({
     db: access.db,
     planId,

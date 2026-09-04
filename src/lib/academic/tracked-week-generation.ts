@@ -224,6 +224,26 @@ async function finishRun(
   }
 }
 
+async function recordRunProgress(
+  db: any,
+  runId: string | null,
+  outcome: WeekGenerationOutcome,
+): Promise<void> {
+  if (!runId) return;
+  const { error } = await db
+    .from("teaching_generation_runs")
+    .update({
+      generated_count: outcome.generated,
+      skipped_count: outcome.skipped,
+      by_type: outcome.byType,
+      failed_types: outcome.failedTypes,
+      last_heartbeat_at: new Date().toISOString(),
+    })
+    .eq("id", runId)
+    .eq("status", "running");
+  if (error) throw error;
+}
+
 function failureIsRetryable(outcome: WeekGenerationOutcome, type: string): boolean {
   const result = outcome.byType[type];
   return Boolean(result && "error" in result && result.retryable === true);
@@ -455,6 +475,8 @@ export async function generateTrackedPlanWeek(input: {
     cronSecret: input.cronSecret,
     cookie: input.cookie,
     autoPublish: input.autoPublish,
+    onProgress: ({ outcome: partial }) =>
+      recordRunProgress(input.db, claim.runId, partial),
   });
   outcome = await recoverIncompleteOutcome({
     db: input.db,

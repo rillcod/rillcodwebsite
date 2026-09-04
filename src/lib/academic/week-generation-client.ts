@@ -84,6 +84,7 @@ async function readGenerationStatus(input: {
   initiatedAt: string;
   waitFor?: (milliseconds: number) => Promise<void>;
   attempts?: number;
+  progressOnly?: boolean;
 }): Promise<WeekGenerationClientResult | null> {
   const attempts = Math.max(1, input.attempts ?? 3);
   const pause = input.waitFor ?? wait;
@@ -92,6 +93,7 @@ async function readGenerationStatus(input: {
     session: String(input.session),
     after: input.initiatedAt,
   });
+  if (input.progressOnly) params.set("progress", "1");
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (attempt > 0) await pause(600 * attempt);
@@ -132,6 +134,9 @@ export async function requestTrackedWeekGeneration(input: {
   fetcher?: FetchLike;
   waitFor?: (milliseconds: number) => Promise<void>;
   recoveryAttempts?: number;
+  /** Receives real, saved per-item progress while the generation request runs. */
+  onProgress?: (result: WeekGenerationClientResult) => void;
+  progressIntervalMs?: number;
 }): Promise<WeekGenerationClientResult> {
   const fetcher = input.fetcher ?? fetch;
   const sessionRaw = Number(input.session);
@@ -139,6 +144,33 @@ export async function requestTrackedWeekGeneration(input: {
     ? Math.floor(sessionRaw)
     : 1;
   const initiatedAt = new Date().toISOString();
+  let requestFinished = false;
+  const progressMonitor = input.onProgress
+    ? (async () => {
+        const pause = input.waitFor ?? wait;
+        while (!requestFinished) {
+          await pause(Math.max(1_500, input.progressIntervalMs ?? 2_500));
+          if (requestFinished) break;
+          const progress = await readGenerationStatus({
+            fetcher,
+            planId: input.planId,
+            week: input.week,
+            session,
+            initiatedAt,
+            waitFor: input.waitFor,
+            attempts: 1,
+            progressOnly: true,
+          });
+          if (progress) {
+            try {
+              input.onProgress?.(progress);
+            } catch {
+              // Rendering progress must never interrupt paid generation work.
+            }
+          }
+        }
+      })()
+    : null;
 
   try {
     const response = await fetcher(
@@ -188,5 +220,10 @@ export async function requestTrackedWeekGeneration(input: {
       undefined,
       true
     );
+  } finally {
+    requestFinished = true;
+    // Do not delay the final result by up to one polling interval. The monitor
+    // observes requestFinished and exits before issuing another status read.
+    void progressMonitor;
   }
 }

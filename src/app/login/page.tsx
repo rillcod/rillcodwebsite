@@ -55,10 +55,13 @@ function LoginContent() {
     const signedOutParam = searchParams?.get("signed_out") === "1";
     const sessionRecoveredParam = searchParams?.get('session_recovered') === '1';
     const sessionExpiredParam = searchParams?.get('session_expired') === '1';
+    const passwordResetParam = searchParams?.get('password_reset') === '1';
     const profileMissing = searchParams?.get('account_error') === 'profile_missing';
     const accountInactive = searchParams?.get('account_error') === 'inactive';
 
-    if (sessionRecoveredParam || sessionExpiredParam) {
+    if (passwordResetParam) {
+      setSessionNotice('Password updated. Sign in with your new password.');
+    } else if (sessionRecoveredParam || sessionExpiredParam) {
       setSessionNotice(
         sessionExpiredParam
           ? 'Your previous session expired safely. Sign in again to continue.'
@@ -600,7 +603,7 @@ function LoginContent() {
                   </Link>
                   <span className="sm:hidden" aria-hidden>·</span>
                   <Link href="/student-registration" className="inline-flex min-h-11 items-center hover:text-primary transition-colors font-medium">
-                    New Student Enroll
+                    Register a student
                   </Link>
                 </div>
               </div>

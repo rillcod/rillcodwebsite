@@ -80,6 +80,44 @@ describe('generatePlanWeek', () => {
     expect(outcome.byType.assignments).toMatchObject({ error: 'blocked', retryable: false });
   });
 
+  it('reports each saved content type progressively instead of jumping to completion', async () => {
+    invokePlanWeekGenerator
+      .mockResolvedValueOnce(
+        new Response(
+          'data: {"done":true,"generated":1,"skipped":0,"failures":[],"truncated":false}\n\n',
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          'data: {"done":true,"generated":1,"skipped":0,"failures":[],"truncated":false}\n\n',
+          { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+        ),
+      );
+    const onProgress = vi.fn();
+
+    await generatePlanWeek({
+      planId: 'plan-1',
+      week: 2,
+      types: ['assignments', 'projects'],
+      onProgress,
+    });
+
+    expect(onProgress).toHaveBeenCalledTimes(2);
+    expect(onProgress.mock.calls[0][0]).toMatchObject({
+      type: 'assignments',
+      completed: 1,
+      total: 2,
+      outcome: { byType: { assignments: { generated: 1, skipped: 0 } } },
+    });
+    expect(onProgress.mock.calls[0][0].outcome.byType).not.toHaveProperty('projects');
+    expect(onProgress.mock.calls[1][0]).toMatchObject({
+      type: 'projects',
+      completed: 2,
+      total: 2,
+    });
+  });
+
   it('marks temporary provider responses for the inventory-aware retry', async () => {
     invokePlanWeekGenerator.mockResolvedValueOnce(
       new Response('upstream gateway details', { status: 503 }),

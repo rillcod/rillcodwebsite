@@ -131,5 +131,24 @@ describe("week generation connection recovery", () => {
     expect(route).toContain("runQuery.gte('started_at', after)");
     expect(route).toContain("requestedTypes: run?.requested_types");
     expect(route).toContain("const durableStatus");
+    expect(route).toContain("progressOnly");
+    expect(route).toContain("run?.by_type ?? {}");
+  });
+
+  it("keeps real per-item progress visible in the week preparation sheet", () => {
+    const generator = readFileSync(
+      join(process.cwd(), "src/components/ai/WeekAIGenerator.tsx"),
+      "utf8"
+    );
+    const tracker = readFileSync(
+      join(process.cwd(), "src/lib/academic/tracked-week-generation.ts"),
+      "utf8"
+    );
+    expect(generator).toContain("onProgress: (progress)");
+    expect(generator).toContain("Now preparing");
+    expect(generator).toContain("Progress is saved and shown one item at a time");
+    expect(generator).toContain("Math.min(95, stepProgress)");
+    expect(tracker).toContain("recordRunProgress");
+    expect(tracker).toContain("by_type: outcome.byType");
   });
 });

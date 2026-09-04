@@ -4096,3 +4096,31 @@ Implemented and live-verified locally:
 - tab choice is preserved in the URL and cross-tab filters are reset, preventing a valid login ledger
   from appearing empty because of a filter inherited from People. No account, credential or score was
   changed.
+
+## 16.59 Password-recovery entrance and return flow (2026-09-04)
+
+- the old page trusted `?step=reset` as proof that a recovery link was valid. The reset form could be
+  displayed without a verified recovery session, leaving the customer to discover the problem only
+  after submitting a new password;
+- reset links now return through a dedicated server callback that exchanges the one-time PKCE code into
+  secure Supabase cookies and removes the code from the address before the form opens;
+- the page explicitly shows **verifying**, **invalid/expired**, **request sent**, and **set password**
+  states. An expired link offers one direct action to request another instead of exposing provider text;
+- a successful password change ends existing sessions and returns to login with one persistent success
+  notice. Duplicate Back-to-login controls were removed and the public entry wording now says
+  **Register a student**. No account data or password was read into application logs.
+
+## 16.60 Durable per-item teaching-package progress (2026-09-04)
+
+- the week assistant previously marked all five rows as working, waited on one long response, then moved
+  the interface directly to 100%. That made a live engine look frozen and could not tell a teacher which
+  item had actually finished;
+- the canonical generation loop now emits a best-effort progress checkpoint after each requested content
+  type. The tracked run saves cumulative counts, per-type outcomes, failures and a fresh heartbeat in the
+  existing `teaching_generation_runs` row—there is no parallel job and no duplicate paid generation;
+- while the POST remains open, the client reads a lightweight progress-only status at a bounded interval.
+  Lesson, slides, practice cards, homework and project move individually through waiting, working, ready,
+  already present or retry-needed. Existing teacher content starts as **Already there** and is not replaced;
+- progress stops at 95% while the server verifies links and saved content, then reaches 100% only when the
+  package is genuinely ready. The completed sheet stays open with item links and release guidance until
+  the teacher closes it.

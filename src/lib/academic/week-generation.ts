@@ -12,7 +12,6 @@
 import { consumeSSEUntilDone } from '@/lib/lesson-plans/ai-fetch';
 import { invokePlanWeekGenerator } from '@/lib/academic/plan-week-generators';
 import {
-  canonicalMeetingSession,
   teachingMeetingLabel,
 } from '@/lib/academic/session-identity';
 import { weekReadyReviewPath } from '@/lib/academic/pending-approval';
@@ -66,6 +65,13 @@ export type WeekGenerationOutcome = {
   retriedTypes?: string[];
   /** Types whose first response failed but whose saved content was found afterwards. */
   recoveredTypes?: string[];
+};
+
+export type WeekGenerationProgress = {
+  type: string;
+  completed: number;
+  total: number;
+  outcome: WeekGenerationOutcome;
 };
 
 const RETRYABLE_GENERATION_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -133,6 +139,8 @@ export async function generatePlanWeek(input: {
    * unattended sweep never accidentally opts in.
    */
   autoPublish?: boolean;
+  /** Best-effort durable progress after each content type finishes. */
+  onProgress?: (progress: WeekGenerationProgress) => Promise<void> | void;
 }): Promise<WeekGenerationOutcome> {
   const autoPublish = input.autoPublish === true;
   const types = normaliseTypes(input.types);
@@ -149,7 +157,8 @@ export async function generatePlanWeek(input: {
     failedTypes: [],
   };
 
-  for (const type of types) {
+  for (let index = 0; index < types.length; index += 1) {
+    const type = types[index];
     try {
       const res = await invokePlanWeekGenerator({
         planId: input.planId,
@@ -206,6 +215,29 @@ export async function generatePlanWeek(input: {
         retryable: isRetryableGenerationError(error),
       };
       outcome.failedTypes.push(type);
+    } finally {
+      if (input.onProgress) {
+        try {
+          await input.onProgress({
+            type,
+            completed: index + 1,
+            total: types.length,
+            outcome: {
+              ...outcome,
+              byType: { ...outcome.byType },
+              failedTypes: [...outcome.failedTypes],
+            },
+          });
+        } catch (progressError) {
+          console.warn("[teaching-generation] progress update unavailable", {
+            type,
+            message:
+              progressError instanceof Error
+                ? progressError.message
+                : String(progressError),
+          });
+        }
+      }
     }
   }
 
