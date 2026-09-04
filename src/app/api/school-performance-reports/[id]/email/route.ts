@@ -83,19 +83,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const termLabel = row.term_label || row.snapshot?.period?.termLabel || 'Term';
   const academicYear = row.academic_year || row.snapshot?.period?.academicYear || '';
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
-  const portalPath = `/dashboard/school-reports/${id}${revision ? `?revision=${encodeURIComponent(revision)}` : ''}`;
-  const portalUrl = `${appUrl}${portalPath}`;
   const recipientName = toName || to.split('@')[0] || 'Recipient';
   const senderName = actor.profile.full_name || 'Rillcod staff';
   const subject = `School performance report — ${schoolName} (${termLabel}${academicYear ? ` · ${academicYear}` : ''})`;
 
   try {
-    const { buffer, filename, pdfHash, revisionNumber } = await buildSchoolReportPdfBuffer(
+    const { buffer, filename, pdfHash, contentHash, revisionNumber } = await buildSchoolReportPdfBuffer(
       actor.admin,
       row,
-      actor.profile.role,
+      // An attachment leaves the staff workspace, so it must always use the
+      // school-safe audience even when an admin or teacher initiates delivery.
+      'school',
       revision,
     );
+    const portalPath = `/dashboard/school-reports/${id}${revisionNumber ? `?revision=${revisionNumber}` : ''}`;
+    const portalUrl = `${appUrl}${portalPath}`;
     const html = buildSchoolPerformanceReportEmail({
       recipientName,
       schoolName,
@@ -160,6 +162,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           filename,
           revision: revisionNumber,
           pdfHash,
+          contentHash,
           channel: isInAppEmail(to) ? 'in_app' : 'smtp',
         },
       });
@@ -182,6 +185,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         filename,
         revision: revisionNumber,
         pdfHash,
+        contentHash,
         ...(auditWarning ? { auditWarning } : {}),
       },
     });

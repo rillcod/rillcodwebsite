@@ -22,9 +22,11 @@ export async function resolveSchoolReportRenderSource(
   revisionParam?: string | null,
 ): Promise<{
   source: SchoolPerformanceReportRow;
+  contentHash: string | null;
   revisionNumber: number | null;
 }> {
   let renderSource = report;
+  let contentHash: string | null = null;
   let revisionNumber: number | null = null;
 
   if (revisionParam) {
@@ -45,6 +47,7 @@ export async function resolveSchoolReportRenderSource(
       design: revision.design,
       status: 'published',
     };
+    contentHash = revision.pdf_hash;
     revisionNumber = revision.revision_number;
   } else if (report.status === 'published') {
     const publishedRevision = await getPublishedRevision(admin, report);
@@ -55,11 +58,12 @@ export async function resolveSchoolReportRenderSource(
         narrative: publishedRevision.narrative,
         design: publishedRevision.design,
       };
+      contentHash = publishedRevision.pdf_hash;
       revisionNumber = publishedRevision.revision_number;
     }
   }
 
-  return { source: renderSource, revisionNumber };
+  return { source: renderSource, contentHash, revisionNumber };
 }
 
 export function hashRenderedPdf(buffer: Buffer): string {
@@ -75,9 +79,10 @@ export async function buildSchoolReportPdfBuffer(
   buffer: Buffer;
   filename: string;
   pdfHash: string;
+  contentHash: string | null;
   revisionNumber: number | null;
 }> {
-  const { source, revisionNumber } = await resolveSchoolReportRenderSource(admin, report, revisionParam);
+  const { source, contentHash, revisionNumber } = await resolveSchoolReportRenderSource(admin, report, revisionParam);
   const audience = resolveSchoolReportAudience(actorRole);
   const shapedSource =
     audience === 'school' ? shapeSchoolReportForAudience(source, audience) : source;
@@ -86,6 +91,7 @@ export async function buildSchoolReportPdfBuffer(
     buffer,
     filename: safeSchoolReportPdfFilename(report.title),
     pdfHash: hashRenderedPdf(buffer),
+    contentHash,
     revisionNumber,
   };
 }

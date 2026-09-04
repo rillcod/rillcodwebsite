@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   }
 
   try {
-    const { buffer, filename, pdfHash, revisionNumber } = await buildSchoolReportPdfBuffer(
+    const { buffer, filename, pdfHash, contentHash, revisionNumber } = await buildSchoolReportPdfBuffer(
       actor.admin,
       report as SchoolPerformanceReportRow,
       actor.profile.role,
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         'Content-Disposition': `inline; filename="${filename}"`,
         'Cache-Control': report.status === 'published' ? 'private, max-age=300' : 'private, no-store',
         'X-Report-Pdf-Hash': pdfHash,
+        ...(contentHash ? { 'X-Report-Content-Hash': contentHash } : {}),
         ...(revisionNumber ? { 'X-Report-Revision': String(revisionNumber) } : {}),
       },
     });
