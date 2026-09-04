@@ -34,7 +34,7 @@ import { removePartnershipDocument } from "./PartnershipDocumentArchive";
 import { PartnershipConfirm } from "./PartnershipConfirm";
 
 const INPUT =
-  "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors";
+  "w-full px-4 py-2.5 bg-muted/40 border border-border rounded-xl text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors touch-manipulation";
 const LABEL = "block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2";
 
 export const DEFAULT_VALUE_TITLE = "What a parent would be paying for";
@@ -485,13 +485,13 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               key={s.v}
               type="button"
               onClick={() => setStage(s.v)}
-              className={`text-left px-3 py-2.5 rounded-xl border text-sm transition-colors ${
+              className={`text-left px-3.5 py-3 rounded-xl border text-sm transition-colors touch-manipulation min-h-[44px] flex flex-col justify-center ${
                 stage === s.v
                   ? "border-primary bg-primary/10 text-foreground"
                   : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
               }`}
             >
-              {s.name}
+              <span className="font-bold">{s.name}</span>
               <span className="block text-[11px] text-muted-foreground mt-0.5">{s.hint}</span>
             </button>
           ))}
@@ -529,13 +529,13 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 setOfferCode("");
                 setCustomFee("");
               }}
-                className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
+                className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors touch-manipulation min-h-[44px] ${
                   offerCode === ""
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
                 }`}
               >
-                Show every option equally
+                <span className="font-bold">Show every option equally</span>
                 <span className="block text-[11px] text-muted-foreground mt-0.5">
                   Price A, B1 and B2 without putting one in front.
                 </span>
@@ -549,7 +549,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                     setOfferCode(offer.code);
                     setCustomFee(String(offer.priceFrom));
                   }}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-colors ${
+                  className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors touch-manipulation min-h-[48px] ${
                     offerCode === offer.code
                       ? "border-primary bg-primary/10 text-foreground"
                       : "border-border bg-muted/40 text-muted-foreground hover:border-foreground/30"
@@ -581,7 +581,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
           {/* Dynamic Fee Editing for Proposal */}
           {selectedOffer && (
             <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                 <label htmlFor="proposal-custom-fee" className="text-xs font-bold text-foreground">
                   Fee per student per term for Option {selectedOffer.code} (₦)
                 </label>
@@ -589,7 +589,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                   <button
                     type="button"
                     onClick={() => setCustomFee(String(selectedOffer.priceFrom))}
-                    className="text-[10px] font-bold text-primary hover:underline"
+                    className="self-start sm:self-auto text-[11px] font-bold text-primary hover:underline py-0.5"
                   >
                     Reset to default (₦{selectedOffer.priceFrom.toLocaleString()})
                   </button>
@@ -603,7 +603,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₦</span>
                 <input
                   id="proposal-custom-fee"
-                  className={`${INPUT} pl-8 font-semibold`}
+                  className={`${INPUT} pl-8 font-semibold min-h-11 text-base sm:text-sm`}
                   inputMode="numeric"
                   placeholder={String(selectedOffer.priceFrom)}
                   value={customFee}
@@ -611,16 +611,16 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 />
               </div>
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[11px] text-muted-foreground">Quick amounts:</span>
+                <span className="text-[11px] text-muted-foreground mr-1">Quick amounts:</span>
                 {[10000, 15000, 20000, 25000, 30000].map((amt) => (
                   <button
                     key={amt}
                     type="button"
                     onClick={() => setCustomFee(String(amt))}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                    className={`min-h-9 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors touch-manipulation ${
                       Number(customFee) === amt
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-muted/40 text-muted-foreground border-border hover:border-foreground/30"
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-muted/40 text-muted-foreground border-border hover:border-foreground/30 active:bg-muted"
                     }`}
                   >
                     ₦{(amt / 1000)}k
@@ -635,7 +635,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
 
           {/* Editable "What the Fee Actually Buys" Section */}
           <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-foreground">
                   What a Parent is Paying For (Value Copy)
@@ -647,7 +647,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               <button
                 type="button"
                 onClick={() => setShowValueEditor(!showValueEditor)}
-                className="text-xs font-semibold text-primary hover:underline"
+                className="self-start sm:self-auto min-h-8 inline-flex items-center text-xs font-semibold text-primary hover:underline"
               >
                 {showValueEditor ? "Hide editor" : "Edit copy"}
               </button>
@@ -656,7 +656,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             {showValueEditor && (
               <div className="space-y-3 pt-2 border-t border-border">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-1 mb-1">
                     <label className={LABEL} htmlFor="value-title">Section Heading</label>
                     <span className={`text-[10px] tabular-nums ${countWords(valueTitle) >= MAX_TITLE_WORDS ? "text-amber-500 font-semibold" : "text-muted-foreground"}`}>
                       {countWords(valueTitle)}/{MAX_TITLE_WORDS} words · {valueTitle.length}/{MAX_TITLE_CHARS} chars
@@ -673,7 +673,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-1 mb-1">
                     <label className={LABEL} htmlFor="value-kicker">Kicker Tag</label>
                     <span className={`text-[10px] tabular-nums ${countWords(valueKicker) >= MAX_KICKER_WORDS ? "text-amber-500 font-semibold" : "text-muted-foreground"}`}>
                       {countWords(valueKicker)}/{MAX_KICKER_WORDS} words · {valueKicker.length}/{MAX_KICKER_CHARS} chars
@@ -690,7 +690,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-1 mb-1">
                     <label className={LABEL} htmlFor="value-body">What the Fee Buys (Body)</label>
                     <span className={`text-[10px] tabular-nums ${countWords(valueBody) >= MAX_BODY_WORDS ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
                       {countWords(valueBody)}/{MAX_BODY_WORDS} words (default limit · prevents shift)
@@ -713,7 +713,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-1 mb-1">
                     <label className={LABEL} htmlFor="value-note">Share / Settlement Note</label>
                     <span className={`text-[10px] tabular-nums ${countWords(valueNote) >= MAX_NOTE_WORDS ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
                       {countWords(valueNote)}/{MAX_NOTE_WORDS} words (default limit)
@@ -743,7 +743,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                       setValueBody(DEFAULT_VALUE_BODY);
                       setValueNote(DEFAULT_VALUE_NOTE);
                     }}
-                    className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                    className="min-h-9 inline-flex items-center text-xs font-semibold text-muted-foreground hover:text-foreground touch-manipulation"
                   >
                     Reset to default wording
                   </button>
@@ -765,7 +765,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             <p className="text-[11px] text-muted-foreground">
               Quoted in the financial projections table. Nigerian schools can be offered standard 30%, or negotiated up to 40%/50% or down to 20%/25%.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
               {/* Derived from the split rule, not typed out here: a hardcoded list
                   eventually gains an option the rule forbids. */}
               {OFFERABLE_SCHOOL_SHARES.map((p) => {
@@ -775,13 +775,13 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                     key={p.label}
                     type="button"
                     onClick={() => setProposedSchoolShare(String(p.school))}
-                    className={`p-2 rounded-xl border text-xs font-bold text-left transition-all ${
+                    className={`min-h-10 sm:min-h-9 p-2.5 rounded-xl border text-xs font-bold text-left transition-all touch-manipulation flex items-center justify-between ${
                       isSelected
                         ? "bg-emerald-500/15 border-emerald-500 text-emerald-400"
                         : "bg-muted/30 border-border/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     }`}
                   >
-                    {p.label}
+                    <span>{p.label}</span>
                   </button>
                 );
               })}

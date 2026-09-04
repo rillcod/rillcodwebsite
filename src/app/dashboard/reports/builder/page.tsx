@@ -3908,22 +3908,22 @@ function ReportBuilderInner() {
                         )}
 
                         {/* ── Learner Navigation & History Header Bar ── */}
-                        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                                <div className="flex items-start sm:items-center gap-2.5 min-w-0">
                                     <button
                                         type="button"
                                         disabled={saving || publishing}
                                         onClick={() => void returnToRoster()}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-xs font-bold text-foreground transition-colors shadow-sm disabled:opacity-50"
+                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-10 sm:min-h-9 rounded-xl border border-border bg-muted/40 hover:bg-muted active:bg-muted/70 text-xs font-bold text-foreground transition-colors shadow-sm disabled:opacity-50 flex-shrink-0"
                                         title="Return to results roster (auto-saves dirty draft)"
                                     >
                                         <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
-                                        <span>{fromPrepare ? "Back to Auto-fill" : "Back to Results Roster"}</span>
+                                        <span>{fromPrepare ? "Auto-fill" : "Results Roster"}</span>
                                     </button>
                                     <div className="h-4 w-px bg-border hidden sm:block" />
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                             <h2 className="text-sm sm:text-base font-extrabold text-foreground truncate">
                                                 {form.student_name || selectedStudent?.full_name || 'Student'}
                                             </h2>
@@ -3939,9 +3939,9 @@ function ReportBuilderInner() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-border/40">
                                     {/* Auto-save / Dirty status */}
-                                    <div className="text-[11px] font-semibold flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/40 border border-border">
+                                    <div className="text-[11px] font-semibold flex items-center gap-1.5 px-2.5 py-1.5 min-h-9 rounded-lg bg-muted/40 border border-border">
                                         {isDirty ? (
                                             <>
                                                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
@@ -3959,7 +3959,7 @@ function ReportBuilderInner() {
                                     <button
                                         type="button"
                                         onClick={() => setShowHistoryPanel(prev => !prev)}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-9 rounded-xl border text-xs font-bold transition-colors ${
                                             showHistoryPanel
                                                 ? "bg-primary text-white border-primary shadow-sm"
                                                 : studentHistoryReports.length > 0
@@ -3982,9 +3982,9 @@ function ReportBuilderInner() {
                             {/* Expanded Learner History Panel */}
                             {showHistoryPanel && (
                                 <div className="pt-3 border-t border-border space-y-3">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                                         <div className="flex items-center gap-2">
-                                            <ClockIcon className="h-4 w-4 text-primary" />
+                                            <ClockIcon className="h-4 w-4 text-primary shrink-0" />
                                             <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
                                                 Learner Academic History &amp; Previous Terms
                                             </h3>
@@ -4019,26 +4019,26 @@ function ReportBuilderInner() {
                                                         }`}
                                                     >
                                                         <div className="flex items-start justify-between gap-2 mb-1.5">
-                                                            <div>
-                                                                <span className="text-xs font-black text-foreground">
+                                                            <div className="min-w-0 flex-1">
+                                                                <span className="text-xs font-black text-foreground block truncate">
                                                                     {report.report_term || 'Term'} {report.report_period ? `· ${report.report_period}` : ''}
                                                                 </span>
-                                                                <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+                                                                <p className="text-[11px] text-muted-foreground truncate">
                                                                     {report.course_name || report.section_class || 'Course'}
                                                                 </p>
                                                             </div>
                                                             <div className="flex items-center gap-1.5 flex-shrink-0">
                                                                 {score != null && (
-                                                                    <span className="px-2 py-0.5 rounded-md bg-muted text-[11px] font-black text-foreground">
+                                                                    <span className="px-2 py-0.5 rounded-md bg-muted text-[11px] font-black text-foreground whitespace-nowrap">
                                                                         {score}% {grade ? `· ${grade}` : ''}
                                                                     </span>
                                                                 )}
                                                                 {report.is_published ? (
-                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                                                         Published
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 whitespace-nowrap">
                                                                         Draft
                                                                     </span>
                                                                 )}
@@ -4064,24 +4064,24 @@ function ReportBuilderInner() {
                                                             </p>
                                                         )}
 
-                                                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-border/50">
+                                                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border/50">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setViewingHistoryReport(report)}
-                                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-muted/30 hover:bg-muted text-[11px] font-bold text-foreground transition-colors"
+                                                                className="inline-flex items-center gap-1 px-3 py-1.5 min-h-9 rounded-xl border border-border bg-muted/40 hover:bg-muted active:bg-muted/80 text-xs font-bold text-foreground transition-colors touch-manipulation"
                                                             >
-                                                                <EyeIcon className="h-3 w-3 text-muted-foreground" />
-                                                                View Card
+                                                                <EyeIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                <span>View Card</span>
                                                             </button>
                                                             {(report.key_strengths || report.areas_for_growth) && !isCurrentReport && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => reusePastReportRemarks(report)}
-                                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 text-[11px] font-bold text-primary transition-colors"
+                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 min-h-9 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 active:bg-primary/30 text-xs font-bold text-primary transition-colors touch-manipulation"
                                                                     title="Copy feedback &amp; recommendations into current editor form"
                                                                 >
-                                                                    <DocumentDuplicateIcon className="h-3 w-3" />
-                                                                    Reuse Remarks
+                                                                    <DocumentDuplicateIcon className="h-3.5 w-3.5" />
+                                                                    <span>Reuse Remarks</span>
                                                                 </button>
                                                             )}
                                                         </div>
@@ -4859,12 +4859,12 @@ function ReportBuilderInner() {
                                     (selectedStudent as any)?.grade_level || (selectedStudent as any)?.grade || '',
                                 ).trim();
                                 return (
-                            <div className="mx-auto flex max-w-7xl items-center gap-1 px-2 py-1" aria-label="Student navigation">
+                            <div className="mx-auto flex max-w-7xl items-center gap-1.5 px-2.5 py-1.5 min-h-[44px]" aria-label="Student navigation">
                                 <button
                                     type="button"
                                     disabled={saving || publishing}
                                     onClick={() => void returnToRoster()}
-                                    className="flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50 shadow-sm"
+                                    className="flex h-8 sm:h-9 flex-shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 sm:px-3 text-xs font-bold text-foreground hover:bg-muted active:bg-muted/80 transition-colors disabled:opacity-50 shadow-sm touch-manipulation"
                                     title={fromPrepare ? 'Save draft and return to Auto-fill' : fromResults ? 'Save draft and return to Results' : 'Save draft and return to student list'}
                                 >
                                     <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
@@ -4884,14 +4884,14 @@ function ReportBuilderInner() {
                                         await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
                                         setEditSearch('');
                                     }}
-                                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-border bg-card text-muted-foreground disabled:opacity-25"
+                                    className="flex h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground active:bg-muted transition-colors disabled:opacity-25 touch-manipulation"
                                     title="Previous student (saves draft)"
                                 >
-                                    <ChevronRightIcon className="h-3 w-3 rotate-180" />
+                                    <ChevronRightIcon className="h-3.5 w-3.5 rotate-180" />
                                 </button>
 
                                 <div className="relative min-w-0 flex-1">
-                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                                    <MagnifyingGlassIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                                     <input
                                         type="search"
                                         aria-label="Search or jump to student"
@@ -4905,9 +4905,9 @@ function ReportBuilderInner() {
                                         value={editSearch}
                                         disabled={saving || publishing}
                                         onChange={(e) => setEditSearch(e.target.value)}
-                                        className="h-7 w-full rounded-md border border-border bg-background py-0 pl-6 pr-10 text-xs font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/70 disabled:opacity-50"
+                                        className="h-8 sm:h-9 w-full rounded-xl border border-border bg-background py-0 pl-7 pr-10 text-xs font-semibold text-foreground placeholder:font-medium placeholder:text-muted-foreground/70 disabled:opacity-50 touch-manipulation"
                                     />
-                                    <span className="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5 tabular-nums text-[10px] font-bold text-muted-foreground">
+                                    <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 tabular-nums text-[10px] font-bold text-muted-foreground">
                                         {selectedStudent && reportedIds.has(selectedStudent.id) ? (
                                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Published" aria-label="Published" />
                                         ) : selectedStudent && draftedIds.has(selectedStudent.id) ? (
@@ -4916,7 +4916,7 @@ function ReportBuilderInner() {
                                         {currentStudentIdx + 1}/{navList.length}
                                     </span>
                                     {editMatches.length > 0 && (
-                                        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-44 overflow-y-auto rounded-lg border border-border bg-card shadow-xl">
+                                        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-2xl">
                                             {editMatches.map((ms: any) => {
                                                 const published = reportedIds.has(ms.id);
                                                 const draft = !published && draftedIds.has(ms.id);
@@ -4934,7 +4934,7 @@ function ReportBuilderInner() {
                                                         await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : 0);
                                                         setEditSearch('');
                                                     }}
-                                                    className="flex w-full items-center gap-2 border-b border-border px-2.5 py-1.5 text-left text-xs last:border-0 hover:bg-muted"
+                                                    className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-xs last:border-0 hover:bg-muted active:bg-muted/80 touch-manipulation min-h-[40px]"
                                                 >
                                                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-[10px] font-black text-primary">
                                                         {ms.full_name?.[0] ?? '?'}
@@ -4972,9 +4972,9 @@ function ReportBuilderInner() {
                                     }}
                                     disabled={saving || publishing || reportIsPublished}
                                     title={reportIsPublished ? 'Already published — manage it in Publish & Share' : !canPublishReport ? (publishQualityIssues[0] || 'Finish required items to publish') : 'Publish and move to next'}
-                                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-emerald-600 text-primary-foreground disabled:opacity-50 ${!canPublishReport ? 'opacity-60' : ''}`}
+                                    className={`flex h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-500 text-primary-foreground disabled:opacity-50 touch-manipulation transition-colors shadow-sm ${!canPublishReport ? 'opacity-60' : ''}`}
                                 >
-                                    {publishing ? <ArrowPathIcon className="h-3 w-3 animate-spin" /> : <RocketLaunchIcon className="h-3 w-3" />}
+                                    {publishing ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <RocketLaunchIcon className="h-3.5 w-3.5" />}
                                 </button>
 
                                 <button
@@ -4994,14 +4994,14 @@ function ReportBuilderInner() {
                                         setEditSearch('');
                                     }}
                                     title={currentStudentIdx < navList.length - 1 ? 'Save draft and open next student' : 'Finish class and pick another'}
-                                    className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md bg-primary px-2 text-[11px] font-black text-primary-foreground disabled:opacity-50"
+                                    className="flex h-8 sm:h-9 flex-shrink-0 items-center gap-1 rounded-xl bg-primary hover:bg-primary/90 px-2.5 sm:px-3 text-xs font-black text-primary-foreground disabled:opacity-50 touch-manipulation transition-colors shadow-sm"
                                 >
                                     <span className="hidden sm:inline">
                                         {currentStudentIdx < navList.length - 1 ? 'Next' : 'Done'}
                                     </span>
                                     {currentStudentIdx < navList.length - 1
-                                        ? <ChevronRightIcon className="h-3 w-3" />
-                                        : <CheckCircleIcon className="h-3 w-3" />}
+                                        ? <ChevronRightIcon className="h-3.5 w-3.5" />
+                                        : <CheckCircleIcon className="h-3.5 w-3.5" />}
                                 </button>
                             </div>
                                 );
@@ -5282,21 +5282,21 @@ function ReportBuilderInner() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                             {(viewingHistoryReport.key_strengths || viewingHistoryReport.areas_for_growth) && viewingHistoryReport.id !== existingReport?.id && (
                                 <button
                                     type="button"
                                     onClick={() => reusePastReportRemarks(viewingHistoryReport)}
-                                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-primary text-white text-xs font-black rounded-xl shadow-md transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 min-h-10 sm:min-h-9 bg-primary text-white text-xs font-black rounded-xl shadow-md transition-colors"
                                 >
                                     <DocumentDuplicateIcon className="w-3.5 h-3.5" />
-                                    <span>Reuse Remarks in Current Draft</span>
+                                    <span>Reuse Remarks <span className="hidden sm:inline">in Current Draft</span></span>
                                 </button>
                             )}
                             <button
                                 type="button"
                                 onClick={() => setViewingHistoryReport(null)}
-                                className="p-2 hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
+                                className="p-2 min-h-10 min-w-10 inline-flex items-center justify-center hover:bg-muted rounded-xl transition-colors text-muted-foreground hover:text-foreground"
                                 title="Close"
                             >
                                 <XMarkIcon className="w-5 h-5" />
