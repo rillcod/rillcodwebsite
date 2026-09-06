@@ -8,20 +8,20 @@ export const LEARNER_REPORT_STEPS = [
   {
     key: 'write',
     href: '/dashboard/reports/builder',
-    label: 'Write',
-    detail: 'Type scores',
+    label: 'Write & edit',
+    detail: 'Start or continue a report',
   },
   {
     key: 'prepare',
     href: '/dashboard/academic/results',
-    label: 'Auto-fill',
-    detail: 'Optional draft shortcut',
+    label: 'Auto-fill scores',
+    detail: 'Optional helper',
   },
   {
     key: 'publish',
     href: '/dashboard/results',
-    label: 'Publish & Share',
-    detail: 'Review, release and send',
+    label: 'Review & publish',
+    detail: 'Check, release and share',
   },
 ] as const;
 
@@ -113,11 +113,15 @@ function LearnerReportFlowStripInner({
   const searchParams = useSearchParams();
   const active = current ?? stepFromPath(pathname);
   const context = contextFromSearch(searchParams ?? new URLSearchParams(), extra, pathname);
+  const primarySteps = LEARNER_REPORT_STEPS.filter((step) => step.key !== 'prepare');
+  const prepareStep = LEARNER_REPORT_STEPS.find((step) => step.key === 'prepare')!;
+  const prepareHref = learnerReportHref('prepare', context);
 
   return (
-    <nav aria-label="Report card steps" className="rounded-2xl border border-border bg-card px-3 py-2.5 sm:px-4">
-      <ol className={`grid gap-1.5 ${compact ? 'grid-cols-3' : 'sm:grid-cols-3'}`}>
-        {LEARNER_REPORT_STEPS.map((step) => {
+    <nav aria-label="Report card workflow" className="rounded-2xl border border-border bg-card px-3 py-2.5 sm:px-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <ol className="grid min-w-0 flex-1 grid-cols-2 gap-1.5">
+        {primarySteps.map((step, index) => {
           const isCurrent = step.key === active;
           const href = learnerReportHref(step.key, context);
           return (
@@ -138,7 +142,7 @@ function LearnerReportFlowStripInner({
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {step.key === 'prepare' ? 'OR' : step.key === 'write' ? '1' : '2'}
+                  {index + 1}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-black text-foreground">{step.label}</span>
@@ -150,7 +154,21 @@ function LearnerReportFlowStripInner({
             </li>
           );
         })}
-      </ol>
+        </ol>
+        <Link
+          href={prepareHref}
+          aria-current={active === 'prepare' ? 'page' : undefined}
+          className={`flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors sm:justify-start ${
+            active === 'prepare'
+              ? 'border-sky-500/40 bg-sky-500/10 text-sky-800 dark:text-sky-200'
+              : 'border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+          }`}
+        >
+          <span className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-sky-700 dark:text-sky-300">Optional</span>
+          <span>{prepareStep.label}</span>
+          {!compact ? <span className="hidden text-[11px] font-normal text-muted-foreground lg:inline">· {prepareStep.detail}</span> : null}
+        </Link>
+      </div>
     </nav>
   );
 }

@@ -12,7 +12,7 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     DocumentTextIcon, PencilSquareIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-    TrashIcon, XMarkIcon
+    TrashIcon, XMarkIcon, ClockIcon
 } from '@/lib/icons';
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -730,6 +730,12 @@ function ResultsPageInner() {
     const pickReport = (r: StudentReport | null) => {
         setSelectedReport(r);
         if (r?.id) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('report', r.id);
+            if (r.student_id) params.set('student', r.student_id);
+            if (r.report_term) params.set('term', r.report_term);
+            if (r.report_period) params.set('year', r.report_period);
+            window.history.replaceState(null, '', `?${params.toString()}`);
             setLoadingEmailEvents(true);
             fetchJsonWithTimeout(`/api/progress-reports/${r.id}/email-events`, { events: [] }, 'picked report email events')
                 .then(j => { if (j.events) setReportEmailEvents(j.events); else setReportEmailEvents([]); })
@@ -2118,16 +2124,21 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
 
                                         <div className="flex flex-nowrap items-center gap-1 overflow-x-auto pb-0.5 lg:flex-wrap lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                             {reportHistory.length > 1 && (
-                                                <select
-                                                    value={selectedReport?.id ?? ''}
-                                                    onChange={(e) => pickReport(reportHistory.find(x => x.id === e.target.value) ?? null)}
-                                                    className="h-7 max-w-[12rem] flex-shrink-0 cursor-pointer rounded-md border border-border bg-card px-1.5 text-[10px] font-bold text-foreground shadow-sm outline-none"
-                                                    title="Switch term / academic session"
-                                                >
-                                                    {reportHistory.map(r => (
-                                                        <option key={r.id} value={r.id} className="bg-card text-foreground">{reportLabel(r)}</option>
-                                                    ))}
-                                                </select>
+                                                <label className="flex h-9 min-w-[12rem] flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2 shadow-sm">
+                                                    <ClockIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                                                    <span className="sr-only">Open another report for this student</span>
+                                                    <select
+                                                        value={selectedReport?.id ?? ''}
+                                                        onChange={(e) => pickReport(reportHistory.find(x => x.id === e.target.value) ?? null)}
+                                                        className="h-8 min-w-0 flex-1 cursor-pointer bg-transparent text-[11px] font-bold text-foreground outline-none"
+                                                        title="Open another report for this student"
+                                                        aria-label="Open another report for this student"
+                                                    >
+                                                        {reportHistory.map(r => (
+                                                            <option key={r.id} value={r.id} className="bg-card text-foreground">{reportLabel(r)}</option>
+                                                        ))}
+                                                    </select>
+                                                </label>
                                             )}
 
                                             {isStaff && currentIdx >= 0 && (

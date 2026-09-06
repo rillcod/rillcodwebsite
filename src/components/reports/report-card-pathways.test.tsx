@@ -88,7 +88,8 @@ describe('progress report pathway rendering used by PDF capture', () => {
     });
   }
 
-  it('keeps the Rillcod evidence pathway on the normal weighted report layout', () => {
+  for (const [name, render] of templates) {
+  it(`${name} keeps the optional Rillcod evidence pathway on its weighted report layout`, () => {
     const rillcodReport = {
       ...baseReport,
       engagement_metrics: {
@@ -98,7 +99,7 @@ describe('progress report pathway rendering used by PDF capture', () => {
         programme_standing: 'optional',
       },
     };
-    const html = renderToStaticMarkup(React.createElement(ReportCard, { report: rillcodReport, orgSettings: null }));
+    const html = renderToStaticMarkup(render(rillcodReport));
 
     expect(html).toContain('Progress Report');
     expect(html).toContain('Theory / Written');
@@ -106,4 +107,5 @@ describe('progress report pathway rendering used by PDF capture', () => {
     expect(html).not.toContain('14/20');
     expect(html).not.toContain('First Test + Second Test + Examination');
   });
+  }
 });

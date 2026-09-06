@@ -4124,3 +4124,28 @@ Implemented and live-verified locally:
 - progress stops at 95% while the server verifies links and saved content, then reaches 100% only when the
   package is genuinely ready. The completed sheet stays open with item links and release guidance until
   the teacher closes it.
+
+## 16.61 Unified progress-report return and editing experience (2026-09-06)
+
+- Write, Auto-fill and Publish previously appeared as three equal destinations even though Auto-fill is
+  only an optional way to prepare the same canonical report. The shared navigation now presents two
+  primary steps—**Write & edit** and **Review & publish**—with **Auto-fill scores** clearly separated as
+  an optional helper;
+- the writer start screen now shows a small RLS-scoped list of recent canonical records. Drafts reopen
+  by exact `student_id + report_id + class_id + course_id + term + year`; published records open in the
+  review surface. Returning staff no longer have to recreate filters or enter an editor just to find old
+  work;
+- changing the historical-report selector on the review page now writes the exact record and academic
+  period into the URL, so refresh, browser Back/Forward and shared internal links keep the selected
+  record instead of silently falling back to the latest report;
+- learner history inside Write distinguishes preview, exact draft reopening and published-record review.
+  Reuse remains deliberately limited to narrative remarks and never copies or changes historical scores;
+- teacher setup now asks only whether timing is school-term or duration-based. The school-level
+  `programme_standing` remains the single authority for compulsory school papers versus optional Rillcod
+  learning evidence and is shown in plain words. Payment notice, module progress and milestones are
+  collapsed optional details, while a single **Next** line exposes the first real completion requirement;
+- the off-screen PDF renderer is mounted only for a selected learner and is hidden from assistive
+  technology. Empty preview data can no longer announce a fictitious F9 report on the start screen;
+- all three PDF/report-card templates are now guarded for both compulsory-school paper rendering and the
+  optional Rillcod weighted pathway. No migration, score update, report duplication or published-record
+  mutation is part of this milestone.

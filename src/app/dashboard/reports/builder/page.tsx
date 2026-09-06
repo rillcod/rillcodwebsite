@@ -908,6 +908,7 @@ function ReportBuilderInner() {
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [viewingHistoryReport, setViewingHistoryReport] = useState<StudentReport | null>(null);
     const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+    const [recentReports, setRecentReports] = useState<StudentReport[]>([]);
 
     // ── Refs for restoring session after data load ────────────────────────────
     const pendingRestoreStudentId = useRef<string | null>(null);
@@ -1371,6 +1372,17 @@ function ReportBuilderInner() {
                     }
                     return;
                 }
+                // A small, RLS-scoped return index. This points to the canonical
+                // rows; it never copies report content or creates another ledger.
+                const { data: recentRows } = await withTimeout(
+                    db.from('student_progress_reports')
+                        .select('*')
+                        .order('updated_at', { ascending: false })
+                        .limit(8),
+                    { data: [], error: null },
+                    'recent report lookup',
+                );
+                setRecentReports((recentRows as StudentReport[]) ?? []);
                 // Restore pending student (from localStorage navigation state)
                 const restoreId = pendingRestoreStudentId.current;
                 if (restoreId) {
@@ -1463,6 +1475,12 @@ function ReportBuilderInner() {
     filteredStudentsRef.current = filteredStudents;
 
     const activeSessionClass = teacherClasses.find(c => c.id === sessionConfig.class_id);
+    const selectedSchoolStanding = schools.find((school) =>
+        school.id === (sessionConfig.school_id || (selectedStudent as any)?.school_id),
+    )?.programme_standing;
+    const reportPathwayLabel = selectedSchoolStanding === 'compulsory'
+        ? 'Compulsory school · school examination papers'
+        : 'Optional programme · Rillcod learning evidence';
     const classRoster = students.filter((student: any) => {
         if (!activeSessionClass) return false;
         return student.class_id === activeSessionClass.id
@@ -1544,6 +1562,7 @@ function ReportBuilderInner() {
                 course_id: linkedCourse?.id || '',
                 course_name: linkedCourse?.title || '',
                 learning_milestones: suggestedMilestones,
+                school_section: current.school_section || 'school',
             };
         });
         if (linkedCourse?.id) {
@@ -1621,6 +1640,13 @@ function ReportBuilderInner() {
             learning_milestones: current.learning_milestones.length === 0 ? suggestedMilestones : current.learning_milestones,
         }));
     }, [courses, teacherClasses, sessionConfig.class_id, sessionConfig.course_id, sessionProgramId]);
+
+    // Old saved browser seats may pre-date report timing. A real class defaults
+    // to the school-term route so teachers are not stopped by an internal choice.
+    useEffect(() => {
+        if (!sessionConfig.class_id || sessionConfig.school_section) return;
+        setSessionConfig((current) => ({ ...current, school_section: 'school' }));
+    }, [sessionConfig.class_id, sessionConfig.school_section]);
 
     // Keep sessionConfig.term_id in sync with the chosen report_term + academic year so
     // coverage filters and "Start Grading" don't stay pinned to an old class term_id.
@@ -3336,6 +3362,48 @@ function ReportBuilderInner() {
                 {/* Session setup — shown until grading starts */}
                 {!sessionDone && (
                     <div className="space-y-3 pb-[calc(var(--app-sticky-actions-height)+0.75rem)] md:pb-0">
+                        {recentReports.length > 0 && !prefStudentId && !prefReportId ? (
+                            <section className="rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4" aria-labelledby="recent-report-work-heading">
+                                <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                                    <div>
+                                        <h2 id="recent-report-work-heading" className="text-sm font-black text-foreground">Continue recent work</h2>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">Open the exact saved record—no searching through the editor.</p>
+                                    </div>
+                                    <Link href="/dashboard/results" className="text-xs font-bold text-primary hover:underline">View all reports</Link>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                                    {recentReports.slice(0, 4).map((report) => {
+                                        const destination = learnerReportHref(report.is_published ? 'publish' : 'write', {
+                                            studentId: report.student_id,
+                                            reportId: report.id,
+                                            classId: report.class_id,
+                                            courseId: report.course_id,
+                                            schoolId: report.school_id,
+                                            term: report.report_term,
+                                            period: report.report_period,
+                                            from: 'results',
+                                        });
+                                        return (
+                                            <Link key={report.id} href={destination} className="group flex min-h-24 flex-col justify-between rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/40 hover:bg-primary/5">
+                                                <span className="min-w-0">
+                                                    <span className="block truncate text-sm font-black text-foreground">{report.student_name || 'Student report'}</span>
+                                                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{[report.section_class, report.course_name].filter(Boolean).join(' · ') || 'Progress report'}</span>
+                                                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{[report.report_term, report.report_period].filter(Boolean).join(' · ')}</span>
+                                                </span>
+                                                <span className="mt-2 flex items-center justify-between gap-2">
+                                                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase ${report.is_published ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'}`}>
+                                                        {report.is_published ? 'Published' : 'Draft'}
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1 text-xs font-black text-primary">
+                                                        {report.is_published ? 'View' : 'Continue'} <ChevronRightIcon className="h-3.5 w-3.5" />
+                                                    </span>
+                                                </span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        ) : null}
                         {/* School & Class — first, largest controls */}
                         <div className="bg-card shadow-sm border-2 border-primary/25 rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-1">
@@ -3403,21 +3471,30 @@ function ReportBuilderInner() {
                                 Term &amp; year for these reports. New terms never overwrite old ones.
                             </p>
 
-                            {/* Report context */}
+                            {/* Timing route. Score authority remains centralized on the school. */}
                             <div>
-                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report context</label>
-                                <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                    {(['basic', 'secondary', 'unified', 'bootcamp', 'online'] as const).map(type => (
-                                        <button key={type} type="button"
+                                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Report timing</label>
+                                    {sessionConfig.school_id ? (
+                                        <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">{reportPathwayLabel}</span>
+                                    ) : null}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([
+                                        { value: 'school', label: 'School term', hint: 'Term and academic year' },
+                                        { value: 'bootcamp', label: 'Course / cohort', hint: 'Duration-based programme' },
+                                    ] as const).map(option => (
+                                        <button key={option.value} type="button"
                                             onClick={() => setSessionConfig(s => ({
                                                 ...s,
-                                                school_section: type,
-                                                ...(isSchoolSection(type)
+                                                school_section: option.value,
+                                                ...(isSchoolSection(option.value)
                                                     ? { report_term: s.report_term || getCurrentTermLabel(), report_period: s.report_period || getCurrentAcademicYear() }
                                                     : {}),
                                             }))}
-                                            className={`shrink-0 min-w-[8.5rem] sm:min-w-0 min-h-11 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-primary-foreground shadow' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
-                                            {type === 'basic' ? 'Basic' : type === 'secondary' ? 'Secondary' : type === 'unified' ? 'Unified' : type === 'bootcamp' ? 'Bootcamp' : 'Online'}
+                                            className={`min-h-14 rounded-xl border px-3 py-2 text-left transition-colors ${sessionConfig.school_section === option.value || (option.value === 'school' && isSchoolSection(sessionConfig.school_section)) ? 'border-primary bg-primary text-primary-foreground shadow' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}>
+                                            <span className="block text-xs font-black">{option.label}</span>
+                                            <span className="mt-0.5 block text-[10px] opacity-80">{option.hint}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -3426,7 +3503,7 @@ function ReportBuilderInner() {
                             {!sessionConfig.school_section ? (
                                 <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
                                     <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                                    <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-semibold">Pick a report context above to choose the term &amp; academic year.</p>
+                                    <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 font-semibold">Choose school-term or course/cohort timing.</p>
                                 </div>
                             ) : isSchoolSection(sessionConfig.school_section) ? (
                                 <>
@@ -3466,11 +3543,12 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Payment / Fee Section — optional, won't appear on report if left blank */}
-                        <div className="bg-card border border-border rounded-xl overflow-hidden">
-                            <div className="flex items-center gap-2 px-5 py-3 bg-muted/20 border-b border-border">
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Payment / Fee Info</h3>
-                                <span className="ml-auto text-[10px] text-muted-foreground/50 font-semibold">Optional</span>
-                            </div>
+                        <details className="group overflow-hidden rounded-xl border border-border bg-card">
+                            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 bg-muted/20 px-5 py-3 marker:content-none">
+                                <h3 className="text-xs font-bold text-muted-foreground">Payment notice</h3>
+                                <span className="ml-auto text-[10px] font-semibold text-muted-foreground/60">Optional</span>
+                                <ChevronDownIcon className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                            </summary>
                             <div className="p-5 space-y-4">
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                                     Optional fee label for extracurricular billing. Leave blank if not needed.
@@ -3509,24 +3587,26 @@ function ReportBuilderInner() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </details>
 
-                        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
-                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
-                                <span>🧭</span>
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Module Progress</h3>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <details className="group overflow-hidden rounded-xl border border-border bg-card">
+                            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-5 py-3 marker:content-none">
+                                <h3 className="text-xs font-bold text-muted-foreground">Module progress</h3>
+                                <span className="ml-auto text-[10px] font-semibold text-muted-foreground/60">Optional</span>
+                                <ChevronDownIcon className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="grid grid-cols-1 gap-4 border-t border-border p-5 sm:grid-cols-2">
                                 <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" suggestions={getSuggestionsForCourse()} />
                             </div>
-                        </div>
+                        </details>
                         {/* Learning Milestones */}
-                        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
-                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
-                                <span>🎯</span>
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Learning Milestones</h3>
-                                <span className="ml-auto text-[10px] text-muted-foreground">Appear on every report card in this session</span>
-                            </div>
+                        <details className="group overflow-hidden rounded-xl border border-border bg-card">
+                            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-5 py-3 marker:content-none">
+                                <h3 className="text-xs font-bold text-muted-foreground">Learning milestones</h3>
+                                <span className="ml-auto text-[10px] text-muted-foreground">Optional · shown on every card</span>
+                                <ChevronDownIcon className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="space-y-3 border-t border-border p-5">
                             <div className="flex gap-2">
                                 <input
                                     value={milestoneInput}
@@ -3573,7 +3653,8 @@ function ReportBuilderInner() {
                             ) : (
                                 <p className="text-[10px] text-muted-foreground italic">No milestones yet. Add key topics or skills covered this term.</p>
                             )}
-                        </div>
+                            </div>
+                        </details>
 
                         {(() => {
                             const ctx = sessionConfig.school_section;
@@ -3581,7 +3662,7 @@ function ReportBuilderInner() {
                                 ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionProgramId && sessionConfig.course_id)
                                 : !!(sessionConfig.course_duration && sessionProgramId && sessionConfig.course_id));
                             const missing = !ctx
-                                ? 'Choose a report context above'
+                                ? 'Choose report timing above'
                                 : !sessionConfig.school_name && !sessionConfig.class_id
                                     ? 'Select school and class / section above'
                                 : !sessionConfig.class_id
@@ -4029,7 +4110,7 @@ function ReportBuilderInner() {
                                         title="View learner's past term reports and reuse remarks"
                                     >
                                         <ClockIcon className="h-3.5 w-3.5" />
-                                        <span>Past Records</span>
+                                        <span>Report history</span>
                                         <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                                             showHistoryPanel ? "bg-white/20 text-white" : "bg-primary/20 text-primary"
                                         }`}>
@@ -4049,6 +4130,14 @@ function ReportBuilderInner() {
                                     </button>
                                 </div>
                             </div>
+                            <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-[11px]" aria-live="polite">
+                                <span className="font-black text-foreground">Next: </span>
+                                <span className="text-muted-foreground">
+                                    {reportIsPublished
+                                        ? 'Review or share this published record.'
+                                        : publishQualityIssues[0] || 'Ready to publish this report.'}
+                                </span>
+                            </div>
 
                             {/* Expanded Learner History Panel */}
                             {showHistoryPanel && (
@@ -4057,11 +4146,11 @@ function ReportBuilderInner() {
                                         <div className="flex items-center gap-2">
                                             <ClockIcon className="h-4 w-4 text-primary shrink-0" />
                                             <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
-                                                Learner Academic History &amp; Previous Terms
+                                                Previous reports
                                             </h3>
                                         </div>
                                         <span className="text-[11px] text-muted-foreground">
-                                            Access and reuse feedback without leaving the editor
+                                            View an exact record or reuse only its written feedback
                                         </span>
                                     </div>
 
@@ -4142,8 +4231,25 @@ function ReportBuilderInner() {
                                                                 className="inline-flex items-center gap-1 px-3 py-1.5 min-h-9 rounded-xl border border-border bg-muted/40 hover:bg-muted active:bg-muted/80 text-xs font-bold text-foreground transition-colors touch-manipulation"
                                                             >
                                                                 <EyeIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                                                                <span>View Card</span>
+                                                                <span>Preview</span>
                                                             </button>
+                                                            {!isCurrentReport && report.student_id ? (
+                                                                <Link
+                                                                    href={learnerReportHref(report.is_published ? 'publish' : 'write', {
+                                                                        studentId: report.student_id,
+                                                                        reportId: report.id,
+                                                                        classId: report.class_id,
+                                                                        courseId: report.course_id,
+                                                                        schoolId: report.school_id,
+                                                                        term: report.report_term,
+                                                                        period: report.report_period,
+                                                                        from: 'results',
+                                                                    })}
+                                                                    className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                                                                >
+                                                                    {report.is_published ? 'Open record' : 'Open draft'}
+                                                                </Link>
+                                                            ) : null}
                                                             {(report.key_strengths || report.areas_for_growth) && !isCurrentReport && (
                                                                 <button
                                                                     type="button"
@@ -5437,7 +5543,7 @@ function ReportBuilderInner() {
                 </div>
             )}
 
-            <div id="pdf-print-target" style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
+            {selectedStudent ? <div id="pdf-print-target" aria-hidden="true" style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={pdfRef}>
                     {reportStyle === 'modern' ? (
                         <ModernReportCard report={previewData} orgSettings={branding as any} />
@@ -5447,7 +5553,7 @@ function ReportBuilderInner() {
                         <ReportCard report={previewData} orgSettings={branding as any} />
                     )}
                 </div>
-            </div>
+            </div> : null}
 
             <AutoFillEditConfirmDialog
                 open={autoFillEditPromptOpen}
