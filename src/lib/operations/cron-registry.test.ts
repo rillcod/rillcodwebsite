@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { CRON_REGISTRY, monitoredCronJobs, cronPathMap, type CronJob } from './cron-registry';
+import { CRON_REGISTRY, cronAdmissionIntervalMs, monitoredCronJobs, cronPathMap, type CronJob } from './cron-registry';
 
 const CRON_DIR = path.resolve(__dirname, '../../app/api/cron');
 
@@ -86,6 +86,13 @@ describe('cron registry', () => {
   it('exposes every job for manual running', () => {
     expect(Object.keys(cronPathMap()).sort()).toEqual(jobs.map((job) => job.name).sort());
   });
+
+  it('coalesces frequent external delivery pings without throttling internal fan-out', () => {
+    expect(cronAdmissionIntervalMs('process-notifications')).toBe(10 * 60_000);
+    expect(cronAdmissionIntervalMs('live-session-reminders')).toBe(15 * 60_000);
+    expect(cronAdmissionIntervalMs('auto-generate-content')).toBeNull();
+    expect(cronAdmissionIntervalMs('not-a-job')).toBeNull();
+  });
 });
 
 /**
@@ -137,5 +144,10 @@ describe('wrangler cron triggers', () => {
       'container-gateway.ts no longer checks CLOUDFLARE_OWNS_CRON — the runtime guard is gone, ' +
         'so a restored [triggers] block would fire jobs immediately.',
     ).toBe(true);
+  });
+
+  it('caps production to one scale-to-zero basic container', () => {
+    expect(toml).toMatch(/max_instances\s*=\s*1/);
+    expect(toml).toMatch(/instance_type\s*=\s*"basic"/);
   });
 });

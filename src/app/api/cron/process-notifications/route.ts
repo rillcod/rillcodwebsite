@@ -43,7 +43,10 @@ async function handleRequest(req: Request) {
         console.error('[process-notifications] WhatsApp outbox sweep failed:', err);
     }
 
-    const batchSize = 10;
+    // The cost-aware gateway admits this sweep every ten minutes. Drain a
+    // larger bounded batch so coalescing scheduler pings never sacrifices
+    // delivery throughput or leaves ordinary bursts waiting for another run.
+    const batchSize = 25;
     let processed = 0;
     let communicationFollowup = { success: true, checked: 0, reminded: 0, escalated: 0, failures: [] as string[] };
     if (controls?.customer_followup_enabled) try {

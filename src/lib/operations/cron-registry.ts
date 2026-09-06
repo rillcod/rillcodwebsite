@@ -47,6 +47,11 @@ export type CronJob = {
   label: string;
   /** Health cadence in minutes — how often this job really runs. See the note above. */
   intervalMinutes: number;
+  /**
+   * Optional gateway floor for external callers. Calls inside this window are
+   * acknowledged at the Worker without waking the paid Next.js container.
+   */
+  minimumAdmissionMinutes?: number;
   trigger: CronTrigger;
   /** For fanout/chained/piggyback: the job that dispatches this one. */
   triggeredBy?: string;
@@ -64,11 +69,13 @@ export const CRON_REGISTRY = [
   {
     name: 'process-notifications',
     label: 'Send waiting messages',
-    // Deliberately tight: the 10-minute grace floor puts the Late threshold at ~11 minutes,
-    // which matches the 10-minute maximum healthy age this queue is held to.
-    intervalMinutes: 1,
+    // The external scheduler may still ping more frequently. The gateway admits
+    // one run per ten minutes and acknowledges the rest without waking the paid
+    // container. Each admitted run drains a batch, so no message is discarded.
+    intervalMinutes: 10,
+    minimumAdmissionMinutes: 10,
     trigger: 'external',
-    schedule: 'Every 2-5 minutes',
+    schedule: 'Every 10 minutes (earlier pings coalesced at the gateway)',
     purpose: 'Email queue, WhatsApp outbox, scheduled newsletters',
   },
   {
@@ -295,6 +302,22 @@ export function cronJob(name: CronJobName): CronJob {
  */
 export function cronInterval(name: CronJobName): number {
   return cronJob(name).intervalMinutes;
+}
+
+/**
+ * Minimum spacing for an external scheduler request before it may wake the
+ * paid application container. Non-external jobs run inside an already-awake
+ * container and are intentionally not throttled here.
+ */
+export function cronAdmissionIntervalMs(name: string): number | null {
+  const job = BY_NAME.get(name);
+  if (!job || job.trigger !== 'external') return null;
+  const minutes = Math.max(
+    1,
+    job.intervalMinutes,
+    job.minimumAdmissionMinutes ?? 0,
+  );
+  return minutes * 60_000;
 }
 
 export function cronPath(name: string): string {

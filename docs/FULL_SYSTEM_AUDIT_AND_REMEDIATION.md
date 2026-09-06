@@ -4149,3 +4149,47 @@ Implemented and live-verified locally:
 - all three PDF/report-card templates are now guarded for both compulsory-school paper rendering and the
   optional Rillcod weighted pathway. No migration, score update, report duplication or published-record
   mutation is part of this milestone.
+
+## 16.62 Academic delivery recovery and Cloudflare container cost control (2026-09-06)
+
+Confirmed production evidence:
+
+- the academic inventory contains complete teaching packages held for review plus a very small repair
+  queue. The review surface previously rendered the full queue and five verbose content links per row;
+- automatic generation read the same lesson, assignment, slide and card inventories repeatedly per plan
+  and considered only the current calendar window. A partially generated older package could therefore
+  remain incomplete while new work progressed;
+- Cloudflare billed 16,007,219 GiB-seconds for 6 August–5 September. At the configured 6 GiB
+  `standard-2` size, that equals about 2.67 million running seconds—essentially the entire billing month.
+  The three-minute idle window was longer than the 2–5 minute external notification cadence, so each
+  cron-job.org ping renewed the container instead of allowing scale-to-zero.
+
+Implemented:
+
+- the teaching queue defaults to complete packages, exposes repair/search filters, renders twelve rows
+  at a time, keeps full content titles in the review drawer, and gives administrators one guarded setting
+  for future complete-package auto-delivery. Existing held packages and teacher edits remain unchanged;
+- the generation sweep loads one shared academic inventory, finishes already-started incomplete packages
+  before opening new future work, and reuses proven sibling content before calling AI. It never replaces
+  complete or teacher-customised content;
+- Academic Overview surfaces delivery readiness as a real next action. The large class inspector moved
+  into optional tools. Curriculum administration now leads with Build and Library, while the structural
+  course map and reuse explanation remain available without crowding routine work;
+- production is capped at one 1 GiB `basic` container with a five-second idle shutdown. The gateway
+  rejects invalid cron traffic before it starts Next.js and durably coalesces valid external scheduler
+  calls to the registry cadence. The notification worker admits one run per ten minutes and drains up to
+  25 queued emails plus its bounded WhatsApp batch. No queued item is silently discarded;
+- an authenticated `x-rillcod-cron-force: true` operator retry remains available, so cost control does not
+  permanently lock recovery. Internal loopback fan-out remains unthrottled because it runs while the
+  container is already active.
+
+Verification and boundary:
+
+- application TypeScript, the separate Cloudflare Worker TypeScript target and 59 focused academic,
+  delivery, cron, lifecycle and UX tests pass;
+- this configuration is designed for the Workers Paid 25 GiB-hour included allowance. It removes the
+  proven always-on condition, but no usage-based host can guarantee zero overage under unlimited customer
+  traffic. Keep Cloudflare usage alerts active and measure actual post-deploy memory and OOM events before
+  raising the instance size or idle period;
+- no curriculum, lesson, learner score, submission, invoice or published report data is changed by this
+  milestone. Deployment is required before the billing behaviour changes.

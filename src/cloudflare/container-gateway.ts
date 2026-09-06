@@ -13,6 +13,7 @@ import {
   canReplayContainerRequest,
   classifyContainerFailure,
 } from "../lib/cloudflare/container-request-recovery";
+import { cronAdmissionIntervalMs } from "../lib/operations/cron-registry";
 
 /** Public + secret keys forwarded into the Next.js container process. */
 const CONTAINER_ENV_KEYS = [
@@ -102,14 +103,18 @@ function containerEnvFromWorker(env: GatewayEnv): Record<string, string> {
  */
 export class NextAppContainer extends Container {
   defaultPort = 3000;
-  // Keep the short scale-to-zero window: standard-2 reserves 6 GiB while it is
-  // running. Readiness recovery below fixes cold-start races without paying to
-  // keep an idle container warm.
-  sleepAfter = "3m";
+  // The basic instance reserves 1 GiB. Stop within seconds after a burst so the
+  // app stays inside the Workers Paid container allowance instead of turning a
+  // 2-5 minute scheduler ping into an always-on monthly bill.
+  sleepAfter = "5s";
   enableInternet = true;
+  private readonly gatewayState: DurableObjectState;
+  private readonly gatewayEnv: GatewayEnv;
 
   constructor(ctx: DurableObjectState<GatewayEnv>, env: GatewayEnv) {
     super(ctx, env);
+    this.gatewayState = ctx;
+    this.gatewayEnv = env;
     this.envVars = containerEnvFromWorker(env);
   }
 
@@ -132,6 +137,16 @@ export class NextAppContainer extends Container {
    * library responses, wait for port 3000 once, and replay only read-only work.
    */
   override async fetch(request: Request): Promise<Response> {
+    const admission = await this.admitCronRequest(request);
+    if (admission.response) return admission.response;
+
+    const finish = async (response: Response) => {
+      // A failed cold start must remain retryable at the next scheduler ping.
+      if (admission.storageKey && response.status >= 500) {
+        await this.gatewayState.storage.delete(admission.storageKey);
+      }
+      return response;
+    };
     const replayRequest = canReplayContainerRequest(request) ? request.clone() : null;
 
     let response: Response;
@@ -139,11 +154,11 @@ export class NextAppContainer extends Container {
       response = await this.containerFetch(request, this.defaultPort);
     } catch (error) {
       console.error("[NextAppContainer] proxy transport threw", error);
-      return containerUnavailableResponse(request);
+      return finish(containerUnavailableResponse(request));
     }
 
     const failure = await classifyContainerResponse(response);
-    if (!failure) return response;
+    if (!failure) return finish(response);
 
     console.warn("[NextAppContainer] intercepted container lifecycle response", {
       status: response.status,
@@ -153,7 +168,7 @@ export class NextAppContainer extends Container {
     });
 
     if (failure !== "retryable" || !replayRequest) {
-      return containerUnavailableResponse(request);
+      return finish(containerUnavailableResponse(request));
     }
 
     try {
@@ -179,12 +194,75 @@ export class NextAppContainer extends Container {
         },
         this.defaultPort,
       );
-      if (!(await classifyContainerResponse(retryResponse))) return retryResponse;
+      if (!(await classifyContainerResponse(retryResponse))) return finish(retryResponse);
     } catch (error) {
       console.error("[NextAppContainer] one-shot readiness recovery failed", error);
     }
 
-    return containerUnavailableResponse(request);
+    return finish(containerUnavailableResponse(request));
+  }
+
+  /**
+   * Reject forged cron traffic and coalesce scheduler pings before either can
+   * start the paid container. Durable Object storage survives scale-to-zero.
+   */
+  private async admitCronRequest(request: Request): Promise<{
+    response?: Response;
+    storageKey?: string;
+  }> {
+    const match = new URL(request.url).pathname.match(/^\/api\/cron\/([^/]+)\/?$/);
+    if (!match) return {};
+
+    const supplied = request.headers.get("x-cron-secret")
+      || request.headers.get("authorization")?.replace(/^Bearer\s+/i, "")
+      || "";
+    const accepted = [
+      this.gatewayEnv.CRON_SECRET,
+      this.gatewayEnv.BILLING_CRON_SECRET,
+    ].some((secret) => Boolean(secret) && supplied === secret);
+
+    if (!accepted) {
+      return {
+        response: Response.json(
+          { error: "Unauthorized" },
+          { status: 401, headers: { "cache-control": "no-store" } },
+        ),
+      };
+    }
+
+    const jobName = decodeURIComponent(match[1]);
+    const intervalMs = cronAdmissionIntervalMs(jobName);
+    if (!intervalMs) return {};
+    // An authenticated operator can deliberately retry a recovered failure.
+    // Normal schedulers never send this header, so it cannot defeat cost control
+    // accidentally and no feature is permanently locked behind the cadence.
+    if (request.headers.get("x-rillcod-cron-force") === "true") return {};
+
+    const storageKey = `cron-admission:${jobName}`;
+    const now = Date.now();
+    const lastAdmittedAt = await this.gatewayState.storage.get<number>(storageKey);
+    if (lastAdmittedAt && now - lastAdmittedAt < intervalMs) {
+      return {
+        response: Response.json(
+          {
+            success: true,
+            skipped: true,
+            reason: "scheduler_call_coalesced",
+            nextEligibleAt: new Date(lastAdmittedAt + intervalMs).toISOString(),
+          },
+          {
+            status: 202,
+            headers: {
+              "cache-control": "no-store",
+              "x-rillcod-cron-state": "coalesced",
+            },
+          },
+        ),
+      };
+    }
+
+    await this.gatewayState.storage.put(storageKey, now);
+    return { storageKey };
   }
 }
 

@@ -65,6 +65,17 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 
 - The full application runs in **Containers** behind the thin gateway `src/cloudflare/container-gateway.ts`; there is no second Workers/OpenNext deployment path.
 - Image is **standalone** (`DOCKER_BUILD=1` → `output: "standalone"` in `next.config.ts`) so the registry push stays small.
+- **Cost envelope:** production is capped at one `basic` (1 GiB) instance and the gateway
+  scales it to zero after a five-second idle burst. Invalid cron requests are rejected before
+  Next.js starts. Valid external cron pings are admitted no more often than the cadence in
+  `cron-registry.ts`; extra pings receive `202 scheduler_call_coalesced` without waking the
+  container. An authenticated operator may use `x-rillcod-cron-force: true` for a deliberate
+  recovery retry; cron-job.org must not set that header. This is essential because a 3-minute idle window plus a 2–5 minute scheduler kept
+  the former 6 GiB `standard-2` instance alive for an entire month.
+- The Workers Paid plan includes 25 GiB-hours of container memory. The settings above are designed
+  to keep a low-traffic installation inside that allowance, but traffic is usage-based: review
+  Cloudflare usage alerts and do not raise the instance size, idle window, scheduler frequency or
+  instance count without estimating the new monthly GiB-hours first.
 - **Crons are NOT scheduled here.** `wrangler.toml` has no `[triggers]` block, deliberately.
   Every job is registered on **cron-job.org**; `src/lib/operations/cron-registry.ts` is the source
   of truth for what runs and how often. A `[triggers]` block did sit here until 2026-08-04 and was
