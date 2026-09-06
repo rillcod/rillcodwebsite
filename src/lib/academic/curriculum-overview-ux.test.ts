@@ -18,9 +18,18 @@ const builder = readFileSync(
 describe('curriculum overview experience', () => {
   it('uses a plain overview name and removes internal dependency-map language', () => {
     expect(builder).toContain('Overview');
+    expect(builder).toContain('Curriculum builder');
+    expect(builder).toContain('Library ({allCurricula.length})');
+    expect(builder).toContain('Course map');
     expect(overview).toContain('Curriculum overview');
     expect(overview).not.toContain('Building Block Inspector');
     expect(overview).not.toContain('5-Tier Dependency Map');
+  });
+
+  it('keeps reuse intelligence in the optional guide instead of crowding the builder', () => {
+    expect(builder).toContain('Build the weeks once');
+    expect(builder).toContain('copies proven material first');
+    expect(builder).toContain('generates only genuine gaps');
   });
 
   it('shows every curriculum week using the page scroll', () => {

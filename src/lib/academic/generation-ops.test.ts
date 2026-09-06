@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   copyableMeetingKeysFromSources,
@@ -78,6 +79,22 @@ describe("orderPlansForSweep", () => {
       "repair-sibling",
       "new",
     ]);
+  });
+});
+
+describe("automatic generation route contract", () => {
+  it("loads one shared content inventory and prioritises incomplete packages", () => {
+    const source = readFileSync(
+      "src/app/api/cron/auto-generate-content/route.ts",
+      "utf8",
+    );
+
+    expect(source).toContain("const enabledPlanIds");
+    expect(source).toContain("await Promise.all([");
+    expect(source).toContain("const repairWeeks");
+    expect(source).toContain("effectiveEligibleWeeks");
+    expect(source).toContain("repairReady: repairWeeks.length > 0");
+    expect(source).not.toMatch(/Hobby|Vercel/);
   });
 });
 

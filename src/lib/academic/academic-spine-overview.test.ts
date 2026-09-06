@@ -27,6 +27,10 @@ describe('academic office overview truth', () => {
   it('keeps the office focused and moves diagnostics behind one disclosure', () => {
     expect(page).toContain('Continue the single next action from curriculum to class teaching and results.');
     expect(page).toContain('More academic tools');
+    expect(page).toContain('Inspect one class');
+    expect(page.indexOf('Inspect one class')).toBeGreaterThan(
+      page.indexOf('More academic tools'),
+    );
     expect(page).not.toContain('label: "Assigned"');
     expect(page).not.toContain('showPipeline');
     expect(page).not.toContain('showWorkflowDetails');

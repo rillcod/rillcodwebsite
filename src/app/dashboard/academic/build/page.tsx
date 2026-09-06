@@ -4061,7 +4061,7 @@ export default function CurriculumPage() {
         <div className="shrink-0 border-b border-border bg-card z-20">
           <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
             <p className="text-sm font-black text-foreground">
-              {isCurriculumReader ? "Official curriculum" : "Curriculum"}
+              {isCurriculumReader ? "Official curriculum" : "Curriculum builder"}
             </p>
             <p className="hidden text-xs text-muted-foreground md:block">
               {isCurriculumReader
@@ -4080,7 +4080,7 @@ export default function CurriculumPage() {
             )}
 
             {isAdmin && (
-              <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-border bg-background p-1 my-1 md:my-0">
+              <div className="flex max-w-full items-center gap-1 rounded-xl border border-border bg-background p-1 my-1 md:my-0">
                 <button
                   type="button"
                   onClick={() => setCurriculumViewMode("builder")}
@@ -4090,7 +4090,7 @@ export default function CurriculumPage() {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  Edit
+                  Build
                 </button>
                 <button
                   type="button"
@@ -4101,20 +4101,34 @@ export default function CurriculumPage() {
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   }`}
                 >
-                  All ({allCurricula.length})
+                  Library ({allCurricula.length})
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setCurriculumViewMode("inspector")}
-                  className={`px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
-                    curriculumViewMode === "inspector"
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                  }`}
-                  title="Structure map — rarely needed"
-                >
-                Overview
-                </button>
+                <details className="relative">
+                  <summary
+                    className={`cursor-pointer list-none rounded-xl px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors [&::-webkit-details-marker]:hidden ${
+                      curriculumViewMode === "inspector"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                    }`}
+                  >
+                    More
+                  </summary>
+                  <div className="absolute right-0 top-full z-40 mt-2 min-w-48 rounded-xl border border-border bg-card p-1.5 shadow-xl">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        setCurriculumViewMode("inspector");
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-xs font-bold text-foreground hover:bg-muted"
+                    >
+                      Course map
+                      <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
+                        See programmes, courses and curriculum coverage.
+                      </span>
+                    </button>
+                  </div>
+                </details>
               </div>
             )}
 
@@ -4146,7 +4160,7 @@ export default function CurriculumPage() {
                 </>
               ) : (
                 <>
-                  Build the weeks here → publish on{" "}
+                  Build the weeks once → publish on{" "}
                   <Link href="/dashboard/academic/rollout" className="font-bold text-primary hover:underline">
                     Rollout
                   </Link>{" "}
@@ -4154,7 +4168,7 @@ export default function CurriculumPage() {
                   <Link href="/dashboard/classes" className="font-bold text-primary hover:underline">
                     Classes
                   </Link>
-                  .
+                  . Class plans then reuse that approved version. The assistant copies proven material first and generates only genuine gaps.
                 </>
               )}
             </p>

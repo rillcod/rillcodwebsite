@@ -388,25 +388,7 @@ export default function AcademicSpinePage() {
             How this works
           </Link>
         }
-      >
-        {isAdmin && (data?.classes?.length ?? 0) > 0 && (
-          <label className="mt-4 block text-sm font-bold text-foreground">
-            Look at one class
-            <select
-              value={classId}
-              onChange={(event) => setClassId(event.target.value)}
-              className="mt-1 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground"
-            >
-              <option value="">All classes</option>
-              {(data?.classes ?? []).map((klass) => (
-                <option key={klass.id} value={klass.id}>
-                  {klass.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </MobilePageHero>
+      />
 
       {error && (
         <div
@@ -721,6 +703,27 @@ export default function AcademicSpinePage() {
             </button>
             {showTools && (
               <div className="space-y-5 border-t border-border p-4 sm:p-5">
+                {isAdmin && (data?.classes?.length ?? 0) > 0 && (
+                  <label className="block max-w-xl text-sm font-bold text-foreground">
+                    Inspect one class
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                      Optional. The overview above stays focused on the whole academic operation.
+                    </span>
+                    <select
+                      value={classId}
+                      onChange={(event) => setClassId(event.target.value)}
+                      className="mt-2 block w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-normal text-foreground"
+                    >
+                      <option value="">All classes</option>
+                      {(data?.classes ?? []).map((klass) => (
+                        <option key={klass.id} value={klass.id}>
+                          {klass.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
                 {isAdmin && assetStages.length + deliveryStages.length > 0 && (
                   <section>
                     <h2 className="text-sm font-black text-foreground">Detailed progress</h2>
