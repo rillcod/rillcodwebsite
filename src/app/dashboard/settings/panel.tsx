@@ -47,6 +47,7 @@ import {
   PLATFORM_CONFIGURATION_SECTION_KEYS,
   type PlatformConfigurationSection,
 } from "@/lib/config/platform-settings";
+import { PROGRAMME_DELIVERY_OPTIONS } from "@/lib/academic/programme-delivery";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -2531,7 +2532,7 @@ function SettingsPageContent({
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                  Completion
+                                  Programme participation
                                 </label>
                                 <select
                                   value={policyDelivery}
@@ -2545,13 +2546,15 @@ function SettingsPageContent({
                                   }}
                                   className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
                                 >
-                                  <option value="compulsory">
-                                    Required (Core)
-                                  </option>
-                                  <option value="optional">
-                                    Optional (Elective)
-                                  </option>
+                                  {PROGRAMME_DELIVERY_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
                                 </select>
+                                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+                                  Teaching style only. School paper versus Rillcod result authority is set on the school record.
+                                </p>
                               </div>
                               <div>
                                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">

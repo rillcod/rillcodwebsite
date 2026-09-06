@@ -6,10 +6,15 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   AcademicCapIcon, PlusIcon, PencilIcon, TrashIcon,
-  CheckCircleIcon, ClockIcon, BanknotesIcon,
-  UserGroupIcon, BookOpenIcon, MagnifyingGlassIcon,
+  BookOpenIcon, MagnifyingGlassIcon,
   ArrowRightIcon,
 } from '@/lib/icons';
+import MobilePageHero from '@/components/mobile/MobilePageHero';
+import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+import {
+  PROGRAMME_DELIVERY_OPTIONS,
+  programmeDeliveryOption,
+} from '@/lib/academic/programme-delivery';
 
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 
@@ -167,52 +172,31 @@ export default function ProgramsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground mobile-page-root">
+    <div className={`min-h-screen bg-background text-foreground mobile-page-root ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
         {/* Header */}
-        <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
-              <AcademicCapIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-1">
-                Academics & Curriculum
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Programs &amp; Courses</h1>
-              <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 font-medium">Configure learning programs and their course structure</p>
-            </div>
-          </div>
-          {isAdmin && (
+        <MobilePageHero
+          badge="Academic structure"
+          title="Programmes and courses"
+          description="Organise the programmes learners can join and the courses inside each one. School result rules are managed separately on the school record."
+          icon={AcademicCapIcon}
+          stats={[
+            { label: 'Programmes', value: programs.length },
+            { label: 'Active', value: programs.filter((program) => program.is_active).length, tone: 'emerald' },
+            { label: 'Courses', value: Object.values(courseCounts).reduce((sum, count) => sum + count, 0), tone: 'primary' },
+          ]}
+          actions={isAdmin ? (
             <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory', visible_to_teachers: false, visible_to_students: false }); setShowForm(true); }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-primary/30">
-              <PlusIcon className="w-4 h-4" /> New Program
+              className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground w-full sm:w-auto`}>
+              <PlusIcon className="w-4 h-4" /> New programme
             </button>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-600 dark:text-rose-400 text-sm">{error}</div>
         )}
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Programs', value: programs.length, icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Active', value: programs.filter(p => p.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Total Slots', value: programs.reduce((s, p) => s + (p.max_students || 0), 0), icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Avg Value', value: programs.length ? `₦${(programs.reduce((s, p) => s + (Number(p.price) || 0), 0) / programs.length).toLocaleString()}` : '—', icon: BanknotesIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
-          ].map(s => (
-            <div key={s.label} className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl">
-              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-                <s.icon className={`w-5 h-5 ${s.color}`} />
-              </div>
-              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative max-w-md flex-1">
@@ -258,12 +242,6 @@ export default function ProgramsPage() {
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border capitalize ${DIFF_COLORS[p.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
                         {p.difficulty_level}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_teachers ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border-sky-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
-                        {p.visible_to_teachers ? 'Teachers ✓' : 'Teachers —'}
-                      </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_students ? 'bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
-                        {p.visible_to_students ? 'Students ✓' : 'Students —'}
-                      </span>
                     </div>
                     {isAdmin && (
                       <div className="flex items-center gap-1">
@@ -279,6 +257,13 @@ export default function ProgramsPage() {
 
                   <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{p.name}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-5 flex-1">{p.description?.split('→')[0]?.split('Prerequisite')[0]?.trim() || 'No description.'}</p>
+                  <div className="mb-4 rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs leading-5">
+                    <span className="font-bold text-foreground">{programmeDeliveryOption(p.delivery_type).label}</span>
+                    <span className="text-muted-foreground"> · {programmeDeliveryOption(p.delivery_type).description}</span>
+                    <span className="block text-muted-foreground">
+                      Access: {p.visible_to_teachers ? 'teachers' : 'admin only'}{p.visible_to_students ? ' and learners' : ''}.
+                    </span>
+                  </div>
 
                   <div className="grid grid-cols-3 gap-3 mb-5">
                     <div className="bg-background rounded-xl p-2.5 text-center border border-border">
@@ -362,12 +347,16 @@ export default function ProgramsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Delivery Type</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Programme teaching style</label>
                 <select value={form.delivery_type} onChange={e => setForm(s => ({ ...s, delivery_type: e.target.value }))}
                   className="select-premium w-full px-4 py-3 text-sm">
-                  <option value="compulsory">Compulsory — structured lessons &amp; assessments</option>
-                  <option value="optional">Elective / Optional — project-based, self-directed modules</option>
+                  {PROGRAMME_DELIVERY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                  ))}
                 </select>
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  This does not choose whose marks appear on report cards. Set that once on Schools → Result pathway.
+                </p>
               </div>
 
               <div className="space-y-3 pt-2 border-t border-border">

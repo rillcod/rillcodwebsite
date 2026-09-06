@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { isCourseVisibleToLearners } from '@/lib/courses/visibility';
 import { normalizeProgramScope } from '@/lib/registration/enrollment-types';
+import { normalizeProgrammeDeliveryType } from '@/lib/academic/programme-delivery';
 
 function adminClient() {
   return createClient(
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
         price: price ?? 0,
         max_students: max_students || null,
         is_active: is_active ?? true,
-        delivery_type: delivery_type === 'optional' ? 'optional' : 'compulsory',
+        delivery_type: normalizeProgrammeDeliveryType(delivery_type),
         program_scope: normalizedScope,
         school_progression_enabled:
           normalizedScope === 'regular_school' ? Boolean(school_progression_enabled) : false,

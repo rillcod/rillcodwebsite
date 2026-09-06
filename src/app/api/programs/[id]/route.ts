@@ -8,6 +8,7 @@ import {
 } from '@/lib/courses/visibility';
 import { logAudit } from '@/lib/audit/log';
 import { normalizeProgramScope } from '@/lib/registration/enrollment-types';
+import { normalizeProgrammeDeliveryType } from '@/lib/academic/programme-delivery';
 import {
   loadCleanupPolicy,
   mayHardDeleteIssuedOperationalRecord,
@@ -158,6 +159,9 @@ export async function PUT(
     }
     if ('program_scope' in allowed) {
       allowed.program_scope = normalizeProgramScope(allowed.program_scope as string | null | undefined);
+    }
+    if ('delivery_type' in allowed) {
+      allowed.delivery_type = normalizeProgrammeDeliveryType(allowed.delivery_type);
     }
 
     // Keep progression policy restricted to regular_school programs only.

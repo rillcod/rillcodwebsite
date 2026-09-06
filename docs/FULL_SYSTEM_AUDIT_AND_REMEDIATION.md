@@ -4193,3 +4193,19 @@ Verification and boundary:
   raising the instance size or idle period;
 - no curriculum, lesson, learner score, submission, invoice or published report data is changed by this
   milestone. Deployment is required before the billing behaviour changes.
+
+## 16.63 Programme teaching style and school result authority separation (2026-09-06)
+
+- two independent database facts used the same optional/compulsory language: `programs.delivery_type`
+  describes how a programme is taught, while `schools.programme_standing` decides whether school papers
+  or Rillcod evidence are authoritative on reports. The interface made these look interchangeable;
+- the programme catalogue and Platform Settings now call the former **Core programme** or **Elective
+  programme** and explicitly direct result ownership to Schools → Result pathway. The school editor keeps
+  the distinct **School papers** and **Rillcod evidence** choices;
+- programme create and update routes now use one normalizer. The update route can no longer save an
+  unexpected delivery value while create silently converts the same value differently;
+- the programme page uses the shared responsive dashboard hero, retains only operational counts, reduces
+  badge noise, and shows teaching style and role access in one readable block per programme;
+- TypeScript and 22 focused programme-policy, school-calendar, assessment and report-card pathway tests
+  pass. The staff page was also verified against the live local data shape: 11 active programmes and 72
+  courses rendered with the new language. No stored programme, school policy, score or report was mutated.
