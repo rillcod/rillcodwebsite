@@ -20,9 +20,12 @@ import { releasePreparedWeek } from "@/lib/academic/release-week-content";
 import { assetMeetingSession, parseRequestSession, teachingMeetingLabel } from "@/lib/academic/session-identity";
 import { logAudit } from "@/lib/audit/log";
 import {
+  canSetAutomaticDelivery,
   pendingWeekKey,
+  summarizePendingApprovals,
   type PendingWeek,
 } from "@/lib/academic/pending-approval";
+import { parseAutoGenerateSettings } from "@/lib/academic/auto-generate-settings";
 import {
   assignmentVisibility,
   flashcardVisibility,
@@ -43,6 +46,7 @@ async function visiblePlans(
     .from("lesson_plans")
     .select(
       "id,school_id,created_by,status,plan_data,course_id,class_id,academic_offering_id," +
+        "metadata," +
         "courses(title),classes!lesson_plans_class_id_fkey(id,name,teacher_id,school_id,term_id,academic_offering_id,academic_offerings(id,title,enrollment_type,pathway))"
     )
     .eq("status", "published");
@@ -58,7 +62,7 @@ async function visiblePlans(
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const sessionClient = await createServerClient();
   const staff = await requireStaffUser(sessionClient);
   if (!staff) return NextResponse.json({ error: "Staff access required" }, { status: 403 });
@@ -124,6 +128,9 @@ export async function GET() {
         items: [],
         missingKinds: [],
         complete: false,
+        autoPublish: parseAutoGenerateSettings(
+          plan?.metadata?.auto_generate_settings,
+        ).auto_publish,
       };
       byWeek.set(key, row);
     }
@@ -227,6 +234,9 @@ export async function GET() {
       (a.session ?? 1) - (b.session ?? 1) ||
       a.topic.localeCompare(b.topic)
     );
+  if (new URL(req.url).searchParams.get("summary") === "1") {
+    return NextResponse.json({ data: summarizePendingApprovals(data) });
+  }
   return NextResponse.json({ data });
 }
 
@@ -236,6 +246,80 @@ export async function POST(req: NextRequest) {
   if (!staff) return NextResponse.json({ error: "Staff access required" }, { status: 403 });
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const db = createAdminClient();
+  const plans = await visiblePlans(db, staff);
+  const visiblePlanIds = new Set((plans ?? []).map((p: any) => String(p.id)));
+
+  if (body.action === "set_auto_delivery") {
+    const autoPublish = body.auto_publish === true;
+    if (!canSetAutomaticDelivery(staff.role, autoPublish)) {
+      return NextResponse.json(
+        { error: "Only the Academic Office can turn on automatic learner delivery." },
+        { status: 403 },
+      );
+    }
+    const requestedIds = Array.isArray(body.plan_ids)
+      ? [...new Set(body.plan_ids.map(String).filter(Boolean))]
+      : [];
+    const targets = (plans ?? []).filter((plan: any) =>
+      requestedIds.includes(String(plan.id)),
+    );
+    if (!targets.length || targets.some((plan: any) => !visiblePlanIds.has(String(plan.id)))) {
+      return NextResponse.json(
+        { error: "Choose at least one class plan in your teaching scope." },
+        { status: 400 },
+      );
+    }
+
+    const failures: Array<{ planId: string; error: string }> = [];
+    let updated = 0;
+    for (const plan of targets) {
+      const metadata =
+        plan.metadata && typeof plan.metadata === "object" ? plan.metadata : {};
+      const current = parseAutoGenerateSettings(
+        metadata.auto_generate_settings,
+      );
+      const { error } = await db
+        .from("lesson_plans")
+        .update({
+          metadata: {
+            ...metadata,
+            auto_generate_settings: {
+              ...current,
+              auto_publish: autoPublish,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", plan.id);
+      if (error) failures.push({ planId: String(plan.id), error: error.message });
+      else updated += 1;
+    }
+
+    await logAudit(db as any, {
+      action: autoPublish
+        ? "enable_automatic_teaching_delivery"
+        : "require_teaching_package_review",
+      actorId: staff.id,
+      resourceType: "lesson_plan",
+      resourceId: targets.length === 1 ? String(targets[0].id) : null,
+      newValue: autoPublish
+        ? `Automatic delivery enabled for ${updated} class plan(s)`
+        : `Teacher review required for ${updated} class plan(s)`,
+      newValues: {
+        requested: targets.length,
+        updated,
+        failed: failures.length,
+        auto_publish: autoPublish,
+        plan_ids: targets.map((plan: any) => String(plan.id)),
+      },
+    });
+    return NextResponse.json(
+      { data: { requested: targets.length, updated, failures, auto_publish: autoPublish } },
+      { status: failures.length ? 207 : 200 },
+    );
+  }
+
   const singlePlanId = String(body.planId ?? "");
   const singleWeek = Number(body.week);
   const batchInput: unknown[] | null = Array.isArray(body.releases)
@@ -267,9 +351,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = createAdminClient();
-  const plans = await visiblePlans(db, staff);
-  const visiblePlanIds = new Set((plans ?? []).map((p: any) => String(p.id)));
   const now = new Date().toISOString();
   const results = [];
 

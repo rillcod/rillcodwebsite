@@ -83,6 +83,8 @@ export type SweepOrderPlan = {
   releaseId: string | null;
   lastRunAt: number;
   calendarReady: boolean;
+  /** An already-started package has a genuine gap and should finish first. */
+  repairReady?: boolean;
 };
 
 /**
@@ -101,10 +103,17 @@ export function orderPlansForSweep<T extends SweepOrderPlan>(plans: T[]): T[] {
     groups.set(key, list);
   }
   for (const list of groups.values()) {
-    list.sort((a, b) => a.lastRunAt - b.lastRunAt || a.id.localeCompare(b.id));
+    list.sort(
+      (a, b) =>
+        Number(Boolean(b.repairReady)) - Number(Boolean(a.repairReady)) ||
+        a.lastRunAt - b.lastRunAt ||
+        a.id.localeCompare(b.id),
+    );
   }
   const grouped = [...groups.values()].sort(
     (a, b) =>
+      Number(b.some((plan) => plan.repairReady)) -
+        Number(a.some((plan) => plan.repairReady)) ||
       a[0].lastRunAt - b[0].lastRunAt || a[0].id.localeCompare(b[0].id),
   );
   blocked.sort((a, b) => a.lastRunAt - b.lastRunAt || a.id.localeCompare(b.id));

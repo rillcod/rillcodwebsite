@@ -13,7 +13,7 @@
  * at a time (Week N · Session M) so Session 2 homework never goes live with Session 1.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
@@ -29,6 +29,9 @@ import {
   EyeIcon,
   XMarkIcon,
   AcademicCapIcon,
+  MagnifyingGlassIcon,
+  BoltIcon,
+  ChevronDownIcon,
 } from "@/lib/icons";
 import {
   pendingWeekKey,
@@ -100,6 +103,10 @@ export default function ContentApprovalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewWeek, setPreviewWeek] = useState<PendingWeek | null>(null);
   const [pathwayFilter, setPathwayFilter] = useState<'all' | 'special' | 'school'>('all');
+  const [readinessFilter, setReadinessFilter] = useState<'all' | 'ready' | 'repair'>('ready');
+  const [query, setQuery] = useState('');
+  const [visibleLimit, setVisibleLimit] = useState(12);
+  const [automationBusy, setAutomationBusy] = useState(false);
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<{
     title: string;
@@ -146,15 +153,35 @@ export default function ContentApprovalsPage() {
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [loading, weeks]);
 
-  const filteredWeeks = weeks.filter((w) => {
-    if (pathwayFilter === 'special') return w.isSpecial;
-    if (pathwayFilter === 'school') return !w.isSpecial;
-    return true;
-  });
+  const filteredWeeks = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return weeks.filter((week) => {
+      if (pathwayFilter === 'special' && !week.isSpecial) return false;
+      if (pathwayFilter === 'school' && week.isSpecial) return false;
+      if (readinessFilter === 'ready' && !week.complete) return false;
+      if (readinessFilter === 'repair' && week.complete) return false;
+      if (!needle) return true;
+      return [week.className, week.courseTitle, week.topic]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle));
+    });
+  }, [pathwayFilter, query, readinessFilter, weeks]);
 
   const specialCount = weeks.filter((w) => w.isSpecial).length;
   const schoolCount = weeks.filter((w) => !w.isSpecial).length;
   const readyWeeks = filteredWeeks.filter((week) => week.complete);
+  const repairCount = weeks.filter((week) => !week.complete).length;
+  const readyCount = weeks.length - repairCount;
+  const displayedWeeks = filteredWeeks.slice(0, visibleLimit);
+  const filteredPlanIds = [...new Set(filteredWeeks.map((week) => week.planId))];
+  const allPlanIds = [...new Set(weeks.map((week) => week.planId))];
+  const automaticPlanIds = [...new Set(
+    weeks.filter((week) => week.autoPublish).map((week) => week.planId),
+  )];
+
+  useEffect(() => {
+    setVisibleLimit(12);
+  }, [pathwayFilter, query, readinessFilter]);
 
   const toggleSelectAll = () => {
     if (selected.length === readyWeeks.length) {
@@ -325,6 +352,61 @@ export default function ContentApprovalsPage() {
     });
   }
 
+  async function saveAutomaticDelivery(autoPublish: boolean) {
+    const planIds = filteredPlanIds.length ? filteredPlanIds : allPlanIds;
+    if (!planIds.length) return;
+    setAutomationBusy(true);
+    try {
+      const response = await fetch("/api/teaching/pending-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set_auto_delivery",
+          auto_publish: autoPublish,
+          plan_ids: planIds,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok && response.status !== 207) {
+        throw new Error(json.error ?? "Could not update delivery automation");
+      }
+      const updated = Number(json.data?.updated) || 0;
+      const failed = Array.isArray(json.data?.failures)
+        ? json.data.failures.length
+        : 0;
+      toast[failed ? "warning" : "success"](
+        autoPublish
+          ? `${updated} class plan${updated === 1 ? " will" : "s will"} now share complete future packages automatically.`
+          : `${updated} class plan${updated === 1 ? " now requires" : "s now require"} review before sharing.`,
+      );
+      await load();
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Could not update delivery automation",
+      );
+    } finally {
+      setAutomationBusy(false);
+    }
+  }
+
+  function requestAutomaticDelivery(autoPublish: boolean) {
+    const planCount = filteredPlanIds.length || allPlanIds.length;
+    if (!planCount) return;
+    setConfirmation({
+      title: autoPublish
+        ? `Turn on automatic delivery for ${planCount} class plan${planCount === 1 ? "" : "s"}?`
+        : `Require review for ${planCount} class plan${planCount === 1 ? "" : "s"}?`,
+      message: autoPublish
+        ? "Only complete five-item packages will be shared. Existing teacher edits stay unchanged. Packages already waiting here remain held until you share them; future complete packages will go directly to learners."
+        : "Future packages will stay in this queue until a teacher reviews and shares them. Work already visible to learners is not withdrawn.",
+      confirmText: autoPublish ? "Turn on auto-delivery" : "Require review",
+      variant: autoPublish ? "warning" : "success",
+      run: () => saveAutomaticDelivery(autoPublish),
+    });
+  }
+
   const isStaff = profile?.role === "admin" || profile?.role === "teacher";
 
   if (authLoading || !profile) {
@@ -358,10 +440,10 @@ export default function ContentApprovalsPage() {
             Teaching review
           </p>
           <h1 className="mt-1 text-2xl font-black text-foreground">
-            Review before sharing
+            Teaching packages
           </h1>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
-            Check the complete weekly package. Missing items can be prepared without replacing saved work.
+            Share complete class packages, or repair only what is missing. Saved teacher work is never regenerated here.
           </p>
           <div className="mt-3">
             <ApprovalGateNav current="weeks" />
@@ -397,8 +479,112 @@ export default function ContentApprovalsPage() {
         </div>
       </header>
 
+      {!loading && weeks.length > 0 && (
+        <section className="grid grid-cols-3 gap-2" aria-label="Teaching delivery summary">
+          <button
+            type="button"
+            onClick={() => setReadinessFilter("ready")}
+            className={`rounded-2xl border p-3 text-left transition-colors ${
+              readinessFilter === "ready"
+                ? "border-emerald-500/40 bg-emerald-500/10"
+                : "border-border bg-card hover:border-emerald-500/30"
+            }`}
+          >
+            <span className="block text-xl font-black tabular-nums text-foreground">{readyCount}</span>
+            <span className="mt-0.5 block text-[10px] font-bold text-muted-foreground">Ready to share</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setReadinessFilter("repair")}
+            className={`rounded-2xl border p-3 text-left transition-colors ${
+              readinessFilter === "repair"
+                ? "border-amber-500/40 bg-amber-500/10"
+                : "border-border bg-card hover:border-amber-500/30"
+            }`}
+          >
+            <span className="block text-xl font-black tabular-nums text-foreground">{repairCount}</span>
+            <span className="mt-0.5 block text-[10px] font-bold text-muted-foreground">Need repair</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setReadinessFilter("all")}
+            className={`rounded-2xl border p-3 text-left transition-colors ${
+              readinessFilter === "all"
+                ? "border-primary/40 bg-primary/10"
+                : "border-border bg-card hover:border-primary/30"
+            }`}
+          >
+            <span className="block text-xl font-black tabular-nums text-foreground">{allPlanIds.length}</span>
+            <span className="mt-0.5 block text-[10px] font-bold text-muted-foreground">Class plans</span>
+          </button>
+        </section>
+      )}
+
+      {!loading && allPlanIds.length > 0 && (
+        <details className="group rounded-2xl border border-border bg-card">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <BoltIcon className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-black text-foreground">Delivery automation</span>
+              <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+                {automaticPlanIds.length > 0
+                  ? `${automaticPlanIds.length} of ${allPlanIds.length} class plans auto-share complete future packages.`
+                  : "All class plans currently wait for a teacher before learners can see them."}
+              </span>
+            </span>
+            <span className="text-[10px] font-bold text-muted-foreground group-open:hidden">Manage</span>
+            <ChevronDownIcon className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-border px-4 py-4">
+            <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+              The assistant reuses approved content first, fills only genuine gaps, and shares only after all five learning items are complete. Existing teacher edits are protected.
+            </p>
+            {profile.role === "admin" ? (
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => requestAutomaticDelivery(true)}
+                  disabled={automationBusy}
+                  className="min-h-11 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground disabled:opacity-50"
+                >
+                  Auto-share future complete packages
+                </button>
+                <button
+                  type="button"
+                  onClick={() => requestAutomaticDelivery(false)}
+                  disabled={automationBusy}
+                  className="min-h-11 rounded-xl border border-border px-4 text-xs font-black text-foreground disabled:opacity-50"
+                >
+                  Require teacher review
+                </button>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs font-semibold text-foreground">
+                The Academic Office controls automatic learner delivery. You can still review and share any ready package below.
+              </p>
+            )}
+            <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+              These controls apply to class plans in the current pathway and search filter. They never delete work, withdraw published items, or change scores.
+            </p>
+          </div>
+        </details>
+      )}
+
       {/* Pathway Filter Tabs & Selection Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+      <div className="space-y-3 border-b border-border/60 pb-3">
+        <label className="relative block">
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Find a class, course or topic"
+            className="min-h-11 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+          />
+        </label>
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5 bg-muted/30 p-1 rounded-xl border border-border/60">
           <button
             type="button"
@@ -444,6 +630,7 @@ export default function ContentApprovalsPage() {
             {selected.length === readyWeeks.length ? "Deselect all" : `Select ready (${readyWeeks.length})`}
           </button>
         )}
+        </div>
       </div>
 
       {error && (
@@ -468,7 +655,7 @@ export default function ContentApprovalsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredWeeks.map((row) => {
+          {displayedWeeks.map((row) => {
             const key = pendingKey(row);
             const busy = releasing === key;
             const preparingThis = preparing === key;
@@ -580,44 +767,24 @@ export default function ContentApprovalsPage() {
                   </div>
                 </div>
 
-                {/* Items strip */}
-                <div className="flex flex-wrap gap-2 border-t border-border/60 pt-3">
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-3 text-[10px] text-muted-foreground">
                   {row.items.map((item) => {
                     const meta = ITEM_META[item.kind];
                     const Icon = meta.icon;
-                    const href = meta.href(item.id);
-                    const inner = (
-                      <>
-                        <Icon className={`h-3.5 w-3.5 shrink-0 ${meta.cls}`} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                          {meta.label}
-                        </span>
-                        <span className="max-w-[220px] truncate text-[11px] text-foreground/80">
-                          {item.title}
-                        </span>
-                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${item.state === "live" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}`}>
-                          {item.state === "live" ? "Visible" : "Review"}
-                        </span>
-                      </>
-                    );
-                    return href ? (
-                      <Link
-                        key={`${item.kind}:${item.id}`}
-                        href={href}
-                        target="_blank"
-                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 transition-colors hover:border-primary/40"
-                      >
-                        {inner}
-                      </Link>
-                    ) : (
+                    return (
                       <span
                         key={`${item.kind}:${item.id}`}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5"
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1"
+                        title={`${meta.label}: ${item.title}`}
                       >
-                        {inner}
+                        <Icon className={`h-3 w-3 ${meta.cls}`} />
+                        {meta.label}
                       </span>
                     );
                   })}
+                  <span className="ml-auto font-semibold">
+                    {row.complete ? "5 of 5 ready" : `${row.items.length} of 5 ready`}
+                  </span>
                 </div>
 
                 {/* Rich Curriculum Preview Drawer */}
@@ -715,6 +882,15 @@ export default function ContentApprovalsPage() {
               </div>
             );
           })}
+          {displayedWeeks.length < filteredWeeks.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleLimit((current) => current + 12)}
+              className="min-h-11 w-full rounded-xl border border-border bg-card text-xs font-black text-foreground transition-colors hover:border-primary/40"
+            >
+              Show 12 more · {filteredWeeks.length - displayedWeeks.length} remaining
+            </button>
+          )}
         </div>
       )}
 

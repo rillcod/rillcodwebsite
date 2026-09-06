@@ -55,6 +55,30 @@ describe("orderPlansForSweep", () => {
     ]);
     expect(ordered.map((p) => p.id)).toEqual(["a", "b", "blocked"]);
   });
+
+  it("finishes already-started packages before opening new calendar work", () => {
+    const ordered = orderPlansForSweep([
+      { id: "new", releaseId: "release-a", lastRunAt: 0, calendarReady: true },
+      {
+        id: "repair",
+        releaseId: "release-b",
+        lastRunAt: 99,
+        calendarReady: true,
+        repairReady: true,
+      },
+      {
+        id: "repair-sibling",
+        releaseId: "release-b",
+        lastRunAt: 1,
+        calendarReady: true,
+      },
+    ]);
+    expect(ordered.map((plan) => plan.id)).toEqual([
+      "repair",
+      "repair-sibling",
+      "new",
+    ]);
+  });
 });
 
 describe("planMeetingsForSweep", () => {

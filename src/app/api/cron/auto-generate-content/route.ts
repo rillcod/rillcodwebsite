@@ -122,15 +122,78 @@ async function handleRequest(req: NextRequest) {
   const allClassIds = Array.from(
     new Set(enabledPlans.map((plan) => plan.class_id).filter(Boolean)),
   ) as string[];
-  const { data: classRows } = allClassIds.length
-    ? await db
-        .from('classes')
-        .select(
-          'id, academic_terms(start_date,end_date), schools(programme_standing,sessions_per_week)',
-        )
-        .in('id', allClassIds)
-    : { data: [] as any[] };
+  const enabledPlanIds = enabledPlans.map((plan) => String(plan.id));
+  const emptyRows = Promise.resolve({ data: [] as any[], error: null });
+  const [
+    classResult,
+    lessonResult,
+    assignmentResult,
+    slideResult,
+    flashcardResult,
+  ] = await Promise.all([
+    allClassIds.length
+      ? db
+          .from('classes')
+          .select(
+            'id, academic_terms(start_date,end_date), schools(programme_standing,sessions_per_week)',
+          )
+          .in('id', allClassIds)
+      : emptyRows,
+    enabledPlanIds.length
+      ? db
+          .from('lessons')
+          .select('id,title,status,lesson_plan_id,curriculum_week_number,session_number,metadata,content,content_layout,description,lesson_notes')
+          .in('lesson_plan_id', enabledPlanIds)
+      : emptyRows,
+    enabledPlanIds.length
+      ? db
+          .from('assignments')
+          .select('id,title,is_active,lesson_plan_id,assignment_type,curriculum_week_number,session_number,metadata')
+          .in('lesson_plan_id', enabledPlanIds)
+      : emptyRows,
+    enabledPlanIds.length
+      ? db
+          .from('lesson_materials')
+          .select('id,title,lesson_id,lesson_plan_id,curriculum_week_number,session_number,content_stale_at')
+          .in('lesson_plan_id', enabledPlanIds)
+          .eq('file_type', 'slide-deck')
+      : emptyRows,
+    enabledPlanIds.length
+      ? db
+          .from('flashcard_decks')
+          .select('id,title,lesson_id,is_public,lesson_plan_id,curriculum_week_number,session_number,content_stale_at')
+          .in('lesson_plan_id', enabledPlanIds)
+      : emptyRows,
+  ]);
+  const inventoryError =
+    classResult.error ||
+    lessonResult.error ||
+    assignmentResult.error ||
+    slideResult.error ||
+    flashcardResult.error;
+  if (inventoryError) {
+    return NextResponse.json(
+      { error: `Teaching inventory could not be read: ${inventoryError.message}` },
+      { status: 500 },
+    );
+  }
+  const classRows = classResult.data ?? [];
   const classById = new Map((classRows ?? []).map((row: any) => [row.id, row]));
+  const rowsByPlan = (rows: any[]) => {
+    const index = new Map<string, any[]>();
+    for (const row of rows ?? []) {
+      const key = String(row.lesson_plan_id ?? '');
+      if (!key) continue;
+      const values = index.get(key) ?? [];
+      values.push(row);
+      index.set(key, values);
+    }
+    return index;
+  };
+  const lessonsByPlan = rowsByPlan(lessonResult.data ?? []);
+  const assignmentsByPlan = rowsByPlan(assignmentResult.data ?? []);
+  const slidesByPlan = rowsByPlan(slideResult.data ?? []);
+  const flashcardsByPlan = rowsByPlan(flashcardResult.data ?? []);
 
   const prepared = enabledPlans.map((plan) => {
     const meta = (plan.metadata ?? {}) as Record<string, unknown>;
@@ -167,11 +230,46 @@ async function handleRequest(req: NextRequest) {
       termStart: host.termStart ?? plan.term_start,
       activities: host.activities,
     });
+    const existingLessons = lessonsByPlan.get(String(plan.id)) ?? [];
+    const existingAssignments = assignmentsByPlan.get(String(plan.id)) ?? [];
+    const existingSlides = slidesByPlan.get(String(plan.id)) ?? [];
+    const existingFlashcards = flashcardsByPlan.get(String(plan.id)) ?? [];
+    const weekState = buildTeachingWeekRows({
+      planWeeks: teachingWeeks,
+      lessons: existingLessons,
+      assignments: existingAssignments.filter(
+        (row: any) => row.assignment_type !== 'project',
+      ),
+      projects: existingAssignments.filter(
+        (row: any) => row.assignment_type === 'project',
+      ),
+      slideDecks: existingSlides,
+      flashcardDecks: existingFlashcards,
+      standing: host.policy.standing,
+      usesHostEvaluation: host.policy.usesHostEvaluation,
+      termStart: host.termStart ?? plan.term_start,
+      activities: host.activities,
+    });
+    // Once a package has started, finish it even if its calendar window has
+    // moved. This is repair, not speculative future generation: only genuine
+    // gaps or stale derived items are eligible.
+    const repairWeeks = [...new Set(
+      weekState
+        .filter(
+          (row) =>
+            row.packageStatus.readyCount > 0 &&
+            (!row.packageStatus.complete || row.provenance.staleDerived),
+        )
+        .map((row) => row.week),
+    )];
+    const effectiveEligibleWeeks = [...new Set([...repairWeeks, ...eligibleWeeks])]
+      .sort((a, b) => a - b);
     return {
       id: plan.id,
       releaseId: (plan as { curriculum_release_id?: string | null }).curriculum_release_id ?? null,
       lastRunAt: lastRunAt(plan),
-      calendarReady: eligibleWeeks.length > 0,
+      calendarReady: effectiveEligibleWeeks.length > 0,
+      repairReady: repairWeeks.length > 0,
       plan,
       meta,
       ags,
@@ -182,6 +280,8 @@ async function handleRequest(req: NextRequest) {
       sessionsPerWeek,
       windowWeeks,
       eligibleWeeks,
+      effectiveEligibleWeeks,
+      weekState,
     };
   });
 
@@ -225,6 +325,8 @@ async function handleRequest(req: NextRequest) {
       sessionsPerWeek,
       windowWeeks,
       eligibleWeeks,
+      effectiveEligibleWeeks,
+      weekState,
       releaseId,
     } = item;
     try {
@@ -239,7 +341,7 @@ async function handleRequest(req: NextRequest) {
         });
         continue;
       }
-      if (!windowWeeks.length) {
+      if (!windowWeeks.length && !effectiveEligibleWeeks.length) {
         results.push({
           planId: plan.id,
           status: 'skipped',
@@ -253,7 +355,7 @@ async function handleRequest(req: NextRequest) {
         continue;
       }
 
-      if (!eligibleWeeks.length) {
+      if (!eligibleWeeks.length && !effectiveEligibleWeeks.length) {
         results.push({
           planId: plan.id,
           status: 'skipped',
@@ -267,50 +369,8 @@ async function handleRequest(req: NextRequest) {
         continue;
       }
 
-      // Completion means the whole five-asset package exists and no derived
-      // deck is stale. Looking at lessons alone stopped the sweep forever after
-      // the first asset and left slides, recall cards and tasks as teacher work.
-      const [
-        { data: existingLessons },
-        { data: existingAssignments },
-        { data: existingSlides },
-        { data: existingFlashcards },
-      ] = await Promise.all([
-        db
-          .from('lessons')
-          .select('id,title,status,curriculum_week_number,session_number,metadata,content,content_layout,description,lesson_notes')
-          .eq('lesson_plan_id', plan.id),
-        db
-          .from('assignments')
-          .select('id,title,is_active,assignment_type,curriculum_week_number,session_number,metadata')
-          .eq('lesson_plan_id', plan.id),
-        db
-          .from('lesson_materials')
-          .select('id,title,lesson_id,curriculum_week_number,session_number,content_stale_at')
-          .eq('lesson_plan_id', plan.id)
-          .eq('file_type', 'slide-deck'),
-        db
-          .from('flashcard_decks')
-          .select('id,title,lesson_id,is_public,curriculum_week_number,session_number,content_stale_at')
-          .eq('lesson_plan_id', plan.id),
-      ]);
-      const assignmentRows = existingAssignments ?? [];
-      const weekState = buildTeachingWeekRows({
-        planWeeks: planRows,
-        lessons: existingLessons ?? [],
-        assignments: assignmentRows.filter(
-          (row: any) => row.assignment_type !== 'project'
-        ),
-        projects: assignmentRows.filter(
-          (row: any) => row.assignment_type === 'project'
-        ),
-        slideDecks: existingSlides ?? [],
-        flashcardDecks: existingFlashcards ?? [],
-        standing: host.policy.standing,
-        usesHostEvaluation: host.policy.usesHostEvaluation,
-        termStart: host.termStart ?? plan.term_start,
-        activities: host.activities,
-      });
+      // Completion comes from the same global five-asset inventory used to
+      // prioritise the batch. That removes four database round trips per plan.
       const completedKeys = new Set(
         weekState
           .filter(
@@ -328,7 +388,7 @@ async function handleRequest(req: NextRequest) {
       });
       const incomplete = nextMeetingsToGenerate({
         meetings,
-        eligibleWeeks,
+        eligibleWeeks: effectiveEligibleWeeks,
         completedKeys,
         maxMeetingsPerBatch: 10,
       });
@@ -355,7 +415,7 @@ async function handleRequest(req: NextRequest) {
       });
       const targetMeetings = decideSweepTargets({
         meetings,
-        eligibleWeeks,
+        eligibleWeeks: effectiveEligibleWeeks,
         completedKeys,
         configuredCap: ags.maxWeeksPerBatch,
         canCopy: copyableKeys.length > 0,
@@ -370,7 +430,7 @@ async function handleRequest(req: NextRequest) {
           planId: plan.id,
           status: 'skipped',
           currentWeek,
-          weeks: eligibleWeeks,
+          weeks: effectiveEligibleWeeks,
           error: describeGenerationSkip({
             code: 'all_prepared',
             termHasStarted,

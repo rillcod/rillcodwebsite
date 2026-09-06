@@ -66,6 +66,15 @@ type Overview = {
   stuck_plans: number;
 };
 
+type DeliverySummary = {
+  total: number;
+  ready: number;
+  needsRepair: number;
+  plans: number;
+  autoDeliveryPlans: number;
+  reviewFirstPlans: number;
+};
+
 type OfficeTool = {
   title: string;
   description: string;
@@ -148,8 +157,13 @@ const SUPPORTING_TOOLS: OfficeTool[] = [
 export default function AcademicSpinePage() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
+  const isTeacher = profile?.role === "teacher";
+  const isSchool = profile?.role === "school";
+  const isStudent = profile?.role === "student";
+  const canReviewTeaching = isAdmin || isTeacher;
   const [data, setData] = useState<SpineData | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [deliverySummary, setDeliverySummary] = useState<DeliverySummary | null>(null);
   const [classId, setClassId] = useState("");
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
@@ -164,7 +178,7 @@ export default function AcademicSpinePage() {
     setError("");
     try {
       const query = classId ? `?class_id=${encodeURIComponent(classId)}` : "";
-      const [spineRes, statusRes] = await Promise.all([
+      const [spineRes, statusRes, deliveryRes] = await Promise.all([
         fetchWithTimeoutOrThrow(
           `/api/academic-spine${query}`,
           { cache: "no-store" },
@@ -176,6 +190,14 @@ export default function AcademicSpinePage() {
               "/api/academic/status",
               { cache: "no-store" },
               "The academic summary is taking longer than expected.",
+              12_000,
+            ).catch(() => null)
+          : Promise.resolve(null),
+        canReviewTeaching
+          ? fetchWithTimeoutOrThrow(
+              "/api/teaching/pending-approval?summary=1",
+              { cache: "no-store" },
+              "The teaching-delivery summary is taking longer than expected.",
               12_000,
             ).catch(() => null)
           : Promise.resolve(null),
@@ -199,6 +221,13 @@ export default function AcademicSpinePage() {
       } else if (isAdmin) {
         setOverview(null);
       }
+      if (deliveryRes?.ok) {
+        const deliveryBody = await deliveryRes.json();
+        if (requestId !== loadRequestRef.current) return;
+        setDeliverySummary(deliveryBody.data ?? null);
+      } else {
+        setDeliverySummary(null);
+      }
     } catch (cause) {
       if (requestId !== loadRequestRef.current) return;
       setError(
@@ -210,7 +239,7 @@ export default function AcademicSpinePage() {
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
-  }, [classId, isAdmin]);
+  }, [canReviewTeaching, classId, isAdmin]);
 
   useEffect(() => {
     load();
@@ -323,12 +352,32 @@ export default function AcademicSpinePage() {
       className={`mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}
     >
       <MobilePageHero
-        badge={isAdmin ? "Academic Office" : "Teaching"}
-        title={isAdmin ? "Academic overview" : "What to teach"}
+        badge={
+          isAdmin
+            ? "Academic Office"
+            : isTeacher
+              ? "Teaching"
+              : isSchool
+                ? "School academics"
+                : "My learning"
+        }
+        title={
+          isAdmin
+            ? "Academic overview"
+            : isTeacher
+              ? "What to teach"
+              : isSchool
+                ? "Teaching and results"
+                : "Learning progress"
+        }
         description={
           isAdmin
             ? "Continue the single next action from curriculum to class teaching and results."
-            : "Open a class to continue the current week and all its learning activities."
+            : isTeacher
+              ? "Open a class to continue the current week and all its learning activities."
+              : isSchool
+                ? "Follow class delivery and learner results without changing the official curriculum."
+                : "Open the learning shared with your class and view your published results."
         }
         icon={AcademicCapIcon}
         actions={
@@ -340,7 +389,7 @@ export default function AcademicSpinePage() {
           </Link>
         }
       >
-        {(data?.classes?.length ?? 0) > 0 && (
+        {isAdmin && (data?.classes?.length ?? 0) > 0 && (
           <label className="mt-4 block text-sm font-bold text-foreground">
             Look at one class
             <select
@@ -393,6 +442,76 @@ export default function AcademicSpinePage() {
               next={next}
               fallback="You're caught up — curricula are approved and every class plan uses the right version."
             />
+          )}
+
+          {deliverySummary && deliverySummary.total > 0 && (
+            <section className="flex flex-col gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+                  Teaching delivery
+                </p>
+                <h2 className="mt-1 text-base font-black text-foreground">
+                  {deliverySummary.ready} complete package{deliverySummary.ready === 1 ? " is" : "s are"} waiting for learners
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {deliverySummary.needsRepair > 0
+                    ? `${deliverySummary.needsRepair} more need only their missing items repaired. `
+                    : ""}
+                  {deliverySummary.autoDeliveryPlans > 0
+                    ? `${deliverySummary.autoDeliveryPlans} class plan${deliverySummary.autoDeliveryPlans === 1 ? " uses" : "s use"} automatic delivery.`
+                    : "All current class plans require review before sharing."}
+                </p>
+              </div>
+              <Link
+                href="/dashboard/teaching/approvals"
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-emerald-700 px-4 text-xs font-black text-white transition-colors hover:bg-emerald-800"
+              >
+                Review delivery
+              </Link>
+            </section>
+          )}
+
+          {!isAdmin && !isStudent && (data?.classes?.length ?? 0) > 0 && (
+            <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-black text-foreground">
+                    {isTeacher ? "Continue teaching" : "Class delivery"}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Open the class where work should continue.
+                  </p>
+                </div>
+                <Link href="/dashboard/classes" className="text-xs font-bold text-primary hover:underline">
+                  All classes
+                </Link>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {(data?.classes ?? []).slice(0, 6).map((klass) => (
+                  <Link
+                    key={klass.id}
+                    href={`/dashboard/classes/${klass.id}?operation=teaching`}
+                    className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 transition-colors hover:border-primary/40"
+                  >
+                    <span className="min-w-0 truncate text-sm font-bold text-foreground">{klass.name}</span>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-primary">Open</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {isStudent && (
+            <section className="grid gap-3 sm:grid-cols-2">
+              <Link href="/dashboard/learning" className="rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40">
+                <p className="text-base font-black text-foreground">Open my learning</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Lessons, slides, practice, assignments and projects shared with your class.</p>
+              </Link>
+              <Link href="/dashboard/results" className="rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40">
+                <p className="text-base font-black text-foreground">View my results</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Only results that have been checked and published for you.</p>
+              </Link>
+            </section>
           )}
 
           {/* One quiet glance — numbers only, no essays. */}
@@ -579,7 +698,7 @@ export default function AcademicSpinePage() {
             </section>
           )}
 
-          <section
+          {!isStudent && <section
             id="supporting-tools"
             className="rounded-2xl border border-border bg-card"
           >
@@ -672,7 +791,7 @@ export default function AcademicSpinePage() {
                 {isAdmin && <AcademicExceptionsWorkspace classId={classId} />}
               </div>
             )}
-          </section>
+          </section>}
         </>
       )}
     </div>

@@ -33,6 +33,17 @@ export type PendingWeek = {
   /** A week may be reviewed before every configured item exists. */
   missingKinds: PendingApprovalItem['kind'][];
   complete: boolean;
+  /** True when the class plan may share a complete future package automatically. */
+  autoPublish: boolean;
+};
+
+export type PendingApprovalSummary = {
+  total: number;
+  ready: number;
+  needsRepair: number;
+  plans: number;
+  autoDeliveryPlans: number;
+  reviewFirstPlans: number;
 };
 
 export function pendingWeekKey(row: {
@@ -44,6 +55,35 @@ export function pendingWeekKey(row: {
   const meeting =
     Number.isFinite(session) && session > 0 ? Math.floor(session) : 1;
   return `${row.planId}:${row.week}:s${meeting}`;
+}
+
+/** Enabling unattended learner delivery is an Academic Office decision. */
+export function canSetAutomaticDelivery(
+  role: string | null | undefined,
+  autoPublish: boolean,
+): boolean {
+  if (role === "admin") return true;
+  return role === "teacher" && autoPublish === false;
+}
+
+/** Compact queue truth used by the Academic overview and delivery workspace. */
+export function summarizePendingApprovals(
+  rows: readonly PendingWeek[],
+): PendingApprovalSummary {
+  const planModes = new Map<string, boolean>();
+  for (const row of rows) {
+    planModes.set(row.planId, row.autoPublish === true);
+  }
+  const autoDeliveryPlans = [...planModes.values()].filter(Boolean).length;
+  const ready = rows.filter((row) => row.complete).length;
+  return {
+    total: rows.length,
+    ready,
+    needsRepair: rows.length - ready,
+    plans: planModes.size,
+    autoDeliveryPlans,
+    reviewFirstPlans: planModes.size - autoDeliveryPlans,
+  };
 }
 
 /** Where the "week is ready" notice should open — the same meeting the sweep prepared. */

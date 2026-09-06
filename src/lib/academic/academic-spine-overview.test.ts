@@ -31,4 +31,14 @@ describe('academic office overview truth', () => {
     expect(page).not.toContain('showPipeline');
     expect(page).not.toContain('showWorkflowDetails');
   });
+
+  it('surfaces the delivery bottleneck and gives every role a useful landing', () => {
+    expect(page).toContain('/api/teaching/pending-approval?summary=1');
+    expect(page).toContain('Teaching delivery');
+    expect(page).toContain('Review delivery');
+    expect(page).toContain('Continue teaching');
+    expect(page).toContain('/dashboard/classes/${klass.id}?operation=teaching');
+    expect(page).toContain('Open my learning');
+    expect(page).toContain('Only results that have been checked and published for you.');
+  });
 });
