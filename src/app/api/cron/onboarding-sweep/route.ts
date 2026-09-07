@@ -12,7 +12,8 @@
  *
  * Auth: cron secret (same scheme as the other cron routes).
  */
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { after } from '@/lib/server/after';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { runMonitoredCron } from '@/lib/operations/cron-monitor';

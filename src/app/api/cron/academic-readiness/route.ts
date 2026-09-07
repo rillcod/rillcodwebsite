@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { after } from '@/lib/server/after';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runAcademicReadinessAutomation } from '@/lib/academic/readiness-automation';
 import { materialiseTimetableSessions } from '@/lib/timetable/materialise-sessions';

@@ -14,6 +14,7 @@ import {
   classifyContainerFailure,
 } from "../lib/cloudflare/container-request-recovery";
 import { cronAdmissionIntervalMs } from "../lib/operations/cron-registry";
+import { isVersionedAssetRequest, isCacheableVersionedAsset } from "../lib/cloudflare/static-asset-cache";
 
 /** Public + secret keys forwarded into the Next.js container process. */
 const CONTAINER_ENV_KEYS = [
@@ -99,13 +100,13 @@ function containerEnvFromWorker(env: GatewayEnv): Record<string, string> {
 
 /**
  * Shared Next.js container instance.
- * standard-2 in wrangler.toml gives RAM headroom for Next + PDF.
+ * One basic instance; background callbacks participate in idle shutdown.
  */
 export class NextAppContainer extends Container {
   defaultPort = 3000;
   // The basic instance reserves 1 GiB. Stop within seconds after a burst so the
-  // app stays inside the Workers Paid container allowance instead of turning a
-  // 2-5 minute scheduler ping into an always-on monthly bill.
+  // app avoids paying for idle intervals between scheduler calls.
+  // Actual work is still metered; this timeout is not a billing cap.
   sleepAfter = "5s";
   enableInternet = true;
   private readonly gatewayState: DurableObjectState;
@@ -128,6 +129,35 @@ export class NextAppContainer extends Container {
 
   override onError(error: unknown): void {
     console.error("[NextAppContainer] error", error);
+  }
+
+  override async onActivityExpired(): Promise<void> {
+    // after() and loopback fan-out are invisible to the SDK's proxied-request
+    // counter. Ask the same Node process before stopping it. Never start an
+    // already sleeping container just to check for work.
+    if (!this.ctx.container?.running) return;
+    const secret = this.gatewayEnv.CRON_SECRET || this.gatewayEnv.BILLING_CRON_SECRET;
+    try {
+      if (!secret) throw new Error('Background-work check requires the cron secret');
+      const response = await this.ctx.container.getTcpPort(this.defaultPort).fetch(
+        'http://container.local/api/system/container-work',
+        { headers: { 'x-cron-secret': secret }, signal: AbortSignal.timeout(4_000) },
+      );
+      if (!response.ok) throw new Error(`Background-work check returned ${response.status}`);
+      const state = await response.json() as { pending?: unknown };
+      if (typeof state.pending !== 'number' || state.pending < 0) throw new Error('Invalid background-work state');
+      if (state.pending > 0) {
+        this.renewActivityTimeout();
+        return;
+      }
+    } catch (error) {
+      // An unreadable state is not evidence of idle. Surface the failure instead
+      // of killing teaching/billing work; operational verification must catch it.
+      console.error('[NextAppContainer] background-work check failed', error);
+      this.renewActivityTimeout();
+      return;
+    }
+    await super.onActivityExpired();
   }
 
   /**
@@ -358,8 +388,24 @@ function appContainer(env: GatewayEnv) {
 }
 
 export default {
-  async fetch(request: Request, env: GatewayEnv): Promise<Response> {
-    return appContainer(env).fetch(request);
+  async fetch(request: Request, env: GatewayEnv, ctx: ExecutionContext): Promise<Response> {
+    if (!isVersionedAssetRequest(request)) return appContainer(env).fetch(request);
+    // Cache hits never reach the Durable Object and cannot wake a sleeping app.
+    const cache = (caches as CacheStorage & { default: Cache }).default;
+    const key = new Request(request.url, { method: 'GET' });
+    try {
+      const cached = await cache.match(key);
+      if (cached) return cached;
+    } catch (error) {
+      console.warn('[gateway] static cache read failed', error);
+    }
+    const response = await appContainer(env).fetch(request);
+    if (isCacheableVersionedAsset(response)) {
+      ctx.waitUntil(cache.put(key, response.clone()).catch((error: unknown) => {
+        console.warn('[gateway] static cache write failed', error);
+      }));
+    }
+    return response;
   },
 
   async scheduled(controller: ScheduledController, env: GatewayEnv): Promise<void> {

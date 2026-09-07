@@ -63,6 +63,37 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 
 ## Architecture notes (do not “simplify” away)
 
+### Cost target and background automation (2026-09-07)
+
+The owner's total hosting budget is $5/month. Smaller containers and shorter idle time reduce
+consumption; they do **not** enforce that budget. At current published pricing, basic's 1 GiB
+uses the memory allowance in 25 running hours/month. CPU, disk, egress, Workers and Durable
+Objects have separate included allowances. See https://developers.cloudflare.com/containers/platform/pricing/.
+
+- Every application `after()` callback must import `@/lib/server/after`, which registers work
+  before the response completes and releases it on completion/failure. All four current callers
+  have been migrated. Nested cron fan-out remains protected by its parent callback.
+- Before idle shutdown, the gateway queries the running Node process through authenticated
+  `/api/system/container-work`. This is a local, database-free check and never starts a sleeping
+  container. Failed checks retain the instance and log an error to protect ongoing work;
+  repeated probe failures can therefore incur costs and must be fixed before declaring success.
+- Immutable public `/_next/static/` assets use the Worker cache before container dispatch.
+  Cache hits do not wake the container. Customer pages, API results, uploads, cookies, errors
+  and partial responses are excluded. Cache misses still reach the container.
+- No new cron schedule or paid service has been added. Cron-job.org remains the scheduler.
+
+Required production verification: authenticate Wrangler, inspect deployed instance type/count,
+deploy only after CI passes, confirm queued/background callbacks keep the instance alive and it
+sleeps after completion, check probe errors, then measure actual runtime and billing usage over
+the billing period. Test PDF and generation memory under the basic instance's 1 GiB limit.
+CLI inspection on 2026-09-07 failed with an authentication error; production savings remain unverified.
+
+If measured essential work exceeds the allowance, the strict $5 requirement needs migration of
+more frontend/API/job execution to Workers-compatible execution while retaining required Node
+functions as an explicitly budgeted component, or an owner-approved pause when allowances are
+exhausted. Neither has been implemented. Do not silently pause customer access, payment handling
+or automation, and do not promise that these optimizations eliminate all overages.
+
 - The full application runs in **Containers** behind the thin gateway `src/cloudflare/container-gateway.ts`; there is no second Workers/OpenNext deployment path.
 - Image is **standalone** (`DOCKER_BUILD=1` → `output: "standalone"` in `next.config.ts`) so the registry push stays small.
 - **Cost envelope:** production is capped at one `basic` (1 GiB) instance and the gateway

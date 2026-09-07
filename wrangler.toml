@@ -28,9 +28,10 @@ zone_name = "rillcod.com"
 class_name = "NextAppContainer"
 image = "./Dockerfile.cf"
 max_instances = 1
-# 1 GiB basic keeps 25 running hours inside the Workers Paid monthly allowance.
+# 1 GiB basic consumes the included 25 GiB-hours after 25 running hours.
 # The gateway sleeps it after each short traffic burst and coalesces frequent
-# scheduler pings before they can wake it. Raise this only after measured OOMs.
+# scheduler pings before they can wake it. This is not a $5 spending cap.
+# Raise this only after measured OOMs.
 instance_type = "basic"
 image_vars = { NEXT_PUBLIC_APP_URL = "https://www.rillcod.com", NEXT_PUBLIC_SUPABASE_URL = "https://akaorqukdoawacvxsdij.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYW9ycXVrZG9hd2FjdnhzZGlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMDg2MzgsImV4cCI6MjA4NzU4NDYzOH0.60US0KpUqtur_5YqPSX3qxPex1wkzAG7WX-WBmoMi-s", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY = "sb_publishable_ayfXqNoQdQQbDFskLBwoPA_qQQoZnC-", NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY = "pk_live_e5f065f4708f8f1c865131c5a40d2e937bd1515d", NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BIBaCy_MbkmVNVBrxQkfzaq6HsCzPtZc8Lp-_N2Apo_6iW17itdwOL5gLXR87DMdXugsNivJLBP43HAjW-n4eFs", NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP = "https://chat.whatsapp.com/GHpWqij1epR4m0Y4HuKGfz" }
 

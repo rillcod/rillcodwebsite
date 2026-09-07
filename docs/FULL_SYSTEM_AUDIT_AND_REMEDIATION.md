@@ -4239,3 +4239,23 @@ $5 billing cap. Installed Container SDK tracks proxied in-flight requests; loopb
 after the host response and does not pass through that counter. The five-second sleep setting therefore
 requires explicit background-job lifecycle protection and runtime validation before deployment.
 Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost work as fully resolved.
+
+## 16.65 Background-aware idle shutdown and static cache (2026-09-07)
+
+- Added a shared process-wide pending-work registry and tracked `after()` wrapper. Migrated all
+  four current callers (onboarding fan-out, academic readiness, teaching preparation, pathway work).
+  Registration failures, callback errors, nested callbacks and successful completion release the
+  right ownership count. No new scheduler or recurring outbound heartbeat was introduced.
+- Gateway checks authenticated process-local pending work before stopping an idle instance.
+  An already sleeping container is never started for this check. Failed checks preserve ongoing
+  work and emit errors; this protects automation but is not a financial cap.
+- Public immutable Next build assets can be served from Worker cache before container dispatch.
+  This avoids repeat asset wake-ups without caching learner data or API responses.
+- Live inspection via `wrangler containers list` was attempted and rejected by Cloudflare with
+  an authentication error. No production configuration was changed, and no savings were measured.
+- Outstanding strict-budget work: verify deployed resources and usage, exercise idle/background
+  lifecycle and 1 GiB load in production-equivalent conditions, fix probe errors if present, and
+  move additional work off the container if actual consumption exceeds included allowances.
+  Exact $5 total spending with unlimited availability/automation is not established by these fixes.
+- Verification: application and Worker TypeScript checks passed; 43 focused background lifecycle,
+  caching, cron scheduling/recovery, fan-out and teaching preparation tests passed.

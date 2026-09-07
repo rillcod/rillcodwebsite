@@ -7,7 +7,7 @@
  * Callers (publish, Prepare, featured, payment, cron) queue or await this —
  * they do not re-implement launch gates or queue helpers.
  */
-import { after } from 'next/server';
+import { after } from '@/lib/server/after';
 import type { NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runClassAcademicReadiness } from '@/lib/academic/prepare-class-readiness';
