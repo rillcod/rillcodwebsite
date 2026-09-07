@@ -83,7 +83,7 @@ describe("overviewDeliveryStages", () => {
     expect(stages.find((stage) => stage.id === "result")?.state).toBe("waiting");
   });
 
-  it("stops results when assessment evidence has lost its teaching context", () => {
+  it("keeps verified results available when other evidence needs review", () => {
     const stages = overviewDeliveryStages({
       ...base,
       certifiedCourses: 10,
@@ -97,7 +97,8 @@ describe("overviewDeliveryStages", () => {
       legacyEvidenceRecords: 1,
     });
     expect(stages.find((stage) => stage.id === "evidence")?.state).toBe("blocked");
-    expect(stages.find((stage) => stage.id === "result")?.state).toBe("waiting");
+    expect(stages.find((stage) => stage.id === "result")?.state).toBe("ready");
+    expect(stages.find((stage) => stage.id === "evidence")?.actionHref).toBe("/dashboard/academic#assessment-review");
   });
 
   it("moves from checked results to publication without inventing completion", () => {
@@ -141,7 +142,8 @@ describe("nextOverviewAction", () => {
       hasActiveClasses: true,
     });
     expect(next?.id).toBe("evidence");
-    expect(next?.headline).toContain("right class plan");
+    expect(next?.headline).toContain("teaching-plan reference");
+    expect(next?.actionHref).toBe("/dashboard/academic#assessment-review");
   });
 
   it("puts the next teaching action before writing another catalogue course", () => {

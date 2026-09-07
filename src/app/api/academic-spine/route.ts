@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { logAudit } from '@/lib/audit/log';
+import { loadEvidenceReview } from '@/lib/academic/evidence-review';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,8 @@ async function visibleClassIds(db: any, user: Actor) {
   if (user.role === 'teacher') query = query.eq('teacher_id', user.id);
   if (user.role === 'school') query = query.eq('school_id', user.school_id);
   if (user.role === 'student') query = query.eq('id', user.class_id);
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw new Error('Class access could not be checked');
   return data ?? [];
 }
 
@@ -35,7 +37,16 @@ export async function GET(req: NextRequest) {
   }
 
   const db: any = createAdminClient();
-  const classes = await visibleClassIds(db, user);
+  const reviewingEvidence = new URL(req.url).searchParams.get('review') === 'evidence';
+  if (reviewingEvidence && user.role === 'student') {
+    return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  }
+  let classes;
+  try {
+    classes = await visibleClassIds(db, user);
+  } catch {
+    return NextResponse.json({ error: 'Your classes could not be loaded. Please retry.' }, { status: 503 });
+  }
   const classIds = classes.map((row: any) => row.id);
   const requestedClass = new URL(req.url).searchParams.get('class_id');
   if (requestedClass && !classIds.includes(requestedClass)) {
@@ -43,12 +54,23 @@ export async function GET(req: NextRequest) {
   }
   const scopedClassIds = requestedClass ? [requestedClass] : classIds;
   if (user.role !== 'admin' && scopedClassIds.length === 0) {
+    if (reviewingEvidence) return NextResponse.json({ data: { items: [], truncated: false } });
     return NextResponse.json({ data: { classes: [], totals: {}, attention: [], message: 'No classes are assigned to this account yet.' } });
   }
 
   const applyClassScope = (query: any) => (
     user.role === 'admin' && !requestedClass ? query : query.in('class_id', scopedClassIds)
   );
+  if (reviewingEvidence) {
+    if (!['admin', 'teacher', 'school'].includes(user.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    }
+    try {
+      return NextResponse.json({ data: await loadEvidenceReview(db, applyClassScope) });
+    } catch {
+      return NextResponse.json({ error: 'Assessment review could not be loaded. Please retry.' }, { status: 503 });
+    }
+  }
   const studentId = user.role === 'student' ? user.id : null;
   const schoolIds = Array.from(new Set(classes.map((row: any) => row.school_id).filter(Boolean)));
   const offeringIds = Array.from(new Set(classes.map((row: any) => row.academic_offering_id).filter(Boolean)));

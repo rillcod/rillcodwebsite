@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { humanAcademicStatus } from "@/lib/academic-spine/quality";
 import { NextActionCard, StageList } from "@/components/academic/StageList";
 import AcademicExceptionsWorkspace from "@/components/academic/AcademicExceptionsWorkspace";
+import AcademicEvidenceReview from "@/components/academic/AcademicEvidenceReview";
 import type { StageStatus } from "@/lib/academic/status";
 import {
   nextOverviewAction,
@@ -247,7 +248,7 @@ export default function AcademicSpinePage() {
 
   useEffect(() => {
     const revealLinkedSection = () => {
-      if (window.location.hash === "#academic-exceptions") setShowTools(true);
+      if (["#academic-exceptions", "#assessment-review"].includes(window.location.hash)) setShowTools(true);
     };
     revealLinkedSection();
     window.addEventListener("hashchange", revealLinkedSection);
@@ -723,6 +724,8 @@ export default function AcademicSpinePage() {
                     </select>
                   </label>
                 )}
+
+                <AcademicEvidenceReview classId={classId} />
 
                 {isAdmin && assetStages.length + deliveryStages.length > 0 && (
                   <section>

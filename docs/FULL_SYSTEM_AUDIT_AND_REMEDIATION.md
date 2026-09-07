@@ -4209,3 +4209,33 @@ Verification and boundary:
 - TypeScript and 22 focused programme-policy, school-calendar, assessment and report-card pathway tests
   pass. The staff page was also verified against the live local data shape: 11 active programmes and 72
   courses rendered with the new language. No stored programme, school policy, score or report was mutated.
+
+## 16.64 Assessment warning destinations and live evidence audit (2026-09-07)
+
+- Confirmed: both assessment-link warnings pointed to `#academic-exceptions`, a student-account
+  cleanup workspace. They now open a separate, scoped, read-only assessment review inside the existing
+  academic overview. Source records open their existing assignment, CBT or written-exam editors.
+- Saved marks are grouped by source assessment. Missing/inaccessible sources have no edit link and
+  explicitly require investigation. Database failures show retry feedback, never an empty success.
+  Reads are capped at 50 per group and truncation is disclosed. No scores or source records are mutated.
+- Overview no longer claims missing plan references categorically exclude scores from results, and
+  verified evidence can continue to result preparation while other records need review.
+- Class-access query errors now return a retryable failure rather than appearing as no assigned classes.
+- Live aggregate audit: 57 evidence rows (8 assignment submissions, 49 CBT sessions); 51 unresolved
+  result-evidence records (2 assignment submissions, 49 CBT sessions); 4 assignment-evidence records
+  without a source assignment; no source-context drift or missing evidence rows detected. Categories
+  overlap and must not be added together. This audit did not repair or delete historical records.
+- Remaining: verify the intended cohort/result use of the 51 unresolved records via their source
+  editors; investigate the four orphaned records from historical source/backups before proposing links.
+  Never infer cohort solely from a student's current class. Extend provenance repair for existing
+  class-linked assessments whose plan references remain absent; the current result-use editor alone
+  does not resolve every missing plan/release reference. Re-run `audit:academic-evidence` after repairs.
+- Verification: application typecheck and 15 focused review/overview tests passed. Browser interaction
+  with this new panel and production deployment are not yet verified.
+
+Cost verification correction: section 16.62's always-on explanation is a code-supported hypothesis,
+not a production-log measurement. The local changes do not prove elimination of overages or enforce a
+$5 billing cap. Installed Container SDK tracks proxied in-flight requests; loopback cron fan-out runs
+after the host response and does not pass through that counter. The five-second sleep setting therefore
+requires explicit background-job lifecycle protection and runtime validation before deployment.
+Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost work as fully resolved.

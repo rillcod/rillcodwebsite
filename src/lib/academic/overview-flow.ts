@@ -271,10 +271,10 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
     evidence = {
       id: "evidence",
       state: "blocked",
-      headline: `${missing} assessment${missing === 1 ? " is" : "s are"} not connected to the right class plan.`,
-      detail: "The work and scores are safe, but they will not be used in results until the class, term and plan are confirmed.",
-      actionLabel: "Connect assessments",
-      actionHref: "/dashboard/academic#academic-exceptions",
+      headline: `${missing} assessment${missing === 1 ? " needs" : "s need"} a teaching-plan reference reviewed.`,
+      detail: "Review the original assessment and its result use. A missing plan reference alone does not mean its scores are unavailable.",
+      actionLabel: "Review assessment links",
+      actionHref: "/dashboard/academic#assessment-review",
     };
   } else if (facts.evidenceRecords === 0) {
     evidence = {
@@ -293,10 +293,10 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
     evidence = {
       id: "evidence",
       state: "blocked",
-      headline: `${missing} saved mark${missing === 1 ? " is" : "s are"} not connected to the right class and term.`,
-      detail: "The marks are safe, but Auto-fill will not use them until an administrator confirms where they belong.",
-      actionLabel: "Connect saved marks",
-      actionHref: "/dashboard/academic#academic-exceptions",
+      headline: `${missing} saved mark${missing === 1 ? " needs" : "s need"} its reporting or teaching references reviewed.`,
+      detail: "The marks are safe. Review their source assessments to confirm where they belong; verified marks remain available.",
+      actionLabel: "Review saved marks",
+      actionHref: "/dashboard/academic#assessment-review",
     };
   } else {
     evidence = {
@@ -309,7 +309,7 @@ export function overviewDeliveryStages(facts: OverviewFacts): StageStatus[] {
   }
 
   let result: StageStatus;
-  if (facts.linkedEvidence === 0 || evidence.state === "blocked") {
+  if (facts.linkedEvidence === 0) {
     result = { id: "result", state: "waiting", headline: "Waiting for verified learner evidence." };
   } else if (facts.progressReports === 0) {
     result = {
