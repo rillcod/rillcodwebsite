@@ -8,6 +8,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { checkContainerCostPolicy } from './check-container-cost-policy.mjs';
 
 const root = process.cwd();
 
@@ -93,6 +94,7 @@ function ensureNextBuild() {
   ensureStaticForDocker(nextDir);
 }
 
+await checkContainerCostPolicy();
 ensureNextBuild();
 const exitCode = run("npx", ["wrangler", "deploy"]);
 

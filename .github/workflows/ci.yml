@@ -57,6 +57,9 @@ jobs:
       - name: Encoding check
         run: npm run lint:encoding
 
+      - name: Enforce container cost policy
+        run: node scripts/check-container-cost-policy.mjs
+
       # ESLint ran nowhere for a long time: next.config.ts sets
       # `eslint: { ignoreDuringBuilds: true }` with a comment saying it runs in CI,
       # there is no pre-commit hook, and `next lint` (the old script) is deprecated

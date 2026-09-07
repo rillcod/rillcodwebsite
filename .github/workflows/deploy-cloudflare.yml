@@ -72,6 +72,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Enforce container cost policy
+        run: node scripts/check-container-cost-policy.mjs
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -93,3 +96,6 @@ jobs:
         run: npm run cf:container:smoke
         env:
           CF_SMOKE_BASE: https://www.rillcod.com
+
+      - name: Verify deployed container cost policy
+        run: node scripts/check-container-cost-policy.mjs --live

@@ -4259,3 +4259,20 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   Exact $5 total spending with unlimited availability/automation is not established by these fixes.
 - Verification: application and Worker TypeScript checks passed; 43 focused background lifecycle,
   caching, cron scheduling/recovery, fan-out and teaching preparation tests passed.
+
+## 16.66 Block expensive configuration regressions (2026-09-07)
+
+- OAuth restored and live resources verified: one running production instance at 6144 MiB/1 vCPU/
+  12 GB disk, with maximum five instances. Local savings had not been deployed at inspection time.
+- Added a cost-policy validator using Wrangler's own configuration parser. Larger/custom instance
+  types, missing or larger instance limits, multiple container applications, host cron scheduling,
+  and a changed idle default block deployment. CI, manual workflow dispatch and local deployment
+  invoke the guard. Tests include the exact expensive configuration discovered in production.
+- Deployment now verifies the live application memory, CPU, disk and maximum instance settings.
+  Authentication failures and missing/partial live data fail verification instead of claiming success.
+- This is a configuration regression block, not a meter-based billing cutoff. Essential traffic and
+  automation can still exceed included usage. Enforcing an absolute $5 bill would require an agreed
+  exhaustion behavior or further execution migration; customer access and payments are not silently
+  disabled by this change.
+- Full local suite: 457 test files / 3,139 tests passed, including regression checks for the live
+  expensive settings, background completion/failure handling and cache privacy boundaries.

@@ -65,6 +65,19 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 
 ### Cost target and background automation (2026-09-07)
 
+Deployment regression guard: `node scripts/check-container-cost-policy.mjs` parses the actual
+Wrangler configuration and rejects anything except one basic instance, maximum one instance,
+cron-job.org ownership and the reviewed short idle default. CI, the deployment workflow and
+the local deployment script all execute it before deployment. The deployment workflow also runs
+`node scripts/check-container-cost-policy.mjs --live` after smoke checks and fails if Cloudflare
+still reports a larger memory/CPU/disk allocation or instance limit. This reports deployment drift;
+it does not automatically terminate running customer work or roll back to an expensive image.
+
+Browser OAuth access was restored on 2026-09-07. Live inspection confirmed one running instance,
+6144 MiB memory, 1 vCPU, 12 GB disk and max_instances=5. The inventory's `instances=5` field did
+not mean five running processes: the separate instance listing returned one. Use that distinction
+when reporting costs. Local `.env` API tokens may override OAuth; the saved project token was rejected.
+
 The owner's total hosting budget is $5/month. Smaller containers and shorter idle time reduce
 consumption; they do **not** enforce that budget. At current published pricing, basic's 1 GiB
 uses the memory allowance in 25 running hours/month. CPU, disk, egress, Workers and Durable
