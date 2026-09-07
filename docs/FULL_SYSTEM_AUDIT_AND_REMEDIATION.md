@@ -4276,3 +4276,7 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   disabled by this change.
 - Full local suite: 457 test files / 3,139 tests passed, including regression checks for the live
   expensive settings, background completion/failure handling and cache privacy boundaries.
+- Deployment validators are isolated from the Wrangler runtime for tests. Worker lifecycle tests
+  load the mocked Worker at runtime so its globals do not enter the Next application type graph;
+  `tsconfig.worker.json` remains the separate Worker typecheck. This corrects excessive memory use
+  introduced by direct test imports of the deployment/Worker entrypoints.

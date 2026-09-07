@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateContainerCostPolicy, validateLiveContainerCostPolicy } from '../../../scripts/check-container-cost-policy.mjs';
+import { validateContainerCostPolicy, validateLiveContainerCostPolicy } from '../../../scripts/lib/container-cost-policy.mjs';
 
 const allowed = { containers: [{ class_name: 'NextAppContainer', instance_type: 'basic', max_instances: 1 }], vars: { CLOUDFLARE_OWNS_CRON: 'false' } };
 describe('deployment cost policy', () => {

@@ -8,7 +8,9 @@ vi.mock('@cloudflare/containers', () => ({
   },
   getContainer: vi.fn(),
 }));
-import { NextAppContainer } from '../../cloudflare/container-gateway';
+// The Worker has its own tsconfig. Load it at runtime under the SDK mock so the
+// application typecheck does not merge Workers globals with Next/DOM globals.
+const { NextAppContainer } = await import('../../cloudflare/' + 'container-gateway');
 
 function instance(pending: unknown = 0, status = 200) {
   const fetch = vi.fn(async () => Response.json({ pending }, { status }));
