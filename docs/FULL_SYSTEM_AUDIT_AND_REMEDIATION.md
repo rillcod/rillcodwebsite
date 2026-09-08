@@ -4334,3 +4334,17 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   preparation windows report real completed/total scan-code counts; closing the window stops further
   batches through the progress callback. Two focused tests cover deduplication/progress and early stop.
 - Final document assembly and browser print-dialog behavior still need physical-device testing.
+
+### Student submission detail follow-through — 2026-09-08
+
+- The assignment detail page now uses the same learner-facing status label as the student list.
+  Returned revisions and completed/moderated work no longer receive a generic 'Awaiting grade' hint.
+- Teacher feedback is visible in the submission receipt before grading, including returned revisions.
+- The update action and submit handler consult the existing `hasProtectedAssignmentScoreEvidence`
+  rule used by the submit API. Recorded marks produce an explanation and teacher-correction route
+  in plain language, rather than inviting an edit that the server necessarily rejects. No new server
+  restriction, schema mutation or score change was introduced.
+- Verified typecheck and 21 targeted learner-state, feedback-contract and submission-authority tests.
+  Inspected the shared class lesson loader: it scopes plans to class/period, filters visible lessons,
+  checks public materials and propagates query errors. That inspection is not a live-role/database
+  end-to-end test; playback, CBT, report access and actual mobile device checks remain open.

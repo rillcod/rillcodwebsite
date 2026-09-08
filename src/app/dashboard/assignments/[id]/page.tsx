@@ -26,6 +26,8 @@ import remarkGfm from 'remark-gfm';
 import { MOBILE_STICKY_ACTIONS_BOTTOM } from '@/components/mobile/mobile-styles';
 import { gradeAssignmentAnswers, gradeAssignmentRubric } from '@/lib/assignments/grading';
 import { roleHasCapability } from '@/lib/auth/capabilities';
+import { learnerSubmissionState, learnerSubmissionLabel } from '@/lib/assignments/learner-state';
+import { hasProtectedAssignmentScoreEvidence } from '@/lib/academic/record-retention';
 
 /** One file handed in with a submission. Mirrors assignment_submissions.attachments. */
 type SubmissionAttachment = {
@@ -1221,6 +1223,10 @@ export default function AssignmentDetailPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profile || !assignment) return;
+        if (hasProtectedAssignmentScoreEvidence(submission)) {
+            setError('Your work already has a recorded mark. Ask your teacher to review it; your saved work and score have not changed.');
+            return;
+        }
         if (uploadingFile || uploadingSnap) return;
         setSubmitting(true);
         setError(null);
@@ -1693,9 +1699,9 @@ export default function AssignmentDetailPage() {
                         </div>
                         {!isStaff && submission?.status && (
                             <div className="flex-shrink-0 text-right space-y-1">
-                                <Badge status={submission.status} />
-                                {submission?.status !== 'graded' && submission?.status !== 'missing' && (
-                                    <p className="text-[10px] text-muted-foreground mt-1">Awaiting grade</p>
+                                <span className="inline-flex rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold">{learnerSubmissionLabel(submission.status)}</span>
+                                {learnerSubmissionState(submission.status) === 'review' && (
+                                    <p className="text-xs text-muted-foreground mt-1">Awaiting teacher feedback</p>
                                 )}
                             </div>
                         )}
@@ -2036,6 +2042,12 @@ export default function AssignmentDetailPage() {
                                         </div>
                                     </div>
                                 )}
+                                {!isGraded && submission.feedback && (
+                                    <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-2">
+                                        <h3 className="text-sm font-semibold">Teacher feedback</h3>
+                                        <p className="whitespace-pre-wrap break-words text-sm text-foreground">{submission.feedback}</p>
+                                    </div>
+                                )}
                                 <div className="text-center py-4 text-muted-foreground text-sm border border-border rounded-xl bg-muted/10">
                                     {['graded', 'moderated', 'published'].includes(submission.status)
                                         ? 'This assignment has been graded. Your score and teacher feedback are recorded above.'
@@ -2045,7 +2057,10 @@ export default function AssignmentDetailPage() {
                                                 ? 'Your revised work is safely resubmitted and awaiting review.'
                                                 : 'Your assignment is safely stored and awaiting teacher review. Your final score will appear here once marked.'}
                                 </div>
-                                {!['graded', 'moderated', 'published'].includes(submission.status) && assignment.is_active !== false && (
+                                {hasProtectedAssignmentScoreEvidence(submission) && !isGraded && (
+                                    <p className="text-sm text-muted-foreground">Your work has a recorded mark and is preserved. Ask your teacher if it needs a correction.</p>
+                                )}
+                                {!hasProtectedAssignmentScoreEvidence(submission) && !['graded', 'moderated', 'published'].includes(submission.status) && assignment.is_active !== false && (
                                     <button
                                         type="button"
                                         onClick={() => { setSubmitDone(false); setEditingSubmission(true); }}

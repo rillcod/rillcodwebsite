@@ -7,6 +7,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const detail = readFileSync(join(ROOT, 'app/dashboard/assignments/[id]/page.tsx'), 'utf8');
 
 describe('learner assignment submission feedback', () => {
+  it('uses the existing score-protection rule before offering edits', () => {
+    expect(detail).toContain('if (hasProtectedAssignmentScoreEvidence(submission))');
+    expect(detail).toContain('!hasProtectedAssignmentScoreEvidence(submission)');
+    expect(detail).toContain('!isGraded && submission.feedback');
+    expect(detail).toContain("learnerSubmissionState(submission.status) === 'review'");
+    expect(detail).toContain('learnerSubmissionLabel(submission.status)');
+  });
   it('uses the authoritative server result in the learner receipt', () => {
     expect(detail).toContain("submission?.status === 'graded' && submission?.grade != null");
     expect(detail).toContain('graded by the assessment engine');
