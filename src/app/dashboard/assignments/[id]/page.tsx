@@ -1072,7 +1072,7 @@ export default function AssignmentDetailPage() {
             setDraftRestored(true);
         } catch (draftError) {
             console.warn('[assignment-draft] saved work could not be restored', draftError);
-            setDraftWarning('This device could not restore the unfinished draft. Server-saved submissions are unchanged.');
+            setDraftWarning('Could not reopen your draft. Your submitted work is safe.');
         }
     }, [draftHydrated, draftKey, isStaff, loading, submission]);
 
@@ -1091,7 +1091,7 @@ export default function AssignmentDetailPage() {
                 }));
             } catch (draftError) {
                 console.warn('[assignment-draft] work could not be saved locally', draftError);
-                setDraftWarning('Automatic draft backup is unavailable on this device. Keep this page open and submit when ready.');
+                setDraftWarning('Your draft is not saving. Keep this page open until you submit.');
             }
         }, 400);
         return () => window.clearTimeout(timer);
@@ -1224,7 +1224,7 @@ export default function AssignmentDetailPage() {
         e.preventDefault();
         if (!profile || !assignment) return;
         if (hasProtectedAssignmentScoreEvidence(submission)) {
-            setError('Your work already has a recorded mark. Ask your teacher to review it; your saved work and score have not changed.');
+            setError('This work has been marked. Ask your teacher for a correction.');
             return;
         }
         if (uploadingFile || uploadingSnap) return;
@@ -1259,7 +1259,7 @@ export default function AssignmentDetailPage() {
                     localStorage.removeItem(draftKey);
                 } catch (draftError) {
                     console.warn('[assignment-draft] completed draft could not be cleared', draftError);
-                    setDraftWarning('The submission is safely stored on the server, but this device could not remove its old draft copy.');
+                    setDraftWarning('Work submitted. An older draft may still appear on this device.');
                 }
             }
         } catch (e: any) {
@@ -1971,8 +1971,8 @@ export default function AssignmentDetailPage() {
                                 <p className="text-emerald-600 dark:text-emerald-400 font-black text-base">Submission saved successfully!</p>
                                 <p className="text-emerald-600/60 dark:text-emerald-400/60 text-xs">
                                     {submission?.status === 'graded' && submission?.grade != null
-                                        ? `This objective assessment was graded by the assessment engine: ${submission.grade}/${assignment.max_points ?? 100} points.`
-                                        : 'Your work is in the teacher review queue. Check back here for feedback and the final result.'}
+                                        ? `Your score: ${submission.grade}/${assignment.max_points ?? 100}`
+                                        : 'Waiting for teacher feedback.'}
                                 </p>
                             </div>
                         )}
@@ -2048,17 +2048,8 @@ export default function AssignmentDetailPage() {
                                         <p className="whitespace-pre-wrap break-words text-sm text-foreground">{submission.feedback}</p>
                                     </div>
                                 )}
-                                <div className="text-center py-4 text-muted-foreground text-sm border border-border rounded-xl bg-muted/10">
-                                    {['graded', 'moderated', 'published'].includes(submission.status)
-                                        ? 'This assignment has been graded. Your score and teacher feedback are recorded above.'
-                                        : submission.status === 'returned_for_revision'
-                                            ? 'Your teacher returned this work for revision. Review the feedback, update your evidence, and resubmit.'
-                                            : submission.status === 'resubmitted'
-                                                ? 'Your revised work is safely resubmitted and awaiting review.'
-                                                : 'Your assignment is safely stored and awaiting teacher review. Your final score will appear here once marked.'}
-                                </div>
                                 {hasProtectedAssignmentScoreEvidence(submission) && !isGraded && (
-                                    <p className="text-sm text-muted-foreground">Your work has a recorded mark and is preserved. Ask your teacher if it needs a correction.</p>
+                                    <p className="text-sm text-muted-foreground">Need a correction? Ask your teacher.</p>
                                 )}
                                 {!hasProtectedAssignmentScoreEvidence(submission) && !['graded', 'moderated', 'published'].includes(submission.status) && assignment.is_active !== false && (
                                     <button
@@ -2066,7 +2057,7 @@ export default function AssignmentDetailPage() {
                                         onClick={() => { setSubmitDone(false); setEditingSubmission(true); }}
                                         className="w-full rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/15"
                                     >
-                                        {submission.status === 'returned_for_revision' ? 'Revise and resubmit' : 'Update submission before grading'}
+                                        {submission.status === 'returned_for_revision' ? 'Revise and resubmit' : 'Edit my submission'}
                                     </button>
                                 )}
                             </div>

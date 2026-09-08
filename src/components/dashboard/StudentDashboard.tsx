@@ -203,7 +203,6 @@ export default function StudentDashboard() {
   if (loadError) return (
     <div role="alert" className="m-4 rounded-2xl border border-border bg-card p-5 space-y-3">
       <h2 className="font-semibold">Your learning summary could not be loaded</h2>
-      <p className="text-sm text-muted-foreground">This does not mean your class or work is missing. Try again, or open your assignments.</p>
       <div className="flex flex-wrap gap-3">
         <button onClick={() => setRetryKey(v => v + 1)} className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground">Try again</button>
         <Link href="/dashboard/assignments" className="min-h-11 inline-flex items-center px-4 border border-border rounded-lg">My assignments</Link>
@@ -219,7 +218,7 @@ export default function StudentDashboard() {
         <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight leading-tight">
           Welcome, <span className="text-primary">{profile?.full_name?.split(' ')?.[0] ?? 'there'}!</span>
         </h1>
-        <p className="text-sm text-muted-foreground font-medium mt-2">You're not enrolled in a course yet. Ask your teacher to enrol you, or open the Learning Center to see what is available.</p>
+        <p className="text-sm text-muted-foreground font-medium mt-2">Ask your teacher to add you to your class.</p>
       </div>
 
       {/* CTA */}
@@ -227,7 +226,6 @@ export default function StudentDashboard() {
         className="flex flex-col gap-4 p-6 rounded-2xl bg-primary/10 border border-primary/20 hover:border-primary/40 hover:bg-primary/15 transition-all group shadow-sm">
         <div className="px-2.5 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest w-fit">Learning Center</div>
         <h3 className="text-base font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">View available lessons &amp; coursework</h3>
-        <p className="text-xs text-muted-foreground font-medium">Enrollment is managed by your school or administrator. Open the Learning Center to browse available coursework, or use the menu for quick access to your assignments and reports.</p>
         <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-wider mt-auto">
           <RocketLaunchIcon className="w-4 h-4" /> Open Learning Center →
         </div>
