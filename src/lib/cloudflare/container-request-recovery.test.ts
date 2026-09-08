@@ -14,6 +14,12 @@ describe('classifyContainerFailure', () => {
         'Error proxying request to container: The container is not running, consider calling start()',
       ),
     ).toBe('retryable');
+    expect(
+      classifyContainerFailure(
+        500,
+        'Error proxying request to container: The container is not listening in the TCP address 10.0.0.1:3000',
+      ),
+    ).toBe('retryable');
   });
 
   it('recognises capacity failures without treating them as safe to retry', () => {

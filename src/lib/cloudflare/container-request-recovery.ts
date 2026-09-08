@@ -1,7 +1,8 @@
 export type ContainerFailureKind = 'retryable' | 'unavailable';
 
 const RETRYABLE_CONTAINER_FAILURES = [
-  'error proxying request to container: the container is not running',
+  'error proxying request to container',
+  'the container is not listening',
   'container suddenly disconnected',
   'failed to start container:',
   'network connection lost',

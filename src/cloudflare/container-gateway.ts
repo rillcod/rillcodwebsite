@@ -151,6 +151,12 @@ export class NextAppContainer extends Container {
         return;
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.toLowerCase().includes("not listening")) {
+        console.warn("[NextAppContainer] container not listening during background-work check, allowing stop", error);
+        await super.onActivityExpired();
+        return;
+      }
       // An unreadable state is not evidence of idle. Surface the failure instead
       // of killing teaching/billing work; operational verification must catch it.
       console.error('[NextAppContainer] background-work check failed', error);
@@ -197,11 +203,41 @@ export class NextAppContainer extends Container {
       pathname: new URL(request.url).pathname,
     });
 
+    const failureText = await response.clone().text().catch(() => "");
+    const isUnresponsivePort = failureText.toLowerCase().includes("not listening");
+
     if (failure !== "retryable" || !replayRequest) {
+      if (isUnresponsivePort) {
+        this.ctx.waitUntil(
+          (async () => {
+            try {
+              await this.destroy();
+              await this.startAndWaitForPorts({
+                ports: this.defaultPort,
+                cancellationOptions: {
+                  instanceGetTimeoutMS: 12_000,
+                  portReadyTimeoutMS: 20_000,
+                  waitInterval: 250,
+                },
+              });
+            } catch (err) {
+              console.error("[NextAppContainer] background start recovery failed", err);
+            }
+          })()
+        );
+      }
       return finish(containerUnavailableResponse(request));
     }
 
     try {
+      if (isUnresponsivePort) {
+        try {
+          await this.destroy();
+        } catch (destroyError) {
+          console.warn("[NextAppContainer] failed to destroy unresponsive container", destroyError);
+        }
+      }
+
       await this.startAndWaitForPorts({
         ports: this.defaultPort,
         cancellationOptions: {
