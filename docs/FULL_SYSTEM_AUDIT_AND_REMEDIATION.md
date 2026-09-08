@@ -4306,3 +4306,31 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   Live mobile interaction and device print-dialog confirmation remain pending: the local browser URL
   was unreachable during this pass. Large datasets are still fetched in full; server pagination remains
   a separate scaling improvement, not something this client-rendering limit claims to solve.
+
+### Student journey: dashboard and assignment handoff — 2026-09-08
+
+- Confirmed incompatible submission-state interpretations in student home and Assignments. Added
+  one presentation read-model for the existing lifecycle: student action, teacher review, completed,
+  or unknown. Late/resubmitted/under-review submissions no longer appear as missing work; returned
+  revisions remain actionable, and internal status names have student-friendly labels. Unknown
+  statuses are not automatically classified as missing or completed.
+- Assignment filters, pending counts and ordering now share this interpretation. This is not a
+  replacement grading authority or database state machine; existing transition rules are unchanged.
+- Student home checks failed summary/assignment responses and offers retry rather than showing a
+  false unenrolled state. These API reads have 20-second timeouts. No-deadline assignments sort after
+  dated work and display 'No deadline'. Classroom changes refresh the home read-model.
+- Removed the outer dashboard's duplicate stats/activity request for students; the student widget
+  continues to own its summary. No database migrations or learner-data writes in this milestone.
+- Remaining audit: direct browser Supabase reads still duplicate some summary derivations; recent
+  grade averaging is not yet a unified reporting metric. Verify lesson playback, project submissions,
+  CBT, reports, regular-school optional/compulsory access and real student mobile sessions before
+  describing the complete student journey as end-to-end verified. No live database audit claimed.
+- Validation: typecheck and 17 targeted student lifecycle/workspace tests passed.
+
+### Print preparation follow-through — 2026-09-08
+
+- Shared bulk QR generation deduplicates payloads and processes four images per batch, yielding to
+  browser rendering between batches. Print resolution remains unchanged. Design, Manage and Records
+  preparation windows report real completed/total scan-code counts; closing the window stops further
+  batches through the progress callback. Two focused tests cover deduplication/progress and early stop.
+- Final document assembly and browser print-dialog behavior still need physical-device testing.

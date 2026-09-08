@@ -1,5 +1,6 @@
 // @refresh reset
 'use client';
+import { learnerSubmissionState, learnerSubmissionLabel } from '@/lib/assignments/learner-state';
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
@@ -74,12 +75,7 @@ function isOverdue(due?: string | null) {
 }
 
 function studentStatusLabel(status: string, overdue: boolean) {
-  if (status === 'missing') return overdue ? 'Overdue' : 'Not started';
-  if (status === 'pending_review') return 'Awaiting review';
-  if (status === 'submitted') return 'Submitted';
-  if (status === 'graded') return 'Graded';
-  if (status === 'late') return 'Submitted late';
-  return status || 'Not started';
+  return learnerSubmissionLabel(status, overdue);
 }
 
 function dueTime(value?: string | null) {
@@ -241,7 +237,7 @@ function AssignmentsPageInner() {
 
     if (isStaff) {
       const subs = a.assignment_submissions ?? [];
-      const hasPending = subs.some((s: any) => s.status === 'submitted' || s.status === 'pending_review' || s.status === 'late');
+      const hasPending = subs.some((s: any) => learnerSubmissionState(s.status) === 'review');
       const overdue = isOverdue(a.due_date);
       let mTab = true;
       if (staffTab === 'needs_grading') mTab = hasPending;
@@ -256,11 +252,13 @@ function AssignmentsPageInner() {
     if (filter === 'all') {
       mf = true;
     } else if (filter === 'pending') {
-      mf = status === 'missing' && !isOverdue(a.assignments?.due_date);
+      mf = learnerSubmissionState(status) === 'action' && !isOverdue(a.assignments?.due_date);
     } else if (filter === 'missing') {
-      mf = status === 'missing' && isOverdue(a.assignments?.due_date);
+      mf = learnerSubmissionState(status) === 'action' && isOverdue(a.assignments?.due_date);
     } else if (filter === 'awaiting') {
-      mf = ['submitted', 'pending_review', 'late'].includes(status);
+      mf = learnerSubmissionState(status) === 'review';
+    } else if (filter === 'graded') {
+      mf = learnerSubmissionState(status) === 'complete';
     } else {
       mf = status === filter;
     }
@@ -268,14 +266,14 @@ function AssignmentsPageInner() {
   }).sort((a: any, b: any) => {
     if (isStaff) {
       const actionable = (item: any) => (item.assignment_submissions ?? [])
-        .filter((sub: any) => ['submitted', 'pending_review', 'late'].includes(sub.status)).length;
+        .filter((sub: any) => learnerSubmissionState(sub.status) === 'review').length;
       return actionable(b) - actionable(a) || dueTime(a.due_date) - dueTime(b.due_date);
     }
     const priority = (item: any) => {
       const status = item.status ?? 'missing';
-      if (status === 'missing' && isOverdue(item.assignments?.due_date)) return 0;
-      if (status === 'missing') return 1;
-      if (['submitted', 'pending_review', 'late'].includes(status)) return 2;
+      if (learnerSubmissionState(status) === 'action' && isOverdue(item.assignments?.due_date)) return 0;
+      if (learnerSubmissionState(status) === 'action') return 1;
+      if (learnerSubmissionState(status) === 'review') return 2;
       return 3;
     };
     return priority(a) - priority(b)
@@ -286,15 +284,15 @@ function AssignmentsPageInner() {
   const totalItems = items.length;
   const pendingCount = isStaff
     ? items.reduce((count: number, assignment: any) => count + (assignment.assignment_submissions ?? [])
-        .filter((submission: any) => ['submitted', 'pending_review', 'late'].includes(submission.status)).length, 0)
-    : items.filter((a: any) => a.status === 'submitted' || a.status === 'pending_review' || a.status === 'late').length;
+        .filter((submission: any) => learnerSubmissionState(submission.status) === 'review').length, 0)
+    : items.filter((a: any) => learnerSubmissionState(a.status) === 'review').length;
   const gradedCount = isStaff
     ? items.reduce((count: number, assignment: any) => count + (assignment.assignment_submissions ?? [])
         .filter((submission: any) => submission.status === 'graded').length, 0)
-    : items.filter((a: any) => a.status === 'graded').length;
+    : items.filter((a: any) => learnerSubmissionState(a.status) === 'complete').length;
   const overdueCount = isStaff
     ? items.filter((a: any) => isOverdue(a.due_date) && a.is_active !== false).length
-    : items.filter((a: any) => isOverdue(a.assignments?.due_date) && a.status === 'missing').length;
+    : items.filter((a: any) => isOverdue(a.assignments?.due_date) && learnerSubmissionState(a.status) === 'action').length;
   const draftCount = isStaff ? items.filter((a: any) => a.is_active === false).length : 0;
 
   // ── LOADING ──────────────────────────────────────────────────
@@ -799,17 +797,17 @@ function AssignmentsPageInner() {
             {filtered.map((sub: any) => {
               const a = sub.assignments ?? {};
               const overdue = isOverdue(a.due_date) && sub.status === 'missing';
-              const accentColor = sub.status === 'missing' && !overdue
+              const accentColor = sub.learnerSubmissionState(status) === 'action' && !overdue
                 ? 'bg-primary'
                 : SUB_ACCENT[sub.status ?? 'pending'] ?? 'bg-muted';
-              const statusBadgeClass = sub.status === 'missing' && !overdue
+              const statusBadgeClass = sub.learnerSubmissionState(status) === 'action' && !overdue
                 ? 'bg-primary/10 text-primary border-primary/20'
                 : SUB_BADGE[sub.status ?? 'pending'] ?? 'bg-muted text-muted-foreground border-border';
               const statusLabel = studentStatusLabel(sub.status ?? 'missing', overdue);
               const detailHref = `/dashboard/assignments/${sub.assignment_id ?? a.id}`;
               const primaryLabel = sub.status === 'graded'
                 ? 'View feedback'
-                : ['submitted', 'pending_review', 'late'].includes(sub.status)
+                : learnerSubmissionState(sub.status) === 'review'
                   ? 'View submission'
                   : overdue
                     ? 'Submit now'
@@ -885,7 +883,7 @@ function AssignmentsPageInner() {
                       {/* One clear next action per learner; specialist tools remain
                           available only when they are the correct assignment pathway. */}
                       <div className="flex w-full flex-col gap-1.5 sm:w-auto flex-shrink-0">
-                        {sub.status === 'missing' && a.assignment_type === 'cbt' && (
+                        {sub.learnerSubmissionState(status) === 'action' && a.assignment_type === 'cbt' && (
                           <Link
                             href={`/dashboard/cbt/${sub.assignment_id ?? a.id}/take`}
                             className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
@@ -893,7 +891,7 @@ function AssignmentsPageInner() {
                             <CommandLineIcon className="w-3.5 h-3.5" /> Take Test
                           </Link>
                         )}
-                        {sub.status === 'missing' && a.assignment_type === 'coding' && (
+                        {sub.learnerSubmissionState(status) === 'action' && a.assignment_type === 'coding' && (
                           <Link
                             href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
                             className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
@@ -901,7 +899,7 @@ function AssignmentsPageInner() {
                             <CodeBracketIcon className="w-3.5 h-3.5" /> Code It
                           </Link>
                         )}
-                        {a.assignment_type !== 'cbt' && !(sub.status === 'missing' && a.assignment_type === 'coding') && (
+                        {a.assignment_type !== 'cbt' && !(sub.learnerSubmissionState(status) === 'action' && a.assignment_type === 'coding') && (
                           <Link
                             href={detailHref}
                             className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 border border-primary text-primary-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2.5 rounded-lg transition-colors"

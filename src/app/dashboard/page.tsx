@@ -69,7 +69,8 @@ export default function DashboardPage() {
   const [upcomingSlots, setUpcomingSlots] = useState<any[]>([]);
 
   // Use optimized data fetching hook
-  const { data, loading: dataLoading, error, refetch } = useDashboardData(!authLoading && !profileLoading && !!profile);
+  // StudentDashboard owns its scoped learning summary; avoid fetching a second copy here.
+  const { data, loading: dataLoading, error, refetch } = useDashboardData(!authLoading && !profileLoading && !!profile && profile.role !== 'student');
 
   // Auto-refresh for teachers and admins
   const shouldAutoRefresh = profile?.role === 'teacher' || profile?.role === 'admin';
@@ -167,7 +168,7 @@ export default function DashboardPage() {
   }
 
   // Data loading - show skeleton
-  if (dataLoading && !data.stats) {
+  if (profile.role !== 'student' && dataLoading && !data.stats) {
     return (
       <div className="space-y-4 sm:space-y-6">
         {/* Welcome Banner */}
@@ -179,7 +180,7 @@ export default function DashboardPage() {
   }
 
   // Error state
-  if (error) {
+  if (profile.role !== 'student' && error) {
     return (
       <div className="space-y-4 sm:space-y-6">
         <WelcomeBanner profile={profile} now={now} />

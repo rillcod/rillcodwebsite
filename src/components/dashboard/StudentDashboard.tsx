@@ -8,6 +8,8 @@ import {
   ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
+import { learnerSubmissionState } from '@/lib/assignments/learner-state';
+import { fetchActionJson } from '@/lib/async-timeout';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
@@ -46,14 +48,17 @@ export default function StudentDashboard() {
     lmsSettings: {} as Record<string, string>,
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
     (async () => {
       setLoading(true);
+      setLoadError(false);
       try {
-        const res = await fetch('/api/dashboard/stats');
-        const json = await res.json();
+        const { response: res, data: json } = await fetchActionJson<any>('/api/dashboard/stats', { cache: 'no-store' }, 'Your summary is taking longer than expected.', 20_000);
+        if (!res.ok || !json.stats) throw new Error('Student summary unavailable');
 
         if (json.stats) {
           const s = json.stats;
@@ -80,13 +85,15 @@ export default function StudentDashboard() {
         // NOT a raw client query, which would leak other programmes' assignments and was
         // also hiding past-due work via a `.gte('due_date', now)` filter.
         const [assignmentsRes, recentGradesRes, activityRes] = await Promise.allSettled([
-          fetch('/api/assignments', { cache: 'no-store' }).then(r => r.ok ? r.json() : { data: [] }),
+          fetchActionJson<any>('/api/assignments', { cache: 'no-store' }, 'Your assignments are taking longer than expected.', 20_000)
+            .then(({ response, data }) => { if (!response.ok || !Array.isArray(data.data)) throw new Error('Assignments unavailable'); return data; }),
           db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points, term_id)')
             .eq('portal_user_id', profile.id).eq('status', 'graded').not('grade', 'is', null)
             .order('submitted_at', { ascending: false }).limit(12),
           db.from('assignment_submissions').select('status, submitted_at, assignments(title, term_id)')
             .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(10),
         ]);
+        if (assignmentsRes.status === 'rejected') throw new Error('Assignments unavailable');
 
         const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
         const liveTermId = await resolveAssignmentTermId(db as any, {});
@@ -101,12 +108,12 @@ export default function StudentDashboard() {
         const pending = scopedAssignments.filter((a: any) => {
           const sub = (a.assignment_submissions ?? [])[0];
           const status = sub?.status ?? 'missing';
-          return status !== 'graded' && status !== 'submitted' && status !== 'pending_review';
+          return learnerSubmissionState(status) === 'action';
         });
         const toCard = (a: any) => ({ id: a.id, title: a.title, due_date: a.due_date, course: a.courses?.title ?? null });
         const upcomingDue = pending
           .filter((a: any) => !a.due_date || new Date(a.due_date).getTime() >= nowMs)
-          .sort((x: any, y: any) => new Date(x.due_date ?? 0).getTime() - new Date(y.due_date ?? 0).getTime())
+          .sort((x: any, y: any) => (x.due_date ? Date.parse(x.due_date) : Infinity) - (y.due_date ? Date.parse(y.due_date) : Infinity))
           .slice(0, 5).map(toCard);
         const overdueDue = pending
           .filter((a: any) => a.due_date && new Date(a.due_date).getTime() < nowMs)
@@ -147,6 +154,7 @@ export default function StudentDashboard() {
         setData(prev => ({
           ...prev,
           upcomingDue,
+          pendingAssignments: pending.length,
           overdueDue,
           recentGrades: recentGrades.map((s: any) => ({
             id: s.id,
@@ -161,12 +169,13 @@ export default function StudentDashboard() {
         }));
 
       } catch (err) {
+        setLoadError(true);
         console.error('Failed to load student dashboard stats:', err);
       } finally {
         setLoading(false);
       }
     })();
-  }, [profile?.id]);
+  }, [profile?.id, profile?.class_id, retryKey]);
 
   let levelConf = LEVEL_COLORS[data.level] ?? LEVEL_COLORS.Bronze;
   let nextThreshold = NEXT_THRESHOLD[data.level] ?? 500;
@@ -188,6 +197,17 @@ export default function StudentDashboard() {
       {[1, 2, 3].map(i => (
         <div key={i} className="h-24 bg-card/90 border border-border/80 animate-pulse rounded-2xl" />
       ))}
+    </div>
+  );
+
+  if (loadError) return (
+    <div role="alert" className="m-4 rounded-2xl border border-border bg-card p-5 space-y-3">
+      <h2 className="font-semibold">Your learning summary could not be loaded</h2>
+      <p className="text-sm text-muted-foreground">This does not mean your class or work is missing. Try again, or open your assignments.</p>
+      <div className="flex flex-wrap gap-3">
+        <button onClick={() => setRetryKey(v => v + 1)} className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground">Try again</button>
+        <Link href="/dashboard/assignments" className="min-h-11 inline-flex items-center px-4 border border-border rounded-lg">My assignments</Link>
+      </div>
     </div>
   );
 
@@ -429,7 +449,7 @@ export default function StudentDashboard() {
                         {a.course && <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{a.course}</p>}
                       </div>
                       <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${urgency}`}>
-                        {daysLeft <= 0 ? 'Today' : daysLeft === 1 ? '1 day' : `${daysLeft}d`}
+                        {!a.due_date ? 'No deadline' : daysLeft <= 0 ? 'Today' : daysLeft === 1 ? '1 day' : `${daysLeft}d`}
                       </span>
                     </Link>
                   );
