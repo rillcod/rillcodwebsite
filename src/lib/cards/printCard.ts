@@ -311,6 +311,7 @@ export interface BulkPrintOptions {
   autoGroupByGrade?: boolean;
   /** Records exports already have an explicit user-selected sort order. */
   preserveOrder?: boolean;
+  onProgress?: (completed: number, total: number) => void;
 }
 
 export type CardPrintGroup = { label: string; holders: CardHolder[] };
@@ -384,7 +385,7 @@ export async function buildBulkPrintHtml(
   // deterministic student code).
   const allSorted = groups.flatMap((g) => g.holders);
   const qrPayload = (h: CardHolder) => cardVerifyUrl(originUrl, h);
-  const qrMap = fv('qr') ? await qrDataUrls(allSorted.map(qrPayload), HD_QR_PRINT_PX) : new Map<string, string>();
+  const qrMap = fv('qr') ? await qrDataUrls(allSorted.map(qrPayload), HD_QR_PRINT_PX, opts.onProgress) : new Map<string, string>();
 
   const badgeMode = cfg.badgeMode ?? 'label';
   const cardHtml = (h: CardHolder) => {

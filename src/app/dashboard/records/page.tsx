@@ -334,10 +334,19 @@ export default function RecordsPage() {
       holders,
       { ...cfg, fields },
       window.location.origin,
-      { qrHint: 'Scan or type code at rillcod.com/result-check', preserveOrder: true },
+      {
+        qrHint: 'Scan or type code at rillcod.com/result-check', preserveOrder: true,
+        onProgress: (done, total) => {
+          if (preview.closed) throw new Error('Print cancelled');
+          preview.document.body.textContent = done < total
+            ? `Preparing scan codes: ${done} of ${total}. Please keep this window open.`
+            : 'Scan codes ready. Arranging your printable cards...';
+        },
+      },
     );
     openPrintWindow(html, preview);
     } catch (error) {
+      if (preview.closed) return;
       preview.close();
       toast.error(friendlyActionError(error, 'Could not prepare the cards. Please try again.'));
     }

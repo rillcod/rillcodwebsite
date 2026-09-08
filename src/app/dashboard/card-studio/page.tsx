@@ -1027,6 +1027,10 @@ export default function CardStudioPage() {
 
   const printDesignCards = async (list: any[], title = 'Access Cards', opts?: { groupBy?: 'none' | 'grade' | 'section' }) => {
     if(!list.length) return;
+    const preview = window.open('', '_blank');
+    if (!preview) { toast.error('Allow pop-ups to print cards.'); return; }
+    preview.document.body.textContent = 'Preparing your cards...';
+    try {
     const holders = sortCardHolders(cardHoldersFromDesignStudents(list));
     const grades = new Set(holders.map(h => (h.grade ?? '').trim()).filter(Boolean));
     const groupBy = opts?.groupBy ?? (grades.size > 1 ? 'grade' : 'none');
@@ -1035,8 +1039,19 @@ export default function CardStudioPage() {
       qrHint: 'Scan for result',
       title,
       groupBy,
+      onProgress: (done, total) => {
+        if (preview.closed) throw new Error('Print cancelled');
+        preview.document.body.textContent = done < total
+          ? `Preparing scan codes: ${done} of ${total}. Please keep this window open.`
+          : 'Scan codes ready. Arranging your printable cards...';
+      },
     });
-    openPrintWindow(html);
+    openPrintWindow(html, preview);
+    } catch {
+      if (preview.closed) return;
+      preview.close();
+      toast.error('Could not prepare the cards. Please try again.');
+    }
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1474,9 +1489,16 @@ export default function CardStudioPage() {
       qrHint: 'Scan to verify',
       title,
       groupBy,
+      onProgress: (done, total) => {
+        if (preview.closed) throw new Error('Print cancelled');
+        preview.document.body.textContent = done < total
+          ? `Preparing scan codes: ${done} of ${total}. Please keep this window open.`
+          : 'Scan codes ready. Arranging your printable cards...';
+      },
     });
     openPrintWindow(html, preview);
     } catch {
+      if (preview.closed) return;
       preview.close();
       toast.error('Could not prepare the cards. Please try again.');
     }

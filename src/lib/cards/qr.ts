@@ -28,12 +28,23 @@ export async function qrDisplayDataUrl(data: string, size = HD_QR_DISPLAY_PX): P
   return qrDataUrl(data, Math.max(size, HD_QR_DISPLAY_PX));
 }
 
-/** Generate QR images for many payloads at once (bulk card printing). */
-export async function qrDataUrls(payloads: string[], size = HD_QR_PRINT_PX): Promise<Map<string, string>> {
+/** Bound expensive bitmap work and yield between batches so mobile can paint progress. */
+export async function qrDataUrls(
+  payloads: string[],
+  size = HD_QR_PRINT_PX,
+  onProgress?: (completed: number, total: number) => void,
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  await Promise.all(payloads.map(async (p) => {
-    out.set(p, await qrDataUrl(p, size));
-  }));
+  const unique = [...new Set(payloads)];
+  onProgress?.(0, unique.length);
+  for (let start = 0; start < unique.length; start += 4) {
+    // A macrotask boundary also lets the preparation window render before the first batch.
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const batch = unique.slice(start, start + 4);
+    const results = await Promise.all(batch.map(async p => [p, await qrDataUrl(p, size)] as const));
+    results.forEach(([payload, url]) => out.set(payload, url));
+    onProgress?.(out.size, unique.length);
+  }
   return out;
 }
 
