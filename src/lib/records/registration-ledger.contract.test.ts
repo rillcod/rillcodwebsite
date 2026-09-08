@@ -32,9 +32,12 @@ describe('registration ledger resilience contract', () => {
     expect(pageSource).toContain('activeCount === 0 && !regsLoading && !regsError');
   });
 
-  it('renders large ledgers progressively for mobile and desktop', () => {
-    expect(pageSource).toContain('const [visibleLimit, setVisibleLimit] = useState(60)');
-    expect(pageSource).toContain('const visibleRows = activeRows.slice(0, visibleLimit)');
-    expect(pageSource).toContain('Show 60 more');
+  it('uses the bounded preview for both cards and tables without truncating exports', () => {
+    expect(pageSource).toContain('cardPreviewPage(activeRows, page)');
+    expect(pageSource).toContain('visibleRows.map(');
+    expect(pageSource).toContain('(visibleRows as Rec[]).map(');
+    expect(pageSource).toContain('(visibleRows as Reg[]).map(');
+    expect(pageSource).toContain('explicitRows ?? (isPeople ? peopleFiltered : regsFiltered)');
+    expect(pageSource).not.toContain('Show 60 more');
   });
 });

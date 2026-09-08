@@ -148,7 +148,7 @@ export function buildStudentRosterRows(
       if (classCmp !== 0) return classCmp;
       const sectionCmp = compareSectionNames(a.section || 'zzz', b.section || 'zzz');
       if (sectionCmp !== 0) return sectionCmp;
-      return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
     });
 }
 
@@ -185,7 +185,7 @@ export function buildRosterSectionGroups(rows: StudentRosterRow[]): RosterSectio
     .sort((a, b) => {
       const cc = compareClassNames(a.className, b.className);
       if (cc !== 0) return cc;
-      return a.sectionName.localeCompare(b.sectionName);
+      return compareSectionNames(a.sectionName, b.sectionName);
     });
 }
 
@@ -1045,7 +1045,7 @@ function renderClassTable(
     styles: {
       fontSize: 9,
       cellPadding: { top: 2, right: 2.5, bottom: 2, left: 2.5 },
-      overflow: 'ellipsize',
+      overflow: 'linebreak',
       lineColor: BORDER,
       lineWidth: 0.12,
       textColor: INK,
@@ -1087,17 +1087,23 @@ function renderClassTable(
             lineWidth: 0.2,
           },
         },
+    rowPageBreak: 'avoid',
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: 12, bottom: FOOTER_RESERVE },
     didDrawPage: (data: { pageNumber: number }) => {
-      if (data.pageNumber > groupStartPage) {
+      if (doc.getNumberOfPages() > groupStartPage) {
         drawContinuationStrip(doc, accentRgb, org, continuationLabel);
       }
     },
   });
 
   const finalY = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? startY + 20;
-  const sigY = Math.min(finalY + 6, PAGE_HEIGHT - FOOTER_RESERVE - 8);
-  if (sigY < PAGE_HEIGHT - FOOTER_RESERVE - 4) {
+  let sigY = finalY + 6;
+  if (sigY + 13 > PAGE_HEIGHT - FOOTER_RESERVE) {
+    doc.addPage();
+    drawContinuationStrip(doc, accentRgb, org, continuationLabel);
+    sigY = 18;
+  }
+  {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(6.5);
     doc.setTextColor(...MUTED);
@@ -1119,6 +1125,12 @@ export async function downloadStudentRosterPdf(
   options: StudentRosterPdfOptions,
 ): Promise<boolean> {
   if (!rows.length) return false;
+
+  // Keep browser user activation: opening after async imports is blocked on phones.
+  const preview = options.mode === 'print' ? window.open('', '_blank') : null;
+  if (options.mode === 'print' && !preview) return false;
+  if (preview) preview.document.body.textContent = 'Preparing your RC roster PDF...';
+  try {
 
   const [{ default: jsPDF }, autoTableModule] = await Promise.all([
     import('jspdf'),
@@ -1186,13 +1198,16 @@ export async function downloadStudentRosterPdf(
 
   if (options.mode === 'print') {
     doc.autoPrint();
-    const blobUrl = doc.output('bloburl');
-    const win = window.open(blobUrl, '_blank');
-    if (!win) return false;
-    win.focus();
+    const blobUrl = URL.createObjectURL(doc.output('blob'));
+    preview!.location.replace(blobUrl);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 300_000);
     return true;
   }
 
   doc.save(filename);
   return true;
+  } catch (error) {
+    preview?.close();
+    throw error;
+  }
 }

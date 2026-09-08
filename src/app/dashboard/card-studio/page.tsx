@@ -42,7 +42,8 @@ import {
 } from '@/lib/cards/cardHierarchy';
 import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
 import { LocalQr } from '@/components/cards/LocalQr';
-import { HD_QR_PRINT_PX } from '@/lib/qr/hd-qr';
+import { HD_QR_EMBED_PX } from '@/lib/qr/hd-qr';
+import { cardPreviewPage } from '@/lib/cards/preview-page';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
@@ -488,8 +489,22 @@ function ManageRosterTable({
         </div>
       )}
       {!compact && <RosterClassInstructions className={className} />}
+      <ul className="sm:hidden divide-y divide-border">
+        {rows.map(row => (
+          <li key={row.rcNumber} className="flex items-center justify-between gap-3 p-3">
+            <div className="min-w-0">
+              <p className="break-words text-sm font-semibold">{row.name}</p>
+              <p className="text-xs text-muted-foreground">{row.className} · {formatRosterSectionDisplay(row.section)}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-xs text-muted-foreground">RC number</p>
+              <span className="select-all font-mono text-sm font-bold text-primary">{row.rcDisplay}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
       {/* pan-x+y so mobile can scroll the page vertically while still swiping the wide table sideways */}
-      <div className="overflow-x-auto scrollbar-thin touch-pan-x touch-pan-y">
+      <div className="hidden sm:block overflow-x-auto scrollbar-thin touch-pan-x touch-pan-y">
         <table className="w-full min-w-[600px] sm:min-w-[640px] text-left text-sm">
           <thead className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest">
             <tr>
@@ -602,7 +617,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             {r.badge&&r.badge!==r.gradeLevel&&r.badge!==r.sectionClass&&<div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>}
           </div>
           <div style={{width:Math.max(60,Math.round(42*(config.qrScale??1))+18,Math.round(48*(config.codeScale??1))),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
-            <LocalQr data={verifyUrl} size={HD_QR_PRINT_PX} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
+            <LocalQr data={verifyUrl} size={HD_QR_EMBED_PX} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
             {config.showCode!==false && <div style={{fontSize:Math.round(6*(config.codeScale??1)*10)/10,lineHeight:1.15,fontWeight:900,fontFamily:'monospace',color:acc,textAlign:'center',wordBreak:'break-all'}}>{code}</div>}
           </div>
         </div>
@@ -1093,7 +1108,7 @@ export default function CardStudioPage() {
   },[]);
 
   const loadRecords = useCallback(async (type: CardType, hiddenOnly = showHiddenAccounts) => {
-    setManageLoading(true); setManageError(null); setSelectedClass('all'); setSelectedGrade('all'); setSelectedSchool('all');
+    setManageLoading(true); setManageError(null);
     try {
       const hiddenQS = hiddenOnly ? '&deleted_only=true' : '';
       if(type==='parent') {
@@ -1388,6 +1403,16 @@ export default function CardStudioPage() {
     return sortBySchoolHierarchy(list, manageHierarchyPick);
   }, [manageHierarchyPool, manageHierarchyFilter]);
 
+  // Bound mounted rows/QR canvases, not the dataset used for class printing or bulk actions.
+  const [managePage, setManagePage] = useState(1);
+  useEffect(() => { setManagePage(1); }, [filtered, manageView, groupMode, selectedRosterGrades]);
+  const rosterRecords = useMemo(() => filtered.filter(r => r.has_published_report
+    && (selectedRosterGrades.size === 0 || selectedRosterGrades.has(r.gradeLevel || '— No Class —'))),
+  [filtered, selectedRosterGrades]);
+  const previewRecords = manageView === 'roster' ? rosterRecords : filtered;
+  const { pageSize, pageCount, currentPage, visibleRecords } = cardPreviewPage(previewRecords, managePage);
+  const visibleIds = new Set(visibleRecords.map(r => r.id));
+
   const groupedByGrade = useMemo(()=>{
     const map=new Map<string,CardRecord[]>();
     filtered.forEach(r=>{const key=r.gradeLevel||'— No Class —';if(!map.has(key))map.set(key,[]);map.get(key)!.push(r);});
@@ -1421,6 +1446,10 @@ export default function CardStudioPage() {
     opts?: { groupBy?: 'none' | 'grade' | 'section' },
   ) => {
     if(!list.length){toast.error('No records to print');return;}
+    const preview = window.open('', '_blank');
+    if (!preview) { toast.error('Allow pop-ups to print cards.'); return; }
+    preview.document.body.textContent = 'Preparing your cards...';
+    try {
     const holders: PrintCardHolder[] = sortCardHolders(list.map(r=>{
       const dbCard=dbCardsMap.get(r.id);
       return {
@@ -1446,7 +1475,11 @@ export default function CardStudioPage() {
       title,
       groupBy,
     });
-    openPrintWindow(html);
+    openPrintWindow(html, preview);
+    } catch {
+      preview.close();
+      toast.error('Could not prepare the cards. Please try again.');
+    }
   };
 
   const rosterDate = () => new Date().toISOString().slice(0, 10);
@@ -1454,7 +1487,7 @@ export default function CardStudioPage() {
   const filteredRosterRows = useMemo(
     () => buildStudentRosterRows(
       mapRecordsToRosterInput(filtered.filter((r) => r.has_published_report)),
-      window.location.origin,
+      typeof window === 'undefined' ? '' : window.location.origin,
     ),
     [filtered],
   );
@@ -1553,6 +1586,22 @@ export default function CardStudioPage() {
     [rosterPreviewGroups],
   );
 
+  const visibleRosterGroups = manageView === 'roster'
+    ? buildRosterClassGroups(buildStudentRosterRows(mapRecordsToRosterInput(visibleRecords),
+      typeof window === 'undefined' ? '' : window.location.origin))
+    : [];
+
+  const manageViewControl = (
+    <div role="group" aria-label="Card holder view" className="flex rounded-lg border border-border bg-background p-1">
+      {(['list', 'grid', ...(cardType === 'student' ? ['roster'] : [])] as Array<'list' | 'grid' | 'roster'>).map(view => (
+        <button key={view} type="button" aria-pressed={manageView === view} onClick={() => setManageView(view)}
+          className={`min-h-11 flex-1 whitespace-nowrap rounded-md px-3 text-sm font-medium ${manageView === view ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+          {view === 'grid' ? 'Cards' : view === 'roster' ? 'RC roster' : 'List'}
+        </button>
+      ))}
+    </div>
+  );
+
   const rosterPdfOptions = (
     rows: StudentRosterRow[],
     title: string,
@@ -1588,6 +1637,7 @@ export default function CardStudioPage() {
     }
     const groups = buildRosterPdfGroups(rows, opts?.groupMode ?? 'class');
     const splitByClass = opts?.splitByClass ?? groups.length > 1;
+    try {
     const ok = await downloadStudentRosterPdf(rows, {
       ...rosterPdfOptions(rows, title, splitByClass, opts?.groupMode ?? 'class'),
       mode: 'print',
@@ -1598,6 +1648,7 @@ export default function CardStudioPage() {
         ? `Roster PDF ready — ${groups.length} classes · ${rows.length} students`
         : `Roster PDF ready — ${rows.length} student${rows.length === 1 ? '' : 's'}`,
     );
+    } catch { toast.error('Could not prepare the roster PDF. Please try again.'); }
   };
 
   const saveManageRosterPdf = async (
@@ -1620,6 +1671,7 @@ export default function CardStudioPage() {
     }
     const groups = buildRosterPdfGroups(rows, opts?.groupMode ?? 'class');
     const splitByClass = opts?.splitByClass ?? groups.length > 1;
+    try {
     await downloadStudentRosterPdf(rows, {
       ...rosterPdfOptions(rows, label, splitByClass, opts?.groupMode ?? 'class'),
       filename: `${label.replace(/\s+/g, '-').toLowerCase()}-${rosterDate()}.pdf`,
@@ -1630,6 +1682,7 @@ export default function CardStudioPage() {
         ? `Saved roster PDF — ${groups.length} classes · ${rows.length} students`
         : `Saved roster PDF — ${rows.length} student${rows.length === 1 ? '' : 's'}`,
     );
+    } catch { toast.error('Could not save the roster PDF. Please try again.'); }
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -2296,7 +2349,7 @@ export default function CardStudioPage() {
           </div>
           <div className="relative w-full md:w-56 min-w-0 flex-1 md:flex-none">
             <MagnifyingGlassIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60"/>
-            <input aria-label="Search saved designs" value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
+            <input aria-label="Search card holders by name, class or school" value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
               className="w-full pl-8 pr-3 py-2 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"/>
           </div>
           <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto scrollbar-none pt-1 md:pt-0">
@@ -2305,7 +2358,7 @@ export default function CardStudioPage() {
               onClick={() => setManageToolsOpen((v) => !v)}
               className={`md:hidden shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide border transition-colors ${manageToolsOpen || manageFiltersActive ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground bg-background'}`}
             >
-              {manageToolsOpen ? 'Less' : 'More'}
+              {manageToolsOpen ? 'Hide tools' : 'Filters & actions'}
               {manageFiltersActive && !manageToolsOpen ? ' •' : ''}
             </button>
             {manageFiltersActive && (
@@ -2336,14 +2389,7 @@ export default function CardStudioPage() {
               <span className="font-semibold text-foreground">{filtered.length}</span>
               {filtered.length !== counts.total ? ` of ${counts.total}` : ''} shown
             </span>
-            <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
-              <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
-              <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
-              {cardType === 'student' && (
-                <button onClick={()=>{ setManageView('roster'); if (reportFilter === 'all') setReportFilter('published'); }} title="RC roster — tap a class to print"
-                  className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
-              )}
-            </div>
+{manageViewControl}
           </div>
         </div>
 
@@ -2453,14 +2499,7 @@ export default function CardStudioPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* List (default) / Grid view toggle */}
-            <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
-              <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
-              <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
-              {cardType === 'student' && (
-                <button onClick={()=>{ setManageView('roster'); if (reportFilter === 'all') setReportFilter('published'); }} title="RC roster — tap a class to print"
-                  className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='roster'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Roster</button>
-              )}
-            </div>
+            <div className="hidden md:block">{manageViewControl}</div>
             {filtered.length>0&&selectedIds.size===0&&(
               <button onClick={()=>setSelectedIds(new Set(filtered.map(r=>r.id)))}
                 className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
@@ -2532,6 +2571,17 @@ export default function CardStudioPage() {
       </div>
 
       {/* Manage content area — min-h-0 so flex child can shrink and scroll inside shell */}
+      {!manageLoading && (
+        <div className="flex-none flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 text-sm">
+          <span role="status">{previewRecords.length === 0 ? 'No matching records' : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, previewRecords.length)} of ${previewRecords.length}`}</span>
+          {pageCount > 1 && <div className="flex items-center gap-2">
+            <button className="min-h-11 rounded-lg border border-border px-3 disabled:opacity-40" disabled={currentPage === 1} onClick={() => setManagePage(currentPage - 1)}>Previous</button>
+            <span className="text-xs text-muted-foreground">{currentPage}/{pageCount}</span>
+            <button className="min-h-11 rounded-lg border border-border px-3 disabled:opacity-40" disabled={currentPage === pageCount} onClick={() => setManagePage(currentPage + 1)}>Next</button>
+          </div>}
+          {manageView === 'roster' && <p className="w-full text-xs text-muted-foreground">Students with published reports. Printing includes the full selected class, not just this page.</p>}
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y p-3 md:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {manageError&&<div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-bold">{manageError}</div>}
         {manageLoading?(
@@ -2555,7 +2605,7 @@ export default function CardStudioPage() {
           </div>
         ):manageView !== 'roster' && groupMode==='hierarchy'?(
           <div className="space-y-8">
-            {groupedByHierarchy.map(({ className, sections }) => (
+            {groupedByHierarchy.filter(g => g.sections.some(s => s.items.some(r => visibleIds.has(r.id)))).map(({ className, sections }) => (
               <section key={className} className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border/60 pb-2">
                   <div className="flex items-center gap-2">
@@ -2590,7 +2640,7 @@ export default function CardStudioPage() {
                     )}
                   </div>
                 </div>
-                {sections.map(({ sectionName, items: sectionItems }) => (
+                {sections.filter(s => s.items.some(r => visibleIds.has(r.id))).map(({ sectionName, items: sectionItems }) => (
                   <div key={`${className}-${sectionName}`} className="space-y-3 pl-3 border-l border-border/50">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                       <div className="flex items-center gap-2">
@@ -2616,13 +2666,13 @@ export default function CardStudioPage() {
                     </div>
                     {manageView === 'grid' ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {sectionItems.map((r) => (
+                        {sectionItems.filter(r => visibleIds.has(r.id)).map((r) => (
                           <ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={(r) => printManageCards([r], `${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>
                         ))}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
-                        {sectionItems.map((r) => (
+                        {sectionItems.filter(r => visibleIds.has(r.id)).map((r) => (
                           <ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={(r) => printManageCards([r], `${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>
                         ))}
                       </div>
@@ -2634,7 +2684,7 @@ export default function CardStudioPage() {
           </div>
         ):manageView !== 'roster' && groupMode!=='none'?(
           <div className="space-y-8">
-            {(grouped ?? []).map(([groupLabel,list])=>(
+            {(grouped ?? []).filter(([, list]) => list.some(r => visibleIds.has(r.id))).map(([groupLabel,list])=>(
               <section key={groupLabel} className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border/60 pb-2">
                   <div className="flex items-center gap-2">
@@ -2665,11 +2715,11 @@ export default function CardStudioPage() {
                 </div>
                 {manageView === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
+                    {list.filter(r => visibleIds.has(r.id)).map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
                   </div>
                 ):(
                   <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
-                    {list.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
+                    {list.filter(r => visibleIds.has(r.id)).map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
                   </div>
                 )}
               </section>
@@ -2781,7 +2831,7 @@ export default function CardStudioPage() {
 
             {rosterPreviewGroups.length === 0 ? (
               <ManageRosterTable rows={[]} />
-            ) : rosterPreviewGroups.map((group) => {
+            ) : visibleRosterGroups.map((group) => {
               const classChecked = selectedRosterGrades.has(group.className);
               const classDisabled = group.rows.length === 0 || rosterSchoolRequired;
               return (
@@ -2838,11 +2888,11 @@ export default function CardStudioPage() {
           </div>
         ):manageView==='grid'?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
+            {visibleRecords.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
           </div>
         ):(
           <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
-            {filtered.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
+            {visibleRecords.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)} canDelete={canDeleteAccounts} permanentlyDeleteHolder={permanentlyDeleteHolder} isDeletingIds={isDeletingIds}/>)}
           </div>
         )}
       </div>

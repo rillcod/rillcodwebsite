@@ -4280,3 +4280,29 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   load the mocked Worker at runtime so its globals do not enter the Next application type graph;
   `tsconfig.worker.json` remains the separate Worker typecheck. This corrects excessive memory use
   introduced by direct test imports of the deployment/Worker entrypoints.
+
+### Records and RC roster usability milestone — 2026-09-08
+
+- Confirmed unbounded mounted Card Studio rows and 1024px QR preview generation. List, card and
+  roster previews now mount at most 24 records; preview QR uses the existing 512px embed standard.
+  Printing, class actions and selection still use the complete filtered dataset, not the preview page.
+- RC roster no longer silently changes the report filter. Refresh preserves school/class filters.
+  Mobile roster uses readable name/class/RC rows rather than forcing a wide desktop table.
+- Dashboard Records (including Registrations & Logins) now has bounded previews, persistent filter
+  components, school/grade-aware search, in-place refresh, explicit preparation feedback and one
+  selection-aware print action alongside Download PDF and separately labelled CSV export.
+- Records PDF replaces the browser's crowded HTML print table with paginated landscape output,
+  wrapping names, repeated headings, page numbers and a confidentiality footer. Caller selection and
+  sorting are preserved, including login-card printing. Grade comparisons use the shared class sorter.
+- RC PDF section ordering now uses the natural section comparator. Long names wrap; continuation
+  headings also work for later classes; signature blocks no longer get clamped over the final rows.
+- Records, roster PDF and card printing reserve a browser tab before asynchronous generation to
+  avoid losing user activation on mobile. Blocked pop-ups and failed preparation have visible feedback.
+- No student scores, credentials, registrations or database records were changed. Existing credential
+  permissions remain in force; standard exports do not add passwords. PDF credentials require the
+  existing authorised revealed-password state.
+- Verification: application typecheck and targeted pagination/PDF/roster tests; synthetic multi-page
+  Records and RC PDFs rendered with Poppler and inspected. No production build or deployment.
+  Live mobile interaction and device print-dialog confirmation remain pending: the local browser URL
+  was unreachable during this pass. Large datasets are still fetched in full; server pagination remains
+  a separate scaling improvement, not something this client-rendering limit claims to solve.

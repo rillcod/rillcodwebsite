@@ -309,6 +309,8 @@ export interface BulkPrintOptions {
   groupBy?: 'none' | 'grade' | 'section';
   /** When true and groupBy omitted, auto-split if multiple grades exist. */
   autoGroupByGrade?: boolean;
+  /** Records exports already have an explicit user-selected sort order. */
+  preserveOrder?: boolean;
 }
 
 export type CardPrintGroup = { label: string; holders: CardHolder[] };
@@ -341,6 +343,7 @@ export function groupCardHolders(holders: CardHolder[], mode: 'grade' | 'section
 }
 
 function resolvePrintGroups(holders: CardHolder[], opts: BulkPrintOptions): CardPrintGroup[] {
+  if (opts.preserveOrder) return [{ label: '', holders: [...holders] }];
   const sorted = sortCardHolders(holders);
   let mode = opts.groupBy ?? 'none';
   if (mode === 'none' && opts.autoGroupByGrade !== false) {
@@ -490,8 +493,8 @@ export async function buildBulkPrintHtml(
   </body></html>`;
 }
 
-export function openPrintWindow(html: string): void {
-  const win = window.open('', '_blank');
+export function openPrintWindow(html: string, reservedWindow?: Window): void {
+  const win = reservedWindow ?? window.open('', '_blank');
   if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
   win.document.write(html);
   win.document.close();
