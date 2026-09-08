@@ -11,7 +11,7 @@ import {
   HomeIcon,
 } from '@/lib/icons';
 
-const PATH_LABELS: Record<string, string> = {
+export const PATH_LABELS: Record<string, string> = {
   '/dashboard': 'Overview',
   '/dashboard/students': 'Students Registry',
   '/dashboard/teachers': 'Teachers',
@@ -43,7 +43,7 @@ const PATH_LABELS: Record<string, string> = {
   '/dashboard/learner-progress': 'Class progress',
 };
 
-const STUDENT_PATH_LABELS: Record<string, string> = {
+export const STUDENT_PATH_LABELS: Record<string, string> = {
   '/dashboard/results': 'My Report Card',
   '/dashboard/finance': 'My Fees',
   '/dashboard/grades': 'My Grades',

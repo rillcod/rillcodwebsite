@@ -89,7 +89,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="app-shell-scroll relative flex w-full min-w-0 flex-1 flex-col overflow-x-clip bg-muted/20 pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+0.5rem)] scroll-smooth print:block print:overflow-visible print:pt-0 print:pb-0 md:h-full md:min-h-0 md:overflow-y-auto md:bg-background md:pt-0 md:pb-0"
+      className="app-shell-scroll relative flex w-full min-w-0 flex-1 flex-col overflow-x-clip bg-muted/20 pt-[var(--app-header-height)] pb-[calc(var(--app-bottom-nav-height)+0.5rem)] print:block print:overflow-visible print:pt-0 print:pb-0 md:h-full md:min-h-0 md:overflow-y-auto md:bg-background md:pt-0 md:pb-0"
     >
       <DesktopTopNavbar />
       <PullToRefreshContainer>

@@ -40,11 +40,16 @@
 
   body {
     @apply bg-background text-foreground;
-    scroll-behavior: smooth;
     min-height: 100dvh;
     overflow-x: clip;
     -webkit-overflow-scrolling: touch;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :root:focus-within {
+      scroll-behavior: smooth;
+    }
   }
 
   :root {
@@ -193,14 +198,14 @@
 
        Scoped to overlays that centre a panel, which is what a dialog does; a
        decorative full-bleed layer has no items-center and is left alone. */
-    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog) {
+    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog):not([role="alertdialog"]):not(.loading-indicator):not([data-loading="true"]):not(:has([class*="animate-spin"])) {
       align-items: flex-end !important;
       padding: 0 !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
 
-    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog) > [class*="max-w-"] {
+    [class*="fixed"][class*="inset-0"][class*="items-center"][class*="justify-center"]:not(.mobile-native-dialog):not([role="alertdialog"]):not(.loading-indicator):not([data-loading="true"]):not(:has([class*="animate-spin"])) > [class*="max-w-"] {
       width: 100% !important;
       max-width: 100% !important;
       max-height: min(92dvh, calc(100dvh - var(--safe-area-top))) !important;

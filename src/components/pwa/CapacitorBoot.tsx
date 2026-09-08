@@ -5,74 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 
-/**
- * Native shell boot: status bar, splash hide, Android back button, safe-area class.
- * No-ops in browser / PWA.
- */
-const NATIVE_PATH_PREFIXES = [
-  '/',
-  '/programs',
-  '/curriculum',
-  '/about',
-  '/contact',
-  '/student-journey',
-  '/testimonials',
-  '/gallery',
-  '/dashboard',
-  '/login',
-  '/student-registration',
-  '/school-registration',
-  '/online-registration',
-  '/summer-school',
-  '/special',
-  '/forms',
-  '/consent',
-  '/result-check',
-  '/verify',
-  '/reset-password',
-  '/privacy-policy',
-  '/terms-of-service',
-  '/account-deletion',
-];
-const NATIVE_ROUTE_STACK_KEY = 'rillcod_native_route_stack';
-const NATIVE_ROUTE_STACK_LIMIT = 40;
-
-function isNativeDestination(pathname: string): boolean {
-  return NATIVE_PATH_PREFIXES.some((prefix) => pathname === prefix || (prefix !== '/' && pathname.startsWith(`${prefix}/`)));
-}
-
-function readNativeRouteStack(): string[] {
-  try {
-    const parsed = JSON.parse(sessionStorage.getItem(NATIVE_ROUTE_STACK_KEY) || '[]');
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((path): path is string => typeof path === 'string' && isNativeDestination(path));
-  } catch {
-    return [];
-  }
-}
-
-function writeNativeRouteStack(stack: string[]): void {
-  try {
-    sessionStorage.setItem(NATIVE_ROUTE_STACK_KEY, JSON.stringify(stack.slice(-NATIVE_ROUTE_STACK_LIMIT)));
-  } catch {
-    // Navigation still works when storage is unavailable.
-  }
-}
-
-function findSafeBackTarget(stack: string[], currentPath: string): { target: string; stack: string[] } | null {
-  const isDashboardRoute = currentPath === '/dashboard' || currentPath.startsWith('/dashboard/');
-
-  for (let index = stack.length - 2; index >= 0; index -= 1) {
-    const candidate = stack[index];
-    if (candidate === currentPath) continue;
-    // Once signed in, Android Back / Swipe Back must never leak from the private workspace
-    // into login, registration, or public site.
-    if (isDashboardRoute && !(candidate === '/dashboard' || candidate.startsWith('/dashboard/'))) continue;
-    return { target: candidate, stack: stack.slice(0, index + 1) };
-  }
-
-  return null;
-}
+import {
+  isNativeDestination,
+  pushRouteToStack,
+  performSmartBack,
+} from "@/lib/navigation/smart-back";
 
 export default function CapacitorBoot() {
   const pathname = usePathname();
@@ -93,10 +30,7 @@ export default function CapacitorBoot() {
     }
 
     if (!pathname || !isNativeDestination(pathname)) return;
-    const stack = readNativeRouteStack();
-    if (stack[stack.length - 1] !== pathname) {
-      writeNativeRouteStack([...stack, pathname]);
-    }
+    pushRouteToStack(pathname);
   }, [pathname, router]);
 
   useEffect(() => {
@@ -174,20 +108,7 @@ export default function CapacitorBoot() {
             return;
           }
 
-          const stack = readNativeRouteStack();
-          const safeBack = findSafeBackTarget(stack, currentPath);
-          if (safeBack) {
-            writeNativeRouteStack(safeBack.stack);
-            router.replace(safeBack.target);
-            return;
-          }
-
-          // A deep link or restored WebView may have no usable in-app history.
-          // Keep authenticated screens inside the workspace; public entry flows
-          // return to homepage instead of exposing login or quitting.
-          const fallback = currentPath.startsWith('/dashboard/') ? '/dashboard' : '/';
-          writeNativeRouteStack([fallback]);
-          router.replace(fallback);
+          performSmartBack(router, currentPath);
         });
         removeBack = () => {
           void handle.remove();

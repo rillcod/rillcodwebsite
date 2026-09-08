@@ -85,8 +85,10 @@ export default function EditParentPage() {
     <div className="space-y-6 max-w-4xl mx-auto pb-12 mobile-page-root">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => router.back()}
-          className="p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all"
+          type="button"
+          onClick={() => router.push('/dashboard/parents')}
+          className="hidden md:inline-flex p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all rounded-xl"
+          aria-label="Back to parents"
         >
           <ArrowLeftIcon className="w-5 h-5" />
         </button>

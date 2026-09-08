@@ -523,12 +523,12 @@ export default function ResendCredentialsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 mobile-page-root">
+    <div className="max-w-6xl mx-auto py-2 sm:py-6 space-y-6 mobile-page-root">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/dashboard/students" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/dashboard/students" className="hidden md:inline-flex text-muted-foreground hover:text-foreground transition-colors">
               <ChevronLeftIcon className="w-5 h-5" />
             </Link>
             <h1 className="text-2xl font-bold text-foreground">Resend Login Credentials</h1>

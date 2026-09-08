@@ -54,6 +54,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import ViewAsSwitcher from "./ViewAsSwitcher";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import MobileNavSheet from "@/components/mobile/MobileNavSheet";
+import { useSmartBack } from "@/hooks/useSmartBack";
+import { resolveMobileScreenTitle } from "@/lib/navigation/smart-back";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type NavItem = { name: string; href: string; icon: any };
@@ -1031,7 +1033,8 @@ export default function DashboardNavigation() {
   const activeMobileItem = [...navItems]
     .filter((item) => isNavActive(pathname, item.href))
     .sort((a, b) => b.href.split('?')[0].length - a.href.split('?')[0].length)[0];
-  const mobileTitle = activeMobileItem?.name ?? 'Dashboard';
+  const { goBack, isRoot } = useSmartBack(profile?.role);
+  const mobileTitle = resolveMobileScreenTitle(pathname, activeMobileItem?.name);
   const menuActive = !bottomNavItems.some((item) => isNavActive(pathname, item.href));
 
   const handleLogout = () => {
@@ -1040,21 +1043,24 @@ export default function DashboardNavigation() {
 
   return (
     <>
-      {/* ── Mobile Top Header ── */}
+      {/* ── Mobile Top Header (Native Mobile Shell) ── */}
       <div className="app-mobile-header md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-card/95 backdrop-blur-xl px-3 sm:px-4 border-b border-border shadow-sm">
-        <div className="flex min-w-0 items-center gap-2">
-          {pathname !== '/dashboard' && (
+        <div className="flex min-w-0 items-center gap-2.5 flex-1 mr-2">
+          {!isRoot ? (
             <button
               type="button"
-              onClick={() => router.back()}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/80 text-foreground hover:bg-muted active:scale-90 transition-transform shrink-0"
-              aria-label="Go back to previous page"
+              onClick={goBack}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/80 text-foreground hover:bg-muted active:scale-90 transition-transform shrink-0 touch-manipulation"
+              aria-label="Go back"
             >
               <ChevronLeftIcon className="w-5 h-5" />
             </button>
-          )}
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" aria-label="Go to dashboard">
-            <div className="w-8 h-8 rounded-xl bg-white dark:bg-card border border-border flex items-center justify-center shadow-sm shrink-0">
+          ) : (
+            <Link
+              href="/dashboard"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white dark:bg-card border border-border shadow-sm shrink-0 active:scale-95 transition-transform"
+              aria-label="Go to dashboard"
+            >
               <Image
                 src="/images/logo.png"
                 alt="Rillcod"
@@ -1063,12 +1069,24 @@ export default function DashboardNavigation() {
                 className="object-contain"
                 priority
               />
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="text-[10px] font-semibold text-muted-foreground">Rillcod Technologies</p>
-              <p className="text-[14px] font-bold text-foreground truncate">{mobileTitle}</p>
-            </div>
-          </Link>
+            </Link>
+          )}
+
+          <div className="min-w-0 flex-1 leading-tight">
+            {isRoot ? (
+              <Link href="/dashboard" className="block min-w-0">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Rillcod Academy</p>
+                <p className="text-[14px] font-bold text-foreground truncate">{mobileTitle}</p>
+              </Link>
+            ) : (
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
+                  {activeMobileItem?.name && activeMobileItem.name !== mobileTitle ? activeMobileItem.name : 'Dashboard'}
+                </p>
+                <h1 className="text-[15px] font-bold text-foreground truncate leading-snug">{mobileTitle}</h1>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <NotificationDropdown />

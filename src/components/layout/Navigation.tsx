@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useFeaturedSpecialProgram } from '@/hooks/useFeaturedSpecialProgram';
 import { isAppUtilityRoute } from '@/lib/layout/public-route-policy';
+import { performSmartBack } from '@/lib/navigation/smart-back';
 import {
   SCHOOL_REGISTRATION_PATH,
   STUDENT_REGISTRATION_PATH,
@@ -190,9 +191,9 @@ export const Navigation = () => {
                   type="button"
                   onClick={() => {
                     triggerHaptic(8);
-                    router.back();
+                    performSmartBack(router, pathname);
                   }}
-                  className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border text-foreground hover:bg-muted active:scale-90 transition-transform shrink-0"
+                  className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border text-foreground hover:bg-muted active:scale-90 transition-transform shrink-0 touch-manipulation"
                   aria-label="Go back to previous page"
                 >
                   <ChevronLeftIcon className="w-5 h-5" />
