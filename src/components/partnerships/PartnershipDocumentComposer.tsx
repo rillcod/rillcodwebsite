@@ -20,6 +20,8 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   CheckCircleIcon,
+  BuildingOffice2Icon,
+  MapPinIcon,
 } from "@/lib/icons";
 import { PARTNERSHIP_OFFERS, offerPriceLabel, recommendOffer } from "@/lib/partnerships/offers";
 import { describeTerms } from "@/lib/partnerships/terms";
@@ -93,6 +95,7 @@ export type ComposerRedrawPayload = {
   use_ai: boolean;
   scope_to_offer: string | null;
   custom_fee_per_student: number | null;
+  cadence?: string | null;
   value_copy: ValueSectionCopy | null;
   stage: "primary" | "secondary" | "both" | null;
   notes: string | null;
@@ -103,6 +106,14 @@ export type ComposerRedrawPayload = {
   illustrative_students: number | undefined;
   studio: ProposalStudioConfig | null;
   narrative: ProposalNarrative | null;
+  school_details?: {
+    name?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    signatory_name?: string | null;
+    signatory_role?: string | null;
+  };
 };
 
 export type ComposerHandle = {
@@ -170,6 +181,19 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   const [durationLabel, setDurationLabel] = useState("");
   const [students, setStudents] = useState("");
   const [recipientEmail, setRecipientEmail] = useState(school.email || "");
+
+  // Vital Party B / School items for MoU and proposal generation
+  const [schoolAddress, setSchoolAddress] = useState(school.address || "");
+  const [schoolCity, setSchoolCity] = useState(school.city || "");
+  const [schoolState, setSchoolState] = useState(school.state || "");
+  const [signatoryName, setSignatoryName] = useState(school.contact_person || "");
+  const [signatoryRole, setSignatoryRole] = useState("Proprietor / Principal");
+  const [schoolLegalName, setSchoolLegalName] = useState(school.name || "");
+  const [showSchoolDetailsEditor, setShowSchoolDetailsEditor] = useState(false);
+
+  // Dynamic session frequency / cadence (e.g. 1 class per week vs 2 classes per week)
+  const [customCadence, setCustomCadence] = useState("");
+
   const [issuing, setIssuing] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [discarding, setDiscarding] = useState(false);
@@ -192,6 +216,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
     const rec = recommendOffer({ studentCount: school.student_count, stage: "both" });
     setOfferCode(rec.offer.code);
     setCustomFee(String(rec.offer.priceFrom));
+    setCustomCadence(rec.offer.cadence || "1 class per week");
     setValueTitle(DEFAULT_VALUE_TITLE);
     setValueKicker(DEFAULT_VALUE_KICKER);
     setValueBody(DEFAULT_VALUE_BODY);
@@ -206,8 +231,23 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
     setDurationLabel("");
     setStudents(school.student_count ? String(school.student_count) : "");
     setRecipientEmail(school.email || "");
+    setSchoolAddress(school.address || "");
+    setSchoolCity(school.city || "");
+    setSchoolState(school.state || "");
+    setSignatoryName(school.contact_person || "");
+    setSignatoryRole("Proprietor / Principal");
+    setSchoolLegalName(school.name || "");
     setError("");
   }, [school.id]);
+
+  // Synchronize with parent school record updates (e.g. if edited via the desk modal)
+  useEffect(() => {
+    setSchoolAddress(school.address || "");
+    setSchoolCity(school.city || "");
+    setSchoolState(school.state || "");
+    setSignatoryName(school.contact_person || "");
+    setSchoolLegalName(school.name || "");
+  }, [school.address, school.city, school.state, school.contact_person, school.name]);
 
   /*
     Approved copy is thrown away the moment the brief behind it changes.
@@ -333,8 +373,15 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       illustrative_students: Number(students) || undefined,
       send_email: !preview && send,
       recipient_email: !preview && send ? recipientEmail.trim() : null,
-      // The same settings on both paths, so what was previewed is what issues.
-      studio: kind === 'proposal' ? studio : null,
+      cadence: kind === 'proposal' ? (customCadence.trim() || null) : null,
+      school_details: {
+        name: schoolLegalName.trim() || school.name,
+        address: schoolAddress.trim() || null,
+        city: schoolCity.trim() || null,
+        state: schoolState.trim() || null,
+        signatory_name: signatoryName.trim() || null,
+        signatory_role: signatoryRole.trim() || null,
+      },
       /*
         The copy the last preview came back with, sent so the issue prints it.
 
@@ -357,6 +404,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         use_ai: p.use_ai,
         scope_to_offer: p.scope_to_offer,
         custom_fee_per_student: p.custom_fee_per_student,
+        cadence: p.cadence,
         value_copy: p.value_copy,
         stage: p.stage,
         notes: p.notes,
@@ -365,8 +413,9 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         commencement: p.commencement,
         duration_label: p.duration_label,
         illustrative_students: p.illustrative_students,
-        studio: p.studio ?? null,
+        studio: studio ?? null,
         narrative: p.narrative,
+        school_details: p.school_details,
       };
     },
   }));
@@ -498,6 +547,119 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </div>
       </div>
 
+      {/* Partner School & Signatory Details (Party B) - applicable for both Proposal & MoU */}
+      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BuildingOffice2Icon className="w-4 h-4 text-primary shrink-0" />
+            <span className="text-xs font-bold text-foreground">
+              School Details & Signatory (Party B)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSchoolDetailsEditor(!showSchoolDetailsEditor)}
+            className="text-[11px] font-bold text-primary hover:underline self-start sm:self-auto"
+          >
+            {showSchoolDetailsEditor ? "Collapse details" : "Edit school address & signatory"}
+          </button>
+        </div>
+
+        {/* Read-only compact summary when collapsed */}
+        {!showSchoolDetailsEditor && (
+          <div className="text-xs text-muted-foreground space-y-1 bg-muted/20 p-2.5 rounded-xl border border-border/50">
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold text-foreground">{schoolLegalName || school.name}</span>
+              {(schoolCity || schoolState) && (
+                <span className="text-[11px]">· {[schoolCity, schoolState].filter(Boolean).join(", ")}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="truncate">
+                {schoolAddress ? `📍 ${schoolAddress}` : <span className="text-amber-500 font-medium">⚠️ Street address missing</span>}
+              </span>
+              <span>·</span>
+              <span>
+                {signatoryName ? `Signatory: ${signatoryName}${signatoryRole ? ` (${signatoryRole})` : ""}` : <span className="text-amber-500 font-medium">⚠️ Signatory not recorded</span>}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Editable fields when expanded */}
+        {showSchoolDetailsEditor && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL} htmlFor="school-legal-name">School Legal Name</label>
+                <input
+                  id="school-legal-name"
+                  className={INPUT}
+                  value={schoolLegalName}
+                  onChange={(e) => setSchoolLegalName(e.target.value)}
+                  placeholder="Official registered school name"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-address">Physical Street Address</label>
+                <input
+                  id="school-address"
+                  className={INPUT}
+                  value={schoolAddress}
+                  onChange={(e) => setSchoolAddress(e.target.value)}
+                  placeholder="e.g. 12 St. Finbarr's College Road"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className={LABEL} htmlFor="school-city">City / Town</label>
+                <input
+                  id="school-city"
+                  className={INPUT}
+                  value={schoolCity}
+                  onChange={(e) => setSchoolCity(e.target.value)}
+                  placeholder="e.g. Akoka"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-state">State</label>
+                <input
+                  id="school-state"
+                  className={INPUT}
+                  value={schoolState}
+                  onChange={(e) => setSchoolState(e.target.value)}
+                  placeholder="e.g. Lagos"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-signatory-name">Signatory Name</label>
+                <input
+                  id="school-signatory-name"
+                  className={INPUT}
+                  value={signatoryName}
+                  onChange={(e) => setSignatoryName(e.target.value)}
+                  placeholder="e.g. Rev. Fr. Emmanuel"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-signatory-role">Signatory Title / Role</label>
+                <input
+                  id="school-signatory-role"
+                  className={INPUT}
+                  value={signatoryRole}
+                  onChange={(e) => setSignatoryRole(e.target.value)}
+                  placeholder="e.g. Principal / Proprietor"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              These details print directly into Clause 1.0 (Parties) and Clause 8.0 (Signatures) of the MoU, and the Proposal title block. Changes persist to the school record.
+            </p>
+          </div>
+        )}
+      </div>
+
       {kind === "proposal" ? (
         <div className="space-y-4">
           <div className="sm:w-1/2">
@@ -528,6 +690,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 setOfferTouched(true);
                 setOfferCode("");
                 setCustomFee("");
+                setCustomCadence("");
               }}
                 className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors touch-manipulation min-h-[44px] ${
                   offerCode === ""
@@ -548,6 +711,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                     setOfferTouched(true);
                     setOfferCode(offer.code);
                     setCustomFee(String(offer.priceFrom));
+                    setCustomCadence(offer.cadence);
                   }}
                   className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-colors touch-manipulation min-h-[48px] ${
                     offerCode === offer.code
@@ -578,58 +742,116 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             </p>
           </div>
 
-          {/* Dynamic Fee Editing for Proposal */}
+          {/* Dynamic Fee & Timetable Cadence Editing for Proposal */}
           {selectedOffer && (
-            <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                <label htmlFor="proposal-custom-fee" className="text-xs font-bold text-foreground">
-                  Fee per student per term for Option {selectedOffer.code} (₦)
-                </label>
-                {customFee && Number(customFee) !== selectedOffer.priceFrom ? (
-                  <button
-                    type="button"
-                    onClick={() => setCustomFee(String(selectedOffer.priceFrom))}
-                    className="self-start sm:self-auto text-[11px] font-bold text-primary hover:underline py-0.5"
-                  >
-                    Reset to default (₦{selectedOffer.priceFrom.toLocaleString()})
-                  </button>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground">
-                    Standard catalogue rate: ₦{selectedOffer.priceFrom.toLocaleString()}
-                  </span>
-                )}
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-4 shadow-sm">
+              {/* Fee Customisation */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <label htmlFor="proposal-custom-fee" className="text-xs font-bold text-foreground">
+                    Fee per student per term for Option {selectedOffer.code} (₦)
+                  </label>
+                  {customFee && Number(customFee) !== selectedOffer.priceFrom ? (
+                    <button
+                      type="button"
+                      onClick={() => setCustomFee(String(selectedOffer.priceFrom))}
+                      className="self-start sm:self-auto text-[11px] font-bold text-primary hover:underline py-0.5"
+                    >
+                      Reset to default (₦{selectedOffer.priceFrom.toLocaleString()})
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">
+                      Standard catalogue rate: ₦{selectedOffer.priceFrom.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₦</span>
+                  <input
+                    id="proposal-custom-fee"
+                    className={`${INPUT} pl-8 font-semibold min-h-11 text-base sm:text-sm`}
+                    inputMode="numeric"
+                    placeholder={String(selectedOffer.priceFrom)}
+                    value={customFee}
+                    onChange={(e) => setCustomFee(e.target.value.replace(/[^0-9]/g, ""))}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] text-muted-foreground mr-1">Quick amounts:</span>
+                  {[10000, 15000, 20000, 25000, 30000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setCustomFee(String(amt))}
+                      className={`min-h-9 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors touch-manipulation ${
+                        Number(customFee) === amt
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          : "bg-muted/40 text-muted-foreground border-border hover:border-foreground/30 active:bg-muted"
+                      }`}
+                    >
+                      ₦{(amt / 1000)}k
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₦</span>
-                <input
-                  id="proposal-custom-fee"
-                  className={`${INPUT} pl-8 font-semibold min-h-11 text-base sm:text-sm`}
-                  inputMode="numeric"
-                  placeholder={String(selectedOffer.priceFrom)}
-                  value={customFee}
-                  onChange={(e) => setCustomFee(e.target.value.replace(/[^0-9]/g, ""))}
-                />
+
+              {/* Session Cadence & Timing Flexibility (Once vs Twice a Week) */}
+              <div className="pt-3 border-t border-border space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label htmlFor="proposal-cadence" className="text-xs font-bold text-foreground">
+                    Session Timing & Frequency (Cadence)
+                  </label>
+                  {customCadence && customCadence !== selectedOffer.cadence ? (
+                    <button
+                      type="button"
+                      onClick={() => setCustomCadence(selectedOffer.cadence)}
+                      className="self-start sm:self-auto text-[11px] font-bold text-primary hover:underline py-0.5"
+                    >
+                      Reset to default ({selectedOffer.cadence})
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">
+                      Default: {selectedOffer.cadence}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    { label: "1 class / week", value: "1 class per week", hint: "Once weekly" },
+                    { label: "2 classes / week", value: "2 classes per week", hint: "Twice weekly" },
+                    { label: "1 session (2 hrs)", value: "1 session per week (2 hours)", hint: "Club / after-school" },
+                  ].map((cad) => {
+                    const isSelected = customCadence === cad.value;
+                    return (
+                      <button
+                        key={cad.value}
+                        type="button"
+                        onClick={() => setCustomCadence(cad.value)}
+                        className={`p-2.5 rounded-xl text-xs font-bold border text-left transition-all flex flex-col justify-center min-h-[44px] ${
+                          isSelected
+                            ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 shadow-sm"
+                            : "bg-muted/30 border-border/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        <span>{cad.label}</span>
+                        <span className="text-[10px] font-normal opacity-75">{cad.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-1.5">
+                  <input
+                    id="proposal-cadence"
+                    className={`${INPUT} text-xs`}
+                    value={customCadence}
+                    onChange={(e) => setCustomCadence(e.target.value)}
+                    placeholder="Custom cadence (e.g. 2 sessions per week, 1 hour each)"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Customise session cadence. This directly updates the timetable commitment across all proposal cards and options on the PDF.
+                </p>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[11px] text-muted-foreground mr-1">Quick amounts:</span>
-                {[10000, 15000, 20000, 25000, 30000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setCustomFee(String(amt))}
-                    className={`min-h-9 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors touch-manipulation ${
-                      Number(customFee) === amt
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                        : "bg-muted/40 text-muted-foreground border-border hover:border-foreground/30 active:bg-muted"
-                    }`}
-                  >
-                    ₦{(amt / 1000)}k
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Override the proposal fee quote dynamically. This updates the proposal card and all projected financial returns on the PDF.
-              </p>
             </div>
           )}
 

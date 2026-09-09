@@ -171,6 +171,7 @@ export async function POST(req: NextRequest) {
         body.custom_fee_per_student != null && body.custom_fee_per_student !== ''
           ? Number(body.custom_fee_per_student)
           : null,
+      cadence: body.cadence ? String(body.cadence).trim() : null,
       valueCopy:
         body.value_copy && typeof body.value_copy === 'object'
           ? (() => {
@@ -201,6 +202,17 @@ export async function POST(req: NextRequest) {
         a browser and a proposal must never state a fee nobody agreed.
       */
       narrative: body.narrative && typeof body.narrative === 'object' ? body.narrative : null,
+      schoolDetails:
+        body.school_details && typeof body.school_details === 'object'
+          ? {
+              name: (body.school_details as any).name ? String((body.school_details as any).name).trim() : undefined,
+              address: (body.school_details as any).address !== undefined ? String((body.school_details as any).address || '').trim() || null : undefined,
+              city: (body.school_details as any).city !== undefined ? String((body.school_details as any).city || '').trim() || null : undefined,
+              state: (body.school_details as any).state !== undefined ? String((body.school_details as any).state || '').trim() || null : undefined,
+              signatoryName: (body.school_details as any).signatory_name !== undefined ? String((body.school_details as any).signatory_name || '').trim() || null : undefined,
+              signatoryRole: (body.school_details as any).signatory_role !== undefined ? String((body.school_details as any).signatory_role || '').trim() || null : undefined,
+            }
+          : null,
     };
 
     if (previewOnly) {
@@ -366,6 +378,17 @@ export async function PUT(req: NextRequest) {
       proposedSchoolSharePercent: normaliseSchoolSharePercent(body.proposed_school_share_percent),
       studio: body.studio ? normaliseStudioConfig(body.studio) : null,
       narrative: body.narrative && typeof body.narrative === 'object' ? body.narrative : null,
+      schoolDetails:
+        body.school_details && typeof body.school_details === 'object'
+          ? {
+              name: (body.school_details as any).name ? String((body.school_details as any).name).trim() : undefined,
+              address: (body.school_details as any).address !== undefined ? String((body.school_details as any).address || '').trim() || null : undefined,
+              city: (body.school_details as any).city !== undefined ? String((body.school_details as any).city || '').trim() || null : undefined,
+              state: (body.school_details as any).state !== undefined ? String((body.school_details as any).state || '').trim() || null : undefined,
+              signatoryName: (body.school_details as any).signatory_name !== undefined ? String((body.school_details as any).signatory_name || '').trim() || null : undefined,
+              signatoryRole: (body.school_details as any).signatory_role !== undefined ? String((body.school_details as any).signatory_role || '').trim() || null : undefined,
+            }
+          : null,
     });
 
     await logAudit(actor.db as any, {

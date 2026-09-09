@@ -114,6 +114,8 @@ export type IssueInput = {
   proposedSchoolSharePercent?: number | null;
   /** Custom dynamic fee per student per term overriding option default (e.g. 15000). */
   customFeePerStudent?: number | null;
+  /** Custom session timing / frequency cadence (e.g. "1 class per week", "2 classes per week"). */
+  cadence?: string | null;
   /** Custom editable text for "What a parent would be paying for" value section. */
   valueCopy?: {
     title?: string | null;
@@ -135,6 +137,15 @@ export type IssueInput = {
     email?: string | null;
     contactPerson?: string | null;
     studentCount?: number | null;
+  } | null;
+  /** Custom Party B school and signatory details for MoU / document generation */
+  schoolDetails?: {
+    name?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    signatoryName?: string | null;
+    signatoryRole?: string | null;
   } | null;
 };
 
@@ -255,6 +266,23 @@ export async function issuePartnershipDocument(input: IssueInput): Promise<Issue
     // Function missing until the migration lands; issuing still succeeds.
   }
 
+  // Persist updated school details back to the schools table so changes stick
+  if (input.schoolDetails && targetSchoolId && targetSchoolId !== 'new') {
+    const schoolUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (input.schoolDetails.address !== undefined) schoolUpdate.address = input.schoolDetails.address?.trim() || null;
+    if (input.schoolDetails.city !== undefined) schoolUpdate.city = input.schoolDetails.city?.trim() || null;
+    if (input.schoolDetails.state !== undefined) schoolUpdate.state = input.schoolDetails.state?.trim() || null;
+    if (input.schoolDetails.name?.trim()) schoolUpdate.name = input.schoolDetails.name.trim();
+    if (input.schoolDetails.signatoryName?.trim()) schoolUpdate.contact_person = input.schoolDetails.signatoryName.trim();
+    if (Object.keys(schoolUpdate).length > 1) {
+      try {
+        await input.db.from('schools').update(schoolUpdate).eq('id', targetSchoolId);
+      } catch {
+        // Non-fatal if school table update fails
+      }
+    }
+  }
+
   return {
     id: String(row.id),
     reference,
@@ -335,6 +363,22 @@ export async function refreshPartnershipDocument(
     })
     .eq('id', row.id);
   if (saveError) throw new Error(saveError.message);
+
+  if (input.schoolDetails && schoolId && schoolId !== 'new') {
+    const schoolUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (input.schoolDetails.address !== undefined) schoolUpdate.address = input.schoolDetails.address?.trim() || null;
+    if (input.schoolDetails.city !== undefined) schoolUpdate.city = input.schoolDetails.city?.trim() || null;
+    if (input.schoolDetails.state !== undefined) schoolUpdate.state = input.schoolDetails.state?.trim() || null;
+    if (input.schoolDetails.name?.trim()) schoolUpdate.name = input.schoolDetails.name.trim();
+    if (input.schoolDetails.signatoryName?.trim()) schoolUpdate.contact_person = input.schoolDetails.signatoryName.trim();
+    if (Object.keys(schoolUpdate).length > 1) {
+      try {
+        await input.db.from('schools').update(schoolUpdate).eq('id', schoolId);
+      } catch {
+        // Non-fatal if school table update fails
+      }
+    }
+  }
 
   return {
     id: String(row.id),
@@ -493,13 +537,16 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
     city?: string | null;
     state?: string | null;
     student_count?: number | null;
+    signatoryName?: string | null;
+    signatoryRole?: string | null;
+    contact_person?: string | null;
   };
   let school: SchoolRecord | null = null;
 
   if (schoolId && schoolId !== 'new') {
     const { data } = await db
       .from('schools')
-      .select('id, name, address, city, state, student_count')
+      .select('id, name, address, city, state, student_count, contact_person')
       .eq('id', schoolId)
       .maybeSingle();
     school = data as SchoolRecord | null;
@@ -516,10 +563,24 @@ async function prepareDocument(input: IssueInput, resolvedSchoolId?: string) {
       city: prospectSchool.city?.trim() || null,
       state: prospectSchool.state?.trim() || null,
       student_count: Number(prospectSchool.studentCount) || null,
+      signatoryName: prospectSchool.contactPerson?.trim() || null,
     };
   }
 
   if (!school) throw new Error('That school does not exist.');
+
+  // Apply schoolDetails overrides if provided (for custom Party B address, city, state, signatory)
+  if (input.schoolDetails) {
+    if (input.schoolDetails.name?.trim()) school.name = input.schoolDetails.name.trim();
+    if (input.schoolDetails.address !== undefined) school.address = input.schoolDetails.address?.trim() || null;
+    if (input.schoolDetails.city !== undefined) school.city = input.schoolDetails.city?.trim() || null;
+    if (input.schoolDetails.state !== undefined) school.state = input.schoolDetails.state?.trim() || null;
+    if (input.schoolDetails.signatoryName !== undefined) school.signatoryName = input.schoolDetails.signatoryName?.trim() || null;
+    if (input.schoolDetails.signatoryRole !== undefined) school.signatoryRole = input.schoolDetails.signatoryRole?.trim() || null;
+  }
+  if (!school.signatoryName && school.contact_person) {
+    school.signatoryName = school.contact_person;
+  }
 
   // No id means nothing is stored yet, so there is nothing agreed to look up.
   const agreedTerms = school.id ? await getAgreedTerms(db, school.id) : null;
@@ -708,10 +769,15 @@ async function renderDocument(ctx: {
           ? customFee
           : (quotedOffer?.priceFrom ?? 0);
 
-    const adjustedOffers = hasCustomFee && quotedOffer
+    const customCadence = input.cadence?.trim() || null;
+    const adjustedOffers = (hasCustomFee || customCadence) && quotedOffer
       ? PARTNERSHIP_OFFERS.map((o) =>
           o.code === quotedOffer.code
-            ? { ...o, priceFrom: customFee, priceTo: customFee }
+            ? {
+                ...o,
+                ...(hasCustomFee ? { priceFrom: customFee, priceTo: customFee } : {}),
+                ...(customCadence ? { cadence: customCadence } : {}),
+              }
             : o,
         )
       : PARTNERSHIP_OFFERS;

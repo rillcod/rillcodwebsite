@@ -338,13 +338,14 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
   /*
     The one option this proposal is recommending, if it is recommending one.
 
-    Resolved once, and shared by everything that draws it — the chart, the card
-    and the alternates list. It used to be re-derived at each of those, from a
-    different field each time: the fee matched on `code` and the highlight
-    matched on `scope`, so a proposal quoted for Option B1 priced B1 correctly
-    and emphasised nothing at all.
+    Resolved once against the active `offers` list (which carries any custom
+    fee or cadence overrides from the composer), and shared by everything that
+    draws it — the chart, the card and the alternates list.
   */
-  const quotedOffer = resolveOffer(input.scopeToOffer);
+  const baseQuoted = resolveOffer(input.scopeToOffer);
+  const quotedOffer = baseQuoted
+    ? (offers.find((o) => o.code === baseQuoted.code) ?? baseQuoted)
+    : null;
   /*
     One writer. The narrative is the pitch — house copy, or the composer’s
     approved generation. Studio copy used to overlay these three fields, which
@@ -990,7 +991,7 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       input.valueCopy?.note?.trim() ||
       'Your share follows who enrols. How it is released would be written into the agreement before anything is signed.';
 
-    return `  <section>
+    return `  <section class="sec-value">
     <div class="rule"></div>
     <h2>${esc(title)}</h2>
     <article class="value">
@@ -1950,54 +1951,37 @@ ${body}
   .page-case .comp-table th { padding: 1.6mm 2.6mm; }
   .page-case .guarantee-grid { gap: 2mm 5mm; margin: 1.2mm 0; }
   .page-case .faqs { gap: 2.2mm 6mm; }
-  .page-money > .pagehead { flex: none; margin-bottom: 2.5mm; }
+  .page-money > .pagehead { flex: none; margin-bottom: 2mm; }
   /*
-    Room to spread, never squeezed. Shrinking was allowed here, and once the
-    table went full-width these compressed below the height of their own text —
-    three sections in the room for two, printing on top of each other.
+    Room to spread, never squeezed. Sections fit cleanly within A4 height
+    without forcing any spillover onto subsequent pages.
   */
   .page-money > section {
-    flex: 1 0 auto; margin-bottom: 0;
+    flex: 0 0 auto; margin-bottom: 2mm;
     display: flex; flex-direction: column; justify-content: center;
-    padding: 1.5mm 0;
+    padding: 0;
   }
-  .page-money > section + section { border-top: 1px solid #f1f5f9; }
-  .page-money > section:first-of-type { padding-top: 1mm; }
-  .page-money > section:last-of-type { padding-bottom: 0; }
-  .page-money h2 { margin-bottom: 2mm; }
-  .page-money .split { margin: 2.4mm 0 2mm; }
-  .page-money .split .seg { padding: 2.6mm 3.8mm; font-size: 10pt; }
-  /*
-    The figures take the sheet; the picture sits under them.
-
-    These shared a row, half the width each, which held while the table was set
-    at 7.6pt. At a readable 10pt its four columns — scenario, students, fees, and
-    what the school keeps — no longer fit in half a sheet, and since the money
-    figures may not wrap the table simply ran off the right edge of the paper.
-    The last column, the one number this page exists for, printed as "₦1,4".
-
-    (Nothing in these comments may repeat a heading the document prints: the
-    stylesheet ships inside the page, and a test that goes looking for a sheet by
-    its heading will find the comment first.)
-
-    A table that cannot be narrowed and must not wrap gets the full width, and
-    the chart takes the full width above it. Same order as before — the shape of
-    the three scenarios, then their exact figures — stacked instead of side by
-    side, because half a sheet is no longer enough for either of them.
-  */
+  .page-money > section + section { border-top: 1px solid #f1f5f9; padding-top: 1.8mm; }
+  .page-money > section:first-of-type { padding-top: 0; }
+  .page-money > section:last-of-type { padding-bottom: 0; margin-bottom: 0; }
+  .page-money h2 { margin-bottom: 1.4mm; font-size: 13.5pt; padding-bottom: 1.4mm; }
+  .page-money h2::after { width: 14mm; height: 2px; }
+  .page-money .split { margin: 1.5mm 0 1.2mm; }
+  .page-money .split .seg { padding: 1.8mm 3mm; font-size: 10pt; }
+  .page-money .splitkey { gap: 5mm; font-size: 10pt; }
   .page-money .upside-row {
-    flex: 1; display: flex; flex-direction: column; align-items: stretch;
-    margin: 1.5mm 0 0; gap: 2.2mm;
+    display: flex; flex-direction: column; align-items: stretch;
+    margin: 1mm 0 0; gap: 1.2mm;
   }
   .page-money .upside-col { display: flex; flex-direction: column; justify-content: center; }
-  .page-money .upside-col .chart { width: 100%; height: auto; }
-  .page-money .upside-col table.compact th { padding: 2mm 2.2mm; }
-  .page-money .upside-col table.compact td { padding: 2mm 2.2mm; }
+  .page-money .upside-col .chart { width: 100%; height: auto; max-height: 18mm; margin: 0; }
+  .page-money .upside-col table.compact th { padding: 1.2mm 2mm; font-size: 10pt; }
+  .page-money .upside-col table.compact td { padding: 1.2mm 2mm; font-size: 10pt; }
   .page-money .value {
-    flex: none; height: 42mm; min-height: 0; grid-template-rows: 1fr;
+    flex: none; height: 33mm; min-height: 33mm; max-height: 34mm;
   }
-  .page-money .value-photo { height: 100%; min-height: 0; max-height: none; }
-  .page-money .value-photo img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
+  .page-money .value-photo { height: 100%; min-height: 33mm; max-height: 34mm; }
+  .page-money .value-photo img { width: 100%; height: 100%; min-height: 33mm; max-height: 34mm; object-fit: cover; }
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
   .split .seg {
@@ -2128,38 +2112,40 @@ ${body}
     mark a claim. Height is capped so split, figures and this still land
     on one A4 that clips rather than spills.
   */
+  /*
+    What a parent would be paying for - Modern executive value card
+    Proportionate, elegant horizontal card that guarantees zero spillover on A4.
+  */
   .value {
-    display: grid; grid-template-columns: 0.95fr 1.35fr; align-items: stretch;
-    border: 1px solid #e2e8f0; border-radius: 2.5mm; overflow: hidden;
-    background: #fff;
+    display: grid; grid-template-columns: 58mm 1fr; align-items: stretch;
+    border: 1px solid #e2e8f0; border-radius: 2mm; overflow: hidden;
+    background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    height: 33mm; min-height: 33mm; max-height: 34mm; break-inside: avoid;
   }
-  .value-photo { margin: 0; min-height: 42mm; overflow: hidden; background: #0f172a; }
+  .value-photo { margin: 0; height: 100%; width: 100%; overflow: hidden; background: #0f172a; position: relative; }
   .value-photo img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
+    width: 100%; height: 100%; object-fit: cover; object-position: center 52%; display: block;
   }
   .value-copy {
-    padding: 3.5mm 4.5mm; display: flex; flex-direction: column; justify-content: center;
-    background: #f8fafc; border-left: 3.5px solid #991b1b;
+    padding: 2.2mm 4.5mm; display: flex; flex-direction: column; justify-content: center;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-left: 3px solid #2563eb;
   }
   .value-kicker {
-    font-size: 10pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-    color: #991b1b; margin-bottom: 1.5mm;
+    font-size: 10pt; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    color: #2563eb; margin-bottom: 1.2mm; display: inline-flex; align-items: center; gap: 1.5mm;
   }
-  .value-copy p { font-size: 10pt; color: #334155; line-height: 1.4; margin: 0; }
+  .value-copy p { font-size: 10pt; color: #1e293b; line-height: 1.35; margin: 0; font-weight: 500; }
   .value-note {
-    font-size: 10pt; color: #64748b; margin: 1.8mm 0 0; padding-top: 1.8mm;
-    border-top: 1px solid #e2e8f0; line-height: 1.35;
+    font-size: 10pt; color: #64748b; margin: 1.2mm 0 0; padding-top: 1.2mm;
+    border-top: 1px solid #e2e8f0; line-height: 1.3; font-weight: 400;
   }
-  /* The panel adapts to its copy without clipping the bottom note. */
-  .page-money .value { flex: none; min-height: 42mm; height: auto; }
-  .page-money .value-photo { height: 100%; min-height: 42mm; }
-  .page-money .value-photo img { width: 100%; height: 100%; object-fit: cover; }
-  .page-money .value-copy { justify-content: center; padding: 3.2mm 4.5mm; }
-  .page-money .value-copy p { line-height: 1.4; }
-  .page-money .value-note { margin-top: 1.8mm; padding-top: 1.8mm; }
-  /* Portrait frame in a landscape slot: hold the crop on the table, where the
-     hands and the board are, rather than centring on a row of heads. */
-  .page-money .value-photo img { object-position: center 62%; }
+  .page-money .value { flex: none; height: 33mm; min-height: 33mm; max-height: 34mm; }
+  .page-money .value-photo { height: 100%; min-height: 33mm; max-height: 34mm; }
+  .page-money .value-photo img { width: 100%; height: 100%; min-height: 33mm; max-height: 34mm; object-fit: cover; object-position: center 55%; }
+  .page-money .value-copy { justify-content: center; padding: 2mm 4.2mm; }
+  .page-money .value-copy p { line-height: 1.35; font-size: 10pt; }
+  .page-money .value-note { margin-top: 1.2mm; padding-top: 1.2mm; font-size: 10pt; }
 
   .offer-alts { margin-top: 4mm; }
   .offer-alts-head {

@@ -27,6 +27,7 @@ import {
   EnvelopeIcon,
   UserIcon,
   ChevronDownIcon,
+  MapPinIcon,
 } from "@/lib/icons";
 import { IssuedDocumentPreview } from "@/components/partnerships/IssuedDocumentPreview";
 import { PartnershipDocumentArchive, canDeleteDocument, removePartnershipDocument, discardPartnershipDocument } from "@/components/partnerships/PartnershipDocumentArchive";
@@ -723,6 +724,12 @@ export default function PartnershipsPage() {
                       {selected.student_count ? ` · ${selected.student_count} students` : ""}
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {selected.address && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/60 text-muted-foreground text-[11px] font-medium">
+                          <MapPinIcon className="h-3 w-3 text-primary" />
+                          {selected.address}
+                        </span>
+                      )}
                       {selected.contact_person && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/60 text-muted-foreground text-[11px] font-medium">
                           <UserIcon className="h-3 w-3" />
