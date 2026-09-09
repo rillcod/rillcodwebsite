@@ -95,6 +95,10 @@ export async function fetchWithTimeoutOrThrow(
   ms = DEFAULT_UI_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
+  const callerSignal = init.signal ?? (input instanceof Request ? input.signal : undefined);
+  const cancel = () => controller.abort(callerSignal?.reason);
+  if (callerSignal?.aborted) cancel();
+  else callerSignal?.addEventListener('abort', cancel, { once: true });
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;
@@ -102,12 +106,14 @@ export async function fetchWithTimeoutOrThrow(
   }, ms);
 
   try {
+    controller.signal.throwIfAborted();
     return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
     if (timedOut) throw new Error(timeoutMessage);
     throw error;
   } finally {
     clearTimeout(timer);
+    callerSignal?.removeEventListener('abort', cancel);
   }
 }
 
@@ -130,8 +136,12 @@ export async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
   ms = DEFAULT_UI_TIMEOUT_MS,
 ): Promise<T> {
   const controller = new AbortController();
+  const cancel = () => controller.abort(init.signal?.reason);
+  if (init.signal?.aborted) cancel();
+  else init.signal?.addEventListener('abort', cancel, { once: true });
   const timer = setTimeout(() => controller.abort(), ms);
   try {
+    controller.signal.throwIfAborted();
     const res = await fetch(url, { cache: 'no-store', ...init, signal: controller.signal });
     if (!res.ok) return fallback;
     const data = await parseJsonResponse<T>(res);
@@ -141,5 +151,6 @@ export async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
     return fallback;
   } finally {
     clearTimeout(timer);
+    init.signal?.removeEventListener('abort', cancel);
   }
 }

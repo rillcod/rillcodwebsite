@@ -4364,3 +4364,18 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   cap. Keeping full customer access while promising unlimited $5-only operation is not supported by
   the present architecture. A budget exhaustion policy or an explicitly approved hosting redesign
   is required; do not silently stop customer requests, payment callbacks or automation to claim success.
+
+### Bug-focused lint follow-through — 2026-09-09
+
+- Reviewed hook-dependency, render-purity and cascading-render findings in student home, Records
+  and dashboard data loading. Did not suppress rules or mechanically rewrite the type-warning backlog.
+- Student home now captures explicit student/class dependencies, cancels HTTP reads on cleanup and
+  ignores late database/API results. A previous account/class request cannot replace the newer view.
+- Found that shared fetch timeout wrappers discarded caller abort signals. Both wrappers now combine
+  caller cancellation with their own deadline and remove cancellation listeners after completion.
+  Already-cancelled requests do not start. This is a functional fix, not just a lint annotation change.
+- Records sorting now uses an explicitly memoized comparator and declares that comparator as its
+  filtering dependency. Existing filters and print order remain unchanged.
+- Validation: typecheck, 23 focused timeout/dashboard/registration tests, and changed-file lint with
+  exhaustive dependencies promoted to errors passed. Remaining render-time deadline calculations,
+  effect-driven pagination resets and the broader legacy warnings are not claimed resolved.

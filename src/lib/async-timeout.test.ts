@@ -57,6 +57,33 @@ describe('withTimeoutOrThrow', () => {
 });
 
 describe('fetchWithTimeoutOrThrow', () => {
+  it('preserves caller cancellation instead of waiting for the timeout', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn((_input, init: RequestInit) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    })));
+    const result = fetchWithTimeoutOrThrow('/api/work', { signal: controller.signal });
+    const assertion = expect(result).rejects.toMatchObject({ name: 'AbortError' });
+    controller.abort();
+    await assertion;
+  });
+
+  it('does not start an already-cancelled request', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchWithTimeoutOrThrow('/api/work', { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('removes the caller listener once the request completes', async () => {
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, 'removeEventListener');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('ok')));
+    await fetchWithTimeoutOrThrow('/api/work', { signal: controller.signal });
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();

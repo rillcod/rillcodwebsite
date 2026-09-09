@@ -33,6 +33,8 @@ const NEXT_LEVEL: Record<string, string> = { Bronze: 'Silver', Silver: 'Gold', G
 
 export default function StudentDashboard() {
   const { profile } = useAuth();
+  const studentId = profile?.id;
+  const classId = profile?.class_id;
   const [data, setData] = useState<{
     xp: number; streak: number; level: string; lessonsDone: number; avgScore: number;
     nextLesson: any; thisWeekNumber: number | null; pendingAssignments: number; badges: any[]; leaderboardRank: number | null;
@@ -52,17 +54,21 @@ export default function StudentDashboard() {
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!studentId) return;
+    let active = true;
+    const controller = new AbortController();
+    const updateData: typeof setData = value => { if (active) setData(value); };
     (async () => {
       setLoading(true);
       setLoadError(false);
       try {
-        const { response: res, data: json } = await fetchActionJson<any>('/api/dashboard/stats', { cache: 'no-store' }, 'Your summary is taking longer than expected.', 20_000);
+        const { response: res, data: json } = await fetchActionJson<any>('/api/dashboard/stats', { cache: 'no-store', signal: controller.signal }, 'Your summary is taking longer than expected.', 20_000);
         if (!res.ok || !json.stats) throw new Error('Student summary unavailable');
+        if (!active) return;
 
         if (json.stats) {
           const s = json.stats;
-          setData(prev => ({
+          updateData(prev => ({
             ...prev,
             xp: s.xp || 0,
             streak: s.streak || 0,
@@ -72,7 +78,7 @@ export default function StudentDashboard() {
             pendingAssignments: s.pendingAssignments || 0,
             badges: s.badges || [],
             leaderboardRank: s.leaderboardRank || null,
-            isEnrolled: Boolean(profile.class_id) || s.enrolledCourses > 0,
+            isEnrolled: Boolean(classId) || s.enrolledCourses > 0,
             lmsSettings: json.lmsSettings || {},
           }));
         }
@@ -85,14 +91,15 @@ export default function StudentDashboard() {
         // NOT a raw client query, which would leak other programmes' assignments and was
         // also hiding past-due work via a `.gte('due_date', now)` filter.
         const [assignmentsRes, recentGradesRes, activityRes] = await Promise.allSettled([
-          fetchActionJson<any>('/api/assignments', { cache: 'no-store' }, 'Your assignments are taking longer than expected.', 20_000)
+          fetchActionJson<any>('/api/assignments', { cache: 'no-store', signal: controller.signal }, 'Your assignments are taking longer than expected.', 20_000)
             .then(({ response, data }) => { if (!response.ok || !Array.isArray(data.data)) throw new Error('Assignments unavailable'); return data; }),
           db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points, term_id)')
-            .eq('portal_user_id', profile.id).eq('status', 'graded').not('grade', 'is', null)
+            .eq('portal_user_id', studentId).eq('status', 'graded').not('grade', 'is', null)
             .order('submitted_at', { ascending: false }).limit(12),
           db.from('assignment_submissions').select('status, submitted_at, assignments(title, term_id)')
-            .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(10),
+            .eq('portal_user_id', studentId).order('submitted_at', { ascending: false }).limit(10),
         ]);
+        if (!active) return;
         if (assignmentsRes.status === 'rejected') throw new Error('Assignments unavailable');
 
         const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
@@ -136,22 +143,22 @@ export default function StudentDashboard() {
           }));
 
         if (scopedAvg != null) {
-          setData((prev) => ({ ...prev, avgScore: scopedAvg }));
+          updateData((prev) => ({ ...prev, avgScore: scopedAvg }));
         }
 
         // Next lesson is the first unfinished week this class has been shared —
         // the same package as Learning Center, not a catalogue ordered by id.
         let nextLesson = null;
         let thisWeekNumber: number | null = null;
-        if (profile.class_id) {
-          const { data: done } = await db.from('lesson_progress').select('lesson_id').eq('portal_user_id', profile.id).eq('status', 'completed');
+        if (classId) {
+          const { data: done } = await db.from('lesson_progress').select('lesson_id').eq('portal_user_id', studentId).eq('status', 'completed');
           const doneSet = new Set((done ?? []).map((d: any) => d.lesson_id));
-          const pack = await loadLearnerClassWeek(db, profile.class_id);
+          const pack = await loadLearnerClassWeek(db, classId);
           thisWeekNumber = pack.week;
           nextLesson = nextLessonInClassOrder(pack.thisWeekLessons, doneSet);
         }
 
-        setData(prev => ({
+        updateData(prev => ({
           ...prev,
           upcomingDue,
           pendingAssignments: pending.length,
@@ -169,13 +176,15 @@ export default function StudentDashboard() {
         }));
 
       } catch (err) {
+        if (!active) return;
         setLoadError(true);
         console.error('Failed to load student dashboard stats:', err);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-  }, [profile?.id, profile?.class_id, retryKey]);
+    return () => { active = false; controller.abort(); };
+  }, [studentId, classId, retryKey]);
 
   let levelConf = LEVEL_COLORS[data.level] ?? LEVEL_COLORS.Bronze;
   let nextThreshold = NEXT_THRESHOLD[data.level] ?? 500;

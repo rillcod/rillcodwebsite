@@ -153,7 +153,7 @@ export default function RecordsPage() {
     return [...byId.entries()].map(([id, label]) => ({ id, label }));
   }, [regs]);
 
-  const compareRows = (a: Rec | Reg, b: Rec | Reg) => {
+  const compareRows = useCallback((a: Rec | Reg, b: Rec | Reg) => {
     const val = (row: Rec | Reg) => {
       if (sortKey === 'registered') return row.registered || '';
       if (sortKey === 'name') return row.name || '';
@@ -172,7 +172,7 @@ export default function RecordsPage() {
       ? String(av).localeCompare(String(bv))
       : String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
     return sortDir === 'asc' ? cmp : -cmp;
-  };
+  }, [sortKey, sortDir]);
 
   const peopleFiltered = useMemo(() => rows.filter(r => {
     const s = q.trim().toLowerCase();
@@ -180,7 +180,7 @@ export default function RecordsPage() {
     return mq && (fType === 'all' || r.type === fType) && (fSchool === 'all' || r.school === fSchool)
       && (fClass === 'all' || r.klass === fClass) && (fSource === 'all' || r.source === fSource)
       && (fStatus === 'all' || r.status === fStatus);
-  }).sort(compareRows), [rows, q, fType, fSchool, fClass, fSource, fStatus, sortKey, sortDir]);
+  }).sort(compareRows), [rows, q, fType, fSchool, fClass, fSource, fStatus, compareRows]);
 
   const regsFiltered = useMemo(() => regs.filter(r => {
     const s = q.trim().toLowerCase();
@@ -188,7 +188,7 @@ export default function RecordsPage() {
     return mq && (fSchool === 'all' || r.school === fSchool) && (fClass === 'all' || r.klass === fClass)
       && (fSource === 'all' || r.source === fSource) && (fBatch === 'all' || r.batchId === fBatch)
       && (fAccount === 'all' || r.account === fAccount);
-  }).sort(compareRows), [regs, q, fSchool, fClass, fSource, fBatch, fAccount, sortKey, sortDir]);
+  }).sort(compareRows), [regs, q, fSchool, fClass, fSource, fBatch, fAccount, compareRows]);
 
   const activeRows: Array<Rec | Reg> = tab === 'people' ? peopleFiltered : regsFiltered;
   const { visibleRecords: visibleRows, currentPage, pageCount } = cardPreviewPage(activeRows, page);
