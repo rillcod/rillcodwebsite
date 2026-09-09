@@ -76,6 +76,7 @@ function isNavActive(pathname: string, href: string) {
 export default function DashboardNavigation() {
   const { profile, user, profileLoading, isLoading, signingOut, signOut } =
     useAuth();
+  const { goBack, isRoot } = useSmartBack(profile?.role);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1033,7 +1034,6 @@ export default function DashboardNavigation() {
   const activeMobileItem = [...navItems]
     .filter((item) => isNavActive(pathname, item.href))
     .sort((a, b) => b.href.split('?')[0].length - a.href.split('?')[0].length)[0];
-  const { goBack, isRoot } = useSmartBack(profile?.role);
   const mobileTitle = resolveMobileScreenTitle(pathname, activeMobileItem?.name);
   const menuActive = !bottomNavItems.some((item) => isNavActive(pathname, item.href));
 

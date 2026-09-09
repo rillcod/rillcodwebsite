@@ -4348,3 +4348,19 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   Inspected the shared class lesson loader: it scopes plans to class/period, filters visible lessons,
   checks public materials and propagates query errors. That inspection is not a live-role/database
   end-to-end test; playback, CBT, report access and actual mobile device checks remain open.
+
+### CI blocker and hosting-cost verification — 2026-09-09
+
+- Reproduced the single blocking lint error: DashboardNavigation called `useSmartBack` after
+  early returns for minimal navigation and unresolved profiles. Moved the hook before those returns;
+  lint rules were not disabled. The thousands of warnings in the pasted CI log remain separate debt.
+- Read-only live Cloudflare check passed: max one container, 1 GiB memory, 0.25 vCPU and at most
+  4 GB disk. Local cost-policy validation also passed. No hosting resources or schedules changed.
+- The $5-only requirement remains OPEN. Current official pricing includes 25 GiB-hours memory,
+  375 vCPU-minutes and 200 GB-hours disk, then charges usage. A basic container exhausts its memory
+  allowance at 25 running hours. Worker/DO/log/egress usage may have separate charges. Reference:
+  https://developers.cloudflare.com/containers/platform/pricing/ (checked 2026-09-09).
+- Allocation checks do not verify invoice totals, elapsed billable usage or a hard account spending
+  cap. Keeping full customer access while promising unlimited $5-only operation is not supported by
+  the present architecture. A budget exhaustion policy or an explicitly approved hosting redesign
+  is required; do not silently stop customer requests, payment callbacks or automation to claim success.
