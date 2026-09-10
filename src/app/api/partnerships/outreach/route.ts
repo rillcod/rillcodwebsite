@@ -56,11 +56,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Find latest proposal or mou share link if one exists
-  const { data: latestDoc } = await db
+  let documentQuery = db
     .from('partnership_agreements')
     .select('id, reference, share_token')
     .eq('school_id', schoolId)
-    .in('status', ['sent', 'signed'])
+    .in('status', ['sent', 'signed']);
+  // Teacher follow-ups must never attach a contract through this alternate path.
+  if (profile.role === 'teacher') documentQuery = documentQuery.eq('document_kind', 'proposal');
+  const { data: latestDoc } = await documentQuery
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

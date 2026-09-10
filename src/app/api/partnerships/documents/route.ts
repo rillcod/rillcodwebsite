@@ -25,6 +25,7 @@ import {
   isQuoteExpired,
 } from '@/lib/partnerships/issue-document';
 import { MissingPartnershipTermsError } from '@/lib/partnerships/terms';
+import { canPreparePartnershipDocument } from '@/lib/partnerships/permissions';
 import { normaliseStudioConfig } from '@/lib/partnerships/studio-config';
 import { ImpermissibleSplitError, normaliseSchoolSharePercent } from '@/lib/partnerships/split';
 import { notificationsService } from '@/services/notifications.service';
@@ -113,12 +114,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const actor = await requireActor(true);
-  if (!actor) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  const actor = await requireActor(false);
+  if (!actor) return NextResponse.json({ error: 'Not permitted' }, { status: 403 });
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const schoolId = String(body.school_id ?? '').trim();
   const kind = String(body.kind ?? '').trim();
+  if (!canPreparePartnershipDocument(actor.role, kind)) {
+    return NextResponse.json({ error: 'Teachers may create proposals. MoUs require an administrator.' }, { status: 403 });
+  }
 
   const prospectSchool = body.prospect_school && typeof body.prospect_school === 'object'
     ? {

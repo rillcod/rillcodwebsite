@@ -470,8 +470,12 @@ export function IssuedDocumentPreview({
                   onClick={async () => {
                     const url = shareUrl(shareToken);
                     if (!url) return;
-                    await navigator.clipboard.writeText(url).catch(() => null);
-                    setNotice("Link copied — paste it to the school.");
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      setNotice("Link copied — paste it to the school.");
+                    } catch {
+                      setError("Could not copy the link. Please allow clipboard access and try again.");
+                    }
                   }}
                   className={BTN}
                 >
@@ -653,6 +657,14 @@ export function IssuedDocumentPreview({
         )}
 
         <div className="sm:hidden sticky bottom-0 z-10 space-y-2 p-3 border-t border-border bg-card pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => frameRef.current?.contentWindow?.print()}
+            disabled={loading || saving}
+            className="w-full min-h-[44px] rounded-xl border border-border text-foreground text-xs font-bold disabled:opacity-50"
+          >
+            Print document
+          </button>
           <div className="grid grid-cols-2 gap-2">
             {onDelete && stored ? (
               <button
@@ -709,8 +721,12 @@ export function IssuedDocumentPreview({
                   onClick={async () => {
                     const url = shareUrl(shareToken);
                     if (!url) return;
-                    await navigator.clipboard.writeText(url).catch(() => null);
-                    setNotice("Link copied — paste it to the school.");
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      setNotice("Link copied — paste it to the school.");
+                    } catch {
+                      setError("Could not copy the link. Please allow clipboard access and try again.");
+                    }
                   }}
                   className="flex-1 min-h-[48px] rounded-xl border border-border text-foreground text-xs font-bold"
                 >

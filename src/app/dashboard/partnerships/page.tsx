@@ -46,6 +46,8 @@ import type {
 import { describeTerms } from "@/lib/partnerships/terms";
 import { buildDocumentShareUrl, isValidShareToken } from "@/lib/partnerships/signing";
 import { partnershipNextAction, type DeskTab } from "@/lib/partnerships/next-action";
+import { canPreparePartnershipDocument } from "@/lib/partnerships/permissions";
+import { fetchWithTimeoutOrThrow } from "@/lib/async-timeout";
 
 type Preview = {
   /** The stored row, so the document on screen is the one that gets emailed. */
@@ -132,6 +134,9 @@ export default function PartnershipsPage() {
   const [composeKind, setComposeKind] = useState<"proposal" | "mou">("proposal");
   const [documents, setDocuments] = useState<IssuedDocumentRow[]>([]);
   const [loadingSchool, setLoadingSchool] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const detailRequest = useRef(0);
+  const activeSchoolId = useRef("");
   const [preview, setPreview] = useState<Preview | null>(null);
   // Bumped when a blocked MoU sends the user to record terms.
   const [openTerms, setOpenTerms] = useState(0);
@@ -182,14 +187,16 @@ export default function PartnershipsPage() {
 
   /** Terms history and issued documents for the school in hand. */
   const loadSchoolDetail = useCallback(async (schoolId: string) => {
-    if (!schoolId) return;
+    if (!schoolId || activeSchoolId.current !== schoolId) return;
+    const request = ++detailRequest.current;
     setLoadingSchool(true);
+    setDetailError("");
     try {
       const [termsRes, docsRes] = await Promise.all([
-        fetch(`/api/partnerships/terms?school_id=${encodeURIComponent(schoolId)}`, {
+        fetchWithTimeoutOrThrow(`/api/partnerships/terms?school_id=${encodeURIComponent(schoolId)}`, {
           cache: "no-store",
         }),
-        fetch(`/api/partnerships/documents?school_id=${encodeURIComponent(schoolId)}`, {
+        fetchWithTimeoutOrThrow(`/api/partnerships/documents?school_id=${encodeURIComponent(schoolId)}`, {
           cache: "no-store",
         }),
       ]);
@@ -197,14 +204,20 @@ export default function PartnershipsPage() {
       const docsJson = await docsRes.json();
       if (!termsRes.ok) throw new Error(termsJson.error || "Could not load terms.");
       if (!docsRes.ok) throw new Error(docsJson.error || "Could not load documents.");
+      if (!Array.isArray(termsJson.terms) || !Array.isArray(docsJson.documents)) {
+        throw new Error("Incomplete partnership response");
+      }
+      if (request !== detailRequest.current) return;
 
       setTerms((termsJson.terms ?? []) as TermsRow[]);
       setAgreed((termsJson.agreed ?? null) as TermsRow | null);
       setDocuments((docsJson.documents ?? []) as IssuedDocumentRow[]);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Could not load this school.");
+      if (request === detailRequest.current) {
+        setDetailError("Could not load this school's terms and documents. Please retry.");
+      }
     } finally {
-      setLoadingSchool(false);
+      if (request === detailRequest.current) setLoadingSchool(false);
     }
   }, []);
 
@@ -212,6 +225,7 @@ export default function PartnershipsPage() {
     id: string,
     opts?: { tab?: DeskTab; kind?: "proposal" | "mou"; focusDocumentId?: string | null },
   ) {
+    activeSchoolId.current = id;
     setSelectedId(id);
     setMobileShowSidebar(false);
     setPreview(null);
@@ -220,7 +234,7 @@ export default function PartnershipsPage() {
     setDocuments([]);
     setLoadingSchool(true);
     setActiveTab(opts?.tab === "terms" ? "terms" : "compose");
-    setComposeKind(opts?.kind ?? "proposal");
+    setComposeKind(canWrite ? (opts?.kind ?? "proposal") : "proposal");
     setFocusDocumentId(opts?.focusDocumentId ?? null);
     pendingOpenId.current = opts?.focusDocumentId ?? null;
     setStudio(loadStudioConfig(id));
@@ -333,9 +347,9 @@ export default function PartnershipsPage() {
   }, [selectedId, loadSchoolDetail, countWaiting]);
 
   const dealState = useMemo(() => {
-    if (!selected) return null;
+    if (!selected || detailError || loadingSchool) return null;
     return partnershipNextAction({ agreed, documents });
-  }, [selected, agreed, documents]);
+  }, [selected, agreed, documents, detailError, loadingSchool]);
 
   useEffect(() => {
     if (!preview?.id || loadingSchool) return;
@@ -353,6 +367,7 @@ export default function PartnershipsPage() {
   }
 
   async function openStoredDocument(doc: IssuedDocumentRow) {
+    const schoolId = activeSchoolId.current;
     try {
       const { data, error } = await createClient()
         .from("partnership_agreements")
@@ -361,6 +376,7 @@ export default function PartnershipsPage() {
         .maybeSingle();
       if (error) throw error;
       if (!data?.document_html) throw new Error("This document has no stored copy.");
+      if (activeSchoolId.current !== schoolId) return;
       setPreview({
         id: doc.id,
         html: data.document_html,
@@ -382,7 +398,7 @@ export default function PartnershipsPage() {
   function goToNextStep() {
     const action = dealState?.action;
     if (!action) return;
-    if (action.kind) setComposeKind(action.kind);
+    if (action.kind) setComposeKind(canWrite ? action.kind : "proposal");
     if (action.tab === "document") {
       const doc = documentForNextStep();
       if (doc) {
@@ -403,8 +419,8 @@ export default function PartnershipsPage() {
     if (!selected || loadingSchool || !dealState || !routeOnLoad.current) return;
     routeOnLoad.current = false;
     const action = dealState.action;
-    if (action?.kind) setComposeKind(action.kind);
-    if (action?.tab === "terms") {
+    if (action?.kind) setComposeKind(canWrite ? action.kind : "proposal");
+    if (canWrite && action?.tab === "terms") {
       setOpenTerms((n) => n + 1);
       setActiveTab("terms");
     } else {
@@ -422,7 +438,7 @@ export default function PartnershipsPage() {
       const doc = documentForNextStep();
       if (doc) setFocusDocumentId(doc.id);
     }
-  }, [selected, loadingSchool, dealState]);
+  }, [selected, loadingSchool, dealState, canWrite]);
 
   /*
     Saving the deal leaves you looking at the deal.
@@ -687,7 +703,7 @@ export default function PartnershipsPage() {
         </aside>
 
         {/* Main Workspace Area */}
-        <div className="lg:col-span-8 space-y-5">
+        <div className="lg:col-span-8 min-w-0 space-y-5">
           {!selected ? (
             <div className="bg-card border border-border rounded-3xl p-16 text-center shadow-lg space-y-3">
               <BuildingOffice2Icon className="w-12 h-12 text-muted-foreground/30 mx-auto" />
@@ -700,8 +716,13 @@ export default function PartnershipsPage() {
             <div className="flex items-center justify-center py-28 bg-card border border-border rounded-3xl shadow-lg">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-9 h-9 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-muted-foreground font-semibold">Loading school partnership dossier...</span>
+                <span className="text-xs text-muted-foreground font-semibold" role="status">Loading terms and documents…</span>
               </div>
+            </div>
+          ) : detailError ? (
+            <div role="alert" className="rounded-2xl border border-destructive/30 p-5 space-y-3">
+              <p className="text-sm">{detailError}</p>
+              <button type="button" onClick={() => void loadSchoolDetail(selected.id)} className="min-h-11 px-4 rounded-xl bg-primary text-primary-foreground">Retry school details</button>
             </div>
           ) : (
             <>
@@ -811,7 +832,7 @@ export default function PartnershipsPage() {
                           ))
                         ) : (
                           <>
-                            {dealState.action &&
+                            {canWrite && dealState.action &&
                               !(
                                 (dealState.action.tab === "compose" && activeTab === "compose") ||
                                 (dealState.action.tab === "terms" && activeTab === "terms")
@@ -824,7 +845,7 @@ export default function PartnershipsPage() {
                                 {dealState.action.label}
                               </button>
                             )}
-                            {dealState.followUp === "mou" && shareableMou && (
+                            {canWrite && dealState.followUp === "mou" && shareableMou && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -891,7 +912,7 @@ export default function PartnershipsPage() {
                     },
                     {
                       v: "terms" as const,
-                      label: agreed ? "The agreed deal" : "Record the deal",
+                      label: agreed ? "Agreed terms" : canWrite ? "Record the deal" : "Terms",
                     },
                   ]
                 ).map((t) => (
@@ -915,10 +936,12 @@ export default function PartnershipsPage() {
                   redraw still has the last offer, studio and enrolment. */}
               <div className={activeTab === "compose" ? "space-y-5" : "hidden"}>
                   <PartnershipDocumentComposer
+                    key={selected.id}
                     ref={composerRef}
                     school={selected}
                     agreed={agreed}
-                    canWrite={canWrite}
+                    canWrite={canPreparePartnershipDocument(profile?.role, composeKind)}
+                    canDiscard={canWrite}
                     studio={studio}
                     kind={composeKind}
                     documents={documents}
@@ -1057,7 +1080,7 @@ export default function PartnershipsPage() {
           shareToken={preview.shareToken}
           accessCode={preview.accessCode}
           documentStatus={preview.status}
-          canSend={canWrite}
+          canSend={canPreparePartnershipDocument(profile?.role, preview.kind)}
           onSent={documentsChanged}
           onDelete={
             canWrite &&

@@ -21,6 +21,7 @@ import { computeCharge, normaliseTerms } from '@/lib/partnerships/terms';
 import { schoolUpside } from '@/lib/partnerships/proposal-sections';
 import { approx, loadProofPoints } from '@/lib/partnerships/proof-points';
 import { buildDocumentShareUrl } from '@/lib/partnerships/signing';
+import { canPreparePartnershipDocument } from '@/lib/partnerships/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     .select('role, is_active, is_deleted')
     .eq('id', user.id)
     .maybeSingle();
-  if (!profile || profile.is_deleted || profile.is_active === false || profile.role !== 'admin') {
+  if (!profile || profile.is_deleted || profile.is_active === false || !['admin', 'teacher'].includes(profile.role)) {
     return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   }
 
@@ -71,6 +72,9 @@ export async function POST(req: NextRequest) {
     .eq('id', id)
     .maybeSingle();
   if (!doc) return NextResponse.json({ error: 'That document does not exist.' }, { status: 404 });
+  if (!canPreparePartnershipDocument(profile.role, doc.document_kind)) {
+    return NextResponse.json({ error: 'Only an administrator can send an MoU.' }, { status: 403 });
+  }
   if (!doc.document_html) {
     return NextResponse.json({ error: 'That document has no stored copy to send.' }, { status: 409 });
   }

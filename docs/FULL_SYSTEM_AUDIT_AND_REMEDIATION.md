@@ -4379,3 +4379,20 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - Validation: typecheck, 23 focused timeout/dashboard/registration tests, and changed-file lint with
   exhaustive dependencies promoted to errors passed. Remaining render-time deadline calculations,
   effect-driven pagination resets and the broader legacy warnings are not claimed resolved.
+
+### Partnership workspace and teacher proposal access — 2026-09-10
+
+- Fixed school-switch races: late terms/documents and stored-preview responses cannot replace
+  the newly selected school's workspace. Composer state is scoped to the selected school.
+- Incomplete responses now produce a retry panel rather than an empty deal and misleading next
+  action. School-detail HTTP reads use the existing timeout utility.
+- Teachers can create/preview and send proposals through the same document service as admins.
+  Server checks use document kind; MoU authoring/sending and all agreed-term mutations remain
+  admin-only. Teacher outreach excludes MoU links. Destructive controls remain admin-only.
+- Teachers land on the proposal composer instead of the administrator's contract task.
+- MoU terms summary wraps on narrow screens, the Change target is enlarged, workspace columns
+  can shrink, and mobile preview exposes Print. Clipboard failures no longer announce success.
+- Validation scope: automated partnership tests and typechecking; no production writes or sends.
+  Browser verification was blocked by ERR_CONNECTION_REFUSED at localhost:3001. Real desktop,
+  mobile/WebView printing, teacher login, delivered email and signing still need live verification.
+  This milestone does not certify every partnership workflow or resolve the earlier report-grade task.

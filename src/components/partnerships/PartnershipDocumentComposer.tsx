@@ -124,6 +124,7 @@ type ComposerProps = {
   school: SchoolRow;
   agreed: TermsRow | null;
   canWrite: boolean;
+  canDiscard?: boolean;
   onIssued: (doc: IssuedDocument) => void | Promise<void>;
   onPreview: (doc: IssuedDocument) => void | Promise<void>;
   onRecordTerms: () => void;
@@ -142,6 +143,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       school,
       agreed,
       canWrite,
+      canDiscard = canWrite,
       onIssued,
       onPreview,
       onRecordTerms,
@@ -502,7 +504,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                     Open {liveQuote.reference ?? "it"}
                   </button>
                 )}
-                {canWrite && liveRow && canDeletePartnershipDocument(liveRow) && (
+                {canDiscard && liveRow && canDeletePartnershipDocument(liveRow) && (
                   <button
                     type="button"
                     onClick={() => setAskDiscard(true)}
@@ -1074,7 +1076,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 <button
                   type="button"
                   onClick={onRecordTerms}
-                  className="px-2.5 py-1 rounded-lg border border-border hover:bg-muted text-foreground text-[11px] font-bold"
+                  className="min-h-11 px-3 rounded-lg border border-border hover:bg-muted text-foreground text-xs font-bold"
                 >
                   Change
                 </button>
@@ -1082,7 +1084,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               <p className="text-xs text-foreground font-semibold">
                 {describeTerms(agreed)}
               </p>
-              <div className="flex items-center gap-4 text-[11px] text-muted-foreground pt-1 border-t border-border/60">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] text-muted-foreground pt-1 border-t border-border/60">
                 <span>
                   Split:{" "}
                   <strong className="text-foreground">
@@ -1297,7 +1299,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </div>
       ) : (
         <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-xl">
-          Sending a document is an admin action. You are viewing this in read-only mode.
+          Only administrators can prepare and send MoUs.
         </p>
       )}
 
