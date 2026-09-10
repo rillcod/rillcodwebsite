@@ -47,6 +47,14 @@ Uses `scripts/cf-container-deploy.mjs` → host Next.js **standalone** build →
 
 ## Key commands
 
+The post-deploy smoke check defaults to `https://www.rillcod.com`. Each route has a
+30-second request deadline and up to three attempts for HTTP 502/503/504 or transport
+failures, with two/four-second backoff. Other unexpected statuses fail immediately;
+persistent failures still fail deployment. Logs include `cf-ray` when returned so an
+operator can correlate an outage with Cloudflare logs. A passing later check does not
+establish the cause of an earlier failure. This check does not change container sizing,
+idle shutdown, scheduling, or enforce a hosting spending cap.
+
 | Command | Purpose |
 |---------|---------|
 | `npm run typecheck` | `tsc --noEmit` — run before pushing to `main` |
