@@ -191,7 +191,6 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
   const [signatoryName, setSignatoryName] = useState(school.contact_person || "");
   const [signatoryRole, setSignatoryRole] = useState("Proprietor / Principal");
   const [schoolLegalName, setSchoolLegalName] = useState(school.name || "");
-  const [showSchoolDetailsEditor, setShowSchoolDetailsEditor] = useState(false);
 
   // Dynamic session frequency / cadence (e.g. 1 class per week vs 2 classes per week)
   const [customCadence, setCustomCadence] = useState("");
@@ -555,45 +554,16 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
           <div className="flex items-center gap-2">
             <BuildingOffice2Icon className="w-4 h-4 text-primary shrink-0" />
             <span className="text-xs font-bold text-foreground">
-              School Details & Signatory (Party B)
+              School address and contact
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowSchoolDetailsEditor(!showSchoolDetailsEditor)}
-            className="text-[11px] font-bold text-primary hover:underline self-start sm:self-auto"
-          >
-            {showSchoolDetailsEditor ? "Collapse details" : "Edit school address & signatory"}
-          </button>
         </div>
 
-        {/* Read-only compact summary when collapsed */}
-        {!showSchoolDetailsEditor && (
-          <div className="text-xs text-muted-foreground space-y-1 bg-muted/20 p-2.5 rounded-xl border border-border/50">
-            <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-foreground">{schoolLegalName || school.name}</span>
-              {(schoolCity || schoolState) && (
-                <span className="text-[11px]">· {[schoolCity, schoolState].filter(Boolean).join(", ")}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="truncate">
-                {schoolAddress ? `📍 ${schoolAddress}` : <span className="text-amber-500 font-medium">⚠️ Street address missing</span>}
-              </span>
-              <span>·</span>
-              <span>
-                {signatoryName ? `Signatory: ${signatoryName}${signatoryRole ? ` (${signatoryRole})` : ""}` : <span className="text-amber-500 font-medium">⚠️ Signatory not recorded</span>}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Editable fields when expanded */}
-        {showSchoolDetailsEditor && (
+        {/* Essential fields stay visible for both proposals and MoUs. */}
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className={LABEL} htmlFor="school-legal-name">School Legal Name</label>
+                <label className={LABEL} htmlFor="school-legal-name">School name</label>
                 <input
                   id="school-legal-name"
                   className={INPUT}
@@ -603,17 +573,19 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 />
               </div>
               <div>
-                <label className={LABEL} htmlFor="school-address">Physical Street Address</label>
-                <input
+                <label className={LABEL} htmlFor="school-address">School address</label>
+                <textarea
                   id="school-address"
                   className={INPUT}
+                  rows={2}
+                  autoComplete="street-address"
                   value={schoolAddress}
                   onChange={(e) => setSchoolAddress(e.target.value)}
                   placeholder="e.g. 12 St. Finbarr's College Road"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={LABEL} htmlFor="school-city">City / Town</label>
                 <input
@@ -635,7 +607,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 />
               </div>
               <div>
-                <label className={LABEL} htmlFor="school-signatory-name">Signatory Name</label>
+                <label className={LABEL} htmlFor="school-signatory-name">School representative</label>
                 <input
                   id="school-signatory-name"
                   className={INPUT}
@@ -645,7 +617,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
                 />
               </div>
               <div>
-                <label className={LABEL} htmlFor="school-signatory-role">Signatory Title / Role</label>
+                <label className={LABEL} htmlFor="school-signatory-role">Position at the school</label>
                 <input
                   id="school-signatory-role"
                   className={INPUT}
@@ -656,10 +628,9 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               </div>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              These details print directly into Clause 1.0 (Parties) and Clause 8.0 (Signatures) of the MoU, and the Proposal title block. Changes persist to the school record.
+              These details appear on this {kind === "mou" ? "MoU" : "proposal"}. Preview it before saving.
             </p>
           </div>
-        )}
       </div>
 
       {kind === "proposal" ? (

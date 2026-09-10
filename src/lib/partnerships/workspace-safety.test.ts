@@ -4,6 +4,16 @@ import { describe, expect, it } from 'vitest';
 const source = (path: string) => readFileSync(path, 'utf8');
 
 describe('partnership workspace integration guards', () => {
+  it('keeps school address fields directly accessible in both document editors', () => {
+    const composer = source('src/components/partnerships/PartnershipDocumentComposer.tsx');
+    expect(composer).not.toContain('showSchoolDetailsEditor');
+    expect(composer).toContain('School address and contact');
+    expect(composer).toContain('htmlFor="school-address">School address');
+    expect(composer).toContain('autoComplete="street-address"');
+    expect(composer).toContain('address: schoolAddress.trim() || null');
+    expect(composer).toContain('school_details: p.school_details');
+    expect(composer.indexOf('id="school-address"')).toBeLessThan(composer.indexOf('id="proposal-roll"'));
+  });
   it('rejects stale school loads and makes incomplete loads recoverable', () => {
     const page = source('src/app/dashboard/partnerships/page.tsx');
     expect(page).toContain('if (request !== detailRequest.current) return;');
