@@ -833,23 +833,26 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-foreground">
-                  What a Parent is Paying For (Value Copy)
+                  What the fee includes
                 </span>
                 <p className="text-[11px] text-muted-foreground">
-                  Customise the message on the money page. Word limits prevent layout shifting on the PDF.
+                  Edit the explanation families will read in the proposal.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowValueEditor(!showValueEditor)}
-                className="self-start sm:self-auto min-h-8 inline-flex items-center text-xs font-semibold text-primary hover:underline"
+                aria-expanded={showValueEditor}
+                aria-controls="proposal-wording-editor"
+                className="self-start sm:self-auto min-h-11 px-3 rounded-xl border border-border inline-flex items-center text-xs font-semibold text-primary hover:bg-muted"
               >
-                {showValueEditor ? "Hide editor" : "Edit copy"}
+                {showValueEditor ? "Close wording editor" : "Edit proposal wording"}
               </button>
             </div>
 
+            {!showValueEditor && <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{valueBody}</p>}
             {showValueEditor && (
-              <div className="space-y-3 pt-2 border-t border-border">
+              <div id="proposal-wording-editor" className="space-y-3 pt-2 border-t border-border">
                 <div>
                   <div className="flex flex-wrap items-baseline justify-between gap-1 mb-1">
                     <label className={LABEL} htmlFor="value-title">Section Heading</label>
@@ -1143,10 +1146,10 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
       )}
 
       {kind === "proposal" && gaps.length > 0 && (
-        <details className="rounded-xl border border-border bg-muted/20 px-4 py-3">
-          <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            This quote can be fuller ({gaps.length})
-          </summary>
+        <section aria-label="Proposal details to check" className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Check before sending ({gaps.length})
+          </h3>
           <ul className="mt-2 space-y-1">
             {gaps.map((g) => (
               <li key={g} className="text-xs text-muted-foreground leading-relaxed">
@@ -1154,7 +1157,7 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
               </li>
             ))}
           </ul>
-        </details>
+        </section>
       )}
 
       {mouBlocked && (

@@ -118,6 +118,7 @@ export function ProposalStudio({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 p-5 text-left hover:bg-muted/40 transition-colors min-h-[56px]"
       >
         <div className="min-w-0">
@@ -127,7 +128,7 @@ export function ProposalStudio({
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
             {offCount === 0
-              ? "Skip this. The proposal already prints every page, in the house words from the form above."
+              ? "All pages included · Choose photos or change which pages appear."
               : [
                   `${offCount} section${offCount === 1 ? "" : "s"} hidden`,
                   `${config.photos.length} photograph${config.photos.length === 1 ? "" : "s"}`,

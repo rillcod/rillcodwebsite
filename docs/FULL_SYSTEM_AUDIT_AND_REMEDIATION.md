@@ -4396,3 +4396,14 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   Browser verification was blocked by ERR_CONNECTION_REFUSED at localhost:3001. Real desktop,
   mobile/WebView printing, teacher login, delivered email and signing still need live verification.
   This milestone does not certify every partnership workflow or resolve the earlier report-grade task.
+
+### Partnership control discoverability — 2026-09-10
+
+- School address/contact inputs remain visible in proposal and MoU editors (f6622d92).
+- Proposal completeness hints are no longer collapsed. Optional wording shows its current text,
+  with a labelled 44px edit control. Optional photo/page choices and old terms remain collapsed.
+- Preview zoom is available on phones as well as desktop, with horizontal scrolling at enlarged
+  sizes. Sharing disclosure has a larger touch target and recipient input has an accessible label.
+- Message-copy failure now reports an error instead of falsely confirming success.
+- Typecheck and six targeted source-contract/preview-height checks passed. These are not a
+  substitute for visual phone/WebView verification; production document content was not changed.

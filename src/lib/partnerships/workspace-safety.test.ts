@@ -4,6 +4,21 @@ import { describe, expect, it } from 'vitest';
 const source = (path: string) => readFileSync(path, 'utf8');
 
 describe('partnership workspace integration guards', () => {
+  it('exposes actionable gaps and makes optional wording discoverable', () => {
+    const composer = source('src/components/partnerships/PartnershipDocumentComposer.tsx');
+    expect(composer).toContain('<section aria-label="Proposal details to check"');
+    expect(composer).toContain('Check before sending');
+    expect(composer).toContain('Edit proposal wording');
+    expect(composer).toContain('aria-controls="proposal-wording-editor"');
+  });
+  it('offers accessible zoom and horizontal document scrolling on phones', () => {
+    const preview = source('src/components/partnerships/IssuedDocumentPreview.tsx');
+    expect(preview).toContain('aria-label="Document zoom" className="flex');
+    expect(preview).toContain('aria-pressed={zoom === z}');
+    expect(preview).toContain('className="overflow-x-auto bg-slate-100');
+    expect(preview).toContain('aria-label="Recipient email address"');
+    expect(preview).not.toContain('navigator.clipboard.writeText(body).catch(() => null)');
+  });
   it('keeps school address fields directly accessible in both document editors', () => {
     const composer = source('src/components/partnerships/PartnershipDocumentComposer.tsx');
     expect(composer).not.toContain('showSchoolDetailsEditor');

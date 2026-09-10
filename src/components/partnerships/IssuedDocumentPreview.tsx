@@ -376,7 +376,7 @@ export function IssuedDocumentPreview({
         className="fixed inset-0 z-[110] overflow-y-auto overflow-x-hidden overscroll-y-contain bg-background [-webkit-overflow-scrolling:touch]"
       >
         <header className="sticky top-0 z-10 border-b border-border bg-card pt-[max(0.5rem,var(--safe-area-top))]">
-          <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-3 px-3 sm:px-4 py-2.5">
             <button
               type="button"
               onClick={onClose}
@@ -411,13 +411,14 @@ export function IssuedDocumentPreview({
               </p>
             </div>
 
-            <div className="hidden sm:flex items-center bg-muted/60 p-0.5 rounded-xl border border-border text-[11px] font-bold text-foreground/80 shrink-0">
+            <div role="group" aria-label="Document zoom" className="flex items-center bg-muted/60 p-0.5 rounded-xl border border-border text-[11px] font-bold text-foreground/80 shrink-0">
               {(["fit", "75", "100"] as const).map((z) => (
                 <button
                   key={z}
                   type="button"
                   onClick={() => setZoom(z)}
-                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                  aria-pressed={zoom === z}
+                  className={`min-h-11 px-3 rounded-lg transition-all ${
                     zoom === z ? "bg-primary text-primary-foreground shadow-sm" : "hover:text-foreground"
                   }`}
                 >
@@ -530,7 +531,7 @@ export function IssuedDocumentPreview({
 
           {publicPath && (
             <details className="group border-t border-border/60 px-3 sm:px-4">
-              <summary className="cursor-pointer list-none py-2 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+              <summary className="cursor-pointer list-none min-h-11 py-2 flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
                 <span>Copy a WhatsApp or email message</span>
                 <ChevronDownIcon className="w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-180" />
               </summary>
@@ -545,8 +546,12 @@ export function IssuedDocumentPreview({
                         reference,
                         shareUrl: shareUrl(shareToken),
                       });
-                      await navigator.clipboard.writeText(body).catch(() => null);
-                      setNotice(`${a.label} copied — paste it into WhatsApp or an email.`);
+                      try {
+                        await navigator.clipboard.writeText(body);
+                        setNotice(`${a.label} copied — paste it into WhatsApp or an email.`);
+                      } catch {
+                        setError("Could not copy the message. Please allow clipboard access and try again.");
+                      }
                     }}
                     title={a.desc}
                     className={BTN}
@@ -578,6 +583,7 @@ export function IssuedDocumentPreview({
             >
               <input
                 type="email"
+                aria-label="Recipient email address"
                 value={emailTo}
                 onChange={(e) => setEmailTo(e.target.value)}
                 placeholder="Leave blank to use the school's address on file"
@@ -630,7 +636,7 @@ export function IssuedDocumentPreview({
         ) : (
           <div
             ref={attachPane}
-            className="bg-slate-100 dark:bg-slate-950 p-3 pb-28 md:p-8"
+            className="overflow-x-auto bg-slate-100 dark:bg-slate-950 p-3 pb-28 md:p-8"
           >
             <div
               className="mx-auto bg-white shadow-2xl shadow-black/20 dark:shadow-black/70 rounded-sm overflow-hidden"
