@@ -36,12 +36,16 @@ export async function POST(request: Request) {
   const haveCard = new Set<string>();
   for (let i = 0; i < holder_ids.length; i += 200) {
     const chunk = holder_ids.slice(i, i + 200);
-    const { data } = await (db as any)
+    const { data, error } = await (db as any)
       .from('identity_cards')
       .select('holder_id')
       .eq('holder_type', holder_type)
       .neq('status', 'revoked')
       .in('holder_id', chunk);
+    if (error) {
+      console.error('[cards/issue-missing] existing cards could not be checked', error);
+      return NextResponse.json({ error: 'Could not check existing cards. No new cards were created. Please retry.' }, { status: 503 });
+    }
     for (const row of data ?? []) haveCard.add(row.holder_id);
   }
 

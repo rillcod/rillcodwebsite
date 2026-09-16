@@ -4434,3 +4434,15 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - Automated checks cover filters, pagination and workflow source contracts. No card status,
   account, student score or live configuration was mutated. This is not a full browser/PDF audit;
   native reissue/revoke confirmations and actual mobile print behaviour still require verification.
+
+### Card Studio action simplification — 2026-09-16
+
+- Default entry now opens Manage; explicit Design links still open Design. Removed the second
+  duplicate card-holder-type selector. Mobile filters can close without hiding card actions.
+- Selected people take priority for Create missing cards; existing cards and hidden accounts are
+  excluded. A stale selection does not silently fall back to everyone. Server verification remains
+  authoritative; existing-card lookup failure stops the batch before creating anything.
+- Hide competing print-all choices when people are selected. Use plain Create/Print/Download
+  labels, larger action targets and explicit Delete accounts wording. No new automatic issuance,
+  expiry changes, account deletion or background job was introduced.
+- Thirteen focused tests passed. Live browser/mobile print confirmation is still outstanding.

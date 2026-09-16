@@ -9,7 +9,7 @@ import {
   PaintBrushIcon, CreditCardIcon, PrinterIcon, ArrowDownTrayIcon,
   CheckCircleIcon, ArrowUpIcon, ArrowDownIcon, MagnifyingGlassIcon,
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, UserGroupIcon,
-  UserPlusIcon, AcademicCapIcon, SparklesIcon, TrashIcon,
+  UserPlusIcon, SparklesIcon, TrashIcon,
 } from '@/lib/icons';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import {
@@ -44,6 +44,7 @@ import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder a
 import { LocalQr } from '@/components/cards/LocalQr';
 import { HD_QR_EMBED_PX } from '@/lib/qr/hd-qr';
 import { cardPreviewPage } from '@/lib/cards/preview-page';
+import { cardActionScope } from '@/lib/cards/action-scope';
 import { reportBucket, matchesReportFilter, type ReportFilter, type ReportStatusInput } from '@/lib/cards/report-status';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
@@ -745,7 +746,7 @@ export default function CardStudioPage() {
 
   // ── Tab state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabId>(() =>
-    (searchParams.get('tab') === 'manage' ? 'manage' : 'design')
+    (searchParams.get('tab') === 'design' ? 'design' : 'manage')
   );
 
   const switchTab = (t: TabId) => {
@@ -1338,7 +1339,7 @@ export default function CardStudioPage() {
   };
 
   const bulkIssueList = async (list: CardRecord[]) => {
-    if(!list.length) return;
+    if(!list.length || bulkIssuing || cardsLoading || cardsError) return;
     setBulkIssuing(true); setBulkProgress(null);
     try {
       // The server decides who is actually missing a card and issues only those — we just
@@ -2386,19 +2387,6 @@ export default function CardStudioPage() {
       {/* Cap toolbar height on mobile — otherwise filters eat the viewport and the list can't scroll */}
       <div className="flex-none max-h-[min(40vh,300px)] md:max-h-none overflow-y-auto overscroll-contain border-b border-border bg-card">
         <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3">
-          <div className="flex gap-1 overflow-x-auto scrollbar-none pb-1 md:pb-0 shrink-0">
-            {CARD_TYPES.map(tab=>{
-              const Icon = tab==='student'?UserGroupIcon:tab==='parent'?UserPlusIcon:AcademicCapIcon;
-              return (
-                <button key={tab} onClick={()=>applyCardType(tab)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${cardType===tab?'bg-primary/10 border-primary/30 text-primary':'bg-transparent border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
-                  <Icon className="w-3.5 h-3.5"/>
-                  {tab}s
-                  {cardType===tab&&records.length>0&&<span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground ml-1">{records.length}</span>}
-                </button>
-              );
-            })}
-          </div>
           <div className="relative w-full md:w-56 min-w-0 flex-1 md:flex-none">
             <MagnifyingGlassIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60"/>
             <input aria-label="Search card holders by name, class or school" value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
@@ -2408,9 +2396,10 @@ export default function CardStudioPage() {
             <button
               type="button"
               onClick={() => setManageToolsOpen((v) => !v)}
+              aria-expanded={manageToolsOpen}
               className={`md:hidden shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide border transition-colors ${manageToolsOpen || manageFiltersActive ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground bg-background'}`}
             >
-              {manageToolsOpen ? 'Hide tools' : 'Filters & actions'}
+              {manageToolsOpen ? 'Hide filters' : 'Show filters'}
               {manageFiltersActive && !manageToolsOpen ? ' •' : ''}
             </button>
             {manageFiltersActive && (
@@ -2549,8 +2538,10 @@ export default function CardStudioPage() {
               {filtered.length !== counts.total ? ` of ${counts.total}` : ''} shown
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* List (default) / Grid view toggle */}
+        </div>
+        </div>
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-t border-border [&_button]:min-h-11 [&_select]:min-h-11" aria-label="Card actions">
+            {/* Actions stay available when filters are closed on phones. */}
             <div className="hidden md:block">{manageViewControl}</div>
             {filtered.length>0&&selectedIds.size===0&&(
               <button onClick={()=>setSelectedIds(new Set(filtered.map(r=>r.id)))}
@@ -2564,7 +2555,7 @@ export default function CardStudioPage() {
                 <button disabled={bulkDeleting} onClick={()=>bulkPermanentlyDelete()}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-rose-600/35 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 rounded-lg disabled:opacity-50 transition-colors bg-background">
                   {bulkDeleting ? <span className="w-2.5 h-2.5 border border-rose-600 border-t-transparent rounded-full animate-spin"/> : <TrashIcon className="w-3 h-3"/>}
-                  Wipe ({selectedIds.size})
+                  Delete accounts ({selectedIds.size})
                 </button>
               )}
               {manageView !== 'roster' && (
@@ -2584,7 +2575,7 @@ export default function CardStudioPage() {
                 </button>
               )}
             </>)}
-            {filtered.some(r=>!dbCardsMap.has(r.id))&&(<>
+            {cardActionScope(filtered, selectedIds, dbCardsMap).missing.length > 0 && (<>
               <select value={issueValidityMonths} onChange={e=>setIssueValidityMonths(Number(e.target.value))}
                 title="How long newly issued cards stay valid"
                 className="text-[10px] font-black uppercase tracking-wide bg-background border border-border rounded-lg px-2 py-1.5 text-muted-foreground focus:outline-none focus:border-primary cursor-pointer">
@@ -2594,32 +2585,30 @@ export default function CardStudioPage() {
                 <option value={24}>Valid 2 years</option>
                 <option value={36}>Valid 3 years</option>
               </select>
-              <button disabled={bulkIssuing} onClick={()=>bulkIssueList(filtered)}
+              <button disabled={bulkIssuing} onClick={()=>bulkIssueList(cardActionScope(filtered, selectedIds, dbCardsMap).missing)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/5 rounded-lg disabled:opacity-50 transition-colors bg-background">
-                {bulkIssuing?<><span className="w-2.5 h-2.5 border border-primary border-t-transparent rounded-full animate-spin"/>{bulkProgress?`${bulkProgress.done}/${bulkProgress.total}`:'…'}</>:`Issue Missing (${filtered.filter(r=>!dbCardsMap.has(r.id)).length})`}
+                {bulkIssuing ? 'Creating cards…' : `Create missing cards (${cardActionScope(filtered, selectedIds, dbCardsMap).missing.length})`}
               </button>
             </>)}
-            {manageView !== 'roster' && (
+            {manageView !== 'roster' && selectedIds.size === 0 && filtered.length > 0 && (
             <button onClick={()=>printManageCards(filtered,`${cardType} access cards`, { groupBy: groupMode === 'section' ? 'section' : 'grade' })}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
-              <PrinterIcon className="w-3 h-3"/> Print All Cards
+              <PrinterIcon className="w-3 h-3"/> Print shown cards ({filtered.length})
             </button>
             )}
-            {cardType === 'student' && filteredRosterRows.length > 0 && (
+            {cardType === 'student' && filteredRosterRows.length > 0 && selectedIds.size === 0 && (
               <>
                 <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-700 text-white hover:bg-emerald-800 rounded-lg transition-colors shadow">
-                  <PrinterIcon className="w-3 h-3"/> Print All Classes
+                  <PrinterIcon className="w-3 h-3"/> Print class lists
                 </button>
                 <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                  <ArrowDownTrayIcon className="w-3 h-3"/> Download All Classes
+                  <ArrowDownTrayIcon className="w-3 h-3"/> Download class lists
                 </button>
               </>
             )}
           </div>
-        </div>
-        </div>
       </div>
 
       {/* Manage content area — min-h-0 so flex child can shrink and scroll inside shell */}
@@ -2978,7 +2967,7 @@ export default function CardStudioPage() {
           {/* Card type selector */}
           <div className="flex gap-1 bg-muted/80 border border-border/60 p-1 rounded-xl shadow-inner">
             {CARD_TYPES.map(t=>(
-              <button key={t} onClick={()=>applyCardType(t)} disabled={savingDesign}
+              <button key={t} onClick={()=>applyCardType(t)} disabled={savingDesign || bulkIssuing || isIssuingIds.size > 0 || isRevokingIds.size > 0}
                 className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${cardType===t?'bg-background text-foreground shadow-sm font-black':'text-muted-foreground hover:text-foreground'}`}>
                 {t}
               </button>
@@ -2995,7 +2984,7 @@ export default function CardStudioPage() {
             </>)}
             {activeTab==='manage'&&(
               <button onClick={()=>switchTab('design')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors bg-background">
-                <SparklesIcon className="w-3.5 h-3.5"/> Design Mode
+                <SparklesIcon className="w-3.5 h-3.5"/> Edit design
               </button>
             )}
           </div>

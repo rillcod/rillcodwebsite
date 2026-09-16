@@ -4,6 +4,17 @@ import { describe, expect, it } from 'vitest';
 const page = readFileSync('src/app/dashboard/card-studio/page.tsx', 'utf8');
 
 describe('Card Studio workflow wiring', () => {
+  it('respects selection when creating missing cards', () => {
+    expect(page).toContain('bulkIssueList(cardActionScope(filtered, selectedIds, dbCardsMap).missing)');
+    expect(page).toContain('aria-label="Card actions"');
+    expect(page).toContain('Show filters');
+    expect(page).not.toContain('Filters & actions');
+  });
+  it('stops before creating cards when existing cards cannot be checked', () => {
+    const route = readFileSync('src/app/api/cards/issue-missing/route.ts', 'utf8');
+    expect(route.indexOf('if (error)')).toBeLessThan(route.indexOf('const missing ='));
+    expect(route).toContain('No new cards were created. Please retry.');
+  });
   it('checks save rejection before announcing success and restricts global saves', () => {
     const save = page.slice(page.indexOf('const handleSave ='), page.indexOf('const handleReset ='));
     expect(save).toContain('if (!isAdmin || savingDesign || configLoading || configError) return;');
