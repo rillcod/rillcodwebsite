@@ -1001,9 +1001,9 @@ export function buildPartnershipProposalHTML(input: ProposalInput): string {
       <div class="value-copy">
         <span class="value-kicker">${esc(kicker)}</span>
         <p>${esc(body)}</p>
-        <p class="value-note">${esc(note)}</p>
       </div>
     </article>
+    <p class="value-note"><strong>School arrangement</strong> ${esc(note)}</p>
   </section>`;
   };
 
@@ -1977,11 +1977,6 @@ ${body}
   .page-money .upside-col .chart { width: 100%; height: auto; max-height: 18mm; margin: 0; }
   .page-money .upside-col table.compact th { padding: 1.2mm 2mm; font-size: 10pt; }
   .page-money .upside-col table.compact td { padding: 1.2mm 2mm; font-size: 10pt; }
-  .page-money .value {
-    flex: none; height: 33mm; min-height: 33mm; max-height: 34mm;
-  }
-  .page-money .value-photo { height: 100%; min-height: 33mm; max-height: 34mm; }
-  .page-money .value-photo img { width: 100%; height: 100%; min-height: 33mm; max-height: 34mm; object-fit: cover; }
 
   .split { display: flex; gap: 2px; margin: 3.5mm 0 2.5mm; border-radius: 1mm; overflow: hidden; }
   .split .seg {
@@ -2103,49 +2098,33 @@ ${body}
   }
   .settle-body { margin: 0; font-size: 10pt; line-height: 1.45; color: #475569; }
 
-  /*
-    One band: the session on the left, the reason on the right.
-
-    Not a thumbnail with a caption under it, and not two clauses where a
-    picture should be. The photograph fills its half; the copy is centred
-    against it, with the red edge that the rest of the document uses to
-    mark a claim. Height is capped so split, figures and this still land
-    on one A4 that clips rather than spills.
-  */
-  /*
-    What a parent would be paying for - Modern executive value card
-    Proportionate, elegant horizontal card that guarantees zero spillover on A4.
-  */
+  /* Content sets card height; school settlement stays outside parent benefits. */
   .value {
-    display: grid; grid-template-columns: 58mm 1fr; align-items: stretch;
+    display: grid; grid-template-columns: 48mm minmax(0, 1fr); align-items: stretch;
     border: 1px solid #e2e8f0; border-radius: 2mm; overflow: hidden;
     background: #ffffff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-    height: 33mm; min-height: 33mm; max-height: 34mm; break-inside: avoid;
+    min-height: 36mm; break-inside: avoid;
   }
-  .value-photo { margin: 0; height: 100%; width: 100%; overflow: hidden; background: #0f172a; position: relative; }
+  .value-photo { margin: 0; min-height: 36mm; overflow: hidden; background: #0f172a; position: relative; }
   .value-photo img {
-    width: 100%; height: 100%; object-fit: cover; object-position: center 52%; display: block;
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 52%; display: block;
   }
   .value-copy {
-    padding: 2.2mm 4.5mm; display: flex; flex-direction: column; justify-content: center;
+    padding: 4mm; min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; justify-content: center;
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
     border-left: 3px solid #2563eb;
   }
   .value-kicker {
-    font-size: 10pt; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
-    color: #2563eb; margin-bottom: 1.2mm; display: inline-flex; align-items: center; gap: 1.5mm;
+    font-size: 10pt; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+    color: #2563eb; margin-bottom: 2mm; display: block;
   }
-  .value-copy p { font-size: 10pt; color: #1e293b; line-height: 1.35; margin: 0; font-weight: 500; }
-  .value-note {
-    font-size: 10pt; color: #64748b; margin: 1.2mm 0 0; padding-top: 1.2mm;
-    border-top: 1px solid #e2e8f0; line-height: 1.3; font-weight: 400;
+  .value-copy p { font-size: 10.5pt; color: #1e293b; line-height: 1.45; margin: 0; font-weight: 500; }
+  .sec-value .value-note {
+    font-size: 10pt; color: #475569; margin: 2.5mm 0 0; padding: 2mm 3mm;
+    border-left: 2px solid #cbd5e1; background: #f8fafc; line-height: 1.4;
+    overflow-wrap: anywhere;
   }
-  .page-money .value { flex: none; height: 33mm; min-height: 33mm; max-height: 34mm; }
-  .page-money .value-photo { height: 100%; min-height: 33mm; max-height: 34mm; }
-  .page-money .value-photo img { width: 100%; height: 100%; min-height: 33mm; max-height: 34mm; object-fit: cover; object-position: center 55%; }
-  .page-money .value-copy { justify-content: center; padding: 2mm 4.2mm; }
-  .page-money .value-copy p { line-height: 1.35; font-size: 10pt; }
-  .page-money .value-note { margin-top: 1.2mm; padding-top: 1.2mm; font-size: 10pt; }
+  .value-note strong { display: block; color: #334155; margin-bottom: .8mm; }
 
   .offer-alts { margin-top: 4mm; }
   .offer-alts-head {

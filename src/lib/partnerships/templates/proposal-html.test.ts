@@ -507,6 +507,9 @@ describe('the money page', () => {
     expect(withCustom).toContain('Transparent Value');
     expect(withCustom).toContain('Every learner builds their own hardware project every term.');
     expect(withCustom).toContain('School payout is sent within 5 days of parent fee receipt.');
+    expect(withCustom).toContain('</article>\n    <p class="value-note"><strong>School arrangement</strong>');
+    expect(withCustom).not.toContain('max-height: 34mm');
+    expect(withCustom).toContain('grid-template-columns: 48mm minmax(0, 1fr)');
 
     const withDefault = buildPartnershipProposalHTML({
       ...base,

@@ -4407,3 +4407,15 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - Message-copy failure now reports an error instead of falsely confirming success.
 - Typecheck and six targeted source-contract/preview-height checks passed. These are not a
   substitute for visual phone/WebView verification; production document content was not changed.
+
+### Proposal money-page layout — 2026-09-16
+
+- Removed competing fixed-height value-card rules that could clip editable text inside an
+  otherwise correctly sized page. Parent benefits now have a flexible-height photo/text card;
+  the school settlement note is separate. Existing custom wording and amounts are preserved.
+- Kept the document's 10pt minimum. Rendered and visually reviewed the synthetic money-page PDF.
+- Strengthened `check:pages` to detect internal value-card overflow, not only whole-page height.
+  Four proposal variants, the five-page MoU and both workbook cadences pass browser measurement.
+- Added a repeatable, synthetic-only local proof renderer. No issued/signed documents were rewritten.
+- School address inputs now precede programme choices in the composer, completing the earlier
+  workflow adjustment. Live browser editor verification remains separate from PDF verification.

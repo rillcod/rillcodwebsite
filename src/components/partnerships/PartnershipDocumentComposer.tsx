@@ -476,6 +476,93 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
         </p>
       </div>
 
+      {/* Partner School & Signatory Details (Party B) - applicable for both Proposal & MoU */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BuildingOffice2Icon className="w-4 h-4 text-primary shrink-0" />
+            <span className="text-xs font-bold text-foreground">
+              School address and contact
+            </span>
+          </div>
+        </div>
+
+        {/* Essential fields stay visible for both proposals and MoUs. */}
+          <div className="space-y-4">
+            <div className="grid gap-3">
+              <div>
+                <label className={LABEL} htmlFor="school-legal-name">School name</label>
+                <input
+                  id="school-legal-name"
+                  className={INPUT}
+                  autoComplete="organization"
+                  value={schoolLegalName}
+                  onChange={(e) => setSchoolLegalName(e.target.value)}
+                  placeholder="Official registered school name"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-address">School address</label>
+                <textarea
+                  id="school-address"
+                  className={INPUT}
+                  rows={2}
+                  autoComplete="street-address"
+                  value={schoolAddress}
+                  onChange={(e) => setSchoolAddress(e.target.value)}
+                  placeholder="e.g. 12 St. Finbarr's College Road"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL} htmlFor="school-city">City / Town</label>
+                <input
+                  id="school-city"
+                  className={INPUT}
+                  value={schoolCity}
+                  onChange={(e) => setSchoolCity(e.target.value)}
+                  placeholder="e.g. Akoka"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-state">State</label>
+                <input
+                  id="school-state"
+                  className={INPUT}
+                  value={schoolState}
+                  onChange={(e) => setSchoolState(e.target.value)}
+                  placeholder="e.g. Lagos"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-signatory-name">School representative</label>
+                <input
+                  id="school-signatory-name"
+                  className={INPUT}
+                  value={signatoryName}
+                  onChange={(e) => setSignatoryName(e.target.value)}
+                  placeholder="e.g. Rev. Fr. Emmanuel"
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="school-signatory-role">Position at the school</label>
+                <input
+                  id="school-signatory-role"
+                  className={INPUT}
+                  value={signatoryRole}
+                  onChange={(e) => setSignatoryRole(e.target.value)}
+                  placeholder="e.g. Principal / Proprietor"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              These details appear on this {kind === "mou" ? "MoU" : "proposal"}. Preview it before saving.
+            </p>
+          </div>
+      </div>
+
+
       {liveQuote && (
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
           <div className="flex items-start gap-3">
@@ -546,91 +633,6 @@ export const PartnershipDocumentComposer = forwardRef<ComposerHandle, ComposerPr
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Partner School & Signatory Details (Party B) - applicable for both Proposal & MoU */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <BuildingOffice2Icon className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-xs font-bold text-foreground">
-              School address and contact
-            </span>
-          </div>
-        </div>
-
-        {/* Essential fields stay visible for both proposals and MoUs. */}
-          <div className="space-y-3 pt-2 border-t border-border">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL} htmlFor="school-legal-name">School name</label>
-                <input
-                  id="school-legal-name"
-                  className={INPUT}
-                  value={schoolLegalName}
-                  onChange={(e) => setSchoolLegalName(e.target.value)}
-                  placeholder="Official registered school name"
-                />
-              </div>
-              <div>
-                <label className={LABEL} htmlFor="school-address">School address</label>
-                <textarea
-                  id="school-address"
-                  className={INPUT}
-                  rows={2}
-                  autoComplete="street-address"
-                  value={schoolAddress}
-                  onChange={(e) => setSchoolAddress(e.target.value)}
-                  placeholder="e.g. 12 St. Finbarr's College Road"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL} htmlFor="school-city">City / Town</label>
-                <input
-                  id="school-city"
-                  className={INPUT}
-                  value={schoolCity}
-                  onChange={(e) => setSchoolCity(e.target.value)}
-                  placeholder="e.g. Akoka"
-                />
-              </div>
-              <div>
-                <label className={LABEL} htmlFor="school-state">State</label>
-                <input
-                  id="school-state"
-                  className={INPUT}
-                  value={schoolState}
-                  onChange={(e) => setSchoolState(e.target.value)}
-                  placeholder="e.g. Lagos"
-                />
-              </div>
-              <div>
-                <label className={LABEL} htmlFor="school-signatory-name">School representative</label>
-                <input
-                  id="school-signatory-name"
-                  className={INPUT}
-                  value={signatoryName}
-                  onChange={(e) => setSignatoryName(e.target.value)}
-                  placeholder="e.g. Rev. Fr. Emmanuel"
-                />
-              </div>
-              <div>
-                <label className={LABEL} htmlFor="school-signatory-role">Position at the school</label>
-                <input
-                  id="school-signatory-role"
-                  className={INPUT}
-                  value={signatoryRole}
-                  onChange={(e) => setSignatoryRole(e.target.value)}
-                  placeholder="e.g. Principal / Proprietor"
-                />
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              These details appear on this {kind === "mou" ? "MoU" : "proposal"}. Preview it before saving.
-            </p>
-          </div>
       </div>
 
       {kind === "proposal" ? (

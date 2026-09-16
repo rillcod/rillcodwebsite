@@ -57,6 +57,9 @@ window.addEventListener('load', () => {
       page: i + 1,
       height: Math.round(p.getBoundingClientRect().height),
       label: (head ? head.textContent : '(cover)').trim().slice(0, 34),
+      clippedCards: [...p.querySelectorAll('.value, .value-copy, .value-note')]
+        .filter((el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2)
+        .map((el) => el.className),
     };
   });
   document.title = 'FIT:' + JSON.stringify(rows);
@@ -83,9 +86,9 @@ window.addEventListener('load', () => {
 
   fs.rmSync(dir, { recursive: true, force: true });
 
-  const match = /FIT:(\[.*?\])/s.exec(res.stdout || '');
+  const match = /FIT:(\[.*?\])<\/title>/s.exec(res.stdout || '');
   if (!match) throw new Error(`${label}: the browser returned no measurements`);
-  return JSON.parse(match[1]) as { page: number; height: number; label: string }[];
+  return JSON.parse(match[1]) as { page: number; height: number; label: string; clippedCards: string[] }[];
 }
 
 async function main() {
@@ -192,6 +195,10 @@ async function main() {
     let worst = Infinity;
     for (const p of pages) {
       const clearance = PAGE_H - p.height;
+      if (p.clippedCards.length) {
+        failures++;
+        console.log(`  CLIPPED  ${doc.label} p${p.page} inside ${p.clippedCards.join(', ')}`);
+      }
       worst = Math.min(worst, clearance);
       if (VERBOSE) console.log(`    p${String(p.page).padStart(2)} ${String(p.height).padStart(5)}px  spare ${String(clearance).padStart(4)}  ${p.label}`);
       if (clearance < 0) {

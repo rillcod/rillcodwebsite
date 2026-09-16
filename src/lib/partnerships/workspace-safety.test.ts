@@ -28,6 +28,7 @@ describe('partnership workspace integration guards', () => {
     expect(composer).toContain('address: schoolAddress.trim() || null');
     expect(composer).toContain('school_details: p.school_details');
     expect(composer.indexOf('id="school-address"')).toBeLessThan(composer.indexOf('id="proposal-roll"'));
+    expect(composer.indexOf('id="school-address"')).toBeLessThan(composer.indexOf('Which years does this school run?'));
   });
   it('rejects stale school loads and makes incomplete loads recoverable', () => {
     const page = source('src/app/dashboard/partnerships/page.tsx');
