@@ -4419,3 +4419,18 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - Added a repeatable, synthetic-only local proof renderer. No issued/signed documents were rewritten.
 - School address inputs now precede programme choices in the composer, completing the earlier
   workflow adjustment. Live browser editor verification remains separate from PDF verification.
+
+### Card Studio Design / Manage reliability — 2026-09-16
+
+- Fixed the `no_report` filter comparing against the different internal value `none`; both
+  tabs now use one tested report-filter function, including published-over-draft precedence.
+- Global design saves now require admin in the UI, inspect HTTP success, and show saving state.
+  Teachers retain preview editing but are no longer offered a save the API will reject.
+  Restore defaults changes the preview only; saving is an explicit separate action.
+- Design fetch failures show retry instead of silently substituting defaults. Manage blocks
+  issuance/printing when its saved design or issued-card lookup is unavailable, with retry.
+  Request sequence guards prevent older holder/card/design loads overwriting newer selections.
+- Student loading in Design reports failures instead of treating rejected requests as empty lists.
+- Automated checks cover filters, pagination and workflow source contracts. No card status,
+  account, student score or live configuration was mutated. This is not a full browser/PDF audit;
+  native reissue/revoke confirmations and actual mobile print behaviour still require verification.

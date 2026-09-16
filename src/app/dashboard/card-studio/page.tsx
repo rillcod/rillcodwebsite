@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -44,6 +44,7 @@ import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder a
 import { LocalQr } from '@/components/cards/LocalQr';
 import { HD_QR_EMBED_PX } from '@/lib/qr/hd-qr';
 import { cardPreviewPage } from '@/lib/cards/preview-page';
+import { reportBucket, matchesReportFilter, type ReportFilter, type ReportStatusInput } from '@/lib/cards/report-status';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
@@ -51,9 +52,7 @@ import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFai
 type TabId = 'design' | 'manage';
 type CardType = 'student' | 'parent' | 'teacher';
 type StatusFilter = 'all' | 'active' | 'unissued' | 'revoked' | 'expired';
-type ReportFilter = 'all' | 'published' | 'draft' | 'no_report';
 type GroupMode = 'none' | 'grade' | 'section' | 'hierarchy';
-type ReportStatusInput = { has_published_report?: boolean; has_draft_report?: boolean };
 
 type DesignStudent = ReportStatusInput & {
   id: string;
@@ -64,17 +63,6 @@ type DesignStudent = ReportStatusInput & {
   section_class?: string | null;
   is_hidden?: boolean;
 };
-
-function reportBucket(s: ReportStatusInput): 'published' | 'draft' | 'none' {
-  if (s.has_published_report) return 'published';
-  if (s.has_draft_report) return 'draft';
-  return 'none';
-}
-
-function matchesReportFilter(s: ReportStatusInput, filter: ReportFilter): boolean {
-  if (filter === 'all') return true;
-  return reportBucket(s) === filter;
-}
 
 function reportCountsFrom<T extends ReportStatusInput>(items: readonly T[]) {
   let published = 0;
@@ -795,6 +783,10 @@ export default function CardStudioPage() {
   // ══════════════════════════════════════════════════════════════════════════
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
+  const [savingDesign, setSavingDesign] = useState(false);
+  const [configError, setConfigError] = useState('');
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configRetry, setConfigRetry] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['templates','design','fields']));
   const [previewZoom, setPreviewZoom] = useState(1.0);
@@ -815,12 +807,23 @@ export default function CardStudioPage() {
   // Load design config
   useEffect(() => {
     if (!canAccess) return;
+    let active = true;
+    setConfigLoading(true);
+    setConfigError('');
+    setSaved(false);
+    setLastSaved(null);
     fetch(`/api/admin/settings?type=${cardType}`)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error('Could not load the saved design.');
+        return r.json();
+      })
       .then(data => {
+        if (!active) return;
         setCfg(buildCardConfig(data?.config, cardType));
-      }).catch(() => {});
-  }, [cardType, canAccess]); // eslint-disable-line
+      }).catch(() => { if (active) setConfigError('Could not load the saved design. Please retry.'); })
+      .finally(() => { if (active) setConfigLoading(false); });
+    return () => { active = false; };
+  }, [cardType, canAccess, configRetry]);
 
   const update = (patch: Partial<CardConfig>) => setCfg(prev => ({ ...prev, ...patch }));
   const toggleSection = (s: string) => setOpenSections(prev => {
@@ -842,19 +845,23 @@ export default function CardStudioPage() {
     setCfg(prev => ({ ...prev, typo: { ...prev.typo, [elem]: { ...DEFAULT_TYPO[elem], ...prev.typo[elem], ...patch } } }));
 
   const handleSave = async () => {
+    if (!isAdmin || savingDesign || configLoading || configError) return;
+    setSavingDesign(true);
     try {
-      await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ config:cfg, type:cardType }) });
+      const response = await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ config:cfg, type:cardType }) });
+      if (!response.ok) throw new Error('Design was not saved. Please try again.');
       setSaved(true); setLastSaved(new Date()); setTimeout(() => setSaved(false), 2500);
       toast.success('Design saved!');
-    } catch { toast.error('Failed to save design'); }
+    } catch { toast.error('Design was not saved. Your edits are still here.'); }
+    finally { setSavingDesign(false); }
   };
 
   const handleReset = async () => {
     const preset = ROLE_PRESETS[cardType];
     const resetCfg = { ...DEFAULT_CONFIG, ...preset, fields: preset.fields ?? DEFAULT_FIELDS };
     setCfg(resetCfg);
-    try { await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ config:resetCfg, type:cardType }) }); }
-    catch { /* ignore */ }
+    setSaved(false);
+    toast.info('Defaults restored in this preview. The saved design has not changed.');
   };
 
   const handlePrintSample = async () => {
@@ -880,7 +887,10 @@ export default function CardStudioPage() {
     setDesignStudentsLoading(true);
     const hiddenQS = designShowHidden ? '&deleted_only=true' : '';
     fetch('/api/portal-users?role=student&scoped=true&with_reports=1' + hiddenQS + '&t=' + Date.now())
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error('Could not load students. Please retry.');
+        return r.json();
+      })
       .then(j => {
         setDesignStudents((j.data ?? []).map((s: any) => ({
           id: s.id,
@@ -894,7 +904,7 @@ export default function CardStudioPage() {
           is_hidden: !!s.is_deleted,
         })));
         setDesignStudentsLoaded(true);
-      }).catch(()=>{}).finally(()=>setDesignStudentsLoading(false));
+      }).catch(()=>{ toast.error('Could not load students. Please retry.'); }).finally(()=>setDesignStudentsLoading(false));
   };
 
   const designSchoolLock = isSchool ? String(profile?.school_name||'').trim() : '';
@@ -1058,6 +1068,13 @@ export default function CardStudioPage() {
   // MANAGE TAB STATE
   // ══════════════════════════════════════════════════════════════════════════
   const [manageConfig, setManageConfig] = useState<CardConfig>(() => buildCardConfig(null, 'student'));
+  const [manageDesignError, setManageDesignError] = useState('');
+  const [cardsError, setCardsError] = useState('');
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [manageDesignLoading, setManageDesignLoading] = useState(true);
+  const manageDesignRequest = useRef(0);
+  const cardsRequest = useRef(0);
+  const holdersRequest = useRef(0);
   const [records, setRecords] = useState<CardRecord[]>([]);
   const [dbCardsMap, setDbCardsMap] = useState<Map<string,DbCard>>(new Map());
   const [manageLoading, setManageLoading] = useState(false);
@@ -1096,22 +1113,31 @@ export default function CardStudioPage() {
   }, [issueValidityMonths]);
 
   const loadManageConfig = useCallback(async (type: CardType) => {
+    const request = ++manageDesignRequest.current;
+    setManageDesignLoading(true);
+    setManageDesignError('');
     try {
       const res = await fetch(`/api/admin/settings?type=${type}`,{cache:'no-store'});
+      if (!res.ok) throw new Error('Could not load the saved card design.');
       const json = await res.json();
+      if (request !== manageDesignRequest.current) return;
       // Same builder as the Design tab → Manage cards render identically to the design.
       setManageConfig(buildCardConfig(json?.config, type));
-    } catch { setManageConfig(buildCardConfig(null, type)); }
+    } catch { if (request === manageDesignRequest.current) setManageDesignError('Could not load the saved card design. Please retry.'); }
+    finally { if (request === manageDesignRequest.current) setManageDesignLoading(false); }
   },[]);
 
   const loadDbCards = useCallback(async (type: CardType) => {
+    const request = ++cardsRequest.current;
+    setCardsLoading(true);
+    setCardsError('');
     try {
       const res = await fetch(`/api/cards?holder_type=${type}&slim=true`,{cache:'no-store'});
       if(!res.ok){
-        console.error('[card-studio] saved card lookup rejected', { type, status: res.status });
-        return;
+        throw new Error('Could not load issued cards.');
       }
       const json = await res.json();
+      if (request !== cardsRequest.current) return;
       const map = new Map<string,DbCard>();
       for(const c of json.data??[]) if(c.holder_id && !map.has(c.holder_id)) map.set(c.holder_id,c);
       setDbCardsMap(map);
@@ -1119,10 +1145,12 @@ export default function CardStudioPage() {
       // Without this trace an unreachable card service is indistinguishable from a
       // studio that legitimately has no saved cards.
       console.error('[card-studio] saved card lookup failed', { type, error });
-    }
+      if (request === cardsRequest.current) setCardsError('Could not verify issued cards. Please retry before issuing or printing.');
+    } finally { if (request === cardsRequest.current) setCardsLoading(false); }
   },[]);
 
   const loadRecords = useCallback(async (type: CardType, hiddenOnly = showHiddenAccounts) => {
+    const request = ++holdersRequest.current;
     setManageLoading(true); setManageError(null);
     try {
       const hiddenQS = hiddenOnly ? '&deleted_only=true' : '';
@@ -1130,6 +1158,7 @@ export default function CardStudioPage() {
         const res = await fetch(isSchool?'/api/portal-users?role=parent&scoped=true':'/api/parents/manage',{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||'Failed to load parents');
+        if (request !== holdersRequest.current) return;
         setRecords((json?.data||[]).map((r:any)=>({
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',roleLabel:'Parent',
           school:r.children?.[0]?.school_name||(r as any).school_name||'Rillcod Technologies',
@@ -1142,6 +1171,7 @@ export default function CardStudioPage() {
         const res = await fetch(`/api/portal-users?role=${type}&scoped=true${reportQS}${hiddenQS}`,{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||`Failed to load ${type}s`);
+        if (request !== holdersRequest.current) return;
         setRecords((json?.data||[]).map((r:any)=>({
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',
           roleLabel:type==='teacher'?'Teacher':'Student',
@@ -1157,8 +1187,8 @@ export default function CardStudioPage() {
           has_draft_report: type === 'student' ? !!r.has_draft_report : undefined,
         })));
       }
-    } catch(e:any) { setRecords([]); setManageError(e?.message||'Failed to load card holders'); }
-    finally { setManageLoading(false); }
+    } catch(e:any) { if (request === holdersRequest.current) { setRecords([]); setManageError(e?.message||'Failed to load card holders'); } }
+    finally { if (request === holdersRequest.current) setManageLoading(false); }
   },[isSchool, showHiddenAccounts]);
 
   // Load manage data when tab=manage or on card type change
@@ -2948,7 +2978,7 @@ export default function CardStudioPage() {
           {/* Card type selector */}
           <div className="flex gap-1 bg-muted/80 border border-border/60 p-1 rounded-xl shadow-inner">
             {CARD_TYPES.map(t=>(
-              <button key={t} onClick={()=>applyCardType(t)}
+              <button key={t} onClick={()=>applyCardType(t)} disabled={savingDesign}
                 className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${cardType===t?'bg-background text-foreground shadow-sm font-black':'text-muted-foreground hover:text-foreground'}`}>
                 {t}
               </button>
@@ -2957,11 +2987,11 @@ export default function CardStudioPage() {
 
           <div className="ml-auto flex items-center gap-2">
             {activeTab==='design'&&canDesign&&(<>
-              <button onClick={handleReset} className="px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:bg-muted bg-background transition-all rounded-md">Reset</button>
-              <button onClick={handleSave} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-[9px] font-black uppercase tracking-widest transition-all rounded-md shadow-sm">
+              <button onClick={handleReset} disabled={savingDesign || configLoading || !!configError} className="min-h-11 px-3 text-xs font-semibold text-muted-foreground hover:text-foreground border border-border hover:bg-muted bg-background transition-all rounded-md disabled:opacity-50">Restore defaults</button>
+              {isAdmin ? <button onClick={handleSave} disabled={savingDesign || configLoading || !!configError} className="min-h-11 flex items-center gap-1.5 px-3 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-all rounded-md shadow-sm disabled:opacity-50">
                 {saved?<CheckCircleIcon className="w-3.5 h-3.5"/>:<ArrowDownTrayIcon className="w-3.5 h-3.5"/>}
-                {saved?'Saved!':'Save Design'}
-              </button>
+                {savingDesign?'Saving…':saved?'Saved!':'Save Design'}
+              </button> : <span className="text-xs text-muted-foreground">Preview edits only · Admin saves the shared design</span>}
             </>)}
             {activeTab==='manage'&&(
               <button onClick={()=>switchTab('design')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors bg-background">
@@ -2974,7 +3004,11 @@ export default function CardStudioPage() {
 
       {/* Tab content */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
-        {activeTab==='design'?renderDesignTab():renderManageTab()}
+        {activeTab==='design' && configLoading ? <p role="status" className="p-6 text-sm">Loading saved design…</p>
+          : activeTab==='design' && configError ? <div role="alert" className="p-6 space-y-3"><p>{configError}</p><button onClick={()=>setConfigRetry(n=>n+1)} className="min-h-11 rounded-xl border border-border px-4">Retry design</button></div>
+          : activeTab==='manage' && (cardsLoading || manageDesignLoading) ? <p role="status" className="p-6 text-sm">Loading cards and saved design…</p>
+          : activeTab==='manage' && (cardsError || manageDesignError) ? <div role="alert" className="p-6 space-y-3"><p>{cardsError || manageDesignError}</p><button onClick={()=>{void loadDbCards(cardType);void loadManageConfig(cardType);void loadRecords(cardType);}} className="min-h-11 rounded-xl border border-border px-4">Retry cards</button></div>
+          : activeTab==='design'?renderDesignTab():renderManageTab()}
       </div>
     </div>
   );
