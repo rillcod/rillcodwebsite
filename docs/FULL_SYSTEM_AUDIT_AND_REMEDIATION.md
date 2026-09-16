@@ -4446,3 +4446,22 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   labels, larger action targets and explicit Delete accounts wording. No new automatic issuance,
   expiry changes, account deletion or background job was introduced.
 - Thirteen focused tests passed. Live browser/mobile print confirmation is still outstanding.
+
+### Card loading and print recovery — 2026-09-16
+
+- Bounded Card Studio read requests to 20 seconds, including response-body loading; stalled
+  requests abort and show retry feedback rather than keeping the screen loading indefinitely.
+- Keep existing holders visible during saved-card refreshes. Block card creation/printing when
+  card verification is unavailable; clear bulk progress in finally. No automatic write retries.
+- Roster PDF uses the packaged brand logo instead of awaiting four possible network images
+  without a deadline. Repeated print/download clicks share a busy guard and visible progress.
+- Reserve the sample-card print window before asynchronous preparation to preserve mobile
+  popup permission. Preparation failures close the blank window and show feedback.
+- Final verification: 17 focused tests passed, one optional PDF test skipped; typecheck passed.
+  The real PDF exporter was exercised separately. Lint has no errors but existing warnings remain.
+- Rendered the real exporter with 65 synthetic students across two classes; inspected all four
+  PDF pages for ordering, repeated headers, table boundaries and footer placement.
+- NOT fully live-verified: local browser reached an expired-session login and repeated browser
+  command timeouts prevented authenticated/mobile checks. Live issuance, reissue and deletion
+  were not exercised. Write-request deadlines and complete mobile flow remain follow-up work;
+  do not describe the entire Card Studio problem as resolved from these checks alone.

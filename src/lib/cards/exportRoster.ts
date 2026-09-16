@@ -1,7 +1,6 @@
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { ROSTER_EMBEDDED_LOGO_DATA_URL, ROSTER_LOGO_ASPECT } from '@/lib/cards/rosterBrandLogo';
 import { parseGrade } from '@/lib/classes/naming';
-import { brandAssets } from '@/config/brand';
 import type jsPDF from 'jspdf';
 
 export type StudentRosterRow = {
@@ -578,51 +577,6 @@ function imageFormatFromDataUrl(dataUrl: string): 'PNG' | 'JPEG' | 'WEBP' {
   return 'PNG';
 }
 
-function loadImageViaCanvas(src: string): Promise<string | null> {
-  if (typeof window === 'undefined') return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth || 64;
-        const h = img.naturalHeight || 64;
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(null);
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      } catch {
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-async function loadRosterLogoDataUrl(origin?: string): Promise<string> {
-  const base = origin?.replace(/\/$/, '') ?? '';
-  const candidates = [
-    base ? `${base}${brandAssets.logoMono}` : '',
-    base ? `${base}/images/logoA.png` : '',
-    base ? `${base}/logoA.png` : '',
-    brandAssets.logoCloudinary,
-  ].filter(Boolean);
-
-  for (const src of candidates) {
-    const dataUrl = await loadImageViaCanvas(src);
-    if (dataUrl) return dataUrl;
-  }
-
-  return ROSTER_EMBEDDED_LOGO_DATA_URL;
-}
-
 function rosterUrlCalloutHtml(accent: string) {
   return `
     <div class="url-callout">
@@ -1147,7 +1101,8 @@ export async function downloadStudentRosterPdf(
   const org = formatOrgDisplay(options.orgName);
   const orgWebsite = formatWebsiteDisplay(options.orgWebsite);
   const accentRgb = hexToRgb(options.accentColor);
-  const logoDataUrl = await loadRosterLogoDataUrl(options.origin);
+  // This branded asset ships with the app: printing must not wait for a network image.
+  const logoDataUrl = ROSTER_EMBEDDED_LOGO_DATA_URL;
 
   doc.setProperties({
     title: options.title || 'Official RC Roster',

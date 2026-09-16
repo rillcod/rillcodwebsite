@@ -45,6 +45,7 @@ import { LocalQr } from '@/components/cards/LocalQr';
 import { HD_QR_EMBED_PX } from '@/lib/qr/hd-qr';
 import { cardPreviewPage } from '@/lib/cards/preview-page';
 import { cardActionScope } from '@/lib/cards/action-scope';
+import { readCardResponse } from '@/lib/cards/read-response';
 import { reportBucket, matchesReportFilter, type ReportFilter, type ReportStatusInput } from '@/lib/cards/report-status';
 import { permanentWipePortalUserClient, bulkPermanentWipeStudentsClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 
@@ -813,7 +814,7 @@ export default function CardStudioPage() {
     setConfigError('');
     setSaved(false);
     setLastSaved(null);
-    fetch(`/api/admin/settings?type=${cardType}`)
+    readCardResponse(`/api/admin/settings?type=${cardType}`)
       .then(async r => {
         if (!r.ok) throw new Error('Could not load the saved design.');
         return r.json();
@@ -866,6 +867,10 @@ export default function CardStudioPage() {
   };
 
   const handlePrintSample = async () => {
+    const preview = window.open('', '_blank');
+    if (!preview) { toast.error('Allow pop-ups to print cards.'); return; }
+    preview.document.body.textContent = 'Preparing your sample card...';
+    try {
     // Use the exact same shared template as real prints so the sample reflects every
     // setting (badge mode, corners, logo/header/QR scale, card-label colour, etc.).
     const holder: PrintCardHolder = {
@@ -879,7 +884,11 @@ export default function CardStudioPage() {
       card_code: SAMPLE.id,
     };
     const html = await buildBulkPrintHtml([holder], cfg as unknown as PrintCardConfig, window.location.origin, { fixedSize: true, qrHint: 'Scan to verify' });
-    openPrintWindow(html);
+    if (!preview.closed) openPrintWindow(html, preview);
+    } catch {
+      preview.close();
+      toast.error('Could not prepare the sample card. Please try again.');
+    }
   };
 
   // Design tab – load students for generate panel
@@ -887,7 +896,7 @@ export default function CardStudioPage() {
     if (designStudentsLoaded && !force) return;
     setDesignStudentsLoading(true);
     const hiddenQS = designShowHidden ? '&deleted_only=true' : '';
-    fetch('/api/portal-users?role=student&scoped=true&with_reports=1' + hiddenQS + '&t=' + Date.now())
+    readCardResponse('/api/portal-users?role=student&scoped=true&with_reports=1' + hiddenQS + '&t=' + Date.now())
       .then(async r => {
         if (!r.ok) throw new Error('Could not load students. Please retry.');
         return r.json();
@@ -1094,6 +1103,7 @@ export default function CardStudioPage() {
   const [selectedSchool, setSelectedSchool] = useState(() => searchParams.get('school') || 'all');
   /** Roster tab: tick which classes (grades) to include in one PDF print. */
   const [selectedRosterGrades, setSelectedRosterGrades] = useState<Set<string>>(new Set());
+  const rosterExportBusy = useRef(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   /** Mobile: keep filters/actions collapsed so the student list always has room to scroll. */
   const [manageToolsOpen, setManageToolsOpen] = useState(false);
@@ -1118,7 +1128,7 @@ export default function CardStudioPage() {
     setManageDesignLoading(true);
     setManageDesignError('');
     try {
-      const res = await fetch(`/api/admin/settings?type=${type}`,{cache:'no-store'});
+      const res = await readCardResponse(`/api/admin/settings?type=${type}`,{cache:'no-store'});
       if (!res.ok) throw new Error('Could not load the saved card design.');
       const json = await res.json();
       if (request !== manageDesignRequest.current) return;
@@ -1128,12 +1138,12 @@ export default function CardStudioPage() {
     finally { if (request === manageDesignRequest.current) setManageDesignLoading(false); }
   },[]);
 
-  const loadDbCards = useCallback(async (type: CardType) => {
+  const loadDbCards = useCallback(async (type: CardType, options?: { silent?: boolean }) => {
     const request = ++cardsRequest.current;
-    setCardsLoading(true);
+    if (!options?.silent) setCardsLoading(true);
     setCardsError('');
     try {
-      const res = await fetch(`/api/cards?holder_type=${type}&slim=true`,{cache:'no-store'});
+      const res = await readCardResponse(`/api/cards?holder_type=${type}&slim=true`,{cache:'no-store'});
       if(!res.ok){
         throw new Error('Could not load issued cards.');
       }
@@ -1156,7 +1166,7 @@ export default function CardStudioPage() {
     try {
       const hiddenQS = hiddenOnly ? '&deleted_only=true' : '';
       if(type==='parent') {
-        const res = await fetch(isSchool?'/api/portal-users?role=parent&scoped=true':'/api/parents/manage',{cache:'no-store'});
+        const res = await readCardResponse(isSchool?'/api/portal-users?role=parent&scoped=true':'/api/parents/manage',{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||'Failed to load parents');
         if (request !== holdersRequest.current) return;
@@ -1169,7 +1179,7 @@ export default function CardStudioPage() {
         })));
       } else {
         const reportQS = type === 'student' ? '&with_reports=1' : '';
-        const res = await fetch(`/api/portal-users?role=${type}&scoped=true${reportQS}${hiddenQS}`,{cache:'no-store'});
+        const res = await readCardResponse(`/api/portal-users?role=${type}&scoped=true${reportQS}${hiddenQS}`,{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||`Failed to load ${type}s`);
         if (request !== holdersRequest.current) return;
@@ -1205,11 +1215,15 @@ export default function CardStudioPage() {
 
   // Card actions
   const issueCard = async (record: CardRecord) => {
+    if (cardsLoading || cardsError || isIssuingIds.has(record.id)) {
+      toast.error('Please wait for the cards to load, or choose Retry cards.');
+      return;
+    }
     setIsIssuingIds(prev=>new Set(prev).add(record.id));
     try {
       const res = await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holder_type:cardType,holder_id:record.id,school_id:record.schoolId,expires_at:issueExpiresAt()})});
       if(!res.ok){const j=await res.json();toast.error(j.error||'Failed to issue card');return;}
-      toast.success(`Card issued for ${record.name}`); await loadDbCards(cardType);
+      toast.success(`Card issued for ${record.name}`); await loadDbCards(cardType, { silent: true });
     } catch(e:any){toast.error(e.message||'Error issuing card');}
     finally{setIsIssuingIds(prev=>{const s=new Set(prev);s.delete(record.id);return s;});}
   };
@@ -1220,7 +1234,7 @@ export default function CardStudioPage() {
       const res = await fetch(`/api/cards/${dbCard.id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newStatus})});
       if(!res.ok){const j=await res.json();toast.error(j.error||'Failed');return;}
       toast.success(newStatus==='revoked'?`Card revoked for ${record.name}`:`Card reactivated for ${record.name}`);
-      await loadDbCards(cardType);
+      await loadDbCards(cardType, { silent: true });
     } catch(e:any){toast.error(e.message||'Error');}
     finally{setIsRevokingIds(prev=>{const s=new Set(prev);s.delete(record.id);return s;});}
   };
@@ -1231,7 +1245,7 @@ export default function CardStudioPage() {
       const res = await fetch(`/api/cards/${dbCard.id}/reissue`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:'reissued via Card Studio'})});
       if(!res.ok){const j=await res.json();toast.error(j.error||'Failed to reissue card');return;}
       toast.success(`New card issued for ${record.name} — reprint the card so the QR matches`);
-      await loadDbCards(cardType);
+      await loadDbCards(cardType, { silent: true });
     } catch(e:any){toast.error(e.message||'Error reissuing card');}
     finally{setIsRevokingIds(prev=>{const s=new Set(prev);s.delete(record.id);return s;});}
   };
@@ -1257,7 +1271,7 @@ export default function CardStudioPage() {
       if (!result.ok) return;
       toast.success(`${record.name} permanently wiped — auth login and all records removed`);
       removeRecordsLocally([record.id]);
-      await loadDbCards(cardType);
+      await loadDbCards(cardType, { silent: true });
     } catch (e: any) {
       toast.error(e.message || 'Delete failed');
     } finally {
@@ -1289,7 +1303,7 @@ export default function CardStudioPage() {
           if (record) await permanentlyDeleteHolder(record, confirmDestroy);
         }
       }
-      await loadDbCards(cardType);
+      await loadDbCards(cardType, { silent: true });
     } catch (e: any) {
       toast.error(e.message || 'Bulk wipe failed');
     } finally {
@@ -1323,14 +1337,14 @@ export default function CardStudioPage() {
           const retryJson = await retry.json();
           if (retry.ok) removeRecordsLocally(retryJson.deleted ?? []);
           toast.success(`${(json.deleted?.length ?? 0) + (retryJson.deleted?.length ?? 0)} hidden account(s) permanently wiped`);
-          await loadDbCards(cardType);
+          await loadDbCards(cardType, { silent: true });
           return;
         }
       }
       removeRecordsLocally(json.deleted ?? []);
       toast.success(`${json.deleted?.length ?? 0} hidden account(s) permanently wiped`);
       if (json.blocked?.length) toast.error(`${json.blocked.length} could not be wiped`);
-      await loadDbCards(cardType);
+      await loadDbCards(cardType, { silent: true });
     } catch (e: any) {
       toast.error(e.message || 'Purge failed');
     } finally {
@@ -1353,8 +1367,13 @@ export default function CardStudioPage() {
         if(j.failed) toast.error(`${j.failed} failed${j.failures?.[0]?.error?` — ${j.failures[0].error}`:''}`);
         if(!j.issued && !j.failed) toast.success('All cards already issued');
       }
-    } catch(e:any){ toast.error(e?.message||'Failed to issue cards'); }
-    await loadDbCards(cardType); setBulkIssuing(false); setBulkProgress(null);
+      await loadDbCards(cardType, { silent: true });
+    } catch(e:any){
+      toast.error(e?.message||'Failed to issue cards');
+    } finally {
+      setBulkIssuing(false);
+      setBulkProgress(null);
+    }
   };
 
   const cardStatus = (r: CardRecord): string => { const c=dbCardsMap.get(r.id); return c?c.status:'unissued'; };
@@ -1491,6 +1510,10 @@ export default function CardStudioPage() {
     title: string,
     opts?: { groupBy?: 'none' | 'grade' | 'section' },
   ) => {
+    if (cardsLoading || cardsError || manageDesignLoading || manageDesignError) {
+      toast.error('Please wait for the cards and design to load, or choose Retry cards.');
+      return;
+    }
     if(!list.length){toast.error('No records to print');return;}
     const preview = window.open('', '_blank');
     if (!preview) { toast.error('Allow pop-ups to print cards.'); return; }
@@ -1675,6 +1698,7 @@ export default function CardStudioPage() {
     title: string,
     opts?: { splitByClass?: boolean; groupMode?: 'class' | 'section' },
   ) => {
+    if (rosterExportBusy.current) { toast.info('Your class list is still being prepared.'); return; }
     const eligible = list.filter((r) => r.has_published_report);
     if (!eligible.length) {
       toast.error('No students with published reports in this selection');
@@ -1690,6 +1714,8 @@ export default function CardStudioPage() {
     }
     const groups = buildRosterPdfGroups(rows, opts?.groupMode ?? 'class');
     const splitByClass = opts?.splitByClass ?? groups.length > 1;
+    rosterExportBusy.current = true;
+    const notice = toast.loading('Preparing your class list…');
     try {
     const ok = await downloadStudentRosterPdf(rows, {
       ...rosterPdfOptions(rows, title, splitByClass, opts?.groupMode ?? 'class'),
@@ -1702,6 +1728,7 @@ export default function CardStudioPage() {
         : `Roster PDF ready — ${rows.length} student${rows.length === 1 ? '' : 's'}`,
     );
     } catch { toast.error('Could not prepare the roster PDF. Please try again.'); }
+    finally { rosterExportBusy.current = false; toast.dismiss(notice); }
   };
 
   const saveManageRosterPdf = async (
@@ -1709,6 +1736,7 @@ export default function CardStudioPage() {
     label: string,
     opts?: { splitByClass?: boolean; groupMode?: 'class' | 'section' },
   ) => {
+    if (rosterExportBusy.current) { toast.info('Your class list is still being prepared.'); return; }
     const eligible = list.filter((r) => r.has_published_report);
     if (!eligible.length) {
       toast.error('No students with published reports in this selection');
@@ -1724,6 +1752,8 @@ export default function CardStudioPage() {
     }
     const groups = buildRosterPdfGroups(rows, opts?.groupMode ?? 'class');
     const splitByClass = opts?.splitByClass ?? groups.length > 1;
+    rosterExportBusy.current = true;
+    const notice = toast.loading('Preparing your class list…');
     try {
     await downloadStudentRosterPdf(rows, {
       ...rosterPdfOptions(rows, label, splitByClass, opts?.groupMode ?? 'class'),
@@ -1736,6 +1766,7 @@ export default function CardStudioPage() {
         : `Saved roster PDF — ${rows.length} student${rows.length === 1 ? '' : 's'}`,
     );
     } catch { toast.error('Could not save the roster PDF. Please try again.'); }
+    finally { rosterExportBusy.current = false; toast.dismiss(notice); }
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -2625,6 +2656,12 @@ export default function CardStudioPage() {
       )}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y p-3 md:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {manageError&&<div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 rounded-xl text-sm font-bold">{manageError}</div>}
+        {(cardsError || manageDesignError) && (
+          <div role="alert" className="mb-4 p-4 bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-400 rounded-xl text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="font-semibold">{cardsError || manageDesignError}</p>
+            <button onClick={()=>{void loadDbCards(cardType);void loadManageConfig(cardType);void loadRecords(cardType);}} className="min-h-11 shrink-0 rounded-xl border border-amber-600/30 bg-background px-4 font-bold text-xs uppercase tracking-wide">Retry cards</button>
+          </div>
+        )}
         {manageLoading?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({length:8}).map((_,i)=><div key={i} className="h-52 bg-card border border-border rounded-xl animate-pulse"/>)}
@@ -2995,8 +3032,8 @@ export default function CardStudioPage() {
       <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
         {activeTab==='design' && configLoading ? <p role="status" className="p-6 text-sm">Loading saved design…</p>
           : activeTab==='design' && configError ? <div role="alert" className="p-6 space-y-3"><p>{configError}</p><button onClick={()=>setConfigRetry(n=>n+1)} className="min-h-11 rounded-xl border border-border px-4">Retry design</button></div>
-          : activeTab==='manage' && (cardsLoading || manageDesignLoading) ? <p role="status" className="p-6 text-sm">Loading cards and saved design…</p>
-          : activeTab==='manage' && (cardsError || manageDesignError) ? <div role="alert" className="p-6 space-y-3"><p>{cardsError || manageDesignError}</p><button onClick={()=>{void loadDbCards(cardType);void loadManageConfig(cardType);void loadRecords(cardType);}} className="min-h-11 rounded-xl border border-border px-4">Retry cards</button></div>
+          : activeTab==='manage' && (cardsLoading || manageDesignLoading) && records.length === 0 ? <p role="status" className="p-6 text-sm">Loading cards and saved design…</p>
+          : activeTab==='manage' && (cardsError || manageDesignError) && records.length === 0 ? <div role="alert" className="p-6 space-y-3"><p>{cardsError || manageDesignError}</p><button onClick={()=>{void loadDbCards(cardType);void loadManageConfig(cardType);void loadRecords(cardType);}} className="min-h-11 rounded-xl border border-border px-4">Retry cards</button></div>
           : activeTab==='design'?renderDesignTab():renderManageTab()}
       </div>
     </div>
