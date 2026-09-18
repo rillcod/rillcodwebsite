@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { compareReportsByPeriodDesc, liveAcademicSession, isStaleAcademicSession, academicYearOptions, ACADEMIC_TERM_OPTIONS } from '@/lib/reports/academic-period';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
+import { requiredReportRead } from '@/lib/reports/required-report-read';
+import { selectSavedReport } from '@/lib/reports/select-saved-report';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -36,7 +38,6 @@ import { AutoFillStatusBanner, NoScoresYetNotice, ResultStatusBadges } from '@/c
 import { ReportSessionContextBanner, SessionCalendarRollNotice } from '@/components/reports/ReportSessionContextBanner';
 import { sessionFromReport, sessionLabel } from '@/lib/reports/session-scope';
 import {
-  filterReportsByRosterSession,
   rollRosterSessionIfStale,
   rosterSessionQueryFilters,
 } from '@/lib/reports/session-workflows';
@@ -180,6 +181,9 @@ function ResultsPageInner() {
     // viewer can switch between them — a 3rd-term report must not hide the 2nd-term one.
     const [reportHistory, setReportHistory] = useState<StudentReport[]>([]);
     const [loadingReport, setLoadingReport] = useState(false);
+    const reportRequestVersion = useRef(0);
+    const [reportLoadError, setReportLoadError] = useState<string | null>(null);
+    const [emailHistoryRefresh, setEmailHistoryRefresh] = useState(0);
     // Students see the standard (official) report card by default; staff can switch
     const [template, setTemplate] = useState<'standard' | 'modern' | 'printable'>(
         profile?.role === 'student' ? 'standard' : 'modern'
@@ -299,6 +303,10 @@ function ResultsPageInner() {
     const syncStudentQuery = (studentId: string | null) => {
         urlStudentSyncRef.current = studentId;
         const params = new URLSearchParams(searchParams.toString());
+        if (studentId && params.get('student') && params.get('student') !== studentId) {
+            params.delete('report');
+            params.delete('report_id');
+        }
         if (studentId) params.set('student', studentId);
         else params.delete('student');
         const qs = params.toString();
@@ -317,6 +325,10 @@ function ResultsPageInner() {
     // ── Data loading ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (authLoading || !profile) return;
+
+        ++reportRequestVersion.current;
+        setReportLoadError(null);
+        setLoadingReport(false);
 
         // Staff must confirm a term/year first so the centre never mixes periods.
         if (isStaff && !confirmedPeriod) {
@@ -668,6 +680,8 @@ function ResultsPageInner() {
 
     // ── Load single student report ─────────────────────────────────────────────
     async function loadStudentReport(s: PortalUser) {
+        const request = ++reportRequestVersion.current;
+        setReportLoadError(null);
         setSelectedStudent(s);
         setLoadingReport(true);
         setSelectedReport(null);
@@ -688,32 +702,43 @@ function ResultsPageInner() {
             .order('updated_at', { ascending: false });
         // Load any report for this student — not only ones authored by
         // the current teacher (class handoff / takeover).
-        const { data } = await withTimeout(
-            reportQuery,
-            { data: [], error: null },
-            'selected student report history',
-        );
+        try {
+        const { data } = await requiredReportRead(reportQuery);
+        if (request !== reportRequestVersion.current) return;
         // Order by academic year + term (newest first) so the term/session switcher is
         // consistent for staff and matches what students/parents see.
         const history = ((data ?? []) as StudentReport[]).slice().sort(compareReportsByPeriodDesc);
         setReportHistory(history);
-        const urlReport = prefReportId ? history.find((r) => r.id === prefReportId) ?? null : null;
-        const inPeriod = filterReportsByRosterSession(
-            history,
-            confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
-        );
-        const courseMatch = prefCourseId ? inPeriod.find((r) => r.course_id === prefCourseId) ?? null : null;
-        const data0 = urlReport ?? courseMatch ?? inPeriod[0] ?? history[0] ?? null;
+        const data0 = selectSavedReport(history, {
+            reportId: (!searchParams.get('student') || searchParams.get('student') === s.id || history.some(r => r.id === prefReportId)) ? prefReportId : null,
+            courseId: prefCourseId,
+            session: confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
+        });
         setSelectedReport(data0);
-        setLoadingReport(false);
-        if (data0?.id) {
-            setLoadingEmailEvents(true);
-            fetchJsonWithTimeout(`/api/progress-reports/${data0.id}/email-events`, { events: [] }, 'selected report email events')
-                .then(j => { if (j.events) setReportEmailEvents(j.events); })
-                .catch(() => null)
-                .finally(() => setLoadingEmailEvents(false));
+        } catch {
+            if (request === reportRequestVersion.current) {
+                setReportLoadError('We couldn’t open the saved reports. Please try again.');
+            }
+        } finally {
+            if (request === reportRequestVersion.current) setLoadingReport(false);
         }
     }
+
+    // Each report owns its delivery history; ignore late responses after a switch.
+    useEffect(() => {
+        let cancelled = false;
+        setReportEmailEvents([]);
+        if (!isStaff || !selectedReport?.id) {
+            setLoadingEmailEvents(false);
+            return;
+        }
+        setLoadingEmailEvents(true);
+        void fetchJsonWithTimeout(`/api/progress-reports/${selectedReport.id}/email-events`, { events: [] }, 'report email events')
+            .then(j => { if (!cancelled) setReportEmailEvents(j.events ?? []); })
+            .catch(() => { if (!cancelled) setReportEmailEvents([]); })
+            .finally(() => { if (!cancelled) setLoadingEmailEvents(false); });
+        return () => { cancelled = true; };
+    }, [isStaff, selectedReport?.id, emailHistoryRefresh]);
 
     // Browser Back / Forward: keep mobile drill-down in sync with ?student=
     useEffect(() => {
@@ -746,11 +771,6 @@ function ResultsPageInner() {
             if (r.report_term) params.set('term', r.report_term);
             if (r.report_period) params.set('year', r.report_period);
             window.history.replaceState(null, '', `?${params.toString()}`);
-            setLoadingEmailEvents(true);
-            fetchJsonWithTimeout(`/api/progress-reports/${r.id}/email-events`, { events: [] }, 'picked report email events')
-                .then(j => { if (j.events) setReportEmailEvents(j.events); else setReportEmailEvents([]); })
-                .catch(() => setReportEmailEvents([]))
-                .finally(() => setLoadingEmailEvents(false));
         }
     };
 
@@ -967,12 +987,7 @@ function ResultsPageInner() {
             setEmailShareOpen(false);
             setEmailShareTo('');
             // Refresh email activity strip
-            if (reportToDisplay.id) {
-                fetch(`/api/progress-reports/${reportToDisplay.id}/email-events`)
-                    .then(r => r.json())
-                    .then(j => { if (j.events) setReportEmailEvents(j.events); })
-                    .catch(() => null);
-            }
+            setEmailHistoryRefresh(value => value + 1);
         } catch (err: any) {
             setEmailShareError(err.message || 'Failed to send. Try again.');
         } finally {
@@ -2341,12 +2356,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                                 {!loadingEmailEvents && reportToDisplay.id && (
                                                     <button
                                                         onClick={() => {
-                                                            setLoadingEmailEvents(true);
-                                                            fetch(`/api/progress-reports/${reportToDisplay.id}/email-events`)
-                                                                .then(r => r.json())
-                                                                .then(j => { if (j.events) setReportEmailEvents(j.events); })
-                                                                .catch(() => null)
-                                                                .finally(() => setLoadingEmailEvents(false));
+                                                            setEmailHistoryRefresh(value => value + 1);
                                                         }}
                                                         className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                                                     >↺ Refresh</button>
@@ -2540,9 +2550,23 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                     )}
                                     <DocumentTextIcon className="w-12 h-12 text-muted-foreground" />
                                     <p className="text-muted-foreground text-sm font-semibold">
-                                        No report for {selectedStudent?.full_name}
+                                        {reportLoadError || `No report for ${selectedStudent?.full_name} in the selected term`}
                                     </p>
-                                    {isEditor && selectedStudent && (
+                                    {reportLoadError && selectedStudent && (
+                                        <button type="button" onClick={() => void loadStudentReport(selectedStudent)} className="min-h-11 rounded-xl bg-primary px-5 py-2 text-primary-foreground">
+                                            Try again
+                                        </button>
+                                    )}
+                                    {!reportLoadError && reportHistory.length > 0 && (
+                                        <label className="flex max-w-full flex-col gap-2 px-4 text-sm">
+                                            Open another saved report
+                                            <select value="" onChange={e => pickReport(reportHistory.find(r => r.id === e.target.value) ?? null)} className="min-h-11 max-w-full rounded-xl border border-border bg-card px-3 text-foreground">
+                                                <option value="" disabled>Choose a term and course</option>
+                                                {reportHistory.map(r => <option key={r.id} value={r.id}>{reportLabel(r)}</option>)}
+                                            </select>
+                                        </label>
+                                    )}
+                                    {!reportLoadError && isEditor && selectedStudent && (
                                         <Link
                                             href={reportBuilderEditHref(selectedStudent.id, selectedReport)}
                                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/20 text-primary text-sm font-bold rounded-xl border border-primary/30 hover:bg-primary/30 transition-colors"
@@ -2550,7 +2574,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             <PencilSquareIcon className="w-4 h-4" /> Write scores
                                         </Link>
                                     )}
-                                    {!isEditor && (
+                                    {!reportLoadError && !isEditor && (
                                         <p className="text-xs text-muted-foreground">
                                             {isStaff
                                                 ? 'No report has been published for this student yet.'

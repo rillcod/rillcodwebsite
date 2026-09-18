@@ -4544,3 +4544,12 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - New manual entries start with an empty form, not the previous learner's scores or remarks.
 - Validation: all 21 focused tests, TypeScript check, and diff whitespace check passed after the final adjustment. No live records or manual scores changed.
 - Remaining verification: browser interaction under slow network, desktop/mobile visual checks, and live multi-role workflows were not performed in this pass. This is not an end-to-end certification.
+
+### 2026-09-18 — Publish & Share: matching reports and safe retries
+
+- Reused the required saved-report read helper: a failed lookup now offers Try again rather than claiming no report exists or offering score entry.
+- Removed fallback to another academic period/course. Explicit historical reports remain accessible through a saved-report choice, including when the current term has no report.
+- Added request version checks so a late student's response cannot replace the currently selected student's report; changing the roster context invalidates pending reads.
+- Centralized staff email-history loading in one cancellable effect, including manual refresh and refresh after sending. Removed parallel loaders and avoided delivery-history requests for learners.
+- Cleared stale report links when navigating between students. Existing scores and publication flags remain unchanged.
+- Validation: 197 tests across 30 report test files and TypeScript check passed. Seven new selection tests cover missing terms/courses/explicit records, historical choice, and preservation of saved data. Desktop/mobile browser and live-role verification remain outstanding; no live data changed.
