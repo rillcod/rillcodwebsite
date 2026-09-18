@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-fetch';
 'use client';
 
 import { useState } from 'react';
@@ -40,7 +41,7 @@ export function PortalAccessBar({
     setResendError(null);
     setResendNote(null);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/public/student/${encodeURIComponent(scanCode)}/reports?accessCode=${encodeURIComponent(scanCode)}`,
         {
           method: 'POST',

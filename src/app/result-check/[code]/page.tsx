@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-fetch';
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
@@ -126,7 +127,7 @@ export default function ResultQuickCheckPage() {
 
     let keepRefreshing = false;
     try {
-      const res = await fetch(`/api/public/student/${encodeURIComponent(code)}/reports?${reportsQuery}`, {
+      const res = await apiFetch(`/api/public/student/${encodeURIComponent(code)}/reports?${reportsQuery}`, {
         cache: 'no-store',
       });
       const json = await res.json().catch(() => ({}));
@@ -155,7 +156,7 @@ export default function ResultQuickCheckPage() {
         return;
       }
       try {
-        const cres = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
+        const cres = await apiFetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
         const cjson = await cres.json().catch(() => ({}));
         if (cres.ok && cjson?.card) {
           setData({ card: cjson.card, cardResult: cjson.result });

@@ -1,3 +1,4 @@
+import { apiFetch } from './api-fetch';
 export const DEFAULT_UI_TIMEOUT_MS = 12_000;
 
 /** Parse JSON without throwing when the body is empty or truncated. */
@@ -107,7 +108,7 @@ export async function fetchWithTimeoutOrThrow(
 
   try {
     controller.signal.throwIfAborted();
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await apiFetch(input as any, { ...init, signal: controller.signal });
   } catch (error) {
     if (timedOut) throw new Error(timeoutMessage);
     throw error;
@@ -142,7 +143,7 @@ export async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
   const timer = setTimeout(() => controller.abort(), ms);
   try {
     controller.signal.throwIfAborted();
-    const res = await fetch(url, { cache: 'no-store', ...init, signal: controller.signal });
+    const res = await apiFetch(url, { cache: 'no-store', ...init, signal: controller.signal });
     if (!res.ok) return fallback;
     const data = await parseJsonResponse<T>(res);
     return { ...fallback, ...data };

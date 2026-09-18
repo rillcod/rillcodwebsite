@@ -3,9 +3,13 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import {
+  ArrowLeftIcon,
   ArrowPathIcon,
   CheckCircleIcon,
+  CheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ExclamationTriangleIcon,
 } from '@/lib/icons';
 
@@ -126,6 +130,22 @@ export function BuilderSection({
 
 export function BuilderContextStrip({
   studentName,
+  grade,
+  courseName,
+  moduleName,
+  overallScore,
+  overallGrade,
+  isDirty,
+  isPublished,
+  filledScoresCount,
+  totalScoresCount = 6,
+  studentIndex,
+  totalStudents,
+  onPrev,
+  onNext,
+  onReturn,
+  returnLabel = 'Roster',
+  saving,
   meta,
   statusLabel,
   statusTone = 'draft',
@@ -133,44 +153,167 @@ export function BuilderContextStrip({
   progressLabel,
 }: {
   studentName: string;
+  grade?: string;
+  courseName?: string;
+  moduleName?: string;
+  overallScore?: number | null;
+  overallGrade?: string | null;
+  isDirty?: boolean;
+  isPublished?: boolean;
+  filledScoresCount?: number;
+  totalScoresCount?: number;
+  studentIndex?: number;
+  totalStudents?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+  onReturn?: () => void;
+  returnLabel?: string;
+  saving?: boolean;
   meta?: string;
   statusLabel?: string;
   statusTone?: 'draft' | 'published' | 'unsaved';
   saveLabel?: string;
   progressLabel?: string;
 }) {
-  const toneClass =
-    statusTone === 'published'
-      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
-      : statusTone === 'unsaved'
-        ? 'bg-orange-500/15 text-orange-800 dark:text-orange-400 border-orange-500/25'
-        : 'bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-500/25';
+  const scoreNum = overallScore != null && !isNaN(Number(overallScore)) ? Math.round(Number(overallScore)) : null;
 
   return (
-    <div className="sticky top-0 z-20 -mx-1 rounded-lg border border-border bg-card/95 px-3 py-1.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:px-4">
+    <aside
+      aria-label="Active student and score context"
+      className="sticky top-[var(--app-header-height)] md:top-0 z-30 -mx-3 sm:mx-0 px-3 sm:px-4 py-2 bg-card/95 dark:bg-card/90 backdrop-blur-xl border-b border-border shadow-sm transition-all"
+    >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-black text-primary-foreground">
+        {/* Left: Whom & What */}
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          {onReturn && (
+            <button
+              type="button"
+              onClick={onReturn}
+              disabled={saving}
+              className="inline-flex items-center gap-1 px-2 py-1 min-h-8 rounded-lg border border-border bg-muted/40 hover:bg-muted active:bg-muted/80 text-[11px] font-bold text-foreground transition-colors shrink-0 touch-manipulation disabled:opacity-50"
+              title={`Return to ${returnLabel}`}
+            >
+              <ArrowLeftIcon className="h-3 w-3 text-primary shrink-0" />
+              <span className="hidden xs:inline">{returnLabel}</span>
+            </button>
+          )}
+
+          <div className="flex h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary text-xs font-black text-primary-foreground shadow-sm">
             {studentName?.[0] ?? '?'}
           </div>
+
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="truncate text-xs font-black text-foreground sm:text-sm">{studentName}</p>
-              {statusLabel ? (
-                <span className={`rounded border px-1 py-0.5 text-[9px] font-bold ${toneClass}`}>
-                  {statusLabel}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="truncate text-xs sm:text-sm font-black text-foreground max-w-[130px] xs:max-w-[200px] sm:max-w-[280px]">
+                {studentName}
+              </span>
+              {grade && (
+                <span className="shrink-0 px-1.5 py-0.2 rounded-md bg-primary/10 text-primary text-[10px] font-bold">
+                  {grade}
                 </span>
-              ) : null}
+              )}
+              {studentIndex != null && totalStudents != null && (
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground font-semibold">
+                  #{studentIndex + 1}/{totalStudents}
+                </span>
+              )}
             </div>
-            {meta ? <p className="mt-0 truncate text-[10px] text-muted-foreground">{meta}</p> : null}
-            {saveLabel ? <p className="mt-0 text-[9px] text-muted-foreground/80">{saveLabel}</p> : null}
+
+            <p className="mt-0 truncate text-[10px] text-muted-foreground max-w-[180px] xs:max-w-[260px] sm:max-w-[360px]">
+              {courseName || 'Course'}
+              {moduleName ? ` · ${moduleName}` : ''}
+              {meta ? ` · ${meta}` : ''}
+            </p>
           </div>
         </div>
-        {progressLabel ? (
-          <span className="flex-shrink-0 font-mono text-[10px] text-muted-foreground">{progressLabel}</span>
-        ) : null}
+
+        {/* Right: Live Scores, Save Status, & Student Switchers */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Live Score & Grade Pill */}
+          {scoreNum != null && (
+            <div
+              className={`flex items-center gap-1 px-2 py-1 rounded-xl border text-xs font-black shrink-0 transition-all ${
+                scoreNum >= 80
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  : scoreNum >= 65
+                  ? 'bg-blue-500/15 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                  : scoreNum >= 48
+                  ? 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400'
+                  : 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400'
+              }`}
+              title="Real-time calculated overall score & grade"
+            >
+              <span className="tabular-nums">{scoreNum}%</span>
+              {overallGrade && (
+                <span className="px-1 py-0.2 rounded bg-foreground/10 text-[9px] font-black uppercase">
+                  {overallGrade}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Save Status Pill */}
+          <div className="hidden sm:flex items-center text-[10px] font-semibold">
+            {saving ? (
+              <span className="flex items-center gap-1 text-muted-foreground bg-muted/40 border border-border px-2 py-0.5 rounded-lg">
+                <ArrowPathIcon className="h-3 w-3 animate-spin text-primary" />
+                <span>Saving…</span>
+              </span>
+            ) : isDirty ? (
+              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span>Unsaved</span>
+              </span>
+            ) : isPublished ? (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                <CheckCircleIcon className="h-3 w-3" />
+                <span>Published</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                <CheckIcon className="h-3 w-3" />
+                <span>Saved</span>
+              </span>
+            )}
+          </div>
+
+          {/* Score count badge */}
+          {filledScoresCount != null && (
+            <span className="hidden md:inline-block font-mono text-[10px] text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded border border-border">
+              {filledScoresCount}/{totalScoresCount} scores
+            </span>
+          )}
+
+          {/* Top Prev & Next Chevrons */}
+          {(onPrev || onNext) && (
+            <div className="flex items-center gap-0.5">
+              {onPrev && (
+                <button
+                  type="button"
+                  disabled={saving || (studentIndex != null && studentIndex <= 0)}
+                  onClick={onPrev}
+                  className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-border bg-muted/30 text-muted-foreground hover:text-foreground active:bg-muted transition-colors disabled:opacity-30 touch-manipulation"
+                  title="Previous student"
+                >
+                  <ChevronLeftIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {onNext && (
+                <button
+                  type="button"
+                  disabled={saving || (studentIndex != null && totalStudents != null && studentIndex >= totalStudents - 1)}
+                  onClick={onNext}
+                  className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-border bg-muted/30 text-muted-foreground hover:text-foreground active:bg-muted transition-colors disabled:opacity-30 touch-manipulation"
+                  title="Next student"
+                >
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }
 

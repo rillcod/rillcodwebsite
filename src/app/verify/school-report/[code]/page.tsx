@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-fetch';
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -39,7 +40,7 @@ export default function VerifySchoolReportPage() {
     async function fetchData() {
       try {
         const cleanCode = String(code).trim().toUpperCase();
-        const res = await fetch(`/api/public/verify-school-report?code=${encodeURIComponent(cleanCode)}`, {
+        const res = await apiFetch(`/api/public/verify-school-report?code=${encodeURIComponent(cleanCode)}`, {
           cache: 'no-store',
         });
         const json = await res.json().catch(() => ({}));

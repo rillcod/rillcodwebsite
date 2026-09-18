@@ -54,7 +54,7 @@ import { cn } from '@/lib/utils';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { resolveEffectiveScoreWeights, scoreWeightPercent, type PublishedGradingScheme } from '@/lib/grading-scheme';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
-import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton } from '@/components/reports/builder/workflow-panels';
+import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton, BuilderContextStrip } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner, AutoFillStatusBanner, AutoFillEditConfirmDialog, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { formatClassRowOptionLabel, ReportSessionContextBanner } from '@/components/reports/ReportSessionContextBanner';
 import { resolveSmartWorkingSession, classSessionFromTerms, sessionFromReport, liveSessionLike } from '@/lib/reports/session-scope';
@@ -3938,6 +3938,38 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && selectedStudent && (
                     <div className="space-y-3 pb-[calc(var(--app-sticky-actions-height)+0.25rem)] md:pb-0">
+                        {/* Sticky Active Student & Score Context Strip — docks to top on mobile & desktop so you never lose sight of whom & what you are scoring */}
+                        <BuilderContextStrip
+                            studentName={form.student_name || selectedStudent?.full_name || 'Student'}
+                            grade={(selectedStudent as any)?.grade_level || (selectedStudent as any)?.grade || profileGrade}
+                            courseName={sessionConfig.course_name}
+                            moduleName={form.student_current_module || sessionConfig.current_module}
+                            overallScore={overallScore}
+                            overallGrade={overallGradeLetter}
+                            isDirty={isDirty}
+                            isPublished={existingReport?.is_published}
+                            filledScoresCount={filledScoresCount}
+                            totalScoresCount={totalScoresCount}
+                            studentIndex={currentStudentIdx}
+                            totalStudents={navList.length}
+                            saving={saving || publishing}
+                            onReturn={() => void returnToRoster()}
+                            returnLabel={fromPrepare ? 'Auto-fill' : 'Roster'}
+                            onPrev={currentStudentIdx > 0 ? async () => {
+                                if (saving || publishing || currentStudentIdx <= 0) return;
+                                if (isDirty) {
+                                    const saved = await handleSave(false);
+                                    if (!saved) return;
+                                }
+                                await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                if (typeof window !== 'undefined') { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+                                setEditSearch('');
+                            } : undefined}
+                            onNext={currentStudentIdx < navList.length - 1 ? async () => {
+                                await saveAndNext(false);
+                                setEditSearch('');
+                            } : undefined}
+                        />
                         {/* Event banners — only mount when that condition is active */}
                         {resumedSession && (
                             <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">

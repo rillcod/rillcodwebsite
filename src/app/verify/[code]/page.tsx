@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-fetch';
 // @refresh reset
 'use client';
 
@@ -25,7 +26,7 @@ export default function VerifyCodePage() {
     async function fetchData() {
       try {
         // /verify is the CERTIFICATE surface only — use the gated public API (not anon RLS).
-        const res = await fetch(`/api/public/verify-certificate?code=${encodeURIComponent(String(code).toUpperCase())}`, {
+        const res = await apiFetch(`/api/public/verify-certificate?code=${encodeURIComponent(String(code).toUpperCase())}`, {
           cache: 'no-store',
         });
         const json = await res.json().catch(() => ({}));

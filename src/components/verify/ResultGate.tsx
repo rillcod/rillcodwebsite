@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-fetch';
 'use client';
 
 import { useState, useEffect, type ReactNode } from 'react';
@@ -80,7 +81,7 @@ export default function ResultGate({
     if (staffRole) return;
 
     let cancelled = false;
-    fetch('/api/auth/me')
+    apiFetch('/api/auth/me')
       .then(r => (r.ok ? r.json() : null))
       .then(j => {
         if (cancelled) return;
@@ -111,7 +112,7 @@ export default function ResultGate({
     if (signingOut) return;
     setSigningOut(true);
     try {
-      await fetch('/api/auth/signout', {
+      await apiFetch('/api/auth/signout', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'x-rillcod-signout': '1' },
