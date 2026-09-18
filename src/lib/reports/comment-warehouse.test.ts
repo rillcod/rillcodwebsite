@@ -1,10 +1,12 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   generatePredictiveComments,
   getStrengthBankSuggestions,
   getGrowthBankSuggestions,
   determinePerformanceBand,
-  resolvePronouns
+  resolvePronouns,
+  detectDomain,
+  detectArchetype
 } from './comment-warehouse';
 
 describe('comment warehouse', () => {
@@ -42,6 +44,50 @@ describe('comment warehouse', () => {
     expect(res.areas_for_growth).toContain('nested loops');
   });
 
+  it('detects domain-specific subject areas accurately', () => {
+    expect(detectDomain('Python Data Types', 'Intro to Coding')).toBe('python');
+    expect(detectDomain('Sprite Game Design', 'Scratch Animation')).toBe('scratch');
+    expect(detectDomain('Responsive CSS Grid', 'Web Development')).toBe('web');
+    expect(detectDomain('Micro:bit Ultrasonic Sensor', 'Robotics & STEM')).toBe('robotics');
+    expect(detectDomain('Poster Composition', 'Graphic Design')).toBe('design');
+  });
+
+  it('identifies student learning archetypes from score balance', () => {
+    const tinkerer = detectArchetype({ practicalScore: 95, theoryScore: 75 });
+    expect(tinkerer).toBe('tinkerer');
+
+    const theorist = detectArchetype({ practicalScore: 70, theoryScore: 92 });
+    expect(theorist).toBe('theorist');
+
+    const diligent = detectArchetype({ attendanceScore: 95, classworkScore: 90 });
+    expect(diligent).toBe('diligent');
+  });
+
+  it('generates unique, non-repetitive comments for students in the same class', () => {
+    const student1 = generatePredictiveComments({
+      studentName: 'Aisha Bello',
+      gender: 'female',
+      topic: 'Python Loops',
+      overallScore: 85,
+      theoryScore: 85,
+      practicalScore: 85
+    });
+
+    const student2 = generatePredictiveComments({
+      studentName: 'Zainab Mohammed',
+      gender: 'female',
+      topic: 'Python Loops',
+      overallScore: 85,
+      theoryScore: 85,
+      practicalScore: 85
+    });
+
+    // Both are distinction in the exact same subject with the exact same score,
+    // but their opening sentences and narrative styles MUST be distinct!
+    expect(student1.key_strengths).not.toBe(student2.key_strengths);
+    expect(student1.areas_for_growth).not.toBe(student2.areas_for_growth);
+  });
+
   it('provides varied bank suggestions for single-click swapping', () => {
     const suggestions = getStrengthBankSuggestions({
       studentName: 'Fatima Bello',
@@ -52,5 +98,8 @@ describe('comment warehouse', () => {
 
     expect(suggestions.length).toBe(4);
     expect(suggestions[0]).toContain('Fatima');
+    // Ensure the 4 suggestions offer different stylistic flavors
+    expect(suggestions[0]).not.toBe(suggestions[1]);
+    expect(suggestions[1]).not.toBe(suggestions[2]);
   });
 });

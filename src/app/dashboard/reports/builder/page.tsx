@@ -4948,26 +4948,32 @@ function ReportBuilderInner() {
                                                         <span>{String((form as any)[field] || '').length}/{REPORT_COMMENT_LIMIT}</span>
                                                     </div>
                                                     {(() => {
+                                                        const warehouseInput = {
+                                                            studentName: form.student_name,
+                                                            gender: form.gender,
+                                                            topic: sessionConfig.current_module || sessionConfig.course_name,
+                                                            courseName: sessionConfig.course_name,
+                                                            overallScore,
+                                                            theoryScore: parseScoreForDisplay(form.theory_score),
+                                                            practicalScore: parseScoreForDisplay(form.practical_score),
+                                                            classworkScore: parseScoreForDisplay(form.classwork_score),
+                                                            attendanceScore: parseScoreForDisplay(form.attendance_score),
+                                                            participationScore: parseScoreForDisplay(form.participation_score),
+                                                            assessmentScore: parseScoreForDisplay(form.assessment_score),
+                                                            qualifiers: {
+                                                                classwork: form.participation_grade,
+                                                                projects: form.projects_grade,
+                                                                homework: form.homework_grade,
+                                                            },
+                                                            recommendations: growthRecommendations.slice(0, 2).map(r => r.text),
+                                                        };
                                                         const suggestions = field === 'key_strengths'
-                                                            ? getStrengthBankSuggestions({
-                                                                studentName: form.student_name,
-                                                                gender: form.gender,
-                                                                topic: sessionConfig.current_module || sessionConfig.course_name,
-                                                                courseName: sessionConfig.course_name,
-                                                                overallScore,
-                                                                theoryScore: parseScoreForDisplay(form.theory_score),
-                                                                practicalScore: parseScoreForDisplay(form.practical_score),
-                                                            })
-                                                            : getGrowthBankSuggestions({
-                                                                studentName: form.student_name,
-                                                                gender: form.gender,
-                                                                topic: sessionConfig.current_module || sessionConfig.course_name,
-                                                                courseName: sessionConfig.course_name,
-                                                                overallScore,
-                                                                theoryScore: parseScoreForDisplay(form.theory_score),
-                                                                practicalScore: parseScoreForDisplay(form.practical_score),
-                                                            });
+                                                            ? getStrengthBankSuggestions(warehouseInput)
+                                                            : getGrowthBankSuggestions(warehouseInput);
                                                         if (!suggestions || suggestions.length === 0) return null;
+                                                        const flavorBadges = field === 'key_strengths'
+                                                            ? ['Technical Focus', 'Creative / Practical', 'Character & Diligence', 'Concise Summary']
+                                                            : ['Mastery Target', 'Methodical Strategy', 'Confidence Builder', 'Direct Action'];
                                                         return (
                                                             <div className="mt-2.5 space-y-1.5">
                                                                 <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -4975,7 +4981,7 @@ function ReportBuilderInner() {
                                                                     Quick Bank Suggestions (click to apply):
                                                                 </span>
                                                                 <div className="grid gap-1.5">
-                                                                    {suggestions.slice(0, 3).map((suggestionText, sIdx) => (
+                                                                    {suggestions.map((suggestionText, sIdx) => (
                                                                         <button
                                                                             key={sIdx}
                                                                             type="button"
@@ -4989,8 +4995,11 @@ function ReportBuilderInner() {
                                                                                 setIsDirty(true);
                                                                             }}
                                                                             className="text-left text-xs p-2 rounded-lg border border-border/60 bg-muted/20 hover:bg-primary/5 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-colors leading-relaxed line-clamp-2 touch-manipulation"
-                                                                            title="Click to apply this suggestion to the comment"
+                                                                            title={`Apply ${flavorBadges[sIdx] || 'suggestion'}`}
                                                                         >
+                                                                            <span className="inline-block text-[9px] font-bold text-primary/90 bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded mr-1.5 uppercase tracking-wider">
+                                                                                {flavorBadges[sIdx] || 'Option'}
+                                                                            </span>
                                                                             {suggestionText}
                                                                         </button>
                                                                     ))}
