@@ -29,6 +29,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
+import { PublishedResultSummary } from '@/components/reports/PublishedResultSummary';
 import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { AutoFillStatusBanner, NoScoresYetNotice, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { ReportSessionContextBanner, SessionCalendarRollNotice } from '@/components/reports/ReportSessionContextBanner';
@@ -2512,6 +2513,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                         </div>
                                     ) : reportToDisplay ? (
                                          <div className="space-y-3">
+                                            <PublishedResultSummary report={reportToDisplay} />
                                             {selectedReport && automaticResultHasNoEvidence(selectedReport) ? (
                                                 <NoScoresYetNotice />
                                             ) : null}

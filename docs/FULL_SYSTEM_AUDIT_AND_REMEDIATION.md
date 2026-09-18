@@ -4465,3 +4465,15 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   command timeouts prevented authenticated/mobile checks. Live issuance, reissue and deletion
   were not exercised. Write-request deadlines and complete mobile flow remain follow-up work;
   do not describe the entire Card Studio problem as resolved from these checks alone.
+
+### Published grade visibility — 2026-09-18
+
+- Read-only live check returned 787 published reports: all retained overall_grade and
+  overall_score, all were manual. No report/score data was modified. The missing grade
+  could not be attributed to erased data or the automatic-empty-evidence condition.
+- Publish now shows the selected report's persisted letter grade and score above the
+  scrollable preview, outside template-specific layout. It does not recalculate, infer
+  a new grade, or label drafts as published. Zero and older single-letter grades remain intact.
+- Thirteen component-render tests cover all nine WAEC grades, legacy grades, zero,
+  absent values and drafts. The affected user's exact preview has not been reproduced;
+  this is an explicit visibility improvement, not proof of a template-specific root cause.
