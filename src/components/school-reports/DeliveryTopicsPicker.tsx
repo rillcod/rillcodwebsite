@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-fetch';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowPathIcon, CheckCircleIcon } from '@/lib/icons';
 import { SegmentPanel } from '@/components/school-reports/SegmentPanel';
@@ -75,9 +77,9 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
       controller.abort();
     }, 45000);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/school-performance-reports/delivery-topics?reportId=${encodeURIComponent(reportId)}`,
-        { signal: controller.signal },
+        { signal: controller.signal, maxStartingRetries: 5 },
       );
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load topics (HTTP ${response.status}). Check your connection and try again.`);
@@ -180,8 +182,9 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
     setApplying(true);
     setError('');
     try {
-      const response = await fetch(`/api/school-performance-reports/${reportId}`, {
+      const response = await apiFetch(`/api/school-performance-reports/${reportId}`, {
         method: 'PATCH',
+        maxStartingRetries: 5,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deliveryDeclaration: {
@@ -221,8 +224,9 @@ export function DeliveryTopicsPicker({ reportId, lockVersion, disabled, schoolNa
     setError('');
     setGenNotice(null);
     try {
-      const res = await fetch('/api/school-performance-reports/generate-curriculum-on-spot', {
+      const res = await apiFetch('/api/school-performance-reports/generate-curriculum-on-spot', {
         method: 'POST',
+        maxStartingRetries: 5,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportId }),
       });

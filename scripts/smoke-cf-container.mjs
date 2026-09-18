@@ -19,7 +19,7 @@ const paths = [
 let failed = 0;
 for (const { path, expect } of paths) {
   const url = `${base}${path}`;
-  if (!(await checkSmokePath(url, expect))) failed += 1;
+  if (!(await checkSmokePath(url, expect, { attempts: 10 }))) failed += 1;
 }
 
 if (failed) {

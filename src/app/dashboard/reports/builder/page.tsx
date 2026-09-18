@@ -3211,6 +3211,8 @@ function ReportBuilderInner() {
         </div>
     );
 
+    const activeNavList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+
     return (
         <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
             <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4">
@@ -3947,11 +3949,11 @@ function ReportBuilderInner() {
                             overallScore={overallScore}
                             overallGrade={overallGradeLetter}
                             isDirty={isDirty}
-                            isPublished={existingReport?.is_published}
+                            isPublished={Boolean(existingReport?.is_published)}
                             filledScoresCount={filledScoresCount}
                             totalScoresCount={totalScoresCount}
                             studentIndex={currentStudentIdx}
-                            totalStudents={navList.length}
+                            totalStudents={activeNavList.length}
                             saving={saving || publishing}
                             onReturn={() => void returnToRoster()}
                             returnLabel={fromPrepare ? 'Auto-fill' : 'Roster'}
@@ -3961,11 +3963,11 @@ function ReportBuilderInner() {
                                     const saved = await handleSave(false);
                                     if (!saved) return;
                                 }
-                                await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                await selectStudent(activeNavList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
                                 if (typeof window !== 'undefined') { window.scrollTo({ top: 0, behavior: 'smooth' }); }
                                 setEditSearch('');
                             } : undefined}
-                            onNext={currentStudentIdx < navList.length - 1 ? async () => {
+                            onNext={currentStudentIdx < activeNavList.length - 1 ? async () => {
                                 await saveAndNext(false);
                                 setEditSearch('');
                             } : undefined}

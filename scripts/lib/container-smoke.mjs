@@ -28,7 +28,7 @@ export async function checkSmokePath(url, expected, {
       log(`${attempt < attempts ? 'RETRY' : 'FAIL'} ${url}: ${error?.message || error} (attempt ${attempt}/${attempts})`);
     }
     if (!retryable || attempt === attempts) return false;
-    await sleep(attempt * 2_000);
+    await sleep(Math.min(attempt * 2_000, 5_000));
   }
   return false;
 }

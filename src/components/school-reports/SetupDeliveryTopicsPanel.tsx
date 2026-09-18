@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-fetch';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowPathIcon, CheckCircleIcon } from '@/lib/icons';
 import { WhatWeTaughtPreview } from '@/components/school-reports/WhatWeTaughtPreview';
@@ -106,9 +108,10 @@ export function SetupDeliveryTopicsPanel({
         curriculumEndTerm: String(form.curriculumEndTerm),
         curriculumEndWeek: String(form.curriculumEndWeek),
       });
-      const response = await fetch(`/api/school-performance-reports/delivery-topics?${params.toString()}`, {
+      const response = await apiFetch(`/api/school-performance-reports/delivery-topics?${params.toString()}`, {
         signal: controller.signal,
         cache: 'no-store',
+        maxStartingRetries: 5,
       });
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load delivery topics (HTTP ${response.status}).`);
@@ -280,8 +283,9 @@ export function SetupDeliveryTopicsPanel({
     setError('');
     setGenNotice(null);
     try {
-      const res = await fetch('/api/school-performance-reports/generate-curriculum-on-spot', {
+      const res = await apiFetch('/api/school-performance-reports/generate-curriculum-on-spot', {
         method: 'POST',
+        maxStartingRetries: 5,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           schoolId: form.schoolId,
