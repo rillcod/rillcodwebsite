@@ -24,6 +24,7 @@ import {
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
+import { generatePredictiveComments, getStrengthBankSuggestions, getGrowthBankSuggestions } from '@/lib/reports/comment-warehouse';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
@@ -37,6 +38,7 @@ import {
 import { permanentWipePortalUserClient, wipeFailureMessage } from '@/lib/students/permanent-wipe-client';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
+import { apiFetch } from '@/lib/api-fetch';
 
 function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -851,7 +853,7 @@ function ReportBuilderInner() {
         if (!full_name) { setError('Name cannot be empty.'); return; }
         setSavingProfile(true);
         try {
-            const res = await fetch(`/api/portal-users/${selectedStudent.id}`, {
+            const res = await apiFetch(`/api/portal-users/${selectedStudent.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ full_name, grade: profileGrade || null }),
@@ -1734,6 +1736,7 @@ function ReportBuilderInner() {
         setDuplicateDetail('');
         setCourseSyncNotice(null);
         setHasPreviewedCurrentReport(false);
+        if (typeof window !== 'undefined') { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
         // Manual entry: skip DB lookup, go straight to empty form
         const isManual = s.id?.startsWith('manual-');
@@ -1852,7 +1855,7 @@ function ReportBuilderInner() {
                 || (reconciledCourse.course_name && hydratedReport.course_name !== reconciledCourse.course_name);
             if (courseDrift && hydratedReport.id && !hydratedReport.is_published && !isPrePortal && !keepRequestedSession) {
                 try {
-                    const syncRes = await fetch(`/api/progress-reports/${hydratedReport.id}`, {
+                    const syncRes = await apiFetch(`/api/progress-reports/${hydratedReport.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -2367,7 +2370,7 @@ function ReportBuilderInner() {
     useEffect(() => {
         if (step !== 'edit' || !selectedStudent || loading || saving || generating) return;
         
-        // Only run if BOTH fields are completely empty (not already drafted or loaded from DB)
+        // Only run if either field needs drafting
         const needsStrengths = !form.key_strengths.trim();
         const needsGrowth = !form.areas_for_growth.trim();
         
@@ -2379,110 +2382,62 @@ function ReportBuilderInner() {
 
         const triggerPreemptiveAI = async () => {
             const currentStudentId = selectedStudent.id;
-            
-            // Generate strengths if empty
-            if (needsStrengths) {
-                try {
-                    setGenerating('key_strengths');
-                    const currentCourse = courses.find((c: any) => c.id === sessionConfig.course_id);
-                    const programName = (currentCourse as any)?.programs?.name ?? '';
-                    
-                    const res = await fetch('/api/ai/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            type: 'report-feedback',
-                            topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
-                            courseName: sessionConfig.course_name || '',
-                            studentName: form.student_name || 'The Student',
-                            gender: form.gender || null,
-                            gradeLevel: form.section_class || 'General Academic',
-                            theoryScore:        parseScoreForDisplay(form.theory_score),
-                            classworkScore:     parseScoreForDisplay(form.classwork_score),
-                            practicalScore:     parseScoreForDisplay(form.practical_score),
-                            attendanceScore:    parseScoreForDisplay(form.attendance_score),
-                            participationScore: parseScoreForDisplay(form.participation_score),
-                            assessmentScore:    parseScoreForDisplay(form.assessment_score),
-                            overallScore,
-                            overallGrade: overallGradeLetter,
-                            proficiencyLevel: form.proficiency_level,
-                            participationGrade: form.participation_grade || '',
-                            projectsGrade:      form.projects_grade      || '',
-                            homeworkGrade:      form.homework_grade       || '',
-                        }),
-                    });
-                    
-                    if (res.ok) {
-                        const result = await res.json();
-                        const generatedText = result.data?.key_strengths || '';
-                        
-                        // Safety check: only update if student hasn't changed and teacher hasn't typed anything
-                        setForm(f => {
-                            if (selectedStudent.id === currentStudentId && !f.key_strengths.trim()) {
-                                return { ...f, key_strengths: compactStrengthText(limitStudentNameMentions(generatedText, f.student_name)) };
-                            }
-                            return f;
-                        });
-                    }
-                } catch (err) {
-                    console.error('Preemptive AI strengths generation failed', err);
-                } finally {
-                    setGenerating(null);
-                }
-            }
+            try {
+                setGenerating(needsStrengths ? 'key_strengths' : 'areas_for_growth');
+                const res = await apiFetch('/api/ai/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'report-feedback',
+                        topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
+                        courseName: sessionConfig.course_name || '',
+                        studentName: form.student_name || 'The Student',
+                        gender: form.gender || null,
+                        gradeLevel: form.section_class || 'General Academic',
+                        theoryScore:        parseScoreForDisplay(form.theory_score),
+                        classworkScore:     parseScoreForDisplay(form.classwork_score),
+                        practicalScore:     parseScoreForDisplay(form.practical_score),
+                        attendanceScore:    parseScoreForDisplay(form.attendance_score),
+                        participationScore: parseScoreForDisplay(form.participation_score),
+                        assessmentScore:    parseScoreForDisplay(form.assessment_score),
+                        overallScore,
+                        overallGrade: overallGradeLetter,
+                        proficiencyLevel: form.proficiency_level,
+                        participationGrade: form.participation_grade || '',
+                        projectsGrade:      form.projects_grade      || '',
+                        homeworkGrade:      form.homework_grade       || '',
+                        recommendations:    growthRecommendations.slice(0, 2).map(r => r.text),
+                    }),
+                });
 
-            // Generate areas for growth if empty
-            if (needsGrowth && selectedStudent.id === currentStudentId) {
-                try {
-                    setGenerating('areas_for_growth');
-                    const currentCourse = courses.find((c: any) => c.id === sessionConfig.course_id);
-                    const programName = (currentCourse as any)?.programs?.name ?? '';
-                    
-                    const res = await fetch('/api/ai/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            type: 'report-feedback',
-                            topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
-                            courseName: sessionConfig.course_name || '',
-                            studentName: form.student_name || 'The Student',
-                            gender: form.gender || null,
-                            gradeLevel: form.section_class || 'General Academic',
-                            theoryScore:        parseScoreForDisplay(form.theory_score),
-                            classworkScore:     parseScoreForDisplay(form.classwork_score),
-                            practicalScore:     parseScoreForDisplay(form.practical_score),
-                            attendanceScore:    parseScoreForDisplay(form.attendance_score),
-                            participationScore: parseScoreForDisplay(form.participation_score),
-                            assessmentScore:    parseScoreForDisplay(form.assessment_score),
-                            overallScore,
-                            overallGrade: overallGradeLetter,
-                            proficiencyLevel: form.proficiency_level,
-                            participationGrade: form.participation_grade || '',
-                            projectsGrade:      form.projects_grade      || '',
-                            homeworkGrade:      form.homework_grade       || '',
-                        }),
+                if (res.ok) {
+                    const result = await res.json();
+                    const aiData = result.data || {};
+                    const rawStrengths = aiData.key_strengths || '';
+                    const rawGrowth = aiData.areas_for_growth || '';
+
+                    setForm(f => {
+                        if (selectedStudent.id !== currentStudentId) return f;
+                        const updates: Partial<typeof f> = {};
+                        if (needsStrengths && !f.key_strengths.trim() && rawStrengths) {
+                            updates.key_strengths = compactStrengthText(limitStudentNameMentions(rawStrengths, f.student_name));
+                        }
+                        if (needsGrowth && !f.areas_for_growth.trim() && rawGrowth) {
+                            updates.areas_for_growth = compactGrowthText(limitStudentNameMentions(rawGrowth, f.student_name));
+                        }
+                        return { ...f, ...updates };
                     });
-                    
-                    if (res.ok) {
-                        const result = await res.json();
-                        const generatedText = result.data?.areas_for_growth || '';
-                        
-                        setForm(f => {
-                            if (selectedStudent.id === currentStudentId && !f.areas_for_growth.trim()) {
-                                return { ...f, areas_for_growth: compactGrowthText(limitStudentNameMentions(generatedText, f.student_name)) };
-                            }
-                            return f;
-                        });
-                    }
-                } catch (err) {
-                    console.error('Preemptive AI growth generation failed', err);
+                }
+            } catch (err) {
+                console.error('Preemptive AI comment generation failed', err);
+                if (needsGrowth) {
                     setForm(f => f.areas_for_growth.trim() ? f : {
                         ...f,
                         areas_for_growth: compactGrowthText(composeGrowthRecommendations(growthRecommendations.slice(0, 2))),
                     });
-                } finally {
-                    setGenerating(null);
                 }
+            } finally {
+                setGenerating(null);
             }
         };
 
@@ -2636,7 +2591,7 @@ function ReportBuilderInner() {
                 },
             };
 
-            const res = await fetch('/api/progress-reports', {
+            const res = await apiFetch('/api/progress-reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2670,7 +2625,7 @@ function ReportBuilderInner() {
 
             let deliveryStatus: string | null = null;
             if (publish && savedReportId && !isManual) {
-                const publishRes = await fetch(`/api/progress-reports/${savedReportId}`, {
+                const publishRes = await apiFetch(`/api/progress-reports/${savedReportId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2804,6 +2759,7 @@ function ReportBuilderInner() {
         const nextIdx = currentStudentIdx + 1;
         if (nextIdx < navList.length) {
             await selectStudent(navList[nextIdx] as PortalUser, nextIdx);
+            if (typeof window !== 'undefined') { window.scrollTo({ top: 0, behavior: 'smooth' }); }
         } else {
             prepareNextClass();
         }
@@ -2857,9 +2813,27 @@ function ReportBuilderInner() {
                 ]
             };
 
-            const getRandomFallback = (type: 'key_strengths' | 'areas_for_growth') => {
-                const list = fallbackThemes[type];
-                return list[Math.floor(Math.random() * list.length)];
+            const getWarehouseFallback = (type: 'key_strengths' | 'areas_for_growth') => {
+                const p = generatePredictiveComments({
+                    studentName: form.student_name,
+                    gender: form.gender,
+                    topic: sessionConfig.current_module || sessionConfig.course_name,
+                    courseName: sessionConfig.course_name,
+                    overallScore,
+                    theoryScore: parseScoreForDisplay(form.theory_score),
+                    classworkScore: parseScoreForDisplay(form.classwork_score),
+                    practicalScore: parseScoreForDisplay(form.practical_score),
+                    attendanceScore: parseScoreForDisplay(form.attendance_score),
+                    participationScore: parseScoreForDisplay(form.participation_score),
+                    assessmentScore: parseScoreForDisplay(form.assessment_score),
+                    qualifiers: {
+                        classwork: form.participation_grade,
+                        projects: form.projects_grade,
+                        homework: form.homework_grade,
+                    },
+                    recommendations: growthRecommendations.slice(0, 2).map(r => r.text),
+                });
+                return p[type];
             };
 
             try {
@@ -2867,7 +2841,7 @@ function ReportBuilderInner() {
                 const currentCourse = courses.find((c: any) => c.id === sessionConfig.course_id);
                 const programName = (currentCourse as any)?.programs?.name ?? '';
 
-                const res = await fetch('/api/ai/generate', {
+                const res = await apiFetch('/api/ai/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2891,6 +2865,7 @@ function ReportBuilderInner() {
                         participationGrade: form.participation_grade || '',
                         projectsGrade:      form.projects_grade      || '',
                         homeworkGrade:      form.homework_grade       || '',
+                        recommendations:    growthRecommendations.slice(0, 2).map(r => r.text),
                     }),
                 });
 
@@ -2898,14 +2873,23 @@ function ReportBuilderInner() {
                 const result = await res.json();
                 const aiData = result.data || {};
 
-                const generatedText = evaluationField === 'key_strengths'
-                    ? compactStrengthText(limitStudentNameMentions(aiData.key_strengths || getRandomFallback('key_strengths'), form.student_name))
-                    : compactGrowthText(limitStudentNameMentions(aiData.areas_for_growth || getRandomFallback('areas_for_growth'), form.student_name));
-                setForm(f => ({ ...f, [evaluationField]: generatedText }));
+                const strengthsText = compactStrengthText(limitStudentNameMentions(aiData.key_strengths || getWarehouseFallback('key_strengths'), form.student_name));
+                const growthText = compactGrowthText(limitStudentNameMentions(aiData.areas_for_growth || getWarehouseFallback('areas_for_growth'), form.student_name));
+
+                setForm(f => {
+                    const companionField = evaluationField === 'key_strengths' ? 'areas_for_growth' : 'key_strengths';
+                    const companionText = evaluationField === 'key_strengths' ? growthText : strengthsText;
+                    return {
+                        ...f,
+                        [evaluationField]: evaluationField === 'key_strengths' ? strengthsText : growthText,
+                        // If companion comment is empty, fill it in as well so one generation populates both
+                        ...(!f[companionField]?.trim() && companionText ? { [companionField]: companionText } : {}),
+                    };
+                });
                 setSuccessMsg(`${evaluationField === 'key_strengths' ? 'Strengths' : 'Growth'} comment drafted. Review before publishing.`);
             } catch (err) {
                 console.warn('AI failed, using high-quality fallback:', err);
-                setForm(f => ({ ...f, [evaluationField]: f[evaluationField] || getRandomFallback(evaluationField) }));
+                setForm(f => ({ ...f, [evaluationField]: f[evaluationField] || getWarehouseFallback(evaluationField) }));
                 setSuccessMsg(`${evaluationField === 'key_strengths' ? 'Strengths' : 'Growth'} comment drafted from fallback bank.`);
             }
         } catch (err: any) {
@@ -2929,8 +2913,8 @@ function ReportBuilderInner() {
                 projects_grade: f.projects_grade || `${currentText}${assignments}/${totalAssignments} Lab Tasks Completed (${assigPct >= 90 ? 'Outstanding' : assigPct >= 70 ? 'Proficient' : 'Developing'})`,
                 homework_grade: f.homework_grade || `${Math.round(assigPct)}% Assignment Completion Rate — ${assigPct >= 80 ? 'Reliable' : 'Inconsistent'}`,
             }));
+            // Single call populates both strengths and areas for growth
             await handleAIGenerate('key_strengths');
-            await handleAIGenerate('areas_for_growth');
             setSuccessMsg('All fields generated!');
         } catch { /* silent */ } finally {
             setGeneratingAll(false);
@@ -2947,7 +2931,7 @@ function ReportBuilderInner() {
             formData.append('file', file);
             formData.append('studentName', selectedStudent.full_name || 'student');
 
-            const res = await fetch('/api/upload/report-photo', {
+            const res = await apiFetch('/api/upload/report-photo', {
                 method: 'POST',
                 body: formData
             });
@@ -4627,9 +4611,9 @@ function ReportBuilderInner() {
                                                             type="range" min="0" max="100"
                                                             value={isUnset ? '0' : String(form[key])}
                                                             onChange={e => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: e.target.value })), key)}
-                                                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted/40 outline-none touch-pan-y [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:shadow-sm"
+                                                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-muted/40 outline-none touch-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 [&::-webkit-slider-thumb]:shadow-sm"
                                                             style={{
-                                                                touchAction: 'pan-y',
+                                                                touchAction: 'none',
                                                                 background: isUnset
                                                                     ? 'rgba(255,255,255,0.06)'
                                                                     : `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)`
@@ -4638,6 +4622,7 @@ function ReportBuilderInner() {
                                                         />
                                                         <input
                                                             type="text" inputMode="numeric" pattern="[0-9]*"
+                                                            data-score-input="true"
                                                             value={isUnset ? '' : String(form[key])}
                                                             placeholder="—"
                                                             onChange={e => {
@@ -4646,6 +4631,19 @@ function ReportBuilderInner() {
                                                                     ...f,
                                                                     [key]: raw === '' ? '' : String(Math.min(100, parseInt(raw))),
                                                                 })), key);
+                                                            }}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    const inputs = Array.from(document.querySelectorAll('input[data-score-input="true"]'));
+                                                                    const currentIdx = inputs.indexOf(e.currentTarget);
+                                                                    if (currentIdx >= 0 && currentIdx < inputs.length - 1) {
+                                                                        (inputs[currentIdx + 1] as HTMLInputElement).focus();
+                                                                        (inputs[currentIdx + 1] as HTMLInputElement).select();
+                                                                    } else {
+                                                                        e.currentTarget.blur();
+                                                                    }
+                                                                }
                                                             }}
                                                             onFocus={e => { if (!e.target.value) e.target.select(); }}
                                                             className="h-7 w-11 flex-shrink-0 rounded-lg border border-border bg-card text-center text-xs font-black text-foreground focus:border-primary focus:outline-none"
@@ -4949,6 +4947,57 @@ function ReportBuilderInner() {
                                                         <span>Maximum two concise sentences</span>
                                                         <span>{String((form as any)[field] || '').length}/{REPORT_COMMENT_LIMIT}</span>
                                                     </div>
+                                                    {(() => {
+                                                        const suggestions = field === 'key_strengths'
+                                                            ? getStrengthBankSuggestions({
+                                                                studentName: form.student_name,
+                                                                gender: form.gender,
+                                                                topic: sessionConfig.current_module || sessionConfig.course_name,
+                                                                courseName: sessionConfig.course_name,
+                                                                overallScore,
+                                                                theoryScore: parseScoreForDisplay(form.theory_score),
+                                                                practicalScore: parseScoreForDisplay(form.practical_score),
+                                                            })
+                                                            : getGrowthBankSuggestions({
+                                                                studentName: form.student_name,
+                                                                gender: form.gender,
+                                                                topic: sessionConfig.current_module || sessionConfig.course_name,
+                                                                courseName: sessionConfig.course_name,
+                                                                overallScore,
+                                                                theoryScore: parseScoreForDisplay(form.theory_score),
+                                                                practicalScore: parseScoreForDisplay(form.practical_score),
+                                                            });
+                                                        if (!suggestions || suggestions.length === 0) return null;
+                                                        return (
+                                                            <div className="mt-2.5 space-y-1.5">
+                                                                <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                                                    <SparklesIcon className="w-3 h-3 text-primary shrink-0" />
+                                                                    Quick Bank Suggestions (click to apply):
+                                                                </span>
+                                                                <div className="grid gap-1.5">
+                                                                    {suggestions.slice(0, 3).map((suggestionText, sIdx) => (
+                                                                        <button
+                                                                            key={sIdx}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setForm(f => ({
+                                                                                    ...f,
+                                                                                    [field]: field === 'areas_for_growth'
+                                                                                        ? compactGrowthText(limitStudentNameMentions(suggestionText, f.student_name))
+                                                                                        : compactStrengthText(limitStudentNameMentions(suggestionText, f.student_name)),
+                                                                                }));
+                                                                                setIsDirty(true);
+                                                                            }}
+                                                                            className="text-left text-xs p-2 rounded-lg border border-border/60 bg-muted/20 hover:bg-primary/5 hover:border-primary/40 text-muted-foreground hover:text-foreground transition-colors leading-relaxed line-clamp-2 touch-manipulation"
+                                                                            title="Click to apply this suggestion to the comment"
+                                                                        >
+                                                                            {suggestionText}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             );
                                         })}
@@ -5097,6 +5146,7 @@ function ReportBuilderInner() {
                                             if (!saved) return;
                                         }
                                         await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                                        if (typeof window !== 'undefined') { window.scrollTo({ top: 0, behavior: 'smooth' }); }
                                         setEditSearch('');
                                     }}
                                     className="flex h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground active:bg-muted transition-colors disabled:opacity-25 touch-manipulation"

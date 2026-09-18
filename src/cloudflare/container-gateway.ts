@@ -207,11 +207,13 @@ export class NextAppContainer extends Container {
     const isUnresponsivePort = failureText.toLowerCase().includes("not listening");
 
     if (failure !== "retryable" || !replayRequest) {
-      if (isUnresponsivePort) {
+      if (failure === "retryable") {
         this.ctx.waitUntil(
           (async () => {
             try {
-              await this.destroy();
+              if (isUnresponsivePort) {
+                await this.destroy().catch(() => {});
+              }
               await this.startAndWaitForPorts({
                 ports: this.defaultPort,
                 cancellationOptions: {

@@ -213,6 +213,7 @@ export interface GenerateRequest {
   participationGrade?: string;
   projectsGrade?: string;
   homeworkGrade?: string;
+  recommendations?: string[];
   prompt?: string;
   difficulty?: string;
   // Curriculum context — used to tailor lessons to specific course/program
@@ -613,6 +614,10 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
         .filter(Boolean)
         .join("\n");
 
+      const recommendationLines = Array.isArray(req.recommendations) && req.recommendations.length > 0
+        ? req.recommendations.filter(Boolean).map(r => `• ${r}`).join("\n")
+        : "";
+
       // Gender-based pronoun instruction — use student's name as fallback when gender is unknown
       const pronounInstruction =
         req.gender === "male"
@@ -640,6 +645,11 @@ Proficiency level: ${proficiency}
 ${
   qualifierLines
     ? `\nTeacher qualifiers (use these to make comments specific and grounded):\n${qualifierLines}`
+    : ""
+}
+${
+  recommendationLines
+    ? `\nKey curriculum growth targets (weave these naturally into actionable advice):\n${recommendationLines}`
     : ""
 }
 
@@ -2003,12 +2013,12 @@ export async function resolveGenerationPlan(
 
     case "report-feedback":
       modelQueue = [
-        "qwen/qwen3-235b-a22b:free", // Primary: nuanced writing, 235B free
-        "google/gemini-2.0-flash-001", // Fast reliable second
+        "google/gemini-2.0-flash-001", // Fast, sub-second reliable primary
         "deepseek/deepseek-chat-v3-5", // Strong at empathetic prose
+        "qwen/qwen3-235b-a22b:free", // 235B free fallback
       ];
-      adaptiveTemperature = 0.75;
-      adaptiveMaxTokens = 2048;
+      adaptiveTemperature = 0.7;
+      adaptiveMaxTokens = 350;
       break;
 
     case "newsletter":
@@ -2135,7 +2145,12 @@ export async function generateAIContent(
   const geminiResult = await geminiGenerateText(
     plan.systemPrompt,
     plan.prompt,
-    plan.useJsonFormat
+    {
+      json: plan.useJsonFormat,
+      reasoning: type === "report-feedback" ? "none" : undefined,
+      maxOutputTokens: plan.maxTokens,
+      temperature: plan.temperature,
+    }
   ).catch(() => null);
 
   if (geminiResult?.text) {
