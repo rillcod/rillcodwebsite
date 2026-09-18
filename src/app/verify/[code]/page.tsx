@@ -1,6 +1,7 @@
-import { apiFetch } from '@/lib/api-fetch';
 // @refresh reset
 'use client';
+
+import { apiFetch } from '@/lib/api-fetch';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
