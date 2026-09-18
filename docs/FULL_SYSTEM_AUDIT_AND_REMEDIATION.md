@@ -4498,3 +4498,16 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   affected student IDs and show Grade unavailable plus Retry grades, rather than claiming New
   or No report. Successful chunks keep their grades. No database writes or fallback to a
   different academic term were introduced.
+
+### Report Builder school picker and session integrity — 2026-09-18
+
+- In Report Builder setup, replaced basic school dropdown with searchable `ReportSchoolPicker`
+  that matches words case-insensitively, disambiguates duplicate school names by ID, and shows
+  empty state guidance.
+- Guarded session configuration during student grading: replaced inline school and section selects
+  in the settings drawer with read-only badges and an explicit "Change school or class" flow that
+  verifies unsaved changes before switching.
+- Fortified arrow-key student navigation to block concurrent triggers, keyboard auto-repeat,
+  and navigation during in-flight saves, preventing student index desynchronization.
+- Four focused component/wiring tests pass; reports suite (478 tests across 81 files) and full
+  TypeScript typecheck pass.

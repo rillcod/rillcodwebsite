@@ -10,6 +10,7 @@ import { Database } from '@/types/supabase';
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
+import { ReportSchoolPicker } from '@/components/reports/ReportSchoolPicker';
 import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
 import {
   coverageSessionOrFilter,
@@ -1134,31 +1135,38 @@ function ReportBuilderInner() {
         };
     }, [step, selectedStudent?.id, isDirty, showPreview, showSettings, saving, publishing]); // eslint-disable-line
     // ── Keyboard navigation: ← / → when no input is focused ─────────────────
+    const keyboardNavigationBusy = useRef(false);
     useEffect(() => {
         if (step !== 'edit' || !selectedStudent) return;
         const handler = (e: KeyboardEvent) => {
             const tag = (e.target as HTMLElement).tagName;
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
-            if (showPreview || showSettings) return;
+            if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(tag) || (e.target as HTMLElement).isContentEditable) return;
+            if (showPreview || showSettings || saving || publishing || keyboardNavigationBusy.current || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
             const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudentsRef.current;
             if (e.key === 'ArrowRight' && currentStudentIdx < navList.length - 1) {
                 e.preventDefault();
+                keyboardNavigationBusy.current = true;
                 (async () => {
-                    if (isDirty) await handleSave(false);
+                    try {
+                    if (isDirty && !(await handleSave(false))) return;
                     await selectStudent(navList[currentStudentIdx + 1] as PortalUser, currentStudentIdx + 1);
+                    } finally { keyboardNavigationBusy.current = false; }
                 })();
             }
             if (e.key === 'ArrowLeft' && currentStudentIdx > 0) {
                 e.preventDefault();
+                keyboardNavigationBusy.current = true;
                 (async () => {
-                    if (isDirty) await handleSave(false);
+                    try {
+                    if (isDirty && !(await handleSave(false))) return;
                     await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                    } finally { keyboardNavigationBusy.current = false; }
                 })();
             }
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [step, selectedStudent, currentStudentIdx, isDirty, showPreview, showSettings]); // eslint-disable-line
+    }, [step, selectedStudent, currentStudentIdx, isDirty, showPreview, showSettings, saving, publishing]); // eslint-disable-line
 
     // ── Persist session config + navigation state to localStorage ────────────
     useEffect(() => {
@@ -3099,26 +3107,15 @@ function ReportBuilderInner() {
                         )}
                         <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} programLocked={!!sessionConfig.class_id} />
                         <Field label="School">
-                            <select
-                                value={sessionConfig.school_name}
-                                onChange={e => {
-                                    const name = e.target.value;
-                                    const match = schools.find((school) => school.name === name);
-                                    setSessionConfig((current) => ({ ...current, school_name: name, school_id: match?.id }));
-                                }}
-                                className={INPUT}>
-                                <option value="">— Select a school —</option>
-                                {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
-                            </select>
+                            <p className="py-2 text-sm font-medium text-foreground">{sessionConfig.school_name || 'Not selected'}</p>
                         </Field>
                         <Field label="Section">
-                            <select
-                                value={sessionConfig.class_id || ''}
-                                onChange={e => selectReportSection(e.target.value)}
-                                className={INPUT}>
-                                <option value="">— Select class —</option>
-                                {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{formatClassRowOptionLabel(c)}</option>)}
-                            </select>
+                            <p className="py-2 text-sm font-medium text-foreground">{sessionConfig.section_class || 'Not selected'}</p>
+                            <button type="button" onClick={async () => {
+                                if (isDirty) { const saved = await handleSave(false); if (!saved) return; }
+                                prepareNextClass();
+                                setSuccessMsg('Choose the school and class for your next reports.');
+                            }} className="min-h-11 rounded-lg border border-border px-3 text-sm font-medium text-foreground">Change school or class</button>
                         </Field>
                         <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" suggestions={getSuggestionsForCourse()} />
 
@@ -3367,9 +3364,9 @@ function ReportBuilderInner() {
                                 <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
                                     <div>
                                         <h2 id="recent-report-work-heading" className="text-sm font-black text-foreground">Continue recent work</h2>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">Open the exact saved record—no searching through the editor.</p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">Pick up where you left off.</p>
                                     </div>
-                                    <Link href="/dashboard/results" className="text-xs font-bold text-primary hover:underline">View all reports</Link>
+                                    <Link href="/dashboard/results" className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-medium text-primary hover:bg-muted">Find an older report</Link>
                                 </div>
                                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                                     {recentReports.slice(0, 4).map((report) => {
@@ -3387,7 +3384,7 @@ function ReportBuilderInner() {
                                             <Link key={report.id} href={destination} className="group flex min-h-24 flex-col justify-between rounded-xl border border-border bg-background p-3 transition-colors hover:border-primary/40 hover:bg-primary/5">
                                                 <span className="min-w-0">
                                                     <span className="block truncate text-sm font-black text-foreground">{report.student_name || 'Student report'}</span>
-                                                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{[report.section_class, report.course_name].filter(Boolean).join(' · ') || 'Progress report'}</span>
+                                                    <span className="mt-0.5 block break-words text-xs text-muted-foreground">{[report.school_name, report.section_class, report.course_name].filter(Boolean).join(' · ') || 'Progress report'}</span>
                                                     <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{[report.report_term, report.report_period].filter(Boolean).join(' · ')}</span>
                                                 </span>
                                                 <span className="mt-2 flex items-center justify-between gap-2">
@@ -3412,21 +3409,16 @@ function ReportBuilderInner() {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="School">
-                                    <select
-                                        value={sessionConfig.school_name}
-                                        onChange={e => {
-                                            const name = e.target.value;
-                                            const match = schools.find(sc => sc.name === name);
+                                    <ReportSchoolPicker schools={schools} value={sessionConfig.school_id} selectedName={sessionConfig.school_name}
+                                        onChange={school => {
+                                            if (school.id === sessionConfig.school_id) return;
                                             setClassFilter('');
                                             setGradeFilter('');
                                             setSessionProgramId('');
                                             setCourseConfirmationKey('');
-                                            setSessionConfig(s => ({ ...s, school_name: name, school_id: match?.id, class_id: '', section_class: '', course_id: '', course_name: '' }));
+                                            setSessionConfig(s => ({ ...s, school_name: school.name, school_id: school.id, class_id: '', term_id: '', section_class: '', course_id: '', course_name: '', current_module: '', next_module: '', learning_milestones: [] }));
                                         }}
-                                        className={`${INPUT} min-h-12 text-base`}>
-                                        <option value="">— Select school —</option>
-                                        {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
-                                    </select>
+                                    />
                                 </Field>
                                 <Field label="Class / section">
                                     <select
@@ -3705,7 +3697,7 @@ function ReportBuilderInner() {
                                             setStep('pick');
                                         }}
                                         className="w-full py-4 bg-primary hover:bg-primary text-white font-black text-base rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
-                                        <UserGroupIcon className="w-5 h-5" /> Start grading
+                                        <UserGroupIcon className="w-5 h-5" /> Choose student
                                     </button>
                                 </>
                             );
@@ -3966,7 +3958,7 @@ function ReportBuilderInner() {
                         {resumedSession && (
                             <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
                                 <p className="min-w-0 flex-1">
-                                    Session restored — continuing <strong className="text-foreground">{sessionConfig.section_class}</strong> · {sessionConfig.course_name}. Returned to {selectedStudent.full_name}.
+                                    Continue with <strong className="text-foreground">{selectedStudent.full_name}</strong> · {sessionConfig.school_name} · {sessionConfig.section_class} · {sessionConfig.report_term} {sessionConfig.report_period}.
                                 </p>
                                 <button type="button" onClick={() => setResumedSession(false)} className="flex-shrink-0 text-muted-foreground/50 hover:text-foreground">
                                     <XMarkIcon className="h-3.5 w-3.5" />
