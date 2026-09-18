@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { sessionsEqual } from '@/lib/reports/academic-period';
 import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-range';
 import {
   endWeekForReportWindow,
@@ -56,9 +57,15 @@ export function useSchoolReportSetup() {
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to load reports (HTTP ${response.status}).`);
       const loadedTerms: AcademicTerm[] = json.terms || [];
-      const defaultTerm = loadedTerms.find((term) => term.is_current) || loadedTerms[0];
+      const requested = new URLSearchParams(window.location.search);
+      const requestedTerm = loadedTerms.find(term => sessionsEqual(
+        { report_term: term.term_label, report_period: term.academic_year },
+        { report_term: requested.get('report_term'), report_period: requested.get('report_period') },
+      ));
+      const defaultTerm = requestedTerm || loadedTerms.find((term) => term.is_current) || loadedTerms[0];
       const loadedSchools: SchoolOption[] = json.schools || [];
-      const defaultSchool = loadedSchools[0];
+      const defaultSchool = loadedSchools.find(school => school.id === requested.get('schoolId'))
+        || (loadedSchools.length === 1 ? loadedSchools[0] : undefined);
       setSchools(loadedSchools);
       setActiveBooks(json.activeBooks || []);
       setTerms(loadedTerms);

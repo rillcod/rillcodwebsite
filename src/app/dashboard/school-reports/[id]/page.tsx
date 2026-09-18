@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { use } from 'react';
 import { SchoolReportWorkspace } from '@/components/school-reports/SchoolReportWorkspace';
+import { SchoolReportTermNotice } from '@/components/school-reports/SchoolReportTermNotice';
 import { useSchoolReportEditorPage } from '@/hooks/useSchoolReportEditorPage';
 
 export default function SchoolReportEditorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -45,9 +46,10 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
         <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report editor</p>
         <h1 className="mt-2 text-2xl font-black text-foreground">{editor.report.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          AI writing studio with live preview — generate, edit and publish with speed.
+          Review the school report, then publish it when ready.
         </p>
       </header>
+      {editor.canManage && <SchoolReportTermNotice schoolId={editor.report.school_id} schoolName={editor.report.school_name || editor.report.snapshot?.school?.name || 'School'} term={editor.report.term_label} year={editor.report.academic_year} />}
 
       {editor.refreshing ? (
         <p className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-bold text-muted-foreground">

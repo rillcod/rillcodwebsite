@@ -13,6 +13,7 @@ import type { SuggestedCurriculumRange } from '@/lib/school-reports/curriculum-r
 import { needsCurriculumOverrideReason } from '@/lib/school-reports/curriculum-override';
 import { SETUP_WORKFLOW_STEPS, type SetupWorkflowStep } from '@/lib/school-reports/ui/workflow-steps';
 import type { AcademicTerm, ReportSetupForm, SchoolOption } from '@/lib/school-reports/ui/types';
+import { ReportSchoolPicker } from '@/components/reports/ReportSchoolPicker';
 import { SetupDeliveryTopicsPanel } from '@/components/school-reports/SetupDeliveryTopicsPanel';
 
 function PreflightPanel({
@@ -214,21 +215,10 @@ export function SchoolReportSetupWizard({
 
       {step === 1 ? (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <label className="space-y-1 md:col-span-2">
+          <div className="space-y-1 md:col-span-2">
             <span className="text-xs font-black uppercase text-muted-foreground">School</span>
-            <select
-              value={form.schoolId}
-              onChange={(e) => chooseSchool(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background p-3"
-            >
-              <option value="">Choose school</option>
-              {schools.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <ReportSchoolPicker schools={schools} value={form.schoolId} onChange={school => chooseSchool(school.id)} />
+          </div>
           <label className="space-y-1 md:col-span-2">
             <span className="text-xs font-black uppercase text-muted-foreground">Academic term and year</span>
             <select

@@ -92,7 +92,7 @@ export function SchoolReportLibrary({
                         : "bg-amber-500/10 text-amber-700 dark:text-amber-300 dark:bg-amber-500/20 border border-amber-500/25"
                     }`}
                   >
-                    {report.status}
+                    {report.status === 'published' ? 'Book published' : report.status === 'draft' ? 'Book draft' : 'Book archived'}
                   </span>
                   <span className="text-xs text-muted-foreground font-medium">
                     Updated{" "}
@@ -107,6 +107,7 @@ export function SchoolReportLibrary({
                 <p className="mt-1 text-sm font-bold text-primary">
                   {report.school_name}
                 </p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{report.term_label} · {report.academic_year}</p>
                 <p className="mt-3 text-xs text-muted-foreground font-medium">
                   {new Date(report.period_start).toLocaleDateString()} -{" "}
                   {new Date(report.period_end).toLocaleDateString()}

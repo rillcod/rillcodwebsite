@@ -4499,6 +4499,30 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   or No report. Successful chunks keep their grades. No database writes or fallback to a
   different academic term were introduced.
 
+### Result builder return workflow and St Peter term comparison — 2026-09-18
+
+- Read-only production evidence: St Peter Catholic School has 27 distinct learners with
+  27 scored, published student reports for First Term 2026/2027. Its only school report book
+  is a Third Term 2025/2026 draft, whose stored snapshot lists six scored learners. The older
+  term has 15 student-report rows for 13 learners, seven rows published. Do not merge these
+  periods or move scores to make a count match. The current academic_terms flag correctly
+  points to First Term 2026/2027; a stale current-term database flag was NOT the cause.
+- The school-book editor now explicitly names the school, term and year; distinguishes book
+  publication from student publication; links to student results for that same period; and
+  offers current-term setup for older books. Setup validates requested school/period against
+  its permitted choices. It no longer silently selects the first school for multi-school staff.
+  No new book was generated or published and no existing book or marks were overwritten.
+- Shared searchable school picker now used in result-builder setup and school-book setup.
+  Result Builder changes schools by ID and clears dependent class/course/module selections.
+  Removed the second identity editor from session summary: changing school/class goes through
+  the normal setup path, preserving work by checking save success before leaving.
+- Returning-work cards now show school as well as class/term and have an explicit older-report
+  link. Keyboard navigation respects controls, ignores repeated/busy actions and stops after
+  failed saves. Saved session identity remains in the existing per-user storage, not a new ledger.
+- Eleven focused tests passed (school picker, term notice, published evidence). Full browser
+  mobile/desktop interaction has not been completed. A complete end-to-end audit of all school
+  book calculations and the originally observed intermittent publication display is still open.
+
 ### Report Builder school picker and session integrity — 2026-09-18
 
 - In Report Builder setup, replaced basic school dropdown with searchable `ReportSchoolPicker`

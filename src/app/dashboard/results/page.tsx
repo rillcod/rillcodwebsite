@@ -161,6 +161,7 @@ function ResultsPageInner() {
     const prefYear = searchParams.get('year') || searchParams.get('report_period') || searchParams.get('period');
     const prefReportId = searchParams.get('report') || searchParams.get('report_id');
     const prefCourseId = searchParams.get('course_id');
+    const prefSchoolName = searchParams.get('school') || '';
     const { profile, loading: authLoading } = useAuth();
     const urlStudentSyncRef = useRef<string | null>(prefStudentId);
 
@@ -187,7 +188,8 @@ function ResultsPageInner() {
 
     // ── Filters ────────────────────────────────────────────────────────────────
     const [search, setSearch] = useState('');
-    const [filterSchool, setFilterSchool] = useState('');
+    const [filterSchool, setFilterSchool] = useState(prefSchoolName);
+    useEffect(() => { setFilterSchool(prefSchoolName); }, [prefSchoolName]);
     const [filterClass, setFilterClass] = useState('');
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'has' | 'published' | 'draft' | 'none'>('all');
