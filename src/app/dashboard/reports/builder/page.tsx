@@ -54,6 +54,7 @@ import { cn } from '@/lib/utils';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { resolveEffectiveScoreWeights, scoreWeightPercent, type PublishedGradingScheme } from '@/lib/grading-scheme';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
+import { requiredReportRead } from '@/lib/reports/required-report-read';
 import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls, ScorePanelSkeleton, BuilderContextStrip } from '@/components/reports/builder/workflow-panels';
 import { ManualProtectionBanner, AutoFillStatusBanner, AutoFillEditConfirmDialog, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { formatClassRowOptionLabel, ReportSessionContextBanner } from '@/components/reports/ReportSessionContextBanner';
@@ -894,7 +895,11 @@ function ReportBuilderInner() {
 
     // ── Dirty tracking ────────────────────────────────────────────────────────
     const snapForm = useRef<typeof form | null>(null);   // snapshot of form at last student load
+    const emptyReportForm = useRef({ ...form });
     const isHydrating = useRef(false);                   // true while selectStudent is loading form
+    const openingReport = useRef(false);
+    const selectionVersion = useRef(0);
+    const [openingStudentName, setOpeningStudentName] = useState<string | null>(null);
     const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const autoFillEditConfirmedRef = useRef<string | null>(null);
     const pendingScoreEditRef = useRef<(() => void) | null>(null);
@@ -1728,6 +1733,21 @@ function ReportBuilderInner() {
             term_id?: string | null;
         };
     }) {
+        if (openingReport.current || saving || publishing) return;
+        openingReport.current = true;
+        const selection = ++selectionVersion.current;
+        isHydrating.current = true;
+        setOpeningStudentName(s.full_name || 'student');
+        setStudentHistoryReports([]);
+        setViewingHistoryReport(null);
+        setStudentStats({
+            attendance: 0, totalSessions: 0, assignments: 0, totalAssignments: 0,
+            cbtScore: 0, assignmentAvg: 0, evalScore: 0, assignmentPct: 0,
+            projects: 0, pendingCbt: 0, firstTest: null, secondTest: null,
+            examination: null, hostTotal: null, hostPapers: emptyHostPaperMarks(),
+            hostTotalMark: null, hostPaperExamIds: emptyHostPaperExamIds(),
+        });
+        try {
         setSelectedStudent(s);
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
@@ -1745,7 +1765,7 @@ function ReportBuilderInner() {
             setStudentHistoryReports([]);
             setViewingHistoryReport(null);
             isHydrating.current = true;
-            setForm(f => ({ ...f, student_name: s.full_name ?? '', section_class: sessionConfig.section_class }));
+            setForm({ ...emptyReportForm.current, student_name: s.full_name ?? '', section_class: sessionConfig.section_class });
             snapForm.current = null; // manual entries have no reference snapshot
             setIsDirty(false);
             setTimeout(() => { isHydrating.current = false; }, 100);
@@ -1794,26 +1814,20 @@ function ReportBuilderInner() {
         // course merely because it was saved last.
         let scopedReport: StudentReport | null = null;
         if (lookupCourseId) {
-            const { data: byCourseId } = await withTimeout(
+            const { data: byCourseId } = await requiredReportRead(
                 sessionQuery().eq('course_id', lookupCourseId).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-                { data: null, error: null },
-                'course-scoped report lookup',
             );
             scopedReport = (byCourseId as StudentReport | null) ?? null;
         }
         if (!scopedReport && sessionConfig.course_name.trim()) {
-            const { data: byCourseName } = await withTimeout(
+            const { data: byCourseName } = await requiredReportRead(
                 sessionQuery().ilike('course_name', sessionConfig.course_name.trim()).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-                { data: null, error: null },
-                'course-name report lookup',
             );
             scopedReport = (byCourseName as StudentReport | null) ?? null;
         }
         if (!scopedReport && !lookupCourseId && !sessionConfig.course_name.trim()) {
-            const { data: onlySessionReport } = await withTimeout(
+            const { data: onlySessionReport } = await requiredReportRead(
                 sessionQuery().order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-                { data: null, error: null },
-                'session report lookup',
             );
             scopedReport = (onlySessionReport as StudentReport | null) ?? null;
         }
@@ -1823,12 +1837,11 @@ function ReportBuilderInner() {
         if (explicitReportId) {
             let explicitQuery = db.from('student_progress_reports').select('*').eq('id', explicitReportId);
             if (!isPrePortal) explicitQuery = explicitQuery.eq('student_id', s.id) as typeof explicitQuery;
-            const { data: byId } = await withTimeout(
+            const { data: byId } = await requiredReportRead(
                 explicitQuery.maybeSingle(),
-                { data: null, error: null },
-                'explicit report lookup',
             );
             explicitReport = (byId as StudentReport | null) ?? null;
+            if (!explicitReport) throw new Error('This saved report is unavailable. Choose the student again or reopen it from saved reports.');
         }
 
         // Edit/Open with this report id or an explicit term lands on that report.
@@ -1836,9 +1849,7 @@ function ReportBuilderInner() {
         const keepRequestedSession = Boolean(
             explicitReport || (opts?.forceHydrate && (prefReportId || prefReportTerm || prefReportPeriod)),
         );
-        const report = explicitReport
-            ?? scopedReport
-            ?? (keepRequestedSession && opts?.forceHydrate ? latestReport : null);
+        const report = explicitReport ?? scopedReport;
         let hydratedReport = report ?? null;
 
         const sectionClass = String(
@@ -1946,9 +1957,11 @@ function ReportBuilderInner() {
             { data: [], error: null },
             'learner history lookup',
         ).then(({ data }) => {
+            if (selection !== selectionVersion.current) return;
             setStudentHistoryReports((data as StudentReport[]) ?? []);
             setLoadingHistory(false);
         }).catch(() => {
+            if (selection !== selectionVersion.current) return;
             setLoadingHistory(false);
         });
 
@@ -2135,7 +2148,7 @@ function ReportBuilderInner() {
                             q = q.or(`class_id.eq.${targetClassId},course_id.eq.${evidenceCourseId}`) as any;
                         } else if (targetClassId) {
                             q = q.eq('class_id', targetClassId) as any;
-                        } else {
+                        } else if (evidenceCourseId) {
                             q = q.eq('course_id', evidenceCourseId) as any;
                         }
                         return q;
@@ -2240,6 +2253,21 @@ function ReportBuilderInner() {
             // a new typed report deliberately starts blank.
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
+        }
+        } catch (error) {
+            ++selectionVersion.current;
+            skipAutoPickRef.current = true;
+            setSelectedStudent(null);
+            setExistingReport(null);
+            snapForm.current = null;
+            setIsDirty(false);
+            setStep('pick');
+            setError(error instanceof Error ? error.message : 'Your saved report could not be opened. Please choose the student again.');
+        } finally {
+            openingReport.current = false;
+            setOpeningStudentName(null);
+            setLoadingHistory(false);
+            isHydrating.current = false;
         }
     }
 
@@ -2512,6 +2540,7 @@ function ReportBuilderInner() {
 
     // ── Save report ───────────────────────────────────────────────────────────
     const handleSave = async (publish = false) => {
+        if (openingReport.current) return false;
         if (!selectedStudent) return false;
         if (existingReport?.is_published) {
             setError('This report is published and locked. Open Publish & Share, unpublish it, then return to Write to make corrections.');
@@ -2674,7 +2703,8 @@ function ReportBuilderInner() {
     };
 
     const returnToRoster = async () => {
-        if (saving || publishing) return;
+        if (openingReport.current || saving || publishing) return;
+        ++selectionVersion.current;
         if (isDirty) {
             const saved = await handleSave(false);
             if (!saved) return;
@@ -2718,6 +2748,8 @@ function ReportBuilderInner() {
     };
 
     function prepareNextClass() {
+        if (openingReport.current) return;
+        ++selectionVersion.current;
         const finishedClassName = sessionConfig.section_class;
         sessionStudents.current = [];
         setSelectedStudent(null);
@@ -3938,7 +3970,12 @@ function ReportBuilderInner() {
                 {/* ══════════════════════════════════════════════════════════════
                     STEP 2: Edit per-student report
                 ══════════════════════════════════════════════════════════════ */}
-                {sessionDone && selectedStudent && (
+                {openingStudentName && (
+                    <div role="status" aria-live="polite" className="rounded-xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-900">
+                        Opening {openingStudentName}’s report…
+                    </div>
+                )}
+                {sessionDone && selectedStudent && !openingStudentName && (
                     <div className="space-y-3 pb-[calc(var(--app-sticky-actions-height)+0.25rem)] md:pb-0">
                         {/* Sticky Active Student & Score Context Strip — docks to top on mobile & desktop so you never lose sight of whom & what you are scoring */}
                         <BuilderContextStrip

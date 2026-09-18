@@ -4535,3 +4535,12 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
   and navigation during in-flight saves, preventing student index desynchronization.
 - Four focused component/wiring tests pass; reports suite (478 tests across 81 files) and full
   TypeScript typecheck pass.
+
+### 2026-09-18 — Result builder: safe opening and returning to saved work
+
+- Required report reads now fail visibly on database errors, connection failures, or timeout instead of presenting an apparently empty report.
+- Removed the cross-term latest-report fallback. An unavailable explicit report cannot silently open a different report.
+- Student selection is single-flight; the editor is hidden with a named loading message and saving is blocked until opening finishes. Late history results are ignored after changing context.
+- New manual entries start with an empty form, not the previous learner's scores or remarks.
+- Validation: all 21 focused tests, TypeScript check, and diff whitespace check passed after the final adjustment. No live records or manual scores changed.
+- Remaining verification: browser interaction under slow network, desktop/mobile visual checks, and live multi-role workflows were not performed in this pass. This is not an end-to-end certification.
