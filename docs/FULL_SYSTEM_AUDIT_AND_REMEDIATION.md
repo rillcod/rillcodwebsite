@@ -4553,3 +4553,12 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - Centralized staff email-history loading in one cancellable effect, including manual refresh and refresh after sending. Removed parallel loaders and avoided delivery-history requests for learners.
 - Cleared stale report links when navigating between students. Existing scores and publication flags remain unchanged.
 - Validation: 197 tests across 30 report test files and TypeScript check passed. Seven new selection tests cover missing terms/courses/explicit records, historical choice, and preservation of saved data. Desktop/mobile browser and live-role verification remain outstanding; no live data changed.
+
+### 2026-09-18 — School report editor: preserve writing during saves
+
+- Confirmed and fixed save acknowledgement treating newer edits as saved. Only the submitted editor/design snapshot is acknowledged; subsequent edits stay dirty and retain local recovery content.
+- Server revision updates no longer rebase unsaved text. The baseline now changes only when server content is actually loaded into the editor.
+- Normal save/title refreshes preserve current writing. Autosave is paused during explicit operations; concurrent autosave requests are guarded synchronously. Save during autosave gives actionable feedback.
+- Added request timeouts to editor loading/saving, stale-load guards, response identity validation, and a visible Try again action for opening failures.
+- Validation: 299 tests across 54 files passed, including three real hook tests in a DOM environment covering typing during a delayed save, successful save cleanup, and failed-save recovery. Typecheck is checked separately before commit.
+- No live reports, scores, or publication states changed. This milestone addresses editor reliability, not a claim that live figures, PDF output, every role, or all refresh/publish concurrency paths have been exhaustively verified.

@@ -7,6 +7,7 @@ import { DEFAULT_SCHOOL_REPORT_DESIGN, normalizeSchoolReportDesign, type SchoolR
 import { EMPTY_EDITOR, editorFromNarrative, narrativeFromEditor, type SchoolReportEditorState } from '@/lib/school-reports/editor-state';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
 import { useSchoolReportEditor } from '@/hooks/useSchoolReportEditor';
+import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 
 export function useSchoolReportEditorPage(reportId: string, opts?: { role?: string }) {
   const router = useRouter();
@@ -18,39 +19,55 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
   const [role, setRole] = useState(opts?.role || '');
+  const [loadedBaseline, setLoadedBaseline] = useState<string | null>(null);
+  const loadVersion = useRef(0);
   const reportRef = useRef(report);
   reportRef.current = report;
 
   const canManage = role === 'admin' || role === 'teacher';
 
-  const loadReport = useCallback(async () => {
+  const loadReport = useCallback(async (options?: { preserveEdits?: boolean }) => {
+    const request = ++loadVersion.current;
     // Soft refresh: keep the current report painted so save/regenerate don't blank the UI.
     setError('');
-    if (reportRef.current) setRefreshing(true);
-    else setLoading(true);
+    if (reportRef.current?.id === reportId) setRefreshing(true);
+    else {
+      setReport(null);
+      setLoadedBaseline(null);
+      setLoading(true);
+    }
     try {
-      const response = await fetch(`/api/school-performance-reports/${reportId}`, { cache: 'no-store' });
+      const response = await fetchWithTimeoutOrThrow(`/api/school-performance-reports/${reportId}`, { cache: 'no-store' });
       const json = await response.json().catch(() => ({} as Record<string, unknown>));
+      if (request !== loadVersion.current) return null;
       if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to open report (HTTP ${response.status}).`);
       const row = json.data as SchoolPerformanceReportRow;
+      if (!row || row.id !== reportId) throw new Error('This report could not be opened. Please try again.');
       setReport(row);
       setRole(json.role || role);
       const nextEditor = editorFromNarrative(row.narrative);
       const nextDesign = designFromRow(row);
-      setEditor(nextEditor);
-      setDesign(nextDesign);
+      if (!options?.preserveEdits) {
+        setEditor(nextEditor);
+        setDesign(nextDesign);
+        setLoadedBaseline(`${reportId}:${request}`);
+      }
       return row;
     } catch (loadError) {
+      if (request !== loadVersion.current) return null;
       setError(loadError instanceof Error ? loadError.message : 'Unable to open report.');
       return null;
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (request === loadVersion.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [reportId, role]);
 
   useEffect(() => {
     void loadReport();
+    return () => { ++loadVersion.current; };
   }, [loadReport]);
 
   const { isDirty, lastSavedAt, autosaving, saveFailed, offline, hasLocalDraft, markSaved, retrySave, restoreLocalDraft } =
@@ -58,12 +75,10 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       reportId: report?.id ?? null,
       editor,
       design,
-      enabled: canManage && report?.status !== 'published',
+      enabled: canManage && !working && !loading && !refreshing && report?.status !== 'published',
       published: report?.status === 'published',
       lockVersion: report?.lock_version ?? 1,
-      baselineVersion: report
-        ? `${report.id}:${report.updated_at}:${report.lock_version ?? 1}:${report.snapshot?.snapshotVersion ?? 1}`
-        : null,
+      baselineVersion: loadedBaseline,
       onLockVersionChange: (next) => {
         setReport((current) => (current ? { ...current, lock_version: next } : current));
       },
@@ -80,6 +95,10 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
       withdrawReason?: string;
     }): Promise<{ ok: boolean; published?: boolean; lockVersion?: number }> => {
       if (!report) return { ok: false };
+      if (autosaving) {
+        setError('Your latest changes are still saving. Please try again in a moment.');
+        return { ok: false };
+      }
       const status = saveOpts?.status;
       setWorking(status || 'save');
       setError('');
@@ -100,7 +119,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
               ...(saveOpts?.withdrawReason ? { withdrawReason: saveOpts.withdrawReason } : {}),
               expectedRevision: report.lock_version ?? 1,
             };
-        const response = await fetch(`/api/school-performance-reports/${report.id}`, {
+        const response = await fetchWithTimeoutOrThrow(`/api/school-performance-reports/${report.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -119,8 +138,8 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
           router.push('/dashboard/school-reports');
           return { ok: true, lockVersion: savedLockVersion };
         }
-        markSaved({ editor, design });
-        await loadReport();
+        if (!saveOpts?.statusOnly) markSaved({ editor, design });
+        await loadReport({ preserveEdits: true });
         return { ok: true, published: status === 'published', lockVersion: savedLockVersion };
       } catch (saveError) {
         setError(saveError instanceof Error ? saveError.message : 'Unable to save report.');
@@ -129,7 +148,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
         setWorking('');
       }
     },
-    [design, editor, loadReport, markSaved, report, router],
+    [autosaving, design, editor, loadReport, markSaved, report, router],
   );
 
   const updateTitle = useCallback(
@@ -147,7 +166,7 @@ export function useSchoolReportEditorPage(reportId: string, opts?: { role?: stri
         });
         const json = await response.json().catch(() => ({} as Record<string, unknown>));
         if (!response.ok) throw new Error((json.error as string | undefined) || `Unable to update title (HTTP ${response.status}).`);
-        await loadReport();
+        await loadReport({ preserveEdits: true });
       } finally {
         setWorking('');
       }

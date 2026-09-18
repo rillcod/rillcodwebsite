@@ -33,6 +33,9 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {editor.error || 'Report not found.'}
         </p>
+        <button type="button" onClick={() => void editor.reload()} className="mr-4 min-h-11 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+          Try again
+        </button>
         <Link href="/dashboard/school-reports" className="text-sm font-black text-primary underline">
           Back to reports
         </Link>

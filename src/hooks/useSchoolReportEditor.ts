@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
+import { hasUnsavedReportChanges } from '@/lib/school-reports/editor-save-state';
 import { designStatesEqual, normalizeSchoolReportDesign, type SchoolReportDesignSettings } from '@/lib/school-reports/design';
 import {
   editorStatesEqual,
@@ -56,7 +58,7 @@ function writeLocalDraft(reportId: string, draft: LocalDraft) {
 
 function clearLocalDraft(reportId: string) {
   if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(draftKey(reportId));
+  try { window.localStorage.removeItem(draftKey(reportId)); } catch { /* Storage may be blocked. */ }
 }
 
 export function useSchoolReportEditor({
@@ -76,6 +78,9 @@ export function useSchoolReportEditor({
     design: normalizeSchoolReportDesign(design),
   });
   const baselineVersionRef = useRef<string | null>(null);
+  const currentRef = useRef({ reportId, editor, design, lockVersion });
+  currentRef.current = { reportId, editor, design, lockVersion };
+  const savingRef = useRef(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [autosaving, setAutosaving] = useState(false);
@@ -132,21 +137,32 @@ export function useSchoolReportEditor({
   }, [design, editor, enabled, isDirty, lockVersion, published, reportId]);
 
   const markSaved = useCallback((state: SchoolReportSavedSnapshot) => {
+    if (currentRef.current.reportId !== reportId) return;
     snapRef.current = {
       editor: { ...state.editor },
       design: normalizeSchoolReportDesign(state.design),
     };
     setLastSavedAt(new Date());
-    setIsDirty(false);
+    const changed = hasUnsavedReportChanges(currentRef.current, state);
+    setIsDirty(changed);
     setSaveFailed(false);
     if (reportId) {
-      clearLocalDraft(reportId);
-      setHasLocalDraft(false);
+      if (changed) {
+        writeLocalDraft(reportId, {
+          editor: { ...currentRef.current.editor },
+          design: normalizeSchoolReportDesign(currentRef.current.design),
+          savedAt: new Date().toISOString(),
+          lockVersion: currentRef.current.lockVersion,
+        });
+      } else {
+        clearLocalDraft(reportId);
+      }
+      setHasLocalDraft(changed);
     }
   }, [reportId]);
 
   const autosave = useCallback(async () => {
-    if (!reportId || !enabled || published || autosaving) return;
+    if (!reportId || !enabled || published || savingRef.current) return;
     if (offline) {
       setSaveFailed(true);
       onSaveFailed?.('Offline — changes saved locally until connection returns.');
@@ -155,9 +171,10 @@ export function useSchoolReportEditor({
     const editorDirty = !editorStatesEqual(editor, snapRef.current.editor);
     const designDirty = !designStatesEqual(design, snapRef.current.design);
     if (!editorDirty && !designDirty) return;
+    savingRef.current = true;
     setAutosaving(true);
     try {
-      const response = await fetch(`/api/school-performance-reports/${reportId}`, {
+      const response = await fetchWithTimeoutOrThrow(`/api/school-performance-reports/${reportId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -168,6 +185,7 @@ export function useSchoolReportEditor({
         }),
       });
       const json = await response.json().catch(() => ({}));
+      if (currentRef.current.reportId !== reportId) return;
       if (response.status === 409) {
         setSaveFailed(true);
         const message =
@@ -186,6 +204,7 @@ export function useSchoolReportEditor({
       if (json.lockVersion) onLockVersionChange?.(Number(json.lockVersion));
       markSaved({ editor, design });
     } catch (saveError) {
+      if (currentRef.current.reportId !== reportId) return;
       setSaveFailed(true);
       onSaveFailed?.(
         saveError instanceof Error
@@ -193,6 +212,7 @@ export function useSchoolReportEditor({
           : 'Autosave could not reach the server. Your local recovery draft is safe.',
       );
     } finally {
+      savingRef.current = false;
       setAutosaving(false);
     }
   }, [
