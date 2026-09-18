@@ -4477,3 +4477,24 @@ Validate 1 GiB memory with PDF/generation load as well. Do not describe the cost
 - Thirteen component-render tests cover all nine WAEC grades, legacy grades, zero,
   absent values and drafts. The affected user's exact preview has not been reproduced;
   this is an explicit visibility improvement, not proof of a template-specific root cause.
+
+### Publish review usability — 2026-09-18
+
+- Moved the saved grade ahead of actions and email history; hide it while another report
+  loads. Show the report-history selector with a visible label.
+- Replaced the clipped, horizontally scrolling toolbar with wrapping action groups and
+  44px minimum button targets. Removed the oversized sticky-toolbar behavior on phones.
+- Replaced abbreviated template buttons and tiny unlabeled colour swatches with a collapsed
+  Report appearance control containing labelled Layout and Style selects. Existing choices
+  and callbacks are preserved. Email history is collapsed per report to prioritise review.
+- Expanded payment-notice and download labels and removed technical share-fallback wording.
+  Editor/staff gates remain unchanged. No report data, scoring, publication or delivery logic
+  changed. Seventeen focused render/wiring tests passed. Physical mobile/browser interaction
+  and template-preview disappearance still require verification; tests are not visual proof.
+- User clarified the affected area is the grade beside each student name. Moved the existing
+  saved letter grade into the name row as a non-shrinking labelled badge; removed its duplicate
+  right-column rendering. Published stored grades are not hidden by an old auto-fill flag.
+- Report-map read failures/timeouts previously became empty successful results. Track the
+  affected student IDs and show Grade unavailable plus Retry grades, rather than claiming New
+  or No report. Successful chunks keep their grades. No database writes or fallback to a
+  different academic term were introduced.

@@ -30,6 +30,7 @@ import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { PublishedResultSummary } from '@/components/reports/PublishedResultSummary';
+import { ReportAppearanceControls } from '@/components/reports/ReportAppearanceControls';
 import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { AutoFillStatusBanner, NoScoresYetNotice, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { ReportSessionContextBanner, SessionCalendarRollNotice } from '@/components/reports/ReportSessionContextBanner';
@@ -166,6 +167,7 @@ function ResultsPageInner() {
     // ── Core data ──────────────────────────────────────────────────────────────
     const [students, setStudents] = useState<PortalUser[]>([]);
     const [reportsMap, setReportsMap] = useState<Record<string, any>>({});
+    const [unloadedGradeIds, setUnloadedGradeIds] = useState<Set<string>>(new Set());
     const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -331,6 +333,7 @@ function ResultsPageInner() {
         setSelectedStudent(null);
         setSelectedReport(null);
         setLoading(true);
+        setUnloadedGradeIds(new Set());
 
         let aborted = false;
         const db = createClient();
@@ -554,6 +557,7 @@ function ResultsPageInner() {
                 }
 
                 const allReports: any[] = [];
+                const failedGradeIds = new Set<string>();
                 await Promise.all(chunks.map(async (chunk) => {
                     let reportsQuery = db.from('student_progress_reports')
                         .select('student_id, course_id, overall_grade, is_published, updated_at, report_date, report_term, report_period')
@@ -577,15 +581,18 @@ function ResultsPageInner() {
 
                     const { data, error } = await withTimeout(
                         reportsQuery,
-                        { data: [], error: null },
+                        { data: [], error: { message: 'Grades could not be loaded' } },
                         'results report map chunk',
                     );
                     if (!error && data) {
                         allReports.push(...data);
+                    } else {
+                        chunk.forEach(id => failedGradeIds.add(id));
                     }
                 }));
 
                 if (aborted) return;
+                setUnloadedGradeIds(failedGradeIds);
 
                 // Sort allReports by is_published desc, updated_at desc to make sure latest is prioritized
                 allReports.sort((a, b) => {
@@ -2015,6 +2022,12 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                             </div>
 
                             {/* Student list */}
+                            {unloadedGradeIds.size > 0 && (
+                                <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                                    <p>Some grades could not be loaded. Saved results have not changed.</p>
+                                    <button type="button" onClick={() => setRefreshTick(n => n + 1)} className="min-h-11 rounded-md border border-border bg-card px-3 font-medium">Retry grades</button>
+                                </div>
+                            )}
                             <div className="max-h-[calc(100vh-320px)] space-y-1 overflow-y-auto pr-0.5">
                                 {filtered.length === 0 && (
                                     <p className="py-8 text-center text-sm text-muted-foreground">No students found</p>
@@ -2051,7 +2064,12 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             </div>
 
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-semibold text-foreground">{s.full_name ?? 'Unknown'}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="min-w-0 truncate text-sm font-semibold text-foreground">{s.full_name ?? 'Unknown'}</p>
+                                                    {r?.overall_grade && (!automaticResultHasNoEvidence(r) || r.is_published) && (
+                                                        <span aria-label={`Grade ${r.overall_grade}`} className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-2 py-1 text-sm font-bold text-primary">{r.overall_grade}</span>
+                                                    )}
+                                                </div>
                                                 <p className="truncate text-[11px] text-muted-foreground">
                                                     {[cls, sch].filter(Boolean).join(' · ') || s.email}
                                                 </p>
@@ -2060,14 +2078,11 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
                                                 {r ? (
                                                     <>
-                                                        <span className="font-mono text-sm font-black tabular-nums text-foreground">
-                                                            {automaticResultHasNoEvidence(r) ? '—' : (r.overall_grade ?? '?')}
-                                                        </span>
                                                         <ResultStatusBadges report={r} />
                                                     </>
                                                 ) : (
                                                     <span className="rounded border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-black uppercase text-muted-foreground">
-                                                        New
+                                                        {unloadedGradeIds.has(s.id) ? 'Grade unavailable' : 'No report'}
                                                     </span>
                                                 )}
                                             </div>
@@ -2093,12 +2108,12 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                 )}>
 
                                     {/* Action bar */}
-                                    <div className="sticky top-0 z-20 flex flex-col gap-1.5 border-b border-border bg-card/95 px-2 py-1.5 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:px-3">
+                                    <div className="flex flex-col gap-3 border-b border-border bg-card px-3 py-3">
                                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                             {isStaff && !mobileReportFocus && (
                                                 <button
                                                     onClick={returnToProgressReportsRoster}
-                                                    className="flex h-7 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+                                                    className="flex min-h-11 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted lg:hidden"
                                                 >
                                                     <ArrowLeftIcon className="h-3 w-3" />
                                                     All reports
@@ -2123,12 +2138,14 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             )}
                                         </div>
 
-                                        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto pb-0.5 lg:flex-wrap lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                        {!loadingReport && reportToDisplay && <PublishedResultSummary report={reportToDisplay} />}
+                                        <div aria-label="Report actions" className="flex flex-wrap items-center gap-2 [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:text-sm [&_a]:min-h-11 [&_a]:text-sm">
                                             {reportHistory.length > 1 && (
-                                                <label className="flex h-9 min-w-[12rem] flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2 shadow-sm">
+                                                <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 sm:w-auto sm:min-w-[16rem]">
                                                     <ClockIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                                                    <span className="sr-only">Open another report for this student</span>
+                                                    <span className="text-sm text-muted-foreground">Report</span>
                                                     <select
+                                                        disabled={loadingReport}
                                                         value={selectedReport?.id ?? ''}
                                                         onChange={(e) => pickReport(reportHistory.find(x => x.id === e.target.value) ?? null)}
                                                         className="h-8 min-w-0 flex-1 cursor-pointer bg-transparent text-[11px] font-bold text-foreground outline-none"
@@ -2143,7 +2160,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             )}
 
                                             {isStaff && currentIdx >= 0 && (
-                                                <div className="flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-0.5 shadow-sm">
+                                                <div className="flex min-h-11 items-center gap-1 rounded-md border border-border bg-card px-1">
                                                     <button
                                                         onClick={() => navigateTo(currentIdx - 1)}
                                                         disabled={currentIdx <= 0 || loadingReport}
@@ -2164,52 +2181,10 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                                 </div>
                                             )}
 
-                                            <div className="flex h-7 flex-shrink-0 rounded-md border border-border bg-card p-0.5 shadow-sm">
-                                                <button
-                                                  onClick={() => setTemplate('standard')}
-                                                  className={`rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all ${template === 'standard' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                                                >
-                                                    Std
-                                                </button>
-                                                <button
-                                                  onClick={() => setTemplate('modern')}
-                                                  className={`rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all ${template === 'modern' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                                                >
-                                                    Mod
-                                                </button>
-                                                <button
-                                                  onClick={() => setTemplate('printable')}
-                                                  className={`rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all ${template === 'printable' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                                                >
-                                                    Print
-                                                </button>
-                                            </div>
-
-                                            {template === 'modern' && (
-                                                <div className="flex h-7 flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-1.5 shadow-sm">
-                                                    {[
-                                                        { id: 'industrial', name: 'Ind.', color: 'bg-slate-900', border: 'border-primary' },
-                                                        { id: 'executive', name: 'Exec.', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
-                                                        { id: 'futuristic', name: 'Fut.', color: 'bg-[#050510]', border: 'border-cyan-500' }
-                                                    ].map((t) => (
-                                                        <button
-                                                            key={t.id}
-                                                            onClick={() => setModernTemplateId(t.id as 'industrial' | 'executive' | 'futuristic')}
-                                                            title={t.name}
-                                                            className={cn(
-                                                                "relative h-4 w-6 overflow-hidden border border-border transition-all",
-                                                                modernTemplateId === t.id ? "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110" : "opacity-40 hover:opacity-100"
-                                                            )}
-                                                        >
-                                                            <div className={cn("absolute inset-0", t.color)} />
-                                                            <div className={cn("absolute inset-0.5 border-[0.5px] opacity-20", t.border)} />
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
+                                            <ReportAppearanceControls template={template} style={modernTemplateId} onTemplateChange={setTemplate} onStyleChange={setModernTemplateId} />
 
                                             {isEditor && (selectedStudent || selectedReport) && (
-                                                <div className="-order-1 flex h-7 flex-shrink-0 items-center gap-0.5 rounded-md border border-border bg-card px-0.5 lg:order-none">
+                                                <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-md border border-border bg-card p-1">
                                                     {selectedStudent && (
                                                         selectedReport?.is_published ? (
                                                             <button
@@ -2251,7 +2226,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                                             >
                                                                 {isTogglingInvoice
                                                                     ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-                                                                    : ((selectedReport as any).show_payment_notice ? 'Hide inv.' : 'Show inv.')}
+                                                                    : ((selectedReport as any).show_payment_notice ? 'Hide payment notice' : 'Show payment notice')}
                                                             </button>
                                                             <div className="mx-0.5 h-3.5 w-px bg-border" />
                                                             <button
@@ -2281,7 +2256,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             )}
 
                                             {selectedReport && (
-                                                <div className="-order-1 flex flex-shrink-0 items-center gap-1 lg:order-none">
+                                                <div className="flex min-w-0 flex-wrap items-center gap-2">
                                                     <button
                                                         onClick={() => window.print()}
                                                         title="Print"
@@ -2298,7 +2273,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                                         {isDownloadingPdf
                                                             ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                                                             : <ArrowDownTrayIcon className="h-3 w-3 flex-shrink-0" />}
-                                                        PDF
+                                                        Download PDF
                                                     </button>
                                                     <button
                                                         disabled={isSharingPdf || !selectedReport.is_published}
@@ -2316,7 +2291,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                                                     `Progress report for ${reportToDisplay.student_name || 'your child'} — ${reportToDisplay.report_term || ''} — Rillcod Technologies`,
                                                                 );
                                                                 if (result === 'downloaded') {
-                                                                    alert('Web Share not supported on this browser. The PDF has been downloaded instead.');
+                                                                    alert('The PDF was downloaded. You can attach it to a message.');
                                                                 }
                                                             } catch (err: unknown) {
                                                                 const msg = err instanceof Error ? err.message : '';
@@ -2353,10 +2328,11 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                     </div>
 
                                     {/* Email Activity Strip */}
-                                    {isStaff && reportToDisplay && (
-                                        <div className="border-t border-border bg-muted/10">
+                                    {isStaff && reportToDisplay && !loadingReport && (
+                                        <details key={reportToDisplay.id} className="border-t border-border bg-muted/10">
+                                            <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-medium text-foreground">Email history</summary>
                                             <div className="flex items-center justify-between px-3 py-1.5">
-                                                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Email Activity</p>
+                                                <p className="text-sm text-muted-foreground">Report emails</p>
                                                 {loadingEmailEvents && (
                                                     <div className="h-3 w-3 animate-spin rounded-full border border-border border-t-primary" />
                                                 )}
@@ -2414,7 +2390,7 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                             ) : !loadingEmailEvents ? (
                                                 <p className="px-3 pb-2 text-[11px] italic text-muted-foreground">No opens recorded yet.</p>
                                             ) : null}
-                                        </div>
+                                        </details>
                                     )}
 
                                     {/* Email share modal */}
@@ -2513,7 +2489,6 @@ ${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* Scho
                                         </div>
                                     ) : reportToDisplay ? (
                                          <div className="space-y-3">
-                                            <PublishedResultSummary report={reportToDisplay} />
                                             {selectedReport && automaticResultHasNoEvidence(selectedReport) ? (
                                                 <NoScoresYetNotice />
                                             ) : null}
