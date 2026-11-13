@@ -47,4 +47,16 @@ describe('container idle shutdown', () => {
       expect(log).toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });
+  it('does not stop the container while a cold start is still booting on port 3000', async () => {
+    const fetch = vi.fn(async () => {
+      throw new Error('The container is not listening in the TCP address 10.0.0.1:3000');
+    });
+    const ctx: any = { container: { running: true, getTcpPort: () => ({ fetch }) }, stop: vi.fn() };
+    const container: any = new NextAppContainer(ctx, { CRON_SECRET: 'test' } as any);
+    container.getState = vi.fn(async () => ({ status: 'running', lastChange: Date.now() }));
+    await container.onActivityExpired();
+    expect(ctx.stop).not.toHaveBeenCalled();
+    expect(container.renewActivityTimeout).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

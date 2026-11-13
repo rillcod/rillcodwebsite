@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { act, useLayoutEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSchoolReportEditor } from './useSchoolReportEditor';
@@ -12,10 +12,13 @@ vi.mock('@/lib/async-timeout', () => ({ fetchWithTimeoutOrThrow: (...args: unkno
 let root: Root;
 let state: ReturnType<typeof useSchoolReportEditor>;
 function Harness({ text, revision = 1 }: { text: string; revision?: number }) {
-  state = useSchoolReportEditor({
+  const editorState = useSchoolReportEditor({
     reportId: 'book-1', editor: { ...EMPTY_EDITOR, executiveSummary: text },
     design: DEFAULT_SCHOOL_REPORT_DESIGN, enabled: true, published: false,
     lockVersion: revision, baselineVersion: 'loaded-1',
+  });
+  useLayoutEffect(() => {
+    state = editorState;
   });
   return null;
 }

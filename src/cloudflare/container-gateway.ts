@@ -109,8 +109,15 @@ export class NextAppContainer extends Container {
   // Actual work is still metered; this timeout is not a billing cap.
   sleepAfter = "5s";
   enableInternet = true;
+  // Lightweight, database-free readiness endpoint so waitForPort() does not
+  // trigger full homepage SSR on a 0.25 vCPU cold start.
+  override pingEndpoint = "container.local/api/system/container-work";
   private readonly gatewayState: DurableObjectState;
   private readonly gatewayEnv: GatewayEnv;
+  private activeGatewayRequests = 0;
+  private startingCount = 0;
+  private startingUntil = 0;
+  private hasReachedHealthy = false;
 
   constructor(ctx: DurableObjectState<GatewayEnv>, env: GatewayEnv) {
     super(ctx, env);
@@ -120,10 +127,15 @@ export class NextAppContainer extends Container {
   }
 
   override onStart(): void {
+    this.hasReachedHealthy = true;
+    this.startingUntil = Math.max(this.startingUntil, Date.now() + 15_000);
+    this.renewActivityTimeout();
     console.log("[NextAppContainer] started");
   }
 
   override onStop(): void {
+    this.hasReachedHealthy = false;
+    this.startingUntil = 0;
     console.log("[NextAppContainer] stopped");
   }
 
@@ -131,11 +143,99 @@ export class NextAppContainer extends Container {
     console.error("[NextAppContainer] error", error);
   }
 
+  private async isContainerBooting(): Promise<boolean> {
+    if (this.startingCount > 0 || Date.now() < this.startingUntil) return true;
+    if (typeof this.getState !== "function") return false;
+    try {
+      const state = await this.getState();
+      if (state.status === "healthy") {
+        this.hasReachedHealthy = true;
+        return false;
+      }
+      if (
+        state.status === "running" &&
+        typeof state.lastChange === "number" &&
+        Date.now() - state.lastChange < 45_000
+      ) {
+        return true;
+      }
+    } catch {
+      // Ignore state read errors in mock or transient storage environments.
+    }
+    return false;
+  }
+
+  override async startAndWaitForPorts(
+    portsOrArgs?: unknown,
+    cancellationOptions?: unknown,
+    startOptions?: unknown,
+  ): Promise<void> {
+    this.startingCount += 1;
+    this.startingUntil = Math.max(this.startingUntil, Date.now() + 45_000);
+    this.renewActivityTimeout();
+    try {
+      if (
+        typeof portsOrArgs === "object" &&
+        portsOrArgs !== null &&
+        !Array.isArray(portsOrArgs)
+      ) {
+        const opts = portsOrArgs as {
+          ports?: number | number[];
+          cancellationOptions?: {
+            abort?: AbortSignal;
+            instanceGetTimeoutMS?: number;
+            portReadyTimeoutMS?: number;
+            waitInterval?: number;
+          };
+          startOptions?: Record<string, unknown>;
+        };
+        await super.startAndWaitForPorts({
+          ...opts,
+          cancellationOptions: {
+            instanceGetTimeoutMS: 15_000,
+            portReadyTimeoutMS: 35_000,
+            waitInterval: 250,
+            ...opts.cancellationOptions,
+          },
+        });
+      } else {
+        const cancelOpts = (cancellationOptions ?? {}) as {
+          abort?: AbortSignal;
+          instanceGetTimeoutMS?: number;
+          portReadyTimeoutMS?: number;
+          waitInterval?: number;
+        };
+        await super.startAndWaitForPorts(
+          portsOrArgs as number | number[] | undefined,
+          {
+            instanceGetTimeoutMS: 15_000,
+            portReadyTimeoutMS: 35_000,
+            waitInterval: 250,
+            ...cancelOpts,
+          },
+          startOptions as Record<string, unknown> | undefined,
+        );
+      }
+      this.hasReachedHealthy = true;
+      this.startingUntil = Math.max(this.startingUntil, Date.now() + 15_000);
+      this.renewActivityTimeout();
+    } finally {
+      this.startingCount = Math.max(0, this.startingCount - 1);
+    }
+  }
+
   override async onActivityExpired(): Promise<void> {
     // after() and loopback fan-out are invisible to the SDK's proxied-request
     // counter. Ask the same Node process before stopping it. Never start an
     // already sleeping container just to check for work.
     if (!this.ctx.container?.running) return;
+    // Never stop the container while a gateway request or cold-start boot is in
+    // progress: containerFetch() waits for startAndWaitForPorts() before
+    // incrementing the SDK's internal inflightRequests counter.
+    if (this.activeGatewayRequests > 0 || (await this.isContainerBooting())) {
+      this.renewActivityTimeout();
+      return;
+    }
     const secret = this.gatewayEnv.CRON_SECRET || this.gatewayEnv.BILLING_CRON_SECRET;
     try {
       if (!secret) throw new Error('Background-work check requires the cron secret');
@@ -153,6 +253,10 @@ export class NextAppContainer extends Container {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.toLowerCase().includes("not listening")) {
+        if (this.activeGatewayRequests > 0 || (await this.isContainerBooting())) {
+          this.renewActivityTimeout();
+          return;
+        }
         console.warn("[NextAppContainer] container not listening during background-work check, allowing stop", error);
         await super.onActivityExpired();
         return;
@@ -176,6 +280,9 @@ export class NextAppContainer extends Container {
     const admission = await this.admitCronRequest(request);
     if (admission.response) return admission.response;
 
+    this.activeGatewayRequests += 1;
+    this.renewActivityTimeout();
+
     const finish = async (response: Response) => {
       // A failed cold start must remain retryable at the next scheduler ping.
       if (admission.storageKey && response.status >= 500) {
@@ -185,89 +292,101 @@ export class NextAppContainer extends Container {
     };
     const replayRequest = canReplayContainerRequest(request) ? request.clone() : null;
 
-    let response: Response;
     try {
-      response = await this.containerFetch(request, this.defaultPort);
-    } catch (error) {
-      console.error("[NextAppContainer] proxy transport threw", error);
-      return finish(containerUnavailableResponse(request));
-    }
-
-    const failure = await classifyContainerResponse(response);
-    if (!failure) return finish(response);
-
-    console.warn("[NextAppContainer] intercepted container lifecycle response", {
-      status: response.status,
-      failure,
-      method: request.method,
-      pathname: new URL(request.url).pathname,
-    });
-
-    const failureText = await response.clone().text().catch(() => "");
-    const isUnresponsivePort = failureText.toLowerCase().includes("not listening");
-
-    if (failure !== "retryable" || !replayRequest) {
-      if (failure === "retryable") {
-        this.ctx.waitUntil(
-          (async () => {
-            try {
-              if (isUnresponsivePort) {
-                await this.destroy().catch(() => {});
-              }
-              await this.startAndWaitForPorts({
-                ports: this.defaultPort,
-                cancellationOptions: {
-                  instanceGetTimeoutMS: 12_000,
-                  portReadyTimeoutMS: 20_000,
-                  waitInterval: 250,
-                },
-              });
-            } catch (err) {
-              console.error("[NextAppContainer] background start recovery failed", err);
-            }
-          })()
-        );
-      }
-      return finish(containerUnavailableResponse(request));
-    }
-
-    try {
-      if (isUnresponsivePort) {
-        try {
-          await this.destroy();
-        } catch (destroyError) {
-          console.warn("[NextAppContainer] failed to destroy unresponsive container", destroyError);
-        }
+      let response: Response;
+      try {
+        response = await this.containerFetch(request, this.defaultPort);
+      } catch (error) {
+        console.error("[NextAppContainer] proxy transport threw", error);
+        return await finish(containerUnavailableResponse(request));
       }
 
-      await this.startAndWaitForPorts({
-        ports: this.defaultPort,
-        cancellationOptions: {
-          abort: replayRequest.signal,
-          instanceGetTimeoutMS: 12_000,
-          portReadyTimeoutMS: 20_000,
-          waitInterval: 250,
-        },
+      const failure = await classifyContainerResponse(response);
+      if (!failure) return await finish(response);
+
+      console.warn("[NextAppContainer] intercepted container lifecycle response", {
+        status: response.status,
+        failure,
+        method: request.method,
+        pathname: new URL(request.url).pathname,
       });
 
-      // Rebuild the read-only request through the URL overload. Workers Request
-      // carries incoming-CF metadata generics that are deliberately narrower
-      // than the Container library's internal Request type.
-      const retryResponse = await this.containerFetch(
-        replayRequest.url,
-        {
-          method: replayRequest.method,
-          headers: replayRequest.headers,
-          signal: replayRequest.signal,
-        },
-        this.defaultPort,
-      );
-      if (!(await classifyContainerResponse(retryResponse))) return finish(retryResponse);
-    } catch (error) {
-      console.error("[NextAppContainer] one-shot readiness recovery failed", error);
-    }
+      const failureText = await response.clone().text().catch(() => "");
+      const isUnresponsivePort = failureText.toLowerCase().includes("not listening");
+      // Only destroy when a previously healthy container stopped listening, not
+      // while a cold start is still booting Next.js.
+      const shouldDestroyWedge =
+        isUnresponsivePort &&
+        (this.hasReachedHealthy || !(await this.isContainerBooting()));
 
-    return finish(containerUnavailableResponse(request));
+      if (failure !== "retryable" || !replayRequest) {
+        if (failure === "retryable") {
+          this.ctx.waitUntil(
+            (async () => {
+              try {
+                if (shouldDestroyWedge) {
+                  this.hasReachedHealthy = false;
+                  await this.destroy().catch(() => {});
+                }
+                await this.startAndWaitForPorts({
+                  ports: this.defaultPort,
+                  cancellationOptions: {
+                    instanceGetTimeoutMS: 15_000,
+                    portReadyTimeoutMS: 35_000,
+                    waitInterval: 250,
+                  },
+                });
+              } catch (err) {
+                console.error("[NextAppContainer] background start recovery failed", err);
+              }
+            })()
+          );
+        }
+        return await finish(containerUnavailableResponse(request));
+      }
+
+      try {
+        if (shouldDestroyWedge) {
+          this.hasReachedHealthy = false;
+          try {
+            await this.destroy();
+          } catch (destroyError) {
+            console.warn("[NextAppContainer] failed to destroy unresponsive container", destroyError);
+          }
+        }
+
+        await this.startAndWaitForPorts({
+          ports: this.defaultPort,
+          cancellationOptions: {
+            abort: replayRequest.signal,
+            instanceGetTimeoutMS: 15_000,
+            portReadyTimeoutMS: 35_000,
+            waitInterval: 250,
+          },
+        });
+
+        // Rebuild the read-only request through the URL overload. Workers Request
+        // carries incoming-CF metadata generics that are deliberately narrower
+        // than the Container library's internal Request type.
+        const retryResponse = await this.containerFetch(
+          replayRequest.url,
+          {
+            method: replayRequest.method,
+            headers: replayRequest.headers,
+            signal: replayRequest.signal,
+          },
+          this.defaultPort,
+        );
+        if (!(await classifyContainerResponse(retryResponse))) return await finish(retryResponse);
+      } catch (error) {
+        console.error("[NextAppContainer] one-shot readiness recovery failed", error);
+      }
+
+      return await finish(containerUnavailableResponse(request));
+    } finally {
+      this.activeGatewayRequests = Math.max(0, this.activeGatewayRequests - 1);
+      this.renewActivityTimeout();
+    }
   }
 
   /**
@@ -364,12 +483,16 @@ function containerUnavailableResponse(request: Request): Response {
   }
 
   headers.set("content-type", "text/html; charset=utf-8");
+  const autoRefreshMeta =
+    request.method.toUpperCase() === "GET"
+      ? '\n    <meta http-equiv="refresh" content="3" />'
+      : "";
   return new Response(
     `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />${autoRefreshMeta}
     <title>Rillcod is starting</title>
     <style>
       :root{color-scheme:light dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
