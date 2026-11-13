@@ -1,5 +1,5 @@
 import { apiFetch } from './api-fetch';
-export const DEFAULT_UI_TIMEOUT_MS = 12_000;
+export const DEFAULT_UI_TIMEOUT_MS = 25_000;
 
 /** Parse JSON without throwing when the body is empty or truncated. */
 export async function parseJsonResponse<T extends Record<string, unknown>>(

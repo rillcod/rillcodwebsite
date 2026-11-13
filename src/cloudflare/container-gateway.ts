@@ -14,7 +14,12 @@ import {
   classifyContainerFailure,
 } from "../lib/cloudflare/container-request-recovery";
 import { cronAdmissionIntervalMs } from "../lib/operations/cron-registry";
-import { isVersionedAssetRequest, isCacheableVersionedAsset } from "../lib/cloudflare/static-asset-cache";
+import {
+  apexRedirectResponse,
+  isCacheableVersionedAsset,
+  isScannerProbeRequest,
+  isVersionedAssetRequest,
+} from "../lib/cloudflare/static-asset-cache";
 
 /** Public + secret keys forwarded into the Next.js container process. */
 const CONTAINER_ENV_KEYS = [
@@ -68,6 +73,11 @@ const CONTAINER_ENV_KEYS = [
   "VAPID_PRIVATE_KEY",
   "WHATSAPP_API_TOKEN",
   "WHATSAPP_WEBHOOK_VERIFY_TOKEN",
+  "WHATSAPP_APP_SECRET",
+  "WHATSAPP_PHONE_NUMBER_ID",
+  "JAAS_APP_ID",
+  "JAAS_KEY_ID",
+  "JAAS_PRIVATE_KEY",
   "CRON_SECRET",
   "BILLING_CRON_SECRET",
   "BILLING_LINK_SECRET",
@@ -174,6 +184,9 @@ export class NextAppContainer extends Container {
     this.startingUntil = Math.max(this.startingUntil, Date.now() + 45_000);
     this.renewActivityTimeout();
     try {
+      // Do not propagate a single request's abort signal into container startup:
+      // if a browser tab refreshes mid-cold-start, the container must finish
+      // reaching 'healthy' so the refreshed request succeeds immediately.
       if (
         typeof portsOrArgs === "object" &&
         portsOrArgs !== null &&
@@ -189,13 +202,14 @@ export class NextAppContainer extends Container {
           };
           startOptions?: Record<string, unknown>;
         };
+        const { abort: _ignoredAbort, ...restCancel } = opts.cancellationOptions ?? {};
         await super.startAndWaitForPorts({
           ...opts,
           cancellationOptions: {
             instanceGetTimeoutMS: 15_000,
             portReadyTimeoutMS: 35_000,
             waitInterval: 250,
-            ...opts.cancellationOptions,
+            ...restCancel,
           },
         });
       } else {
@@ -205,13 +219,14 @@ export class NextAppContainer extends Container {
           portReadyTimeoutMS?: number;
           waitInterval?: number;
         };
+        const { abort: _ignoredAbort, ...restCancel } = cancelOpts;
         await super.startAndWaitForPorts(
           portsOrArgs as number | number[] | undefined,
           {
             instanceGetTimeoutMS: 15_000,
             portReadyTimeoutMS: 35_000,
             waitInterval: 250,
-            ...cancelOpts,
+            ...restCancel,
           },
           startOptions as Record<string, unknown> | undefined,
         );
@@ -293,6 +308,25 @@ export class NextAppContainer extends Container {
     const replayRequest = canReplayContainerRequest(request) ? request.clone() : null;
 
     try {
+      // Pre-ensure port 3000 is ready before sending non-replayable requests
+      // (such as /api/cron/* and POST/PATCH writes) into containerFetch, so a
+      // sleeping container wakes up and runs the job on the first attempt
+      // instead of returning 503 during the stopped -> starting transition.
+      if (!this.ctx.container?.running || !this.hasReachedHealthy) {
+        try {
+          await this.startAndWaitForPorts({
+            ports: this.defaultPort,
+            cancellationOptions: {
+              instanceGetTimeoutMS: 15_000,
+              portReadyTimeoutMS: 35_000,
+              waitInterval: 250,
+            },
+          });
+        } catch (prewarmError) {
+          console.warn("[NextAppContainer] pre-dispatch readiness wait did not complete cleanly", prewarmError);
+        }
+      }
+
       let response: Response;
       try {
         response = await this.containerFetch(request, this.defaultPort);
@@ -550,6 +584,14 @@ function appContainer(env: GatewayEnv) {
 
 export default {
   async fetch(request: Request, env: GatewayEnv, ctx: ExecutionContext): Promise<Response> {
+    const redirect = apexRedirectResponse(request);
+    if (redirect) return redirect;
+    if (isScannerProbeRequest(request)) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "cache-control": "public, max-age=3600" },
+      });
+    }
     if (!isVersionedAssetRequest(request)) return appContainer(env).fetch(request);
     // Cache hits never reach the Durable Object and cannot wake a sleeping app.
     const cache = (caches as CacheStorage & { default: Cache }).default;

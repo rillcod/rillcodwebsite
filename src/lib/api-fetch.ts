@@ -24,13 +24,13 @@ function resolveApiUrl(path: string): string {
 }
 
 export interface ApiFetchOptions extends RequestInit {
-  /** Maximum retries when the container is starting up (defaults to 3). */
+  /** Maximum retries when the container is starting up (defaults to 5). */
   maxStartingRetries?: number;
 }
 
 export async function apiFetch(input: string | URL | Request, init?: ApiFetchOptions): Promise<Response> {
   const url = typeof input === 'string' ? resolveApiUrl(input) : input;
-  const maxAttempts = (init?.maxStartingRetries ?? 3) + 1;
+  const maxAttempts = (init?.maxStartingRetries ?? 5) + 1;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const response = await fetch(url, {
