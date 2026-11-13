@@ -411,7 +411,7 @@ export class NotificationsService {
     // internal utility to log notification sent internally
     public async logNotification(userId: string, title: string, message: string, type: string = 'info') {
         try {
-            const supabase = await createClient();
+            const supabase = createAdminClient();
             await supabase.from('notifications').insert([{
                 user_id: userId,
                 title,
@@ -457,7 +457,7 @@ export class NotificationsService {
 
     private async checkPreferences(userId: string, type: 'email' | 'sms'): Promise<boolean> {
         try {
-            const supabase = await createClient();
+            const supabase = createAdminClient();
             const { data, error } = await supabase
                 .from('notification_preferences')
                 .select('email_enabled, sms_enabled')
@@ -496,7 +496,7 @@ export class NotificationsService {
     ): Promise<boolean> {
         if (category === 'email_enabled') return this.checkPreferences(userId, 'email');
         try {
-            const supabase = await createClient();
+            const supabase = createAdminClient();
             const { data, error } = await supabase
                 .from('notification_preferences')
                 .select(category)
@@ -864,7 +864,7 @@ export class NotificationsService {
 
         let phone = payload.to;
         if (!phone) {
-            const supabase = await createClient();
+            const supabase = createAdminClient();
             const { data: userProfile } = await supabase.from('portal_users').select('phone').eq('id', userId).single();
             if (userProfile?.phone) {
                 phone = userProfile.phone;
@@ -899,7 +899,7 @@ export class NotificationsService {
 
     // Task 29.2: Trigger assignment due date reminders (24 hours before)
     async checkUpcomingAssignments() {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);

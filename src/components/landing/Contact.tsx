@@ -28,20 +28,24 @@ const Contact: React.FC = () => {
     e.preventDefault();
     setSending(true);
     try {
-      const response = await fetchWithTimeoutOrThrow('https://formspree.io/f/mqakeevn', {
+      const response = await fetchWithTimeoutOrThrow('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          subject: 'Landing Page Partnership Inquiry',
+        }),
       }, 'Sending your message is taking longer than expected. Please try again.');
+      const payload = await response.json().catch(() => ({} as { error?: string }));
       if (response.ok) {
         toast.success('Message sent! Our team will get back to you within 12 business hours.');
         setFormData({ name: '', email: '', message: '' });
       } else {
-        throw new Error();
+        throw new Error(payload.error || 'We could not send your message.');
       }
     } catch (error) {
       console.error('Public contact form submission failed', error);
-      toast.error(error instanceof Error && error.message.includes('taking longer')
+      toast.error(error instanceof Error && error.message
         ? error.message
         : 'We could not send your message. Please try again or contact us directly.');
     } finally {

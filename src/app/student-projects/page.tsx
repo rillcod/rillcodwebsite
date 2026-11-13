@@ -1,209 +1,220 @@
-// @refresh reset
-import { Metadata } from 'next';
-import Image from 'next/image';
-import Link from 'next/link';
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Building2 } from "lucide-react";
 import {
   CodeBracketIcon,
+  CpuChipIcon,
   GlobeAltIcon,
-  DevicePhoneMobileIcon,
-  PaintBrushIcon,
-  StarIcon,
-  UserGroupIcon,
-  CalendarIcon,
+  SparklesIcon,
   TrophyIcon,
-  HeartIcon,
-  EyeIcon
-} from '@/lib/icons';
+  AcademicCapIcon,
+  RocketLaunchIcon,
+} from "@/lib/icons";
 
-export const metadata: Metadata = {
-  title: 'Student Projects - Rillcod Technologies | Showcase of Student Work',
-  description: 'Explore amazing projects created by Rillcod Technologies students. From games and websites to mobile apps and digital art, see the incredible work of young innovators.',
-  keywords: 'student projects, coding projects, games, websites, mobile apps, digital art, student showcase',
-  openGraph: {
-    title: 'Student Projects - Rillcod Technologies',
-    description: 'Amazing projects created by young innovators',
-    type: 'website',
-  },
-};
+type ProjectCategory =
+  | "All Projects"
+  | "Robotics & IoT"
+  | "Web & Software"
+  | "AI & Vision"
+  | "Game Dev";
 
-const projects = [
+interface ProjectItem {
+  id: number;
+  title: string;
+  level: string;
+  category: Exclude<ProjectCategory, "All Projects">;
+  cohort: string;
+  schoolTrack: string;
+  description: string;
+  image: string;
+  deliverables: string[];
+  technologies: string[];
+  outcome: string;
+}
+
+const projects: ProjectItem[] = [
   {
     id: 1,
-    title: "EcoQuest Adventure",
-    type: "Game",
-    category: "Scratch Programming",
-    student: "Aisha Mohammed",
-    age: 12,
-    school: "Lagos State Model College",
-    description: "An educational game about environmental conservation where players solve puzzles to save endangered animals.",
-    image: "https://images.pexels.com/photos/3777943/pexels-photo-3777943.jpeg",
-    demoUrl: "#",
-    codeUrl: "#",
-    features: ["Environmental Education", "Puzzle Solving", "Animal Conservation", "Interactive Storytelling"],
-    technologies: ["Scratch", "Block Programming"],
-    likes: 156,
-    views: 2340,
-    awards: ["Best Educational Game", "Environmental Impact Award"]
+    title: "Obstacle-Avoiding Ultrasonic Rover",
+    level: "Junior & Senior Secondary",
+    category: "Robotics & IoT",
+    cohort: "Edo Partner School Robotics Cohort",
+    schoolTrack: "GRA & Airport Road Partner Labs",
+    description:
+      "Learners wire DC motor drivers, chassis frames, and HC-SR04 ultrasonic sensors to steer an autonomous robot clear of classroom obstacles.",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.02 PM.jpeg",
+    deliverables: ["Wired Circuit & Chassis", "Autonomous Navigation Firmware", "Live Demo Run"],
+    technologies: ["Arduino C++", "Ultrasonic Sensor", "L298N Motor Driver"],
+    outcome: "Presented at Rillcod STEM Expo",
   },
   {
     id: 2,
-    title: "Smart Weather App",
-    type: "Mobile App",
-    category: "Flutter Development",
-    student: "David Okonkwo",
-    age: 15,
-    school: "Abuja International School",
-    description: "A weather application that provides real-time weather updates with beautiful UI and location-based forecasts.",
-    image: "https://images.pexels.com/photos/3777946/pexels-photo-3777946.jpeg",
-    demoUrl: "#",
-    codeUrl: "#",
-    features: ["Real-time Weather", "Location Services", "Beautiful UI", "Weather Alerts"],
-    technologies: ["Flutter", "Dart", "Weather API"],
-    likes: 203,
-    views: 3456,
-    awards: ["Best Mobile App", "UI/UX Excellence"]
+    title: "Python Classroom & Quiz Assistant",
+    level: "JSS 2 – SS 3 Track",
+    category: "Web & Software",
+    cohort: "Python Programming Cohort",
+    schoolTrack: "Partner Secondary School ICT Labs",
+    description:
+      "Students write modular Python scripts that quiz classmates on science and maths topics, score responses automatically, and summarise weak areas.",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.56 PM.jpeg",
+    deliverables: ["Python CLI / GUI Logic", "Question Bank Parser", "Automated Score Report"],
+    technologies: ["Python 3", "Algorithms", "File Handling"],
+    outcome: "Term 2 Capstone Assessment",
   },
   {
     id: 3,
-    title: "Nigerian Cuisine Blog",
-    type: "Website",
-    category: "Web Development",
-    student: "Fatima Ibrahim",
-    age: 14,
-    school: "Kano Science College",
-    description: "A beautiful blog showcasing traditional Nigerian recipes with modern web design and interactive features.",
-    image: "https://images.pexels.com/photos/3777949/pexels-photo-3777949.jpeg",
-    demoUrl: "#",
-    codeUrl: "#",
-    features: ["Recipe Database", "Interactive Comments", "Responsive Design", "Search Functionality"],
-    technologies: ["HTML", "CSS", "JavaScript", "React"],
-    likes: 189,
-    views: 2890,
-    awards: ["Best Cultural Project", "Web Design Award"]
+    title: "Smart Classroom Lighting & Safety Monitor",
+    level: "Secondary Hardware Track",
+    category: "Robotics & IoT",
+    cohort: "Hardware & Physical Computing Lab",
+    schoolTrack: "Benin City STEM Innovation Centre",
+    description:
+      "Scholars prototype energy-saving classroom lighting and motion alerts on breadboards using light-dependent resistors, buzzers, and microcontrollers.",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.00 PM.jpeg",
+    deliverables: ["Breadboard Schematic", "Sensor Threshold Calibration", "Safety Prototype"],
+    technologies: ["Electronics", "Arduino IDE", "LDR & Buzzer Modules"],
+    outcome: "Partner School Engineering Fair",
   },
   {
     id: 4,
-    title: "Math Helper Bot",
-    type: "Application",
-    category: "Python Programming",
-    student: "Emmanuel Adebayo",
-    age: 13,
-    school: "Port Harcourt Academy",
-    description: "A Python application that helps students solve math problems step by step with explanations.",
-    image: "https://images.pexels.com/photos/3777952/pexels-photo-3777952.jpeg",
-    demoUrl: "#",
-    codeUrl: "#",
-    features: ["Step-by-step Solutions", "Multiple Math Topics", "Interactive Interface", "Progress Tracking"],
-    technologies: ["Python", "Tkinter", "Mathematical Libraries"],
-    likes: 234,
-    views: 4120,
-    awards: ["Best Educational Tool", "Innovation Award"]
+    title: "Responsive School House Portal & Blog",
+    level: "JSS 3 – SS 3 Track",
+    category: "Web & Software",
+    cohort: "Web Design & Frontend Builders",
+    schoolTrack: "Partner School Computer Suites",
+    description:
+      "Team builds publishing school sports announcements, timetables, and student essays using clean semantic HTML, CSS Grid, and interactive JavaScript.",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.30.03 PM (1).jpeg",
+    deliverables: ["Multi-page Layout", "Mobile Responsive Styles", "Interactive Filtering"],
+    technologies: ["HTML5", "CSS3", "JavaScript"],
+    outcome: "Student Portfolio Showcase",
   },
   {
     id: 5,
-    title: "Digital Art Portfolio",
-    type: "Design",
-    category: "UI/UX Design",
-    student: "Chioma Nwosu",
-    age: 16,
-    school: "Ibadan Grammar School",
-    description: "A stunning digital art portfolio showcasing various design projects and creative concepts.",
-    image: "https://images.pexels.com/photos/3777955/pexels-photo-3777955.jpeg",
-    demoUrl: "#",
-    codeUrl: "#",
-    features: ["Portfolio Gallery", "Interactive Elements", "Responsive Design", "Contact Forms"],
-    technologies: ["Figma", "Adobe Creative Suite", "HTML/CSS"],
-    likes: 167,
-    views: 2980,
-    awards: ["Best Design Project", "Creative Excellence"]
+    title: "Interactive Maths & Civic Adventure Game",
+    level: "Primary 4 – JSS 1 Track",
+    category: "Game Dev",
+    cohort: "Junior Block Coding Scholars",
+    schoolTrack: "Primary Partner Schools",
+    description:
+      "Young coders design animated sprite characters, multi-level logic puzzles, and scoreboards in Scratch to reinforce classroom numeracy and road safety.",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.29.57 PM.jpeg",
+    deliverables: ["Custom Sprites & Stages", "Variable Scoring System", "Playable Build"],
+    technologies: ["Scratch", "Event Logic", "Game Design"],
+    outcome: "Junior Innovators Merit Award",
   },
   {
     id: 6,
-    title: "School Library Management",
-    type: "System",
-    category: "Python Programming",
-    student: "Oluwaseun Adeyemi",
-    age: 15,
-    school: "Calabar Secondary School",
-    description: "A comprehensive library management system for schools with book tracking and student management.",
-    image: "https://images.pexels.com/photos/3777958/pexels-photo-3777958.jpeg",
-    demoUrl: "#",
-    codeUrl: "#",
-    features: ["Book Management", "Student Records", "Borrowing System", "Reports Generation"],
-    technologies: ["Python", "SQLite", "Tkinter"],
-    likes: 145,
-    views: 2670,
-    awards: ["Best System Project", "Practical Application"]
-  }
+    title: "Applied AI Prompting & Vision Lab Prototype",
+    level: "Senior Secondary / Bootcamps",
+    category: "AI & Vision",
+    cohort: "Applied AI & Automation Cohort",
+    schoolTrack: "Weekend & Holiday STEM Academy",
+    description:
+      "Senior scholars train image-classification experiments and build Python workflows that classify waste sorting and agricultural leaf health examples.",
+    image: "/images/EVENTS/WhatsApp Image 2026-08-14 at 7.46.29 PM (1).jpeg",
+    deliverables: ["Labeled Sample Set", "Classification Workflow", "Capstone Briefing"],
+    technologies: ["Python", "Applied AI", "Data Literacy"],
+    outcome: "Senior Capstone Distinction",
+  },
 ];
 
-const categories = [
-  { name: "All Projects", count: projects.length, icon: CodeBracketIcon },
-  { name: "Games", count: projects.filter(p => p.type === "Game").length, icon: DevicePhoneMobileIcon },
-  { name: "Websites", count: projects.filter(p => p.type === "Website").length, icon: GlobeAltIcon },
-  { name: "Mobile Apps", count: projects.filter(p => p.type === "Mobile App").length, icon: DevicePhoneMobileIcon },
-  { name: "Design", count: projects.filter(p => p.type === "Design").length, icon: PaintBrushIcon },
-  { name: "Applications", count: projects.filter(p => p.type === "Application" || p.type === "System").length, icon: CodeBracketIcon }
+const categories: Array<{
+  name: ProjectCategory;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { name: "All Projects", icon: CodeBracketIcon },
+  { name: "Robotics & IoT", icon: CpuChipIcon },
+  { name: "Web & Software", icon: GlobeAltIcon },
+  { name: "AI & Vision", icon: SparklesIcon },
+  { name: "Game Dev", icon: RocketLaunchIcon },
 ];
 
 export default function StudentProjectsPage() {
+  const [selectedCategory, setSelectedCategory] = useState<ProjectCategory>("All Projects");
+
+  const visibleProjects =
+    selectedCategory === "All Projects"
+      ? projects
+      : projects.filter((p) => p.category === selectedCategory);
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
-        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
         <div className="container mx-auto px-4 md:px-6 relative z-10">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
-              Student Projects
+              Student Projects Showcase
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto leading-relaxed">
-              Showcasing the incredible creativity and technical skills of our young innovators
+              Practical hardware, software, game-logic, and AI capstones built by Rillcod Technologies
+              learners across Benin City and partner schools in Edo State.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Curriculum Highlights */}
       <section className="py-12 sm:py-16 bg-background">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:gap-8 text-center">
             <div className="bg-blue-500/10 border border-blue-500/15 p-5 sm:p-6 rounded-2xl">
-              <div className="text-3xl font-bold text-blue-600 mb-2">{projects.length}+</div>
-              <div className="text-muted-foreground">Projects Created</div>
+              <div className="text-3xl font-bold text-blue-600 mb-2">12 Years</div>
+              <div className="text-muted-foreground text-sm">Primary 1 to SS 3 Curriculum</div>
             </div>
             <div className="bg-green-500/10 border border-green-500/15 p-5 sm:p-6 rounded-2xl">
-              <div className="text-3xl font-bold text-green-600 mb-2">500+</div>
-              <div className="text-muted-foreground">Students</div>
+              <div className="text-3xl font-bold text-green-600 mb-2">4 Tracks</div>
+              <div className="text-muted-foreground text-sm">Robotics, Web, AI &amp; Game Dev</div>
             </div>
             <div className="bg-purple-500/10 border border-purple-500/15 p-5 sm:p-6 rounded-2xl">
-              <div className="text-3xl font-bold text-purple-600 mb-2">50+</div>
-              <div className="text-muted-foreground">Partner Schools</div>
+              <div className="text-3xl font-bold text-purple-600 mb-2">Every Term</div>
+              <div className="text-muted-foreground text-sm">Hands-On Capstone Projects</div>
             </div>
             <div className="bg-orange-500/10 border border-orange-500/15 p-5 sm:p-6 rounded-2xl">
-              <div className="text-3xl font-bold text-primary mb-2">25+</div>
-              <div className="text-muted-foreground">Awards Won</div>
+              <div className="text-3xl font-bold text-primary mb-2">Benin City</div>
+              <div className="text-muted-foreground text-sm">Onsite &amp; School-Hosted Labs</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Filter Categories */}
+      {/* Interactive Filter Categories */}
       <section className="py-8 bg-muted/40 border-y border-border">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="flex flex-wrap justify-center gap-4">
-            {categories.map((category, index) => (
-              <button
-                key={index}
-                className="flex min-h-11 items-center space-x-2 bg-card border border-border px-5 py-2.5 rounded-full shadow-sm hover:bg-muted/60 transition-colors"
-              >
-                <category.icon className="w-5 h-5 text-primary" />
-                <span className="font-medium text-foreground">{category.name}</span>
-                <span className="bg-muted text-muted-foreground px-2 py-1 rounded-full text-sm">
-                  {category.count}
-                </span>
-              </button>
-            ))}
+          <div className="flex flex-wrap justify-center gap-3">
+            {categories.map((category) => {
+              const count =
+                category.name === "All Projects"
+                  ? projects.length
+                  : projects.filter((p) => p.category === category.name).length;
+              const active = selectedCategory === category.name;
+              return (
+                <button
+                  key={category.name}
+                  type="button"
+                  onClick={() => setSelectedCategory(category.name)}
+                  className={`flex min-h-11 items-center space-x-2 border px-5 py-2.5 rounded-full shadow-sm transition-colors ${
+                    active
+                      ? "bg-primary text-white border-primary"
+                      : "bg-card text-foreground border-border hover:bg-muted/60"
+                  }`}
+                >
+                  <category.icon className={`w-5 h-5 ${active ? "text-white" : "text-primary"}`} />
+                  <span className="font-medium">{category.name}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -211,10 +222,13 @@ export default function StudentProjectsPage() {
       {/* Projects Grid */}
       <section className="py-16 md:py-24 bg-background">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
-            {projects.map((project) => (
-              <div key={project.id} className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                <div className="relative h-48 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {visibleProjects.map((project) => (
+              <div
+                key={project.id}
+                className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+              >
+                <div className="relative h-52 w-full">
                   <Image
                     src={project.image}
                     alt={project.title}
@@ -223,87 +237,65 @@ export default function StudentProjectsPage() {
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover"
                   />
-                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {project.type}
-                  </div>
-                  <div className="absolute top-4 right-4 bg-background/90 text-foreground px-3 py-1 rounded-full text-sm font-medium backdrop-blur-sm">
+                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-semibold">
                     {project.category}
                   </div>
                 </div>
-                
-                <div className="p-6">
+
+                <div className="p-6 flex flex-col flex-1">
                   <h3 className="text-xl font-bold text-foreground mb-2">{project.title}</h3>
-                  <p className="text-muted-foreground mb-4">{project.description}</p>
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <UserGroupIcon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{project.student}</span>
+                  <p className="text-muted-foreground text-sm mb-4 flex-1">{project.description}</p>
+
+                  <div className="space-y-1.5 mb-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <AcademicCapIcon className="w-4 h-4 text-primary shrink-0" />
+                      <span>{project.level}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{project.age} years</span>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-primary shrink-0" />
+                      <span>{project.schoolTrack}</span>
                     </div>
                   </div>
-                  
+
                   <div className="mb-4">
-                    <h4 className="font-semibold text-foreground mb-2">Features:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {project.features.slice(0, 3).map((feature, index) => (
-                        <span 
-                          key={index}
-                          className="bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs"
+                    <h4 className="font-semibold text-foreground text-sm mb-2">Key Deliverables:</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.deliverables.map((item) => (
+                        <span
+                          key={item}
+                          className="bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-full text-xs"
                         >
-                          {feature}
+                          {item}
                         </span>
                       ))}
                     </div>
                   </div>
-                  
-                  <div className="mb-4">
-                    <h4 className="font-semibold text-foreground mb-2">Technologies:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {project.technologies.map((tech, index) => (
-                        <span 
-                          key={index}
-                          className="bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs"
+
+                  <div className="mb-5">
+                    <h4 className="font-semibold text-foreground text-sm mb-2">Stack &amp; Kit:</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.technologies.map((tech) => (
+                        <span
+                          key={tech}
+                          className="bg-muted text-muted-foreground px-2.5 py-1 rounded-full text-xs"
                         >
                           {tech}
                         </span>
                       ))}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <HeartIcon className="w-4 h-4 text-red-500" />
-                        <span className="text-sm text-muted-foreground">{project.likes}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <EyeIcon className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm text-muted-foreground">{project.views}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <TrophyIcon className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm text-muted-foreground">{project.awards.length} awards</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <a
-                      href={project.demoUrl}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-colors text-sm font-medium"
+
+                  <div className="pt-3 border-t border-border flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                      <TrophyIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                      {project.outcome}
+                    </span>
+                    <Link
+                      href="/gallery"
+                      className="text-xs font-bold text-primary hover:underline whitespace-nowrap"
                     >
-                      View Demo
-                    </a>
-                    <a
-                      href={project.codeUrl}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors text-sm font-medium"
-                    >
-                      View Code
-                    </a>
+                      See Lab Gallery →
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -312,66 +304,31 @@ export default function StudentProjectsPage() {
         </div>
       </section>
 
-      {/* Awards Section */}
-      <section className="py-16 md:py-24 bg-muted/40 border-y border-border">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Student Achievements</h2>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Celebrating the outstanding achievements and awards won by our students
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
-              <TrophyIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-foreground mb-2">National Coding Competition</h3>
-              <p className="text-muted-foreground">1st Place Winners</p>
-            </div>
-            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
-              <StarIcon className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-foreground mb-2">Innovation Awards</h3>
-              <p className="text-muted-foreground">15+ Awards Won</p>
-            </div>
-            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
-              <GlobeAltIcon className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-foreground mb-2">International Recognition</h3>
-              <p className="text-muted-foreground">Featured in Tech Blogs</p>
-            </div>
-            <div className="bg-card border border-border p-6 rounded-2xl text-center shadow-sm">
-              <HeartIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-foreground mb-2">Community Impact</h3>
-              <p className="text-muted-foreground">Projects Helping Others</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-16 md:py-24 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="container mx-auto px-4 md:px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to Create Your Own Project?
+            Ready to Build Real Projects?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join our programs and start building amazing projects that could change the world.
+            Enrol a student or bring Rillcod Technologies&apos; structured project-based STEM lab to your school.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/programs"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 text-xl font-bold rounded-full shadow-lg hover:bg-gray-100 transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              href="/student-registration"
+              className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 text-lg font-bold rounded-full shadow-lg hover:bg-gray-100 transition-colors"
             >
-              Explore Programs
+              Enrol a Student
             </Link>
-            <a
-              href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white/60 text-white text-xl font-bold rounded-full hover:bg-white hover:text-blue-600 transform transition-all duration-300 hover:scale-105"
+            <Link
+              href="/programs"
+              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white/70 text-white text-lg font-bold rounded-full hover:bg-white hover:text-blue-600 transition-colors"
             >
-              Get Started
-            </a>
+              Explore Curriculum Tracks
+            </Link>
           </div>
         </div>
       </section>
     </div>
   );
-} 
+}

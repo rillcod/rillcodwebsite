@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -21,10 +21,27 @@ export async function checkContainerCostPolicy() {
 }
 
 async function checkLive() {
-  const result = spawnSync(process.execPath, [
-    path.join(root, 'node_modules/wrangler/bin/wrangler.js'), 'containers', 'info',
-    'a0303920-f8b2-460a-b86f-089aa14015f8',
-  ], { encoding: 'utf8', env: process.env, maxBuffer: 5 * 1024 * 1024 });
+  const wranglerBin = path.join(root, 'node_modules/wrangler/bin/wrangler.js');
+  const containerArgs = ['containers', 'info', 'a0303920-f8b2-460a-b86f-089aa14015f8'];
+  let result = spawnSync(process.execPath, [wranglerBin, ...containerArgs], {
+    encoding: 'utf8',
+    env: process.env,
+    maxBuffer: 5 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    // A restricted local token in .env.local overrides Wrangler's OAuth session; retry cleanly via OAuth.
+    const oauthEnv = { ...process.env };
+    delete oauthEnv.CLOUDFLARE_API_TOKEN;
+    const envFile = path.join(root, '.env');
+    const retryArgs = existsSync(envFile)
+      ? [wranglerBin, ...containerArgs, '--env-file', envFile]
+      : [wranglerBin, ...containerArgs];
+    result = spawnSync(process.execPath, retryArgs, {
+      encoding: 'utf8',
+      env: oauthEnv,
+      maxBuffer: 5 * 1024 * 1024,
+    });
+  }
   if (result.status !== 0) throw new Error('Live cost verification failed: Cloudflare access was rejected or unavailable.');
   let app;
   try { app = JSON.parse(result.stdout); }

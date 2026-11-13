@@ -1,8 +1,17 @@
 "use client";
-import { useState } from "react";
-import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Building2, User, Calendar, CheckCircle2, ArrowRight, Sparkles, Globe2, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Building2, User, CheckCircle2, ArrowRight, Sparkles, Globe2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { brandContact } from '@/config/brand';
+
+const PRESET_SUBJECTS = [
+  "School Partnership",
+  "Student Enrollment",
+  "Curriculum Inquiries",
+  "Demo Request",
+  "Careers & Recruitment",
+  "General Inquiry",
+];
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -16,36 +25,51 @@ export default function Contact() {
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const subjectParam = params.get("subject");
+    if (subjectParam) {
+      setFormData((prev) => ({ ...prev, subject: subjectParam }));
+    }
+  }, []);
+
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(brandContact.address)}`;
 
   const contactInfo = [
     {
       icon: <Phone className="w-5 h-5 text-blue-500" />,
       title: "Phone Support",
       details: [brandContact.phoneShort, "07036402679"],
-      action: `tel:${brandContact.phoneShort}`,
-      actionText: "Call Us Direct"
+      action: `tel:${brandContact.phoneShort.replace(/\s+/g, "")}`,
+      actionText: "Call Us Direct",
+      external: false
     },
     {
       icon: <Mail className="w-5 h-5 text-emerald-500" />,
       title: "Email Assistance",
       details: [brandContact.email],
       action: `mailto:${brandContact.email}`,
-      actionText: "Send an Email"
+      actionText: "Send an Email",
+      external: false
     },
     {
       icon: <MapPin className="w-5 h-5 text-purple-500" />,
       title: "STEM Centre Address",
       details: [brandContact.address],
-      action: "https://maps.google.com",
-      actionText: "Open in Maps"
+      action: mapsUrl,
+      actionText: "Open in Maps",
+      external: true
     },
     {
       icon: <Clock className="w-5 h-5 text-amber-500" />,
       title: "Working Hours",
       details: ["Monday – Friday: 8:00 AM – 6:00 PM", "Saturday: 9:00 AM – 3:00 PM"],
       action: "/school-registration",
-      actionText: "Schedule Visit"
+      actionText: "Schedule Visit",
+      external: false
     }
   ];
 
@@ -95,13 +119,21 @@ export default function Contact() {
     e.preventDefault();
     if (!validateForm()) return;
     setIsLoading(true);
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitted(true);
-    setIsLoading(false);
-    
-    setTimeout(() => {
-      setIsSubmitted(false);
+    setSubmitError(null);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const payload = await res.json().catch(() => ({} as { error?: string }));
+      if (!res.ok) {
+        setSubmitError(payload.error || "Unable to send your message. Please try again or reach us via WhatsApp.");
+        return;
+      }
+
+      setIsSubmitted(true);
       setFormData({
         name: "",
         email: "",
@@ -111,7 +143,11 @@ export default function Contact() {
         message: "",
         preferredContact: "email"
       });
-    }, 6000);
+    } catch {
+      setSubmitError("Network error while sending your message. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -258,10 +294,14 @@ export default function Contact() {
                     className="w-full bg-background border border-border px-4 py-3.5 rounded-xl text-foreground font-medium text-xs focus:outline-none focus:border-primary transition-all"
                   >
                     <option value="">Select Inquiry Topic</option>
+                    {formData.subject && !PRESET_SUBJECTS.includes(formData.subject) && (
+                      <option value={formData.subject}>{formData.subject}</option>
+                    )}
                     <option value="School Partnership">School STEM Partnership Inquiry</option>
                     <option value="Student Enrollment">Student Enrolment Assistance</option>
                     <option value="Curriculum Inquiries">Curriculum & Learning Paths</option>
                     <option value="Demo Request">Request Onsite or Virtual Demo</option>
+                    <option value="Careers & Recruitment">Careers & Recruitment</option>
                     <option value="General Inquiry">General Inquiries & Support</option>
                   </select>
                   {errors.subject && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.subject}</p>}
@@ -279,6 +319,12 @@ export default function Contact() {
                   </div>
                   {errors.message && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.message}</p>}
                 </div>
+
+                {submitError && (
+                  <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                    {submitError}
+                  </div>
+                )}
 
                 <button
                   type="submit" disabled={isLoading}
@@ -311,9 +357,20 @@ export default function Contact() {
                       {info.details.map((detail, idx) => (
                         <p key={idx} className="text-xs text-muted-foreground font-medium mt-0.5">{detail}</p>
                       ))}
-                      <Link href={info.action} className="inline-flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-widest mt-2 hover:underline">
-                        {info.actionText} →
-                      </Link>
+                      {info.external ? (
+                        <a
+                          href={info.action}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-widest mt-2 hover:underline"
+                        >
+                          {info.actionText} →
+                        </a>
+                      ) : (
+                        <Link href={info.action} className="inline-flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-widest mt-2 hover:underline">
+                          {info.actionText} →
+                        </Link>
+                      )}
                     </div>
                   </div>
                 ))}

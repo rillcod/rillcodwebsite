@@ -165,6 +165,21 @@ const nextConfig: NextConfig = {
         destination: '/student-registration?type=online',
         permanent: true,
       },
+      {
+        source: '/privacy',
+        destination: '/privacy-policy',
+        permanent: true,
+      },
+      {
+        source: '/terms',
+        destination: '/terms-of-service',
+        permanent: true,
+      },
+      {
+        source: '/showcase',
+        destination: '/student-projects',
+        permanent: true,
+      },
     ];
   },
 

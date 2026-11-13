@@ -9,6 +9,11 @@ import { parseRequestSession, canonicalMeetingSession } from "@/lib/academic/ses
 import { keepPreparedMeetingContent, existingMeetingAsset } from "@/lib/academic/week-package";
 import { generateAIContent } from "@/lib/ai/generate-core";
 import { reuseWeekContent } from "@/lib/academic/content-reuse-server";
+import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing";
+import {
+  extractTeachingPlanWeeks,
+  filterPlanOperationWeeks,
+} from "@/lib/progression/lessonPlanOperation";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +60,7 @@ export async function POST(
   const { data: plan, error: planErr } = await (db as any)
     .from("lesson_plans")
     .select(
-      "*, courses(title), classes!lesson_plans_class_id_fkey(name,teacher_id), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content), curriculum:course_curricula(content, version)"
+      "*, courses(title), classes!lesson_plans_class_id_fkey(name,teacher_id,schools(sessions_per_week)), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content), curriculum:course_curricula(content, version)"
     )
     .eq("id", id)
     .single();
@@ -94,18 +99,24 @@ export async function POST(
   }
   const onlySession = parseRequestSession(body);
 
-  const allWeekRows: Array<{ week?: number; session?: number; topic?: string }> =
-    Array.isArray((plan as any)?.plan_data?.weeks)
-      ? (plan as any).plan_data.weeks
-      : [];
-  const weekMetas = allWeekRows.filter((w) => {
-    if (Number(w.week) !== week) return false;
-    if (onlySession == null) return true;
-    const s = Number(w.session ?? 0);
-    return Number.isFinite(s) && s > 0
-      ? Math.floor(s) === onlySession
-      : onlySession === 1;
+  const planClass = Array.isArray((plan as any)?.classes)
+    ? (plan as any).classes[0]
+    : (plan as any)?.classes;
+  const planSchool = Array.isArray(planClass?.schools)
+    ? planClass.schools[0]
+    : planClass?.schools;
+  const sessionsPerWeek = cadenceForTeachingPlan({
+    planSessionsPerWeek: (plan as { sessions_per_week?: unknown }).sessions_per_week,
+    schoolSessionsPerWeek: planSchool?.sessions_per_week,
   });
+  const expandedWeeks = extractTeachingPlanWeeks(
+    (plan as any)?.plan_data,
+    sessionsPerWeek,
+  );
+  const weekMetas = filterPlanOperationWeeks(expandedWeeks, {
+    onlyWeeks: [week],
+    onlySession,
+  }) as Array<{ week?: number; session?: number; topic?: string }>;
   if (!weekMetas.length) {
     return NextResponse.json({ error: "That week is not in this teaching plan" }, { status: 422 });
   }
@@ -119,9 +130,6 @@ export async function POST(
   // generated four of the five parts and failed the fifth on a raw Postgres
   // constraint. The class teacher owns the week either way, so they are the
   // honest owner of its cards.
-  const planClass = Array.isArray((plan as any).classes)
-    ? (plan as any).classes[0]
-    : (plan as any).classes;
   const deckOwner = isCron
     ? (plan as any).created_by ?? planClass?.teacher_id ?? null
     : staff.id;

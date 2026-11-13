@@ -1,6 +1,8 @@
 'use client'
 
-import { Briefcase, Users, GraduationCap, Code, Rocket, Heart, MapPin, Clock, DollarSign, CheckCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Briefcase, Users, GraduationCap, Rocket, Heart, MapPin, Clock, DollarSign, CheckCircle } from 'lucide-react'
+import { brandContact } from '@/config/brand'
 
 export default function CareersPage() {
   const jobOpenings = [
@@ -200,9 +202,12 @@ export default function CareersPage() {
                         {job.salary}
                       </span>
                     </div>
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                    <Link
+                      href={`/contact?subject=${encodeURIComponent(`Career Application: ${job.title}`)}`}
+                      className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors font-medium"
+                    >
                       Apply Now
-                    </button>
+                    </Link>
                   </div>
                 </div>
 
@@ -248,12 +253,18 @@ export default function CareersPage() {
             We're always looking for talented individuals to join our team. Send us your resume and let's discuss how you can contribute to our mission.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors">
+            <a
+              href={`mailto:${brandContact.email}?subject=${encodeURIComponent('Career Application - Rillcod Technologies')}`}
+              className="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium"
+            >
               Send Resume
-            </button>
-            <button className="border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-6 py-3 rounded-lg transition-colors">
+            </a>
+            <Link
+              href="/contact?subject=HR%20Inquiry"
+              className="inline-flex items-center justify-center border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-6 py-3 rounded-lg transition-colors font-medium"
+            >
               Contact HR
-            </button>
+            </Link>
           </div>
         </div>
       </div>

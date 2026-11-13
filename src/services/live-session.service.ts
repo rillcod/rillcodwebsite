@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { notificationsService } from './notifications.service';
 import { sendPushNotification, buildNotificationUrl } from '@/lib/push';
@@ -227,7 +228,7 @@ export class LiveSessionService {
      */
     private async parentsForStudents(studentUserIds: string[]): Promise<string[]> {
         if (studentUserIds.length === 0) return [];
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // portal_users.id → students.id
         const { data: students } = await supabase
@@ -258,7 +259,7 @@ export class LiveSessionService {
     }
 
     async sendSessionReminders() {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const now = new Date();
         const inFifteen = new Date(now.getTime() + 15 * 60 * 1000);
 
@@ -379,7 +380,7 @@ export class LiveSessionService {
      * running is far worse than leaving a dead one up for an extra evening.
      */
     async closeOverdueSessions(graceMs = 6 * 60 * 60 * 1000) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const { data: live, error } = await supabase
             .from('live_sessions')
             .select('*')
@@ -418,7 +419,7 @@ export class LiveSessionService {
     }
 
     private async logCompletionInteractions(session: Database['public']['Tables']['live_sessions']['Row']) {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // 1. Fetch all attendees for this session
         const { data: attendees, error: attErr } = await supabase

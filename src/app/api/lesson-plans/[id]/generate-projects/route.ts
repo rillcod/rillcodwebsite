@@ -77,7 +77,7 @@ export async function POST(
         // classes.program_id is what links a plan to its project catalogue. The
         // registry is keyed by programme, and no plan carries a track — all 58
         // have metadata.track empty, so matching on track resolved nothing.
-        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name, program_id, teacher_id), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
+        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name, program_id, teacher_id, schools(sessions_per_week)), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
       )
       .eq("id", id)
       .single();
@@ -149,9 +149,16 @@ export async function POST(
     // Omitting is_active used to inherit the DB default (true), so unattended
     // sweeps with hold-for-approval still put projects in front of students.
     const projectActive = body.auto_publish === true;
+    const planClass = Array.isArray((plan as any)?.classes)
+      ? (plan as any).classes[0]
+      : (plan as any)?.classes;
+    const planSchool = Array.isArray(planClass?.schools)
+      ? planClass.schools[0]
+      : planClass?.schools;
     const sessionsPerWeek = cadenceForTeachingPlan({
       planSessionsPerWeek: (plan as { sessions_per_week?: unknown })
         .sessions_per_week,
+      schoolSessionsPerWeek: planSchool?.sessions_per_week,
     });
     const weeks = extractTeachingPlanWeeks(plan.plan_data, sessionsPerWeek) as Array<{
       week: number;

@@ -170,8 +170,8 @@ const Footer = () => {
         {/* Legal & Social */}
         <div className="pt-12 border-t border-border flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="flex flex-wrap justify-center md:justify-start gap-8">
-            <Link href="/privacy" className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">Privacy Protocol</Link>
-            <Link href="/terms" className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">Terms of Service</Link>
+            <Link href="/privacy-policy" className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">Privacy Protocol</Link>
+            <Link href="/terms-of-service" className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">Terms of Service</Link>
           </div>
 
           <p className="text-[9px] font-black text-foreground/80 uppercase tracking-[0.3em]" suppressHydrationWarning>

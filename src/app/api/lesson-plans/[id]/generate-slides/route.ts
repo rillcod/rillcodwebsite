@@ -25,6 +25,11 @@ import {
   existingMeetingAsset,
   keepPreparedMeetingContent,
 } from "@/lib/academic/week-package";
+import { cadenceForTeachingPlan } from "@/lib/academic/school-programme-standing";
+import {
+  extractTeachingPlanWeeks,
+  filterPlanOperationWeeks,
+} from "@/lib/progression/lessonPlanOperation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -133,7 +138,7 @@ export async function POST(
   const { data: plan } = await db
     .from("lesson_plans")
     .select(
-      "id,status,class_id,course_id,school_id,created_by,plan_data,curriculum_release_id,academic_offering_id,offering_period_id,classes!lesson_plans_class_id_fkey(name,teacher_id),courses(title)"
+      "id,status,class_id,course_id,school_id,created_by,sessions_per_week,plan_data,curriculum_release_id,academic_offering_id,offering_period_id,classes!lesson_plans_class_id_fkey(name,teacher_id,schools(sessions_per_week)),courses(title)"
     )
     .eq("id", planId)
     .maybeSingle();
@@ -191,19 +196,24 @@ export async function POST(
     );
   }
 
-  const weeks = Array.isArray(
-    (plan.plan_data as { weeks?: unknown[] } | null)?.weeks
-  )
-    ? (plan.plan_data as { weeks: PlanWeek[] }).weeks
-    : [];
-  const planWeeks = weeks.filter((row) => {
-    if (Number(row.week) !== week) return false;
-    if (onlySession == null) return true;
-    const s = Number(row.session ?? 0);
-    return Number.isFinite(s) && s > 0
-      ? Math.floor(s) === onlySession
-      : onlySession === 1;
+  const school = Array.isArray((klass as { schools?: unknown } | null)?.schools)
+    ? (klass as { schools: Array<{ sessions_per_week?: unknown }> }).schools[0]
+    : (klass as { schools?: { sessions_per_week?: unknown } } | null)?.schools;
+  const sessionsPerWeek = cadenceForTeachingPlan({
+    planSessionsPerWeek: (plan as { sessions_per_week?: unknown }).sessions_per_week,
+    schoolSessionsPerWeek: school?.sessions_per_week,
   });
+  const expandedWeeks = extractTeachingPlanWeeks(plan.plan_data, sessionsPerWeek);
+  if (!expandedWeeks.length) {
+    return NextResponse.json(
+      { error: "Teaching plan has no weeks defined yet" },
+      { status: 400 }
+    );
+  }
+  const planWeeks = filterPlanOperationWeeks(expandedWeeks, {
+    onlyWeeks: [week],
+    onlySession,
+  }) as PlanWeek[];
   if (!planWeeks.length) {
     return NextResponse.json(
       { error: `Week ${week} is not in this teaching plan` },

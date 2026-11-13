@@ -81,7 +81,7 @@ export async function POST(
     const { data: plan, error: planErr } = await (supabase as any)
       .from("lesson_plans")
       .select(
-        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name,teacher_id), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
+        "*, courses(title, programs(name)), classes!lesson_plans_class_id_fkey(name,teacher_id,schools(sessions_per_week)), official_curriculum:academic_curriculum_releases!lesson_plans_curriculum_release_id_fkey(content, release_number, title), curriculum:course_curricula(content, version)"
       )
       .eq("id", id)
       .single();
@@ -154,9 +154,16 @@ export async function POST(
     // Opt-in publish: anything other than an explicit true is held for approval.
     // Matches auto-generate-settings and generate-projects — missing must not go live.
     const assignmentActive = body.auto_publish === true;
+    const planClass = Array.isArray((plan as any)?.classes)
+      ? (plan as any).classes[0]
+      : (plan as any)?.classes;
+    const planSchool = Array.isArray(planClass?.schools)
+      ? planClass.schools[0]
+      : planClass?.schools;
     const sessionsPerWeek = cadenceForTeachingPlan({
       planSessionsPerWeek: (plan as { sessions_per_week?: unknown })
         .sessions_per_week,
+      schoolSessionsPerWeek: planSchool?.sessions_per_week,
     });
     const weeks = extractTeachingPlanWeeks(plan.plan_data, sessionsPerWeek) as Array<{
       week: number;

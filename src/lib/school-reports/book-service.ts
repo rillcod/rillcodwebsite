@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildSchoolReportSnapshot } from './aggregate';
 import { buildSchoolReportCompleteness } from './completeness';
-import type { SchoolReportDesignSettings } from './design';
+import { normalizeSchoolReportDesign, type SchoolReportDesignSettings } from './design';
 import { tryAutoApplyDeliveryDeclaration } from './delivery-automation';
 import { createSchoolReportNarrative } from './narrative';
 import { loadSchoolReportPolicy } from './report-policy';
@@ -35,6 +35,7 @@ export async function createSchoolReportBookDraft(
   admin: AnyClient,
   input: CreateSchoolReportBookInput,
 ): Promise<{ id: string; created: boolean }> {
+  const design = normalizeSchoolReportDesign(input.design);
   const policy = await loadSchoolReportPolicy(admin);
   let snapshot = await buildSchoolReportSnapshot(admin, input.schoolId, input.range);
 
@@ -58,7 +59,7 @@ export async function createSchoolReportBookDraft(
         term_label: input.range.termLabel,
         academic_term_id: input.range.academicTermId,
         snapshot,
-        design: input.design ?? undefined,
+        design,
       },
       snapshot,
       policy,
@@ -69,7 +70,7 @@ export async function createSchoolReportBookDraft(
   const narrative = await createSchoolReportNarrative(snapshot);
   snapshot = {
     ...snapshot,
-    completeness: buildSchoolReportCompleteness(snapshot, input.design),
+    completeness: buildSchoolReportCompleteness(snapshot, design),
   };
 
   const now = new Date().toISOString();
@@ -89,7 +90,7 @@ export async function createSchoolReportBookDraft(
       curriculum_end_week: input.range.curriculumEndWeek,
       snapshot,
       narrative,
-      design: input.design ?? null,
+      design,
       status: 'draft',
       created_by: input.createdBy,
       updated_at: now,

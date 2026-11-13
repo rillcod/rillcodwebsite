@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createClient } = vi.hoisted(() => ({
-  createClient: vi.fn(),
+const { createAdminClient } = vi.hoisted(() => ({
+  createAdminClient: vi.fn(),
 }));
 
-vi.mock('@/lib/supabase/server', () => ({ createClient }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient }));
 
 import { TemplatesService } from './templates.service';
 
@@ -20,7 +20,7 @@ function chain(result: { data: any; error: any }) {
 
 describe('TemplatesService governed lookup', () => {
   beforeEach(() => {
-    createClient.mockReset();
+    createAdminClient.mockReset();
   });
 
   it('prefers an approved tested communication template over the legacy store', async () => {
@@ -34,7 +34,7 @@ describe('TemplatesService governed lookup', () => {
       error: null,
     });
     const legacy = chain({ data: null, error: { message: 'not used' } });
-    createClient.mockResolvedValue({
+    createAdminClient.mockReturnValue({
       from: vi.fn((table: string) => (table === 'communication_templates' ? governed : legacy)),
     });
 
@@ -51,7 +51,7 @@ describe('TemplatesService governed lookup', () => {
       data: { name: 'Assignment Reminder', type: 'email', subject: 'Legacy', content: 'Old copy', is_active: true },
       error: null,
     });
-    createClient.mockResolvedValue({
+    createAdminClient.mockReturnValue({
       from: vi.fn((table: string) => (table === 'communication_templates' ? governed : legacy)),
     });
 

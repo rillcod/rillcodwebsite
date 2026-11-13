@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, NotFoundError } from '@/lib/errors';
 import { normalizeTemplateKey } from '@/lib/communication/template-registry';
 
@@ -17,7 +17,7 @@ export class TemplatesService {
     }
 
     async getTemplate(name: string, type: 'email' | 'sms') {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         const { data: governed, error: governedError } = await (supabase as any)
             .from('communication_templates')
             .select('name,channel,required_variables,current_version:communication_template_versions!communication_templates_current_version_id_fkey(subject,body,test_status)')
