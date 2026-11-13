@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         studentRegistrations,
         gradedCounts,
         paymentsRes,
+        schoolsListRes,
       ] = await Promise.all([
         supabase
           .from('schools')
@@ -102,47 +103,48 @@ export async function GET(req: NextRequest) {
           .not('school_id', 'is', null)
           .order('created_at', { ascending: false })
           .limit(10),
+        supabase
+          .from('schools')
+          .select('id, name, commission_rate')
+          .eq('status', 'approved')
+          .neq('is_deleted', true)
+          .order('name'),
       ]);
 
+      const schoolsList = schoolsListRes.data || [];
+      const approvedSchoolIds = schoolsList.map((s: any) => s.id);
 
-      // Fetch partner school stats
-      const { data: schoolsList } = await supabase
-        .from('schools')
-        .select('id, name, commission_rate')
-        .eq('status', 'approved')
-        .neq('is_deleted', true)
-        .order('name');
-
-      const approvedSchoolIds = (schoolsList || []).map((s: any) => s.id);
-
-      const [studentsRes, transactionsRes, allSchoolStudentsRes] = await Promise.all([
-        supabase
-          .from('students')
-          .select('id, school_id, partner_program_track, status')
-          .eq('enrollment_type', 'school')
-          .in('school_id', approvedSchoolIds)
-          .in('status', ['active', 'approved']),
-        supabase
-          .from('payment_transactions')
-          .select('id, school_id, amount, payment_gateway_response, portal_user_id')
-          .eq('payment_status', 'completed')
-          .in('school_id', approvedSchoolIds),
-        supabase
-          .from('students')
-          .select('id, user_id, partner_program_track')
-          .in('school_id', approvedSchoolIds),
-      ]);
+      const [studentsRes, transactionsRes] = approvedSchoolIds.length > 0
+        ? await Promise.all([
+            supabase
+              .from('students')
+              .select('id, user_id, school_id, enrollment_type, partner_program_track, status')
+              .in('school_id', approvedSchoolIds),
+            supabase
+              .from('payment_transactions')
+              .select('id, school_id, amount, payment_gateway_response, portal_user_id')
+              .eq('payment_status', 'completed')
+              .in('school_id', approvedSchoolIds),
+          ])
+        : [{ data: [] }, { data: [] }];
 
       const studentTrackMap = new Map();
       const userTrackMap = new Map();
-      (allSchoolStudentsRes.data || []).forEach((s: any) => {
+      const allSchoolStudents = studentsRes.data || [];
+      allSchoolStudents.forEach((s: any) => {
         studentTrackMap.set(s.id, s.partner_program_track);
         if (s.user_id) userTrackMap.set(s.user_id, s.partner_program_track);
       });
 
-      const partnerSchoolStats = (schoolsList || []).map((school: any) => {
+      const activeEnrolledSchoolStudents = allSchoolStudents.filter(
+        (s: any) =>
+          s.enrollment_type === 'school' &&
+          (s.status === 'active' || s.status === 'approved'),
+      );
+
+      const partnerSchoolStats = schoolsList.map((school: any) => {
         const commissionRate = school.commission_rate ?? 15;
-        const schoolStudents = (studentsRes.data || []).filter((s: any) => s.school_id === school.id);
+        const schoolStudents = activeEnrolledSchoolStudents.filter((s: any) => s.school_id === school.id);
         const termEnrolments = schoolStudents.filter((s: any) => s.partner_program_track !== 'holiday').length;
         const holidayEnrolments = schoolStudents.filter((s: any) => s.partner_program_track === 'holiday').length;
 

@@ -18,6 +18,9 @@ import { cronAdmissionIntervalMs } from "../lib/operations/cron-registry";
 import {
   apexRedirectResponse,
   isCacheableVersionedAsset,
+  isHumanBrowserNavigation,
+  isPublicMarketingPageRequest,
+  isPublicStaticFileRequest,
   isScannerProbeRequest,
   isVersionedAssetRequest,
 } from "../lib/cloudflare/static-asset-cache";
@@ -115,10 +118,10 @@ function containerEnvFromWorker(env: GatewayEnv): Record<string, string> {
  */
 export class NextAppContainer extends Container {
   defaultPort = 3000;
-  // The basic instance reserves 1 GiB. Stop within seconds after a burst so the
-  // app avoids paying for idle intervals between scheduler calls.
-  // Actual work is still metered; this timeout is not a billing cap.
-  sleepAfter = "5s";
+  // The basic instance reserves 1 GiB. Hold for 60s across interactive bursts
+  // so logged-in dashboard sessions do not suffer repeated cold starts while
+  // still scaling down to zero shortly after traffic stops.
+  sleepAfter = "60s";
   enableInternet = true;
   // Lightweight, database-free readiness endpoint so waitForPort() does not
   // trigger full homepage SSR on a 0.25 vCPU cold start.
@@ -293,6 +296,20 @@ export class NextAppContainer extends Container {
    * library responses, wait for port 3000 once, and replay only read-only work.
    */
   override async fetch(request: Request): Promise<Response> {
+    if (request.headers.get("x-rillcod-warmup") === "1") {
+      this.renewActivityTimeout();
+      if (this.ctx.container?.running && this.hasReachedHealthy) {
+        return new Response("warm", { status: 200, headers: { "cache-control": "no-store" } });
+      }
+      try {
+        await this.startAndWaitForPorts({ ports: this.defaultPort });
+        return new Response("warmed", { status: 200, headers: { "cache-control": "no-store" } });
+      } catch (err) {
+        console.warn("[NextAppContainer] warmup failed", err);
+        return new Response("starting", { status: 202, headers: { "cache-control": "no-store" } });
+      }
+    }
+
     const admission = await this.admitCronRequest(request);
     if (admission.response) return admission.response;
 
@@ -313,8 +330,13 @@ export class NextAppContainer extends Container {
       try {
         response = await this.containerFetch(request, this.defaultPort);
       } catch (error) {
-        console.error("[NextAppContainer] proxy transport threw", error);
-        return await finish(containerUnavailableResponse(request));
+        const message = error instanceof Error ? error.message : String(error);
+        if (classifyContainerFailure(500, message) === "retryable") {
+          response = new Response(message, { status: 500 });
+        } else {
+          console.error("[NextAppContainer] proxy transport threw", error);
+          return await finish(containerUnavailableResponse(request));
+        }
       }
 
       const failure = await classifyContainerResponse(response);
@@ -574,23 +596,94 @@ export default {
         headers: { "cache-control": "public, max-age=3600" },
       });
     }
-    if (!isVersionedAssetRequest(request)) return appContainer(env).fetch(request);
-    // Cache hits never reach the Durable Object and cannot wake a sleeping app.
+
     const cache = (caches as CacheStorage & { default: Cache }).default;
-    const key = new Request(request.url, { method: 'GET' });
-    try {
-      const cached = await cache.match(key);
-      if (cached) return cached;
-    } catch (error) {
-      console.warn('[gateway] static cache read failed', error);
+
+    if (isVersionedAssetRequest(request)) {
+      // Cache hits never reach the Durable Object and cannot wake a sleeping app.
+      const key = new Request(request.url, { method: 'GET' });
+      try {
+        const cached = await cache.match(key);
+        if (cached) return cached;
+      } catch (error) {
+        console.warn('[gateway] static cache read failed', error);
+      }
+      const response = await appContainer(env).fetch(request);
+      if (isCacheableVersionedAsset(response)) {
+        ctx.waitUntil(cache.put(key, response.clone()).catch((error: unknown) => {
+          console.warn('[gateway] static cache write failed', error);
+        }));
+      }
+      return response;
     }
-    const response = await appContainer(env).fetch(request);
-    if (isCacheableVersionedAsset(response)) {
-      ctx.waitUntil(cache.put(key, response.clone()).catch((error: unknown) => {
-        console.warn('[gateway] static cache write failed', error);
-      }));
+
+    if (isPublicStaticFileRequest(request)) {
+      const key = new Request(request.url, { method: 'GET' });
+      try {
+        const cached = await cache.match(key);
+        if (cached) return cached;
+      } catch (error) {
+        console.warn('[gateway] public static cache read failed', error);
+      }
+      const response = await appContainer(env).fetch(request);
+      if (response.status === 200 && !response.headers.has('set-cookie')) {
+        const headers = new Headers(response.headers);
+        headers.set('cache-control', 'public, max-age=86400, stale-while-revalidate=604800');
+        headers.delete('vary');
+        const toCache = new Response(response.clone().body, { status: 200, headers });
+        ctx.waitUntil(cache.put(key, toCache).catch((error: unknown) => {
+          console.warn('[gateway] public static cache write failed', error);
+        }));
+      }
+      return response;
     }
-    return response;
+
+    if (isPublicMarketingPageRequest(request)) {
+      const key = new Request(request.url, { method: 'GET', headers: { accept: 'text/html' } });
+      try {
+        const cached = await cache.match(key);
+        if (cached) {
+          if (isHumanBrowserNavigation(request)) {
+            ctx.waitUntil(
+              appContainer(env).fetch(
+                new Request('http://container.local/api/system/container-work', {
+                  method: 'GET',
+                  headers: { 'x-rillcod-warmup': '1' },
+                }),
+              ).catch(() => {}),
+            );
+          }
+          const outHeaders = new Headers(cached.headers);
+          outHeaders.set('cache-control', 'private, no-cache, no-store, max-age=0, must-revalidate');
+          outHeaders.set('x-rillcod-edge-cache', 'HIT');
+          return new Response(cached.body, { status: cached.status, headers: outHeaders });
+        }
+      } catch (error) {
+        console.warn('[gateway] marketing cache read failed', error);
+      }
+
+      const response = await appContainer(env).fetch(request);
+      if (
+        response.status === 200 &&
+        !response.headers.has('set-cookie') &&
+        !response.headers.has('x-rillcod-service-state') &&
+        (response.headers.get('content-type') ?? '').includes('text/html')
+      ) {
+        const headers = new Headers(response.headers);
+        headers.set('cache-control', 'public, max-age=180, stale-while-revalidate=1800');
+        headers.delete('vary');
+        const cacheableResponse = new Response(response.clone().body, {
+          status: response.status,
+          headers,
+        });
+        ctx.waitUntil(cache.put(key, cacheableResponse).catch((error: unknown) => {
+          console.warn('[gateway] marketing cache write failed', error);
+        }));
+      }
+      return response;
+    }
+
+    return appContainer(env).fetch(request);
   },
 
   async scheduled(controller: ScheduledController, env: GatewayEnv): Promise<void> {

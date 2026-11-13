@@ -94,6 +94,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Fast-path unauthenticated requests without a Supabase network round-trip.
+  const hasSupabaseAuthCookie = request.cookies
+    .getAll()
+    .some((c) => isSupabaseAuthStorageKey(c.name) && Boolean(c.value));
+
+  if (!hasSupabaseAuthCookie) {
+    if (pathname === '/login') {
+      return NextResponse.next();
+    }
+    const url = request.nextUrl.clone();
+    const requestedDestination = `${pathname}${request.nextUrl.search}`;
+    url.pathname = '/login';
+    url.search = '';
+    url.searchParams.set('redirectedFrom', requestedDestination);
+    return NextResponse.redirect(url);
+  }
+
   const { supabase, getResponse } = createMiddlewareSupabase(request);
 
   let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null;

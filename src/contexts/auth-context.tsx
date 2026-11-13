@@ -41,9 +41,44 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Singleton — one client for the entire browser session
 const supabase = createClient();
 
-// Simple in-memory profile cache to avoid redundant DB fetches
+// Simple in-memory + sessionStorage profile cache so dashboard navigations
+// and reloads render the workspace immediately without waiting on /api/auth/me.
 const profileCache = new Map<string, { data: UserProfile; ts: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const PROFILE_STORAGE_PREFIX = 'rillcod_profile_v1:';
+
+function getStoredProfile(userId: string | null | undefined): UserProfile | null {
+  if (!userId) return null;
+  const mem = profileCache.get(userId);
+  if (mem && Date.now() - mem.ts < CACHE_TTL) return mem.data;
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(`${PROFILE_STORAGE_PREFIX}${userId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data?: UserProfile; ts?: number };
+    if (!parsed?.data || typeof parsed.ts !== 'number') return null;
+    if (Date.now() - parsed.ts >= CACHE_TTL) {
+      sessionStorage.removeItem(`${PROFILE_STORAGE_PREFIX}${userId}`);
+      return null;
+    }
+    profileCache.set(userId, { data: parsed.data, ts: parsed.ts });
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredProfile(userId: string, data: UserProfile): void {
+  const entry = { data, ts: Date.now() };
+  profileCache.set(userId, entry);
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem(`${PROFILE_STORAGE_PREFIX}${userId}`, JSON.stringify(entry));
+    } catch {
+      // Ignore storage quota errors
+    }
+  }
+}
 
 // Read stored user from localStorage synchronously — Supabase persists the
 // session there, so we can show the correct UI on the very first render
@@ -69,10 +104,11 @@ function getStoredUser(): User | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const storedUser = useRef(getStoredUser());
+  const storedProfile = useRef<UserProfile | null>(getStoredProfile(storedUser.current?.id));
 
   const [user, setUser] = useState<User | null>(storedUser.current);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(storedProfile.current);
 
   // ── View-as role simulation (UI-only) ─────────────────────────────
   const [viewAsRoleRaw, setViewAsRoleRaw] = useState<UserRole | null>(() => {
@@ -93,9 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // If we found a stored user we already know — skip the spinner entirely.
   const [isLoading, setIsLoading] = useState(!storedUser.current);
 
-  // profileLoading: true while the profile row is being fetched.
+  // profileLoading: true while the profile row is being fetched (and no cached profile is ready).
   // Allows consumers to distinguish "fetching" from "genuinely missing".
-  const [profileLoading, setProfileLoading] = useState(!!storedUser.current);
+  const [profileLoading, setProfileLoading] = useState(!!storedUser.current && !storedProfile.current);
 
   // signingOut: blocks UI and shows feedback while cookies + local session clear.
   const [signingOut, setSigningOut] = useState(false);
@@ -115,9 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const processedUserIdRef = useRef<string | null>(storedUser.current?.id ?? null);
 
   // ── Profile fetch via API (service role — bypasses RLS) ───
-  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    const cached = profileCache.get(userId);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  const fetchProfile = useCallback(async (
+    userId: string,
+    options?: { bypassCache?: boolean },
+  ): Promise<UserProfile | null> => {
+    if (!options?.bypassCache) {
+      const cached = getStoredProfile(userId);
+      if (cached) return cached;
+    }
 
     // Retry only on network/server errors (not on empty profile — that means no account).
     // Pauses stay short; the real wait is the per-attempt deadline in
@@ -158,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const p = json.profile as UserProfile;
-        profileCache.set(userId, { data: p, ts: Date.now() });
+        saveStoredProfile(userId, p);
         return p;
       } catch {
         if (attempt < MAX_RETRIES - 1) continue;
@@ -169,8 +210,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const invalidateCache = useCallback((userId?: string) => {
-    if (userId) profileCache.delete(userId);
-    else profileCache.clear();
+    if (userId) {
+      profileCache.delete(userId);
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.removeItem(`${PROFILE_STORAGE_PREFIX}${userId}`);
+        } catch {
+          // Ignore storage errors
+        }
+      }
+    } else {
+      profileCache.clear();
+      if (typeof window !== 'undefined') {
+        try {
+          Object.keys(sessionStorage)
+            .filter((k) => k.startsWith(PROFILE_STORAGE_PREFIX))
+            .forEach((k) => sessionStorage.removeItem(k));
+        } catch {
+          // Ignore storage errors
+        }
+      }
+    }
   }, []);
 
   // ── Public refresh ─────────────────────────────────────────
@@ -269,9 +329,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Mark the fetch as started so INITIAL_SESSION doesn't duplicate it.
     if (storedUser.current) {
       const fastPathUserId = storedUser.current.id;
+      const cachedProfile = storedProfile.current;
       profileFetchStartedRef.current = true;
-      setProfileLoading(true);
-      fetchProfile(fastPathUserId).then(p => {
+      if (!cachedProfile) {
+        setProfileLoading(true);
+      }
+      fetchProfile(fastPathUserId, { bypassCache: true }).then(p => {
         // Apply immediately — onAuthStateChange INITIAL_SESSION will fire shortly
         // after and will clear the profile if the user has changed. Avoid the nested
         // supabase.auth.getUser() call here because it can hang indefinitely and
@@ -281,7 +344,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           storedUser.current?.id === fastPathUserId &&
           !recoveringInvalidSessionRef.current
         ) {
-          setProfile(p);
+          if (p || !cachedProfile) {
+            setProfile(p);
+          }
           setProfileLoading(false);
         }
       }).catch(() => {

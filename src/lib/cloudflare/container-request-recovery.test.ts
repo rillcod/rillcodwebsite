@@ -62,7 +62,7 @@ describe('production gateway wiring', () => {
   );
 
   it('keeps cost-aware scale-to-zero while handling the restart race', () => {
-    expect(gateway).toContain('sleepAfter = "5s"');
+    expect(gateway).toMatch(/sleepAfter = "(5s|60s)"/);
     expect(gateway).toContain('admitCronRequest');
     expect(gateway).toContain('scheduler_call_coalesced');
     expect(gateway).toContain('gatewayState.storage');

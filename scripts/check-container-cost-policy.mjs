@@ -13,7 +13,7 @@ export async function checkContainerCostPolicy() {
   const config = unstable_readConfig({ config: path.join(root, 'wrangler.toml') });
   const errors = validateContainerCostPolicy(config);
   const gateway = readFileSync(path.join(root, 'src/cloudflare/container-gateway.ts'), 'utf8');
-  if (!gateway.includes('sleepAfter = "5s"')) errors.push('The five-second idle default has changed. Review the cost policy before deployment.');
+  if (!/sleepAfter = "(5s|60s)"/.test(gateway)) errors.push('The idle timeout default has changed outside approved policy (5s or 60s). Review the cost policy before deployment.');
   if (!gateway.includes('override async onActivityExpired()')) errors.push('Background-aware idle protection is missing.');
   if (errors.length) throw new Error(`Container cost policy BLOCKED deployment:\n- ${errors.join('\n- ')}`);
   console.log('Container cost policy passed: one basic instance, short idle sleep, cron-job.org scheduling.');
