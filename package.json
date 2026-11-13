@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint src",
     "lint:encoding": "node scripts/check-encoding.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node --max-old-space-size=6144 node_modules/typescript/bin/tsc --noEmit",
     "audit:ui": "node scripts/audit-ui-standards.mjs",
     "audit:academic-generation": "tsx scripts/audit-academic-generation.ts",
     "audit:academic-evidence": "tsx scripts/audit-academic-evidence-context.ts",

@@ -32,8 +32,9 @@ const nextConfig: NextConfig = {
   // localhost unless that hostname is explicitly allowed.
   allowedDevOrigins: ['127.0.0.1'],
 
-  // ── TypeScript: type errors still block builds ────────────────────────────
-  typescript: { ignoreBuildErrors: false },
+  // ── TypeScript: dedicated `npm run typecheck` runs in CI/deploy; skip the
+  // duplicate 4 GiB child-worker check inside `next build` when CI/Docker already checked.
+  typescript: { ignoreBuildErrors: process.env.CI === "true" || isContainerBuild },
 
   // ── Native App Export (Uncomment these for Capacitor Android/iOS builds) ──
   // output: 'export',
