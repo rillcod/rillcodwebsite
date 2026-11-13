@@ -309,25 +309,6 @@ export class NextAppContainer extends Container {
     const replayRequest = canReplayContainerRequest(request) ? request.clone() : null;
 
     try {
-      // Pre-ensure port 3000 is ready before sending non-replayable requests
-      // (such as /api/cron/* and POST/PATCH writes) into containerFetch, so a
-      // sleeping container wakes up and runs the job on the first attempt
-      // instead of returning 503 during the stopped -> starting transition.
-      if (!this.ctx.container?.running || !this.hasReachedHealthy) {
-        try {
-          await this.startAndWaitForPorts({
-            ports: this.defaultPort,
-            cancellationOptions: {
-              instanceGetTimeoutMS: 15_000,
-              portReadyTimeoutMS: 35_000,
-              waitInterval: 250,
-            },
-          });
-        } catch (prewarmError) {
-          console.warn("[NextAppContainer] pre-dispatch readiness wait did not complete cleanly", prewarmError);
-        }
-      }
-
       let response: Response;
       try {
         response = await this.containerFetch(request, this.defaultPort);
@@ -339,6 +320,7 @@ export class NextAppContainer extends Container {
       const failure = await classifyContainerResponse(response);
       if (!failure) return await finish(response);
 
+      const failureText = await response.clone().text().catch(() => "");
       console.warn("[NextAppContainer] intercepted container lifecycle response", {
         status: response.status,
         failure,
@@ -346,7 +328,6 @@ export class NextAppContainer extends Container {
         pathname: new URL(request.url).pathname,
       });
 
-      const failureText = await response.clone().text().catch(() => "");
       const isUnresponsivePort = failureText.toLowerCase().includes("not listening");
       // Only destroy when a previously healthy container stopped listening, not
       // while a cold start is still booting Next.js.
