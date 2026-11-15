@@ -220,8 +220,8 @@ export async function GET(request: NextRequest) {
 
       let lessonQuery = db
         .from('lessons')
-        .select('id, title, description, week_number, status, content, course_id, class_id')
-        .order('week_number', { ascending: true })
+        .select('id, title, description, curriculum_week_number, session_number, status, content, content_layout, course_id, class_id')
+        .order('curriculum_week_number', { ascending: true })
         .limit(30);
       if (classId) {
         lessonQuery = lessonQuery.eq('class_id', classId);
@@ -234,12 +234,16 @@ export async function GET(request: NextRequest) {
       const { data: lessons } = await lessonQuery;
 
       for (const lesson of lessons ?? []) {
-        const wk = Number(lesson.week_number) || curriculumWeeks.length + 1;
+        const wk = Number(lesson.curriculum_week_number ?? lesson.session_number) || curriculumWeeks.length + 1;
         if (seenWeeks.has(wk)) continue;
         seenWeeks.add(wk);
 
         const contentObj =
-          lesson.content && typeof lesson.content === 'object' ? lesson.content : {};
+          lesson.content_layout && typeof lesson.content_layout === 'object'
+            ? (lesson.content_layout as Record<string, any>)
+            : lesson.content && typeof lesson.content === 'object'
+              ? (lesson.content as Record<string, any>)
+              : {};
         const objectives = Array.isArray(contentObj.objectives)
           ? contentObj.objectives.map(String)
           : lesson.description

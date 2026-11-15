@@ -932,6 +932,16 @@ export default function GradesPage() {
         else { setSortBy(col); setSortDir('desc'); }
     };
 
+    const ungradedInFiltered = useMemo(
+        () => filtered.filter((s: any) => s.status === 'submitted' || s.status === 'late'),
+        [filtered],
+    );
+    const nextUngradedSubmission = useMemo(() => {
+        if (!grading) return null;
+        const others = ungradedInFiltered.filter((s: any) => s.id !== grading.id);
+        return others[0] ?? null;
+    }, [grading, ungradedInFiltered]);
+
     // ── Loading skeleton ───────────────────────────────────────
     if (authLoading || loading) return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
@@ -959,16 +969,6 @@ export default function GradesPage() {
             </div>
         </div>
     );
-
-    const ungradedInFiltered = useMemo(
-        () => filtered.filter((s: any) => s.status === 'submitted' || s.status === 'late'),
-        [filtered],
-    );
-    const nextUngradedSubmission = useMemo(() => {
-        if (!grading) return null;
-        const others = ungradedInFiltered.filter((s: any) => s.id !== grading.id);
-        return others[0] ?? null;
-    }, [grading, ungradedInFiltered]);
 
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
