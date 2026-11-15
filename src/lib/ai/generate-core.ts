@@ -14,14 +14,21 @@
  * code calls generateAIContent directly; only browsers go through the route.
  */
 import { geminiGenerateText } from "@/lib/gemini/client";
+import { cloudflareGenerateText, hasCloudflareAi } from "@/lib/ai/cloudflare-ai";
 import {
   openRouterComplete,
   MIN_CONTENT_CHARS,
   OPENROUTER_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai/openrouter";
 import { modelQueueFor } from "@/lib/ai/model-policy";
+import { recordModelFailure, recordModelSuccess } from "@/lib/ai/model-health";
 import { hasHuggingFaceKey } from "@/lib/ai/huggingface";
 import { buildCbtEntrySuggestion } from "@/lib/cbt/predictive-entry";
+import {
+  buildAssessmentBlueprint,
+  inferCognitiveLevel,
+  resolveMcqAnswerToOption,
+} from "@/lib/cbt/question-bank-catalog";
 import { meetingContinuityInstruction } from "@/lib/academic/session-identity";
 
 export const MODELS = [
@@ -239,8 +246,12 @@ export interface GenerateRequest {
   term_count?: number;
   weeks_per_term?: number;
   notes?: string;
-  /** Extracted text from a teacher's PDF — grounds generation in their real material. */
+  /** Extracted text from a teacher's PDF or TXT file — grounds generation in their real material. */
   sourceMaterial?: string;
+  /** Mode for CBT designer: generate fresh aligned questions or extract/align premade questions from TXT/PDF/paste. */
+  cbtMode?: "generate" | "align_premade";
+  /** Raw premade questions text from TXT/PDF/paste to clean, complete, and align with blueprint output. */
+  premadeQuestionsText?: string;
 
   // Duration-programme curriculum, taken from the published programme page so
   // what gets taught cannot drift from what was advertised to parents.
@@ -394,21 +405,32 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
     };
   };
 
-  const pickedObjective = objective.slice(0, plan.mcqCount);
-  while (pickedObjective.length < plan.mcqCount) {
-    pickedObjective.push(
-      fallbackQuestion(pickedObjective.length + 1, "objective")
-    );
+  const pickedObjective =
+    req.cbtMode === "align_premade" && rawQuestions.length > 0
+      ? objective
+      : objective.slice(0, plan.mcqCount);
+  if (req.cbtMode !== "align_premade" || rawQuestions.length === 0) {
+    while (pickedObjective.length < plan.mcqCount) {
+      pickedObjective.push(
+        fallbackQuestion(pickedObjective.length + 1, "objective")
+      );
+    }
   }
 
-  const pickedOpen = open.slice(0, plan.openCount);
-  while (pickedOpen.length < plan.openCount) {
-    pickedOpen.push(
-      fallbackQuestion(plan.mcqCount + pickedOpen.length + 1, "open")
-    );
+  const pickedOpen =
+    req.cbtMode === "align_premade" && rawQuestions.length > 0
+      ? open
+      : open.slice(0, plan.openCount);
+  if (req.cbtMode !== "align_premade" || rawQuestions.length === 0) {
+    while (pickedOpen.length < plan.openCount) {
+      pickedOpen.push(
+        fallbackQuestion(plan.mcqCount + pickedOpen.length + 1, "open")
+      );
+    }
   }
 
   const questions = [...pickedObjective, ...pickedOpen].map((q, idx) => {
+    const isObjective = idx < pickedObjective.length;
     const type = [
       "multiple_choice",
       "true_false",
@@ -417,47 +439,106 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
       "coding_blocks",
     ].includes(q.question_type)
       ? q.question_type
-      : idx < plan.mcqCount
+      : isObjective
       ? "multiple_choice"
       : "essay";
-    const isObjective = idx < plan.mcqCount;
     const options = isObjective
-      ? Array.isArray(q.options) && q.options.length >= 2
-        ? q.options.slice(0, 4).map(String)
+      ? type === "true_false"
+        ? ["True", "False"]
+        : Array.isArray(q.options) && q.options.length >= 2
+        ? q.options.slice(0, 6).map(String)
         : ["True", "False"]
       : [];
+    const questionText =
+      String(q.question_text ?? "").trim() ||
+      fallbackQuestion(idx + 1, isObjective ? "objective" : "open")
+        .question_text;
+    const rawMeta =
+      q.metadata && typeof q.metadata === "object" && !Array.isArray(q.metadata)
+        ? q.metadata
+        : {};
+    const section =
+      q.section ?? rawMeta.section ?? (isObjective ? "objective" : "subjective");
+    const cognitiveLevel =
+      rawMeta.cognitive_level &&
+      ["foundation", "application", "reasoning"].includes(rawMeta.cognitive_level)
+        ? rawMeta.cognitive_level
+        : inferCognitiveLevel(questionText, type);
+    const curriculumTag =
+      rawMeta.curriculum_tag ||
+      q.curriculum_tag ||
+      req.sourceName ||
+      req.courseName ||
+      req.topic;
+
+    const rawAnswer = String(
+      q.correct_answer ?? q.marking_guide ?? rawMeta.marking_guide ?? ""
+    ).trim();
+    const resolvedAnswer = isObjective
+      ? type === "true_false"
+        ? /^false$/i.test(rawAnswer)
+          ? "False"
+          : "True"
+        : resolveMcqAnswerToOption(rawAnswer, options) || options[0] || ""
+      : rawAnswer ||
+        String(q.explanation ?? "").trim() ||
+        "Award full marks for accurate explanation, correct terminology, and a relevant example.";
+
+    const markingGuide =
+      String(
+        q.marking_guide ??
+          rawMeta.marking_guide ??
+          q.explanation ??
+          (!isObjective ? resolvedAnswer : "")
+      ).trim() || undefined;
+
     return {
-      question_text:
-        String(q.question_text ?? "").trim() ||
-        fallbackQuestion(idx + 1, isObjective ? "objective" : "open")
-          .question_text,
+      question_text: questionText,
       question_type: type,
       options,
-      correct_answer: String(q.correct_answer ?? "").trim(),
+      correct_answer: resolvedAnswer,
+      marking_guide: markingGuide,
       points:
         Number(q.points) > 0
           ? Number(q.points)
           : isObjective
           ? plan.objectivePoints
           : plan.theoryPoints,
-      section: q.section ?? (isObjective ? "objective" : "subjective"),
-      metadata: q.metadata ?? null,
+      section,
+      explanation: q.explanation ? String(q.explanation) : markingGuide,
+      metadata: {
+        ...rawMeta,
+        section,
+        cognitive_level: cognitiveLevel,
+        curriculum_tag: curriculumTag,
+        ...(markingGuide ? { marking_guide: markingGuide } : {}),
+      },
     };
+  });
+
+  const resolvedTitle =
+    parsed?.title ||
+    `${req.topic} ${
+      plan.examType === "evaluation" ? "Evaluation" : "Examination"
+    }`;
+
+  const blueprint = buildAssessmentBlueprint(questions, {
+    title: resolvedTitle,
+    courseTitle: req.courseName || req.subject || req.topic,
+    sourceName: req.sourceName || req.topic,
+    durationMinutes: plan.durationMinutes,
   });
 
   return {
     ...parsed,
-    title:
-      parsed?.title ||
-      `${req.topic} ${
-        plan.examType === "evaluation" ? "Evaluation" : "Examination"
-      }`,
+    title: resolvedTitle,
     description:
       parsed?.description ||
       `${plan.boundaryNote} Generated from the selected course context.`,
     duration_minutes: plan.durationMinutes,
     passing_score: plan.passingScore,
     questions,
+    blueprint,
     generation_constraints: {
       exam_type: plan.examType,
       requested_mcq: plan.requestedMcq,
@@ -1272,7 +1353,16 @@ RULES:
           ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate. Use ${plan.theoryPoints} points for essay/coding_blocks and 3-5 points for fill_blank.`
           : "";
 
-      return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
+      const premadeAlignBlock =
+        req.cbtMode === "align_premade" || req.premadeQuestionsText?.trim()
+          ? `\nPREMADE QUESTIONS TO EXTRACT, CLEAN & ALIGN TO BLUEPRINT:\nThe teacher has provided premade questions below (from a .txt/.pdf file or pasted draft). Preserve and refine these questions first, complete any missing options, correct answers, or grading rubrics, align each question to the course/curriculum topic and cognitive level (foundation, application, reasoning), and generate additional aligned questions only if needed to reach ${totalQ} total questions:\n"""\n${(
+              req.premadeQuestionsText ||
+              req.sourceMaterial ||
+              ""
+            ).slice(0, 8000)}\n"""\n`
+          : "";
+
+      return `Generate a Computer Based Test (CBT) and Assessment Blueprint for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
 Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
@@ -1291,8 +1381,8 @@ ${
     : ""
 }
 ${
-  req.sourceName ? `Attached teacher material: "${req.sourceName}"` : ""
-}${sourceBlock}
+  req.sourceName ? `Attached teacher material (.txt / .pdf / curriculum): "${req.sourceName}"` : ""
+}${sourceBlock}${premadeAlignBlock}
 Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
 Realistic boundary: ${plan.boundaryNote}
 Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${
@@ -1302,11 +1392,13 @@ Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${
 ${mcqInstruction}
 ${theoryInstruction}
 
-CONTEXT-AWARE RULES:
+CONTEXT-AWARE & BLUEPRINT ALIGNMENT RULES:
 - Stay inside the selected programme/course/source scope. Do not introduce unrelated technologies or advanced topics not implied by the teacher context.
-- If source material is provided, at least 80% of questions must be traceable to it.
+- If source material (.txt, .pdf, or curriculum weeks) is provided, at least 85% of questions must be directly traceable to it.
+- If premade questions are provided (even if they have NO answers or NO marking guides), you MUST act as an expert examiner: solve every objective question accurately so "correct_answer" matches the exact option string in "options", and write a detailed, point-by-point "marking_guide" (and "correct_answer") for every theory/essay/fill_blank question.
+- For EVERY question, populate both "correct_answer" (exact option text for MCQ/true_false, or expected answer/rubric for theory/fill_blank) AND "marking_guide" (clear scoring criteria or explanation of why the answer is correct).
 - Use realistic Nigerian classroom or academy scenarios only when they help the concept; avoid decorative stories that distract from assessment.
-- Difficulty spread: about 40% recall/foundation, 40% application, 20% reasoning/debugging.
+- Difficulty spread (Blueprint distribution): about 40% foundation (recall/understanding), 40% application (code tracing/hands-on usage), 20% reasoning (debugging/design/evaluation).
 - For coding/web/database topics, include short code snippets in some questions using triple-backtick fences with the language. Keep snippets printable: 4-12 lines where possible.
 - For MCQ questions, make distractors plausible and similar in length. Avoid "all of the above" and joke options.
 - For theory questions, ask for explain/apply/debug/compare tasks, not vague "discuss everything" prompts.
@@ -1323,9 +1415,15 @@ Return a JSON object with this exact shape:
       "question_text": "string — for code-based questions wrap the code snippet in triple backtick fences with the language, e.g. \`\`\`python\\nprint('hello')\\n\`\`\`",
       "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks",
       "options": ["string — ONLY for MCQ/true_false; omit or use [] for open-ended"],
-      "correct_answer": "string",
+      "correct_answer": "string — for MCQ/true_false MUST be the exact text of the winning option; for open-ended provide the model answer & marking scheme",
+      "marking_guide": "string — point-by-point marking rubric (e.g. 'Award 3 marks for..., 2 marks for...') or explanation of the correct option",
       "points": 5,
+      "explanation": "string — brief explanation or marking guide",
       "metadata": {
+        "section": "objective | subjective | practical",
+        "cognitive_level": "foundation | application | reasoning",
+        "curriculum_tag": "string — specific subtopic or week from the source material",
+        "marking_guide": "string — point-by-point marking guide",
         "logic_sentence": "string — only for coding_blocks",
         "logic_blocks": ["string"]
       }
@@ -1827,10 +1925,19 @@ export const VALID_GENERATE_TYPES: GenerateType[] = [
   "slides",
 ];
 
-/** Safe JSON extraction — handles markdown code fences and truncated responses. */
+/**
+ * Safe JSON extraction — handles reasoning `<think>...</think>` blocks,
+ * markdown code fences, and trailing commas without corrupting `//` inside code/URLs.
+ */
 export function safeParseJSON(raw: string): any {
-  // Strip markdown code fences if present
-  const stripped = raw
+  // 1. Strip reasoning `<think>...</think>` preambles emitted by R1 / Qwen3 / GLM-Z1
+  const withoutThink = String(raw ?? "")
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/^<think>[\s\S]*?(?=\{)/i, "")
+    .trim();
+
+  // 2. Strip markdown code fences if present
+  const stripped = withoutThink
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
@@ -1838,20 +1945,20 @@ export function safeParseJSON(raw: string): any {
   try {
     return JSON.parse(stripped);
   } catch {
-    // Try to recover a JSON object from the string
-    const match = stripped.match(/(\{[\s\S]*\})/);
-    if (match) {
-      try {
-        // Aggressively clean up trailing commas and potential escaped control chars which AI loves
-        const cleaned = match[1]
-          .replace(/,\s*([\}\]])/g, "$1") // Trailing commas
-          .replace(/\/\/.*/g, "") // Comments
-          .replace(/\\n/g, " ") // Escaped newlines that might break some parsers
-          .trim();
-        return JSON.parse(cleaned);
-      } catch (e2) {
-        console.error("Safe parse failed even after rescue:", e2);
-      }
+    // 3. Extract the outermost JSON object `{ ... }`
+    const firstBrace = stripped.indexOf("{");
+    const lastBrace = stripped.lastIndexOf("}");
+    const candidate =
+      firstBrace !== -1 && lastBrace > firstBrace
+        ? stripped.slice(firstBrace, lastBrace + 1)
+        : stripped;
+
+    try {
+      // Remove trailing commas before `}` or `]` without stripping `//` inside strings
+      const cleaned = candidate.replace(/,\s*([\}\]])/g, "$1").trim();
+      return JSON.parse(cleaned);
+    } catch (e2) {
+      console.error("Safe parse failed even after rescue:", e2);
     }
     throw new Error("AI returned malformed data — please refresh and try again");
   }
@@ -1883,7 +1990,8 @@ export async function resolveGenerationPlan(
     cbtPlan?.totalQ ??
     ((body.mcqCount ?? 0) + (body.theoryCount ?? 0) ||
       (body.questionCount ?? 10));
-  const cbtTokens = type === "cbt" ? Math.max(3000, cbtTotal * 200) : 0;
+  const cbtTokens =
+    type === "cbt" ? Math.max(4096, Math.min(12000, cbtTotal * 280)) : 0;
   const maxTokens =
     type === "lesson"
       ? 4000
@@ -1944,14 +2052,18 @@ export async function resolveGenerationPlan(
 
     case "cbt":
     case "cbt-grading":
-      // Analytical models for precision — Qwen 2.5 removed from primary (returns malformed JSON)
+      // High-precision analytical & reasoning models for question design, answer verification, and marking rubrics
       modelQueue = [
-        "google/gemini-2.0-flash-001", // Reliable JSON + fast
-        "deepseek/deepseek-chat-v3-5", // Strong analytical fallback
-        "meta-llama/llama-3.3-70b-instruct", // Solid fallback
-        "google/gemini-2.0-flash-lite-001", // Emergency fallback
+        "google/gemini-2.5-flash",
+        "qwen/qwen3-235b-a22b:free",
+        "deepseek/deepseek-r1:free",
+        "deepseek/deepseek-chat-v3-5",
+        "moonshotai/kimi-k2.5",
+        "google/gemini-2.0-flash-001",
+        "meta-llama/llama-3.3-70b-instruct",
+        "google/gemini-2.0-flash-lite-001",
       ];
-      adaptiveTemperature = 0.1; // Zero hallucination
+      adaptiveTemperature = 0.15; // High precision, deterministic answers & rubrics
       break;
 
     case "lesson-hook":
@@ -2089,9 +2201,25 @@ export async function resolveGenerationPlan(
   // A dead OpenRouter catalogue must not take the free Gemini ladder down with
   // it: this queue is the paid fallback, and failing to build one is not a
   // reason to skip generating at all.
+  const estimatedTokensNeeded =
+    Math.ceil((prompt.length + SYSTEM_PROMPT.length) / 3.6) + adaptiveMaxTokens;
+  const taskIntelligence = [
+    "cbt",
+    "cbt-grading",
+    "code-generation",
+    "curriculum",
+    "programme-curriculum",
+    "lesson",
+    "project",
+  ].includes(type)
+    ? "reasoning"
+    : "high";
+
   const resolvedQueue = await modelQueueFor({
     prefer: modelQueue,
     needsJson: useJsonFormat,
+    contextTokensNeeded: estimatedTokensNeeded,
+    intelligence: taskIntelligence,
   }).catch(() => modelQueue);
 
   return {
@@ -2140,6 +2268,18 @@ export async function generateAIContent(
   const plan = await resolveGenerationPlan(body);
   let lastError: string | null = null;
 
+  const geminiReasoning = [
+    "cbt",
+    "cbt-grading",
+    "code-generation",
+    "curriculum",
+    "programme-curriculum",
+  ].includes(type)
+    ? "high"
+    : type === "report-feedback"
+    ? "none"
+    : "medium";
+
   // ── Gemini Direct API fast path ────────────────────────────────────────────
   // Try the free direct Gemini API before spending OpenRouter credits.
   const geminiResult = await geminiGenerateText(
@@ -2147,7 +2287,7 @@ export async function generateAIContent(
     plan.prompt,
     {
       json: plan.useJsonFormat,
-      reasoning: type === "report-feedback" ? "none" : undefined,
+      reasoning: geminiReasoning,
       maxOutputTokens: plan.maxTokens,
       temperature: plan.temperature,
     }
@@ -2199,7 +2339,73 @@ export async function generateAIContent(
           data: finalizeGeneratedData(type, parsed, body),
         };
       } catch {
-        // Malformed JSON from Gemini — fall through to the OpenRouter queue
+        // Malformed JSON from Gemini — fall through to the next free tier
+      }
+    }
+  }
+
+  // ── Cloudflare Workers AI free tier (10,000 Neurons/day) ───────────────────
+  if (hasCloudflareAi()) {
+    const cfResult = await cloudflareGenerateText(plan.systemPrompt, plan.prompt, {
+      maxTokens: Math.min(plan.maxTokens, 4096),
+      temperature: plan.temperature,
+    }).catch(() => null);
+
+    if (cfResult?.text && cfResult.text.length >= MIN_CONTENT_CHARS) {
+      if (type === "lesson-notes") {
+        const clean = cfResult.text
+          .replace(/^```(?:json|markdown)?\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+        if (clean.length > 100) {
+          try {
+            const parsed = safeParseJSON(clean);
+            if (parsed.lesson_notes) {
+              return {
+                success: true,
+                model: cfResult.model,
+                data: finalizeGeneratedData(type, parsed, body),
+              };
+            }
+          } catch {
+            // Raw text is the notes
+          }
+          return {
+            success: true,
+            model: cfResult.model,
+            data: finalizeGeneratedData(type, { lesson_notes: clean }, body),
+          };
+        }
+      } else {
+        try {
+          const parsed = safeParseJSON(cfResult.text);
+          if (type === "custom") {
+            return {
+              success: true,
+              model: cfResult.model,
+              content:
+                parsed.content ||
+                parsed.text ||
+                parsed.answer ||
+                cfResult.text,
+              extra: parsed,
+            };
+          }
+          return {
+            success: true,
+            model: cfResult.model,
+            data: finalizeGeneratedData(type, parsed, body),
+          };
+        } catch {
+          if (type === "custom") {
+            return {
+              success: true,
+              model: cfResult.model,
+              content: cfResult.text,
+            };
+          }
+          // Malformed JSON from Cloudflare AI — fall through to OpenRouter queue
+        }
       }
     }
   }
@@ -2252,6 +2458,7 @@ export async function generateAIContent(
         // Same quality gate as the streaming path: a stub that parses is not
         // content, and the queue exists so a weak reply can be improved on.
         if (content && content.length < MIN_CONTENT_CHARS) {
+          recordModelFailure(modelId, 502);
           console.warn(
             `Model ${modelId} returned ${content.length} chars — below the content floor, trying the next model`
           );
@@ -2261,6 +2468,7 @@ export async function generateAIContent(
           if (type === "lesson-notes") {
             try {
               const parsed = safeParseJSON(content);
+              recordModelSuccess(modelId);
               // If parsed but lesson_notes is missing, wrap the whole content
               if (!parsed.lesson_notes && typeof content === "string") {
                 return {
@@ -2285,6 +2493,7 @@ export async function generateAIContent(
                 .replace(/\s*```$/i, "")
                 .trim();
               if (cleanContent.length > 100) {
+                recordModelSuccess(modelId);
                 return {
                   success: true,
                   model: modelId,
@@ -2298,6 +2507,7 @@ export async function generateAIContent(
             }
           } else {
             const parsed = safeParseJSON(content);
+            recordModelSuccess(modelId);
             // Handle 'custom' type specifically to match ProtocolPage expectation
             if (type === "custom") {
               return {
@@ -2321,10 +2531,12 @@ export async function generateAIContent(
           }
         }
       } else {
+        recordModelFailure(modelId, 503);
         console.warn(`Model ${modelId} failed — trying the next one`);
         lastError = `Model ${modelId} did not return a usable response`;
       }
     } catch (err: any) {
+      recordModelFailure(modelId, 500);
       console.error(`Error attempting model ${modelId}:`, err.message);
       lastError = err.message;
     }

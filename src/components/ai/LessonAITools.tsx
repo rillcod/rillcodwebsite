@@ -303,11 +303,13 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
       if (isPuterAvailable()) {
         reply = await puterChat(text.trim());
       } else {
-        // Fallback to server-side OpenRouter
+        // Fallback to server-side multi-model AI engine (Gemini → Cloudflare AI → OpenRouter)
         const res = await fetch('/api/ai/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            type: 'custom',
+            topic: lessonTitle || text.trim(),
             prompt: text.trim(),
             lessonTitle,
             subject: lessonSubject,
@@ -316,7 +318,7 @@ function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }:
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
-        const text2 = data.content ?? data.result;
+        const text2 = data.content ?? data.result ?? (typeof data.data === 'string' ? data.data : null);
         if (!text2 || typeof text2 !== 'string') throw new Error(data.error ?? 'Unexpected response from AI');
         reply = text2;
       }
@@ -414,8 +416,8 @@ export default function LessonAITools({
   lessonTitle, lessonSubject, lessonGrade,
   onTranscript, onImageGenerated, onVideoGenerated, onGraphicGenerated
 }: LessonAIToolsProps) {
-  const [isOpenRouter, setIsOpenRouter] = useState(false);
-  const [isPuter, setIsPuter] = useState(false);
+  const [isOpenRouter, setIsOpenRouter] = useState(true);
+  const [isPuter, setIsPuter] = useState(true);
 
   return (
     <div className="space-y-4 pt-8">

@@ -22,6 +22,7 @@ import { hostAssessmentKindFromExam, parseHostAssessmentKind } from '@/lib/acade
 import { hostPaperLabel, paperTotalFromQuestions, SUGGESTED_HOST_PAPER_MAX } from '@/lib/academic/host-marks';
 import { hostPaperDatasheetHref } from '@/lib/curriculum/href';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import QuestionAuthoringStudio, { type StudioGeneratedQuestion } from '@/components/cbt/QuestionAuthoringStudio';
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import {
   buildCbtEntrySuggestion,
@@ -33,6 +34,9 @@ interface Question {
   question_type: string;
   options: string[];
   correct_answer: string;
+  marking_guide?: string;
+  curriculumTag?: string;
+  cognitiveLevel?: string;
   points: number;
   section: 'objective' | 'subjective' | 'practical';
 }
@@ -418,10 +422,57 @@ export default function NewExamPage() {
     ? new Date(new Date(form.start_date).getTime() + ((parseInt(form.access_window_minutes, 10) || parseInt(form.duration_minutes, 10) || 60) * 60_000))
     : null;
 
-  const addQuestion = () => setQuestions(current => {
+  const addQuestion = (presetType: string = 'multiple_choice') => setQuestions(current => {
     setSelectedQuestions(selected => new Set(selected).add(current.length));
-    return [...current, emptyQuestion()];
+    const isTheory = presetType === 'essay' || presetType === 'fill_blank';
+    return [
+      ...current,
+      {
+        ...emptyQuestion(),
+        question_type: presetType,
+        options: presetType === 'true_false' ? ['True', 'False'] : ['', '', '', ''],
+        points: presetType === 'essay' ? 10 : 5,
+        section: isTheory ? 'subjective' : 'objective',
+      },
+    ];
   });
+  const duplicateQuestion = (i: number) => setQuestions(current => {
+    const copy = { ...current[i], options: [...(current[i].options ?? [])] };
+    const next = [...current.slice(0, i + 1), copy, ...current.slice(i + 1)];
+    setSelectedQuestions(new Set(next.map((_, idx) => idx)));
+    return next;
+  });
+  const handleStudioImport = (imported: StudioGeneratedQuestion[], importMode: 'append' | 'replace') => {
+    const mapped: Question[] = imported.map(q => {
+      const cbtType = q.question_type === 'short_answer' ? 'fill_blank' : q.question_type;
+      return {
+        question_text: q.question_text,
+        question_type: cbtType,
+        options:
+          cbtType === 'true_false'
+            ? ['True', 'False']
+            : cbtType === 'multiple_choice'
+              ? q.options.length >= 2
+                ? [...q.options]
+                : ['', '', '', '']
+              : ['', '', '', ''],
+        correct_answer: q.correct_answer || q.marking_guide || '',
+        marking_guide: q.marking_guide || q.explanation,
+        curriculumTag: q.curriculumTag,
+        cognitiveLevel: q.cognitiveLevel,
+        points: Math.max(1, Number(q.points) || (cbtType === 'essay' ? 10 : 5)),
+        section: q.section || (['essay', 'fill_blank'].includes(cbtType) ? 'subjective' : 'objective'),
+      };
+    });
+    setQuestions(current => {
+      const nonEmptyCurrent = current.filter(item => item.question_text.trim().length > 0);
+      const next = importMode === 'replace' || nonEmptyCurrent.length === 0
+        ? mapped
+        : [...nonEmptyCurrent, ...mapped];
+      setSelectedQuestions(new Set(next.map((_, idx) => idx)));
+      return next.length > 0 ? next : [emptyQuestion()];
+    });
+  };
   const removeQuestion = (i: number) => setQuestions(current => {
     setSelectedQuestions(selected => new Set(
       [...selected]
@@ -540,10 +591,16 @@ export default function NewExamPage() {
           options: ['multiple_choice', 'true_false'].includes(q.question_type)
             ? q.options.filter((o: string) => o.trim())
             : null,
-          correct_answer: q.correct_answer.trim(),
+          correct_answer: (q.correct_answer || q.marking_guide || '').trim(),
           points: q.points,
           section: q.section,
           order_index: i + 1,
+          metadata: {
+            section: q.section,
+            ...(q.marking_guide ? { marking_guide: q.marking_guide } : {}),
+            ...(q.curriculumTag ? { curriculum_tag: q.curriculumTag } : {}),
+            ...(q.cognitiveLevel ? { cognitive_level: q.cognitiveLevel } : {}),
+          },
         })),
       };
       if (form.start_date) {
@@ -715,136 +772,36 @@ export default function NewExamPage() {
           </div>
         </div>
 
-        {/* AI-assisted assessment design */}
-        <div className="p-5 sm:p-6 bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 rounded-2xl space-y-5 relative overflow-hidden group">
-            <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-1000" />
-            
-            <div className="flex items-center justify-between relative">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 border border-primary/30">
-                        <SparklesIcon className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                        <h3 className="text-base font-bold text-foreground">AI question designer</h3>
-                        <p className="text-xs text-muted-foreground">Uses the linked lesson, course, and assessment boundary.</p>
-                    </div>
-                </div>
-                <button 
-                  onClick={() => setAiOpen(!aiOpen)}
-                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-foreground uppercase tracking-widest transition-all rounded-xl border border-white/10"
-                >
-                  {aiOpen ? 'Hide' : 'Design questions'}
-                </button>
-            </div>
-
-            {aiOpen && (
-              <div className="space-y-4 pt-4 relative animate-in slide-in-from-top-4 duration-500">
-                  {/* Row 1: Topic */}
-                  <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">What topic is this exam on?</label>
-                      <input
-                          value={aiTopic}
-                          onChange={e => {
-                            topicPriority.current = 100;
-                            setAiTopic(e.target.value);
-                          }}
-                          placeholder="e.g. Introduction to Python, Basic Electronics, Algebra"
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
-                      />
-                  </div>
-
-                  {/* Optional: base the questions on a PDF */}
-                  <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
-                        {sourceName === 'Taught weeks' ? 'Grounded in weeks already taught' : 'Base on a PDF (optional)'}
-                      </label>
-                      {sourceName ? (
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25 rounded-2xl">
-                          <span className="text-sm">📄</span>
-                          <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">{sourceName}</span>
-                          <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-white">Remove</button>
-                        </div>
-                      ) : (
-                        <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
-                          <span className="text-sm">📄</span>
-                          <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build questions from'}</span>
-                          <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
-                            onChange={async e => {
-                              const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
-                              if (!file) return;
-                              setExtractingPdf(true); setAiError(null); setExtractMsg('Reading PDF…');
-                              try {
-                                const t = await extractPdfText(file, 8000, setExtractMsg);
-                                if (t) { setSourceText(t); setSourceName(file.name); }
-                                else setAiError('Could not read text from that PDF (is it scanned images?).');
-                              } catch { setAiError('Could not read that PDF.'); }
-                              finally { setExtractingPdf(false); }
-                            }} />
-                        </label>
-                      )}
-                  </div>
-
-                  {/* Row 2: MCQ Count | Theory Count | Total badge | Generate button */}
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Realistic boundary</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {examBoundary.label}: {examBoundary.min}-{examBoundary.max} questions · {examBoundary.duration}. {examBoundary.note}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                      <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
-                            Multiple-choice questions
-                          </label>
-                          <input
-                            type="number" min="0" max={examBoundary.max}
-                            value={aiMcqCount}
-                            onChange={e => handleQuestionMixChange('mcq', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
-                          />
-                      </div>
-                      <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
-                            Written / essay questions
-                          </label>
-                          <input
-                            type="number" min="0" max={examBoundary.max}
-                            value={aiTheoryCount}
-                            onChange={e => handleQuestionMixChange('theory', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all"
-                          />
-                      </div>
-                      {/* Total display */}
-                      <div className="flex flex-col items-center justify-center h-full py-2 gap-0.5 border border-white/10 rounded-2xl bg-white/5">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Total Questions</span>
-                          <span className="text-3xl font-black text-primary leading-none">
-                            {(parseInt(aiMcqCount) || 0) + (parseInt(aiTheoryCount) || 0)}
-                          </span>
-                          <span className="text-[8px] text-muted-foreground uppercase">
-                            {parseInt(aiMcqCount) || 0} obj · {parseInt(aiTheoryCount) || 0} theory
-                          </span>
-                      </div>
-                      <button
-                          type="button"
-                          onClick={handleAiGenerate}
-                          disabled={aiGenerating}
-                          className="flex flex-col items-center justify-center gap-1.5 p-4 bg-primary hover:bg-primary rounded-[1.5rem] transition-all shadow-xl shadow-primary/40 disabled:opacity-50"
-                      >
-                          <div className="text-[10px] font-black text-foreground uppercase tracking-widest">{aiGenerating ? 'Generating...' : 'Generate draft'}</div>
-                          <div className="text-[8px] text-muted-foreground uppercase">Review before publishing</div>
-                      </button>
-                  </div>
-
-                  {aiError && <p className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-widest pl-2">Error: {aiError}</p>}
-                  {aiGenerating && (
-                      <div className="flex items-center gap-3 text-primary animate-pulse pl-2 border-l-2 border-primary">
-                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Building questions from your teaching context...</span>
-                      </div>
-                  )}
-              </div>
-            )}
-        </div>
+        {/* Smart AI Question Designer, TXT/PDF Premade Extractor & Blueprint Studio */}
+        <QuestionAuthoringStudio
+          mode="cbt"
+          courseId={form.course_id || null}
+          courseTitle={courses.find((c: any) => c.id === form.course_id)?.title || null}
+          programId={form.program_id || null}
+          programName={programs.find((p: any) => p.id === form.program_id)?.name || null}
+          classId={classId}
+          className={className || null}
+          examType={form.exam_type}
+          currentQuestions={questions}
+          existingQuestionTexts={questions.map(q => q.question_text)}
+          onImportQuestions={handleStudioImport}
+          onUpdateExamMeta={meta => {
+            setForm(prev => ({
+              ...prev,
+              title: !teacherEdits.current.title && meta.title ? meta.title : prev.title,
+              description: !teacherEdits.current.description && meta.description ? meta.description : prev.description,
+              duration_minutes: !teacherEdits.current.duration && meta.durationMinutes ? String(meta.durationMinutes) : prev.duration_minutes,
+              passing_score: !teacherEdits.current.passingScore && meta.passingScore ? String(meta.passingScore) : prev.passing_score,
+            }));
+          }}
+          initialTopic={aiTopic}
+          initialSourceText={sourceText}
+          initialSourceName={sourceName}
+          defaultMcqCount={parseInt(aiMcqCount, 10) || examSuggestion.mcqCount}
+          defaultTheoryCount={parseInt(aiTheoryCount, 10) || examSuggestion.theoryCount}
+          minQuestions={examBoundary.min}
+          maxQuestions={examBoundary.max}
+        />
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Exam Details */}
@@ -1156,11 +1113,13 @@ export default function NewExamPage() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                  Questions ({selectedQuestions.size} selected / {questions.length} total)
+                  Questions ({selectedQuestions.size} selected / {questions.length} total · {questionPoints || 0} pts)
                 </h2>
-                <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 mt-0.5">Only ticked questions will be included in the assessment</p>
+                <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
+                  Only ticked questions are included in the saved paper. Answers &amp; marking guides are auto-populated by the AI Studio.
+                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {questions.length > 0 && (
                   <button type="button"
                     onClick={() => {
@@ -1174,9 +1133,21 @@ export default function NewExamPage() {
                     {selectedQuestions.size === questions.length ? 'Deselect All' : 'Select All'}
                   </button>
                 )}
-                <button type="button" onClick={addQuestion}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
-                  <PlusIcon className="w-3.5 h-3.5" /> Add Question
+                <button type="button" onClick={() => addQuestion('multiple_choice')}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-xl transition-colors">
+                  <PlusIcon className="w-3.5 h-3.5" /> + MCQ
+                </button>
+                <button type="button" onClick={() => addQuestion('true_false')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-muted border border-border rounded-xl transition-colors">
+                  + True/False
+                </button>
+                <button type="button" onClick={() => addQuestion('fill_blank')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-foreground bg-card hover:bg-muted border border-border rounded-xl transition-colors">
+                  + Fill Blank
+                </button>
+                <button type="button" onClick={() => addQuestion('essay')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/25 rounded-xl transition-colors">
+                  + Theory / Essay
                 </button>
               </div>
             </div>
@@ -1186,7 +1157,7 @@ export default function NewExamPage() {
               return (
               <div key={qi} className={`border rounded-xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card shadow-sm border-border hover:bg-white/[0.07]'}`}>
                 <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     {/* Selection checkbox */}
                     <button
                       type="button"
@@ -1200,24 +1171,43 @@ export default function NewExamPage() {
                       {isSelected && <CheckIcon className="w-3 h-3 text-foreground" />}
                     </button>
                     <span className="text-xs font-black text-muted-foreground w-6 tracking-tighter italic">#{qi + 1}</span>
-                    <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                         {q.question_type === 'essay' || q.question_type === 'fill_blank' ? (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
-                                <SparklesIcon className="w-2.5 h-2.5" /> Manual Eval
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                                <SparklesIcon className="w-2.5 h-2.5" /> Rubric / Manual Eval
                             </span>
                         ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 italic flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
                                 <CheckCircleIcon className="w-2.5 h-2.5" /> Auto Graded
                             </span>
                         )}
+                        {q.cognitiveLevel && (
+                          <span className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[9px] font-black uppercase text-primary">
+                            {q.cognitiveLevel}
+                          </span>
+                        )}
+                        {q.curriculumTag && (
+                          <span className="px-2 py-0.5 rounded-full bg-muted border border-border text-[9px] font-bold text-muted-foreground truncate max-w-[220px]">
+                            {q.curriculumTag}
+                          </span>
+                        )}
                     </div>
                   </div>
-                  {questions.length > 1 && (
-                    <button type="button" onClick={() => removeQuestion(qi)}
-                      className="p-1.5 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors scale-90 opacity-40 group-hover:opacity-100 group-hover:scale-100">
-                      <TrashIcon className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => duplicateQuestion(qi)}
+                      className="px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground bg-card border border-border rounded-lg transition-colors"
+                    >
+                      Duplicate
                     </button>
-                  )}
+                    {questions.length > 1 && (
+                      <button type="button" onClick={() => removeQuestion(qi)}
+                        className="p-1.5 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-5 space-y-4">
@@ -1269,13 +1259,33 @@ export default function NewExamPage() {
                       onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
                       className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                   </div>
-                  {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
-                    <div className="sm:col-span-2">
-                        <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Correct Answer / Scoring Guide</label>
-                        <input type="text" value={q.correct_answer}
-                            onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
-                            placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading rubric or points guide..."}
-                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  {(q.question_type === 'fill_blank' || q.question_type === 'essay') ? (
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-widest mb-1">
+                        {q.question_type === 'fill_blank'
+                          ? 'Expected Answer & Marking Guide'
+                          : 'Model Answer & Point-by-Point Marking Guide'}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={q.correct_answer}
+                        onChange={e => updateQuestion(qi, { correct_answer: e.target.value, marking_guide: e.target.value })}
+                        placeholder={q.question_type === 'fill_blank' ? 'Exact expected answer…' : 'e.g. Award 4 marks for algorithm steps, 3 marks for code syntax, 3 marks for explanation…'}
+                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">
+                        Marking Rationale (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={q.marking_guide || ''}
+                        onChange={e => updateQuestion(qi, { marking_guide: e.target.value })}
+                        placeholder="Why the selected option is correct…"
+                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
+                      />
                     </div>
                   )}
                 </div>

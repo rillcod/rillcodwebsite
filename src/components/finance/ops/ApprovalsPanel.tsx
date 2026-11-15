@@ -355,13 +355,21 @@ export function ApprovalsPanel() {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Verification failed');
-      toast.success(
-        manualTarget === 'invoice'
-          ? 'Invoice payment verified and receipted'
-          : manualTarget === 'term_balance'
-            ? 'Term registration balance verified'
-            : 'Special programme balance verified and reminders stopped',
-      );
+      const overpaid = Number(j.overpaidAmount ?? 0);
+      const remaining = Number(j.remainingAmount ?? 0);
+      if (manualTarget === 'invoice' && overpaid > 0) {
+        toast.success(`Invoice settled · +₦${overpaid.toLocaleString()} overpayment credit recorded`);
+      } else if (manualTarget === 'invoice' && remaining > 0) {
+        toast.success(`Partial invoice payment verified · ₦${remaining.toLocaleString()} remaining`);
+      } else {
+        toast.success(
+          manualTarget === 'invoice'
+            ? 'Invoice payment verified and receipted'
+            : manualTarget === 'term_balance'
+              ? 'Term registration balance verified'
+              : 'Special programme balance verified and reminders stopped',
+        );
+      }
       setManualTargetId('');
       setManualAmount('');
       setManualReference('');
@@ -541,11 +549,35 @@ export function ApprovalsPanel() {
 
       {showManualVerify && isAdmin && (
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
-          <div>
-            <p className="text-sm font-black text-foreground">Manual balance verification</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Use this when a bank transfer, POS, cash, or uploaded proof has been confirmed outside the online gateway.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <p className="text-sm font-black text-foreground">Manual payment &amp; overpayment verification</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Record full, partial, or overpaid bank transfers, POS, or cash remittances. Excess payments are automatically saved as school/payer credit.
+              </p>
+            </div>
+            {manualTarget === 'invoice' && invoices.length > 0 && (
+              <select
+                value={invoices.some((i) => i.id === manualTargetId) ? manualTargetId : ''}
+                onChange={(e) => {
+                  const chosen = invoices.find((i) => i.id === e.target.value);
+                  if (chosen) {
+                    setManualTargetId(chosen.id);
+                    const rem = Number((chosen as any).amount_remaining ?? chosen.amount);
+                    setManualAmount(String(rem > 0 ? rem : chosen.amount));
+                  }
+                }}
+                aria-label="Quick-select open invoice"
+                className="px-3 py-1.5 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary max-w-xs"
+              >
+                <option value="">Quick-fill from open invoices…</option>
+                {invoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    #{inv.invoice_number} · {inv.schools?.name || inv.portal_users?.full_name || 'Payer'} ({formatMoney(inv.amount, inv.currency)})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
             <select

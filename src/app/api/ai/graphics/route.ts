@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
+import { cloudflareGenerateText, hasCloudflareAi } from '@/lib/ai/cloudflare-ai';
+import { safeParseJSON } from '@/lib/ai/generate-core';
 import { modelQueueFor } from '@/lib/ai/model-policy';
 import { withApiProxy } from '@/lib/api-wrapper';
 
@@ -67,9 +69,26 @@ async function postHandler(req: NextRequest) {
 
       if (result?.text) {
         try {
-          return NextResponse.json({ success: true, data: JSON.parse(result.text), model: result.model });
+          return NextResponse.json({ success: true, data: safeParseJSON(result.text), model: result.model });
         } catch {
-          // Malformed JSON — fall through to the OpenRouter queue.
+          // Malformed JSON — fall through to Cloudflare AI / OpenRouter queue.
+        }
+      }
+    }
+
+    // ── Free Cloudflare Workers AI second ────────────────────────────────────
+    if (hasCloudflareAi()) {
+      const cfResult = await cloudflareGenerateText(
+        systemPrompt,
+        `Generate a ${type || 'graphic'} for: ${prompt}`,
+        { maxTokens: 4096, temperature: 0.3 },
+      ).catch(() => null);
+
+      if (cfResult?.text) {
+        try {
+          return NextResponse.json({ success: true, data: safeParseJSON(cfResult.text), model: cfResult.model });
+        } catch {
+          // Malformed JSON — fall through to OpenRouter queue.
         }
       }
     }
@@ -101,7 +120,7 @@ async function postHandler(req: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          data: JSON.parse(content),
+          data: safeParseJSON(content),
           model
         });
       } catch (e: any) {

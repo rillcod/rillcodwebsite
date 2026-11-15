@@ -12,11 +12,14 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { buildWrittenPaperHtml, openWrittenPaperPrint, type WrittenPaperCopy } from '@/lib/exams/written-paper-print';
+import QuestionAuthoringStudio, { type StudioGeneratedQuestion } from '@/components/cbt/QuestionAuthoringStudio';
 
 interface Exam {
   id: string;
   title: string;
   description: string | null;
+  course_id?: string | null;
+  program_id?: string | null;
   duration_minutes: number | null;
   total_points: number;
   passing_score: number;
@@ -24,7 +27,7 @@ interface Exam {
   is_active: boolean;
   randomize_questions: boolean;
   randomize_options: boolean;
-  courses?: { id: string; title: string };
+  courses?: { id: string; title: string; program_id?: string | null };
 }
 
 interface Question {
@@ -130,6 +133,62 @@ export default function ExamDetailPage() {
       setQForm({ question_text: '', question_type: 'multiple_choice', points: 1, options: ['', '', '', ''], correct_answer: '', explanation: '' });
     }
     setShowForm(true);
+  }
+
+  async function handleStudioQuestions(incoming: StudioGeneratedQuestion[], importMode: 'append' | 'replace') {
+    if (!incoming.length) return;
+    const replaceExisting = importMode === 'replace';
+    setSubmitting(true);
+    try {
+      if (replaceExisting && questions.length > 0 && attempts.length === 0) {
+        await Promise.all(
+          questions.map(existing =>
+            fetch(`/api/exams/${id}/questions/${existing.id}`, { method: 'DELETE' })
+          ),
+        );
+      }
+
+      const startIndex = replaceExisting ? 1 : questions.length + 1;
+      const batch = incoming.map((q, idx) => {
+        const mappedType =
+          q.question_type === 'fill_blank'
+            ? 'fill_in_blank'
+            : ['multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_in_blank'].includes(q.question_type)
+              ? q.question_type
+              : 'short_answer';
+        const opts = ['multiple_choice', 'true_false'].includes(mappedType)
+          ? (q.options ?? []).filter(Boolean)
+          : null;
+        return {
+          question_text: q.question_text,
+          question_type: mappedType,
+          points: q.points || 2,
+          order_index: startIndex + idx,
+          options: opts,
+          correct_answer: q.correct_answer || q.marking_guide || '',
+          explanation:
+            q.marking_guide ||
+            q.explanation ||
+            String(q.metadata?.marking_guide ?? q.metadata?.explanation ?? '') ||
+            null,
+        };
+      });
+
+      const res = await fetch(`/api/exams/${id}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions: batch }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to save imported questions');
+
+      toast.success(`Saved ${batch.length} question${batch.length !== 1 ? 's' : ''} with answers & marking guides!`);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || 'Could not import questions');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function saveQuestion() {
@@ -264,6 +323,27 @@ export default function ExamDetailPage() {
         </section>
       )}
 
+      {/* AI Question Designer & Blueprint Studio for Written Exam */}
+      {canManage && attempts.length === 0 && (
+        <QuestionAuthoringStudio
+          mode="written"
+          programId={exam.program_id ?? exam.courses?.program_id ?? ''}
+          courseId={exam.course_id ?? exam.courses?.id ?? ''}
+          courseTitle={exam.courses?.title ?? ''}
+          initialTopic={exam.title}
+          currentQuestions={questions.map(q => ({
+            question_text: q.question_text,
+            question_type: q.question_type,
+            options: q.options,
+            correct_answer: String(q.correct_answer ?? ''),
+            points: q.points,
+            explanation: q.explanation,
+          }))}
+          existingQuestionTexts={questions.map(q => q.question_text)}
+          onImportQuestions={handleStudioQuestions}
+        />
+      )}
+
       {/* Questions Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-black text-card-foreground flex items-center gap-2">
@@ -323,7 +403,22 @@ export default function ExamDetailPage() {
                       ))}
                     </div>
                   )}
-                  {q.explanation && <p className="text-xs text-card-foreground/40 mt-2 italic">Explanation: {q.explanation}</p>}
+                  {!Array.isArray(q.options) && q.correct_answer && (
+                    <div className="mt-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-foreground">
+                      <span className="font-black uppercase tracking-wider text-[10px] text-emerald-700 dark:text-emerald-300 block mb-0.5">
+                        Expected Answer / Model Answer
+                      </span>
+                      {String(q.correct_answer)}
+                    </div>
+                  )}
+                  {q.explanation && (
+                    <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                      <span className="font-black uppercase tracking-wider text-[10px] text-primary block mb-0.5">
+                        Marking Guide / Rubric &amp; Rationale
+                      </span>
+                      {q.explanation}
+                    </div>
+                  )}
                 </div>
                 {canManage && (
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

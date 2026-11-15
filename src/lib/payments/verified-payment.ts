@@ -41,7 +41,7 @@ export async function verifyInvoicePayment(input: {
   const db: any = createAdminClient();
   const { data: invoice, error: invoiceError } = await db
     .from('invoices')
-    .select('id, invoice_number, amount, original_amount, amount_paid, amount_remaining, currency, status, payment_transaction_id, portal_user_id, school_id')
+    .select('id, invoice_number, amount, original_amount, amount_paid, amount_remaining, currency, status, payment_transaction_id, portal_user_id, school_id, metadata')
     .eq('id', input.invoiceId)
     .maybeSingle();
 
@@ -59,11 +59,15 @@ export async function verifyInvoicePayment(input: {
   const invoiceAmount = remaining > 0 ? remaining : Number(invoice.amount) || 0;
   const amount = input.amount == null ? invoiceAmount : Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);
-  if (amount > invoiceAmount + 1) {
-    throw new AppError(`Payment amount (${amount}) exceeds invoice remaining (${invoiceAmount}).`, 400);
-  }
 
-  let transactionId = invoice.payment_transaction_id as string | null;
+  const overpaidAmount = Math.max(0, Math.round((amount - invoiceAmount) * 100) / 100);
+  const remainingAmount = Math.max(0, Math.round((invoiceAmount - amount) * 100) / 100);
+  const isPartial = remainingAmount > 0.01;
+  const isAdditionalInstallment =
+    String(invoice.status || '').toLowerCase() === 'partially_paid' ||
+    Number(invoice.amount_paid ?? 0) > 0;
+
+  let transactionId = isAdditionalInstallment ? null : (invoice.payment_transaction_id as string | null);
   let reference = cleanReference(input.reference, `MAN-INV-${String(invoice.invoice_number || invoice.id).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 28)}`);
   const method = normalizeMethod(input.method);
   const now = new Date().toISOString();
@@ -81,9 +85,14 @@ export async function verifyInvoicePayment(input: {
       .order('created_at', { ascending: false })
       .limit(10);
     if (linkedTxError) throw new AppError(`Could not inspect linked payments: ${linkedTxError.message}`, 500);
-    const completed = (linkedTxs ?? []).find((t: any) => ['completed', 'success', 'paid'].includes(String(t.payment_status || '').toLowerCase()));
-    const reusable = completed ?? (linkedTxs ?? [])[0] ?? null;
-    if (reusable) transactionId = reusable.id;
+    if (isAdditionalInstallment) {
+      const pendingTx = (linkedTxs ?? []).find((t: any) => !['completed', 'success', 'paid'].includes(String(t.payment_status || '').toLowerCase()));
+      if (pendingTx) transactionId = pendingTx.id;
+    } else {
+      const completed = (linkedTxs ?? []).find((t: any) => ['completed', 'success', 'paid'].includes(String(t.payment_status || '').toLowerCase()));
+      const reusable = completed ?? (linkedTxs ?? [])[0] ?? null;
+      if (reusable) transactionId = reusable.id;
+    }
   }
 
   if (transactionId) {
@@ -99,7 +108,16 @@ export async function verifyInvoicePayment(input: {
         .update({ status: 'paid', payment_transaction_id: transactionId, amount_remaining: 0, updated_at: now })
         .eq('id', invoice.id);
       if (paidRepairError) throw new AppError(`Could not repair paid invoice: ${paidRepairError.message}`, 500);
-      return { invoiceId: invoice.id, transactionId, receiptUrl: existingTx.receipt_url ?? null, alreadyPaid: true };
+      return {
+        invoiceId: invoice.id,
+        transactionId,
+        receiptUrl: existingTx.receipt_url ?? null,
+        alreadyPaid: true,
+        status: 'paid' as const,
+        paidAmount: amount,
+        overpaidAmount: 0,
+        remainingAmount: 0,
+      };
     }
     const { error: reuseUpdateError } = await db.from('payment_transactions').update({
       amount,
@@ -118,6 +136,8 @@ export async function verifyInvoicePayment(input: {
         verified_at: now,
         proof_id: input.proofId || null,
         note: input.note || null,
+        allow_partial: isPartial,
+        overpayment_credit: overpaidAmount,
       },
     }).eq('id', transactionId);
     if (reuseUpdateError) throw new AppError(`Could not update reusable payment record: ${reuseUpdateError.message}`, 500);
@@ -140,6 +160,8 @@ export async function verifyInvoicePayment(input: {
         verified_at: now,
         proof_id: input.proofId || null,
         note: input.note || null,
+        allow_partial: isPartial,
+        overpayment_credit: overpaidAmount,
       },
     });
     if (!pending.ok) throw new AppError(`Failed to create payment record: ${pending.error.message}`, pending.error.code === 'conflict' ? 409 : 500);
@@ -152,18 +174,21 @@ export async function verifyInvoicePayment(input: {
     source: input.source || 'staff_verification',
     proof_id: input.proofId || null,
     note: input.note || null,
+    allow_partial: isPartial,
+    overpayment_credit: overpaidAmount,
   });
 
   // Post-condition: don't report success to staff if the pipeline silently
   // failed to settle the invoice — that would hide a broken ledger.
   const { data: settledInvoice } = await db
     .from('invoices')
-    .select('status')
+    .select('status, amount_paid, amount_remaining, metadata')
     .eq('id', invoice.id)
     .maybeSingle();
-  if (settledInvoice?.status !== 'paid') {
+  const finalStatus = String(settledInvoice?.status || '').toLowerCase();
+  if (finalStatus !== 'paid' && finalStatus !== 'partially_paid') {
     throw new AppError(
-      'Payment was recorded but the invoice could not be marked paid. Check the finance logs before retrying.',
+      'Payment was recorded but the invoice status could not be updated. Check the finance logs before retrying.',
       500,
     );
   }
@@ -173,7 +198,16 @@ export async function verifyInvoicePayment(input: {
     .select('id, receipt_url')
     .eq('transaction_reference', reference)
     .maybeSingle();
-  return { invoiceId: invoice.id, transactionId: settledTx?.id || transactionId, receiptUrl: settledTx?.receipt_url ?? null, alreadyPaid: false };
+  return {
+    invoiceId: invoice.id,
+    transactionId: settledTx?.id || transactionId,
+    receiptUrl: settledTx?.receipt_url ?? null,
+    alreadyPaid: false,
+    status: (finalStatus === 'partially_paid' ? 'partially_paid' : 'paid') as 'paid' | 'partially_paid',
+    paidAmount: amount,
+    overpaidAmount,
+    remainingAmount,
+  };
 }
 
 export async function verifySummerBalancePayment(input: {

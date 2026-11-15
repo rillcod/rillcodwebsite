@@ -295,9 +295,16 @@ export async function PATCH(
   }
   if (update.amount !== undefined) {
     const alreadyPaid = Math.max(0, Number(existing.amount_paid ?? 0) || 0);
-    if (update.amount + 0.01 < alreadyPaid) return NextResponse.json({ error: `Amount cannot be lower than the amount already paid (${alreadyPaid})` }, { status: 400 });
     update.original_amount = update.amount;
-    update.amount_remaining = Math.max(0, update.amount - alreadyPaid);
+    update.amount_remaining = Math.max(0, Math.round((update.amount - alreadyPaid) * 100) / 100);
+    if (alreadyPaid - update.amount > 0.01) {
+      const overpaidCredit = Math.round((alreadyPaid - update.amount) * 100) / 100;
+      update.status = 'paid';
+      update.metadata = {
+        ...(update.metadata && typeof update.metadata === 'object' ? update.metadata : {}),
+        overpayment_credit: overpaidCredit,
+      };
+    }
   }
 
   const { data, error } = await admin

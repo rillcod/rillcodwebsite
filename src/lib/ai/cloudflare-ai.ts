@@ -27,6 +27,8 @@
  * first, and Pollinations still catches the overflow for free.
  */
 
+import { healthiestFirst, recordModelFailure, recordModelSuccess } from './model-health';
+
 const API_BASE = 'https://api.cloudflare.com/client/v4/accounts';
 
 /**
@@ -227,7 +229,7 @@ export async function cloudflareTextToSpeech(
   return null;
 }
 
-/** Plain system+user text. Returns null so callers keep their own fallbacks. */
+/** Plain system+user text. Rotates across healthy Workers AI models first. */
 export async function cloudflareGenerateText(
   system: string,
   user: string,
@@ -235,7 +237,9 @@ export async function cloudflareGenerateText(
 ): Promise<{ text: string; model: string } | null> {
   if (!hasCloudflareAi()) return null;
 
-  for (const model of CF_TEXT_MODELS) {
+  const rotatedModels = healthiestFirst([...CF_TEXT_MODELS], (m) => m);
+
+  for (const model of rotatedModels) {
     try {
       const response = await fetch(endpoint(model), {
         method: 'POST',
@@ -252,7 +256,8 @@ export async function cloudflareGenerateText(
       });
 
       if (!response.ok) {
-        // Out of Neurons for the day, or model unavailable. Try the next.
+        // Out of Neurons for the day, or model unavailable. Demote & rotate to next.
+        recordModelFailure(model, response.status);
         console.warn(`[cloudflare-ai] ${model} ${response.status}`);
         continue;
       }
@@ -260,9 +265,12 @@ export async function cloudflareGenerateText(
       const data = await response.json().catch(() => null);
       const text = data?.result?.response;
       if (typeof text === 'string' && text.trim()) {
+        recordModelSuccess(model);
         return { text: text.trim(), model };
       }
+      recordModelFailure(model, 502);
     } catch (err) {
+      recordModelFailure(model, 503);
       console.warn(`[cloudflare-ai] ${model} failed:`, (err as Error)?.message);
     }
   }

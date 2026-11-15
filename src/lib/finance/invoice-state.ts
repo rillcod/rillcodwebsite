@@ -59,6 +59,29 @@ export function invoiceOutstandingAmount(input: {
   return Math.max(0, total - paid);
 }
 
+/**
+ * Calculates any overpayment / credit balance on an invoice when a school or
+ * payer remits more than the invoice total (or when an invoice is adjusted
+ * downward after payment). Checks both raw `amount_paid - amount` and explicit
+ * `metadata.overpayment_credit`.
+ */
+export function invoiceOverpaidAmount(input: {
+  amount?: unknown;
+  original_amount?: unknown;
+  amount_paid?: unknown;
+  paid_amount?: unknown;
+  metadata?: Record<string, unknown> | null;
+}): number {
+  const total = Math.max(0, Number(input.original_amount ?? input.amount ?? 0) || 0);
+  const paid = Math.max(0, Number(input.amount_paid ?? input.paid_amount ?? 0) || 0);
+  const excessFromPaid = paid - total > 0.01 ? Math.round((paid - total) * 100) / 100 : 0;
+  const metaCreditRaw = Number(input.metadata?.overpayment_credit ?? 0);
+  const metaCredit = Number.isFinite(metaCreditRaw) && metaCreditRaw > 0.01
+    ? Math.round(metaCreditRaw * 100) / 100
+    : 0;
+  return Math.max(excessFromPaid, metaCredit);
+}
+
 export function deriveInvoiceStatusFromBalances(input: {
   original_amount?: unknown;
   amount?: unknown;

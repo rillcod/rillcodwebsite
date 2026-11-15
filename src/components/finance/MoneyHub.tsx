@@ -27,6 +27,7 @@ import {
   type FinanceStream,
 } from '@/lib/finance/streams';
 import { contactDirectorySearchUrl, txPrimaryLabel } from '@/lib/finance/contact-link';
+import { invoiceOverpaidAmount } from '@/lib/finance/invoice-state';
 
 type Role = 'admin' | 'school' | 'teacher' | 'student' | 'parent' | string;
 
@@ -200,6 +201,8 @@ export default function MoneyHubPage() {
 
   const totals = useMemo(() => {
     const schoolPaid = paidTxs.filter((t) => txStream(t) === 'school');
+    const overpaidInvoices = invoices.filter((i) => invoiceOverpaidAmount(i as any) > 0);
+    const overpaidSum = overpaidInvoices.reduce((s, i) => s + invoiceOverpaidAmount(i as any), 0);
     return {
       paidSum: paidTxs.reduce((s, t) => s + Number(t.amount || 0), 0),
       paidCount: paidTxs.length,
@@ -208,12 +211,14 @@ export default function MoneyHubPage() {
       outstandingSum: outstanding.reduce((s, i) => s + Number(i.amount || 0), 0),
       outstandingCount: outstanding.length,
       overdueCount: overdue.length,
+      overpaidSum,
+      overpaidCount: overpaidInvoices.length,
       commissionSum: schoolPaid.reduce(
         (s, t) => s + splitSchoolAmount(Number(t.amount || 0), DEFAULT_COMMISSION_RATE).rillcodRetain,
         0,
       ),
     };
-  }, [paidTxs, pendingTxs, outstanding, overdue]);
+  }, [paidTxs, pendingTxs, outstanding, overdue, invoices]);
 
   const recentTxs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -322,6 +327,15 @@ export default function MoneyHubPage() {
             <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 font-bold text-sky-700 dark:text-sky-300">
               Est. commission {formatMoney(totals.commissionSum)}
             </span>
+          )}
+          {totals.overpaidSum > 0 && (
+            <Link
+              href="/dashboard/finance?workspace=invoices&ops=invoices"
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              +{formatMoney(totals.overpaidSum)} overpaid credit ({totals.overpaidCount})
+            </Link>
           )}
         </div>
       ) : (

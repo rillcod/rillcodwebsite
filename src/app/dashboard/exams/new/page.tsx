@@ -177,7 +177,7 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
           <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
             <AcademicCapIcon className="w-7 h-7 text-primary" /> Create Written Exam
           </h1>
-          <p className="text-card-foreground/50 text-sm">For essays, matching, short-answer. Add questions after creating.</p>
+          <p className="text-card-foreground/50 text-sm">Create the exam shell, then use the AI Question Designer (.txt/.pdf/Premade Bank &amp; Auto Marking Guide) on the next screen.</p>
         </div>
       </div>
 

@@ -43,6 +43,7 @@ import {
 } from '@/lib/school-reports/finance-links';
 import { normalizeFinanceAcademicYearParam } from '@/lib/school-reports/invoice-match';
 import { schoolSessionDisplay } from '@/lib/finance/school-term';
+import { invoiceOutstandingAmount, invoiceOverpaidAmount } from '@/lib/finance/invoice-state';
 
 interface InvoiceRow {
   id: string;
@@ -128,13 +129,18 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'paid' | 'overdue'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'paid' | 'overdue' | 'overpaid'>('all');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [showForm, setShowForm] = useState(false);
   const [showGeneratorChoice, setShowGeneratorChoice] = useState(false);
   const [showSchoolGenerator, setShowSchoolGenerator] = useState(false);
   const [editingSchoolInvoiceId, setEditingSchoolInvoiceId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [recordingPaymentInv, setRecordingPaymentInv] = useState<InvoiceRow | null>(null);
+  const [recordAmount, setRecordAmount] = useState('');
+  const [recordMethod, setRecordMethod] = useState('bank_transfer');
+  const [recordReference, setRecordReference] = useState('');
+  const [recordNote, setRecordNote] = useState('');
   const [emailingId, setEmailingId] = useState<string | null>(null);
   const [emailOverride, setEmailOverride] = useState('');
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
@@ -311,8 +317,24 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
 
   // ── Inline staff actions (no navigation away) ──────────────────────────
 
-  const markPaid = async (inv: InvoiceRow) => {
-    if (!confirm(`Mark invoice #${inv.invoice_number} as paid?`)) return;
+  const openRecordPaymentModal = (inv: InvoiceRow) => {
+    const remaining = invoiceOutstandingAmount(inv);
+    const defaultAmt = remaining > 0 ? remaining : Number(inv.amount) || 0;
+    setRecordingPaymentInv(inv);
+    setRecordAmount(String(defaultAmt));
+    setRecordMethod('bank_transfer');
+    setRecordReference('');
+    setRecordNote('');
+  };
+
+  const submitRecordedPayment = async () => {
+    if (!recordingPaymentInv) return;
+    const inv = recordingPaymentInv;
+    const parsedAmount = Number(recordAmount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      toast.error('Enter a valid payment amount greater than zero.');
+      return;
+    }
     setBusyId(inv.id);
     try {
       const res = await fetch('/api/invoices/mark-paid', {
@@ -320,17 +342,33 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invoiceId: inv.id,
-          amount: inv.amount_remaining != null ? Number(inv.amount_remaining) : inv.amount,
+          amount: parsedAmount,
+          method: recordMethod,
+          reference: recordReference.trim() || undefined,
+          note: recordNote.trim() || undefined,
         }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(j.error || 'Failed');
+        throw new Error(j.error || 'Failed to record payment');
       }
-      toast.success(j.receiptUrl ? 'Paid, receipted, and acknowledged' : 'Paid and acknowledgement queued');
-      setInvoices((prev) =>
-        prev.map((i) => (i.id === inv.id ? { ...i, status: 'paid' } : i)),
-      );
+      const overpaid = Number(j.overpaidAmount ?? 0);
+      const nextStatus = j.status ?? 'paid';
+      if (overpaid > 0) {
+        toast.success(
+          `Paid · +${formatMoney(overpaid, inv.currency)} overpayment credit recorded on ledger`,
+        );
+      } else if (nextStatus === 'partially_paid') {
+        toast.success(
+          `Partial payment (${formatMoney(parsedAmount, inv.currency)}) recorded · ${formatMoney(Number(j.remainingAmount ?? 0), inv.currency)} remaining`,
+        );
+      } else {
+        toast.success(
+          j.receiptUrl ? 'Paid, receipted, and acknowledged' : 'Paid and acknowledgement queued',
+        );
+      }
+      setRecordingPaymentInv(null);
+      await load();
     } catch (e: unknown) {
       toast.error((e as Error).message);
     } finally {
@@ -497,6 +535,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         if (statusFilter === 'all') return true;
         if (statusFilter === 'paid') return inv.status === 'paid';
         if (statusFilter === 'overdue') return inv.status === 'overdue';
+        if (statusFilter === 'overpaid') return invoiceOverpaidAmount(inv as any) > 0;
         // "open" = anything still collectible, overdue included.
         return ['sent', 'draft', 'overdue', 'partially_paid'].includes(inv.status);
       })
@@ -509,6 +548,36 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         );
       });
   }, [invoices, search, statusFilter, streamFilter]);
+
+  const ledgerMetrics = useMemo(() => {
+    let totalBilled = 0;
+    let totalPaid = 0;
+    let totalOutstanding = 0;
+    let totalOverpaid = 0;
+    let overpaidCount = 0;
+    for (const inv of invoices) {
+      if (['cancelled', 'void'].includes(String(inv.status || '').toLowerCase())) continue;
+      if (streamFilter !== 'all') {
+        const s = classifyInvoiceStream({
+          stream: inv.stream,
+          school_id: inv.school_id,
+          billing_cycle_id: inv.billing_cycle_id ?? null,
+          portal_user_id: inv.portal_user_id ?? null,
+          schools: inv.schools ?? null,
+        });
+        if (s !== streamFilter) continue;
+      }
+      totalBilled += Number(inv.amount || 0);
+      totalPaid += Number(inv.amount_paid || 0);
+      totalOutstanding += invoiceOutstandingAmount(inv as any);
+      const over = invoiceOverpaidAmount(inv as any);
+      if (over > 0) {
+        totalOverpaid += over;
+        overpaidCount += 1;
+      }
+    }
+    return { totalBilled, totalPaid, totalOutstanding, totalOverpaid, overpaidCount };
+  }, [invoices, streamFilter]);
 
   return (
     <div className="space-y-4">
@@ -560,7 +629,7 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         )}
 
         <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
-          {(['all', 'open', 'paid', 'overdue'] as const).map((s) => (
+          {(['all', 'open', 'paid', 'overdue', 'overpaid'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -570,7 +639,9 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {s}
+              {s === 'overpaid' && ledgerMetrics.overpaidCount > 0
+                ? `Overpaid (${ledgerMetrics.overpaidCount})`
+                : s}
             </button>
           ))}
         </div>
@@ -606,6 +677,45 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           />
         </div>
       </div>
+
+      {/* Financial & Overpayment Summary Strip */}
+      {!loading && invoices.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border bg-card/60 p-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Billed</p>
+            <p className="text-base font-black text-foreground mt-0.5">{formatMoney(ledgerMetrics.totalBilled, 'NGN')}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card/60 p-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Received</p>
+            <p className="text-base font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{formatMoney(ledgerMetrics.totalPaid, 'NGN')}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card/60 p-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Outstanding Due</p>
+            <p className="text-base font-black text-amber-700 dark:text-amber-300 mt-0.5">{formatMoney(ledgerMetrics.totalOutstanding, 'NGN')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'overpaid' ? 'all' : 'overpaid')}
+            className={`text-left rounded-xl border p-3 transition-colors ${
+              ledgerMetrics.totalOverpaid > 0
+                ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/15'
+                : 'border-border bg-card/60'
+            }`}
+          >
+            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+              Overpaid / School Credit
+            </p>
+            <p className="text-base font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+              +{formatMoney(ledgerMetrics.totalOverpaid, 'NGN')}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {ledgerMetrics.overpaidCount > 0
+                ? `${ledgerMetrics.overpaidCount} invoice(s) with credit · click to filter`
+                : 'Overpayments auto-captured here'}
+            </p>
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -670,9 +780,19 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     <span className="font-black text-foreground">
                       {formatMoney(inv.amount, inv.currency)}
                     </span>
+                    {Number(inv.amount_paid ?? 0) > 0 && (
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                        Paid {formatMoney(Number(inv.amount_paid), inv.currency)}
+                      </span>
+                    )}
                     {inv.amount_remaining != null && Number(inv.amount_remaining) > 0.01 && Number(inv.amount_remaining) < Number(inv.amount) && (
                       <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
                         Remaining {formatMoney(inv.amount_remaining, inv.currency)}
+                      </span>
+                    )}
+                    {invoiceOverpaidAmount(inv as any) > 0 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300">
+                        Overpaid · +{formatMoney(invoiceOverpaidAmount(inv as any), inv.currency)} Credit
                       </span>
                     )}
                     {inv.schools?.name && (
@@ -738,14 +858,23 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                     )
                   )}
 
-                  {canCollect && inv.status !== 'paid' && (
+                  {canCollect && inv.status !== 'cancelled' && inv.status !== 'void' && (
                     <button
-                      onClick={() => markPaid(inv)}
+                      onClick={() => openRecordPaymentModal(inv)}
                       disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Mark as paid (manual)"
+                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest rounded-md ${
+                        inv.status === 'paid'
+                          ? 'border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10'
+                          : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                      }`}
+                      title={
+                        inv.status === 'paid'
+                          ? 'Record an overpayment or additional remittance on this invoice'
+                          : 'Record full, partial, or overpaid remittance'
+                      }
                     >
-                      <CheckBadgeIcon className="w-3 h-3" /> Paid
+                      <CheckBadgeIcon className="w-3 h-3" />
+                      {inv.status === 'paid' ? '+ Overpayment' : 'Record Payment'}
                     </button>
                   )}
 
@@ -896,6 +1025,208 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
           }}
         />
       )}
+
+      {recordingPaymentInv && (() => {
+        const inv = recordingPaymentInv;
+        const remaining = invoiceOutstandingAmount(inv as any);
+        const alreadyPaid = Math.max(0, Number(inv.amount_paid ?? 0) || 0);
+        const existingCredit = invoiceOverpaidAmount(inv as any);
+        const targetDue = remaining > 0 ? remaining : 0;
+        const entered = Number(recordAmount) || 0;
+        const nextOverpaid = Math.max(0, Math.round((entered - targetDue) * 100) / 100);
+        const nextRemaining = Math.max(0, Math.round((targetDue - entered) * 100) / 100);
+        const payerLabel = inv.schools?.name || inv.portal_users?.full_name || 'Payer';
+
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Record payment for invoice ${inv.invoice_number}`}
+              className="bg-background border border-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <div>
+                  <p className="font-black text-foreground text-sm">Record Payment / Overpayment</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Invoice #{inv.invoice_number} · {payerLabel}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecordingPaymentInv(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Close"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-card p-3 text-center">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Invoice Total</p>
+                    <p className="text-sm font-black text-foreground mt-0.5">{formatMoney(inv.amount, inv.currency)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Already Paid</p>
+                    <p className="text-sm font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+                      {formatMoney(alreadyPaid, inv.currency)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                      {existingCredit > 0 ? 'Current Credit' : 'Remaining Due'}
+                    </p>
+                    <p className="text-sm font-black text-primary mt-0.5">
+                      {existingCredit > 0
+                        ? `+${formatMoney(existingCredit, inv.currency)}`
+                        : formatMoney(remaining, inv.currency)}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      Amount Received ({inv.currency || 'NGN'})
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      {remaining > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setRecordAmount(String(remaining))}
+                            className="px-2 py-0.5 rounded border border-border text-[10px] font-bold hover:border-primary text-foreground"
+                          >
+                            Full ({formatMoney(remaining, inv.currency)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRecordAmount(String(Math.round(remaining / 2)))}
+                            className="px-2 py-0.5 rounded border border-border text-[10px] font-bold hover:border-primary text-muted-foreground hover:text-foreground"
+                          >
+                            50%
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    value={recordAmount}
+                    onChange={(e) => setRecordAmount(e.target.value)}
+                    placeholder="Enter exact amount paid by school or client"
+                    className="w-full px-3 py-2.5 text-sm font-bold border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                {entered > 0 && (
+                  <div
+                    className={`rounded-xl border p-3 text-xs ${
+                      nextOverpaid > 0
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                        : nextRemaining > 0
+                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'
+                        : 'border-primary/30 bg-primary/10 text-foreground'
+                    }`}
+                  >
+                    {nextOverpaid > 0 ? (
+                      <p>
+                        <strong>Overpayment detected (+{formatMoney(nextOverpaid, inv.currency)}):</strong>{' '}
+                        Invoice will be marked <strong>Paid</strong> in full and{' '}
+                        <strong>+{formatMoney(nextOverpaid + existingCredit, inv.currency)}</strong> total credit will be stored on the ledger for {payerLabel}.
+                      </p>
+                    ) : nextRemaining > 0 ? (
+                      <p>
+                        <strong>Partial installment:</strong> Records{' '}
+                        <strong>{formatMoney(entered, inv.currency)}</strong> paid and leaves{' '}
+                        <strong>{formatMoney(nextRemaining, inv.currency)}</strong> remaining (status: <code>partially_paid</code>).
+                      </p>
+                    ) : (
+                      <p>
+                        <strong>Exact settlement:</strong> Marks invoice #{inv.invoice_number} <strong>Paid</strong> in full with zero remaining balance.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Payment Method
+                    </label>
+                    <select
+                      value={recordMethod}
+                      onChange={(e) => setRecordMethod(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                    >
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="pos">POS Terminal</option>
+                      <option value="cash">Cash</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="mobile_money">Mobile Money</option>
+                      <option value="manual">Manual / Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Bank / Receipt Reference (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={recordReference}
+                      onChange={(e) => setRecordReference(e.target.value)}
+                      placeholder="e.g. TRF-9081234"
+                      className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
+                    Finance Note (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={recordNote}
+                    onChange={(e) => setRecordNote(e.target.value)}
+                    placeholder="e.g. School paid ₦50k extra toward next term"
+                    className="w-full px-3 py-2 text-xs border border-border bg-card rounded-lg focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-border flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRecordingPaymentInv(null)}
+                  className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submitRecordedPayment()}
+                  disabled={busyId === inv.id || entered <= 0}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-lg"
+                >
+                  <CheckBadgeIcon className="w-4 h-4" />
+                  {busyId === inv.id
+                    ? 'Recording…'
+                    : nextOverpaid > 0
+                    ? `Record & Save +${formatMoney(nextOverpaid, inv.currency)} Credit`
+                    : nextRemaining > 0
+                    ? 'Record Partial Payment'
+                    : 'Confirm & Mark Paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {preview && (
         <DocPreviewModal

@@ -306,7 +306,14 @@ export async function PATCH(
 
   const { id: invoiceId } = await context.params;
   const body = await req.json().catch(() => ({}));
-  const { proof_id, action, admin_note } = body as { proof_id: string; action: string; admin_note?: string };
+  const { proof_id, action, admin_note, amount, payment_method, reference } = body as {
+    proof_id: string;
+    action: string;
+    admin_note?: string;
+    amount?: number;
+    payment_method?: string;
+    reference?: string;
+  };
 
   if (!proof_id || !action) {
     return NextResponse.json({ error: 'proof_id and action are required' }, { status: 400 });
@@ -348,9 +355,14 @@ export async function PATCH(
   // If approved → complete the full finance path: transaction, invoice, receipt,
   // acknowledgement, and audit. Never mark only invoices.status directly.
   if (action === 'approved') {
+    const parsedAmount = amount != null && Number.isFinite(Number(amount)) && Number(amount) > 0
+      ? Number(amount)
+      : undefined;
     paymentResult = await verifyInvoicePayment({
       invoiceId,
-      method: 'bank_transfer',
+      amount: parsedAmount,
+      method: payment_method || 'bank_transfer',
+      reference: reference || undefined,
       actorId: caller.id,
       source: 'invoice_proof_approval',
       proofId: proof_id,
@@ -365,7 +377,9 @@ export async function PATCH(
       newValues: {
         summary: `Approved payment proof for invoice ${invoice.invoice_number || '—'}`,
         invoice_number: invoice.invoice_number ?? null,
-        amount: invoice.amount ?? null,
+        amount: paymentResult.paidAmount ?? invoice.amount ?? null,
+        overpaid_amount: paymentResult.overpaidAmount ?? 0,
+        remaining_amount: paymentResult.remainingAmount ?? 0,
         currency: invoice.currency ?? null,
         proof_id,
         transaction_id: paymentResult.transactionId,

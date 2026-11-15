@@ -79,7 +79,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   return NextResponse.json({ data: data ?? [] });
 }
 
-// POST /api/exams/[id]/questions — add a question
+// POST /api/exams/[id]/questions — add a question or batch ({ questions: [...] })
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (!user || !['admin', 'teacher'].includes(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -90,15 +90,66 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (await examHasAttempts(db, exam_id)) {
     return NextResponse.json({ error: 'This exam already has learner attempts. Its question definition is now locked.' }, { status: 409 });
   }
-  const parsed = questionSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid question' }, { status: 400 });
-  const { question_text, question_type, points, options, correct_answer, explanation } = parsed.data;
-  const definitionError = writtenQuestionDefinitionError({ id: 'new', question_type, points, options, correct_answer });
-  if (definitionError) return NextResponse.json({ error: definitionError }, { status: 400 });
+
+  const rawBody = await request.json();
 
   // Get next order_index
   const { data: existing } = await db.from('exam_questions').select('order_index').eq('exam_id', exam_id).order('order_index', { ascending: false }).limit(1);
   const nextOrder = (existing?.[0]?.order_index ?? 0) + 1;
+
+  if (rawBody && typeof rawBody === 'object' && Array.isArray((rawBody as any).questions)) {
+    const batchSchema = z.object({
+      questions: z.array(questionSchema).min(1).max(100),
+    }).strict();
+    const parsedBatch = batchSchema.safeParse(rawBody);
+    if (!parsedBatch.success) {
+      return NextResponse.json({ error: parsedBatch.error.issues[0]?.message || 'Invalid question batch' }, { status: 400 });
+    }
+    for (let i = 0; i < parsedBatch.data.questions.length; i++) {
+      const q = parsedBatch.data.questions[i];
+      const defErr = writtenQuestionDefinitionError({
+        id: `batch-${i}`,
+        question_type: q.question_type,
+        points: q.points,
+        options: q.options,
+        correct_answer: q.correct_answer,
+      });
+      if (defErr) return NextResponse.json({ error: `Question #${i + 1}: ${defErr}` }, { status: 400 });
+    }
+
+    const rowsToInsert = parsedBatch.data.questions.map((q, idx) => ({
+      exam_id,
+      question_text: q.question_text,
+      question_type: q.question_type || 'multiple_choice',
+      points: q.points || 1,
+      options: q.options || null,
+      correct_answer: q.correct_answer !== undefined && q.correct_answer !== '' ? String(q.correct_answer) : null,
+      explanation: q.explanation || null,
+      order_index: nextOrder + idx,
+    }));
+
+    const { data: insertedRows, error: batchErr } = await db
+      .from('exam_questions')
+      .insert(rowsToInsert)
+      .select();
+
+    if (batchErr) return NextResponse.json({ error: batchErr.message }, { status: 500 });
+    await logAudit(db as any, {
+      action: 'batch_add_written_exam_questions',
+      actorId: user.id,
+      resourceType: 'exam',
+      resourceId: exam_id,
+      tableName: 'exam_questions',
+      newValues: { exam_id, count: rowsToInsert.length },
+    });
+    return NextResponse.json({ data: insertedRows ?? [] }, { status: 201 });
+  }
+
+  const parsed = questionSchema.safeParse(rawBody);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid question' }, { status: 400 });
+  const { question_text, question_type, points, options, correct_answer, explanation } = parsed.data;
+  const definitionError = writtenQuestionDefinitionError({ id: 'new', question_type, points, options, correct_answer });
+  if (definitionError) return NextResponse.json({ error: definitionError }, { status: 400 });
 
   const { data, error } = await db.from('exam_questions').insert([{
     exam_id,

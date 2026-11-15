@@ -185,7 +185,7 @@ export async function processSuccessfulPayment(reference: string, method: string
     if (isPlainInvoicePayment) {
         const { data: invoice, error: invFetchErr } = await (supabase as any)
             .from('invoices')
-            .select('id, amount, original_amount, amount_paid, amount_remaining, status, payment_transaction_id, billing_cycle_id, school_id, invoice_number')
+            .select('id, amount, original_amount, amount_paid, amount_remaining, status, payment_transaction_id, billing_cycle_id, school_id, invoice_number, metadata')
             .eq('id', (transaction as any).invoice_id)
             .maybeSingle();
         if (invFetchErr || !invoice) {
@@ -200,8 +200,13 @@ export async function processSuccessfulPayment(reference: string, method: string
         );
         const expected = remaining > 0 ? remaining : Number(invoice.amount) || 0;
         const received = Number(transaction.amount) || 0;
-        // Underpayment beyond remaining blocks settlement. Overpayment of remaining is tolerated.
-        if (received + 1 < expected && remaining > 0) {
+        const allowPartial =
+            Boolean(preGateway?.allow_partial) ||
+            Boolean(preGateway?.verified_by) ||
+            (method !== 'paystack' && method !== 'stripe');
+        // Unverified gateway underpayment blocks settlement unless partial payment is permitted.
+        // Overpayment of remaining is always tolerated and captured as credit.
+        if (!allowPartial && received + 1 < expected && remaining > 0) {
             console.error('Invoice payment amount mismatch:', {
                 invoice_id: invoice.id,
                 expected,
@@ -629,16 +634,63 @@ export async function processSuccessfulPayment(reference: string, method: string
     } else if ((transaction as any).invoice_id && validatedInvoice) {
         const invoice = validatedInvoice;
         const { allocatePaymentToInvoice } = await import('@/lib/finance/allocate-payment');
-        const alloc = await allocatePaymentToInvoice({
-            transactionId: transaction.id,
-            invoiceId: invoice.id,
-            amount: Number(transaction.amount) || 0,
-        });
-        if (!alloc.ok) {
-            throw new Error(alloc.error.message);
+        const receivedAmount = Number(transaction.amount) || 0;
+        const invoiceRemaining = Number(
+            invoice.amount_remaining != null
+                ? invoice.amount_remaining
+                : Math.max(0, Number(invoice.original_amount ?? invoice.amount ?? 0) - Number(invoice.amount_paid ?? 0)),
+        );
+        const allocatableAmount = invoiceRemaining > 0
+            ? Math.min(receivedAmount, invoiceRemaining)
+            : 0;
+        const overpaidAmount = Math.max(
+            0,
+            Math.round((receivedAmount - (invoiceRemaining > 0 ? invoiceRemaining : 0)) * 100) / 100,
+        );
+
+        let settledStatus: 'paid' | 'partially_paid' = 'paid';
+        if (allocatableAmount > 0) {
+            const alloc = await allocatePaymentToInvoice({
+                transactionId: transaction.id,
+                invoiceId: invoice.id,
+                amount: allocatableAmount,
+            });
+            if (!alloc.ok) {
+                throw new Error(alloc.error.message);
+            }
+            settledStatus = alloc.data.invoice_status === 'paid' ? 'paid' : 'partially_paid';
         }
 
-        const settledStatus = alloc.data.invoice_status;
+        if (overpaidAmount > 0) {
+            settledStatus = 'paid';
+            const prevMeta =
+                invoice.metadata && typeof invoice.metadata === 'object' && !Array.isArray(invoice.metadata)
+                    ? (invoice.metadata as Record<string, unknown>)
+                    : {};
+            const priorCredit = Number(prevMeta.overpayment_credit ?? 0) || 0;
+            const totalCredit = Math.round((priorCredit + overpaidAmount) * 100) / 100;
+            const newAmountPaid = Math.round(((Number(invoice.amount_paid ?? 0) || 0) + receivedAmount) * 100) / 100;
+            const nowIso = new Date().toISOString();
+            await (supabase as any)
+                .from('invoices')
+                .update({
+                    status: 'paid',
+                    amount_paid: newAmountPaid,
+                    amount_remaining: 0,
+                    payment_transaction_id: transaction.id,
+                    updated_at: nowIso,
+                    metadata: {
+                        ...prevMeta,
+                        overpayment_credit: totalCredit,
+                        last_overpayment_amount: overpaidAmount,
+                        last_overpayment_tx_id: transaction.id,
+                        last_overpayment_reference: reference,
+                        last_overpayment_at: nowIso,
+                    },
+                })
+                .eq('id', invoice.id);
+        }
+
         await syncRosterBillingForInvoice(supabase as any, invoice.id, settledStatus === 'paid' ? 'paid' : 'partially_paid');
 
         // Keep the linked billing cycle in step when fully paid.

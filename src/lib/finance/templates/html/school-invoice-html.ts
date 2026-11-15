@@ -32,6 +32,7 @@ export interface SchoolInvoiceHTMLInput {
   rillcodShare: number;
   schoolShare: number;
   balance: number;
+  overpaymentCredit?: number;
   revenueShareOn: boolean;
   dateStr: string;
   dueStr: string;
@@ -47,7 +48,7 @@ export interface SchoolInvoiceHTMLInput {
 export function buildSchoolInvoiceHTML(p: SchoolInvoiceHTMLInput): string {
   const {
     sch, isFixed, isTiered, tiers, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit,
-    rillcodShare, schoolShare, balance, revenueShareOn, dateStr, dueStr, docRef,
+    rillcodShare, schoolShare, balance, overpaymentCredit = 0, revenueShareOn, dateStr, dueStr, docRef,
     payToAcc, showRevenueShare, showWhatsapp, paymentMethod, notes, currency,
   } = p;
   const pmLabels: Record<string, string> = {
@@ -140,7 +141,7 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
     <div class="inv-number">${docRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Date:</b> ${dateStr}</div>
     <div style="font-size:10px;color:#6b7280"><b>Due:</b> ${dueStr}</div>
-    <div style="margin-top:6px"><span class="${balance <= 0 ? 'status-paid' : 'status-due'}">${balance <= 0 ? 'Fully Paid' : 'Awaiting Payment'}</span></div>
+    <div style="margin-top:6px"><span class="${balance <= 0 ? 'status-paid' : 'status-due'}">${overpaymentCredit > 0 ? `Paid · +${fmt(overpaymentCredit)} Credit` : balance <= 0 ? 'Fully Paid' : 'Awaiting Payment'}</span></div>
   </div>
 </div>
 <div class="parties">
@@ -213,7 +214,18 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
   ${deposit > 0 ? `<div class="totals-row"><span class="totals-label">Less Deposit / Previous Payment</span><span class="totals-val" style="color:#059669">(${fmt(deposit)})</span></div>` : ''}
   <hr/>
   <div class="totals-row"><span class="totals-grand-label">Total Payable Amount</span><span class="totals-grand-val">${fmt(balance)}</span></div>
+  ${overpaymentCredit > 0 ? `<div class="totals-row" style="margin-top:4px"><span class="totals-label" style="color:#059669;font-weight:800">Overpayment / Credit Balance Carried Forward</span><span class="totals-val" style="color:#059669;font-weight:900">+${fmt(overpaymentCredit)}</span></div>` : ''}
 </div>
+
+${overpaymentCredit > 0 ? `
+<div style="background:#ecfdf5;border:2px solid #059669;padding:12px 16px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center">
+  <div>
+    <div style="font-size:12px;font-weight:900;color:#065f46;text-transform:uppercase;letter-spacing:1px">School Credit / Overpayment Carry-Forward</div>
+    <div style="font-size:10px;color:#047857;margin-top:2px">Amount paid (${fmt(deposit)}) exceeds current term net charge (${fmt(revenueShareOn ? rillcodShare : subtotal)}). Credit available for next billing cycle.</div>
+  </div>
+  <div style="font-size:22px;font-weight:950;color:#059669">+${fmt(overpaymentCredit)}</div>
+</div>
+` : ''}
 
 ${balance > 0 ? `
 <div class="balance-box">

@@ -27,8 +27,19 @@ export type AiTask = {
   needsJson?: boolean;
   /** Roughly how much input this task sends, so short-window models are skipped. */
   contextTokensNeeded?: number;
+  /** Task intelligence tier — ranks high-reasoning models ahead of small 3B/7B models. */
+  intelligence?: "standard" | "high" | "reasoning";
   signal?: AbortSignal;
 };
+
+function modelIntelligenceScore(id: string): number {
+  const lower = id.toLowerCase();
+  if (/235b|405b|r1|gemini-2\.5|gemini-3|kimi|grok-2|deepseek-chat-v3/i.test(lower)) return 4;
+  if (/70b|72b|32b|30b|deepseek-chat|mistral-large|gemini-2\.0-flash(?!-lite)/i.test(lower)) return 3;
+  if (/14b|24b|20b|glm-4|step-3/i.test(lower)) return 2;
+  if (/3b|7b|8b|lite/i.test(lower)) return 0;
+  return 1;
+}
 
 /**
  * The queue to try, in order.
@@ -67,7 +78,13 @@ export async function modelQueueFor(task: AiTask): Promise<string[]> {
   const freeIds = freeTier.map((model) => model.id);
 
   const requestedFirst = preferred.filter((id) => freeIds.includes(id));
-  const rest = freeIds.filter((id) => !requestedFirst.includes(id));
+  const unrequestedFree = freeIds.filter((id) => !requestedFirst.includes(id));
+  const rest =
+    task.intelligence === "high" || task.intelligence === "reasoning"
+      ? [...unrequestedFree].sort(
+          (a, b) => modelIntelligenceScore(b) - modelIntelligenceScore(a)
+        )
+      : unrequestedFree;
   const free = [...requestedFirst, ...rest];
 
   if (process.env.AI_FREE_MODELS_ONLY === "true") {

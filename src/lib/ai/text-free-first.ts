@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
+import { cloudflareGenerateText, hasCloudflareAi } from '@/lib/ai/cloudflare-ai';
 import { modelQueueFor } from '@/lib/ai/model-policy';
 import { FREE_FALLBACK_MODELS } from '@/lib/ai/openrouter';
 
@@ -61,6 +62,15 @@ export async function generateTextFreeFirst(
     const result = await geminiGenerateText(system, user, Boolean(jsonMode)).catch(() => null);
     const text = result?.text?.trim() ?? '';
     if (text.length > minLength) return { text, model: result!.model };
+  }
+
+  if (hasCloudflareAi()) {
+    const cfResult = await cloudflareGenerateText(system, user, {
+      maxTokens: options.maxOutputTokens ?? 4096,
+      temperature: options.temperature ?? 0.3,
+    }).catch(() => null);
+    const cfText = cfResult?.text?.trim() ?? '';
+    if (cfText.length > minLength) return { text: cfText, model: cfResult!.model };
   }
 
   if (!process.env.OPENROUTER_API_KEY) return null;

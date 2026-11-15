@@ -39,6 +39,8 @@ export function ProofReviewModal({
   const [loading, setLoading] = useState(true);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [adminNote, setAdminNote] = useState('');
+  const [verifiedAmount, setVerifiedAmount] = useState('');
+  const [verifiedMethod, setVerifiedMethod] = useState('bank_transfer');
   const [acting, setActing] = useState(false);
 
   const loadProofs = () => {
@@ -63,18 +65,40 @@ export function ProofReviewModal({
   ) => {
     setActing(true);
     try {
+      const parsedAmount =
+        verifiedAmount.trim() && Number.isFinite(Number(verifiedAmount)) && Number(verifiedAmount) > 0
+          ? Number(verifiedAmount)
+          : undefined;
       const res = await fetch(`/api/invoices/${invoiceId}/proofs`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proof_id: proofId, action, admin_note: adminNote || undefined }),
+        body: JSON.stringify({
+          proof_id: proofId,
+          action,
+          admin_note: adminNote || undefined,
+          ...(action === 'approved' && parsedAmount ? { amount: parsedAmount } : {}),
+          ...(action === 'approved' ? { payment_method: verifiedMethod } : {}),
+        }),
       });
+      const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         toast.error(j.error || 'Review failed');
         return;
       }
       if (action === 'approved') {
-        toast.success('Proof approved — payment receipted and acknowledgement sent');
+        const overpaid = Number(j.payment?.overpaidAmount ?? 0);
+        const remaining = Number(j.payment?.remainingAmount ?? 0);
+        if (overpaid > 0) {
+          toast.success(
+            `Proof approved — invoice settled + ₦${overpaid.toLocaleString()} overpayment credit recorded`,
+          );
+        } else if (remaining > 0) {
+          toast.success(
+            `Proof approved — partial payment recorded (₦${remaining.toLocaleString()} remaining)`,
+          );
+        } else {
+          toast.success('Proof approved — payment receipted and acknowledgement sent');
+        }
         onApprove?.();
         onClose();
         return;
@@ -82,6 +106,7 @@ export function ProofReviewModal({
       toast.success(action === 'rejected' ? 'Proof rejected' : 'Requested more info');
       setReviewingId(null);
       setAdminNote('');
+      setVerifiedAmount('');
       loadProofs();
     } finally {
       setActing(false);
@@ -202,6 +227,38 @@ export function ProofReviewModal({
                     <div className="border-t border-border bg-card/50 p-3 space-y-3">
                       {isReviewing ? (
                         <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                                Verified Amount Received (optional)
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                step="any"
+                                value={verifiedAmount}
+                                onChange={(e) => setVerifiedAmount(e.target.value)}
+                                placeholder="Blank = full balance (or enter partial/overpaid)"
+                                className="w-full text-xs border border-border bg-background px-3 py-1.5 rounded-md focus:outline-none focus:border-primary"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                                Payment Method
+                              </label>
+                              <select
+                                value={verifiedMethod}
+                                onChange={(e) => setVerifiedMethod(e.target.value)}
+                                className="w-full text-xs border border-border bg-background px-3 py-1.5 rounded-md focus:outline-none focus:border-primary"
+                              >
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="pos">POS Terminal</option>
+                                <option value="cash">Cash</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="mobile_money">Mobile Money</option>
+                              </select>
+                            </div>
+                          </div>
                           <textarea
                             value={adminNote}
                             onChange={(e) => setAdminNote(e.target.value)}
@@ -213,9 +270,9 @@ export function ProofReviewModal({
                             <button
                               onClick={() => handleReview(proof.id, 'approved')}
                               disabled={acting}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                             >
-                              Approve &amp; Mark Paid
+                              Approve &amp; Record Payment
                             </button>
                             <button
                               onClick={() => handleReview(proof.id, 'request_more')}

@@ -11,6 +11,7 @@ import {
     CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, PencilSquareIcon,
     ChevronUpIcon, ChevronDownIcon, SparklesIcon, CheckCircleIcon,
 } from '@/lib/icons';
+import QuestionAuthoringStudio, { type StudioGeneratedQuestion } from '@/components/cbt/QuestionAuthoringStudio';
 
 interface Question {
     id?: string;
@@ -136,15 +137,50 @@ export default function EditExamPage() {
         ));
     }, [profile?.id, authLoading, id]);
 
-    const addQuestion = () => setQuestions(q => [...q, {
-        question_text: '',
-        question_type: 'multiple_choice',
-        options: ['', '', '', ''],
-        correct_answer: '',
-        points: 5,
-        order_index: q.length + 1,
-        _new: true,
-    }]);
+    const addQuestion = (questionType: string = 'multiple_choice') => {
+        const manual = ['essay', 'fill_blank', 'coding_blocks'].includes(questionType);
+        setQuestions(q => [...q, {
+            question_text: '',
+            question_type: questionType,
+            options: questionType === 'true_false' ? ['True', 'False'] : ['', '', '', ''],
+            correct_answer: questionType === 'true_false' ? 'True' : '',
+            points: questionType === 'essay' ? 10 : 5,
+            order_index: q.filter(item => !item._deleted).length + 1,
+            metadata: { section: manual ? 'subjective' : 'objective' },
+            _new: true,
+        }]);
+    };
+
+    const handleStudioQuestions = (incoming: StudioGeneratedQuestion[], importMode: 'append' | 'replace') => {
+        if (!incoming.length) return;
+        const replaceExisting = importMode === 'replace';
+        setQuestions(prev => {
+            const deleted = prev.filter(q => q._deleted);
+            const active = prev.filter(q => !q._deleted);
+            const nextQuestions: Question[] = incoming.map((q, idx) => ({
+                question_text: q.question_text,
+                question_type: q.question_type,
+                options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['', '', '', ''],
+                correct_answer: q.correct_answer || q.marking_guide || '',
+                points: q.points || 5,
+                order_index: idx + 1,
+                metadata: q.metadata ?? {
+                    section: q.section || (['essay', 'fill_blank'].includes(q.question_type) ? 'subjective' : 'objective'),
+                    ...(q.marking_guide ? { marking_guide: q.marking_guide } : {}),
+                    ...(q.curriculumTag ? { curriculum_tag: q.curriculumTag } : {}),
+                    ...(q.cognitiveLevel ? { cognitive_level: q.cognitiveLevel } : {}),
+                },
+                _new: true,
+            }));
+            if (replaceExisting) {
+                const markedDeleted = active.filter(q => q.id && !q._new).map(q => ({ ...q, _deleted: true }));
+                return [...nextQuestions, ...deleted, ...markedDeleted];
+            }
+            const cleanedActive = active.filter(q => q.question_text.trim().length > 0);
+            const combined = [...cleanedActive, ...nextQuestions].map((q, idx) => ({ ...q, order_index: idx + 1 }));
+            return [...combined, ...deleted];
+        });
+    };
 
     const removeQuestion = (i: number) => {
         setQuestions(prev => {
@@ -503,20 +539,52 @@ export default function EditExamPage() {
                         </div>
                     </div>
 
+                    {/* ── AI Question Designer & Blueprint Studio ── */}
+                    {!definitionLocked && (
+                        <QuestionAuthoringStudio
+                            mode="cbt"
+                            programId={form.program_id}
+                            programName={programs.find(p => p.id === form.program_id)?.name ?? ''}
+                            courseId={form.course_id}
+                            courseTitle={courses.find(c => c.id === form.course_id)?.title ?? ''}
+                            initialTopic={form.title}
+                            currentQuestions={visibleQuestions}
+                            existingQuestionTexts={visibleQuestions.map(q => q.question_text)}
+                            onImportQuestions={handleStudioQuestions}
+                            onUpdateExamMeta={(meta) => {
+                                if (!form.title.trim() && meta.title) setForm(f => ({ ...f, title: meta.title! }));
+                            }}
+                        />
+                    )}
+
                     {/* ── Question Canvas ── */}
                     <fieldset disabled={definitionLocked} className="space-y-4 disabled:opacity-70">
-                        <div className="flex items-center justify-between bg-white/3 border border-border rounded-xl px-5 py-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card shadow-sm border border-border rounded-2xl px-5 py-4">
                             <div>
-                                <h2 className="font-bold text-foreground">Question Bank</h2>
+                                <h2 className="font-black text-foreground">Exam Paper Questions</h2>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                     {visibleQuestions.length} question{visibleQuestions.length !== 1 ? 's' : ''} ·&nbsp;
                                     {visibleQuestions.reduce((s, q) => s + (q.points || 0), 0)} total points
                                 </p>
                             </div>
-                            <button type="button" onClick={addQuestion}
-                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
-                                <PlusIcon className="w-4 h-4" /> Add Question
-                            </button>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <button type="button" onClick={() => addQuestion('multiple_choice')}
+                                    className="flex items-center gap-1 px-3 py-2 text-xs font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 rounded-xl transition-colors">
+                                    <PlusIcon className="w-3.5 h-3.5" /> + MCQ
+                                </button>
+                                <button type="button" onClick={() => addQuestion('true_false')}
+                                    className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-foreground bg-muted/60 hover:bg-muted border border-border rounded-xl transition-colors">
+                                    + True/False
+                                </button>
+                                <button type="button" onClick={() => addQuestion('fill_blank')}
+                                    className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-foreground bg-muted/60 hover:bg-muted border border-border rounded-xl transition-colors">
+                                    + Fill Blank
+                                </button>
+                                <button type="button" onClick={() => addQuestion('essay')}
+                                    className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 rounded-xl transition-colors">
+                                    + Theory / Essay
+                                </button>
+                            </div>
                         </div>
 
                         {visibleQuestions.length === 0 && (
@@ -616,20 +684,41 @@ export default function EditExamPage() {
                                                 className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                                         </div>
                                         {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
-                                            <div className="sm:col-span-2">
-                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">
-                                                    {q.question_type === 'essay' ? 'Grading Rubric / Model Answer' : 'Correct Answer'}
-                                                </label>
-                                                {q.question_type === 'essay' ? (
-                                                    <textarea rows={4} value={q.correct_answer}
-                                                        onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
-                                                        placeholder="Describe what a full-marks answer should include…"
-                                                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y" />
-                                                ) : (
-                                                    <input type="text" value={q.correct_answer}
-                                                        onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
-                                                        placeholder="Exact answer…"
-                                                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                                            <div className="sm:col-span-3 space-y-3">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                                                        {q.question_type === 'essay' ? 'Model Answer & Point-by-Point Marking Guide' : 'Correct Answer'}
+                                                    </label>
+                                                    {q.question_type === 'essay' ? (
+                                                        <textarea rows={3} value={q.correct_answer}
+                                                            onChange={e => updateQuestion(questions.indexOf(q), {
+                                                                correct_answer: e.target.value,
+                                                                metadata: { ...(q.metadata ?? {}), marking_guide: e.target.value },
+                                                            })}
+                                                            placeholder="E.g. Award 2 marks for defining the concept, 2 marks for code syntax, 1 mark for output…"
+                                                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y" />
+                                                    ) : (
+                                                        <input type="text" value={q.correct_answer}
+                                                            onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
+                                                            placeholder="Exact answer…"
+                                                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                                                    )}
+                                                </div>
+                                                {q.question_type === 'fill_blank' && (
+                                                    <div>
+                                                        <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">
+                                                            Marking Guide / Acceptable Variants (optional)
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={String(q.metadata?.marking_guide ?? '')}
+                                                            onChange={e => updateQuestion(questions.indexOf(q), {
+                                                                metadata: { ...(q.metadata ?? {}), marking_guide: e.target.value },
+                                                            })}
+                                                            placeholder="E.g. Accept case-insensitive spelling or synonym…"
+                                                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500"
+                                                        />
+                                                    </div>
                                                 )}
                                             </div>
                                         )}

@@ -21,6 +21,7 @@ import {
   type DerivedSchoolPricing,
 } from '@/lib/billing/derive-school-pricing';
 import { buildSchoolTermMetadata, liveSchoolTermRef, schoolSessionDisplay } from '@/lib/finance/school-term';
+import { invoiceOverpaidAmount } from '@/lib/finance/invoice-state';
 
 interface SchoolRow {
   id: string;
@@ -180,12 +181,14 @@ export function SchoolInvoiceBuilderPanel({
   const [bootstrapRevision, setBootstrapRevision] = useState(0);
   const [contextError, setContextError] = useState('');
   const [contextRevision, setContextRevision] = useState(0);
+  const [priorSchoolCredit, setPriorSchoolCredit] = useState<number>(0);
 
   const hydrateFromInvoicePayload = useCallback((inv: any) => {
     if (!inv) return;
     setEditingInvoiceId(inv.id);
     const pricing = deriveSchoolPricingFromInvoice(inv);
     const meta = inv.metadata ?? {};
+    const metaDeposit = Number(meta.deposit_amount ?? 0) || Number(inv.amount_paid ?? 0) || 0;
     setForm((f) => {
       const base: FormState = {
         ...f,
@@ -198,7 +201,11 @@ export function SchoolInvoiceBuilderPanel({
         notes: inv.notes ?? '',
         pay_to_account_id: meta.pay_to_account_id ? String(meta.pay_to_account_id) : f.pay_to_account_id,
       };
-      return pricing ? applyDerivedToForm(base, pricing, { overwriteCommission: true }) : base;
+      const next = pricing ? applyDerivedToForm(base, pricing, { overwriteCommission: true }) : base;
+      if (!next.deposit_amount && metaDeposit > 0) {
+        return { ...next, deposit_amount: String(metaDeposit) };
+      }
+      return next;
     });
   }, []);
 
@@ -343,6 +350,34 @@ export function SchoolInvoiceBuilderPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.school_id, form.academic_year, form.term_number, isAdmin, editingInvoiceId, schools, contextRevision]);
 
+  // Detect any prior overpayment credit on this school's invoices
+  useEffect(() => {
+    if (!form.school_id || !isAdmin) {
+      setPriorSchoolCredit(0);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/invoices?stream=school&school_id=${encodeURIComponent(form.school_id)}&limit=50`, {
+      cache: 'no-store',
+    })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => {
+        if (cancelled) return;
+        const rows = Array.isArray(j.data) ? j.data : [];
+        const totalCredit = rows.reduce((sum: number, row: any) => {
+          if (row.id === editingInvoiceId || row.id === linkedInvoice?.id) return sum;
+          return sum + invoiceOverpaidAmount(row);
+        }, 0);
+        setPriorSchoolCredit(Math.round(totalCredit * 100) / 100);
+      })
+      .catch(() => {
+        if (!cancelled) setPriorSchoolCredit(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.school_id, isAdmin, editingInvoiceId, linkedInvoice?.id]);
+
   const copyLastTermFigures = async () => {
     if (!form.school_id) {
       toast.error('Select a school first');
@@ -407,9 +442,9 @@ export function SchoolInvoiceBuilderPanel({
     const revenueShareOn = form.show_revenue_share && quotaPct > 0;
     const rillcodShare = Math.round(subtotal * (quotaPct / 100));
     const schoolShare = subtotal - rillcodShare;
-    const balance = revenueShareOn
-      ? Math.max(0, rillcodShare - deposit)
-      : Math.max(0, subtotal - deposit);
+    const netBilled = revenueShareOn ? rillcodShare : subtotal;
+    const balance = Math.max(0, netBilled - deposit);
+    const overpaymentCredit = Math.max(0, Math.round((deposit - netBilled) * 100) / 100);
 
     return {
       isFixed,
@@ -424,7 +459,9 @@ export function SchoolInvoiceBuilderPanel({
       revenueShareOn,
       rillcodShare,
       schoolShare,
+      netBilled,
       balance,
+      overpaymentCredit,
     };
   }, [form, studentCount]);
 
@@ -462,6 +499,7 @@ export function SchoolInvoiceBuilderPanel({
       rillcodShare: computed.rillcodShare,
       schoolShare: computed.schoolShare,
       balance: computed.balance,
+      overpaymentCredit: computed.overpaymentCredit,
       revenueShareOn: computed.revenueShareOn,
       dateStr,
       dueStr,
@@ -564,8 +602,15 @@ export function SchoolInvoiceBuilderPanel({
         form.due_date ||
         new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
+      // When the school's deposit/payment covers 100% of the net billed amount (or overpays),
+      // keep the invoice amount equal to the net billed total so the ledger item check passes,
+      // and then settle the full payment + overpayment credit via /api/invoices/mark-paid.
+      const settlesInFullOrOverpaid = computed.deposit > 0 && computed.deposit >= computed.netBilled;
+      const effectiveInvoiceAmount = settlesInFullOrOverpaid ? computed.netBilled : computed.balance;
+      const inlineDepositDeduction = !settlesInFullOrOverpaid && computed.deposit > 0 ? computed.deposit : 0;
+
       const invPayload = {
-        amount: computed.balance,
+        amount: effectiveInvoiceAmount,
         currency: form.currency,
         status: 'sent' as const,
         due_date: dueISO,
@@ -578,6 +623,8 @@ export function SchoolInvoiceBuilderPanel({
           commission_rate:
             parseFloat(form.rillcod_quota_percent) || billingRate?.rate || DEFAULT_COMMISSION_RATE,
           student_count: computed.count,
+          ...(computed.deposit > 0 ? { deposit_amount: computed.deposit } : {}),
+          ...(computed.overpaymentCredit > 0 ? { overpayment_credit: computed.overpaymentCredit } : {}),
           ...(form.pay_to_account_id ? { pay_to_account_id: form.pay_to_account_id } : {}),
         }),
         items: computed.revenueShareOn
@@ -589,32 +636,34 @@ export function SchoolInvoiceBuilderPanel({
                 unit_price: -computed.schoolShare,
                 total: -computed.schoolShare,
               },
-              ...(computed.deposit > 0
+              ...(inlineDepositDeduction > 0
                 ? [
                     {
                       description: 'Less Previous Deposit / Payment',
                       quantity: 1,
-                      unit_price: -computed.deposit,
-                      total: -computed.deposit,
+                      unit_price: -inlineDepositDeduction,
+                      total: -inlineDepositDeduction,
                     },
                   ]
                 : []),
             ]
           : [
               ...items,
-              ...(computed.deposit > 0
+              ...(inlineDepositDeduction > 0
                 ? [
                     {
                       description: 'Less Previous Deposit / Payment',
                       quantity: 1,
-                      unit_price: -computed.deposit,
-                      total: -computed.deposit,
+                      unit_price: -inlineDepositDeduction,
+                      total: -inlineDepositDeduction,
                     },
                   ]
                 : []),
             ],
         notes: form.notes || null,
       };
+
+      let savedInvoiceId: string | null = editingInvoiceId;
 
       if (editingInvoiceId) {
         const response = await fetch('/api/invoices/' + editingInvoiceId, {
@@ -624,7 +673,9 @@ export function SchoolInvoiceBuilderPanel({
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'Failed to update invoice');
-        if (!opts?.silent) toast.success(`Invoice updated · Term billing ${termLabel}`);
+        if (!opts?.silent && !settlesInFullOrOverpaid) {
+          toast.success(`Invoice updated · Term billing ${termLabel}`);
+        }
       } else {
         if (linkedInvoice?.id) {
           if (!opts?.silent) {
@@ -641,9 +692,39 @@ export function SchoolInvoiceBuilderPanel({
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'Failed to create invoice');
-        if (!opts?.silent) {
+        savedInvoiceId = result.data?.id ?? null;
+        if (!opts?.silent && !settlesInFullOrOverpaid) {
           toast.success(
             `Invoice ${result.data?.invoice_number || ''} created · Term billing ${termLabel}`,
+          );
+        }
+      }
+
+      if (settlesInFullOrOverpaid && savedInvoiceId) {
+        const paidRes = await fetch('/api/invoices/mark-paid', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invoiceId: savedInvoiceId,
+            amount: computed.deposit,
+            method: form.payment_method,
+            note:
+              computed.overpaymentCredit > 0
+                ? `Paid ${form.currency} ${computed.deposit.toLocaleString()} via School Invoice Builder (+${computed.overpaymentCredit.toLocaleString()} overpayment credit)`
+                : `Paid in full (${form.currency} ${computed.deposit.toLocaleString()}) via School Invoice Builder`,
+          }),
+        });
+        const paidJson = await paidRes.json().catch(() => ({}));
+        if (!paidRes.ok) {
+          toast.warning(
+            paidJson.error ||
+              'Invoice saved, but automatic payment settlement needs manual verification.',
+          );
+        } else if (!opts?.silent) {
+          toast.success(
+            computed.overpaymentCredit > 0
+              ? `Invoice settled · +₦${computed.overpaymentCredit.toLocaleString()} overpayment credit recorded for ${sch.name}`
+              : `Invoice saved & marked Paid (₦${computed.deposit.toLocaleString()})`,
           );
         }
       }
@@ -1021,15 +1102,35 @@ export function SchoolInvoiceBuilderPanel({
             </div>
 
             <div>
-              <Lbl>Deposit Made (₦)</Lbl>
+              <Lbl>Deposit / Amount Paid (₦)</Lbl>
               <input
                 type="number"
                 min={0}
-                placeholder="Amount already paid"
+                placeholder="Amount paid or credit offset"
                 value={form.deposit_amount}
                 onChange={(e) => setForm((f) => ({ ...f, deposit_amount: e.target.value }))}
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary font-bold"
               />
+              {priorSchoolCredit > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentDep = parseFloat(form.deposit_amount) || 0;
+                    const nextDep = currentDep > 0 ? currentDep + priorSchoolCredit : priorSchoolCredit;
+                    setForm((f) => ({
+                      ...f,
+                      deposit_amount: String(nextDep),
+                      notes: f.notes
+                        ? f.notes
+                        : `Includes ₦${priorSchoolCredit.toLocaleString()} overpayment credit carried forward`,
+                    }));
+                    toast.success(`Applied ₦${priorSchoolCredit.toLocaleString()} prior school overpayment credit`);
+                  }}
+                  className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/25 transition-colors"
+                >
+                  + Apply ₦{priorSchoolCredit.toLocaleString()} prior credit
+                </button>
+              )}
             </div>
 
             <div className="lg:col-span-2">
@@ -1142,7 +1243,7 @@ export function SchoolInvoiceBuilderPanel({
                   )}
                   {computed.deposit > 0 && (
                     <Stat
-                      label="Less Deposit"
+                      label="Paid / Deposit"
                       value={`−₦${computed.deposit.toLocaleString()}`}
                       tone="emerald"
                     />
@@ -1155,6 +1256,23 @@ export function SchoolInvoiceBuilderPanel({
                       ₦{computed.balance.toLocaleString()}
                     </p>
                   </div>
+                  {computed.overpaymentCredit > 0 && (
+                    <div className="bg-emerald-500/10 px-4 py-2 rounded-md border border-emerald-500/30">
+                      <p className="text-[9px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
+                        Overpayment Credit
+                      </p>
+                      <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
+                        +₦{computed.overpaymentCredit.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {computed.overpaymentCredit > 0 && (
+                <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200 flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <strong>Overpayment detected:</strong> Amount paid (₦{computed.deposit.toLocaleString()}) exceeds the net term bill (₦{computed.netBilled.toLocaleString()}). Saving will mark this invoice <strong>Paid</strong> and record <strong>+₦{computed.overpaymentCredit.toLocaleString()}</strong> as school credit.
+                  </span>
                 </div>
               )}
             </div>

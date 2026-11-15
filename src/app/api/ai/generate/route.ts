@@ -7,6 +7,7 @@ import {
 } from "@/lib/dashboard/route-access";
 import { extractCronSecret, isValidCronSecret } from "@/lib/server/cron-auth";
 import { geminiGenerateText } from "@/lib/gemini/client";
+import { cloudflareGenerateText, hasCloudflareAi } from "@/lib/ai/cloudflare-ai";
 import {
   openRouterComplete,
   MIN_CONTENT_CHARS,
@@ -151,6 +152,26 @@ export async function POST(req: NextRequest) {
             }
           } else if (text) {
             emit({ status: "Answer came back thin — trying another model..." });
+          }
+
+          if (hasCloudflareAi()) {
+            emit({ status: "Generating with Cloudflare Workers AI (free)..." });
+            const cfResult = await cloudflareGenerateText(
+              plan.systemPrompt,
+              plan.prompt,
+              { maxTokens: 4096, temperature: plan.temperature }
+            ).catch(() => null);
+            const cfText = cfResult?.text ?? "";
+            if (cfText && cfText.length >= MIN_CONTENT_CHARS) {
+              try {
+                const parsed = safeParseJSON(cfText);
+                emit({ done: true, model: cfResult!.model, data: parsed });
+                streamController.close();
+                return;
+              } catch {
+                emit({ status: "Falling back to the OpenRouter queue..." });
+              }
+            }
           }
 
           const openRouterKey = process.env.OPENROUTER_API_KEY ?? "";

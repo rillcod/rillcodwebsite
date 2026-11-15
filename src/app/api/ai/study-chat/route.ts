@@ -3,6 +3,7 @@ import { modelQueueFor } from "@/lib/ai/model-policy";
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
+import { cloudflareGenerateText, hasCloudflareAi } from '@/lib/ai/cloudflare-ai';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -141,6 +142,27 @@ FORMATTING — your reply is rendered as Markdown, so use it:
       }
     }
 
+    // ── Free Cloudflare Workers AI second ────────────────────────────────────
+    if (hasCloudflareAi()) {
+      const transcript = history
+        .map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`)
+        .join('\n\n');
+      const userPromptWithContext = [
+        lessonContext ? `LESSON REFERENCE MATERIAL:\n${lessonContext}` : '',
+        transcript ? `CONVERSATION SO FAR:\n${transcript}` : '',
+        `CURRENT QUESTION:\n${message.trim()}`,
+      ].filter(Boolean).join('\n\n');
+
+      const cfResult = await cloudflareGenerateText(systemPrompt, userPromptWithContext, {
+        maxTokens: MAX_REPLY_TOKENS,
+        temperature: json ? 0.3 : 0.7,
+      }).catch(() => null);
+
+      if (cfResult?.text?.trim()) {
+        return NextResponse.json({ reply: cfResult.text, model: cfResult.model, source: 'cloudflare' });
+      }
+    }
+
     // ── Free OpenRouter fallback ─────────────────────────────────────────────
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json(
@@ -160,7 +182,7 @@ FORMATTING — your reply is rendered as Markdown, so use it:
 
     // Preferences; the policy decides. Retired ids are dropped and free,
     // healthy models lead — the same rule for every AI path in the app.
-    const resolved = await modelQueueFor({ prefer: FALLBACK_MODELS, needsJson: true });
+    const resolved = await modelQueueFor({ prefer: FALLBACK_MODELS, needsJson: Boolean(json) });
     for (const model of resolved) {
       try {
         const completion = await client.chat.completions.create({
