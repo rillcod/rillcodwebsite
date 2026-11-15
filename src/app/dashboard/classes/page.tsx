@@ -31,6 +31,7 @@ export default function ClassesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTerm, setFilterTerm] = useState('all');
+  const [filterSchool, setFilterSchool] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -99,21 +100,27 @@ export default function ClassesPage() {
 
   const filtered = classes.filter(c => {
     const q = searchTerm.toLowerCase();
-    const matchName = (c.name ?? '').toLowerCase().includes(q) || (c.programs?.name ?? '').toLowerCase().includes(q);
+    const matchName = (c.name ?? '').toLowerCase().includes(q)
+      || (c.programs?.name ?? '').toLowerCase().includes(q)
+      || (c.schools?.name ?? '').toLowerCase().includes(q);
     const matchStatus = filterStatus === 'all' || c.status === filterStatus;
     const classTermKey = c.academic_terms
       ? `${c.academic_terms.term_label} ${c.academic_terms.academic_year}`
       : 'No term';
     const matchTerm = filterTerm === 'all' || classTermKey === filterTerm;
-    return matchName && matchStatus && matchTerm;
+    const matchSchool = filterSchool === 'all' || (c.schools?.name ?? 'Direct / Unassigned') === filterSchool;
+    return matchName && matchStatus && matchTerm && matchSchool;
   });
 
   const totalStudents = classes.reduce((sum, c) => sum + (c.current_students ?? 0), 0);
   const activeCount = classes.filter(c => c.status === 'active').length;
+  const scheduledCount = classes.filter(c => c.status === 'scheduled').length;
+  const completedCount = classes.filter(c => c.status === 'completed').length;
   const programCount = new Set(classes.map(c => c.program_id).filter(Boolean)).size;
   const termOptions = Array.from(new Set(classes.map(c =>
     c.academic_terms ? `${c.academic_terms.term_label} ${c.academic_terms.academic_year}` : 'No term'
   ))).sort();
+  const schoolOptions = Array.from(new Set(classes.map(c => c.schools?.name ?? 'Direct / Unassigned'))).sort();
 
   const showGraduationTool = promotionDue?.show_menu === true;
 
@@ -146,6 +153,8 @@ export default function ClassesPage() {
           { id: 'classes', label: 'Classes', icon: UserGroupIcon, selected: true },
           { id: 'timetable', label: 'Timetable', icon: CalendarDaysIcon, onClick: () => router.push('/dashboard/timetable') },
           { id: 'attendance', label: 'Attendance', icon: ClipboardDocumentCheckIcon, onClick: () => router.push('/dashboard/attendance') },
+          { id: 'assessments', label: 'Assessments', icon: DocumentTextIcon, onClick: () => router.push('/dashboard/assignments') },
+          { id: 'grades', label: 'Mark Work', icon: AcademicCapIcon, onClick: () => router.push('/dashboard/grades') },
         ]}
       />
       <div className="hidden md:flex w-full max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1">
@@ -159,6 +168,14 @@ export default function ClassesPage() {
         <Link href="/dashboard/attendance"
           className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground">
           <ClipboardDocumentCheckIcon className="h-4 w-4" /> Attendance
+        </Link>
+        <Link href="/dashboard/assignments"
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground">
+          <DocumentTextIcon className="h-4 w-4" /> Assessments
+        </Link>
+        <Link href="/dashboard/grades"
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-primary transition-all hover:bg-primary/10">
+          <AcademicCapIcon className="h-4 w-4" /> Mark Work &amp; Gradebook
         </Link>
       </div>
 
@@ -296,37 +313,81 @@ export default function ClassesPage() {
       />
 
       {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input aria-label="Search classes"
-            type="text"
-            placeholder="Search classes by name or programme..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-          className="px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
-        >
-          <option value="all">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="completed">Completed</option>
-        </select>
-        <select
-          value={filterTerm}
-          onChange={e => setFilterTerm(e.target.value)}
-          className="px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
-        >
-          <option value="all">All Terms</option>
-          {termOptions.map(term => (
-            <option key={term} value={term}>{term}</option>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { key: 'all', label: 'All Classes', count: classes.length },
+            { key: 'active', label: 'Active', count: activeCount },
+            { key: 'scheduled', label: 'Scheduled', count: scheduledCount },
+            { key: 'completed', label: 'Completed', count: completedCount },
+          ].map(pill => (
+            <button
+              key={pill.key}
+              type="button"
+              onClick={() => setFilterStatus(pill.key)}
+              aria-pressed={filterStatus === pill.key}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-black transition-all ${
+                filterStatus === pill.key
+                  ? 'border-primary bg-primary text-white shadow-sm'
+                  : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+              }`}
+            >
+              <span>{pill.label}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                filterStatus === pill.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+              }`}>
+                {pill.count}
+              </span>
+            </button>
           ))}
-        </select>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input aria-label="Search classes"
+              type="text"
+              placeholder="Search classes by name, programme, or school..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
+            />
+          </div>
+          {schoolOptions.length > 1 && (
+            <select
+              aria-label="Filter classes by school"
+              value={filterSchool}
+              onChange={e => setFilterSchool(e.target.value)}
+              className="px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
+            >
+              <option value="all">All Schools ({schoolOptions.length})</option>
+              {schoolOptions.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          )}
+          <select
+            aria-label="Filter classes by term"
+            value={filterTerm}
+            onChange={e => setFilterTerm(e.target.value)}
+            className="px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
+          >
+            <option value="all">All Terms</option>
+            {termOptions.map(term => (
+              <option key={term} value={term}>{term}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={reloadClasses}
+            aria-label="Refresh classes"
+            title="Refresh classes"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground transition-all"
+          >
+            <ArrowPathIcon className="w-4 h-4" />
+            <span className="sm:hidden">Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* Classes list */}
@@ -448,6 +509,43 @@ export default function ClassesPage() {
                       </div>
                     </div>
                   )}
+                  {/* Quick workspace launch strip */}
+                  <div className="mt-auto pt-2 flex flex-wrap items-center gap-1.5">
+                    <Link
+                      href={`/dashboard/classes/${cls.id}?operation=teaching`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                      title="Open class teaching workspace"
+                    >
+                      <BookOpenIcon className="h-3 w-3 text-primary" />
+                      Teach
+                    </Link>
+                    <Link
+                      href={`/dashboard/classes/${cls.id}?operation=assessment`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                      title="Open class assessments and gradebook"
+                    >
+                      <DocumentTextIcon className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                      Assessments
+                    </Link>
+                    {profile?.role !== 'school' && (
+                      <Link
+                        href={`/dashboard/grades?class_id=${cls.id}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                        title="Mark work and review gradebook for this class"
+                      >
+                        <AcademicCapIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                        Mark Work
+                      </Link>
+                    )}
+                    <Link
+                      href={`/dashboard/attendance?class_id=${cls.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                      title="Mark attendance for this class"
+                    >
+                      <ClipboardDocumentCheckIcon className="h-3 w-3 text-primary" />
+                      Attendance
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Card footer actions */}

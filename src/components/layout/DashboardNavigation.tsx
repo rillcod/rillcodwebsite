@@ -472,6 +472,16 @@ export default function DashboardNavigation() {
           },
           { divider: true, label: "Assessment" },
           {
+            name: "Assignments",
+            href: "/dashboard/assignments",
+            icon: ClipboardDocumentListIcon,
+          },
+          {
+            name: "CBT & Exams",
+            href: "/dashboard/cbt",
+            icon: CommandLineIcon,
+          },
+          {
             name: "Grading Queue",
             href: "/dashboard/grading",
             icon: ClipboardDocumentCheckIcon,
@@ -678,6 +688,16 @@ export default function DashboardNavigation() {
           },
 
           { divider: true, label: "Assessment" },
+          {
+            name: "Assignments",
+            href: "/dashboard/assignments",
+            icon: ClipboardDocumentListIcon,
+          },
+          {
+            name: "CBT & Exams",
+            href: "/dashboard/cbt",
+            icon: CommandLineIcon,
+          },
           {
             name: "Mark work",
             href: "/dashboard/grades",

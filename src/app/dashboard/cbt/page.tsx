@@ -8,7 +8,7 @@ import {
   AcademicCapIcon, PlusIcon, ClockIcon, CheckCircleIcon,
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
   MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
-  BookOpenIcon, CommandLineIcon
+  BookOpenIcon, CommandLineIcon, ClipboardDocumentListIcon, RocketLaunchIcon
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
@@ -108,15 +108,29 @@ export default function CBTPage() {
     <div className={`min-h-screen bg-background text-foreground ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        {/* ── EXAM HUB TAB BAR ── */}
-        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+        {/* ── ASSESSMENT & EXAM HUB TAB BAR ── */}
+        <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-xl p-1 w-full sm:w-fit">
+          <Link href="/dashboard/assignments"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+            <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
+          </Link>
+          <Link href="/dashboard/projects"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+            <RocketLaunchIcon className="w-4 h-4" /> Projects
+          </Link>
+          <span className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-white text-xs sm:text-sm font-black">
             <CommandLineIcon className="w-4 h-4" /> CBT Exams
           </span>
           <Link href="/dashboard/exams"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
             <DocumentCheckIcon className="w-4 h-4" /> Written Exams
           </Link>
+          {isStaff && (
+            <Link href="/dashboard/grades"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+              <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+            </Link>
+          )}
         </div>
 
         {/* ── HERO HEADER ── */}
@@ -245,6 +259,7 @@ export default function CBTPage() {
             {filtered.map((exam: any) => {
               const examSessions = exam.cbt_sessions ?? [];
               const passed = examSessions.filter((s: any) => s.status === 'passed').length;
+              const pendingGrading = examSessions.filter((s: any) => s.status === 'pending_grading').length;
               const studentSession = !isStaff ? getStudentSession(exam.id) : null;
               const now = new Date();
               const started = exam.start_date ? new Date(exam.start_date) <= now : true;
@@ -342,38 +357,42 @@ export default function CBTPage() {
                               Ends {new Date(exam.end_date).toLocaleDateString()}
                             </span>
                           )}
-                          {isStaff && (
+                           {isStaff && (
                             <span className="text-[11px] text-primary">
                               {examSessions.length} attempts · {passed} passed
+                              {pendingGrading > 0 ? ` · ${pendingGrading} awaiting review` : ''}
                             </span>
                           )}
                         </div>
                       </div>
 
                       {/* Right: actions */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0">
                         {isStaff ? (
                           <>
                             <Link
                               href={`/dashboard/cbt/${exam.id}`}
-                              className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                              title="View"
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors"
+                              title="Open exam questions and student sessions"
                             >
                               <EyeIcon className="w-4 h-4" />
+                              <span>{pendingGrading > 0 ? `Grade (${pendingGrading})` : 'Manage & Results'}</span>
                             </Link>
                             {canManageExams && (
                               <>
                                 <Link
                                   href={`/dashboard/cbt/${exam.id}/edit`}
-                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
-                                  title="Edit"
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
+                                  title="Edit exam settings and questions"
                                 >
                                   <PencilIcon className="w-4 h-4" />
+                                  <span className="hidden sm:inline">Edit</span>
                                 </Link>
                                 <button
                                   onClick={() => handleDelete(exam.id, exam.title)}
                                   disabled={deleting === exam.id}
-                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                                  aria-label={`Delete exam ${exam.title}`}
+                                  className="p-2 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors disabled:opacity-40"
                                   title="Delete"
                                 >
                                   <TrashIcon className="w-4 h-4" />

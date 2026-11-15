@@ -14,7 +14,8 @@ import {
     DocumentTextIcon, StarIcon, ArrowDownTrayIcon, AcademicCapIcon,
     TrophyIcon, BoltIcon, FireIcon, ChevronDownIcon, ChevronUpIcon,
     ArrowsUpDownIcon, SparklesIcon,
-    TrashIcon
+    TrashIcon, ClipboardDocumentListIcon, CommandLineIcon, RocketLaunchIcon,
+    UserGroupIcon, ArrowRightIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { withTimeoutOrThrow } from '@/lib/async-timeout';
@@ -98,22 +99,33 @@ function GradeRing({ pct, letter, color, size = 'md' }: { pct: number; letter: s
 }
 
 // ─── Grade Modal ──────────────────────────────────────────────
-function GradeModal({ sub, onClose, onSaved }: {
+function GradeModal({ sub, onClose, onSaved, onSaveAndNext, nextUngradedCount = 0 }: {
     sub: any;
     onClose: () => void;
     onSaved: () => void;
+    onSaveAndNext?: () => void;
+    nextUngradedCount?: number;
 }) {
     const { profile } = useAuth();
     const max = sub.assignments?.max_points ?? 100;
     const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
-    const [status, setStatus] = useState(sub.status);
+    const [status, setStatus] = useState(sub.status === 'submitted' || sub.status === 'late' ? 'graded' : sub.status);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [err, setErr] = useState('');
-    const [showContent, setShowContent] = useState(false);
+    const [showContent, setShowContent] = useState(true);
     const [isAIThinking, setIsAIThinking] = useState(false);
+
+    useEffect(() => {
+        setGrade(sub.grade?.toString() ?? '');
+        setFb(sub.feedback ?? '');
+        setStatus(sub.status === 'submitted' || sub.status === 'late' ? 'graded' : sub.status);
+        setErr('');
+        setConfirmDelete(false);
+        setShowContent(true);
+    }, [sub.id]);
 
     const generateAIFeedback = async () => {
         if (isAIThinking) return;
@@ -157,18 +169,19 @@ function GradeModal({ sub, onClose, onSaved }: {
         setErr('');
     };
 
-    const save = async () => {
+    const save = async (advanceToNext = false) => {
         const g = Number(grade);
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
+            const nextStatus = grade !== '' && (status === 'submitted' || status === 'late') ? 'graded' : status;
             const payload: any = {
                 grade: grade === '' ? null : g,
                 feedback,
-                status,
+                status: nextStatus,
                 expected_version: sub.version,
             };
-            if (status === 'graded') payload.graded_at = new Date().toISOString();
+            if (nextStatus === 'graded') payload.graded_at = new Date().toISOString();
 
             const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
                 method: 'PATCH',
@@ -178,7 +191,11 @@ function GradeModal({ sub, onClose, onSaved }: {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error ?? 'Failed to save grade');
             onSaved();
-            onClose();
+            if (advanceToNext && onSaveAndNext) {
+                onSaveAndNext();
+            } else {
+                onClose();
+            }
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save grade');
         } finally {
@@ -224,7 +241,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-foreground truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <select value={status} onChange={e => setStatus(e.target.value)}
+                                    <select aria-label="Submission status" value={status} onChange={e => setStatus(e.target.value)}
                                         className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border appearance-none cursor-pointer ${
                                             status === 'graded' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
                                             status === 'submitted' ? 'bg-primary/20 text-primary border-primary/30' :
@@ -241,7 +258,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0">
+                    <button aria-label="Close grading modal" onClick={onClose} className="p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0">
                         <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                     </button>
                 </div>
@@ -279,7 +296,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                     Score (max {max} pts)
                                 </label>
                                 <div className="flex items-center gap-3">
-                                    <input type="number" min={0} max={max} value={grade}
+                                    <input aria-label={`Score out of ${max}`} type="number" min={0} max={max} value={grade}
                                         onChange={e => { setGrade(e.target.value); setErr(''); }}
                                         className="w-24 px-3 py-2.5 bg-muted border border-border rounded-xl text-foreground text-xl font-black text-center focus:outline-none focus:border-primary transition-colors"
                                         placeholder="0"
@@ -369,7 +386,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                                     {isAIThinking ? 'Analyzing...' : 'AI Assistant'}
                                 </button>
                             </div>
-                            <textarea value={feedback} rows={3}
+                            <textarea aria-label="Teacher feedback for student" value={feedback} rows={3}
                                 onChange={e => setFb(e.target.value)}
                                 placeholder="Write specific, constructive feedback for the student…"
                                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none min-h-[100px]"
@@ -381,16 +398,23 @@ function GradeModal({ sub, onClose, onSaved }: {
                 </div>
 
                 {/* Footer */}
-                <div className="p-5 border-t border-border flex gap-3 flex-shrink-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                <div className="p-5 border-t border-border flex flex-wrap gap-2.5 flex-shrink-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                     <button onClick={onClose}
-                        className="flex-1 py-3 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors">
+                        className="px-4 py-3 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-xl transition-colors">
                         Cancel
                     </button>
-                    <button onClick={save} disabled={saving}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground rounded-xl transition-all disabled:opacity-60">
+                    <button onClick={() => save(false)} disabled={saving}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl transition-all disabled:opacity-60">
                         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                         {saving ? 'Saving…' : 'Submit Grade'}
                     </button>
+                    {nextUngradedCount > 0 && onSaveAndNext && (
+                        <button onClick={() => save(true)} disabled={saving}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-black bg-primary hover:bg-primary/90 text-white rounded-xl transition-all disabled:opacity-60">
+                            {saving ? 'Saving…' : `Save & Next (${nextUngradedCount})`}
+                            <ArrowRightIcon className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -881,12 +905,21 @@ export default function GradesPage() {
         });
 
         return list;
-    }, [items, search, filter, filterProgram, filterCourse, sortBy, sortDir, isStaff, allCourses]);
+    }, [items, search, filter, filterProgram, filterCourse, filterClass, sortBy, sortDir, isStaff, allCourses]);
+
+    const classById = useMemo(() => {
+        const m = new Map<string, any>();
+        for (const c of teacherClasses) {
+            if (c?.id) m.set(c.id, c);
+        }
+        return m;
+    }, [teacherClasses]);
 
     // ── Stats ──────────────────────────────────────────────────
     const totalItems = items.length;
     const graded = items.filter(s => s.status === 'graded').length;
     const pending = items.filter(s => s.status === 'submitted').length;
+    const lateCount = items.filter(s => s.status === 'late').length;
     const missing = items.filter(s => s.status === 'missing').length;
     const avgPct = (() => {
         const gs = items.filter(s => s.grade != null && s.assignments?.max_points);
@@ -927,26 +960,60 @@ export default function GradesPage() {
         </div>
     );
 
+    const ungradedInFiltered = useMemo(
+        () => filtered.filter((s: any) => s.status === 'submitted' || s.status === 'late'),
+        [filtered],
+    );
+    const nextUngradedSubmission = useMemo(() => {
+        if (!grading) return null;
+        const others = ungradedInFiltered.filter((s: any) => s.id !== grading.id);
+        return others[0] ?? null;
+    }, [grading, ungradedInFiltered]);
+
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
-            {grading && <GradeModal sub={grading} onClose={() => setGrading(null)} onSaved={handleGraded} />}
+            {grading && (
+                <GradeModal
+                    sub={grading}
+                    onClose={() => setGrading(null)}
+                    onSaved={handleGraded}
+                    nextUngradedCount={ungradedInFiltered.filter((s: any) => s.id !== grading.id).length}
+                    onSaveAndNext={nextUngradedSubmission ? () => setGrading(nextUngradedSubmission) : undefined}
+                />
+            )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {/* ── Assessment Tab Bar ── */}
                 {isStaff && (
                     <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
+                        <Link href={filterClass ? `/dashboard/assignments?class_id=${filterClass}` : '/dashboard/assignments'}
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <ClipboardDocumentListIcon className="w-4 h-4 text-primary" /> Assignments
+                        </Link>
+                        <Link href="/dashboard/projects"
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <RocketLaunchIcon className="w-4 h-4 text-indigo-500" /> Projects
+                        </Link>
+                        <Link href="/dashboard/cbt"
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <CommandLineIcon className="w-4 h-4 text-amber-500" /> CBT Exams
+                        </Link>
+                        <Link href="/dashboard/exams"
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <DocumentTextIcon className="w-4 h-4 text-sky-500" /> Written Exams
+                        </Link>
                         {isAdmin && (
                         <Link href="/dashboard/grading"
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
-                            <ClipboardDocumentCheckIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> 1. Grading Queue (Pending Work)
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <ClipboardDocumentCheckIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Grading Queue
                         </Link>
                         )}
-                        <span className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-700 text-white text-xs sm:text-sm font-black shadow-sm">
-                            <ChartBarIcon className="w-4 h-4" /> 2. Master Gradebook &amp; Outcomes
+                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs sm:text-sm font-black shadow-sm">
+                            <ChartBarIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
                         </span>
                         <Link href="/dashboard/grades/waec"
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
-                            <DocumentTextIcon className="w-4 h-4" /> 3. Grading Guide
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+                            <DocumentTextIcon className="w-4 h-4" /> Grading Guide
                         </Link>
                     </div>
                 )}
@@ -1087,13 +1154,32 @@ export default function GradesPage() {
                                 </p>
                             </div>
                         </div>
-                        {isAdmin && (
+                        {isAdmin ? (
                         <Link
                             href="/dashboard/grading"
                             className="shrink-0 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 dark:text-slate-200 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-amber-500/20"
                         >
                             Open Grading Queue →
                         </Link>
+                        ) : (
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setFilter(filter === 'submitted' ? 'all' : 'submitted')}
+                                className="px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-black text-xs uppercase tracking-wider rounded-xl transition-all"
+                            >
+                                {filter === 'submitted' ? 'Show All Submissions' : `Filter Needs Grading (${pending})`}
+                            </button>
+                            {ungradedInFiltered.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setGrading(ungradedInFiltered[0])}
+                                    className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-sm"
+                                >
+                                    Start Marking Now →
+                                </button>
+                            )}
+                        </div>
                         )}
                     </div>
                 )}
@@ -1169,16 +1255,118 @@ export default function GradesPage() {
                 {!isStaff && items.length > 0 && <AchievementBadges items={items} />}
 
                 {/* ── Filters + Sort ────────────────────────────── */}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                     <AcademicSessionScopeStrip
                       purpose="Grades & submissions"
                       workingSession={workingGradeSession}
                       classSession={filteredClassSession}
                       hint="Assignments, CBT, and classwork shown here attach to this academic session — not automatically to the class label in the dropdown."
                     />
+
+                    {/* 1-Click Class Pill Strip for Teachers */}
+                    {isStaff && teacherClasses.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-1 flex items-center gap-1.5">
+                                <UserGroupIcon className="w-3.5 h-3.5 text-primary" /> My Classes:
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setFilterClass('')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border ${
+                                    !filterClass
+                                        ? 'bg-primary text-white border-primary shadow-sm'
+                                        : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
+                                }`}
+                            >
+                                All Classes ({items.length})
+                            </button>
+                            {teacherClasses.map((c: any) => {
+                                const clsItems = items.filter((s: any) => s.assignments?.class_id === c.id);
+                                const clsPending = clsItems.filter((s: any) => s.status === 'submitted' || s.status === 'late').length;
+                                const active = filterClass === c.id;
+                                return (
+                                    <button
+                                        key={c.id}
+                                        type="button"
+                                        onClick={() => setFilterClass(active ? '' : c.id)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                            active
+                                                ? 'bg-primary text-white border-primary shadow-sm'
+                                                : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
+                                        }`}
+                                    >
+                                        <span>{c.name}</span>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${active ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
+                                            {clsItems.length}
+                                        </span>
+                                        {clsPending > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-500 text-black" title={`${clsPending} awaiting grading`}>
+                                                {clsPending} to mark
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                            {filterClass && (
+                                <Link
+                                    href={`/dashboard/classes/${filterClass}?operation=assessment`}
+                                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary text-xs font-black transition-colors"
+                                >
+                                    Open Class Workspace <ArrowRightIcon className="w-3.5 h-3.5" />
+                                </Link>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 1-Click Status Quick-Filter Pills */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {[
+                                { key: 'all', label: 'All', count: totalItems, activeCls: 'bg-primary text-white border-primary' },
+                                { key: 'submitted', label: isStaff ? 'Needs Grading' : 'Submitted', count: pending, activeCls: 'bg-amber-500 text-black border-amber-500' },
+                                { key: 'graded', label: 'Graded', count: graded, activeCls: 'bg-emerald-700 text-white border-emerald-700' },
+                                { key: 'late', label: 'Late', count: lateCount, activeCls: 'bg-amber-600 text-black border-amber-600' },
+                                { key: 'missing', label: 'Missing', count: missing, activeCls: 'bg-rose-700 text-white border-rose-700' },
+                            ].map(pill => {
+                                const isActive = filter === pill.key;
+                                return (
+                                    <button
+                                        key={pill.key}
+                                        type="button"
+                                        aria-pressed={isActive}
+                                        onClick={() => setFilter(isActive && pill.key !== 'all' ? 'all' : pill.key)}
+                                        className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
+                                            isActive
+                                                ? pill.activeCls
+                                                : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/60'
+                                        }`}
+                                    >
+                                        <span>{pill.label}</span>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${isActive ? 'bg-black/20 text-current' : 'bg-muted text-muted-foreground'}`}>
+                                            {pill.count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => toggleSort('date')}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'date' ? 'bg-emerald-700 border-emerald-700 text-white' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
+                                <ArrowsUpDownIcon className="w-3.5 h-3.5" />
+                                <span>Date</span>
+                            </button>
+                            <button onClick={() => toggleSort('grade')}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'grade' ? 'bg-emerald-700 border-emerald-700 text-white' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
+                                <ChartBarIcon className="w-3.5 h-3.5" />
+                                <span>Grade</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                         <div className="sm:min-w-[240px]">
                             <select
+                              aria-label="Academic session for LMS grading isolation"
                               value={sessionTermId}
                               onChange={(e) => setSessionTermId(e.target.value)}
                               className="w-full px-3 py-3 bg-card shadow-sm border border-primary/30 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer"
@@ -1203,7 +1391,7 @@ export default function GradesPage() {
                             />
                         </div>
                         {teacherClasses.length > 0 && (
-                            <select value={filterClass} onChange={e => setFilterClass(e.target.value)}
+                            <select aria-label="Filter by class" value={filterClass} onChange={e => setFilterClass(e.target.value)}
                                 className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                 <option value="">All My Classes</option>
                                 {teacherClasses.map((c: any) => (
@@ -1214,7 +1402,7 @@ export default function GradesPage() {
                             </select>
                         )}
                         {programs.length > 0 && (
-                            <select value={filterProgram}
+                            <select aria-label="Filter by programme" value={filterProgram}
                                 onChange={e => { setFilterProgram(e.target.value); setFilterCourse(''); }}
                                 className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                 <option value="">All Programmes</option>
@@ -1222,32 +1410,12 @@ export default function GradesPage() {
                             </select>
                         )}
                         {filterProgram && filteredCourseOptions.length > 0 && (
-                            <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
+                            <select aria-label="Filter by course" value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
                                 className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                 <option value="">All Courses</option>
                                 {filteredCourseOptions.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
                         )}
-                    </div>
-                    <div className="flex gap-2">
-                        <select value={filter} onChange={e => setFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-3 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
-                            <option value="all">All Status</option>
-                            <option value="submitted">Submitted</option>
-                            <option value="graded">Graded</option>
-                            <option value="late">Late</option>
-                            <option value="missing">Missing</option>
-                        </select>
-                        <button onClick={() => toggleSort('date')}
-                            className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'date' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
-                            <ArrowsUpDownIcon className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Date</span>
-                        </button>
-                        <button onClick={() => toggleSort('grade')}
-                            className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'grade' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
-                            <ChartBarIcon className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Grade</span>
-                        </button>
                     </div>
                 </div>
 
@@ -1297,9 +1465,11 @@ export default function GradesPage() {
                                 const max = s.assignments?.max_points ?? 100;
                                 const info = s.grade != null ? pctInfo(s.grade, max) : null;
                                 const expanded = expandedIds.has(s.id);
+                                const rowClass = s.assignments?.class_id ? classById.get(s.assignments.class_id) : null;
+                                const needsReview = s.status === 'submitted' || s.status === 'late';
 
                                 return (
-                                    <div key={s.id} className="group transition-colors hover:bg-white/3">
+                                    <div key={s.id} className={`group transition-colors ${needsReview ? 'bg-amber-500/[0.02] hover:bg-amber-500/[0.05]' : 'hover:bg-white/3'}`}>
                                         {/* Main row */}
                                         <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5">
                                             {/* Avatar */}
@@ -1312,9 +1482,14 @@ export default function GradesPage() {
                                                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                                                     <span className="font-semibold text-foreground text-sm">{s.assignments?.title ?? '—'}</span>
                                                     <Badge status={s.status} />
+                                                    {rowClass && (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary border border-primary/20">
+                                                            {rowClass.name}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground truncate">
-                                                    {s.portal_users?.full_name ?? 'Unknown'}
+                                                    <span className="font-bold text-foreground/85">{s.portal_users?.full_name ?? 'Unknown'}</span>
                                                     {s.assignments?.courses?.title ? ` · ${s.assignments.courses.title}` : ''}
                                                 </p>
                                                 {s.submitted_at && (
@@ -1337,23 +1512,34 @@ export default function GradesPage() {
                                                 )}
                                             </div>
 
-                                            {/* Expand (mobile only) */}
-                                            {s.submission_text && (
-                                                <button onClick={() => toggleExpand(s.id)}
-                                                    className="p-2 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 sm:hidden">
+                                            {/* Expand submission preview (all screens) */}
+                                            {(s.submission_text || s.file_url) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleExpand(s.id)}
+                                                    aria-expanded={expanded}
+                                                    title={expanded ? 'Hide student work' : 'Preview student work'}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                                                >
+                                                    <span className="hidden md:inline">{expanded ? 'Hide Work' : 'Preview'}</span>
                                                     {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                                                 </button>
                                             )}
 
-                                            {/* Grade button */}
+                                            {/* Grade button — always visible with accessible label */}
                                             {canGrade ? (
-                                                <button onClick={() => setGrading(s)}
-                                                    className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
-                                                            ? 'bg-emerald-600 hover:bg-emerald-500 text-foreground'
-                                                            : 'bg-card shadow-sm hover:bg-muted text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100'
-                                                        }`}
-                                                    title={info ? 'Edit grade' : 'Grade now'}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGrading(s)}
+                                                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all flex-shrink-0 ${
+                                                        needsReview
+                                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm'
+                                                            : 'bg-card hover:bg-muted border border-border text-foreground'
+                                                    }`}
+                                                    title={info ? 'Edit grade' : 'Grade now'}
+                                                >
                                                     <PencilSquareIcon className="w-4 h-4" />
+                                                    <span>{needsReview ? 'Grade Now' : 'Edit Grade'}</span>
                                                 </button>
                                             ) : (
                                                 <div className="w-9" />
@@ -1361,12 +1547,17 @@ export default function GradesPage() {
                                         </div>
 
                                         {/* Expandable submission preview */}
-                                        {expanded && s.submission_text && (
-                                            <div className="px-5 pb-4">
-                                                <div className="bg-card shadow-sm border border-border rounded-xl p-3 max-h-32 overflow-y-auto">
-                                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Student work</p>
-                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{s.submission_text}</p>
-                                                </div>
+                                        {expanded && (s.submission_text || s.file_url) && (
+                                            <div className="px-5 pb-4 space-y-2">
+                                                {s.submission_text && (
+                                                    <div className="bg-card shadow-sm border border-border rounded-xl p-3 max-h-40 overflow-y-auto">
+                                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Submitted Student Work</p>
+                                                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{s.submission_text}</p>
+                                                    </div>
+                                                )}
+                                                {s.file_url && (
+                                                    <SubmissionAttachmentCard url={s.file_url} compact />
+                                                )}
                                             </div>
                                         )}
                                     </div>

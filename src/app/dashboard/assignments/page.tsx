@@ -150,8 +150,10 @@ function AssignmentsPageInner() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const initialPlanId = searchParams?.get('lesson_plan_id') ?? '';
+  const initialClassId = searchParams?.get('class_id') ?? '';
   const [lessonPlans, setLessonPlans] = useState<any[]>([]);
   const [filterPlanId, setFilterPlanId] = useState(initialPlanId);
+  const [filterClassId, setFilterClassId] = useState(initialClassId);
 
   const role = profile?.role ?? 'student';
   const schoolId = (profile as any)?.school_id ?? undefined;
@@ -170,6 +172,10 @@ function AssignmentsPageInner() {
     const qp = searchParams?.get('lesson_plan_id');
     if (qp) {
       setFilterPlanId(qp);
+    }
+    const cid = searchParams?.get('class_id');
+    if (cid) {
+      setFilterClassId(cid);
     }
   }, [searchParams]);
 
@@ -234,6 +240,8 @@ function AssignmentsPageInner() {
     const ms = title.toLowerCase().includes(search.toLowerCase());
     const type = isStaff ? (a.assignment_type ?? '') : (a.assignments?.assignment_type ?? '');
     const mt = typeFilter === 'all' || type === typeFilter;
+    const itemClassId = isStaff ? a.class_id : a.assignments?.class_id;
+    const mc = !filterClassId || itemClassId === filterClassId;
 
     if (isStaff) {
       const subs = a.assignment_submissions ?? [];
@@ -244,7 +252,7 @@ function AssignmentsPageInner() {
       else if (staffTab === 'overdue') mTab = overdue;
       else if (staffTab === 'draft') mTab = a.is_active === false;
       else if (staffTab === 'active') mTab = a.is_active !== false;
-      return ms && mt && mTab;
+      return ms && mt && mc && mTab;
     }
 
     const status = a.status ?? 'pending';
@@ -262,7 +270,7 @@ function AssignmentsPageInner() {
     } else {
       mf = status === filter;
     }
-    return ms && mf && mt;
+    return ms && mf && mt && mc;
   }).sort((a: any, b: any) => {
     if (isStaff) {
       const actionable = (item: any) => (item.assignment_submissions ?? [])
@@ -368,18 +376,33 @@ function AssignmentsPageInner() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Assignments & Exams Tab Bar ── */}
-        <div className="grid w-full grid-cols-3 items-center gap-1 rounded-xl border border-border bg-card p-1 sm:flex sm:w-fit">
-          <span className="flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg bg-primary text-white text-xs sm:text-sm font-black">
+        <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1 w-full sm:w-fit">
+          <span className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-white text-xs sm:text-sm font-black">
             <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
           </span>
           <Link href="/dashboard/projects"
-            className="flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
             <RocketLaunchIcon className="w-4 h-4" /> Projects
           </Link>
           <Link href="/dashboard/cbt"
-            className="flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
-            <CommandLineIcon className="w-4 h-4" /> CBT
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+            <CommandLineIcon className="w-4 h-4" /> CBT Exams
           </Link>
+          <Link href="/dashboard/exams"
+            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+            <DocumentTextIcon className="w-4 h-4" /> Written Exams
+          </Link>
+          {isStaff && (
+            <Link href="/dashboard/grades"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+              <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+              {pendingCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
         </div>
 
         {/* ── HEADER HERO ── */}
@@ -557,6 +580,7 @@ function AssignmentsPageInner() {
 
           {/* Type filter */}
           <select
+            aria-label="Filter assignments by type"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-colors"
@@ -578,6 +602,7 @@ function AssignmentsPageInner() {
           {/* Class plan filter (staff only) */}
           {isStaff && lessonPlans.length > 0 && (
             <select
+              aria-label="Filter assignments by class lesson plan"
               value={filterPlanId}
               onChange={(e) => setFilterPlanId(e.target.value)}
               className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-colors max-w-xs"
@@ -597,16 +622,32 @@ function AssignmentsPageInner() {
           )}
         </div>
 
-        {filterPlanId && (
-          <div className="flex items-center gap-2 bg-primary/15 border border-primary/20 px-3 py-1.5 w-fit text-[10px] font-black uppercase tracking-widest text-primary">
-            <span>Filtered by Class Plan</span>
-            <button
-              onClick={() => setFilterPlanId('')}
-              className="hover:text-foreground text-primary/70 transition-colors ml-1 font-black text-sm"
-              title="Clear Filter"
-            >
-              &times;
-            </button>
+        {(filterPlanId || filterClassId) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {filterPlanId && (
+              <div className="flex items-center gap-2 bg-primary/15 border border-primary/20 px-3 py-1.5 w-fit text-[10px] font-black uppercase tracking-widest text-primary">
+                <span>Filtered by Class Plan</span>
+                <button
+                  onClick={() => setFilterPlanId('')}
+                  className="hover:text-foreground text-primary/70 transition-colors ml-1 font-black text-sm"
+                  title="Clear Filter"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
+            {filterClassId && (
+              <div className="flex items-center gap-2 bg-primary/15 border border-primary/20 px-3 py-1.5 w-fit text-[10px] font-black uppercase tracking-widest text-primary">
+                <span>Filtered by Class</span>
+                <button
+                  onClick={() => setFilterClassId('')}
+                  className="hover:text-foreground text-primary/70 transition-colors ml-1 font-black text-sm"
+                  title="Clear Class Filter"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -750,34 +791,38 @@ function AssignmentsPageInner() {
                       </div>
 
                       {/* Right: actions */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0">
+                        <Link
+                          href={`/dashboard/assignments/${a.id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors"
+                          title="Open assignment and submissions"
+                        >
+                          <EyeIcon className="w-3.5 h-3.5" />
+                          <span>{submittedCnt > 0 ? `Review (${submittedCnt})` : 'Open'}</span>
+                        </Link>
+                        <Link
+                          href={`/dashboard/assignments/${a.id}/edit`}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
+                          title="Edit assignment"
+                        >
+                          <PencilIcon className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </Link>
                         <button
                           onClick={() => setSharing(a)}
-                          className="p-2.5 text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors border border-[#25D366]/20"
+                          aria-label={`Share ${a.title} to parent via WhatsApp`}
+                          className="p-2 text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors border border-[#25D366]/20"
                           title="Share to parent via WhatsApp"
                         >
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                           </svg>
                         </button>
-                        <Link
-                          href={`/dashboard/assignments/${a.id}`}
-                          className="p-2.5 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                          title="View"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          href={`/dashboard/assignments/${a.id}/edit`}
-                          className="p-2.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
-                          title="Edit"
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </Link>
                         <button
                           onClick={() => handleDelete(a.id, a.title)}
                           disabled={deleting === a.id}
-                          className="p-2.5 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                          aria-label={`Delete assignment ${a.title}`}
+                          className="p-2 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors disabled:opacity-40"
                           title="Delete"
                         >
                           <TrashIcon className="w-4 h-4" />

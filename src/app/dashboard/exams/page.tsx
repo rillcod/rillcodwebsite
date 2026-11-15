@@ -9,7 +9,7 @@ import {
   ClockIcon, CheckCircleIcon, MagnifyingGlassIcon, ArrowPathIcon,
   DocumentTextIcon, ChartBarIcon, LockClosedIcon,
   LockOpenIcon, InformationCircleIcon, DocumentCheckIcon,
-  CommandLineIcon,
+  CommandLineIcon, ClipboardDocumentListIcon, RocketLaunchIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -131,15 +131,29 @@ export default function ExamsPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto mobile-page-root">
-      {/* Exam Hub Tab Bar */}
-      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit">
+      {/* Assessment & Exam Hub Tab Bar */}
+      <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-xl p-1 w-full sm:w-fit">
+        <Link href="/dashboard/assignments"
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+          <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
+        </Link>
+        <Link href="/dashboard/projects"
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+          <RocketLaunchIcon className="w-4 h-4" /> Projects
+        </Link>
         <Link href="/dashboard/cbt"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
           <CommandLineIcon className="w-4 h-4" /> CBT Exams
         </Link>
-        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+        <span className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-white text-xs sm:text-sm font-black">
           <DocumentCheckIcon className="w-4 h-4" /> Written Exams
         </span>
+        {canManage && (
+          <Link href="/dashboard/grades"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+            <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+          </Link>
+        )}
       </div>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -197,12 +211,12 @@ export default function ExamsPage() {
           <input aria-label="Search exams" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams…"
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
         </div>
-        <select value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}
+        <select aria-label="Filter written exams by course" value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}
           className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
           <option value="">All Courses</option>
           {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
-        <button onClick={load} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/70 transition-all">
+        <button aria-label="Refresh exams" onClick={load} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/70 transition-all">
           <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -264,14 +278,21 @@ export default function ExamsPage() {
                 {canManage && (
                   <>
                     <Link href={`/dashboard/exams/${exam.id}/edit`}
+                      aria-label={`Edit exam ${exam.title}`}
+                      title="Edit exam"
                       className="p-2 hover:bg-white/10 rounded-xl transition-all">
                       <PencilIcon className="w-4 h-4 text-card-foreground/50" />
                     </Link>
                     <button onClick={() => toggleActive(exam)}
+                      aria-label={exam.is_active ? `Deactivate exam ${exam.title}` : `Activate exam ${exam.title}`}
+                      title={exam.is_active ? 'Deactivate exam' : 'Activate exam'}
                       className={`p-2 rounded-xl transition-all ${exam.is_active ? 'hover:bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
                       {exam.is_active ? <LockClosedIcon className="w-4 h-4" /> : <LockOpenIcon className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deleteExam(exam.id)} className="p-2 hover:bg-rose-500/20 rounded-xl transition-all">
+                    <button onClick={() => deleteExam(exam.id)}
+                      aria-label={`Delete exam ${exam.title}`}
+                      title="Delete exam"
+                      className="p-2 hover:bg-rose-500/20 rounded-xl transition-all">
                       <TrashIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                     </button>
                   </>
