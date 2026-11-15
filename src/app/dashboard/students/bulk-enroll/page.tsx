@@ -29,6 +29,8 @@ interface StudentRow {
   id: string;
   full_name: string;
   email: string;
+  grade: string;
+  class_id: string | null;
   section_class: string;
   school_name: string;
   school_id: string;
@@ -46,6 +48,8 @@ export default function BulkEnrollPage() {
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set()); // persists across refreshes
   const [search,      setSearch]      = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [placementFilter, setPlacementFilter] = useState<'all' | 'unassigned' | 'assigned'>('all');
   const [enrolling,   setEnrolling]   = useState(false);
   const [result,      setResult]      = useState<{ enrolled: number; skipped: number; className: string; programName?: string } | null>(null);
 
@@ -96,6 +100,8 @@ export default function BulkEnrollPage() {
         id: s.id,
         full_name: s.full_name ?? '',
         email: s.email ?? '',
+        grade: s.grade ?? s.grade_level ?? '',
+        class_id: s.class_id ?? null,
         section_class: s.section_class ?? '',
         school_name: s.school_name ?? '',
         school_id: s.school_id ?? '',
@@ -124,19 +130,54 @@ export default function BulkEnrollPage() {
     else setLoading(false);
   }, [profile?.id, authLoading, profileLoading]); // eslint-disable-line
 
+  const classById = useMemo(() => {
+    const map = new Map<string, any>();
+    classesList.forEach((c: any) => { if (c?.id) map.set(c.id, c); });
+    return map;
+  }, [classesList]);
+
+  const resolveStudentClassName = (s: StudentRow) =>
+    (s.class_id && classById.get(s.class_id)?.name) || s.section_class || '';
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return students.filter((s) => {
-      const matchSearch = !q || s.full_name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || (s.school_name ?? '').toLowerCase().includes(q);
-      const matchClass  = !classFilter || (s.section_class ?? '').toLowerCase() === classFilter.toLowerCase();
+      const currentClassLabel = (s.class_id && classById.get(s.class_id)?.name) || s.section_class || '';
+      const hasClass = Boolean(s.class_id || s.section_class);
+      const matchSearch = !q ||
+        s.full_name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        (s.school_name ?? '').toLowerCase().includes(q) ||
+        (s.grade ?? '').toLowerCase().includes(q) ||
+        currentClassLabel.toLowerCase().includes(q);
+      const matchClass  = !classFilter || currentClassLabel.toLowerCase() === classFilter.toLowerCase();
+      const matchGrade  = !gradeFilter || (s.grade ?? '').toLowerCase() === gradeFilter.toLowerCase();
+      const matchPlacement =
+        placementFilter === 'all' ||
+        (placementFilter === 'unassigned' && !hasClass) ||
+        (placementFilter === 'assigned' && hasClass);
       const matchSchool = !schoolFilter || s.school_name === schoolFilter;
-      return matchSearch && matchClass && matchSchool;
+      return matchSearch && matchClass && matchGrade && matchPlacement && matchSchool;
     });
-  }, [students, search, classFilter, schoolFilter]);
+  }, [students, search, classFilter, gradeFilter, placementFilter, schoolFilter, classById]);
 
   const allClasses = useMemo(
-    () => [...new Set(students.map((s) => s.section_class).filter(Boolean) as string[])].sort(),
+    () => [...new Set(students.map((s) => (s.class_id && classById.get(s.class_id)?.name) || s.section_class).filter(Boolean) as string[])].sort(),
+    [students, classById],
+  );
+
+  const allGrades = useMemo(
+    () => [...new Set(students.map((s) => s.grade).filter(Boolean) as string[])].sort(),
     [students],
+  );
+
+  const unassignedCount = useMemo(
+    () => students.filter((s) => (!schoolFilter || s.school_name === schoolFilter) && !s.class_id && !s.section_class).length,
+    [students, schoolFilter],
+  );
+  const assignedCount = useMemo(
+    () => students.filter((s) => (!schoolFilter || s.school_name === schoolFilter) && Boolean(s.class_id || s.section_class)).length,
+    [students, schoolFilter],
   );
 
   const groupedBySchool = useMemo(() => {
@@ -149,7 +190,10 @@ export default function BulkEnrollPage() {
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [filtered]);
 
-  const enrollableFiltered = filtered.filter(s => !enrolledIds.has(s.id));
+  const isAlreadyInSelectedClass = (s: StudentRow) =>
+    enrolledIds.has(s.id) || Boolean(classMode === 'pick' && classId && s.class_id === classId);
+
+  const enrollableFiltered = filtered.filter(s => !isAlreadyInSelectedClass(s));
   const allFilteredSelected = enrollableFiltered.length > 0 && enrollableFiltered.every((s) => selected.has(s.id));
 
   function toggleAll() {
@@ -220,8 +264,11 @@ export default function BulkEnrollPage() {
         if (!res.ok) throw new Error(data.error || 'Enrollment failed');
         const cls = classesList.find((c: any) => c.id === classId);
         const prog = cls?.programs?.name ?? programs.find((p: any) => p.id === cls?.program_id)?.name;
-        setResult({ enrolled: data.enrolled ?? studentIds.length, skipped: data.skipped ?? 0, className: cls?.name ?? 'class', programName: prog || undefined });
-        setEnrolledIds(prev => { const n = new Set(prev); studentIds.forEach(id => n.add(id)); return n; });
+        const enrolledSet = new Set<string>(Array.isArray(data.enrolledIds) && data.enrolledIds.length > 0 ? data.enrolledIds : studentIds);
+        setResult({ enrolled: data.enrolled ?? enrolledSet.size, skipped: data.skipped ?? 0, className: cls?.name ?? 'class', programName: prog || undefined });
+        setEnrolledIds(prev => { const n = new Set(prev); enrolledSet.forEach(id => n.add(id)); return n; });
+        setStudents(prev => prev.map(s => enrolledSet.has(s.id) ? { ...s, class_id: classId, section_class: cls?.name ?? s.section_class } : s));
+        setClassesList(prev => prev.map((c: any) => c.id === classId ? { ...c, current_students: (c.current_students ?? 0) + enrolledSet.size } : c));
         setSelected(new Set());
         // keep classId so user can enrol more students into the same class
       } catch (err: any) {
@@ -258,9 +305,10 @@ export default function BulkEnrollPage() {
         const progName = programs.find((p: any) => p.id === programId)?.name;
         setResult({ enrolled: enrJson.enrolled ?? studentIds.length, skipped: enrJson.skipped ?? 0, className, programName: progName || undefined });
         setEnrolledIds(prev => { const n = new Set(prev); studentIds.forEach(id => n.add(id)); return n; });
+        setStudents(prev => prev.map(s => studentIds.includes(s.id) ? { ...s, class_id: newClassId, section_class: className } : s));
         setSelected(new Set());
         // Optimistically add the new class to the list and switch to pick mode
-        setClassesList(prev => [...prev, clsJson.data]);
+        setClassesList(prev => [...prev, { ...clsJson.data, current_students: enrJson.enrolled ?? studentIds.length }]);
         setClassId(newClassId);
         setClassMode('pick');
         setNewClass({ grade_level: '', name: '', school_id: '' });
@@ -471,6 +519,7 @@ export default function BulkEnrollPage() {
                                     onClick={() => {
                                       if (!isFull) {
                                         setClassId(c.id);
+                                        setEnrolledIds(new Set());
                                       }
                                     }}
                                     className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all duration-200 ${
@@ -669,7 +718,7 @@ export default function BulkEnrollPage() {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input aria-label="Search students"
@@ -679,10 +728,27 @@ export default function BulkEnrollPage() {
             className="w-full pl-10 pr-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors font-medium"
           />
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          {allGrades.length > 0 && (
+            <div className="relative flex-1 sm:flex-none">
+              <select
+                aria-label="Filter by grade"
+                value={gradeFilter}
+                onChange={e => setGradeFilter(e.target.value)}
+                className="w-full sm:w-auto px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer pr-10"
+              >
+                <option value="">All grades</option>
+                {allGrades.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground/60">
+                <ChevronDownIcon className="w-4 h-4" />
+              </div>
+            </div>
+          )}
           {allClasses.length > 0 && (
             <div className="relative flex-1 sm:flex-none">
               <select 
+                aria-label="Filter by current class"
                 value={classFilter} 
                 onChange={e => setClassFilter(e.target.value)}
                 className="w-full sm:w-auto px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer pr-10"
@@ -704,6 +770,44 @@ export default function BulkEnrollPage() {
             <span>Refresh</span>
           </button>
         </div>
+      </div>
+
+      {/* Placement status quick-filter pills */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mr-1">Class Placement:</span>
+        <button
+          type="button"
+          onClick={() => setPlacementFilter('all')}
+          className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all ${
+            placementFilter === 'all'
+              ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/10'
+              : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/10'
+          }`}
+        >
+          All Students ({students.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setPlacementFilter(placementFilter === 'unassigned' ? 'all' : 'unassigned')}
+          className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all ${
+            placementFilter === 'unassigned'
+              ? 'bg-amber-500 text-black border-amber-500 shadow-md shadow-amber-500/20'
+              : 'bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20'
+          }`}
+        >
+          Unassigned · No Class ({unassignedCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setPlacementFilter(placementFilter === 'assigned' ? 'all' : 'assigned')}
+          className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all ${
+            placementFilter === 'assigned'
+              ? 'bg-emerald-500 text-black border-emerald-500 shadow-md shadow-emerald-500/20'
+              : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20'
+          }`}
+        >
+          In a Class ({assignedCount})
+        </button>
       </div>
 
       {/* School filter chips */}
@@ -747,7 +851,7 @@ export default function BulkEnrollPage() {
 
       {/* Selection action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between p-4 mb-6 bg-primary/5 border border-primary/20 rounded-2xl gap-4 flex-wrap shadow-lg shadow-primary/[0.01] animate-in fade-in zoom-in-95 duration-200">
+        <div className="sticky top-3 z-20 flex items-center justify-between p-4 mb-6 bg-[#080d19]/95 backdrop-blur-md border border-primary/30 rounded-2xl gap-4 flex-wrap shadow-xl shadow-primary/10 animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center gap-3 text-sm">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <UserGroupIcon className="w-4 h-4 text-primary" />
@@ -835,7 +939,8 @@ export default function BulkEnrollPage() {
                 </thead>
                 <tbody className="divide-y divide-white/[0.02]">
                   {groupedBySchool.map(([schoolName, schoolStudents]) => {
-                    const enrollable = schoolStudents.filter(s => !enrolledIds.has(s.id));
+                    const enrollable = schoolStudents.filter(s => !isAlreadyInSelectedClass(s));
+                    const unassignedInSchool = enrollable.filter(s => !resolveStudentClassName(s));
                     const allSchoolSelected = enrollable.length > 0 && enrollable.every(s => selected.has(s.id));
                     const someSchoolSelected = enrollable.some(s => selected.has(s.id));
                     return (
@@ -859,20 +964,38 @@ export default function BulkEnrollPage() {
                             </label>
                           </td>
                           <td colSpan={3} className="px-4 py-3">
-                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/70">
-                              <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
-                              {schoolName}
-                              <span className="text-muted-foreground/50 font-bold normal-case tracking-normal text-[9px] bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
-                                {schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''}
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/70">
+                                <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
+                                {schoolName}
+                                <span className="text-muted-foreground/50 font-bold normal-case tracking-normal text-[9px] bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+                                  {schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''}
+                                </span>
                               </span>
-                            </span>
+                              {unassignedInSchool.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = new Set(selected);
+                                    const allUnassignedSel = unassignedInSchool.every(s => next.has(s.id));
+                                    if (allUnassignedSel) unassignedInSchool.forEach(s => next.delete(s.id));
+                                    else unassignedInSchool.forEach(s => next.add(s.id));
+                                    setSelected(next);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest transition-colors"
+                                >
+                                  Select {unassignedInSchool.length} unassigned
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                         
                         {/* Student Rows */}
                         {schoolStudents.map(s => {
                           const isSel = selected.has(s.id);
-                          const isEnrolled = enrolledIds.has(s.id);
+                          const isEnrolled = isAlreadyInSelectedClass(s);
+                          const currentClsName = resolveStudentClassName(s);
                           return (
                             <tr 
                               key={s.id}
@@ -909,9 +1032,14 @@ export default function BulkEnrollPage() {
                                   }`}>
                                     {s.full_name}
                                   </span>
+                                  {s.grade && (
+                                    <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                                      {s.grade}
+                                    </span>
+                                  )}
                                   {isEnrolled && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20 shadow-lg shadow-emerald-500/[0.02]">
-                                      <CheckCircleIcon className="w-2.5 h-2.5" /> Enrolled
+                                      <CheckCircleIcon className="w-2.5 h-2.5" /> In Selected Class
                                     </span>
                                   )}
                                 </div>
@@ -921,12 +1049,14 @@ export default function BulkEnrollPage() {
                               <td className="px-4 py-3.5 text-muted-foreground font-mono hidden sm:table-cell text-xs">{s.email}</td>
                               
                               <td className="px-4 py-3.5">
-                                {s.section_class ? (
+                                {currentClsName ? (
                                   <span className="inline-block px-2.5 py-0.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[9px] font-black uppercase tracking-wider rounded-full border border-cyan-500/20">
-                                    {s.section_class}
+                                    {currentClsName}
                                   </span>
                                 ) : (
-                                  <span className="text-muted-foreground/30">—</span>
+                                  <span className="inline-block px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[9px] font-black uppercase tracking-wider rounded-full border border-amber-500/20">
+                                    Unassigned
+                                  </span>
                                 )}
                               </td>
                             </tr>

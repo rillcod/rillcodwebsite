@@ -207,6 +207,16 @@ export default function ClassesPage() {
                     <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
                     Transfer
                   </Link>
+                  {profile?.role !== 'school' && (
+                    <Link
+                      href="/dashboard/students/bulk-enroll"
+                      onClick={() => setShowMoreMenu(false)}
+                      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                    >
+                      <UserGroupIcon className="h-4 w-4 text-emerald-500" />
+                      Bulk Enrol Students
+                    </Link>
+                  )}
                   {(profile?.role === 'admin' || profile?.role === 'school') && (
                     <button
                       type="button"
@@ -385,12 +395,16 @@ export default function ClassesPage() {
                       <ClockIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/70" />
                       <span className="truncate">{cls.schedule || 'No schedule'}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                    <Link
+                      href={`/dashboard/classes/${cls.id}?operation=roster`}
+                      title="Open class student roster"
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-primary font-medium transition-colors"
+                    >
                       <UserGroupIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isFull ? 'text-rose-600 dark:text-rose-400' : 'text-primary/70'}`} />
-                      <span className={isFull ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}>
+                      <span className={isFull ? 'text-rose-600 dark:text-rose-400 font-bold underline decoration-dotted' : 'underline decoration-dotted underline-offset-2'}>
                         {cls.current_students ?? 0} / {cls.max_students ?? '∞'} students
                       </span>
-                    </div>
+                    </Link>
                   </div>
 
                   {/* School & teacher */}
@@ -440,16 +454,23 @@ export default function ClassesPage() {
                 <div className="flex flex-wrap items-stretch border-t border-white/5 bg-white/[0.01]">
                   <Link
                     href={`/dashboard/classes/${cls.id}`}
-                    className="flex min-w-[33%] flex-1 items-center justify-center gap-2 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary/5 hover:text-primary"
+                    className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary/5 hover:text-primary"
                   >
                     <EyeIcon className="h-3.5 w-3.5" />
                     View
+                  </Link>
+                  <Link
+                    href={`/dashboard/classes/${cls.id}?operation=roster`}
+                    className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-primary/80 transition-all hover:bg-primary/10 hover:text-primary"
+                  >
+                    <UserGroupIcon className="h-3.5 w-3.5" />
+                    Roster ({cls.current_students ?? 0})
                   </Link>
                   {profile?.role !== 'school' && (
                     <>
                       <Link
                         href={`/dashboard/classes/${cls.id}/edit`}
-                        className="flex min-w-[33%] flex-1 items-center justify-center gap-2 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+                        className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
                       >
                         <PencilIcon className="h-3.5 w-3.5" />
                         Edit
@@ -457,7 +478,7 @@ export default function ClassesPage() {
                       <button
                         onClick={() => setDeleteTarget({ id: cls.id, name: cls.name })}
                         disabled={deleting === cls.id}
-                        className="flex min-w-[33%] flex-1 items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-40"
+                        className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-rose-500/5 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-40"
                       >
                         {deleting === cls.id
                           ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />

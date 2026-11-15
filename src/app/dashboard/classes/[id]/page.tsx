@@ -99,6 +99,7 @@ export default function ClassDetailPage() {
 
   const selectOperation = (operation: 'roster' | 'teaching' | 'assessment' | 'communication') => {
     setActiveOperation(operation);
+    if (operation === 'roster') setRosterOpen(true);
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     url.searchParams.set('operation', operation);
@@ -138,6 +139,8 @@ export default function ClassDetailPage() {
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
+  const [modalPlacementFilter, setModalPlacementFilter] = useState<'all' | 'unassigned' | 'other'>('all');
+  const [modalGradeFilter, setModalGradeFilter] = useState('');
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [pasteNamesText, setPasteNamesText] = useState('');
   const [pastePreview, setPastePreview] = useState<any | null>(null);
@@ -161,9 +164,9 @@ export default function ClassDetailPage() {
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
 
-  // Roster collapse: the list is dense by default (name + work signal) and each learner
-  // opens on demand, so a 40-student class still fits one phone screen.
-  const [rosterOpen, setRosterOpen] = useState(false);
+  // Roster collapse: open by default when viewing the Students work mode so teachers
+  // immediately see who is in their class without a second click.
+  const [rosterOpen, setRosterOpen] = useState(true);
   const [showRosterActions, setShowRosterActions] = useState(false);
   const [showWithdrawnList, setShowWithdrawnList] = useState(false);
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set());
@@ -790,6 +793,33 @@ export default function ClassDetailPage() {
       alert(error.message || 'Failed to move student. If another teacher owns the destination, use Transfer for approval.');
     } finally { setMovingStudent(null); }
   };
+
+  const bulkMoveSelectedToClass = async (destinationClassId: string) => {
+    if (!destinationClassId || destinationClassId === id || checkedEnrollIds.size === 0) return;
+    const destination = destinationClasses.find((candidate: any) => candidate.id === destinationClassId);
+    if (!destination) return;
+    const ids = [...checkedEnrollIds];
+    const term = destination.academic_terms ? `${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : 'its assigned term';
+    if (!window.confirm(`Move ${ids.length} selected student${ids.length !== 1 ? 's' : ''} to ${destination.name} (${term})?`)) return;
+    setMovingStudent('bulk');
+    try {
+      const res = await fetch(`/api/classes/${destinationClassId}/enroll`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to move selected students');
+      const skipMsg = enrollSkipMessage(json, ids.length);
+      if (skipMsg) alert(skipMsg);
+      setCheckedEnrollIds(new Set());
+      await fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to move selected students.');
+    } finally {
+      setMovingStudent(null);
+    }
+  };
   const removeStudent = async (studentId: string) => {
     if (!confirm(
       'Withdraw this learner from the active class roster?\n\n'
@@ -1380,17 +1410,36 @@ export default function ClassDetailPage() {
               </p>
             </div>
 
-            {isStaff && (
+            {canView && (
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Link href={`/dashboard/classes/${id}/edit`}
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground transition-colors hover:text-foreground">
-                  <PencilIcon className="h-3.5 w-3.5" /> Setup
-                </Link>
-                <Link href={`/dashboard/attendance?class_id=${id}`}
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm shadow-primary/25 transition-transform hover:scale-[1.02]">
-                  <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
-                  Attendance
-                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    selectOperation('roster');
+                    document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }}
+                  className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                    activeOperation === 'roster'
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                  }`}
+                >
+                  <UserGroupIcon className="h-3.5 w-3.5" />
+                  Students
+                </button>
+                {isStaff && (
+                  <>
+                    <Link href={`/dashboard/classes/${id}/edit`}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground transition-colors hover:text-foreground">
+                      <PencilIcon className="h-3.5 w-3.5" /> Setup
+                    </Link>
+                    <Link href={`/dashboard/attendance?class_id=${id}`}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm shadow-primary/25 transition-transform hover:scale-[1.02]">
+                      <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
+                      Attendance
+                    </Link>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1535,15 +1584,6 @@ export default function ClassDetailPage() {
                     </div>
                   )}
 
-                  {isStaff && (
-                    <ClassPromotionPanel
-                      classId={id!}
-                      activeStudentCount={currentTermStudents.length}
-                      selectedStudentIds={checkedEnrollIds.size > 0 ? [...checkedEnrollIds] : undefined}
-                      onComplete={() => void fetchData()}
-                    />
-                  )}
-
                   <div className="space-y-3">
                     <div className="flex flex-col gap-3">
                       <button
@@ -1584,7 +1624,7 @@ export default function ClassDetailPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
+                            onClick={() => { setShowStudentModal(true); setEnrolMode('current'); setModalPlacementFilter('all'); setModalGradeFilter(''); resetPasteClaimState(); loadAvailableStudents(); }}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground"
                           >
                             <PlusIcon className="h-3.5 w-3.5" />
@@ -1704,16 +1744,41 @@ export default function ClassDetailPage() {
                             >
                               {expandedStudentIds.size >= visibleCurrent.length ? 'Collapse all' : 'Expand all'}
                             </button>
-                            {canView && checkedEnrollIds.size > 0 && (
-                              <button
-                                type="button"
-                                disabled={bulkRemoving}
-                                onClick={bulkUnenrol}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-700/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-600 hover:text-white disabled:opacity-50 dark:text-rose-400"
+                            {isStaff && checkedEnrollIds.size > 0 && destinationClasses.length > 0 && (
+                              <select
+                                aria-label="Move selected students to another class"
+                                value=""
+                                disabled={movingStudent === 'bulk'}
+                                onChange={(e) => void bulkMoveSelectedToClass(e.target.value)}
+                                className="rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary outline-none transition-colors hover:border-primary disabled:opacity-50"
                               >
-                                {bulkRemoving ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <TrashIcon className="h-3.5 w-3.5" />}
-                                Withdraw {checkedEnrollIds.size}
-                              </button>
+                                <option value="">{movingStudent === 'bulk' ? 'Moving…' : `Move ${checkedEnrollIds.size} to class…`}</option>
+                                {destinationClasses.map((destination: any) => (
+                                  <option key={destination.id} value={destination.id}>
+                                    {destination.qa_grade_key ? `${destination.qa_grade_key} · ` : ''}{destination.name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            {canView && checkedEnrollIds.size > 0 && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={bulkRemoving}
+                                  onClick={bulkUnenrol}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-700/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-600 hover:text-white disabled:opacity-50 dark:text-rose-400"
+                                >
+                                  {bulkRemoving ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <TrashIcon className="h-3.5 w-3.5" />}
+                                  Withdraw {checkedEnrollIds.size}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCheckedEnrollIds(new Set())}
+                                  className="rounded-lg border border-border bg-card px-2 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground"
+                                >
+                                  Clear
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -2074,6 +2139,15 @@ export default function ClassDetailPage() {
                       </div>
                     )}
                     </div>
+                  )}
+
+                  {isStaff && (
+                    <ClassPromotionPanel
+                      classId={id!}
+                      activeStudentCount={currentTermStudents.length}
+                      selectedStudentIds={checkedEnrollIds.size > 0 ? [...checkedEnrollIds] : undefined}
+                      onComplete={() => void fetchData()}
+                    />
                   )}
                 </div>
               )}
@@ -2697,32 +2771,56 @@ export default function ClassDetailPage() {
 
       {/* Student Enrol Modal */}
       {showStudentModal && (() => {
-        // unassigned / inOtherClass were filtered here on every render and never
-        // read; directlyEnrollable and requestableTransfers replaced them.
         const directlyEnrollable = availableStudents.filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request);
         const requestableTransfers = pasteClaimEnabled
           ? []
           : availableStudents.filter((s: any) => s.requires_transfer_request && !s.pending_transfer_request_id);
         const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - enrollments.length) : Infinity;
         const isFull = seatsLeft <= 0;
+        const totalUnassignedCount = availableStudents.filter((s: any) => !s.class_id).length;
+        const totalOtherCount = availableStudents.filter((s: any) => Boolean(s.class_id)).length;
+        const distinctGradesInModal = Array.from(
+          new Set(availableStudents.map((s: any) => s.grade || s.section_class).filter(Boolean)),
+        ).sort() as string[];
+        const q = studentSearch.trim().toLowerCase();
+        const filteredModalStudents = availableStudents.filter((s: any) => {
+          const matchesSearch = !q ||
+            (s.full_name ?? '').toLowerCase().includes(q) ||
+            (s.email ?? '').toLowerCase().includes(q) ||
+            (s.school_name ?? '').toLowerCase().includes(q) ||
+            (s.grade ?? '').toLowerCase().includes(q) ||
+            (s.section_class ?? '').toLowerCase().includes(q) ||
+            (s.current_class_name ?? '').toLowerCase().includes(q);
+          const matchesPlacement =
+            modalPlacementFilter === 'all' ||
+            (modalPlacementFilter === 'unassigned' && !s.class_id) ||
+            (modalPlacementFilter === 'other' && Boolean(s.class_id));
+          const studentGradeLabel = s.grade || s.section_class || '';
+          const matchesGrade = !modalGradeFilter || studentGradeLabel === modalGradeFilter;
+          return matchesSearch && matchesPlacement && matchesGrade;
+        });
+        const filteredDirectlyEnrollable = filteredModalStudents.filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request);
+        const allFilteredEnrollableSelected =
+          filteredDirectlyEnrollable.length > 0 &&
+          filteredDirectlyEnrollable.every((s: any) => selectedStudentIds.has(s.id));
         return (
           <div className="mobile-native-dialog fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
-            <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[92vh] ${enrolMode === 'paste' ? 'max-w-3xl' : 'max-w-lg'}`}>
+            <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[92vh] ${enrolMode === 'paste' ? 'max-w-3xl' : 'max-w-xl'}`}>
 
               {/* Header */}
               <div className="px-4 sm:px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0 gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-bold text-foreground">Enrol Students</h3>
+                  <h3 className="font-bold text-foreground">Enrol Students into {cls?.name}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5 break-words">
                     {enrolMode === 'paste'
                       ? 'Emergency claim — pull existing kids here with full ownership'
-                      : `${availableStudents.length} eligible · ${selectedStudentIds.size} selected${cls?.max_students ? ` (${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}`}
+                      : `${totalUnassignedCount} unassigned · ${totalOtherCount} in other classes · ${selectedStudentIds.size} selected${cls?.max_students ? ` (${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}`}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); resetPasteClaimState(); }}
+                  onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setModalPlacementFilter('all'); setModalGradeFilter(''); setShowMoreStudents(false); resetPasteClaimState(); }}
                   className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-colors text-lg"
                 >
                   &times;
@@ -2759,38 +2857,91 @@ export default function ClassDetailPage() {
               {/* Current-class mode: select students */}
               {enrolMode === 'current' && (
                 <>
-                  {/* Search box */}
+                  {/* Search & Filter controls */}
                   {availableStudents.length > 0 && (
-                    <div className="px-6 pt-3 pb-1 flex-shrink-0">
-                      <input aria-label="Search students"
-                        type="text"
-                        placeholder="Search by name, email or school..."
-                        value={studentSearch}
-                        onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
-                        className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
+                    <div className="px-4 sm:px-6 pt-3 pb-1 space-y-2 flex-shrink-0">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input aria-label="Search students"
+                          type="text"
+                          placeholder="Search by name, grade, email or school..."
+                          value={studentSearch}
+                          onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
+                          className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                        {distinctGradesInModal.length > 0 && (
+                          <select
+                            aria-label="Filter by grade"
+                            value={modalGradeFilter}
+                            onChange={e => { setModalGradeFilter(e.target.value); setShowMoreStudents(false); }}
+                            className="px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold text-foreground focus:outline-none focus:border-primary"
+                          >
+                            <option value="">All grades ({availableStudents.length})</option>
+                            {distinctGradesInModal.map(g => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {([
+                          { id: 'all', label: `All (${availableStudents.length})` },
+                          { id: 'unassigned', label: `Unassigned · No class (${totalUnassignedCount})` },
+                          { id: 'other', label: `In another class (${totalOtherCount})` },
+                        ] as const).map(tab => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => { setModalPlacementFilter(tab.id); setShowMoreStudents(false); }}
+                            className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
+                              modalPlacementFilter === tab.id
+                                ? 'border-primary bg-primary/15 text-primary'
+                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {/* Toolbar */}
                   {availableStudents.length > 0 && (
-                    <div className="px-6 pt-2 pb-2 flex items-center gap-2 flex-shrink-0">
+                    <div className="px-4 sm:px-6 pt-2 pb-2 flex flex-wrap items-center gap-2 flex-shrink-0">
                       <button
+                        type="button"
                         onClick={() => {
-                          if (selectedStudentIds.size === directlyEnrollable.length) {
-                            setSelectedStudentIds(new Set());
+                          if (allFilteredEnrollableSelected) {
+                            setSelectedStudentIds(prev => {
+                              const next = new Set(prev);
+                              filteredDirectlyEnrollable.forEach((s: any) => next.delete(s.id));
+                              return next;
+                            });
                           } else {
-                            if (directlyEnrollable.length > seatsLeft) {
-                              alert(`This class only has ${seatsLeft} seat(s) remaining. Selecting the first ${seatsLeft} available students.`);
-                              setSelectedStudentIds(new Set(directlyEnrollable.slice(0, seatsLeft).map((s: any) => s.id)));
-                            } else {
-                              setSelectedStudentIds(new Set(directlyEnrollable.map((s: any) => s.id)));
-                            }
+                            setSelectedStudentIds(prev => {
+                              const next = new Set(prev);
+                              for (const s of filteredDirectlyEnrollable) {
+                                if (next.size >= seatsLeft) break;
+                                next.add(s.id);
+                              }
+                              return next;
+                            });
                           }
                         }}
                         className="px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground rounded-xl transition-all"
                       >
-                        {directlyEnrollable.length > 0 && selectedStudentIds.size === directlyEnrollable.length ? 'Deselect All' : 'Select Available'}
+                        {allFilteredEnrollableSelected
+                          ? `Deselect Matching (${filteredDirectlyEnrollable.length})`
+                          : `Select Available (${filteredDirectlyEnrollable.length})`}
                       </button>
+                      {selectedStudentIds.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudentIds(new Set())}
+                          className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
+                        >
+                          Clear ({selectedStudentIds.size})
+                        </button>
+                      )}
                       <div className="flex-1" />
                       {requestableTransfers.length > 0 && (
                         <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-[10px] font-bold text-slate-900 dark:text-slate-200 rounded-xl transition-all">
@@ -2801,7 +2952,7 @@ export default function ClassDetailPage() {
                         <button
                           onClick={() => syncSelectedStudents()}
                           disabled={!!processingStudent}
-                          className="px-4 py-1.5 bg-primary hover:bg-primary text-[10px] font-bold text-foreground rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5"
+                          className="px-4 py-1.5 bg-primary hover:bg-primary text-[10px] font-bold text-primary-foreground rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5"
                         >
                           {processingStudent === 'loading'
                             ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Enrolling…</>
@@ -2814,7 +2965,7 @@ export default function ClassDetailPage() {
                   )}
 
                   {/* Student list */}
-                  <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar space-y-4">
+                  <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 custom-scrollbar space-y-4">
                     {processingStudent === 'loading' ? (
                       <div className="py-20 text-center">
                         <ArrowPathIcon className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
@@ -2830,23 +2981,14 @@ export default function ClassDetailPage() {
                         </button>
                       </div>
                     ) : (() => {
-                      // Apply search filter across all students
-                      const q = studentSearch.trim().toLowerCase();
-                      const filtered = q
-                        ? availableStudents.filter((s: any) =>
-                            (s.full_name ?? '').toLowerCase().includes(q) ||
-                            (s.email ?? '').toLowerCase().includes(q) ||
-                            (s.school_name ?? '').toLowerCase().includes(q) ||
-                            (s.section_class ?? '').toLowerCase().includes(q)
-                          )
-                        : availableStudents;
+                      const filtered = filteredModalStudents;
 
                       // Group: unassigned (no class_id) vs in another class
                       const filtUnassigned = filtered.filter((s: any) => !s.class_id);
                       const filtInOther = filtered.filter((s: any) => s.class_id);
 
                       // Pagination: show first PAGE_SIZE, then offer "Show More"
-                      const PAGE_SIZE = 25;
+                      const PAGE_SIZE = 60;
                       const visibleUnassigned = showMoreStudents ? filtUnassigned : filtUnassigned.slice(0, PAGE_SIZE);
                       const visibleInOther = showMoreStudents ? filtInOther : filtInOther.slice(0, Math.max(0, PAGE_SIZE - filtUnassigned.length));
                       const hasMore = filtUnassigned.length > visibleUnassigned.length || filtInOther.length > visibleInOther.length;
@@ -2856,6 +2998,7 @@ export default function ClassDetailPage() {
                         const canDirectClaim = pasteClaimEnabled && Boolean(student.requires_transfer_request);
                         const isChecked = !requiresRequest && selectedStudentIds.has(student.id);
                         const isBlocked = !requiresRequest && !isChecked && selectedStudentIds.size >= seatsLeft;
+                        const gradeText = student.grade || student.section_class;
                         return (
                           <div
                             key={student.id}
@@ -2885,8 +3028,20 @@ export default function ClassDetailPage() {
                               {isChecked ? <CheckIconOutline className="w-3 h-3 text-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-700 dark:text-amber-300" /> : null}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
-                              <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
+                                {gradeText && (
+                                  <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-foreground">
+                                    {gradeText}
+                                  </span>
+                                )}
+                                {!student.class_id && (
+                                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400">
+                                    Unassigned
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap mt-0.5">
                                 <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                                 {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">{student.school_name}</span>}
                                 {canDirectClaim && (
@@ -2918,18 +3073,42 @@ export default function ClassDetailPage() {
                       };
                       if (filtered.length === 0) return (
                         <div className="py-12 text-center">
-                          <p className="text-sm text-muted-foreground">No students match "{studentSearch}"</p>
+                          <p className="text-sm text-muted-foreground">No students match the current filter</p>
                         </div>
                       );
+
+                      const allUnassignedSelected = filtUnassigned.length > 0 && filtUnassigned.every((s: any) => selectedStudentIds.has(s.id));
 
                       return (
                         <>
                           {filtUnassigned.length > 0 && (
                             <div>
-                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
-                                Available ({filtUnassigned.length})
-                                {filtUnassigned.length > visibleUnassigned.length && <span className="text-muted-foreground"> — showing {visibleUnassigned.length}</span>}
-                              </p>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                  Available · Unassigned ({filtUnassigned.length})
+                                  {filtUnassigned.length > visibleUnassigned.length && <span className="text-muted-foreground"> — showing {visibleUnassigned.length}</span>}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedStudentIds(prev => {
+                                      const next = new Set(prev);
+                                      if (allUnassignedSelected) {
+                                        filtUnassigned.forEach((s: any) => next.delete(s.id));
+                                      } else {
+                                        for (const s of filtUnassigned) {
+                                          if (next.size >= seatsLeft) break;
+                                          next.add(s.id);
+                                        }
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                  className="text-[10px] font-black text-primary hover:underline uppercase tracking-wider"
+                                >
+                                  {allUnassignedSelected ? 'Deselect unassigned' : `Select all ${filtUnassigned.length} unassigned`}
+                                </button>
+                              </div>
                               <div className="space-y-1.5">{visibleUnassigned.map(s => renderStudent(s, 'orange'))}</div>
                             </div>
                           )}
@@ -2955,11 +3134,27 @@ export default function ClassDetailPage() {
                     })()}
                   </div>
 
-                  <div className="px-6 py-4 border-t border-border flex-shrink-0 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{selectedStudentIds.size} selected</span>
-                    <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-all">
-                      Cancel
-                    </button>
+                  <div className="px-4 sm:px-6 py-4 border-t border-border flex-shrink-0 flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-muted-foreground">{selectedStudentIds.size} selected</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-xl transition-all">
+                        Cancel
+                      </button>
+                      {selectedStudentIds.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => syncSelectedStudents()}
+                          disabled={!!processingStudent}
+                          className="px-4 py-2 bg-primary hover:bg-primary/90 text-xs font-black text-primary-foreground rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                        >
+                          {processingStudent === 'loading'
+                            ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Enrolling…</>
+                            : pasteClaimEnabled
+                              ? <>Claim {selectedStudentIds.size} now</>
+                              : <>Enrol {selectedStudentIds.size} Selected</>}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
