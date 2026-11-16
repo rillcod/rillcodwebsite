@@ -87,6 +87,13 @@ export default function NewExamPage() {
   const [availableClasses, setAvailableClasses] = useState<AssessmentClassOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const bottomErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && bottomErrorRef.current) {
+      bottomErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [error]);
 
   const [classId, setClassId] = useState<string | null>(preClassId || null);
   const [className, setClassName] = useState<string>('');
@@ -548,14 +555,14 @@ export default function NewExamPage() {
         section: q.section || (['essay', 'fill_blank'].includes(cbtType) ? 'subjective' : 'objective'),
       };
     });
-    setQuestions(current => {
-      const nonEmptyCurrent = current.filter(item => item.question_text.trim().length > 0);
-      const next = importMode === 'replace' || nonEmptyCurrent.length === 0
-        ? mapped
-        : [...nonEmptyCurrent, ...mapped];
-      setSelectedQuestions(new Set(next.map((_, idx) => idx)));
-      return next.length > 0 ? next : [emptyQuestion()];
-    });
+    const nonEmptyCurrent = questions.filter(item => item.question_text.trim().length > 0);
+    const next = importMode === 'replace' || nonEmptyCurrent.length === 0
+      ? mapped
+      : [...nonEmptyCurrent, ...mapped];
+    const resolved = next.length > 0 ? next : [emptyQuestion()];
+    setQuestions(resolved);
+    setSelectedQuestions(new Set(resolved.map((_, idx) => idx)));
+    setError(null);
   };
   const removeQuestion = (i: number) => setQuestions(current => {
     setSelectedQuestions(selected => new Set(
@@ -594,6 +601,7 @@ export default function NewExamPage() {
       setError('Section weights must total exactly 100%.');
       return;
     }
+    const nonEmptyQuestions = questions.filter(q => q.question_text.trim());
     const validQuestions = questions.filter((q, i) =>
       q.question_text.trim() && selectedQuestions.has(i)
     );
@@ -601,8 +609,13 @@ export default function NewExamPage() {
       setError('Add at least one question (or tick the questions you want to include).');
       return;
     }
-    if (form.is_active && (validQuestions.length < examBoundary.min || validQuestions.length > examBoundary.max)) {
-      setError(`${examBoundary.label} must contain ${examBoundary.min}-${examBoundary.max} questions before publishing. Save it as inactive while it is still a draft.`);
+    const publishMinimum = Math.min(5, examBoundary.min);
+    if (form.is_active && (validQuestions.length < publishMinimum || validQuestions.length > examBoundary.max)) {
+      if (nonEmptyQuestions.length >= publishMinimum && validQuestions.length < nonEmptyQuestions.length) {
+        setError(`Only ${validQuestions.length} of your ${nonEmptyQuestions.length} questions are ticked for inclusion. Tick at least ${publishMinimum} questions before publishing.`);
+      } else {
+        setError(`${examBoundary.label} needs at least ${publishMinimum} questions (up to ${examBoundary.max}) before publishing — currently ${validQuestions.length}. Save as draft (inactive) or add more questions.`);
+      }
       return;
     }
     const invalidObjective = validQuestions.find(question => {
@@ -832,7 +845,7 @@ export default function NewExamPage() {
                 </div>
               </div>
             )}
-            <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
+            <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Saving…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (isMinimal ? 'CREATE' : (form.is_active ? 'PUBLISH ASSESSMENT' : 'SAVE DRAFT'))}
             </button>
@@ -1498,6 +1511,14 @@ export default function NewExamPage() {
             })}
           </div>
 
+          {/* Inline Error near Submit */}
+          {error && (
+            <div ref={bottomErrorRef} role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/30 rounded-xl p-4">
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+              <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{error}</p>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex items-center gap-3 pt-2">
             <Link href={backHref}
@@ -1505,7 +1526,7 @@ export default function NewExamPage() {
               {backLabel}
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (form.is_active ? 'Publish Assessment' : 'Save Draft')}
             </button>

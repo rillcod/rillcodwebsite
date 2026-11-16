@@ -139,4 +139,21 @@ SECTION B: THEORY / ESSAY
       section: 'subjective',
     });
   });
+
+  it('splits more than 5 numbered questions even with varied numbering and no blank lines', () => {
+    const raw = `1. What is CPU? A) Central Processing Unit B) Core Power Unit
+2) What is RAM? A) Random Access Memory B) Read Only Memory
+(3) Which language runs in browsers? A) JavaScript B) C++
+4 - What is HTML? A) Markup B) Compiler
+Q5: Explain loops in Python.
+6.What is 3.5 + 1.5? A) 5 B) 4`;
+
+    const parsed = parsePremadeQuestionsFromText(raw, {
+      sourceName: 'pasted_six.txt',
+      defaultTrack: 'Computing',
+    });
+
+    expect(parsed).toHaveLength(6);
+    expect(parsed[5].question_text).toContain('3.5 + 1.5');
+  });
 });

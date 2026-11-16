@@ -199,7 +199,7 @@ export function parsePremadeQuestionsFromText(
       else if (/subjective|short\s*answer|fill|practical|coding/.test(label)) currentSectionHint = 'subjective';
       continue;
     }
-    if (/^(?:Q(?:uestion)?\s*\d+[\.\:\)]|\d+[\.\)])\s+/i.test(trimmed) && currentChunk.length > 0) {
+    if (/^(?:Q(?:uestion)?\s*\d+(?:[\.\:\)]\s*|\s+)|\(\d+\)\s*|\d+[\.\)]\s*(?=\D)|\d+\s*[\-\–]\s+)/i.test(trimmed) && currentChunk.length > 0) {
       flushChunk();
     }
     currentChunk.push(rawLine);
@@ -225,8 +225,8 @@ export function parsePremadeQuestionsFromText(
     if (lines.length === 0) return;
 
     // Detect explicit question number if present
-    const numMatch = lines[0].match(/^(?:Q(?:uestion)?\s*(\d+)[\.\:\)]|(\d+)[\.\)])\s+/i);
-    const questionNumber = numMatch ? parseInt(numMatch[1] || numMatch[2], 10) : idx + 1;
+    const numMatch = lines[0].match(/^(?:Q(?:uestion)?\s*(\d+)(?:[\.\:\)]\s*|\s+)|\((\d+)\)\s*|(\d+)[\.\)]\s*(?=\D)|(\d+)\s*[\-\–]\s+)/i);
+    const questionNumber = numMatch ? parseInt(numMatch[1] || numMatch[2] || numMatch[3] || numMatch[4], 10) : idx + 1;
 
     // Extract optional point marker e.g. [5 marks], (4 pts), (10 marks)
     let points = 5;
@@ -316,7 +316,7 @@ export function parsePremadeQuestionsFromText(
 
     const questionStem = stemLines
       .join('\n')
-      .replace(/^(?:Q(?:uestion)?\s*\d+[\.\:\)]|\d+[\.\)])\s+/i, '')
+      .replace(/^(?:Q(?:uestion)?\s*\d+(?:[\.\:\)]\s*|\s+)|\(\d+\)\s*|\d+[\.\)]\s*(?=\D)|\d+\s*[\-\–]\s+)/i, '')
       .replace(/[\(\[]\s*\d+\s*(?:marks?|pts?|points?)\s*[\)\]]/gi, '')
       .trim();
 

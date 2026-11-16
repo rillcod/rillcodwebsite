@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -46,6 +46,13 @@ export default function EditExamPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const bottomErrorRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (error && bottomErrorRef.current) {
+            bottomErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [error]);
     const [success, setSuccess] = useState('');
     const [definitionLocked, setDefinitionLocked] = useState(false);
     const [availableClasses, setAvailableClasses] = useState<AssessmentClassOption[]>([]);
@@ -401,7 +408,7 @@ export default function EditExamPage() {
                         type="button"
                         onClick={handleSubmit as any}
                         disabled={saving}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-black uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-md"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-md"
                     >
                         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                         {saving ? 'Saving…' : 'Save Changes'}
@@ -878,6 +885,14 @@ export default function EditExamPage() {
                         ))}
                     </fieldset>
 
+                    {/* Inline Error near Submit */}
+                    {error && (
+                        <div ref={bottomErrorRef} role="alert" className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/30 rounded-xl p-4">
+                            <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                            <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{error}</p>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex items-center gap-3 pt-2">
                         <Link href={`/dashboard/cbt/${id}`}
@@ -885,7 +900,7 @@ export default function EditExamPage() {
                             Cancel
                         </Link>
                         <button type="submit" disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                             {saving ? 'Saving…' : 'Save changes'}
                         </button>

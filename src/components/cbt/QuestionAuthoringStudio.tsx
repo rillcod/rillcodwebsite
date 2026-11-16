@@ -627,9 +627,33 @@ export default function QuestionAuthoringStudio({
         throw new Error('Could not extract questions from the provided text.');
       }
 
-      onImportQuestions(solvedList, fromCurrentPaper ? 'replace' : importBehavior);
+      // Never drop any locally parsed pasted questions if the AI returned fewer items
+      let finalQuestions = solvedList;
+      if (localParsed.length > 0 && solvedList.length < localParsed.length) {
+        finalQuestions = localParsed.map((item, idx) => {
+          const normStem = item.question_text.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 60);
+          const aiMatch =
+            solvedList.find(
+              (s) => s.question_text.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 60) === normStem,
+            ) || solvedList[idx];
+          return {
+            question_text: item.question_text,
+            question_type: item.question_type,
+            options: item.options,
+            correct_answer: item.correct_answer || aiMatch?.correct_answer || '',
+            marking_guide: item.marking_guide || aiMatch?.marking_guide || aiMatch?.explanation || '',
+            points: item.points,
+            section: item.section,
+            explanation: item.explanation || item.marking_guide || aiMatch?.explanation || '',
+            curriculumTag: item.curriculumTag || aiMatch?.curriculumTag,
+            cognitiveLevel: item.difficulty || aiMatch?.cognitiveLevel,
+          };
+        });
+      }
+
+      onImportQuestions(finalQuestions, fromCurrentPaper ? 'replace' : importBehavior);
       setAiSuccessMsg(
-        `Solved answers & marking guides for ${solvedList.length} questions!`,
+        `Solved answers & marking guides for ${finalQuestions.length} questions!`,
       );
       setShowPasteBox(false);
     } catch (err: any) {
