@@ -312,19 +312,11 @@ export default function TakeExamPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => router.push(`/dashboard/cbt/${exam?.id ?? params?.id}`)}
-                className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-sm"
-              >
-                Review Answers &amp; Feedback
-              </button>
-              <button onClick={() => router.push('/dashboard/cbt')}
-                className="w-full py-3.5 px-4 bg-card hover:bg-muted border border-border text-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all">
-                Return to CBT Center
-              </button>
-            </div>
+            <button onClick={() => router.push('/dashboard/cbt')}
+              className="group relative w-full py-4 bg-gradient-to-r from-border to-border hover:from-border hover:to-border border border-border text-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all overflow-hidden">
+              <span className="relative z-10">Return to CBT Center</span>
+              <div className="absolute inset-0 bg-card shadow-sm translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
+            </button>
           </div>
         </div>
       </div>
@@ -424,14 +416,14 @@ export default function TakeExamPage() {
                 </div>
               )}
 
-              {q && !showMcq && q.question_type !== 'true_false' && q.question_type !== 'coding_blocks' && (
+              {(q?.question_type === 'fill_blank' || q?.question_type === 'essay') && (
                 <div className="relative group">
                   <div className="absolute inset-0 bg-emerald-500/5 blur-2xl rounded-[2rem] opacity-0 group-focus-within:opacity-100 transition-opacity" />
                   <textarea
-                    rows={q.question_type === 'essay' || (q.points ?? 0) >= 8 ? 8 : 4}
+                    rows={q.question_type === 'essay' ? 8 : 3}
                     value={answers[q?.id] ?? ''}
                     onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
-                    placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Type your answer clearly here…'}
+                    placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Provide the specific answer…'}
                     className="relative w-full px-4 sm:px-8 py-4 sm:py-6 bg-muted/20 border-2 border-border rounded-2xl sm:rounded-[2rem] text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-y shadow-2xl"
                   />
                 </div>
@@ -447,8 +439,36 @@ export default function TakeExamPage() {
             </div>
           </div>
 
+          {/* Desktop Question Jump Strip */}
+          {questions.length > 1 && (
+            <div className="hidden sm:flex flex-wrap items-center gap-1.5 pt-4 border-t border-border/60">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2">Questions:</span>
+              {questions.map((item, idx) => {
+                const isDone = String(answers[item.id] ?? '').trim().length > 0;
+                const isActive = idx === current;
+                return (
+                  <button
+                    key={item.id ?? idx}
+                    type="button"
+                    onClick={() => setCurrent(idx)}
+                    className={`w-8 h-8 rounded-lg text-xs font-black border transition-all ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                        : isDone
+                          ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30'
+                          : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                    }`}
+                    aria-label={`Jump to question ${idx + 1}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Navigation Controls — desktop inline; mobile uses fixed bar below */}
-          <div className="hidden sm:flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-6 sm:pt-12 border-t border-border">
+          <div className="hidden sm:flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-6 border-t border-border">
             <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
               className="group flex items-center justify-center sm:justify-start gap-3 px-4 sm:px-6 py-3 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-all disabled:opacity-40 disabled:pointer-events-none order-2 sm:order-1">
               <ChevronLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -471,9 +491,8 @@ export default function TakeExamPage() {
               </button>
             ) : (
               <button onClick={() => handleSubmit(false)} disabled={submitting}
-                className="relative group overflow-hidden px-6 sm:px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] italic text-xs rounded-xl transition-all shadow-xl shadow-emerald-900/40 disabled:opacity-50 order-3">
+                className="relative group overflow-hidden px-6 sm:px-10 py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] italic text-xs rounded-xl transition-all shadow-xl shadow-emerald-900/20 disabled:opacity-50 order-3">
                 <span className="relative z-10">{submitting ? 'Finalizing…' : 'Complete Exam'}</span>
-                <div className="absolute inset-0 bg-muted translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
               </button>
             )}
           </div>

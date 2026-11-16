@@ -943,9 +943,33 @@ export default function ExamDetailPage() {
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span>{q.points} pts</span>
                         <span className="capitalize">{q.question_type?.replace('_', ' ')}</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">Answer: {q.correct_answer}</span>
+                        <span className="text-emerald-800 dark:text-emerald-400 font-semibold">Answer: {q.correct_answer}</span>
                       </div>
                     </div>
+                    {canManageExam && sessions.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!confirm(`Delete Question ${i + 1}?`)) return;
+                          const remaining = questions.filter((item: any) => item.id !== q.id);
+                          const res = await fetch(`/api/cbt/exams/${exam.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              deletedQuestionIds: [q.id],
+                              total_questions: remaining.length,
+                            }),
+                          });
+                          if (res.ok) setQuestions(remaining);
+                          else alert('Could not delete this question.');
+                        }}
+                        aria-label={`Delete question ${i + 1}`}
+                        title="Delete question"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/30 bg-rose-100 dark:bg-rose-500/15 text-rose-900 dark:text-rose-300 hover:bg-rose-200 text-[11px] font-bold flex-shrink-0 transition-colors"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

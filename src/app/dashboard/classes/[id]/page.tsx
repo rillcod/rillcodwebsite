@@ -2642,9 +2642,10 @@ export default function ClassDetailPage() {
                                       }}
                                       aria-label={`Delete ${a.title}`}
                                       title="Delete"
-                                      className="p-2 rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 transition-colors"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/20 bg-rose-100 dark:bg-rose-500/10 text-rose-900 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-[11px] font-bold disabled:opacity-40 transition-colors"
                                     >
                                       <TrashIcon className="w-3.5 h-3.5" />
+                                      <span className="hidden sm:inline">Delete</span>
                                     </button>
                                   )}
                                 </div>
@@ -2769,9 +2770,10 @@ export default function ClassDetailPage() {
                                     }}
                                     aria-label={`Delete CBT exam ${ex.title}`}
                                     title="Delete CBT exam"
-                                    className="p-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/20 bg-rose-100 dark:bg-rose-500/10 text-rose-900 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-[11px] font-bold disabled:opacity-40 transition-colors"
                                   >
                                     <TrashIcon className="w-3.5 h-3.5" />
+                                    <span>Delete</span>
                                   </button>
                                 )}
                               </div>
