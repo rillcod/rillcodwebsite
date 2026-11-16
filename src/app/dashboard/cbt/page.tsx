@@ -8,7 +8,7 @@ import {
   AcademicCapIcon, PlusIcon, ClockIcon, CheckCircleIcon,
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
   MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
-  BookOpenIcon, CommandLineIcon, ClipboardDocumentListIcon, RocketLaunchIcon
+  BookOpenIcon, CommandLineIcon, ClipboardDocumentListIcon, RocketLaunchIcon, PrinterIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
@@ -377,6 +377,14 @@ export default function CBTPage() {
                             >
                               <EyeIcon className="w-4 h-4" />
                               <span>{pendingGrading > 0 ? `Grade (${pendingGrading})` : 'Manage & Results'}</span>
+                            </Link>
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}?print=1`}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground bg-muted/60 hover:bg-muted border border-border transition-colors"
+                              title="Print Student Paper or Teacher Answer Key"
+                            >
+                              <PrinterIcon className="w-4 h-4 text-primary" />
+                              <span>Print</span>
                             </Link>
                             {canManageExams && (
                               <>

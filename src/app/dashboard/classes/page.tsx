@@ -180,8 +180,10 @@ export default function ClassesPage() {
       </div>
 
       {/* Header */}
-      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
+        </div>
         <div className="relative z-10 flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-white border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/30 flex-shrink-0">
             <UserGroupIcon className="w-6 h-6 text-white" />
@@ -207,7 +209,7 @@ export default function ClassesPage() {
             {showMoreMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 z-50 w-52 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
                   <Link
                     href="/dashboard/classes/transfer-requests"
                     onClick={() => setShowMoreMenu(false)}

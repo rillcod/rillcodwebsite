@@ -35,6 +35,7 @@ import { resolveSchoolProgrammePolicy, type SchoolProgrammePolicy } from '@/lib/
 import { ClassPromotionPanel } from '@/components/classes/ClassPromotionPanel';
 import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
+import { printBlankClassMarkSheet } from '@/lib/reports/office-printables';
 // Turn an enroll PUT response into a human message about students that were NOT added,
 // so a silent school-boundary / other-teacher drop never looks like a successful add.
 function enrollSkipMessage(json: any, requested: number): string | null {
@@ -1486,7 +1487,7 @@ export default function ClassDetailPage() {
 
         {/* ── The work ──────────────────────────────────────────────────────────
             Directly under the identity bar, because this is what the page is for. */}
-        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div className="rounded-3xl border border-border bg-card shadow-sm">
 
           {/* Mobile work modes */}
           <div className="border-b border-border p-2 sm:p-3 lg:hidden">
@@ -1718,7 +1719,28 @@ export default function ClassDetailPage() {
                                     className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
                                   >
                                     <CloudArrowDownIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                                    Export Logins
+                                    Export Logins (A4 PDF)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowRosterActions(false);
+                                      printBlankClassMarkSheet({
+                                        students: currentTermStudents,
+                                        className: cls?.name,
+                                        courseName: cls?.programs?.name,
+                                        schoolName: cls?.schools?.name,
+                                        schoolLogoUrl: cls?.schools?.logo_url,
+                                        term: cls?.academic_terms?.term_label,
+                                        academicYear: cls?.academic_terms?.academic_year,
+                                        instructorName: cls?.portal_users?.full_name,
+                                        scoringMode: assessmentPolicy?.usesHostEvaluation ? 'host_papers' : 'rillcod_weighted',
+                                      });
+                                    }}
+                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <ClipboardDocumentListIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                                    Blank Mark Sheet (PDF)
                                   </button>
                                 </div>
                               </>

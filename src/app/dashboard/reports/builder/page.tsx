@@ -73,6 +73,12 @@ import { scoreAuthorityFromStanding } from '@/lib/reports/complement';
 import { applyHostAssessmentToReportScores, hostAssessmentMetricFields } from '@/lib/academic/taught-assessment';
 import { emptyHostPaperExamIds, emptyHostPaperMarks, formatHostMark, hostPaperLabel, hostPapersComplete, hostPapersFromMetrics, hostSchoolTotal, mergeHostPaperExamIds, mergeHostPaperMarks, pickHostPaperExamIds, type HostAssessmentKind, type HostMark, type HostPaperExamIds, type HostPaperMarks } from '@/lib/academic/host-marks';
 import { hostPaperEntryHref, hostPaperEntryLabel } from '@/lib/curriculum/href';
+import {
+    printClassMasterBroadsheet,
+    printBlankClassMarkSheet,
+    parseMarkSheetTextForRoster,
+} from '@/lib/reports/office-printables';
+import { extractPdfText } from '@/lib/pdf/extract-text';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -1576,6 +1582,8 @@ function ReportBuilderInner() {
                 report_period,
                 course_id: linkedCourse?.id || '',
                 course_name: linkedCourse?.title || '',
+                current_module: '',
+                next_module: '',
                 learning_milestones: suggestedMilestones,
                 school_section: current.school_section || 'school',
             };
@@ -2115,8 +2123,8 @@ function ReportBuilderInner() {
                     .eq('portal_user_id', s.id)
                     .eq('status', 'graded');
 
-            // 2. Fetch all 4 data sources in parallel
-            const [attRes, subResRaw, allAssignmentsRaw, cbtAllRes, labRes, portfolioRes, examRes] = await withTimeout(Promise.all([
+            // 2. Fetch all data sources in parallel (including graded Written Exams!)
+            const [attRes, subResRaw, allAssignmentsRaw, cbtAllRes, labRes, portfolioRes, examRes, writtenExamRes] = await withTimeout(Promise.all([
                 // Attendance (for reference)
                 sessionIds.length > 0
                     ? (() => {
@@ -2154,7 +2162,12 @@ function ReportBuilderInner() {
                         return q;
                     })()
                     : { data: [] },
-            ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
+                // Graded Written Exams (synergy with /dashboard/exams)
+                db.from('exam_attempts')
+                    .select('percentage, score, total_points, status, exams(id, title, course_id, class_id)')
+                    .eq('portal_user_id', s.id)
+                    .eq('status', 'graded'),
+            ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
 
             const { filterByAssignmentSession } = await import('@/lib/assignments/session');
             const { loadAcademicTermBounds, filterCbtByAcademicTerm, filterCbtExamsByAcademicTerm } = await import('@/lib/cbt/session');
@@ -2215,7 +2228,23 @@ function ReportBuilderInner() {
                     { classId: targetClassId, courseId: evidenceCourseId },
                 ),
             );
-            const cbtScore = hostApplied.theory;
+            const writtenExamPcts = ((writtenExamRes?.data ?? []) as any[])
+                .filter((w: any) => {
+                    const ex = Array.isArray(w.exams) ? w.exams[0] : w.exams;
+                    if (evidenceCourseId && ex?.course_id && ex.course_id !== evidenceCourseId) return false;
+                    if (targetClassId && ex?.class_id && ex.class_id !== targetClassId) return false;
+                    return true;
+                })
+                .map((w: any) => {
+                    if (typeof w.percentage === 'number' && !Number.isNaN(w.percentage)) return Math.round(w.percentage);
+                    if (typeof w.score === 'number' && typeof w.total_points === 'number' && w.total_points > 0) {
+                        return Math.round((w.score / w.total_points) * 100);
+                    }
+                    return null;
+                })
+                .filter((v): v is number => v !== null);
+            const writtenExamBest = writtenExamPcts.length > 0 ? Math.max(...writtenExamPcts) : 0;
+            const cbtScore = Math.max(hostApplied.theory, writtenExamBest);
             const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
@@ -3425,6 +3454,30 @@ function ReportBuilderInner() {
                                 <h3 className="text-sm font-black text-foreground">School &amp; class</h3>
                                 <span className="ml-auto text-[10px] font-bold text-primary uppercase tracking-wider">Required</span>
                             </div>
+                            {teacherClasses.length > 0 && (
+                                <div className="space-y-1.5">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick-pick your class (1 click)</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {teacherClasses.slice(0, 10).map(c => {
+                                            const active = sessionConfig.class_id === c.id;
+                                            return (
+                                                <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => selectReportSection(c.id)}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                                        active
+                                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
+                                                    }`}
+                                                >
+                                                    {c.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="School">
                                     <ReportSchoolPicker schools={schools} value={sessionConfig.school_id} selectedName={sessionConfig.school_name}
@@ -3751,6 +3804,114 @@ function ReportBuilderInner() {
                                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-300/70">Published</p></div>
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
                             </div>
+                            {classRoster.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-border flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const db2 = createClient();
+                                            const ids = classRoster.map((s: any) => s.id).filter(Boolean);
+                                            const reportById: Record<string, any> = {};
+                                            if (ids.length > 0) {
+                                                let q = db2
+                                                    .from('student_progress_reports')
+                                                    .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, participation_score, overall_score, overall_grade, engagement_metrics, is_published, instructor_name, updated_at')
+                                                    .in('student_id', ids)
+                                                    .order('is_published', { ascending: false })
+                                                    .order('updated_at', { ascending: false });
+                                                if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term);
+                                                if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period);
+                                                const { data: rows } = await q;
+                                                (rows ?? []).forEach((r: any) => { if (!reportById[r.student_id]) reportById[r.student_id] = r; });
+                                            }
+                                            printClassMasterBroadsheet({
+                                                students: classRoster.map((s: any) => ({
+                                                    id: s.id,
+                                                    full_name: s.full_name || 'Student',
+                                                    class_label: s.section_class || sessionConfig.section_class || null,
+                                                    school_name: sessionConfig.school_name || null,
+                                                    report: reportById[s.id] ?? null,
+                                                })),
+                                                term: sessionConfig.report_term,
+                                                academicYear: sessionConfig.report_period,
+                                                className: sessionConfig.section_class,
+                                                courseName: sessionConfig.course_name,
+                                                schoolName: sessionConfig.school_name,
+                                                instructorName: sessionConfig.instructor_name,
+                                                scoringMode: reportScoreAuthority === 'host_school' ? 'host_papers' : 'rillcod_weighted',
+                                            });
+                                        }}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-black text-primary hover:bg-primary/20 transition-colors"
+                                    >
+                                        <PrinterIcon className="h-4 w-4" /> Class Broadsheet (PDF)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => printBlankClassMarkSheet({
+                                            students: classRoster.map((s: any) => ({
+                                                id: s.id,
+                                                full_name: s.full_name || 'Student',
+                                                grade: (s as any).grade,
+                                                section_class: s.section_class,
+                                            })),
+                                            className: sessionConfig.section_class,
+                                            courseName: sessionConfig.course_name,
+                                            schoolName: sessionConfig.school_name,
+                                            term: sessionConfig.report_term,
+                                            academicYear: sessionConfig.report_period,
+                                            instructorName: sessionConfig.instructor_name,
+                                            scoringMode: reportScoreAuthority === 'host_school' ? 'host_papers' : 'rillcod_weighted',
+                                        })}
+                                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+                                    >
+                                        <DocumentTextIcon className="h-4 w-4 text-indigo-500" /> Blank Mark Sheet (PDF)
+                                    </button>
+                                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors">
+                                        <ArrowUpTrayIcon className="h-4 w-4" /> Import Scores (.PDF / .TXT)
+                                        <input
+                                            type="file"
+                                            accept=".pdf,.txt,application/pdf,text/plain"
+                                            className="sr-only"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                e.target.value = '';
+                                                if (!file) return;
+                                                try {
+                                                    const rawText = file.name.toLowerCase().endsWith('.pdf')
+                                                        ? await extractPdfText(file)
+                                                        : await file.text();
+                                                    const matched = parseMarkSheetTextForRoster(
+                                                        rawText,
+                                                        classRoster.map((s: any) => ({ id: s.id, full_name: s.full_name || '' })),
+                                                    );
+                                                    if (matched.length === 0) {
+                                                        setError('No student names and 0–100 scores matched this class roster in the uploaded file.');
+                                                        return;
+                                                    }
+                                                    const firstMatch = matched[0];
+                                                    const targetStudent = classRoster.find((s: any) => s.id === firstMatch.studentId);
+                                                    if (targetStudent) {
+                                                        await selectStudent(targetStudent as PortalUser, 0);
+                                                        setForm(f => ({
+                                                            ...f,
+                                                            ...(firstMatch.theory_score != null ? { theory_score: String(firstMatch.theory_score) } : {}),
+                                                            ...(firstMatch.classwork_score != null ? { classwork_score: String(firstMatch.classwork_score) } : {}),
+                                                            ...(firstMatch.practical_score != null ? { practical_score: String(firstMatch.practical_score) } : {}),
+                                                            ...(firstMatch.participation_score != null ? { participation_score: String(firstMatch.participation_score) } : {}),
+                                                            ...(firstMatch.attendance_score != null ? { attendance_score: String(firstMatch.attendance_score) } : {}),
+                                                            ...(firstMatch.assessment_score != null ? { assessment_score: String(firstMatch.assessment_score) } : {}),
+                                                            ...(firstMatch.key_strengths ? { key_strengths: firstMatch.key_strengths } : {}),
+                                                        }));
+                                                        setSuccessMsg(`Imported scores for ${firstMatch.studentName} (${matched.length} student row${matched.length !== 1 ? 's' : ''} detected in file). Review and click Save!`);
+                                                    }
+                                                } catch (err: any) {
+                                                    setError(err?.message || 'Could not read the uploaded score file.');
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                            )}
                         </div>
 
                         {/* Collapsible session summary */}
@@ -4623,6 +4784,50 @@ function ReportBuilderInner() {
                                             <div className="pt-1">
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Enter classwork, assignments and projects</p>
                                                 <p className="text-[10px] text-muted-foreground">Type or slide these here. They sit beside the paper total and are not mixed into it.</p>
+                                            </div>
+                                        )}
+                                        {reportScoreAuthority !== 'host_school' && (
+                                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-black text-primary">1-Click Evidence &amp; AI Synergy</p>
+                                                    <p className="text-[10px] text-muted-foreground">Pulls CBT, Written Exams, Assignments &amp; Attendance + sets Qualifiers + drafts AI remarks.</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        guardAutomaticScoreEdit(() => {
+                                                            const autoTheory = studentStats.examination != null ? String(studentStats.examination) : (studentStats.cbtScore > 0 ? String(studentStats.cbtScore) : '');
+                                                            const autoClasswork = studentStats.assignmentAvg > 0 ? String(studentStats.assignmentAvg) : '';
+                                                            const autoAssignments = studentStats.totalAssignments > 0 ? String(studentStats.assignmentPct) : '';
+                                                            const autoAttendance = studentStats.totalSessions > 0 ? String(Math.round((studentStats.attendance / studentStats.totalSessions) * 100)) : '';
+                                                            const autoMidterm = studentStats.firstTest != null ? String(studentStats.firstTest) : (studentStats.evalScore > 0 ? String(studentStats.evalScore) : '');
+                                                            setForm(f => {
+                                                                const nextTheory = isUnsetScore(f.theory_score) && autoTheory ? autoTheory : f.theory_score;
+                                                                const nextClasswork = isUnsetScore(f.classwork_score) && autoClasswork ? autoClasswork : f.classwork_score;
+                                                                const nextAssign = isUnsetScore(f.attendance_score) && autoAssignments ? autoAssignments : f.attendance_score;
+                                                                const nextAttend = isUnsetScore(f.participation_score) && autoAttendance ? autoAttendance : f.participation_score;
+                                                                const nextMid = isUnsetScore(f.assessment_score) && autoMidterm ? autoMidterm : f.assessment_score;
+                                                                const pct = Number(nextTheory || nextClasswork || nextMid || 70);
+                                                                const qualifier = pct >= 85 ? 'Exceeds Expectations' : pct >= 70 ? 'Meets Expectations' : pct >= 50 ? 'Developing' : 'Needs Support';
+                                                                return {
+                                                                    ...f,
+                                                                    theory_score: nextTheory,
+                                                                    classwork_score: nextClasswork,
+                                                                    attendance_score: nextAssign,
+                                                                    participation_score: nextAttend,
+                                                                    assessment_score: nextMid,
+                                                                    participation_grade: f.participation_grade || qualifier,
+                                                                    projects_grade: f.projects_grade || qualifier,
+                                                                    homework_grade: f.homework_grade || qualifier,
+                                                                };
+                                                            });
+                                                            setSuccessMsg('Synced available LMS evidence & qualifiers. AI remarks will auto-draft if blank!');
+                                                        });
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-black text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors"
+                                                >
+                                                    <SparklesIcon className="h-3.5 w-3.5" /> Smart Sync All
+                                                </button>
                                             </div>
                                         )}
                                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">

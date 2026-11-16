@@ -43,6 +43,7 @@ import {
 } from '@/lib/reports/session-workflows';
 import { automaticResultHasNoEvidence } from '@/lib/reports/score';
 import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
+import { printClassMasterBroadsheet } from '@/lib/reports/office-printables';
 import { escapeHtml } from '@/lib/cbt/print-utils';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
@@ -1395,13 +1396,12 @@ function ResultsPageInner() {
         setTimeout(() => window.print(), 80);
     }
 
-    // ── Print group performance datasheet ─────────────────────────────────────
+    // ── Print group performance broadsheet (Official 6-Component WAEC / Host Papers PDF) ──
     async function handlePrintPerformanceSheet() {
         const db2 = createClient();
         const studentsToSheet = filtered.length > 0 ? filtered : students;
         if (studentsToSheet.length === 0) { alert('No students to print.'); return; }
 
-        // Fetch full reports for these students (confirmed session only)
         const ids = studentsToSheet.map(s => s.id);
         let sheetQuery = db2
             .from('student_progress_reports')
@@ -1419,156 +1419,30 @@ function ResultsPageInner() {
         }
         const { data: allReports } = await sheetQuery;
 
-        // Latest report per student within the confirmed session
         const fullRMap: Record<string, any> = {};
         (allReports ?? []).forEach(r => { if (!fullRMap[r.student_id]) fullRMap[r.student_id] = r; });
         const usesHostPapers = Object.values(fullRMap).some((report: any) => !!hostSchoolScoreboard(report?.engagement_metrics));
+        const firstReport = Object.values(fullRMap)[0] as any;
 
-        const org = orgSettings;
-        const titleLine = [filterClass, filterSchool].filter(Boolean).join(' — ');
-        const docRef = `RPT-${Date.now().toString(36).toUpperCase()}`;
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
-
-        const gradeColor = (g: string | null | undefined) => {
-            if (!g) return '#6b7280';
-            const code = g.toUpperCase().trim();
-            if (code === 'A1')                       return '#10b981'; // emerald
-            if (code === 'B2' || code === 'B3')      return '#22c55e'; // green
-            if (code === 'C4' || code === 'C5' || code === 'C6') return '#3b82f6'; // blue
-            if (code === 'D7')                       return '#f59e0b'; // amber
-            if (code === 'E8')                       return '#f97316'; // orange
-            if (code === 'F9')                       return '#ef4444'; // rose
-            // Legacy single-letter fallback
-            const c = code[0];
-            if (c === 'A') return '#10b981';
-            if (c === 'B') return '#22c55e';
-            if (c === 'C') return '#3b82f6';
-            if (c === 'D') return '#f59e0b';
-            return '#ef4444';
-        };
-
-        const rows = studentsToSheet.map((s, i) => {
-            const r = fullRMap[s.id];
-            const cls = studentClassName(s) || '—';
-            const sch = studentSchoolName(s) || '—';
-            const board = hostSchoolScoreboard(r?.engagement_metrics);
-            const evidence = hostLearningEvidence(r ?? {});
-            const paperMark = (kind: 'first_test' | 'second_test' | 'examination') =>
-                board?.papers.find((paper) => paper.kind === kind)?.mark ?? null;
-            const gColor = gradeColor(r?.overall_grade);
-            const scoreCell = (value: string | number | null | undefined, strong = false) =>
-                `<td style="padding:5px 6px;font-size:11px;text-align:center;${strong ? 'font-weight:800;color:#111827' : 'color:#374151'}">${value ?? '—'}</td>`;
-            const performanceCells = usesHostPapers
-                ? [
-                    scoreCell(formatHostMark(paperMark('first_test'))),
-                    scoreCell(formatHostMark(paperMark('second_test'))),
-                    scoreCell(formatHostMark(paperMark('examination'))),
-                    scoreCell(board ? `${formatHostMark(board.total)}${board.complete ? '' : ' *'}` : '—', true),
-                    scoreCell(evidence.classwork != null ? `${evidence.classwork}%` : '—'),
-                    scoreCell(evidence.practical != null ? `${evidence.practical}%` : '—'),
-                    scoreCell(evidence.assignments != null ? `${evidence.assignments}%` : '—'),
-                    scoreCell(evidence.attendance != null ? `${evidence.attendance}%` : '—'),
-                ].join('')
-                : [
-                    scoreCell(r?.theory_score != null ? `${r.theory_score}%` : '—'),
-                    scoreCell(r?.practical_score != null ? `${r.practical_score}%` : '—'),
-                    scoreCell(r?.attendance_score != null ? `${r.attendance_score}%` : '—'),
-                    scoreCell(r?.participation_score != null ? `${r.participation_score}%` : '—'),
-                    scoreCell(r?.overall_score != null ? `${r.overall_score}%` : '—', true),
-                ].join('');
-            return `<tr style="border-bottom:1px solid #e5e7eb">
-                <td style="padding:5px 6px;text-align:center;font-size:11px;color:#6b7280">${i + 1}</td>
-                <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#111827">${escapeHtml(s.full_name ?? '—')}</td>
-                <td style="padding:5px 6px;font-size:11px;color:#374151">${escapeHtml(cls)}</td>
-                <td style="padding:5px 6px;font-size:11px;color:#374151">${escapeHtml(sch)}</td>
-                <td style="padding:5px 6px;font-size:11px;text-align:center;color:#374151">${escapeHtml(r?.course_name ?? '—')}</td>
-                ${performanceCells}
-                <td style="padding:5px 6px;text-align:center"><span style="display:inline-block;padding:2px 10px;border-radius:20px;font-weight:800;font-size:12px;color:white;background:${gColor}">${escapeHtml(r?.overall_grade ?? 'N/A')}</span></td>
-                <td style="padding:5px 6px;text-align:center;font-size:10px;color:${r?.is_published ? '#10b981' : r ? '#f59e0b' : '#9ca3af'}">${r?.is_published ? '✓ Published' : r ? 'Draft' : 'No Report'}</td>
-            </tr>`;
-        }).join('');
-
-        const performanceHeadings = usesHostPapers
-            ? '<th>First Test</th><th>Second Test</th><th>Examination</th><th>School Paper Total</th><th>Classwork</th><th>Projects</th><th>Assignments</th><th>Attendance</th>'
-            : '<th>Theory / Written</th><th>Practical / Projects</th><th>Assignments</th><th>Attendance</th><th>Overall</th>';
-
-        const statsLine = `Total: ${studentsToSheet.length} | Published: ${studentsToSheet.filter(s => fullRMap[s.id]?.is_published).length} | Draft: ${studentsToSheet.filter(s => fullRMap[s.id] && !fullRMap[s.id].is_published).length} | No Report: ${studentsToSheet.filter(s => !fullRMap[s.id]).length}`;
-
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Student Performance Sheet — ${escapeHtml(titleLine || 'All Students')}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:20px}
-@page{size:A4 landscape;margin:14mm 12mm}
-@media print{body{padding:0}}
-.header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:14px;margin-bottom:16px}
-.logo-block{display:flex;align-items:center;gap:12px}
-.logo-circle{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:18px;letter-spacing:-1px}
-.org-name{font-size:20px;font-weight:900;color:#7c3aed;letter-spacing:-0.5px}
-.org-sub{font-size:10px;color:#6b7280;margin-top:2px}
-.doc-meta{text-align:right;font-size:10px;color:#6b7280;line-height:1.6}
-.doc-meta strong{color:#374151}
-.title-row{background:linear-gradient(135deg,#7c3aed11,#4f46e511);border:1px solid #7c3aed33;border-radius:8px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
-.title-main{font-size:15px;font-weight:900;color:#4c1d95;letter-spacing:-0.3px}
-.title-sub{font-size:10px;color:#7c3aed;margin-top:2px}
-.stats-bar{font-size:10px;color:#374151;background:#f3f4f6;border-radius:6px;padding:4px 12px;white-space:nowrap}
-table{width:100%;border-collapse:collapse;font-size:12px}
-thead tr{background:#4c1d95;color:white}
-thead th{padding:7px 6px;text-align:center;font-size:9px;font-weight:700;letter-spacing:0.35px;text-transform:uppercase}
-thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4){text-align:left}
-tbody tr:nth-child(even){background:#f9fafb}
-tbody tr:hover{background:#f3f4f6}
-.footer{margin-top:24px;border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
-.sig-box{text-align:center}
-.sig-line{border-bottom:1px solid #374151;height:36px;margin-bottom:6px}
-.sig-label{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
-.watermark{text-align:center;margin-top:16px;font-size:9px;color:#9ca3af}
-</style></head><body>
-<div class="header">
-  <div class="logo-block">
-    <div class="logo-circle">R</div>
-    <div>
-      <div class="org-name">${escapeHtml(org?.org_name ?? 'Rillcod Technologies')}</div>
-      <div class="org-sub">${escapeHtml(org?.org_address ?? 'Technology & Innovation in Education')}</div>
-    </div>
-  </div>
-  <div class="doc-meta">
-    <div><strong>Document Ref:</strong> ${docRef}</div>
-    <div><strong>Generated:</strong> ${dateStr}</div>
-    <div><strong>Generated by:</strong> ${escapeHtml(profile?.full_name ?? 'Staff')}</div>
-    <div><strong>Classification:</strong> Official — Confidential</div>
-  </div>
-</div>
-<div class="title-row">
-  <div>
-    <div class="title-main">${usesHostPapers ? 'School Papers & Learning Evidence Sheet' : 'Student Performance & Score Sheet'}${titleLine ? ' — ' + escapeHtml(titleLine) : ''}</div>
-    <div class="title-sub">${usesHostPapers ? 'Official papers are separate from Rillcod learning evidence' : 'Academic Progress Report Summary'} · ${escapeHtml(org?.org_name ?? 'Rillcod Technologies')}</div>
-  </div>
-  <div class="stats-bar">${statsLine}</div>
-</div>
-<table>
-<thead><tr>
-  <th>#</th><th>Student Name</th><th>Class/Grade</th><th>School</th>
-  <th>Course</th>${performanceHeadings}<th>Grade</th><th>Status</th>
-</tr></thead>
-<tbody>${rows}</tbody>
-</table>
-<div class="footer">
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Class Teacher / Facilitator</div></div>
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Academic Coordinator</div></div>
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">School Authority / Stamp</div></div>
-</div>
-${usesHostPapers ? '<p style="margin-top:8px;font-size:9px;color:#6b7280">* School Paper Total remains incomplete until First Test, Second Test and Examination are all recorded.</p>' : ''}
-<div class="watermark">This document is computer-generated and constitutes an official academic record of ${escapeHtml(org?.org_name ?? 'Rillcod Technologies')}. Document Reference: ${docRef}</div>
-</body></html>`;
-
-        const w = window.open('', '_blank', 'width=1100,height=800');
-        if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
-        w.document.write(html);
-        w.document.close();
-        w.focus();
-        setTimeout(() => { w.print(); }, 600);
+        const ok = printClassMasterBroadsheet({
+            students: studentsToSheet.map(s => ({
+                id: s.id,
+                full_name: s.full_name ?? 'Student',
+                class_label: studentClassName(s) || null,
+                school_name: studentSchoolName(s) || null,
+                report: fullRMap[s.id] ?? null,
+            })),
+            term: confirmedPeriod?.term || firstReport?.report_term || null,
+            academicYear: confirmedPeriod?.year || null,
+            className: filterClass || null,
+            courseName: firstReport?.course_name || null,
+            schoolName: filterSchool || orgSettings?.org_name || 'Partner School',
+            orgLogoUrl: orgSettings?.logo_url || '/logo.png',
+            orgName: orgSettings?.org_name || 'Rillcod Technologies',
+            instructorName: firstReport?.instructor_name || profile?.full_name || null,
+            scoringMode: usesHostPapers ? 'host_papers' : 'rillcod_weighted',
+        });
+        if (!ok) { alert('Pop-up blocked. Please allow pop-ups for this site.'); }
     }
 
     // ── Loading screen ─────────────────────────────────────────────────────────

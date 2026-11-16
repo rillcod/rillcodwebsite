@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
+import { openOfficialOfficePrintable } from "@/lib/reports/office-printables";
 import {
   ChartBarIcon,
   BookOpenIcon,
@@ -234,45 +235,54 @@ export default function CurriculumProgressPage({
     0
   );
 
-  function exportDataToCsv() {
-    const rows = [
-      [
-        "Curriculum",
-        "Program",
-        "School",
-        "Class/Version",
-        "Completed Weeks",
-        "Total Weeks",
-        "Progress %",
-        "Last Activity",
-      ],
-    ];
+  function exportCoveragePdf() {
+    const esc = (v: unknown) =>
+      String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    const rows: string[] = [];
+    let idx = 1;
     filteredData.forEach((curr) => {
       curr.per_school.forEach((s) => {
-        rows.push([
-          `"${curr.course_title}"`,
-          `"${curr.program_name}"`,
-          `"${s.school_name}"`,
-          `v${curr.version}`,
-          s.completed.toString(),
-          curr.total_weeks.toString(),
-          s.pct.toString() + "%",
-          s.last_activity
-            ? new Date(s.last_activity).toLocaleDateString()
-            : "N/A",
-        ]);
+        const pctTone = s.pct >= 75 ? "#047857" : s.pct >= 40 ? "#b45309" : "#be123c";
+        rows.push(`
+          <tr>
+            <td style="text-align:center;font-weight:800;color:#64748b;">${idx++}</td>
+            <td>
+              <div style="font-weight:800;color:#0f172a;">${esc(curr.course_title)}</div>
+              <div style="font-size:9px;color:#64748b;">${esc(curr.program_name)} · v${curr.version}</div>
+            </td>
+            <td style="font-weight:700;">${esc(s.school_name)}</td>
+            <td style="text-align:center;font-weight:700;">${s.completed} / ${curr.total_weeks}</td>
+            <td style="text-align:center;font-weight:900;color:${pctTone};">${s.pct}%</td>
+            <td style="text-align:center;font-size:9.5px;">${s.last_activity ? new Date(s.last_activity).toLocaleDateString() : "No activity"}</td>
+          </tr>
+        `);
       });
     });
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `curriculum_delivery_progress_${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    openOfficialOfficePrintable({
+      title: "Curriculum Delivery & Teaching Coverage Report",
+      subtitle: "Official Academic Syllabus Progress Across Partner Schools",
+      docCodePrefix: "RC-CURRICULUM",
+      orientation: "landscape",
+      schoolName: "Rillcod Academic Registry",
+      kpis: [
+        { label: "Active Curricula", value: filteredData.length, sub: "Tracked syllabi" },
+        { label: "Total Weeks Delivered", value: totalWeeksDelivered, sub: "Across partner schools", tone: "emerald" },
+        { label: "Upcoming Assessments", value: upcomingCount, sub: "Scheduled checkpoints", tone: "indigo" },
+      ],
+      headers: [
+        { label: "#", align: "center", width: "34px" },
+        { label: "Curriculum & Programme" },
+        { label: "Partner School", width: "180px" },
+        { label: "Weeks Taught", align: "center", width: "100px" },
+        { label: "Coverage %", align: "center", width: "90px" },
+        { label: "Last Activity", align: "center", width: "110px" },
+      ],
+      rowsHtml: rows.join(""),
+    });
   }
 
   let filteredData = data.filter(
@@ -601,9 +611,9 @@ export default function CurriculumProgressPage({
                 </button>
               )}
               <button
-                onClick={exportDataToCsv}
+                onClick={exportCoveragePdf}
                 className="flex items-center gap-2 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold rounded-lg transition-all whitespace-nowrap ml-auto"
-                title="Export delivery progress to CSV"
+                title="Print or Save Official Coverage Report PDF"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -616,10 +626,10 @@ export default function CurriculumProgressPage({
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
+                    d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z"
                   />
                 </svg>
-                Export CSV
+                Print / Save PDF
               </button>
             </div>
           </div>

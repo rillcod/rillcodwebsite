@@ -1046,9 +1046,9 @@ export default function GradesPage() {
                         {items.length > 0 && (
                             <>
                                 <button onClick={() => exportPDF(items, isStaff, profile)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary rounded-xl text-sm font-bold text-foreground transition-all shadow-lg shadow-primary/20">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 rounded-xl text-sm font-bold text-primary-foreground transition-all shadow-lg shadow-primary/20">
                                     <DocumentTextIcon className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Export PDF</span>
+                                    <span className="hidden sm:inline">Print / Save PDF</span>
                                 </button>
                                 {isStaff && (
                                     <Link
@@ -1066,10 +1066,10 @@ export default function GradesPage() {
                                         <span className="sm:hidden">Results</span>
                                     </Link>
                                 )}
-                                <button onClick={() => exportCSV(items, isStaff)}
+                                <button onClick={() => exportPDF(filtered, isStaff, profile)}
                                     className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
                                     <ArrowDownTrayIcon className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Export CSV</span>
+                                    <span className="hidden sm:inline">Filtered PDF</span>
                                 </button>
                             </>
                         )}

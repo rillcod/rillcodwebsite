@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
+import { openOfficialOfficePrintable } from '@/lib/reports/office-printables';
 
 type Pending = { id: string; full_name: string | null; className: string | null; classId?: string | null; school_name: string | null; drafted: boolean };
 type Coverage = { termLabel: string; periodLabel?: string; total: number; withReport: number; pendingCount: number; pending: Pending[] };
@@ -37,14 +38,47 @@ export default function ReportCoverageWidget() {
   const pct = cov.total ? Math.round((cov.withReport / cov.total) * 100) : 0;
   const allDone = cov.pendingCount === 0;
 
-  const exportCsv = () => {
-    const rows = [['Student', 'Class', 'School', 'Status'],
-      ...cov.pending.map(p => [p.full_name ?? '', p.className ?? '', p.school_name ?? '', p.drafted ? 'Drafted (unpublished)' : 'No report'])];
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = `pending-reports-${[cov.periodLabel, cov.termLabel].filter(Boolean).join('-').replace(/\s+/g, '-')}.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const exportPendingPdf = () => {
+    const esc = (v: unknown) =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    const rowsHtml = cov.pending
+      .map((p, idx) => `
+        <tr>
+          <td style="text-align:center;font-weight:800;color:#64748b;">${idx + 1}</td>
+          <td style="font-weight:800;color:#0f172a;">${esc(p.full_name || '—')}</td>
+          <td>${esc(p.className || 'Unassigned')}</td>
+          <td>${esc(p.school_name || '—')}</td>
+          <td style="text-align:center;">
+            <span style="padding:2px 7px;border-radius:4px;font-weight:800;font-size:8.5px;background:${p.drafted ? '#fef3c7' : '#fee2e2'};color:${p.drafted ? '#b45309' : '#b91c1c'};">
+              ${p.drafted ? 'DRAFT (UNPUBLISHED)' : 'NO REPORT'}
+            </span>
+          </td>
+        </tr>`)
+      .join('');
+
+    openOfficialOfficePrintable({
+      title: 'Pending Progress Reports Action Sheet',
+      subtitle: `Academic Report Coverage & Follow-up Registry — ${[cov.periodLabel, cov.termLabel].filter(Boolean).join(' · ')}`,
+      docCodePrefix: 'RC-PENDING',
+      orientation: 'portrait',
+      schoolName: profile?.school_name || 'Partner Schools Overview',
+      kpis: [
+        { label: 'Total Enrolled', value: cov.total, sub: 'Active learners' },
+        { label: 'Published Reports', value: cov.withReport, sub: `${pct}% complete`, tone: 'emerald' },
+        { label: 'Pending / Action', value: cov.pendingCount, sub: 'Drafted or missing', tone: 'rose' },
+      ],
+      headers: [
+        { label: '#', align: 'center', width: '34px' },
+        { label: 'Student Name' },
+        { label: 'Class / Section', width: '150px' },
+        { label: 'School', width: '150px' },
+        { label: 'Status', align: 'center', width: '130px' },
+      ],
+      rowsHtml,
+    });
   };
 
   // group pending by class for the drill-down
@@ -75,8 +109,8 @@ export default function ReportCoverageWidget() {
             </button>
           )}
           {!allDone && (
-            <button onClick={exportCsv} className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-black text-foreground hover:border-primary/50">
-              Export CSV
+            <button onClick={exportPendingPdf} className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-black text-primary hover:bg-primary/20">
+              Print / Save PDF
             </button>
           )}
         </div>

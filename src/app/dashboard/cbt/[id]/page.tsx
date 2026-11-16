@@ -54,6 +54,12 @@ export default function ExamDetailPage() {
   const [printPassMark, setPrintPassMark] = useState<string>('');       // '' = use exam default
   const printMenuRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (searchParams?.get('print') === '1') {
+      setPrintMenuOpen(true);
+    }
+  }, [searchParams]);
+
   const role = profile?.role ?? '';
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
   const canManageExam = role === 'admin' || role === 'teacher';
@@ -292,10 +298,12 @@ export default function ExamDetailPage() {
         </div>
 
         {/* Exam header */}
-        <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
-          <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-          <div className="relative z-10 flex items-start justify-between gap-4">
-            <div>
+        <div className="relative border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+            <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px]" />
+          </div>
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
                   CBT Examination Workspace
@@ -304,8 +312,11 @@ export default function ExamDetailPage() {
                   <AcademicCapIcon className="w-4 h-4" />
                   {exam.programs?.name}
                 </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                  {exam.is_active ? 'Active' : 'Inactive'}
+                </span>
               </div>
-              <h1 className="text-2xl font-extrabold mb-2">{exam.title}</h1>
+              <h1 className="text-xl sm:text-2xl font-extrabold mb-2">{exam.title}</h1>
               {exam.description && (
                 <div className="mt-1">
                   <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">Description</p>
@@ -313,140 +324,174 @@ export default function ExamDetailPage() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
-                {exam.is_active ? 'Active' : 'Inactive'}
-              </span>
-              {isStaff && (
-                <>
-                  {/* Print dropdown */}
-                  <div className="relative" ref={printMenuRef}>
-                    <button
-                      onClick={() => setPrintMenuOpen(o => !o)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors">
-                      <PrinterIcon className="w-3.5 h-3.5" /> Print
-                      <svg className="w-3 h-3 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    {printMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border shadow-2xl shadow-black/40 rounded-xl w-72" onMouseLeave={() => setPrintMenuOpen(false)}>
-
-                        {/* ── Section: Question Type ── */}
-                        <div className="px-4 py-2.5 border-b border-border">
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Question Type</p>
-                          <div className="flex gap-1">
-                            {(['all', 'mcq', 'theory'] as const).map(f => (
-                              <button key={f} onClick={() => setPrintFilter(f)}
-                                className={`flex-1 px-2 py-1 text-[9px] font-black uppercase rounded-xl border transition-colors ${printFilter === f ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
-                                {f === 'all' ? 'Both' : f === 'mcq' ? 'Objective' : 'Theory'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* ── Section: Question Counts ── */}
-                        <div className="px-4 py-3 border-b border-border space-y-2.5">
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Question Count</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {printFilter !== 'theory' && (
-                              <div>
-                                <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                                  Obj / MCQ
-                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q: any) => isObjectiveQuestion(q)).length} avail)</span>
-                                </label>
-                                <input
-                                  type="number" min="1"
-                                  max={questions.filter((q: any) => isObjectiveQuestion(q)).length}
-                                  value={printMcqCount}
-                                  onChange={e => setPrintMcqCount(e.target.value)}
-                                  placeholder="All"
-                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
-                                />
-                              </div>
-                            )}
-                            {printFilter !== 'mcq' && (
-                              <div>
-                                <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                                  Theory
-                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q: any) => isTheoryQuestion(q)).length} avail)</span>
-                                </label>
-                                <input
-                                  type="number" min="1"
-                                  max={questions.filter((q: any) => isTheoryQuestion(q)).length}
-                                  value={printTheoryCount}
-                                  onChange={e => setPrintTheoryCount(e.target.value)}
-                                  placeholder="All"
-                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* ── Section: Exam Settings ── */}
-                        <div className="px-4 py-3 border-b border-border space-y-2.5">
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Exam Settings</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                                Duration (min)
-                              </label>
-                              <input
-                                type="number" min="1"
-                                value={printDuration}
-                                onChange={e => setPrintDuration(e.target.value)}
-                                placeholder={exam?.duration_minutes ? String(exam.duration_minutes) : 'Auto'}
-                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                                Pass Mark (%)
-                              </label>
-                              <input
-                                type="number" min="1" max="100"
-                                value={printPassMark}
-                                onChange={e => setPrintPassMark(e.target.value)}
-                                placeholder={String(exam?.passing_score ?? 70)}
-                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 rounded-xl"
-                              />
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => { setPrintMcqCount(''); setPrintTheoryCount(''); setPrintDuration(''); setPrintPassMark(''); }}
-                            className="text-[8px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest transition-colors">
-                            Reset to defaults
-                          </button>
-                        </div>
-
-                        {/* ── Print Actions ── */}
-                        <div className="px-4 pt-3 pb-2">
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Choose print copy</p>
-                        </div>
-                        <button
-                          onClick={() => { setPrintMenuOpen(false); handlePrintExam('student', printFilter); }}
-                          className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors border-b border-border flex flex-col gap-0.5">
-                          <span className="text-foreground">Student Copy</span>
-                          <span className="text-muted-foreground font-normal">Questions only, no answers</span>
-                        </button>
-                        <button
-                          onClick={() => { setPrintMenuOpen(false); handlePrintExam('staff', printFilter); }}
-                          className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors flex flex-col gap-0.5">
-                          <span className="text-primary">Teacher Copy + Answer Key</span>
-                          <span className="text-muted-foreground font-normal">Teacher-only version with marked answers</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {canManageExam && (
-                    <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-colors">
-                      <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
-                    </Link>
-                  )}
-                </>
-              )}
-            </div>
+            {isStaff && (
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0" ref={printMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => handlePrintExam('student', 'all')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-black rounded-xl transition-colors shadow-sm"
+                >
+                  <PrinterIcon className="w-4 h-4" /> Print Student Paper
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrintExam('staff', 'all')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold rounded-xl transition-colors"
+                >
+                  <PrinterIcon className="w-4 h-4" /> Teacher Key
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintMenuOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted border border-border text-foreground text-xs font-bold rounded-xl transition-colors"
+                >
+                  <PrinterIcon className="w-4 h-4 text-primary" /> Print Options
+                </button>
+                {canManageExam && (
+                  <Link href={`/dashboard/cbt/${exam.id}/edit`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors">
+                    <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Responsive Print Options Modal — never clipped on mobile or desktop */}
+          {isStaff && printMenuOpen && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4" onClick={() => setPrintMenuOpen(false)}>
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Print CBT Exam Options"
+                className="w-full sm:max-w-md bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <PrinterIcon className="w-5 h-5 text-primary" />
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">Print &amp; Save Exam PDF</h3>
+                      <p className="text-[11px] text-muted-foreground">Customize sections, question count, or pass mark</p>
+                    </div>
+                  </div>
+                  <button type="button" aria-label="Close print options" onClick={() => setPrintMenuOpen(false)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground">
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4 overflow-y-auto">
+                  {/* Question Type */}
+                  <div>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Question Type</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(['all', 'mcq', 'theory'] as const).map(f => (
+                        <button key={f} type="button" onClick={() => setPrintFilter(f)}
+                          className={`px-3 py-2 text-xs font-black uppercase rounded-xl border transition-colors ${printFilter === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
+                          {f === 'all' ? 'Both' : f === 'mcq' ? 'Objective' : 'Theory'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Question Counts */}
+                  <div>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Question Count</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {printFilter !== 'theory' && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                            Obj / MCQ ({questions.filter((q: any) => isObjectiveQuestion(q)).length} avail)
+                          </label>
+                          <input
+                            type="number" min="1"
+                            max={questions.filter((q: any) => isObjectiveQuestion(q)).length}
+                            value={printMcqCount}
+                            onChange={e => setPrintMcqCount(e.target.value)}
+                            placeholder="All"
+                            className="w-full px-3 py-2 bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary rounded-xl"
+                          />
+                        </div>
+                      )}
+                      {printFilter !== 'mcq' && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                            Theory ({questions.filter((q: any) => isTheoryQuestion(q)).length} avail)
+                          </label>
+                          <input
+                            type="number" min="1"
+                            max={questions.filter((q: any) => isTheoryQuestion(q)).length}
+                            value={printTheoryCount}
+                            onChange={e => setPrintTheoryCount(e.target.value)}
+                            placeholder="All"
+                            className="w-full px-3 py-2 bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary rounded-xl"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Exam Settings */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Paper Header Overrides</p>
+                      <button
+                        type="button"
+                        onClick={() => { setPrintMcqCount(''); setPrintTheoryCount(''); setPrintDuration(''); setPrintPassMark(''); setPrintFilter('all'); }}
+                        className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider">
+                        Reset defaults
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                          Duration (min)
+                        </label>
+                        <input
+                          type="number" min="1"
+                          value={printDuration}
+                          onChange={e => setPrintDuration(e.target.value)}
+                          placeholder={exam?.duration_minutes ? String(exam.duration_minutes) : 'Auto'}
+                          className="w-full px-3 py-2 bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary rounded-xl"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                          Pass Mark (%)
+                        </label>
+                        <input
+                          type="number" min="1" max="100"
+                          value={printPassMark}
+                          onChange={e => setPrintPassMark(e.target.value)}
+                          placeholder={String(exam?.passing_score ?? 70)}
+                          className="w-full px-3 py-2 bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border-t border-border bg-muted/20 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => { setPrintMenuOpen(false); handlePrintExam('student', printFilter); }}
+                    className="flex flex-col items-center justify-center px-4 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-black text-xs transition-colors"
+                  >
+                    <span>Print Student Copy</span>
+                    <span className="text-[10px] font-normal opacity-80">Questions only, no answers</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPrintMenuOpen(false); handlePrintExam('staff', printFilter); }}
+                    className="flex flex-col items-center justify-center px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-100 font-black text-xs transition-colors"
+                  >
+                    <span>Teacher Copy + Answer Key</span>
+                    <span className="text-[10px] font-normal opacity-80">Marked answers &amp; guides</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
             {exam.duration_minutes && <span className="flex items-center gap-1.5"><ClockIcon className="w-4 h-4" />{exam.duration_minutes} minutes</span>}
             <span className="flex items-center gap-1.5"><CheckCircleIcon className="w-4 h-4" />{exam.passing_score ?? 70}% to pass</span>
