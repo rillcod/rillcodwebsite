@@ -2223,38 +2223,121 @@ export default function ClassDetailPage() {
                 </div>
               )}
 
-              {/* The assignment, exam and grade lists live in the record strip below, so this
-                  is just the things you cannot do from a list: create work, and open the
-                  full-screen tools. Four stat cards here only repeated what is already there. */}
+              {/* Assessment Command Bar — clean 2-step hierarchy: Issue Work -> Mark & Results */}
               {activeOperation === 'assessment' && (
                 <div className="min-w-0 space-y-3">
-                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-primary/20 bg-background px-2.5 py-1 text-[10px] font-black text-primary">
-                        {assessmentCopy?.standingLabel ?? 'School arrangement'}
-                      </span>
-                      <span className="text-[10px] font-bold text-muted-foreground">
-                        {assessmentCopy?.resultLabel ?? 'Class results'}
-                      </span>
+                  <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                        <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                          {assessmentCopy?.standingLabel ?? 'Class Assessment'}
+                        </span>
+                        {assessmentRecordsLoaded && (
+                          <span className="text-muted-foreground">
+                            {assessmentSummary.open} open · {assessmentSummary.awaiting_review} to mark · {assessmentSummary.marked} marked
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="mt-2 text-sm font-black text-foreground">
-                      {assessmentCopy?.title ?? 'Class assessment and results'}
-                    </h3>
-                    <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">
-                      {assessmentCopy?.description ?? 'Review class work and results from one place.'}
-                    </p>
+
+                    <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+                      {!isSchool && (
+                        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Issue new assessment">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">
+                            1. Issue:
+                          </span>
+                          <Link
+                            href={buildAssignmentNewHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5" />
+                            Assignment
+                          </Link>
+                          <Link
+                            href={buildProjectNewHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-primary/40 transition-colors"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5 text-primary" />
+                            Project
+                          </Link>
+                          <Link
+                            href={buildCbtNewHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                              programId: cls?.program_id,
+                              schoolId: cls?.school_id,
+                            })}
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-amber-500/40 transition-colors"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                            {assessmentPolicy?.usesHostEvaluation ? 'Practice CBT' : 'CBT Exam'}
+                          </Link>
+                          <Link
+                            href={`/dashboard/exams/new?class_id=${id}${
+                              searchParams.get('course_id') || cls?.current_course_id
+                                ? `&course_id=${searchParams.get('course_id') || cls?.current_course_id}`
+                                : ''
+                            }${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`}
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-primary/40 transition-colors"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5 text-primary" />
+                            Written Exam
+                          </Link>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 lg:border-l lg:border-border lg:pl-3" role="group" aria-label="Mark and view results">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">
+                          2. Review:
+                        </span>
+                        {!isSchool && (
+                          <Link
+                            href={`/dashboard/grades?class_id=${id}`}
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <AcademicCapIcon className="h-3.5 w-3.5" />
+                            Mark Class Work
+                            {assessmentSummary.awaiting_review > 0 && (
+                              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                                {assessmentSummary.awaiting_review}
+                              </span>
+                            )}
+                          </Link>
+                        )}
+                        <Link
+                          href={buildResultsHref({
+                            classId: id,
+                            courseId: searchParams.get('course_id') || cls?.current_course_id,
+                          })}
+                          className={`inline-flex min-h-10 items-center justify-center rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
+                            assessmentPolicy?.usesHostEvaluation
+                              ? 'bg-primary text-primary-foreground shadow-sm hover:opacity-90'
+                              : 'border border-border bg-background text-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          {assessmentCopy?.resultsAction ?? 'Open Results'}
+                        </Link>
+                      </div>
+                    </div>
                   </div>
 
                   {!isSchool && assessmentPolicy?.usesHostEvaluation ? (
                     <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                          <h3 className="text-sm font-black text-foreground">Record official school papers</h3>
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the exact paper. Each link opens one class mark sheet; report cards read the saved marks automatically.</p>
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">One class · one result record</span>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
+                          Official School Papers
+                        </h3>
+                        <span className="text-[10px] font-bold text-muted-foreground">
+                          Click a paper to enter hall marks
+                        </span>
                       </div>
-                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         {(['first_test', 'second_test', 'examination'] as const).map((kind) => (
                           <Link
                             key={kind}
@@ -2265,7 +2348,7 @@ export default function ClassDetailPage() {
                               programId: cls?.program_id,
                               schoolId: cls?.school_id,
                             })}
-                            className="inline-flex min-h-12 items-center justify-between rounded-xl border border-border bg-background px-3 text-sm font-black text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                            className="inline-flex min-h-11 items-center justify-between rounded-xl border border-border bg-background px-3.5 text-xs font-black text-foreground transition-colors hover:border-primary/40 hover:text-primary"
                           >
                             {kind === 'first_test' ? 'First Test' : kind === 'second_test' ? 'Second Test' : 'Examination'}
                             <ChevronRightIcon className="h-4 w-4" />
@@ -2274,81 +2357,6 @@ export default function ClassDetailPage() {
                       </div>
                     </div>
                   ) : null}
-
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    {!isSchool && (
-                      <>
-                        <Link
-                          href={buildAssignmentNewHref({
-                            classId: id,
-                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                          })}
-                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90"
-                        >
-                          <PlusIcon className="h-3.5 w-3.5" />
-                          New assignment
-                        </Link>
-                        <Link
-                          href={buildProjectNewHref({
-                            classId: id,
-                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                          })}
-                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-black text-foreground hover:border-primary/40"
-                        >
-                          <PlusIcon className="h-3.5 w-3.5 text-primary" />
-                          New project
-                        </Link>
-                        <Link
-                          href={buildCbtNewHref({
-                            classId: id,
-                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                            programId: cls?.program_id,
-                            schoolId: cls?.school_id,
-                          })}
-                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-black text-foreground hover:border-primary/40"
-                        >
-                          <PlusIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                          {assessmentPolicy?.usesHostEvaluation ? 'New practice CBT' : 'New CBT assessment'}
-                        </Link>
-                        <Link
-                          href={`/dashboard/exams/new?class_id=${id}${
-                            searchParams.get('course_id') || cls?.current_course_id
-                              ? `&course_id=${searchParams.get('course_id') || cls?.current_course_id}`
-                              : ''
-                          }${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`}
-                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-black text-foreground hover:border-primary/40"
-                        >
-                          <PlusIcon className="h-3.5 w-3.5 text-primary" />
-                          New written exam
-                        </Link>
-                        <Link
-                          href={`/dashboard/grades?class_id=${id}`}
-                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-black text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
-                        >
-                          <AcademicCapIcon className="h-3.5 w-3.5" />
-                          Mark class work
-                          {assessmentSummary.awaiting_review > 0 && (
-                            <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                              {assessmentSummary.awaiting_review}
-                            </span>
-                          )}
-                        </Link>
-                      </>
-                    )}
-                    <Link
-                      href={buildResultsHref({
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                      })}
-                      className={`inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-xs font-black transition-colors ${
-                        assessmentPolicy?.usesHostEvaluation
-                          ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90'
-                          : 'border border-border bg-background text-foreground hover:border-primary/40'
-                      }`}
-                    >
-                      {assessmentCopy?.resultsAction ?? 'Open results'}
-                    </Link>
-                  </div>
                 </div>
               )}
 
@@ -2516,34 +2524,12 @@ export default function ClassDetailPage() {
                       className="flex items-center gap-2 text-left min-w-0 flex-1"
                     >
                       <ClipboardDocumentListIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.workLabel ?? 'Assessment work'}</h2>
+                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.workLabel ?? 'Assignments & Projects'}</h2>
                       <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
                         {items.assignments.length}
                       </span>
                       <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${assignmentsOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    {!isSchool && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={buildAssignmentNewHref({
-                            classId: id,
-                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                          })}
-                          className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
-                        >
-                          <PlusIcon className="w-3.5 h-3.5" /> New assignment
-                        </Link>
-                        <Link
-                          href={buildProjectNewHref({
-                            classId: id,
-                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                          })}
-                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted transition-colors"
-                        >
-                          <PlusIcon className="w-3.5 h-3.5 text-primary" /> New project
-                        </Link>
-                      </div>
-                    )}
                   </div>
                   {assignmentsOpen && (
                     <div className="p-3 sm:p-4">
@@ -2607,18 +2593,29 @@ export default function ClassDetailPage() {
                                     </p>
                                   </div>
                                 </Link>
-                                <div className="flex items-center gap-1.5 flex-shrink-0 justify-end">
+                                <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0 justify-end">
                                   {pendingCnt > 0 && (
-                                    <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-black uppercase text-black">
-                                      {pendingCnt} to mark
-                                    </span>
+                                    <Link
+                                      href={itemHref}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-[11px] font-black text-black hover:bg-amber-400 transition-colors"
+                                    >
+                                      Mark ({pendingCnt})
+                                    </Link>
+                                  )}
+                                  {pendingCnt === 0 && aSubs.length > 0 && (
+                                    <Link
+                                      href={itemHref}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                                    >
+                                      Submissions ({aSubs.length})
+                                    </Link>
                                   )}
                                   <Link
                                     href={itemHref}
                                     className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted"
-                                    title="Open, edit or mark"
+                                    title="Open or edit"
                                   >
-                                    <PencilIcon className="w-3.5 h-3.5 text-primary" /> Edit / Mark
+                                    <PencilIcon className="w-3.5 h-3.5 text-primary" /> Open / Edit
                                   </Link>
                                   {isStaff && (
                                     <button
@@ -2668,25 +2665,12 @@ export default function ClassDetailPage() {
                       className="flex items-center gap-2 text-left min-w-0 flex-1"
                     >
                       <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT assessments'}</h2>
-                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300">
+                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT Assessments'}</h2>
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
                         {items.cbt.length}
                       </span>
                       <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${cbtOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    {!isSchool && (
-                      <Link
-                        href={buildCbtNewHref({
-                          classId: id,
-                          courseId: searchParams.get('course_id') || cls?.current_course_id,
-                          programId: cls?.program_id,
-                          schoolId: cls?.school_id,
-                        })}
-                        className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 transition-colors"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5" /> New CBT
-                      </Link>
-                    )}
                   </div>
                   {cbtOpen && (
                     <div className="p-3 sm:p-4">
@@ -2698,10 +2682,26 @@ export default function ClassDetailPage() {
                               ? 'No digital school paper or practice CBT has been set for this class.'
                               : 'No CBT assessment has been set for this class.'}
                           </p>
+                          {!isSchool && (
+                            <Link
+                              href={buildCbtNewHref({
+                                classId: id,
+                                courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                programId: cls?.program_id,
+                                schoolId: cls?.school_id,
+                              })}
+                              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 px-4 py-2 text-xs font-black text-white shadow-sm"
+                            >
+                              <PlusIcon className="w-3.5 h-3.5" /> Create first CBT
+                            </Link>
+                          )}
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {items.cbt.map(ex => isSchool ? (
+                          {items.cbt.map(ex => {
+                            const exSessions = items.cbtSessions.filter((s: any) => s.exam_id === ex.id);
+                            const exPending = exSessions.filter((s: any) => s.status === 'submitted' || s.status === 'pending_grading').length;
+                            return isSchool ? (
                             <div key={ex.id}
                               className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
                               <div className="flex items-center gap-3 mb-3">
@@ -2726,19 +2726,29 @@ export default function ClassDetailPage() {
                                   </div>
                                   <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
                                 </div>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                   <span>{ex.duration_minutes} mins</span>
                                   <span>·</span>
-                                  <span>{ex.total_questions} questions</span>
+                                  <span>{ex.total_questions} Qs</span>
+                                  {exSessions.length > 0 && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="font-semibold text-foreground">{exSessions.length} attempts</span>
+                                    </>
+                                  )}
                                   <span className={`ml-auto font-bold ${ex.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                                    {ex.is_active ? 'Active' : 'Inactive'}
+                                    {ex.is_active ? 'Active' : 'Draft'}
                                   </span>
                                 </div>
                               </Link>
-                              <div className="flex items-center gap-1.5 pt-2 border-t border-border/60">
+                              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
                                 <Link href={`/dashboard/cbt/${ex.id}`}
-                                  className="flex-1 text-center rounded-lg bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 text-[11px] font-bold text-primary transition-colors">
-                                  Results
+                                  className={`flex-1 text-center rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors ${
+                                    exPending > 0
+                                      ? 'bg-amber-500 text-black hover:bg-amber-400 font-black'
+                                      : 'bg-primary/10 hover:bg-primary/20 text-primary'
+                                  }`}>
+                                  {exPending > 0 ? `Mark (${exPending})` : 'Results'}
                                 </Link>
                                 <Link href={`/dashboard/cbt/${ex.id}/edit`}
                                   className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
@@ -2778,7 +2788,8 @@ export default function ClassDetailPage() {
                                 )}
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       )}
                     </div>
