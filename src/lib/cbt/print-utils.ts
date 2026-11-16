@@ -51,20 +51,87 @@ export function normalizeCbtOptions(options: unknown, questionType?: string | nu
   return trueFalseFallback();
 }
 
+const EXPLICIT_SUBJECTIVE_TYPES = new Set([
+  'essay',
+  'long_answer',
+  'theory',
+  'short_answer',
+  'subjective',
+  'fill_blank',
+  'fill_in_blank',
+  'coding',
+  'coding_blocks',
+  'practical',
+]);
+
+const EXPLICIT_OBJECTIVE_TYPES = new Set([
+  'multiple_choice',
+  'mcq',
+  'objective',
+  'obj',
+  'true_false',
+  'boolean',
+]);
+
+export type QuestionSectionTier = 'objective' | 'subjective' | 'essay';
+
+/**
+ * Intelligently classifies a question into Objective, Subjective (Short Answer / Fill-in-Blank / Coding),
+ * or Essay / Extended Theory so printouts and answer keys align cleanly without misclassification.
+ */
+export function classifyQuestionSection(q: {
+  question_type?: string | null;
+  options?: unknown;
+  question_text?: string | null;
+  points?: number | null;
+}): QuestionSectionTier {
+  const type = (q.question_type ?? '').trim().toLowerCase();
+  const text = (q.question_text ?? '').trim().toLowerCase();
+  const pts = Number(q.points ?? 0);
+
+  if (EXPLICIT_OBJECTIVE_TYPES.has(type)) return 'objective';
+
+  if (type === 'essay' || type === 'long_answer') return 'essay';
+  if (
+    type === 'short_answer'
+    || type === 'subjective'
+    || type === 'fill_blank'
+    || type === 'fill_in_blank'
+    || type === 'coding'
+    || type === 'coding_blocks'
+    || type === 'practical'
+  ) {
+    return 'subjective';
+  }
+
+  // Generic 'theory' or unknown type: check options vs prompt cues
+  if (!EXPLICIT_SUBJECTIVE_TYPES.has(type)) {
+    const opts = normalizeCbtOptions(q.options, type);
+    if (opts.length >= 2) return 'objective';
+  }
+
+  const essayCue = /\b(essay|discuss|explain in detail|compare and contrast|evaluate|justify|critically|elaborate|write a comprehensive)\b/i.test(text);
+  if (essayCue || pts >= 8) return 'essay';
+
+  return 'subjective';
+}
+
 export function isObjectiveQuestion(q: {
   question_type?: string | null;
   options?: unknown;
+  question_text?: string | null;
+  points?: number | null;
 }): boolean {
-  const type = (q.question_type ?? '').toLowerCase();
-  if (type === 'multiple_choice' || type === 'true_false') return true;
-  return normalizeCbtOptions(q.options, type).length > 0;
+  return classifyQuestionSection(q) === 'objective';
 }
 
 export function isTheoryQuestion(q: {
   question_type?: string | null;
   options?: unknown;
+  question_text?: string | null;
+  points?: number | null;
 }): boolean {
-  return !isObjectiveQuestion(q);
+  return classifyQuestionSection(q) !== 'objective';
 }
 
 /** Convert markdown-ish question text to safe print HTML. */
@@ -312,6 +379,9 @@ export type CbtPrintQuestion = {
   options?: unknown;
   correct_answer?: string | null;
   points?: number | null;
+  marking_guide?: string | null;
+  explanation?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type CbtPrintSheetConfig = {
@@ -331,9 +401,22 @@ export type CbtPrintSheetConfig = {
 };
 
 function theoryLineCount(q: CbtPrintQuestion): number {
-  if (q.question_type === 'essay') return 8;
-  if (q.question_type === 'fill_blank') return 3;
-  return 6;
+  const tier = classifyQuestionSection(q);
+  const type = (q.question_type ?? '').trim().toLowerCase();
+  if (tier === 'essay') return 8;
+  if (type === 'fill_blank' || type === 'fill_in_blank') return 2;
+  if (type === 'coding' || type === 'coding_blocks') return 6;
+  return 4;
+}
+
+function questionTypeBadgeLabel(q: CbtPrintQuestion): string {
+  const type = (q.question_type ?? '').trim().toLowerCase();
+  const tier = classifyQuestionSection(q);
+  if (tier === 'objective') return type === 'true_false' ? 'T/F' : 'OBJ';
+  if (tier === 'essay') return 'ESSAY';
+  if (type === 'fill_blank' || type === 'fill_in_blank') return 'FILL';
+  if (type === 'coding' || type === 'coding_blocks') return 'CODE';
+  return 'SHORT';
 }
 
 function hasCodeBlock(value: unknown): boolean {
@@ -380,15 +463,20 @@ function renderPrintQuestionBlock(q: CbtPrintQuestion, num: number, mode: 'stude
   const opts = normalizeCbtOptions(q.options, q.question_type);
   const isMCQ = isObjectiveQuestion(q) && opts.length > 0;
   const pts = q.points ?? 1;
+  const type = (q.question_type ?? '').trim().toLowerCase();
+  const isCodeType = type === 'coding' || type === 'coding_blocks';
   const widthClass = needsFullWidthPrintBlock(q) ? ' q-wide' : '';
+  const responseArea = isMCQ
+    ? renderPrintOptions(opts, { staffMode: mode === 'staff', correctAnswer: q.correct_answer, questionType: q.question_type })
+    : isCodeType
+      ? `<div class="code-ans-box"><span class="code-ans-lbl">Write your code / algorithm below:</span>${Array.from({ length: theoryLineCount(q) }).map(() => '<div class="ans-line"></div>').join('')}</div>`
+      : `<div class="ans-lines">${Array.from({ length: theoryLineCount(q) }).map(() => '<div class="ans-line"></div>').join('')}</div>`;
   return `<div class="q-block${widthClass}">
     <div class="q-row">
       <span class="q-num">${num}.</span>
       <div class="q-body">
         <div class="q-text">${mdToPrintHtml(q.question_text ?? '')}</div>
-        ${isMCQ
-          ? renderPrintOptions(opts, { staffMode: mode === 'staff', correctAnswer: q.correct_answer, questionType: q.question_type })
-          : `<div class="ans-lines">${Array.from({ length: theoryLineCount(q) }).map(() => '<div class="ans-line"></div>').join('')}</div>`}
+        ${responseArea}
       </div>
       <span class="q-pts">[${pts}]</span>
     </div>
@@ -411,37 +499,60 @@ function formalInstructionsHtml(cfg: CbtPrintSheetConfig, totalMarks: number, ha
 
 /** Compact A4 examination paper + optional staff marking guide. */
 export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
-  const mcq = cfg.mcqQuestions;
-  const theory = cfg.theoryQuestions;
-  const totalQ = mcq.length + theory.length;
+  // Re-classify robustly so essay / subjective / coding / objective always land in the right aligned section
+  const combinedInput = [...cfg.mcqQuestions, ...cfg.theoryQuestions];
+  const mcq = combinedInput.filter((q) => classifyQuestionSection(q) === 'objective');
+  const subjective = combinedInput.filter((q) => classifyQuestionSection(q) === 'subjective');
+  const essay = combinedInput.filter((q) => classifyQuestionSection(q) === 'essay');
+  const hasAllThree = mcq.length > 0 && subjective.length > 0 && essay.length > 0;
+
+  const totalQ = mcq.length + subjective.length + essay.length;
   const mcqPts = mcq.reduce((s, q) => s + (q.points ?? 0), 0);
-  const theoryPts = theory.reduce((s, q) => s + (q.points ?? 0), 0);
-  const totalMarks = mcqPts + theoryPts;
+  const subPts = subjective.reduce((s, q) => s + (q.points ?? 0), 0);
+  const essayPts = essay.reduce((s, q) => s + (q.points ?? 0), 0);
+  const totalMarks = mcqPts + subPts + essayPts;
   const examLabel = cfg.examTypeLabel ?? 'EXAMINATION';
 
   const mcqColumns = canUsePrintColumns(mcq);
   const mcqHtml = mcq.length
-    ? `<div class="section-hdr"><span class="s-title">Section A — Objective</span><span class="s-pts">${mcq.length} Q · ${mcqPts} marks</span></div>
+    ? `<div class="section-hdr"><span class="s-title">Section A — Objective (Multiple Choice &amp; True/False)</span><span class="s-pts">${mcq.length} Q · ${mcqPts} marks</span></div>
        <div class="${mcqColumns ? 'q-columns' : 'q-list'}">${mcq.map((q, i) => renderPrintQuestionBlock(q, i + 1, cfg.mode)).join('')}</div>`
     : '';
 
-  const theoryHtml = theory.length
-    ? `<div class="section-hdr"><span class="s-title">Section B — Theory</span><span class="s-pts">${theory.length} Q · ${theoryPts} marks</span></div>
-       <div class="q-list">${theory.map((q, i) => renderPrintQuestionBlock(q, mcq.length + i + 1, cfg.mode)).join('')}</div>`
+  const subSectionLetter = mcq.length > 0 ? 'Section B' : 'Section A';
+  const subjectiveHtml = subjective.length
+    ? `<div class="section-hdr"><span class="s-title">${subSectionLetter} — Subjective &amp; Short Answer</span><span class="s-pts">${subjective.length} Q · ${subPts} marks</span></div>
+       <div class="q-list">${subjective.map((q, i) => renderPrintQuestionBlock(q, mcq.length + i + 1, cfg.mode)).join('')}</div>`
     : '';
 
-  const allQuestions = [...mcq, ...theory];
+  const essaySectionLetter = hasAllThree
+    ? 'Section C'
+    : mcq.length > 0 || subjective.length > 0
+      ? 'Section B'
+      : 'Section A';
+  const essayHtml = essay.length
+    ? `<div class="section-hdr"><span class="s-title">${essaySectionLetter} — Essay &amp; Extended Theory</span><span class="s-pts">${essay.length} Q · ${essayPts} marks</span></div>
+       <div class="q-list">${essay.map((q, i) => renderPrintQuestionBlock(q, mcq.length + subjective.length + i + 1, cfg.mode)).join('')}</div>`
+    : '';
+
+  const allQuestions = [...mcq, ...subjective, ...essay];
   const answerKeyRows = allQuestions.map((q, i) => {
     const opts = normalizeCbtOptions(q.options, q.question_type);
     const showMcq = isObjectiveQuestion(q) && opts.length > 0;
     const idx = showMcq ? opts.findIndex((o) => o.trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) : -1;
     const letter = idx >= 0 ? (OPT_LABELS[idx] ?? '—') : '—';
     const short = (q.question_text ?? '').replace(/```[\s\S]*?```/g, '[code]').replace(/`[^`]+`/g, '`…`');
+    const guide = q.marking_guide || q.explanation || (q.metadata?.marking_guide ? String(q.metadata.marking_guide) : '');
+    const answerText = q.correct_answer ?? '';
+    const guideHtml = guide && guide.trim() !== answerText.trim()
+      ? `<div style="font-size:7.5pt;color:#444;margin-top:2pt;"><strong>Marking Guide:</strong> ${escapeHtml(guide)}</div>`
+      : '';
     return `<tr>
       <td class="c">${i + 1}</td>
+      <td class="c"><span class="ak-type">${questionTypeBadgeLabel(q)}</span></td>
       <td>${escapeHtml(short.length > 55 ? short.slice(0, 55) + '…' : short)}</td>
       <td class="c"><strong>${showMcq ? letter : '—'}</strong></td>
-      <td>${escapeHtml(q.correct_answer ?? '—')}</td>
+      <td>${escapeHtml(answerText || '—')}${guideHtml}</td>
       <td class="c">${q.points ?? 1}</td>
     </tr>`;
   }).join('');
@@ -450,13 +561,13 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
 <div class="page-break ak-page">
   <div class="official-hdr compact-hdr">
     <img src="${cfg.logoUrl}" class="hdr-logo" onerror="this.style.display='none'"/>
-    <div class="hdr-org"><div class="hdr-school">${escapeHtml(cfg.schoolName)}</div><div class="hdr-brand">Marking Scheme — Staff Only · Confidential</div></div>
+    <div class="hdr-org"><div class="hdr-school">${escapeHtml(cfg.schoolName)}</div><div class="hdr-brand">Marking Scheme &amp; Rubric — Staff Only · Confidential</div></div>
   </div>
   <div class="ak-warn">⚠ Do not distribute to candidates before or during the examination.</div>
   <table class="ak-tbl">
-    <thead><tr><th>#</th><th>Question</th><th>Key</th><th>Expected Answer</th><th>Pts</th></tr></thead>
+    <thead><tr><th>#</th><th>Type</th><th>Question</th><th>Key</th><th>Expected Answer &amp; Marking Guide</th><th>Pts</th></tr></thead>
     <tbody>${answerKeyRows}</tbody>
-    <tfoot><tr><td colspan="4" class="r"><strong>TOTAL</strong></td><td class="c"><strong>${totalMarks}</strong></td></tr></tfoot>
+    <tfoot><tr><td colspan="5" class="r"><strong>TOTAL</strong></td><td class="c"><strong>${totalMarks}</strong></td></tr></tfoot>
   </table>
   <div class="sig-row">
     <div class="sig-block"><span class="sig-label">Examiner / Facilitator</span></div>
@@ -468,42 +579,52 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>${escapeHtml(cfg.title)}</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;background:#fff}
-@page{size:A4 portrait;margin:8mm 9mm}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-.official-hdr{display:flex;align-items:center;gap:10pt;padding-bottom:6pt;border-bottom:2.5pt double #000;margin-bottom:5pt}
+body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;background:#f1f5f9;padding:0}
+.screen-toolbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;background:#0f172a;color:#fff;font-family:'Segoe UI',Arial,sans-serif;border-bottom:2px solid #4f46e5}
+.screen-toolbar-title{font-size:13px;font-weight:800}
+.screen-toolbar-actions{display:flex;gap:8px}
+.screen-btn-print{padding:7px 16px;border:none;border-radius:6px;background:#4f46e5;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.screen-btn-close{padding:7px 12px;border:1px solid #334155;border-radius:6px;background:#1e293b;color:#cbd5e1;font-size:11px;font-weight:700;cursor:pointer}
+.paper-sheet{max-width:210mm;margin:14px auto 28px;background:#fff;padding:12mm 12mm;box-shadow:0 10px 28px rgba(0,0,0,0.12)}
+@page{size:A4 portrait;margin:12mm 11mm}
+@media print{
+  body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .screen-toolbar{display:none!important}
+  .paper-sheet{max-width:none;margin:0;padding:0;box-shadow:none}
+}
+.official-hdr{display:flex;align-items:center;gap:10pt;padding-bottom:6pt;border-bottom:2.5pt double #000;margin-bottom:5pt;break-inside:avoid;page-break-inside:avoid}
 .compact-hdr{margin-bottom:4pt}
 .hdr-logo{width:40pt;height:40pt;object-fit:contain;flex-shrink:0}
 .hdr-org{flex:1;text-align:center}
 .hdr-school{font-size:11.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;line-height:1.15}
 .hdr-brand{font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#444;margin-top:2pt}
 .hdr-type{background:#000;color:#fff;padding:4pt 8pt;font-size:7pt;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;flex-shrink:0}
-.title-band{text-align:center;margin:5pt 0 4pt}
+.title-band{text-align:center;margin:5pt 0 4pt;break-inside:avoid;page-break-inside:avoid}
 .exam-title{font-size:12.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.5px}
 .exam-sub{font-size:8pt;color:#444;margin-top:2pt}
-.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #000;margin:4pt 0;font-size:8.3pt}
+.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #000;margin:4pt 0;font-size:8.3pt;break-inside:avoid;page-break-inside:avoid}
 .meta-cell{padding:2.5pt 4pt;border-right:1pt solid #aaa;text-align:center}
 .meta-cell:last-child{border-right:none}
 .meta-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#666;display:block}
 .meta-val{font-size:9pt;font-weight:700;display:block;margin-top:1pt}
-.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #000;margin:4pt 0}
+.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #000;margin:4pt 0;break-inside:avoid;page-break-inside:avoid}
 .stu-field{padding:3pt 5pt 2.5pt;border-right:1pt solid #aaa}
 .stu-field:last-child{border-right:none}
 .stu-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#555;display:block;margin-bottom:3pt}
 .stu-line{border-bottom:1pt solid #333;height:11pt}
-.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:3pt 6pt;margin:3pt 0 5pt;font-size:8pt;line-height:1.3}
+.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:3pt 6pt;margin:3pt 0 5pt;font-size:8pt;line-height:1.3;break-inside:avoid;page-break-inside:avoid}
 .instr-title{font-size:6.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:2pt}
 .instructions p{margin:0 0 1.5pt}
 .instr-extra{margin-top:2pt!important;font-style:italic;color:#333}
-.section-hdr{display:flex;align-items:center;gap:6pt;margin:6pt 0 4pt;border-top:1pt solid #000;padding-top:3pt}
+.section-hdr{display:flex;align-items:center;gap:6pt;margin:7pt 0 4pt;border-top:1pt solid #000;padding-top:3pt;break-after:avoid;page-break-after:avoid}
 .s-title{font-size:8.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px}
 .s-pts{font-size:8pt;color:#444;margin-left:auto}
 .q-list{display:block}
-.q-columns{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5pt 15pt}
+.q-columns{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:5pt 15pt}
 .q-columns::before{content:"";position:absolute;top:0;bottom:0;left:50%;border-left:0.85pt solid #999;box-shadow:1.5pt 0 0 #f2f2f2;transform:translateX(-50%)}
 .q-columns .q-block{position:relative;z-index:1;break-inside:avoid;page-break-inside:avoid;margin-bottom:0;background:#fff}
 .q-columns .q-wide{grid-column:1 / -1;padding:3pt 0 4pt;border-top:0.6pt solid #d7d7d7;border-bottom:0.6pt solid #e5e5e5}
-.q-block{margin-bottom:6pt;break-inside:auto;page-break-inside:auto}
+.q-block{margin-bottom:6pt;break-inside:avoid;page-break-inside:avoid}
 .q-row{display:flex;gap:5pt;align-items:flex-start}
 .q-num{font-weight:900;min-width:16pt;font-size:10.2pt;line-height:1.25;flex-shrink:0;color:#111}
 .q-body{flex:1;min-width:0}
@@ -512,9 +633,11 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
 .q-pts{font-size:7pt;color:#555;font-style:italic;flex-shrink:0;padding-top:2pt}
 .ans-lines{margin:3pt 0 0 20pt}
 .ans-line{border-bottom:0.6pt solid #bbb;height:15pt;margin-bottom:0}
+.code-ans-box{margin:4pt 0 0 20pt;border:0.8pt dashed #666;background:#fafafa;padding:4pt 8pt 6pt;border-radius:3px}
+.code-ans-lbl{display:block;font-size:6.5pt;font-weight:700;text-transform:uppercase;color:#555;letter-spacing:0.6px;margin-bottom:2pt}
 .cbt-code-block{max-width:100%}
 .page-footer{margin-top:8pt;border-top:0.5pt solid #ccc;padding-top:3pt;display:flex;justify-content:space-between;font-size:7pt;color:#666}
-.score-box{border:1pt solid #000;display:flex;margin-top:10pt;break-inside:avoid}
+.score-box{border:1pt solid #000;display:flex;margin-top:10pt;break-inside:avoid;page-break-inside:avoid}
 .score-cell{flex:1;padding:4pt 6pt;border-right:1pt solid #aaa;text-align:center}
 .score-cell:last-child{border-right:none}
 .score-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#666;display:block;margin-bottom:5pt}
@@ -522,14 +645,23 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
 .page-break{page-break-before:always}
 .ak-warn{background:#fef2f2;border:1pt solid #fca5a5;padding:5pt 8pt;font-size:8pt;color:#7f1d1d;margin-bottom:8pt}
 .ak-tbl{width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:10pt}
-.ak-tbl th,.ak-tbl td{border:1pt solid #bbb;padding:3pt 5pt;text-align:left}
+.ak-tbl th,.ak-tbl td{border:1pt solid #bbb;padding:3pt 5pt;text-align:left;vertical-align:top}
 .ak-tbl th{background:#eee;font-size:7pt;text-transform:uppercase;font-weight:900}
 .ak-tbl .c{text-align:center}
 .ak-tbl .r{text-align:right}
+.ak-type{display:inline-block;padding:1pt 4pt;border:0.6pt solid #999;border-radius:3pt;font-size:6.5pt;font-weight:900;background:#f8fafc}
 .sig-row{display:flex;gap:16pt;margin-top:12pt}
 .sig-block{flex:1;border-top:1pt solid #333;padding-top:3pt}
 .sig-label{font-size:7pt;font-weight:900;text-transform:uppercase;color:#555}
 </style></head><body>
+<div class="screen-toolbar">
+  <div class="screen-toolbar-title">${escapeHtml(cfg.title)} — Official Exam Paper (${cfg.mode === 'staff' ? 'Teacher Key' : 'Student Copy'})</div>
+  <div class="screen-toolbar-actions">
+    <button type="button" class="screen-btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
+    <button type="button" class="screen-btn-close" onclick="window.close()">✕ Close</button>
+  </div>
+</div>
+<div class="paper-sheet">
 <div class="official-hdr">
   <img src="${cfg.logoUrl}" class="hdr-logo" onerror="this.style.display='none'"/>
   <div class="hdr-org">
@@ -555,17 +687,20 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
   <div class="stu-field"><span class="stu-label">Adm. No.</span><div class="stu-line"></div></div>
   <div class="stu-field"><span class="stu-label">Score</span><div class="stu-line"></div></div>
 </div>
-${formalInstructionsHtml(cfg, totalMarks, mcq.length > 0, theory.length > 0)}
+${formalInstructionsHtml(cfg, totalMarks, mcq.length > 0, subjective.length > 0 || essay.length > 0)}
 ${mcqHtml}
-${theoryHtml}
+${subjectiveHtml}
+${essayHtml}
 <div class="score-box">
-  ${mcq.length ? '<div class="score-cell"><span class="score-label">Section A</span><div class="score-space"></div></div>' : ''}
-  ${theory.length ? '<div class="score-cell"><span class="score-label">Section B</span><div class="score-space"></div></div>' : ''}
+  ${mcq.length ? '<div class="score-cell"><span class="score-label">Section A (Obj)</span><div class="score-space"></div></div>' : ''}
+  ${subjective.length ? `<div class="score-cell"><span class="score-label">${subSectionLetter} (Subj)</span><div class="score-space"></div></div>` : ''}
+  ${essay.length ? `<div class="score-cell"><span class="score-label">${essaySectionLetter} (Essay)</span><div class="score-space"></div></div>` : ''}
   <div class="score-cell"><span class="score-label">Total</span><div class="score-space"></div></div>
   <div class="score-cell"><span class="score-label">Examiner</span><div class="score-space"></div></div>
 </div>
 <div class="page-footer"><span>${escapeHtml(cfg.schoolName)} · ${examLabel} · Ref ${escapeHtml(cfg.docRef)}</span><span>${escapeHtml(cfg.dateStr)}</span></div>
 ${staffPage}
+</div>
 </body></html>`;
 }
 
