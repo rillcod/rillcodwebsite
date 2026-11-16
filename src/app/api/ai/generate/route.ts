@@ -96,9 +96,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!body.topic?.trim() && !body.prompt?.trim()) {
+    if (
+      !body.topic?.trim() &&
+      !body.prompt?.trim() &&
+      !body.premadeQuestionsText?.trim() &&
+      !body.sourceMaterial?.trim()
+    ) {
       return NextResponse.json(
-        { error: "topic or prompt is required" },
+        { error: "topic, prompt, or source/premade questions are required" },
         { status: 400 }
       );
     }

@@ -27,6 +27,7 @@ import { buildCbtEntrySuggestion } from "@/lib/cbt/predictive-entry";
 import {
   buildAssessmentBlueprint,
   inferCognitiveLevel,
+  parsePremadeQuestionsFromText,
   resolveMcqAnswerToOption,
 } from "@/lib/cbt/question-bank-catalog";
 import { meetingContinuityInstruction } from "@/lib/academic/session-identity";
@@ -337,7 +338,7 @@ function getCbtGenerationPlan(req: GenerateRequest): CbtGenerationPlan {
     }
   }
 
-  if (mcqCount + openCount < entryDefaults.minimumQuestions) {
+  if (req.cbtMode !== "align_premade" && mcqCount + openCount < entryDefaults.minimumQuestions) {
     const needed = entryDefaults.minimumQuestions - (mcqCount + openCount);
     if (mcqCount > 0 || openCount === 0) mcqCount += needed;
     else openCount += needed;
@@ -466,7 +467,10 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
       ? type === "true_false"
         ? ["True", "False"]
         : Array.isArray(q.options) && q.options.length >= 2
-        ? q.options.slice(0, 6).map(String)
+        ? q.options
+            .slice(0, 6)
+            .map((o: any) => String(o ?? "").replace(/^(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:])\s+/, "").trim())
+            .filter(Boolean)
         : ["True", "False"]
       : [];
     const questionText =
@@ -1377,11 +1381,15 @@ RULES:
 
       const premadeAlignBlock =
         req.cbtMode === "align_premade" || req.premadeQuestionsText?.trim()
-          ? `\nPREMADE QUESTIONS TO EXTRACT, REFINE & ALIGN TO BLUEPRINT:\nThe teacher has provided premade questions below (from a .txt/.pdf file or pasted draft). CRITICAL RULES FOR PASTED QUESTIONS:\n1. PRESERVE EVERY QUESTION'S TYPE & SECTION: Keep every Objective/MCQ question (A-D/a-d/options) as "multiple_choice" (or "true_false") with its options intact; NEVER convert Objective MCQs into Theory/Essay. Keep Subjective/Short Answer questions as "fill_blank" (with NO options) and Essay/Theory questions as "essay" (with NO options).\n2. REFINE & SOLVE COMPLETELY: Clean up formatting/grammar if needed, solve every Objective question so "correct_answer" matches the exact winning option text, AND generate a clear "marking_guide" (point-by-point scoring rubric, e.g. 'Award 2 marks for..., 3 marks for...') + model answer for EVERY Theory/Essay/Subjective question (and rationale for Objective questions).\n3. ALIGN TO COURSE/BLUEPRINT: Tag each question's cognitive_level (foundation/application/reasoning) and curriculum_tag. Generate extra aligned questions ONLY if needed to reach ${totalQ} total questions:\n"""\n${(
+          ? `\nPREMADE QUESTIONS TO EXTRACT, REFINE & ALIGN TO BLUEPRINT:\nThe teacher has provided premade questions below (from a .txt/.pdf file or pasted draft). CRITICAL RULES FOR PASTED QUESTIONS:\n1. PRESERVE EVERY QUESTION'S TYPE & SECTION: Keep every Objective/MCQ question (A-D/a-d/options) as "multiple_choice" (or "true_false") with its options intact; NEVER convert Objective MCQs into Theory/Essay. Keep Subjective/Short Answer questions as "fill_blank" (with NO options) and Essay/Theory questions as "essay" (with NO options).\n2. REFINE & SOLVE COMPLETELY: Clean up formatting/grammar if needed, solve every Objective question so "correct_answer" matches the exact winning option text (without A)/B) prefix), AND generate a clear "marking_guide" (point-by-point scoring rubric, e.g. 'Award 2 marks for..., 3 marks for...') + model answer for EVERY Theory/Essay/Subjective question (and rationale for Objective questions).\n3. ALIGN TO COURSE/BLUEPRINT: Tag each question's cognitive_level (foundation/application/reasoning) and curriculum_tag. ${
+              req.cbtMode === "align_premade"
+                ? "Do NOT invent extra filler questions or drop any of the teacher's pasted questions — return EVERY question provided below:"
+                : `Generate extra aligned questions ONLY if needed to reach ${totalQ} total questions:`
+            }\n"""\n${(
               req.premadeQuestionsText ||
               req.sourceMaterial ||
               ""
-            ).slice(0, 8000)}\n"""\n`
+            ).slice(0, 24000)}\n"""\n`
           : "";
 
       return `Generate a Computer Based Test (CBT) and Assessment Blueprint for Rillcod Technologies.
@@ -2086,6 +2094,7 @@ export async function resolveGenerationPlan(
         "google/gemini-2.0-flash-lite-001",
       ];
       adaptiveTemperature = 0.15; // High precision, deterministic answers & rubrics
+      adaptiveMaxTokens = 8192; // Support up to 40 questions with marking guides without JSON truncation
       break;
 
     case "lesson-hook":
@@ -2283,11 +2292,26 @@ export async function generateAIContent(
   if (!VALID_GENERATE_TYPES.includes(type)) {
     throw new Error("invalid type");
   }
-  if (!body.topic?.trim() && !body.prompt?.trim()) {
-    throw new Error("topic or prompt is required");
+  if (
+    !body.topic?.trim() &&
+    !body.prompt?.trim() &&
+    !body.premadeQuestionsText?.trim() &&
+    !body.sourceMaterial?.trim()
+  ) {
+    throw new Error("topic, prompt, or source/premade questions are required");
   }
+  const normalizedBody: GenerateRequest = body.topic?.trim()
+    ? body
+    : {
+        ...body,
+        topic:
+          body.sourceName?.trim() ||
+          body.courseName?.trim() ||
+          "Assessment Questions",
+      };
+  body = normalizedBody;
 
-  const plan = await resolveGenerationPlan(body);
+  const plan = await resolveGenerationPlan(normalizedBody);
   let lastError: string | null = null;
 
   const geminiReasoning = [
@@ -2561,6 +2585,33 @@ export async function generateAIContent(
       recordModelFailure(modelId, 500);
       console.error(`Error attempting model ${modelId}:`, err.message);
       lastError = err.message;
+    }
+  }
+
+  if (
+    type === "cbt" &&
+    (normalizedBody.premadeQuestionsText?.trim() || normalizedBody.sourceMaterial?.trim())
+  ) {
+    const rawText =
+      normalizedBody.premadeQuestionsText?.trim() ||
+      normalizedBody.sourceMaterial?.trim() ||
+      "";
+    const parsedPremade = parsePremadeQuestionsFromText(rawText, {
+      sourceName: normalizedBody.sourceName || "Premade Script",
+      defaultTrack: normalizedBody.topic,
+    });
+    if (parsedPremade.length > 0) {
+      return {
+        success: true,
+        model: "local-parser-fallback",
+        data: finalizeCbtGeneratedData(
+          {
+            title: normalizedBody.topic,
+            questions: parsedPremade,
+          },
+          normalizedBody
+        ),
+      };
     }
   }
 

@@ -104,8 +104,8 @@ export default function QuestionAuthoringStudio({
   maxQuestions = 50,
   disabled = false,
 }: QuestionAuthoringStudioProps) {
-  // Optional secondary drawers (kept closed by default so the main AI workflow is fast and simple)
-  const [openDrawer, setOpenDrawer] = useState<'none' | 'bank' | 'blueprint'>('none');
+  // Clean segmented studio modes
+  const [activeTab, setActiveTab] = useState<'generate' | 'premade' | 'bank' | 'blueprint'>('generate');
 
   // Scoped data from /api/cbt/question-bank
   const [bankQuestions, setBankQuestions] = useState<PremadeQuestionItem[]>([]);
@@ -118,7 +118,6 @@ export default function QuestionAuthoringStudio({
   const [sourceText, setSourceText] = useState(initialSourceText);
   const [sourceName, setSourceName] = useState(initialSourceName);
   const [isWeekDerivedSource, setIsWeekDerivedSource] = useState(false);
-  const [showPasteBox, setShowPasteBox] = useState(false);
   const [mcqCount, setMcqCount] = useState(String(defaultMcqCount));
   const [theoryCount, setTheoryCount] = useState(String(defaultTheoryCount));
   const [importBehavior, setImportBehavior] = useState<'append' | 'replace'>('replace');
@@ -140,6 +139,7 @@ export default function QuestionAuthoringStudio({
   const [trackFilter, setTrackFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [sectionFilter, setSectionFilter] = useState<'all' | 'objective' | 'subjective'>('all');
   const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
 
   // Dynamic sync when parent changes Exam Type (Examination <-> Evaluation)
@@ -294,6 +294,18 @@ export default function QuestionAuthoringStudio({
     return Array.from(set);
   }, [combinedBankQuestions]);
 
+  const premadeSegmentation = useMemo(() => {
+    const objective = detectedPremadeFromSource.filter(
+      (q) => q.question_type === 'multiple_choice' || q.question_type === 'true_false',
+    ).length;
+    const fillBlank = detectedPremadeFromSource.filter((q) => q.question_type === 'fill_blank').length;
+    const essay = detectedPremadeFromSource.filter((q) => q.question_type === 'essay').length;
+    const needsAi = detectedPremadeFromSource.filter(
+      (q) => q.needsAiAnswer || !q.correct_answer?.trim() || !q.marking_guide?.trim(),
+    ).length;
+    return { objective, fillBlank, essay, needsAi };
+  }, [detectedPremadeFromSource]);
+
   const filteredBankQuestions = useMemo(
     () =>
       filterPremadeQuestions(combinedBankQuestions, {
@@ -302,8 +314,12 @@ export default function QuestionAuthoringStudio({
         source: sourceFilter,
         questionType: typeFilter,
         weekNumber: null,
+      }).filter((item) => {
+        if (sectionFilter === 'all') return true;
+        const isObj = item.question_type === 'multiple_choice' || item.question_type === 'true_false';
+        return sectionFilter === 'objective' ? isObj : !isObj;
       }),
-    [combinedBankQuestions, searchQuery, trackFilter, sourceFilter, typeFilter],
+    [combinedBankQuestions, searchQuery, trackFilter, sourceFilter, typeFilter, sectionFilter],
   );
 
   const applyWeekAlignmentToAi = useCallback(
@@ -655,7 +671,6 @@ export default function QuestionAuthoringStudio({
       setAiSuccessMsg(
         `Solved answers & marking guides for ${finalQuestions.length} questions!`,
       );
-      setShowPasteBox(false);
     } catch (err: any) {
       setAiError(err?.message || 'Failed to solve premade questions.');
     } finally {
@@ -704,7 +719,7 @@ export default function QuestionAuthoringStudio({
       'append',
     );
     setSelectedBankIds(new Set());
-    setOpenDrawer('none');
+    setAiSuccessMsg(`Added ${chosen.length} past question${chosen.length === 1 ? '' : 's'} to the paper.`);
   };
 
   if (disabled) return null;
@@ -713,20 +728,39 @@ export default function QuestionAuthoringStudio({
   const hasPaperQuestions = currentQuestions.some((q) => String(q.question_text ?? '').trim().length > 0);
   const missingAnswersCount = Math.max(0, liveBlueprint.totalQuestions - liveBlueprint.answeredCount);
 
+  const studioTabs: Array<{
+    id: 'generate' | 'premade' | 'bank' | 'blueprint';
+    label: string;
+    badge?: string | number;
+  }> = [
+    { id: 'generate', label: 'AI Generate' },
+    {
+      id: 'premade',
+      label: 'Paste / Upload & Solve',
+      badge: detectedPremadeFromSource.length > 0 ? detectedPremadeFromSource.length : undefined,
+    },
+    { id: 'bank', label: 'Past Questions', badge: combinedBankQuestions.length },
+    {
+      id: 'blueprint',
+      label: 'Blueprint & Audit',
+      badge: hasPaperQuestions ? `${liveBlueprint.alignmentScore}%` : undefined,
+    },
+  ];
+
   return (
     <section
-      aria-label="AI Question Generator and Question Bank"
+      aria-label="AI Question Assistant and Assessment Studio"
       className="rounded-2xl border border-emerald-500/25 bg-card shadow-sm overflow-hidden"
     >
-      {/* STREAMLINED MAIN AI BAR */}
-      <div className="p-4 sm:p-5 space-y-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+      {/* Header + Segmented Mode Bar */}
+      <div className="border-b border-border/70 bg-muted/20 px-4 py-3.5 sm:px-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400 shrink-0">
               <SparklesIcon className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-foreground tracking-tight flex items-center gap-2">
+              <h2 className="text-sm font-black text-foreground tracking-tight flex flex-wrap items-center gap-2">
                 AI Question Assistant
                 {courseTitle && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
@@ -735,19 +769,18 @@ export default function QuestionAuthoringStudio({
                 )}
               </h2>
               <p className="text-[11px] text-muted-foreground">
-                Generate from topic, taught weeks, or `.txt` / `.pdf` — answers &amp; marking guides are filled automatically.
+                Segmented workflow: generate from curriculum, solve &amp; import pasted papers, reuse past questions, or audit readiness.
               </p>
             </div>
           </div>
 
-          {/* Secondary Quick Drawers: Past Questions & Blueprint Check */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             {hasPaperQuestions && missingAnswersCount > 0 && (
               <button
                 type="button"
                 onClick={() => handleAiAlignAndSolvePremade(true)}
                 disabled={aiSolvingPremade}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/35 hover:bg-amber-500/25 transition-all disabled:opacity-50"
               >
                 {aiSolvingPremade ? (
                   <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -758,194 +791,345 @@ export default function QuestionAuthoringStudio({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => setOpenDrawer((d) => (d === 'bank' ? 'none' : 'bank'))}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                openDrawer === 'bank'
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border text-foreground hover:bg-muted'
-              }`}
-            >
-              <BookOpenIcon className="w-3.5 h-3.5" />
-              Past Questions ({combinedBankQuestions.length})
-              <ChevronDownIcon className={`w-3 h-3 transition-transform ${openDrawer === 'bank' ? 'rotate-180' : ''}`} />
-            </button>
-
             {hasPaperQuestions && (
-              <button
-                type="button"
-                onClick={() => setOpenDrawer((d) => (d === 'blueprint' ? 'none' : 'blueprint'))}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  openDrawer === 'blueprint'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background border-border text-foreground hover:bg-muted'
-                }`}
+              <div
+                role="group"
+                aria-label="Import mode"
+                className="inline-flex items-center rounded-xl border border-border bg-background p-0.5 text-[11px] font-bold"
               >
-                <ChartBarIcon className="w-3.5 h-3.5" />
-                Blueprint ({liveBlueprint.alignmentScore}%)
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={importBehavior === 'replace'}
+                  onClick={() => setImportBehavior('replace')}
+                  className={`px-2.5 py-1 rounded-lg transition-colors ${
+                    importBehavior === 'replace'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={importBehavior === 'append'}
+                  onClick={() => setImportBehavior('append')}
+                  className={`px-2.5 py-1 rounded-lg transition-colors ${
+                    importBehavior === 'append'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Append
+                </button>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Inline Taught Weeks Strip (only when weeks exist for this Class/Course) */}
-        {curriculumWeeks.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1 mr-1">
-              <AcademicCapIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              Taught Weeks:
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const taught = new Set(curriculumWeeks.filter((w) => w.taught).map((w) => w.week));
-                const target = taught.size > 0 ? taught : new Set(curriculumWeeks.map((w) => w.week));
-                setSelectedWeeks(target);
-                applyWeekAlignmentToAi(target);
-              }}
-              className="px-2 py-1 rounded-lg text-[11px] font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/20"
-            >
-              All Taught
-            </button>
-            {curriculumWeeks.map((w) => {
-              const active = selectedWeeks.has(w.week);
-              return (
-                <button
-                  key={w.week}
-                  type="button"
-                  onClick={() => toggleWeekSelection(w.week)}
-                  title={w.title}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                    active
-                      ? 'bg-emerald-700 text-white border-emerald-700'
-                      : 'bg-background border-border text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <span>W{w.week}: {w.title.length > 22 ? `${w.title.slice(0, 22)}…` : w.title}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Primary Input Row: Topic + MCQ Count + Theory Count + Generate Button */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
-          <div className="sm:col-span-5">
-            <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
-              Topic or Focus
-            </label>
-            <input
-              type="text"
-              value={aiTopic}
-              onChange={(e) => {
-                userEditedTopicRef.current = true;
-                setAiTopic(e.target.value);
-              }}
-              placeholder={
-                courseTitle
-                  ? `e.g. ${courseTitle}`
-                  : 'e.g. Python Loops, Robotics Sensors, HTML Forms'
-              }
-              className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:col-span-3">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
-                MCQ
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={maxQuestions}
-                value={mcqCount}
-                onChange={(e) => {
-                  userEditedCountsRef.current = true;
-                  setMcqCount(e.target.value);
-                  onQuestionMixChange?.(parseInt(e.target.value, 10) || 0, parseInt(theoryCount, 10) || 0);
-                }}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
-                Theory
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={maxQuestions}
-                value={theoryCount}
-                onChange={(e) => {
-                  userEditedCountsRef.current = true;
-                  setTheoryCount(e.target.value);
-                  onQuestionMixChange?.(parseInt(mcqCount, 10) || 0, parseInt(e.target.value, 10) || 0);
-                }}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div className="sm:col-span-4">
-            <button
-              type="button"
-              onClick={handleAiGenerate}
-              disabled={aiGenerating || aiSolvingPremade}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all disabled:opacity-50"
-            >
-              {aiGenerating || aiSolvingPremade ? (
-                <>
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                  {detectedPremadeFromSource.length > 0 ? 'Solving Answers & Guide…' : 'Generating…'}
-                </>
-              ) : detectedPremadeFromSource.length > 0 ? (
-                <>
-                  <SparklesIcon className="w-4 h-4" />
-                  Solve &amp; Import {detectedPremadeFromSource.length} Qs
-                </>
-              ) : (
-                <>
-                  <SparklesIcon className="w-4 h-4" />
-                  Generate {targetTotal} Questions
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Compact File / Paste / Replace-vs-Append Footer Strip */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/60 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            {sourceName && !isWeekDerivedSource ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/25 text-xs">
-                <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
-                <span className="font-bold text-foreground truncate max-w-[200px]">{sourceName}</span>
-                {detectedPremadeFromSource.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 text-[10px] font-black">
-                    {detectedPremadeFromSource.length} Qs found
+        {/* Accessible Segmented Tab Strip */}
+        <div
+          role="tablist"
+          aria-label="Question assistant modes"
+          className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 rounded-xl bg-background/90 border border-border p-1"
+        >
+          {studioTabs.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`cbt-studio-tab-${tab.id}`}
+                role="tab"
+                type="button"
+                aria-selected={selected}
+                aria-controls={`cbt-studio-panel-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                  selected
+                    ? 'bg-emerald-700 text-white shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}
+              >
+                <span className="truncate">{tab.label}</span>
+                {tab.badge !== undefined && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none ${
+                      selected
+                        ? 'bg-white/20 text-white'
+                        : 'bg-muted text-foreground'
+                    }`}
+                  >
+                    {tab.badge}
                   </span>
                 )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Status Alerts (Always visible regardless of active segment) */}
+      {(aiError || aiSuccessMsg) && (
+        <div className="px-4 sm:px-5 pt-3.5 space-y-2">
+          {aiError && (
+            <div
+              role="alert"
+              className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2.5 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2"
+            >
+              <span>{aiError}</span>
+              <button
+                type="button"
+                aria-label="Dismiss AI error"
+                onClick={() => setAiError(null)}
+                className="text-rose-700 dark:text-rose-300 hover:opacity-80"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          {aiSuccessMsg && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-2"
+            >
+              <span className="flex items-center gap-1.5">
+                <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+                {aiSuccessMsg}
+              </span>
+              <button
+                type="button"
+                aria-label="Dismiss success notice"
+                onClick={() => setAiSuccessMsg(null)}
+                className="text-emerald-800 dark:text-emerald-300 hover:opacity-80"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 1: AI GENERATE */}
+      {activeTab === 'generate' && (
+        <div
+          id="cbt-studio-panel-generate"
+          role="tabpanel"
+          aria-labelledby="cbt-studio-tab-generate"
+          className="p-4 sm:p-5 space-y-4"
+        >
+          {curriculumWeeks.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                  <AcademicCapIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Align to Taught Weeks
+                </span>
                 <button
                   type="button"
+                  onClick={() => {
+                    const taught = new Set(curriculumWeeks.filter((w) => w.taught).map((w) => w.week));
+                    const target = taught.size > 0 ? taught : new Set(curriculumWeeks.map((w) => w.week));
+                    setSelectedWeeks(target);
+                    applyWeekAlignmentToAi(target);
+                  }}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/20"
+                >
+                  Select All Taught
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {curriculumWeeks.map((w) => {
+                  const active = selectedWeeks.has(w.week);
+                  return (
+                    <button
+                      key={w.week}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => toggleWeekSelection(w.week)}
+                      title={w.title}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                        active
+                          ? 'bg-emerald-700 text-white border-emerald-700'
+                          : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span>W{w.week}: {w.title.length > 22 ? `${w.title.slice(0, 22)}…` : w.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+            <div className="sm:col-span-5">
+              <label
+                htmlFor="cbt-ai-topic"
+                className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1"
+              >
+                Topic or Assessment Focus
+              </label>
+              <input
+                id="cbt-ai-topic"
+                type="text"
+                value={aiTopic}
+                onChange={(e) => {
+                  userEditedTopicRef.current = true;
+                  setAiTopic(e.target.value);
+                }}
+                placeholder={
+                  courseTitle
+                    ? `e.g. ${courseTitle}`
+                    : 'e.g. Python Loops, Robotics Sensors, HTML Forms'
+                }
+                className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:col-span-3">
+              <div>
+                <label
+                  htmlFor="cbt-ai-mcq-count"
+                  className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1"
+                >
+                  Sec A: MCQ
+                </label>
+                <input
+                  id="cbt-ai-mcq-count"
+                  type="number"
+                  min={0}
+                  max={maxQuestions}
+                  value={mcqCount}
+                  onChange={(e) => {
+                    userEditedCountsRef.current = true;
+                    setMcqCount(e.target.value);
+                    onQuestionMixChange?.(parseInt(e.target.value, 10) || 0, parseInt(theoryCount, 10) || 0);
+                  }}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="cbt-ai-theory-count"
+                  className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1"
+                >
+                  Sec B: Theory
+                </label>
+                <input
+                  id="cbt-ai-theory-count"
+                  type="number"
+                  min={0}
+                  max={maxQuestions}
+                  value={theoryCount}
+                  onChange={(e) => {
+                    userEditedCountsRef.current = true;
+                    setTheoryCount(e.target.value);
+                    onQuestionMixChange?.(parseInt(mcqCount, 10) || 0, parseInt(e.target.value, 10) || 0);
+                  }}
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-4">
+              <button
+                type="button"
+                onClick={handleAiGenerate}
+                disabled={aiGenerating || aiSolvingPremade}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all disabled:opacity-50"
+              >
+                {aiGenerating || aiSolvingPremade ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    {detectedPremadeFromSource.length > 0 ? 'Solving Answers & Guide…' : 'Generating…'}
+                  </>
+                ) : detectedPremadeFromSource.length > 0 ? (
+                  <>
+                    <SparklesIcon className="w-4 h-4" />
+                    Solve &amp; Import {detectedPremadeFromSource.length} Qs
+                  </>
+                ) : (
+                  <>
+                    <SparklesIcon className="w-4 h-4" />
+                    Generate {Math.max(minQuestions, targetTotal)} Questions
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Section Mix Presets */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
+            <span className="font-bold text-muted-foreground mr-1">Quick mix:</span>
+            {[
+              { label: '10 MCQ + 2 Theory', mcq: 10, theory: 2 },
+              { label: '20 MCQ + 5 Theory', mcq: 20, theory: 5 },
+              { label: '15 MCQ Only', mcq: 15, theory: 0 },
+              { label: '5 Theory / Essay', mcq: 0, theory: 5 },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  userEditedCountsRef.current = true;
+                  setMcqCount(String(preset.mcq));
+                  setTheoryCount(String(preset.theory));
+                  onQuestionMixChange?.(preset.mcq, preset.theory);
+                }}
+                className="px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-muted font-bold text-foreground transition-colors"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: PASTE / UPLOAD & SOLVE */}
+      {activeTab === 'premade' && (
+        <div
+          id="cbt-studio-panel-premade"
+          role="tabpanel"
+          aria-labelledby="cbt-studio-tab-premade"
+          className="p-4 sm:p-5 space-y-3.5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <label
+                htmlFor="cbt-premade-paste"
+                className="text-xs font-black uppercase tracking-wider text-foreground block"
+              >
+                Paste Exam Questions, Lesson Notes, or Upload .TXT / .PDF
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                Objective (A–D / True-False), Subjective (Fill-blank), and Essay/Theory sections are detected automatically — MCQs are never turned into theory.
+              </p>
+            </div>
+
+            {sourceName && !isWeekDerivedSource ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/25 text-xs">
+                <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
+                <span className="font-bold text-foreground truncate max-w-[180px]">{sourceName}</span>
+                <button
+                  type="button"
+                  aria-label="Clear uploaded or pasted source"
                   onClick={() => {
                     setSourceText('');
                     setSourceName('');
                   }}
-                  className="text-rose-600 dark:text-rose-400 hover:underline font-bold ml-1"
+                  className="text-rose-600 dark:text-rose-400 hover:underline font-bold"
                 >
                   ✕
                 </button>
               </div>
             ) : (
-              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border hover:border-primary/50 bg-background/60 cursor-pointer text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-border hover:border-primary/50 bg-background cursor-pointer text-xs font-bold text-foreground transition-colors">
                 <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
                 <span>{extractingFile ? extractMsg || 'Reading…' : 'Upload .TXT / .PDF'}</span>
                 <input
                   type="file"
                   accept=".pdf,.txt,.md,application/pdf,text/plain"
-                  className="hidden"
+                  className="sr-only"
                   disabled={extractingFile}
                   onChange={async (e) => {
                     const file = e.currentTarget.files?.[0] ?? null;
@@ -956,136 +1140,121 @@ export default function QuestionAuthoringStudio({
                 />
               </label>
             )}
-
-            <button
-              type="button"
-              onClick={() => setShowPasteBox((v) => !v)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-background/60 hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showPasteBox ? 'Hide Paste Box' : 'Paste Questions / Notes'}
-            </button>
           </div>
 
-          {hasPaperQuestions && (
-            <div className="flex items-center gap-1 text-[11px]">
-              <span className="text-muted-foreground font-semibold mr-1">When adding:</span>
-              <button
-                type="button"
-                onClick={() => setImportBehavior('append')}
-                className={`px-2 py-1 rounded-md font-bold border ${
-                  importBehavior === 'append'
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
-                    : 'border-border text-muted-foreground'
-                }`}
-              >
-                Add to existing
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportBehavior('replace')}
-                className={`px-2 py-1 rounded-md font-bold border ${
-                  importBehavior === 'replace'
-                    ? 'bg-primary/15 border-primary/40 text-primary'
-                    : 'border-border text-muted-foreground'
-                }`}
-              >
-                Replace paper
-              </button>
+          <textarea
+            id="cbt-premade-paste"
+            rows={6}
+            value={isWeekDerivedSource ? '' : sourceText}
+            onChange={(e) => {
+              setIsWeekDerivedSource(false);
+              setSourceText(e.target.value);
+              if (!sourceName && e.target.value.trim()) {
+                setSourceName('Pasted Script');
+              }
+            }}
+            placeholder={`Paste questions or notes here, e.g.:\nSECTION A: OBJECTIVE\n1. What is the output of print(7 // 2)?\nA) 3.5  B) 3  C) 1  D) 14\n\nSECTION B: THEORY\n2. Explain two uses of loops in Python. [10 marks]`}
+            className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 resize-y"
+          />
+
+          {/* Live Section Segmentation Preview */}
+          {detectedPremadeFromSource.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-black text-emerald-900 dark:text-emerald-200">
+                  Detected {detectedPremadeFromSource.length} Qs:
+                </span>
+                <span className="px-2 py-0.5 rounded-lg bg-card border border-border font-bold text-foreground">
+                  Sec A Objective: {premadeSegmentation.objective}
+                </span>
+                {premadeSegmentation.fillBlank > 0 && (
+                  <span className="px-2 py-0.5 rounded-lg bg-card border border-border font-bold text-foreground">
+                    Subjective: {premadeSegmentation.fillBlank}
+                  </span>
+                )}
+                <span className="px-2 py-0.5 rounded-lg bg-card border border-border font-bold text-foreground">
+                  Sec B Theory/Essay: {premadeSegmentation.essay}
+                </span>
+                {premadeSegmentation.needsAi > 0 && (
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-900 dark:text-amber-200 font-bold">
+                    {premadeSegmentation.needsAi} need AI answer/guide
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onImportQuestions(
+                      detectedPremadeFromSource.map((item) => ({
+                        question_text: item.question_text,
+                        question_type: item.question_type,
+                        options: item.options,
+                        correct_answer: item.correct_answer,
+                        marking_guide: item.marking_guide,
+                        points: item.points,
+                        section: item.section,
+                        explanation: item.explanation || item.marking_guide,
+                        curriculumTag: item.curriculumTag,
+                        cognitiveLevel: item.difficulty,
+                      })),
+                      importBehavior,
+                    );
+                    setAiSuccessMsg(`Imported ${detectedPremadeFromSource.length} questions directly.`);
+                  }}
+                  className="px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors"
+                >
+                  Import Without AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAiAlignAndSolvePremade(false)}
+                  disabled={aiSolvingPremade}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black transition-all disabled:opacity-50"
+                >
+                  {aiSolvingPremade ? (
+                    <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <SparklesIcon className="w-3.5 h-3.5" />
+                  )}
+                  {aiSolvingPremade ? 'Solving & Aligning…' : `Solve Answers & Import (${detectedPremadeFromSource.length})`}
+                </button>
+              </div>
             </div>
           )}
         </div>
+      )}
 
-        {/* Collapsible Paste Box */}
-        {showPasteBox && (
-          <div className="rounded-xl border border-border bg-background/80 p-3.5 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-foreground">
-                Paste Lesson Notes or Premade Questions (AI will solve missing answers &amp; write marking guides)
-              </p>
-              {detectedPremadeFromSource.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                    {detectedPremadeFromSource.length} questions detected
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onImportQuestions(
-                        detectedPremadeFromSource.map((item) => ({
-                          question_text: item.question_text,
-                          question_type: item.question_type,
-                          options: item.options,
-                          correct_answer: item.correct_answer,
-                          marking_guide: item.marking_guide,
-                          points: item.points,
-                          section: item.section,
-                          explanation: item.explanation || item.marking_guide,
-                          curriculumTag: item.curriculumTag,
-                          cognitiveLevel: item.difficulty,
-                        })),
-                        importBehavior,
-                      );
-                      setShowPasteBox(false);
-                      setAiSuccessMsg(`Imported ${detectedPremadeFromSource.length} questions directly.`);
-                    }}
-                    className="px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-muted text-[11px] font-bold text-foreground"
-                  >
-                    Import Without AI
-                  </button>
-                </div>
-              )}
-            </div>
-            <textarea
-              rows={4}
-              value={isWeekDerivedSource ? '' : sourceText}
-              onChange={(e) => {
-                setIsWeekDerivedSource(false);
-                setSourceText(e.target.value);
-                if (!sourceName && e.target.value.trim()) {
-                  setSourceName('Pasted Script');
-                }
-              }}
-              placeholder={`Paste notes or questions here, e.g.:\n1. What is the output of print(7 // 2)?\nA) 3.5  B) 3  C) 1  D) 14\n\n2. Explain two uses of loops in Python. [10 marks]`}
-              className="w-full px-3 py-2 bg-card border border-border rounded-xl text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 resize-y"
-            />
-          </div>
-        )}
-
-        {aiError && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between">
-            <span>{aiError}</span>
-            <button type="button" onClick={() => setAiError(null)} className="text-rose-700 dark:text-rose-300">
-              <XMarkIcon className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-        {aiSuccessMsg && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-              {aiSuccessMsg}
-            </span>
-            <button type="button" onClick={() => setAiSuccessMsg(null)} className="text-emerald-700 dark:text-emerald-300">
-              <XMarkIcon className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* COLLAPSIBLE DRAWER 1: PAST QUESTIONS BANK */}
-      {openDrawer === 'bank' && (
-        <div className="border-t border-border bg-background/50 p-4 sm:p-5 space-y-3">
-          <div className="flex items-center justify-between">
+      {/* TAB 3: PAST QUESTIONS BANK */}
+      {activeTab === 'bank' && (
+        <div
+          id="cbt-studio-panel-bank"
+          role="tabpanel"
+          aria-labelledby="cbt-studio-tab-bank"
+          className="p-4 sm:p-5 space-y-3"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
               Reuse Past Exam &amp; Lesson Questions
             </h3>
-            <button
-              type="button"
-              onClick={() => setOpenDrawer('none')}
-              className="text-xs font-bold text-muted-foreground hover:text-foreground"
-            >
-              Close ✕
-            </button>
+            <div role="group" aria-label="Filter bank by section" className="flex items-center gap-1 text-[11px]">
+              {(['all', 'objective', 'subjective'] as const).map((sec) => (
+                <button
+                  key={sec}
+                  type="button"
+                  aria-pressed={sectionFilter === sec}
+                  onClick={() => setSectionFilter(sec)}
+                  className={`px-2.5 py-1 rounded-lg font-bold capitalize border transition-colors ${
+                    sectionFilter === sec
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {sec === 'all' ? 'All Sections' : sec === 'objective' ? 'Sec A: Objective' : 'Sec B: Theory'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
@@ -1095,8 +1264,9 @@ export default function QuestionAuthoringStudio({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search past questions"
                 placeholder="Search questions…"
-                className="w-full pl-8 pr-3 py-2 bg-card border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                className="w-full pl-8 pr-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
               />
             </div>
 
@@ -1104,7 +1274,7 @@ export default function QuestionAuthoringStudio({
               value={trackFilter}
               onChange={(e) => setTrackFilter(e.target.value)}
               aria-label="Filter by course"
-              className="px-3 py-2 bg-card border border-border rounded-xl text-xs font-bold text-foreground"
+              className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold text-foreground"
             >
               <option value="all">All Courses ({combinedBankQuestions.length})</option>
               {availableTracks.map((tr) => (
@@ -1118,7 +1288,7 @@ export default function QuestionAuthoringStudio({
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               aria-label="Filter by question type"
-              className="px-3 py-2 bg-card border border-border rounded-xl text-xs font-bold text-foreground"
+              className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold text-foreground"
             >
               <option value="all">All Types</option>
               <option value="multiple_choice">MCQ</option>
@@ -1133,13 +1303,22 @@ export default function QuestionAuthoringStudio({
               <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
                 {selectedBankIds.size} question{selectedBankIds.size === 1 ? '' : 's'} selected
               </span>
-              <button
-                type="button"
-                onClick={handleImportSelectedPremade}
-                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase"
-              >
-                + Add Selected to Paper
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBankIds(new Set())}
+                  className="text-xs font-bold text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={handleImportSelectedPremade}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase"
+                >
+                  + Add Selected to Paper
+                </button>
+              </div>
             </div>
           )}
 
@@ -1157,7 +1336,7 @@ export default function QuestionAuthoringStudio({
                 return (
                   <div
                     key={item.id}
-                    className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-3 text-xs"
+                    className="flex items-start justify-between gap-3 rounded-xl border border-border bg-background p-3 text-xs"
                   >
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
                       <input
@@ -1174,7 +1353,7 @@ export default function QuestionAuthoringStudio({
                       />
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-primary/10 text-primary">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase bg-primary/10 text-primary">
                             {item.question_type.replace(/_/g, ' ')}
                           </span>
                           <span className="text-[10px] font-bold text-muted-foreground">{item.track}</span>
@@ -1204,9 +1383,14 @@ export default function QuestionAuthoringStudio({
         </div>
       )}
 
-      {/* COLLAPSIBLE DRAWER 2: COMPACT BLUEPRINT SUMMARY */}
-      {openDrawer === 'blueprint' && (
-        <div className="border-t border-border bg-background/50 p-4 sm:p-5 space-y-3">
+      {/* TAB 4: BLUEPRINT & READINESS AUDIT */}
+      {activeTab === 'blueprint' && (
+        <div
+          id="cbt-studio-panel-blueprint"
+          role="tabpanel"
+          aria-labelledby="cbt-studio-tab-blueprint"
+          className="p-4 sm:p-5 space-y-3"
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
@@ -1214,48 +1398,39 @@ export default function QuestionAuthoringStudio({
               </h3>
               <p className="text-[11px] text-muted-foreground">{liveBlueprint.sourceSummary}</p>
             </div>
-            <div className="flex items-center gap-2">
-              {hasPaperQuestions && (
-                <button
-                  type="button"
-                  onClick={() => handleAiAlignAndSolvePremade(true)}
-                  disabled={aiSolvingPremade}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black disabled:opacity-50"
-                >
-                  {aiSolvingPremade ? 'Solving…' : '✨ Auto-Fill Missing Answers & Guides'}
-                </button>
-              )}
+            {hasPaperQuestions && (
               <button
                 type="button"
-                onClick={() => setOpenDrawer('none')}
-                className="text-xs font-bold text-muted-foreground hover:text-foreground"
+                onClick={() => handleAiAlignAndSolvePremade(true)}
+                disabled={aiSolvingPremade}
+                className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black disabled:opacity-50"
               >
-                Close ✕
+                {aiSolvingPremade ? 'Solving…' : '✨ Auto-Fill Missing Answers & Guides'}
               </button>
-            </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-            <div className="rounded-xl border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-background p-3">
               <span className="text-[10px] font-bold uppercase text-muted-foreground">Questions &amp; Marks</span>
               <p className="text-sm font-black text-foreground mt-0.5">
                 {liveBlueprint.totalQuestions} Qs · {liveBlueprint.totalPoints} pts
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-background p-3">
               <span className="text-[10px] font-bold uppercase text-muted-foreground">Answers Ready</span>
-              <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 mt-0.5">
                 {liveBlueprint.answeredCount} / {liveBlueprint.totalQuestions}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-background p-3">
               <span className="text-[10px] font-bold uppercase text-muted-foreground">Marking Guides</span>
-              <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 mt-0.5">
                 {liveBlueprint.markingGuideCount} / {liveBlueprint.totalQuestions}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <span className="text-[10px] font-bold uppercase text-muted-foreground">Mix</span>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <span className="text-[10px] font-bold uppercase text-muted-foreground">Section Mix</span>
               <p className="text-sm font-black text-foreground mt-0.5">
                 {liveBlueprint.sections.objective.count} Obj · {liveBlueprint.sections.subjective.count} Theory
               </p>
