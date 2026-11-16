@@ -2331,7 +2331,7 @@ export default function ClassDetailPage() {
                     <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                         <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
-                          Official School Papers
+                          Record official school papers
                         </h3>
                         <span className="text-[10px] font-bold text-muted-foreground">
                           Click a paper to enter hall marks
