@@ -9,7 +9,7 @@ import {
   PaintBrushIcon, CreditCardIcon, PrinterIcon, ArrowDownTrayIcon,
   CheckCircleIcon, ArrowUpIcon, ArrowDownIcon, MagnifyingGlassIcon,
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, UserGroupIcon,
-  UserPlusIcon, SparklesIcon, TrashIcon,
+  UserPlusIcon, SparklesIcon, TrashIcon, ClipboardIcon, DocumentTextIcon,
 } from '@/lib/icons';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import {
@@ -266,9 +266,9 @@ const SAMPLE = {
 };
 
 const STATUS_META: Record<string,{label:string;color:string;bar:string}> = {
-  active:   { label:'Active',     color:'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/25', bar:'bg-emerald-500' },
-  revoked:  { label:'Revoked',    color:'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/25',          bar:'bg-rose-500'   },
-  expired:  { label:'Expired',    color:'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25',       bar:'bg-amber-500'  },
+  active:   { label:'Active',     color:'text-emerald-900 bg-emerald-100 border-emerald-300 dark:text-emerald-300 dark:bg-emerald-500/15 dark:border-emerald-500/25', bar:'bg-emerald-500' },
+  revoked:  { label:'Revoked',    color:'text-rose-900 bg-rose-100 border-rose-300 dark:text-rose-300 dark:bg-rose-500/15 dark:border-rose-500/25',          bar:'bg-rose-500'   },
+  expired:  { label:'Expired',    color:'text-amber-950 bg-amber-100 border-amber-300 dark:text-amber-300 dark:bg-amber-500/15 dark:border-amber-500/25',       bar:'bg-amber-500'  },
   unissued: { label:'Not issued', color:'text-muted-foreground bg-muted border-border',             bar:'bg-border'  },
 };
 
@@ -714,7 +714,30 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
         <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:pl-0 sm:flex-shrink-0">
-        <button onClick={()=>printSingle(r)} title="Print card" className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"><PrinterIcon className="w-4 h-4"/></button>
+        <button onClick={()=>printSingle(r)} title="Print card" className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted hover:border-primary/50 transition-colors"><PrinterIcon className="w-4 h-4"/></button>
+        {r.roleLabel === 'Student' && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                const code = accessCardCodeForStudent(r.id);
+                void navigator.clipboard?.writeText(code);
+                toast.success(`Copied ${code}`);
+              }}
+              title="Copy RC number"
+              className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+            >
+              <ClipboardIcon className="w-4 h-4" />
+            </button>
+            <Link
+              href={`/dashboard/reports/builder?student=${r.id}`}
+              title="Open student progress report"
+              className="p-1.5 rounded-lg border border-border text-primary hover:bg-primary/10 transition-colors"
+            >
+              <DocumentTextIcon className="w-4 h-4" />
+            </Link>
+          </>
+        )}
         {!dbCard&&(
           <button onClick={()=>issueCard(r)} disabled={isIssuing} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">{isIssuing?'…':'Issue'}</button>
         )}
@@ -765,6 +788,7 @@ export default function CardStudioPage() {
 
   const applyCardType = (t: CardType) => {
     setCardType(t);
+    setSelectedIds(new Set()); setDesignSelectedIds(new Set()); setSelectedRosterGrades(new Set()); setSelectedGrade('all'); setSelectedClass('all'); setReportFilter('all'); setManagePage(1);
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.set('type', t);
     router.replace(`?${params.toString()}`, { scroll: false });
@@ -916,6 +940,13 @@ export default function CardStudioPage() {
         setDesignStudentsLoaded(true);
       }).catch(()=>{ toast.error('Could not load students. Please retry.'); }).finally(()=>setDesignStudentsLoading(false));
   };
+
+  // Auto-load Design tab student roster so teachers can segment & print immediately without extra clicks
+  useEffect(() => {
+    if (activeTab === 'design' && canAccess && !designStudentsLoaded && !designStudentsLoading) {
+      loadDesignStudents(false);
+    }
+  }, [activeTab, canAccess, designStudentsLoaded, designStudentsLoading]); // eslint-disable-line
 
   const designSchoolLock = isSchool ? String(profile?.school_name||'').trim() : '';
   const designSelectClass = 'w-full px-2 py-1.5 bg-background border border-border text-foreground text-[10px] focus:outline-none focus:border-primary rounded disabled:opacity-50 disabled:cursor-not-allowed';
@@ -2466,6 +2497,32 @@ export default function CardStudioPage() {
         </div>
 
         <div className={`${manageToolsOpen ? 'block' : 'hidden'} md:block`}>
+        {manageHierarchyGrades.length > 1 && cardType === 'student' && manageView !== 'roster' && !manageGradesNeedSchool && (
+          <div className="px-4 py-2 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground shrink-0 mr-1">Class:</span>
+            <button
+              type="button"
+              onClick={() => { setSelectedGrade('all'); setSelectedClass('all'); }}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-black border shrink-0 transition-colors ${selectedGrade === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
+            >
+              All ({manageHierarchyPool.length})
+            </button>
+            {manageHierarchyGrades.map((grade) => {
+              const active = selectedGrade === grade;
+              const cnt = countHierarchy(manageHierarchyPool, manageHierarchyPick, manageHierarchyFilter, 'grade', grade);
+              return (
+                <button
+                  key={grade}
+                  type="button"
+                  onClick={() => { setSelectedGrade(active ? 'all' : grade); setSelectedClass('all'); }}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border shrink-0 transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
+                >
+                  {grade} ({cnt})
+                </button>
+              );
+            })}
+          </div>
+        )}
         {showHiddenAccounts && canDeleteAccounts && records.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Hidden accounts — soft-deleted but still in database</span>
@@ -2599,7 +2656,7 @@ export default function CardStudioPage() {
                 <button onClick={()=>void printManageRosterPdf(filtered.filter(r=>selectedIds.has(r.id)), `Selected students — RC roster`)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide rounded-lg transition-colors shadow ${
                     manageView === 'roster'
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                      ? 'bg-emerald-700 text-white hover:bg-emerald-800'
                       : 'border border-primary/30 text-primary hover:bg-primary/5 bg-background'
                   }`}>
                   <PrinterIcon className="w-3 h-3"/> {manageView === 'roster' ? `Print roster (${selectedIds.size})` : `Roster PDF (${selectedIds.size})`}

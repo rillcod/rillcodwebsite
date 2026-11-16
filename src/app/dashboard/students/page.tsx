@@ -18,16 +18,17 @@ import {
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchCardConfig, buildSingleCardHtml, openPrintWindow, holderCode, type CardHolder } from '@/lib/cards/printCard';
+import { buildStudentRosterRows, buildRosterPdfGroups, downloadStudentRosterPdf } from '@/lib/cards/exportRoster';
 import { brandContact } from '@/config/brand';
 import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
 
 // ─── Status badge ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    approved: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
-    pending: 'bg-amber-500/20  text-amber-600 dark:text-amber-400  border-amber-500/30',
-    rejected: 'bg-rose-500/20   text-rose-600 dark:text-rose-400   border-rose-500/30',
-    active: 'bg-primary/20   text-primary   border-primary/30',
+    approved: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30',
+    pending: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30',
+    rejected: 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30',
+    active: 'bg-primary/15 text-primary border-primary/30',
   };
   return (
     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-muted text-muted-foreground border-border'}`}>
@@ -56,11 +57,11 @@ function FeeBadge({ entry }: { entry?: { status: string; amount: number; currenc
   const s = entry.status.toLowerCase();
   const isOverdue = s === 'overdue' || (s === 'sent' && entry.dueDate && new Date(entry.dueDate) < new Date());
   const cfg = isOverdue
-    ? { cls: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30', label: 'Overdue' }
+    ? { cls: 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30', label: 'Overdue' }
     : s === 'paid'
-    ? { cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', label: 'Paid' }
+    ? { cls: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30', label: 'Paid' }
     : s === 'pending' || s === 'sent'
-    ? { cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30', label: 'Pending' }
+    ? { cls: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30', label: 'Pending' }
     : { cls: 'bg-muted/50 text-muted-foreground border-border', label: entry.status };
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${cfg.cls}`}
@@ -124,9 +125,9 @@ function LinkParentModal({ student, onClose, onSaved }: {
   };
 
   return (
-    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div role="dialog" aria-modal="true" className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+      <div role="dialog" aria-modal="true" className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-muted/20">
           <div>
             <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -134,13 +135,13 @@ function LinkParentModal({ student, onClose, onSaved }: {
             </h2>
             <p className="text-[10px] text-muted-foreground font-semibold mt-1 uppercase tracking-wider">Student: {student.full_name}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">
+            <p className="text-xs text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">
               ⚠️ {error}
             </p>
           )}
@@ -149,26 +150,26 @@ function LinkParentModal({ student, onClose, onSaved }: {
             <input type="email" required value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               placeholder="parent@example.com"
-              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium" />
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-medium" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Full Name *</label>
             <input required value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
               placeholder="Parent's full name"
-              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium" />
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-medium" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone</label>
             <input type="tel" value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               placeholder="+234 …"
-              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium" />
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-medium" />
           </div>
           <div className="relative">
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
             <select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer">
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors font-medium appearance-none cursor-pointer">
               {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -177,15 +178,15 @@ function LinkParentModal({ student, onClose, onSaved }: {
               <ChevronDownIcon className="w-4 h-4" />
             </div>
           </div>
-          <div className="flex gap-3 pt-3 border-t border-white/5 mt-4">
+          <div className="flex gap-3 pt-3 border-t border-border mt-4">
             {hasParent && (
               <button type="button" onClick={handleUnlink} disabled={saving}
-                className="px-4 py-2.5 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 rounded-xl transition-all disabled:opacity-50">
+                className="px-4 py-2.5 border border-rose-300 dark:border-rose-500/30 bg-rose-100 dark:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest text-rose-900 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-500/20 rounded-xl transition-all disabled:opacity-50">
                 Unlink
               </button>
             )}
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-xl transition-all">
+              className="flex-1 px-4 py-2.5 bg-muted hover:bg-muted/80 text-[10px] font-black uppercase tracking-widest text-foreground rounded-xl transition-all">
               Cancel
             </button>
             <button type="submit" disabled={saving}
@@ -260,13 +261,13 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
     }
   };
 
-  const fieldCls = 'w-full px-4 py-2.5 bg-[#080d19] border border-white/5 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors rounded-xl font-medium';
+  const fieldCls = 'w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors rounded-xl font-medium';
   const labelCls = 'text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5';
 
   return (
-    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div role="dialog" aria-modal="true" className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
+    <div className="mobile-native-dialog fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+      <div role="dialog" aria-modal="true" className="w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-muted/20">
           <div>
             <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -274,7 +275,7 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
             </h2>
             <p className="text-[10px] text-muted-foreground font-semibold mt-1 uppercase tracking-wider">{student.full_name} — Enrolled Profile</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
@@ -351,9 +352,9 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-3 border-t border-white/5 mt-4">
+          <div className="flex gap-3 pt-3 border-t border-border mt-4">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-xl transition-all">
+              className="flex-1 px-4 py-2.5 bg-muted hover:bg-muted/80 text-[10px] font-black uppercase tracking-widest text-foreground rounded-xl transition-all">
               Cancel
             </button>
             <button type="submit" disabled={saving}
@@ -946,19 +947,32 @@ export default function StudentsPage() {
     setSyncing(false);
   };
 
-  // ── CSV export ─────────────────────────────────────────────
-  const exportCSV = () => {
-    const header = ['Name', 'Status', 'Enrollment Type', 'Grade', 'School', 'Gender', 'Parent', 'Parent Phone', 'Student Email', 'City', 'State', 'Registered'];
-    const rows = students.map(s => [
-      s.full_name, s.status, s.enrollment_type, s.grade_level, s.school_name, s.gender,
-      s.parent_name, s.parent_phone, s.student_email || s.parent_email, s.city, s.state,
-      new Date(s.created_at).toLocaleDateString(),
-    ]);
-    const csv = [header, ...rows].map(r => r.map(c => `"${c ?? ''}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `students_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+  // ── Official RC Roster PDF export (replaces raw CSV) ────────
+  const handlePrintRcRosterPdf = async () => {
+    const list = filtered.length > 0 ? filtered : students;
+    if (list.length === 0) return;
+    const rows = buildStudentRosterRows(
+      list.map((s: any) => ({
+        id: s.id,
+        name: s.full_name || 'Student',
+        gradeLevel: s.grade_level || s.grade || null,
+        sectionClass: s.section_class || (s.class_id && classMap[s.class_id]) || null,
+      })),
+      typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com',
+    );
+    const cardConfig = await fetchCardConfig('student');
+    const groups = buildRosterPdfGroups(rows, 'class');
+    await downloadStudentRosterPdf(rows, {
+      title: filterSchoolReg ? `RC Roster — ${filterSchoolReg}` : 'Official Student RC Roster',
+      orgName: cardConfig.orgName,
+      orgWebsite: cardConfig.orgWebsite,
+      accentColor: cardConfig.accentColor,
+      origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+      pdfGroups: groups.length > 0 ? groups : undefined,
+      groupMode: 'class',
+      mode: 'print',
+      filename: `rc-roster-${new Date().toISOString().slice(0, 10)}.pdf`,
+    });
   };
 
   // ── Professional registry print ────────────────────────────
@@ -1647,8 +1661,8 @@ export default function StudentsPage() {
 
       {/* ── Credentials Modal ─────────────────────────────── */}
       {credentials && (
-        <div className="mobile-native-dialog fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" className="bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden shadow-emerald-500/10">
+        <div className="mobile-native-dialog fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" className="bg-card border-l-8 border-l-emerald-600 border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-8 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center rotate-3">
@@ -1679,12 +1693,12 @@ export default function StudentsPage() {
                 <div key={label}>
                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-2">{label}</p>
                   <div className="flex items-center gap-px">
-                    <div className="flex-1 px-5 py-3.5 bg-black/40 border border-border rounded-xl text-foreground font-mono text-sm select-all">
+                    <div className="flex-1 px-5 py-3.5 bg-muted border border-border rounded-xl text-foreground font-mono text-sm select-all">
                       {value}
                     </div>
                     <button
                       onClick={() => navigator.clipboard.writeText(value)}
-                      className="p-3.5 bg-emerald-500 text-foreground hover:bg-emerald-600 transition-colors rounded-xl"
+                      className="p-3.5 bg-emerald-700 text-white hover:bg-emerald-800 transition-colors rounded-xl"
                       title="Copy">
                       <ClipboardIcon className="w-5 h-5" />
                     </button>
@@ -1705,7 +1719,7 @@ export default function StudentsPage() {
 
               <button
                 onClick={() => { setCredentials(null); load(); }}
-                className="w-full py-5 bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.5em] rounded-xl hover:bg-emerald-600 transition-all">
+                className="w-full py-5 bg-emerald-700 text-white font-black text-xs uppercase tracking-[0.5em] rounded-xl hover:bg-emerald-800 transition-all">
                 Done
               </button>
             </div>
@@ -1779,14 +1793,15 @@ export default function StudentsPage() {
                     className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all print:hidden">
                     <KeyIcon className="w-4 h-4" /> Access Cards
                   </button>
-                  <button onClick={exportCSV}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl border border-border transition-all print:hidden">
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Export
+                  <button onClick={handlePrintRcRosterPdf}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl border border-border transition-all print:hidden"
+                    title="Print or save Official RC Roster PDF">
+                    <ArrowDownTrayIcon className="w-4 h-4 text-primary" /> RC Roster PDF
                   </button>
                   <button
                     onClick={handleSync}
                     disabled={syncing}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-100 border border-amber-300 text-amber-950 hover:bg-amber-200 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-300' : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                   >
                     {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
                     {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount})` : 'Sync'}
