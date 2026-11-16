@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
-  CheckIcon, XMarkIcon,
+  CheckIcon, XMarkIcon, TrashIcon, ChevronDownIcon, LockOpenIcon, LockClosedIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import {
@@ -47,6 +47,10 @@ export default function ExamDetailPage() {
   const [loading, setLoading] = useState(true);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [resultsOpen, setResultsOpen] = useState(true);
+  const [questionsOpen, setQuestionsOpen] = useState(true);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const [deletingExam, setDeletingExam] = useState(false);
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
   const [printMcqCount, setPrintMcqCount] = useState<string>('');      // '' = all
   const [printTheoryCount, setPrintTheoryCount] = useState<string>(''); // '' = all
@@ -348,10 +352,55 @@ export default function ExamDetailPage() {
                   <PrinterIcon className="w-4 h-4 text-primary" /> Print Options
                 </button>
                 {canManageExam && (
-                  <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors">
-                    <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
-                  </Link>
+                  <>
+                    <Link href={`/dashboard/cbt/${exam.id}/edit`}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors">
+                      <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={togglingActive}
+                      onClick={async () => {
+                        setTogglingActive(true);
+                        try {
+                          const res = await fetch(`/api/cbt/exams/${exam.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ is_active: !exam.is_active }),
+                          });
+                          if (res.ok) setExam((prev: any) => prev ? { ...prev, is_active: !prev.is_active } : prev);
+                        } finally {
+                          setTogglingActive(false);
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${exam.is_active ? 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-200' : 'bg-emerald-100 border-emerald-300 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-200'}`}
+                    >
+                      {exam.is_active ? <><LockClosedIcon className="w-3.5 h-3.5" /> Deactivate</> : <><LockOpenIcon className="w-3.5 h-3.5" /> Activate</>}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deletingExam}
+                      onClick={async () => {
+                        if (!confirm(`Delete CBT exam "${exam.title}"? All questions and student sessions will be permanently deleted.`)) return;
+                        setDeletingExam(true);
+                        try {
+                          const res = await fetch(`/api/cbt/exams/${exam.id}`, { method: 'DELETE' });
+                          if (!res.ok) {
+                            const j = await res.json().catch(() => ({}));
+                            throw new Error(j.error || 'Delete failed');
+                          }
+                          router.push(hostClassId ? `/dashboard/classes/${hostClassId}?operation=assessment` : '/dashboard/cbt');
+                        } catch (err: any) {
+                          alert(err?.message || 'Delete failed');
+                          setDeletingExam(false);
+                        }
+                      }}
+                      aria-label="Delete CBT exam"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-900 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -683,10 +732,24 @@ export default function ExamDetailPage() {
                       {isManual && (
                         <div className="pl-8 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Answer</p>
-                          <div className="px-3 py-2.5 border border-border bg-white/5 rounded-xl text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                          <div className="px-3 py-2.5 border border-border bg-muted/40 rounded-xl text-xs text-foreground leading-relaxed whitespace-pre-wrap">
                             {studentAnswer || <span className="italic text-muted-foreground">No answer submitted</span>}
                           </div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Awaiting manual review</p>
+                          {q.correct_answer && (
+                            <div className="px-3 py-2.5 border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl text-xs text-emerald-900 dark:text-emerald-200">
+                              <span className="font-black uppercase tracking-wider text-[10px] block mb-0.5">Model Answer / Key Points</span>
+                              {q.correct_answer}
+                            </div>
+                          )}
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-300">Awaiting manual review</p>
+                        </div>
+                      )}
+                      {(q.metadata?.marking_guide || q.explanation) && (
+                        <div className="ml-8 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                          <span className="font-black uppercase tracking-wider text-[10px] text-primary block mb-0.5">
+                            Detailed Feedback &amp; Explanation
+                          </span>
+                          {String(q.metadata?.marking_guide || q.explanation)}
                         </div>
                       )}
                     </div>
@@ -762,18 +825,31 @@ export default function ExamDetailPage() {
           </div>
         )}
 
-        {/* Staff: sessions */}
+        {/* Staff: sessions (collapsible with counts) */}
         {isStaff && sessions.length > 0 && (
           <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-            <div className="p-5 border-b border-border flex items-center justify-between">
-              <h2 className="font-bold flex items-center gap-2">
-                <ChartBarIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Student Results ({sessions.length})
+            <button
+              type="button"
+              onClick={() => setResultsOpen(v => !v)}
+              aria-expanded={resultsOpen}
+              className="w-full p-4 sm:p-5 border-b border-border flex items-center justify-between text-left hover:bg-muted/30 transition-colors"
+            >
+              <h2 className="font-bold flex items-center gap-2 text-foreground">
+                <ChartBarIcon className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+                Student Results
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-800 dark:text-emerald-300">
+                  {sessions.length}
+                </span>
               </h2>
-              <span className="text-xs text-muted-foreground">
-                {sessions.filter(s => s.status === 'passed').length} passed
-              </span>
-            </div>
-            <div className="divide-y divide-white/5">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {sessions.filter(s => s.status === 'passed').length} passed
+                </span>
+                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${resultsOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+            {resultsOpen && (
+            <div className="divide-y divide-border">
               {sessions.map((s: any) => (
                 <div key={s.id} className="px-5 py-4 flex items-center justify-between gap-4">
                   <div>
@@ -818,16 +894,37 @@ export default function ExamDetailPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
-        {/* Staff: questions preview */}
+        {/* Staff: questions preview (collapsible with count + quick CRUD) */}
         {isStaff && questions.length > 0 && (
           <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-            <div className="p-5 border-b border-border">
-              <h2 className="font-bold">Questions Preview</h2>
+            <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setQuestionsOpen(v => !v)}
+                aria-expanded={questionsOpen}
+                className="flex items-center gap-2 text-left flex-1 min-w-0"
+              >
+                <h2 className="font-bold text-foreground">Questions Preview</h2>
+                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-black text-primary">
+                  {questions.length} · {totalPoints} pts
+                </span>
+                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${questionsOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {canManageExam && (
+                <Link
+                  href={`/dashboard/cbt/${exam.id}/edit`}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  <PencilIcon className="w-3.5 h-3.5 text-primary" /> Manage Questions
+                </Link>
+              )}
             </div>
-            <div className="divide-y divide-white/5">
+            {questionsOpen && (
+            <div className="divide-y divide-border">
               {questions.map((q: any, i: number) => (
                 <div key={q.id} className="px-5 py-4">
                   <div className="flex items-start gap-3">
@@ -853,6 +950,7 @@ export default function ExamDetailPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
       </div>

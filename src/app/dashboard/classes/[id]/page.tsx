@@ -168,6 +168,9 @@ export default function ClassDetailPage() {
   // Roster collapse: open by default when viewing the Students work mode so teachers
   // immediately see who is in their class without a second click.
   const [rosterOpen, setRosterOpen] = useState(true);
+  const [assignmentsOpen, setAssignmentsOpen] = useState(true);
+  const [cbtOpen, setCbtOpen] = useState(true);
+  const [deletingAssessmentId, setDeletingAssessmentId] = useState<string | null>(null);
   const [showRosterActions, setShowRosterActions] = useState(false);
   const [showWithdrawnList, setShowWithdrawnList] = useState(false);
   const [expandedStudentIds, setExpandedStudentIds] = useState<Set<string>>(new Set());
@@ -2504,175 +2507,281 @@ export default function ClassDetailPage() {
 
             {activeTab === 'assignments' && (
               <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <ClipboardDocumentListIcon className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">{assessmentCopy?.workLabel ?? 'Assessment work'}</h2>
-                    <span className="text-xs text-muted-foreground">({items.assignments.length})</span>
+                <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-muted/20 border-b border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setAssignmentsOpen(v => !v)}
+                      aria-expanded={assignmentsOpen}
+                      className="flex items-center gap-2 text-left min-w-0 flex-1"
+                    >
+                      <ClipboardDocumentListIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.workLabel ?? 'Assessment work'}</h2>
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+                        {items.assignments.length}
+                      </span>
+                      <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${assignmentsOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {!isSchool && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={buildAssignmentNewHref({
+                            classId: id,
+                            courseId: searchParams.get('course_id') || cls?.current_course_id,
+                          })}
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" /> New assignment
+                        </Link>
+                        <Link
+                          href={buildProjectNewHref({
+                            classId: id,
+                            courseId: searchParams.get('course_id') || cls?.current_course_id,
+                          })}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5 text-primary" /> New project
+                        </Link>
+                      </div>
+                    )}
                   </div>
-                  {!isSchool && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={buildAssignmentNewHref({
-                          classId: id,
-                          courseId: searchParams.get('course_id') || cls?.current_course_id,
-                        })}
-                        className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5" /> New assignment
-                      </Link>
-                      <Link
-                        href={buildProjectNewHref({
-                          classId: id,
-                          courseId: searchParams.get('course_id') || cls?.current_course_id,
-                        })}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted transition-colors"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5 text-primary" /> New project
-                      </Link>
+                  {assignmentsOpen && (
+                    <div className="p-3 sm:p-4">
+                      {items.assignments.length === 0 ? (
+                        <div className="bg-card shadow-sm border border-dashed border-border rounded-xl p-10 text-center flex flex-col items-center justify-center">
+                          <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                          <p className="text-sm text-muted-foreground">No tasks or projects have been set for this class.</p>
+                          {!isSchool && (
+                            <Link
+                              href={buildAssignmentNewHref({
+                                classId: id,
+                                courseId: searchParams.get('course_id') || cls?.current_course_id,
+                              })}
+                              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm"
+                            >
+                              <PlusIcon className="w-3.5 h-3.5" /> Create first assignment
+                            </Link>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-2.5">
+                          {items.assignments.map(a => {
+                            const aSubs = items.submissions.filter(s => s.assignment_id === a.id);
+                            const gradedCnt = aSubs.filter(s => s.status === 'graded' || s.grade != null).length;
+                            const pendingCnt = aSubs.filter(s => ['submitted', 'pending_review', 'late'].includes(s.status) && s.grade == null).length;
+                            const itemHref = a.assignment_type === 'project' ? `/dashboard/projects/${a.id}` : `/dashboard/assignments/${a.id}`;
+                            return isSchool ? (
+                              <div key={a.id}
+                                className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-4 cursor-default">
+                                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
+                                    {' · '}
+                                    Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
+                                    {a.max_points ? ` · ${a.max_points} pts` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div key={a.id} className="bg-card shadow-sm border border-border rounded-xl p-3.5 hover:border-primary/40 transition-all flex flex-col sm:flex-row sm:items-center gap-3">
+                                <Link href={itemHref} className="flex items-center gap-3 flex-1 min-w-0 group">
+                                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{a.title}</h4>
+                                    <p className="text-xs text-muted-foreground">
+                                      <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
+                                      {' · '}
+                                      Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
+                                      {a.max_points ? ` · ${a.max_points} pts` : ''}
+                                      {aSubs.length > 0 && (
+                                        <span className="ml-2 font-bold text-emerald-600 dark:text-emerald-400">
+                                          · {gradedCnt}/{aSubs.length} graded
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                </Link>
+                                <div className="flex items-center gap-1.5 flex-shrink-0 justify-end">
+                                  {pendingCnt > 0 && (
+                                    <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-black uppercase text-black">
+                                      {pendingCnt} to mark
+                                    </span>
+                                  )}
+                                  <Link
+                                    href={itemHref}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted"
+                                    title="Open, edit or mark"
+                                  >
+                                    <PencilIcon className="w-3.5 h-3.5 text-primary" /> Edit / Mark
+                                  </Link>
+                                  {isStaff && (
+                                    <button
+                                      type="button"
+                                      disabled={deletingAssessmentId === a.id}
+                                      onClick={async () => {
+                                        if (!confirm(`Delete "${a.title}"? This will remove all associated submissions.`)) return;
+                                        setDeletingAssessmentId(a.id);
+                                        try {
+                                          const res = await fetch(`/api/assignments/${a.id}`, { method: 'DELETE' });
+                                          if (!res.ok) {
+                                            const j = await res.json().catch(() => ({}));
+                                            throw new Error(j.error || 'Failed to delete');
+                                          }
+                                          await fetchData();
+                                        } catch (err: any) {
+                                          alert(err?.message || 'Delete failed');
+                                        } finally {
+                                          setDeletingAssessmentId(null);
+                                        }
+                                      }}
+                                      aria-label={`Delete ${a.title}`}
+                                      title="Delete"
+                                      className="p-2 rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 transition-colors"
+                                    >
+                                      <TrashIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-                {items.assignments.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
-                    <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No tasks or projects have been set for this class.</p>
+
+                {/* Collapsible CBT Assessments Section with Count Badge & Full CRUD */}
+                <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-muted/20 border-b border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setCbtOpen(v => !v)}
+                      aria-expanded={cbtOpen}
+                      className="flex items-center gap-2 text-left min-w-0 flex-1"
+                    >
+                      <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT assessments'}</h2>
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300">
+                        {items.cbt.length}
+                      </span>
+                      <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${cbtOpen ? 'rotate-180' : ''}`} />
+                    </button>
                     {!isSchool && (
                       <Link
-                        href={buildAssignmentNewHref({
+                        href={buildCbtNewHref({
                           classId: id,
                           courseId: searchParams.get('course_id') || cls?.current_course_id,
+                          programId: cls?.program_id,
+                          schoolId: cls?.school_id,
                         })}
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm"
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 transition-colors"
                       >
-                        <PlusIcon className="w-3.5 h-3.5" /> Create first assignment
+                        <PlusIcon className="w-3.5 h-3.5" /> New CBT
                       </Link>
                     )}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3">
-                    {items.assignments.map(a => {
-                      const aSubs = items.submissions.filter(s => s.assignment_id === a.id);
-                      const gradedCnt = aSubs.filter(s => s.status === 'graded' || s.grade != null).length;
-                      const pendingCnt = aSubs.filter(s => ['submitted', 'pending_review', 'late'].includes(s.status) && s.grade == null).length;
-                      return isSchool ? (
-                        <div key={a.id}
-                          className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-4 cursor-default">
-                          <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
-                              {' · '}
-                              Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
-                              {a.max_points ? ` · ${a.max_points} pts` : ''}
-                            </p>
-                          </div>
+                  {cbtOpen && (
+                    <div className="p-3 sm:p-4">
+                      {items.cbt.length === 0 ? (
+                        <div className="bg-card shadow-sm border border-dashed border-border rounded-xl p-10 text-center flex flex-col items-center justify-center">
+                          <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                          <p className="text-sm text-muted-foreground">
+                            {assessmentPolicy?.usesHostEvaluation
+                              ? 'No digital school paper or practice CBT has been set for this class.'
+                              : 'No CBT assessment has been set for this class.'}
+                          </p>
                         </div>
                       ) : (
-                        <Link key={a.id} href={a.assignment_type === 'project' ? `/dashboard/projects/${a.id}` : `/dashboard/assignments/${a.id}`}
-                          className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-primary/50 transition-all flex items-center gap-4">
-                          <div className="w-10 h-10 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{a.title}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
-                              {' · '}
-                              Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
-                              {a.max_points ? ` · ${a.max_points} pts` : ''}
-                              {aSubs.length > 0 && (
-                                <span className="ml-2 font-bold text-emerald-600 dark:text-emerald-400">
-                                  · {gradedCnt}/{aSubs.length} graded
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          {pendingCnt > 0 && (
-                            <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-black uppercase text-black flex-shrink-0">
-                              {pendingCnt} to mark
-                            </span>
-                          )}
-                          <ChevronRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'assignments' && (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <h2 className="text-sm font-bold text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT assessments'}</h2>
-                    <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
-                  </div>
-                  {!isSchool && (
-                    <Link
-                      href={buildCbtNewHref({
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                        programId: cls?.program_id,
-                        schoolId: cls?.school_id,
-                      })}
-                      className="inline-flex items-center gap-1 rounded-lg bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 transition-colors"
-                    >
-                      <PlusIcon className="w-3.5 h-3.5" /> New CBT
-                    </Link>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {items.cbt.map(ex => isSchool ? (
+                            <div key={ex.id}
+                              className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <h4 className="text-sm font-semibold text-foreground truncate">{ex.title}</h4>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span>{ex.duration_minutes} mins</span>
+                                <span>·</span>
+                                <span>{ex.total_questions} questions</span>
+                                {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
+                              </div>
+                            </div>
+                          ) : (
+                            <div key={ex.id} className="bg-card shadow-sm border border-border rounded-xl p-4 hover:border-amber-500/50 transition-all flex flex-col justify-between gap-3">
+                              <Link href={`/dashboard/cbt/${ex.id}`} className="group block">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                  </div>
+                                  <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  <span>{ex.duration_minutes} mins</span>
+                                  <span>·</span>
+                                  <span>{ex.total_questions} questions</span>
+                                  <span className={`ml-auto font-bold ${ex.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                                    {ex.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
+                              </Link>
+                              <div className="flex items-center gap-1.5 pt-2 border-t border-border/60">
+                                <Link href={`/dashboard/cbt/${ex.id}`}
+                                  className="flex-1 text-center rounded-lg bg-primary/10 hover:bg-primary/20 px-2.5 py-1.5 text-[11px] font-bold text-primary transition-colors">
+                                  Results
+                                </Link>
+                                <Link href={`/dashboard/cbt/${ex.id}/edit`}
+                                  className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
+                                  Edit
+                                </Link>
+                                <Link href={`/dashboard/cbt/${ex.id}?print=1`}
+                                  className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
+                                  Print
+                                </Link>
+                                {isStaff && (
+                                  <button
+                                    type="button"
+                                    disabled={deletingAssessmentId === ex.id}
+                                    onClick={async () => {
+                                      if (!confirm(`Delete CBT exam "${ex.title}"? All questions and student sessions will be deleted.`)) return;
+                                      setDeletingAssessmentId(ex.id);
+                                      try {
+                                        const res = await fetch(`/api/cbt/exams/${ex.id}`, { method: 'DELETE' });
+                                        if (!res.ok) {
+                                          const j = await res.json().catch(() => ({}));
+                                          throw new Error(j.error || 'Failed to delete CBT');
+                                        }
+                                        await fetchData();
+                                      } catch (err: any) {
+                                        alert(err?.message || 'Delete failed');
+                                      } finally {
+                                        setDeletingAssessmentId(null);
+                                      }
+                                    }}
+                                    aria-label={`Delete CBT exam ${ex.title}`}
+                                    title="Delete CBT exam"
+                                    className="p-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 transition-colors"
+                                  >
+                                    <TrashIcon className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                {items.cbt.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
-                    <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      {assessmentPolicy?.usesHostEvaluation
-                        ? 'No digital school paper or practice CBT has been set for this class.'
-                        : 'No CBT assessment has been set for this class.'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {items.cbt.map(ex => isSchool ? (
-                      <div key={ex.id}
-                        className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                            <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <h4 className="text-sm font-semibold text-foreground truncate">{ex.title}</h4>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>{ex.duration_minutes} mins</span>
-                          <span>·</span>
-                          <span>{ex.total_questions} questions</span>
-                          {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
-                        </div>
-                      </div>
-                    ) : (
-                      <Link key={ex.id} href={`/dashboard/cbt/${ex.id}`}
-                        className="bg-card shadow-sm border border-border rounded-xl p-4 group hover:bg-muted hover:border-amber-500/50 transition-all">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                            <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>{ex.duration_minutes} mins</span>
-                          <span>·</span>
-                          <span>{ex.total_questions} questions</span>
-                          {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 

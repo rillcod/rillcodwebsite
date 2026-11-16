@@ -9,6 +9,7 @@ import {
   AcademicCapIcon, ArrowLeftIcon, PlusIcon, PencilIcon, TrashIcon,
   CheckCircleIcon, XMarkIcon, ClockIcon, ChartBarIcon, ArrowPathIcon,
   CheckBadgeIcon, DocumentTextIcon, ArrowsUpDownIcon, LockOpenIcon, LockClosedIcon,
+  ChevronDownIcon, ChevronUpIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { buildWrittenPaperHtml, openWrittenPaperPrint, type WrittenPaperCopy } from '@/lib/exams/written-paper-print';
@@ -85,6 +86,9 @@ export default function ExamDetailPage() {
   const [editQ, setEditQ] = useState<Question | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [optionCount, setOptionCount] = useState(4);
+  const [attemptsOpen, setAttemptsOpen] = useState(true);
+  const [questionsOpen, setQuestionsOpen] = useState(true);
+  const [deletingExam, setDeletingExam] = useState(false);
 
   const [qForm, setQForm] = useState({
     question_text: '',
@@ -269,14 +273,39 @@ export default function ExamDetailPage() {
           {exam.description && <p className="text-card-foreground/50 text-sm mt-1">{exam.description}</p>}
         </div>
         {canManage && (
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
             <button onClick={toggleActive}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${exam.is_active ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400'}`}>
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${exam.is_active ? 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-300' : 'bg-emerald-100 border-emerald-300 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-300'}`}>
               {exam.is_active ? <><LockClosedIcon className="w-3.5 h-3.5" /> Deactivate</> : <><LockOpenIcon className="w-3.5 h-3.5" /> Activate</>}
             </button>
-            <Link href={`/dashboard/exams/${id}/edit`} className="p-2 hover:bg-white/5 rounded-xl transition-all">
-              <PencilIcon className="w-4 h-4 text-card-foreground/50" />
+            <Link href={`/dashboard/exams/${id}/edit`} className="p-2 border border-border bg-card hover:bg-muted rounded-xl transition-all" title="Edit exam settings">
+              <PencilIcon className="w-4 h-4 text-foreground" />
             </Link>
+            <button
+              type="button"
+              disabled={deletingExam}
+              onClick={async () => {
+                if (!confirm(`Delete written exam "${exam.title}"? This cannot be undone.`)) return;
+                setDeletingExam(true);
+                try {
+                  const res = await fetch(`/api/exams/${id}`, { method: 'DELETE' });
+                  if (!res.ok) {
+                    const j = await res.json().catch(() => ({}));
+                    throw new Error(j.error || 'Failed to delete exam');
+                  }
+                  toast.success('Exam deleted');
+                  router.push(exam.class_id ? `/dashboard/classes/${exam.class_id}?operation=assessment` : '/dashboard/exams');
+                } catch (err: any) {
+                  toast.error(err?.message || 'Failed to delete exam');
+                  setDeletingExam(false);
+                }
+              }}
+              aria-label="Delete written exam"
+              title="Delete exam"
+              className="p-2 border border-rose-300 dark:border-rose-500/30 bg-rose-100 dark:bg-rose-500/15 hover:bg-rose-200 text-rose-900 dark:text-rose-300 rounded-xl transition-all disabled:opacity-50"
+            >
+              <TrashIcon className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
@@ -298,14 +327,24 @@ export default function ExamDetailPage() {
       </div>
 
       {canReview && (
-        <section className="space-y-3" aria-labelledby="written-attempts-heading">
-          <div className="flex items-center justify-between gap-3">
+        <section className="rounded-2xl border border-border bg-card/60 overflow-hidden" aria-labelledby="written-attempts-heading">
+          <button
+            type="button"
+            onClick={() => setAttemptsOpen(v => !v)}
+            aria-expanded={attemptsOpen}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3.5 bg-muted/20 border-b border-border/60 text-left hover:bg-muted/30 transition-colors"
+          >
             <div>
-              <h2 id="written-attempts-heading" className="text-lg font-black text-card-foreground">Learner attempts</h2>
-              <p className="text-sm text-muted-foreground">Review submitted papers and publish complete, auditable grades.</p>
+              <div className="flex items-center gap-2">
+                <h2 id="written-attempts-heading" className="text-base sm:text-lg font-black text-card-foreground">Learner attempts</h2>
+                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-black text-primary">{attempts.length}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Review submitted papers and publish complete, auditable grades.</p>
             </div>
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold text-muted-foreground">{attempts.length}</span>
-          </div>
+            <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${attemptsOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {attemptsOpen && (
+          <div className="p-4">
           {attempts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">No learner has started this paper.</div>
           ) : (
@@ -314,12 +353,14 @@ export default function ExamDetailPage() {
                 <Link key={attempt.id} href={`/dashboard/exams/${id}/attempts/${attempt.id}`} className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-muted/30">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0"><p className="truncate font-bold text-foreground">{attempt.student?.full_name || 'Learner'}</p><p className="truncate text-xs text-muted-foreground">{attempt.student?.email || 'No email'}</p></div>
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${attempt.moderation_status === 'returned' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200' : attempt.status === 'graded' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : attempt.status === 'submitted' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200' : 'bg-muted text-muted-foreground'}`}>{attempt.moderation_status === 'returned' ? 'Correction requested' : attempt.moderation_status === 'approved' ? 'Verified' : attempt.status === 'submitted' ? 'Needs review' : attempt.status === 'graded' ? 'Graded' : attempt.status || 'In progress'}</span>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${attempt.moderation_status === 'returned' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200' : attempt.status === 'graded' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : attempt.status === 'submitted' ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200' : 'bg-muted text-muted-foreground'}`}>{attempt.moderation_status === 'returned' ? 'Correction requested' : attempt.moderation_status === 'approved' ? 'Verified' : attempt.status === 'submitted' ? 'Needs review' : attempt.status === 'graded' ? 'Graded' : attempt.status || 'In progress'}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground"><span>{attempt.status === 'graded' ? `${Number(attempt.percentage ?? 0).toFixed(1)}% · ${attempt.score ?? 0}/${attempt.total_points ?? 0}` : attempt.submitted_at ? `Submitted ${new Date(attempt.submitted_at).toLocaleDateString()}` : 'Attempt in progress'}</span>{(attempt.tab_switches ?? 0) > 0 && <span>{attempt.tab_switches} tab switch{attempt.tab_switches === 1 ? '' : 'es'}</span>}</div>
                 </Link>
               ))}
             </div>
+          )}
+          </div>
           )}
         </section>
       )}
@@ -346,28 +387,38 @@ export default function ExamDetailPage() {
         />
       )}
 
-      {/* Questions Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-black text-card-foreground flex items-center gap-2">
-          <DocumentTextIcon className="w-5 h-5 text-primary" />
-          Questions ({questions.length})
-        </h2>
-        <div className="flex items-center gap-2">
+      {/* Questions Header (collapsible with count + full CRUD) */}
+      <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 bg-muted/20 border-b border-border/60">
+        <button
+          type="button"
+          onClick={() => setQuestionsOpen(v => !v)}
+          aria-expanded={questionsOpen}
+          className="flex items-center gap-2 text-left flex-1 min-w-0"
+        >
+          <DocumentTextIcon className="w-5 h-5 text-primary flex-shrink-0" />
+          <h2 className="text-base sm:text-lg font-black text-card-foreground">Questions</h2>
+          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-black text-primary">
+            {questions.length} · {totalPoints} pts
+          </span>
+          <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${questionsOpen ? 'rotate-180' : ''}`} />
+        </button>
+        <div className="flex items-center gap-2 flex-wrap">
           {questions.length > 0 && canReview && (
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button onClick={() => handlePrintExam('candidate')}
-                className="min-h-11 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted sm:text-sm">
+                className="min-h-10 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-muted">
                 <DocumentTextIcon className="mr-1.5 inline h-4 w-4" /> Candidate paper
               </button>
               <button onClick={() => handlePrintExam('teacher')}
-                className="min-h-11 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100 sm:text-sm">
+                className="min-h-10 rounded-xl border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-200 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
                 <DocumentTextIcon className="mr-1.5 inline h-4 w-4" /> Teacher copy
               </button>
             </div>
           )}
           {canManage && (
             <button onClick={() => openForm()}
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-all text-sm shadow-lg shadow-primary/20">
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl transition-all text-xs sm:text-sm shadow-sm">
               <PlusIcon className="w-4 h-4" /> Add Question
             </button>
           )}
@@ -375,16 +426,18 @@ export default function ExamDetailPage() {
       </div>
 
       {/* Questions List */}
+      {questionsOpen && (
+      <div className="p-4">
       {questions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 bg-card border border-white/[0.08] rounded-2xl">
-          <DocumentTextIcon className="w-14 h-14 text-card-foreground/10" />
-          <p className="text-card-foreground/40 font-semibold">No questions yet</p>
+        <div className="flex flex-col items-center justify-center py-12 gap-3 bg-card border border-dashed border-border rounded-2xl">
+          <DocumentTextIcon className="w-12 h-12 text-muted-foreground/30" />
+          <p className="text-muted-foreground font-semibold">No questions yet</p>
           {canManage && <button onClick={() => openForm()} className="text-primary text-sm font-bold hover:underline">Add the first question</button>}
         </div>
       ) : (
         <div className="space-y-3">
           {questions.map((q, idx) => (
-            <div key={q.id} className="bg-card border border-white/[0.08] rounded-2xl p-4 hover:border-primary/20 transition-all group">
+            <div key={q.id} className="bg-card border border-border rounded-2xl p-4 hover:border-primary/30 transition-all group">
               <div className="flex items-start gap-3">
                 <div className="w-7 h-7 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-center text-xs font-black text-primary flex-shrink-0 mt-0.5">
                   {idx + 1}
@@ -392,13 +445,13 @@ export default function ExamDetailPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <QuestionTypeTag type={q.question_type} />
-                    <span className="text-xs text-card-foreground/40 font-bold">{q.points} pt{q.points !== 1 ? 's' : ''}</span>
+                    <span className="text-xs text-muted-foreground font-bold">{q.points} pt{q.points !== 1 ? 's' : ''}</span>
                   </div>
                   <p className="text-card-foreground text-sm font-medium">{q.question_text}</p>
                   {Array.isArray(q.options) && q.options.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {q.options.map((opt, oi) => (
-                        <div key={oi} className={`text-xs flex items-center gap-2 px-2 py-1 rounded-lg ${String(q.correct_answer) === String(oi) || q.correct_answer === opt ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold' : 'text-card-foreground/50'}`}>
+                        <div key={oi} className={`text-xs flex items-center gap-2 px-2 py-1 rounded-lg ${String(q.correct_answer) === String(oi) || q.correct_answer === opt ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-300 font-bold' : 'text-muted-foreground'}`}>
                           {String(q.correct_answer) === String(oi) || q.correct_answer === opt ? <CheckCircleIcon className="w-3 h-3 flex-shrink-0" /> : <span className="w-3 h-3 flex-shrink-0" />}
                           {opt}
                         </div>
@@ -406,8 +459,8 @@ export default function ExamDetailPage() {
                     </div>
                   )}
                   {!Array.isArray(q.options) && q.correct_answer && (
-                    <div className="mt-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-foreground">
-                      <span className="font-black uppercase tracking-wider text-[10px] text-emerald-700 dark:text-emerald-300 block mb-0.5">
+                    <div className="mt-2 rounded-xl border border-emerald-300 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5 px-3 py-2 text-xs text-foreground">
+                      <span className="font-black uppercase tracking-wider text-[10px] text-emerald-800 dark:text-emerald-300 block mb-0.5">
                         Expected Answer / Model Answer
                       </span>
                       {String(q.correct_answer)}
@@ -423,12 +476,12 @@ export default function ExamDetailPage() {
                   )}
                 </div>
                 {canManage && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openForm(q)} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
-                      <PencilIcon className="w-3.5 h-3.5 text-card-foreground/50" />
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => openForm(q)} aria-label="Edit question" title="Edit question" className="p-2 hover:bg-muted rounded-lg transition-all">
+                      <PencilIcon className="w-3.5 h-3.5 text-foreground" />
                     </button>
-                    <button onClick={() => deleteQuestion(q.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg transition-all">
-                      <TrashIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <button onClick={() => deleteQuestion(q.id)} aria-label="Delete question" title="Delete question" className="p-2 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded-lg transition-all">
+                      <TrashIcon className="w-3.5 h-3.5 text-rose-700 dark:text-rose-400" />
                     </button>
                   </div>
                 )}
@@ -437,6 +490,9 @@ export default function ExamDetailPage() {
           ))}
         </div>
       )}
+      </div>
+      )}
+      </div>
 
       {/* Question Form Modal */}
       {showForm && canManage && (

@@ -312,11 +312,19 @@ export default function TakeExamPage() {
               </div>
             )}
 
-            <button onClick={() => router.push('/dashboard/cbt')}
-              className="group relative w-full py-4 bg-gradient-to-r from-border to-border hover:from-border hover:to-border border border-border text-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all overflow-hidden">
-              <span className="relative z-10">Return to CBT Center</span>
-              <div className="absolute inset-0 bg-card shadow-sm translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => router.push(`/dashboard/cbt/${exam?.id ?? params?.id}`)}
+                className="w-full py-3.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-sm"
+              >
+                Review Answers &amp; Feedback
+              </button>
+              <button onClick={() => router.push('/dashboard/cbt')}
+                className="w-full py-3.5 px-4 bg-card hover:bg-muted border border-border text-foreground font-black uppercase tracking-widest text-xs rounded-xl transition-all">
+                Return to CBT Center
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -416,14 +424,14 @@ export default function TakeExamPage() {
                 </div>
               )}
 
-              {(q?.question_type === 'fill_blank' || q?.question_type === 'essay') && (
+              {q && !showMcq && q.question_type !== 'true_false' && q.question_type !== 'coding_blocks' && (
                 <div className="relative group">
                   <div className="absolute inset-0 bg-emerald-500/5 blur-2xl rounded-[2rem] opacity-0 group-focus-within:opacity-100 transition-opacity" />
                   <textarea
-                    rows={q.question_type === 'essay' ? 8 : 3}
+                    rows={q.question_type === 'essay' || (q.points ?? 0) >= 8 ? 8 : 4}
                     value={answers[q?.id] ?? ''}
                     onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
-                    placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Provide the specific answer…'}
+                    placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Type your answer clearly here…'}
                     className="relative w-full px-4 sm:px-8 py-4 sm:py-6 bg-muted/20 border-2 border-border rounded-2xl sm:rounded-[2rem] text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-y shadow-2xl"
                   />
                 </div>
