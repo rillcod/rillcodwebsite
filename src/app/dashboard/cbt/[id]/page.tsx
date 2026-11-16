@@ -316,7 +316,7 @@ export default function ExamDetailPage() {
                   <AcademicCapIcon className="w-4 h-4" />
                   {exam.programs?.name}
                 </span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${exam.is_active ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' : 'bg-slate-200 text-slate-900 border-slate-300 dark:bg-muted dark:text-muted-foreground dark:border-border'}`}>
                   {exam.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
@@ -373,7 +373,7 @@ export default function ExamDetailPage() {
                           setTogglingActive(false);
                         }
                       }}
-                      className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${exam.is_active ? 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-200' : 'bg-emerald-100 border-emerald-300 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-200'}`}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${exam.is_active ? 'bg-amber-200 border-amber-400 text-amber-950 hover:bg-amber-300 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-200' : 'bg-emerald-200 border-emerald-400 text-emerald-950 hover:bg-emerald-300 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-200'}`}
                     >
                       {exam.is_active ? <><LockClosedIcon className="w-3.5 h-3.5" /> Deactivate</> : <><LockOpenIcon className="w-3.5 h-3.5" /> Activate</>}
                     </button>

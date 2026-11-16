@@ -54,7 +54,7 @@ function ResultUseBadge({ exam }: { exam: Exam }) {
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30'}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${active ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-slate-200 text-slate-900 border-slate-300 dark:bg-zinc-500/20 dark:text-zinc-200 dark:border-zinc-500/30'}`}>
       {active ? <LockOpenIcon className="w-3 h-3" /> : <LockClosedIcon className="w-3 h-3" />}
       {active ? 'Active' : 'Inactive'}
     </span>
@@ -280,20 +280,20 @@ export default function ExamsPage() {
                     <Link href={`/dashboard/exams/${exam.id}/edit`}
                       aria-label={`Edit exam ${exam.title}`}
                       title="Edit exam"
-                      className="p-2 hover:bg-white/10 rounded-xl transition-all">
-                      <PencilIcon className="w-4 h-4 text-card-foreground/50" />
+                      className="p-2 border border-border bg-card hover:bg-muted rounded-xl transition-all text-foreground">
+                      <PencilIcon className="w-4 h-4" />
                     </Link>
                     <button onClick={() => toggleActive(exam)}
                       aria-label={exam.is_active ? `Deactivate exam ${exam.title}` : `Activate exam ${exam.title}`}
                       title={exam.is_active ? 'Deactivate exam' : 'Activate exam'}
-                      className={`p-2 rounded-xl transition-all ${exam.is_active ? 'hover:bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
+                      className={`p-2 rounded-xl border transition-all ${exam.is_active ? 'bg-amber-100 border-amber-300 text-amber-950 hover:bg-amber-200 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-300' : 'bg-emerald-100 border-emerald-300 text-emerald-950 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'}`}>
                       {exam.is_active ? <LockClosedIcon className="w-4 h-4" /> : <LockOpenIcon className="w-4 h-4" />}
                     </button>
                     <button onClick={() => deleteExam(exam.id)}
                       aria-label={`Delete exam ${exam.title}`}
                       title="Delete exam"
-                      className="p-2 hover:bg-rose-500/20 rounded-xl transition-all">
-                      <TrashIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                      className="p-2 border border-rose-300 bg-rose-100 hover:bg-rose-200 text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300 rounded-xl transition-all">
+                      <TrashIcon className="w-4 h-4" />
                     </button>
                   </>
                 )}

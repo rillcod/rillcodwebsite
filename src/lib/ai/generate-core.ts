@@ -378,9 +378,15 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
   const open: any[] = [];
 
   for (const q of rawQuestions) {
-    const type = String(q?.question_type ?? "").toLowerCase();
-    if (["essay", "fill_blank", "coding_blocks"].includes(type)) open.push(q);
-    else objective.push(q);
+    const type = String(q?.question_type ?? "").trim().toLowerCase();
+    const hasOptions = Array.isArray(q?.options) && q.options.filter((o: any) => String(o ?? "").trim()).length >= 2;
+    if (["essay", "long_answer", "fill_blank", "fill_in_blank", "short_answer", "subjective", "theory", "coding_blocks", "coding"].includes(type)) {
+      open.push(q);
+    } else if (["multiple_choice", "mcq", "objective", "obj", "true_false", "boolean"].includes(type) || hasOptions) {
+      objective.push(q);
+    } else {
+      open.push(q);
+    }
   }
 
   const fallbackQuestion = (idx: number, kind: "objective" | "open") => {
@@ -431,14 +437,28 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
 
   const questions = [...pickedObjective, ...pickedOpen].map((q, idx) => {
     const isObjective = idx < pickedObjective.length;
+    const typeMap: Record<string, string> = {
+      mcq: "multiple_choice",
+      objective: "multiple_choice",
+      obj: "multiple_choice",
+      boolean: "true_false",
+      fill_in_blank: "fill_blank",
+      short_answer: "fill_blank",
+      subjective: "essay",
+      long_answer: "essay",
+      theory: "essay",
+      coding: "coding_blocks",
+    };
+    const rawType = String(q.question_type ?? "").trim().toLowerCase();
+    const mappedType = typeMap[rawType] ?? rawType;
     const type = [
       "multiple_choice",
       "true_false",
       "fill_blank",
       "essay",
       "coding_blocks",
-    ].includes(q.question_type)
-      ? q.question_type
+    ].includes(mappedType)
+      ? mappedType
       : isObjective
       ? "multiple_choice"
       : "essay";
@@ -489,7 +509,9 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
         q.marking_guide ??
           rawMeta.marking_guide ??
           q.explanation ??
-          (!isObjective ? resolvedAnswer : "")
+          (isObjective
+            ? `Correct option: ${resolvedAnswer}. Award ${Number(q.points) > 0 ? Number(q.points) : plan.objectivePoints} mark(s) for selecting this exact option.`
+            : resolvedAnswer)
       ).trim() || undefined;
 
     return {

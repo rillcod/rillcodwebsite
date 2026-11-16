@@ -176,23 +176,48 @@ export function parsePremadeQuestionsFromText(
     }
   }
 
-  // 2. Split mainBody into question blocks
-  const blocks = mainBody
-    .split(/\n(?=(?:Q(?:uestion)?\s*\d+[\.\:\)]|\d+[\.\)])\s+)/i)
-    .map((b) => b.trim())
-    .filter(Boolean);
+  // 2. Track section headers (e.g. "SECTION A: OBJECTIVE", "SECTION B: THEORY / ESSAY") and split into question blocks
+  const cleanedLines = mainBody.split('\n');
+  const sectionTaggedBlocks: Array<{ block: string; sectionHint: 'objective' | 'subjective' | 'essay' | null }> = [];
+  let currentSectionHint: 'objective' | 'subjective' | 'essay' | null = null;
+  let currentChunk: string[] = [];
 
-  const candidateBlocks =
-    blocks.length > 1
-      ? blocks
+  const flushChunk = () => {
+    const joined = currentChunk.join('\n').trim();
+    if (joined) sectionTaggedBlocks.push({ block: joined, sectionHint: currentSectionHint });
+    currentChunk = [];
+  };
+
+  for (const rawLine of cleanedLines) {
+    const trimmed = rawLine.trim();
+    const secMatch = trimmed.match(/^(?:SECTION|PART)\s+[A-Z0-9]+\s*[\:\-\–\.]?\s*(.*)$/i);
+    if (secMatch && trimmed.length < 90) {
+      flushChunk();
+      const label = (secMatch[1] || trimmed).toLowerCase();
+      if (/objective|mcq|multiple\s*choice|true\s*or\s*false/.test(label)) currentSectionHint = 'objective';
+      else if (/essay|theory|long\s*answer|extended/.test(label)) currentSectionHint = 'essay';
+      else if (/subjective|short\s*answer|fill|practical|coding/.test(label)) currentSectionHint = 'subjective';
+      continue;
+    }
+    if (/^(?:Q(?:uestion)?\s*\d+[\.\:\)]|\d+[\.\)])\s+/i.test(trimmed) && currentChunk.length > 0) {
+      flushChunk();
+    }
+    currentChunk.push(rawLine);
+  }
+  flushChunk();
+
+  const candidateEntries =
+    sectionTaggedBlocks.length > 1
+      ? sectionTaggedBlocks
       : mainBody
           .split(/\n{2,}/)
           .map((b) => b.trim())
-          .filter(Boolean);
+          .filter(Boolean)
+          .map((b) => ({ block: b, sectionHint: currentSectionHint }));
 
   const results: PremadeQuestionItem[] = [];
 
-  candidateBlocks.forEach((block, idx) => {
+  candidateEntries.forEach(({ block, sectionHint }, idx) => {
     const lines = block
       .split('\n')
       .map((l) => l.trim())
@@ -250,32 +275,37 @@ export function parsePremadeQuestionsFromText(
 
     if (contentLines.length === 0) return;
 
-    // Extract options A-D if present
+    // Extract options A-F if present (supports "(A) ...", "(a) ...", "A) ...", "A. ...", "a. ...", "*B) ...", inline or multiline)
     const extractedOptions: string[] = [];
     let starredOption = '';
     const stemLines: string[] = [];
 
     for (const line of contentLines) {
       const inlineMatches = [
-        ...line.matchAll(/(?:^|\s)(\*?)([A-D])[\.\)\:]\s+([^\t]+?)(?=\s+\*?[A-D][\.\)\:]\s+|$)/g),
+        ...line.matchAll(/(?:^|\s)(\*?)(?:\(([A-Fa-f])\)|([A-Fa-f])[\.\)\:])\s+([^\t]+?)(?=\s+\*?(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:])\s+|$)/g),
       ];
       if (inlineMatches.length >= 2) {
         for (const m of inlineMatches) {
-          const optText = m[3].replace(/\s*(?:\[correct\]|\(correct\)|✓)\s*$/i, '').trim();
-          const isMarked = m[1] === '*' || /(?:\[correct\]|\(correct\)|✓)/i.test(m[3]);
-          extractedOptions.push(optText);
-          if (isMarked) starredOption = optText;
+          const rawOptText = (m[4] || '').trim();
+          const optText = rawOptText.replace(/\s*(?:\[correct\]|\(correct\)|✓)\s*$/i, '').trim();
+          const isMarked = m[1] === '*' || /(?:\[correct\]|\(correct\)|✓)/i.test(rawOptText);
+          if (optText) {
+            extractedOptions.push(optText);
+            if (isMarked) starredOption = optText;
+          }
         }
         continue;
       }
 
-      const singleOptMatch = line.match(/^(\*?)(?:\(?([A-Da-d])\)?[\.\)\:\-])\s+(.+)$/);
+      const singleOptMatch = line.match(/^(\*?)(?:\(([A-Fa-f])\)|([A-Fa-f])[\.\)\:\-])\s+(.+)$/);
       if (singleOptMatch) {
-        const rawOpt = singleOptMatch[3].trim();
+        const rawOpt = singleOptMatch[4].trim();
         const isMarked = singleOptMatch[1] === '*' || /(?:\[correct\]|\(correct\)|✓)\s*$/i.test(rawOpt);
         const optText = rawOpt.replace(/\s*(?:\[correct\]|\(correct\)|✓)\s*$/i, '').trim();
-        extractedOptions.push(optText);
-        if (isMarked) starredOption = optText;
+        if (optText) {
+          extractedOptions.push(optText);
+          if (isMarked) starredOption = optText;
+        }
       } else {
         stemLines.push(line);
       }
@@ -317,10 +347,14 @@ export function parsePremadeQuestionsFromText(
       questionType = 'fill_blank';
       finalOptions = [];
       if (!resolvedAnswer) needsAiAnswer = true;
+    } else if (sectionHint === 'objective' && /\b(which|what|who|select|choose|identify)\b/i.test(questionStem)) {
+      questionType = 'multiple_choice';
+      finalOptions = [];
+      needsAiAnswer = true;
     } else {
       questionType = 'essay';
       finalOptions = [];
-      if (!pointsMatch) points = 10;
+      if (!pointsMatch) points = sectionHint === 'subjective' ? 5 : 10;
       if (!resolvedAnswer) needsAiAnswer = true;
     }
 
