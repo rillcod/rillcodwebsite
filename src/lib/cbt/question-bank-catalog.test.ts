@@ -102,4 +102,41 @@ Answer: Check divisors up to sqrt(n).`,
     const writtenQ = convertPremadeToWrittenQuestion(sample);
     expect(writtenQ.correct_answer).toBe('0');
   });
+
+  it('detects (A)/(a) parenthesized options, inline options, and SECTION A/B headers without turning MCQs into essay', () => {
+    const raw = `
+SECTION A: OBJECTIVE
+1. Which keyword defines a function in Python?
+(a) func
+(b) def
+(c) function
+(d) define
+
+2. HTML stands for? (A) Hyper Text Markup Language (B) High Tech Machine Language (C) Hyperlink Text Mode (D) None
+
+SECTION B: THEORY / ESSAY
+3. Discuss three advantages of using functions in modular programming. [10 marks]
+`;
+    const parsed = parsePremadeQuestionsFromText(raw, {
+      sourceName: 'pasted_exam.txt',
+      defaultTrack: 'Python & Web',
+    });
+
+    expect(parsed).toHaveLength(3);
+    expect(parsed[0]).toMatchObject({
+      question_type: 'multiple_choice',
+      options: ['func', 'def', 'function', 'define'],
+      section: 'objective',
+    });
+    expect(parsed[1]).toMatchObject({
+      question_type: 'multiple_choice',
+      options: ['Hyper Text Markup Language', 'High Tech Machine Language', 'Hyperlink Text Mode', 'None'],
+      section: 'objective',
+    });
+    expect(parsed[2]).toMatchObject({
+      question_type: 'essay',
+      points: 10,
+      section: 'subjective',
+    });
+  });
 });

@@ -285,6 +285,9 @@ export function parsePremadeQuestionsFromText(
         ...line.matchAll(/(?:^|\s)(\*?)(?:\(([A-Fa-f])\)|([A-Fa-f])[\.\)\:])\s+([^\t]+?)(?=\s+\*?(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:])\s+|$)/g),
       ];
       if (inlineMatches.length >= 2) {
+        const firstIdx = inlineMatches[0].index ?? 0;
+        const prefixStem = line.slice(0, firstIdx).trim();
+        if (prefixStem) stemLines.push(prefixStem);
         for (const m of inlineMatches) {
           const rawOptText = (m[4] || '').trim();
           const optText = rawOptText.replace(/\s*(?:\[correct\]|\(correct\)|✓)\s*$/i, '').trim();
