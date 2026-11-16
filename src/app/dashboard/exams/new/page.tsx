@@ -25,14 +25,18 @@ interface ExamClassOption {
 export default function NewExamPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const preClassId = searchParams?.get('class_id') || '';
+  const preCourseId = searchParams?.get('course_id') || '';
+  const preProgramId = searchParams?.get('program_id') || '';
   const [programs, setPrograms] = useState<any[]>([]);
   const [availableClasses, setAvailableClasses] = useState<ExamClassOption[]>([]);
-  const [classId, setClassId] = useState('');
+  const [classId, setClassId] = useState(preClassId);
   const [assessmentScope, setAssessmentScope] = useState<'class_result' | 'practice'>('class_result');
-  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedProgramId, setSelectedProgramId] = useState(preProgramId);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    course_id: '',
+    course_id: preCourseId,
     title: '',
     description: '',
     duration_minutes: 60,
@@ -64,10 +68,23 @@ export default function NewExamPage() {
         toast.error('Classes could not be loaded. Refresh and try again.');
         return;
       }
-      setAvailableClasses(((data ?? []) as ExamClassOption[]).filter(item => item.status !== 'archived'));
+      const active = ((data ?? []) as ExamClassOption[]).filter(item => item.status !== 'archived');
+      setAvailableClasses(active);
+      const target = preClassId
+        ? active.find(item => item.id === preClassId)
+        : active.length === 1
+          ? active[0]
+          : null;
+      if (target) {
+        setClassId(target.id);
+        if (target.program_id) setSelectedProgramId(prev => prev || target.program_id!);
+        if (target.current_course_id) {
+          setForm(current => ({ ...current, course_id: current.course_id || target.current_course_id! }));
+        }
+      }
     };
     void loadClasses();
-  }, [profile]);
+  }, [profile, preClassId]);
 
   // Courses are derived from the chosen programme.
   const courses = (programs.find((p: any) => p.id === selectedProgramId)?.courses ?? []) as { id: string; title: string }[];
@@ -170,14 +187,14 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6 mobile-page-root">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/exams" className="p-2 hover:bg-white/5 rounded-xl transition-all">
+        <Link href={classId ? `/dashboard/classes/${classId}?operation=assessment` : '/dashboard/exams'} className="p-2 hover:bg-white/5 rounded-xl transition-all">
           <ArrowLeftIcon className="w-5 h-5 text-card-foreground/50" />
         </Link>
         <div>
           <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
             <AcademicCapIcon className="w-7 h-7 text-primary" /> Create Written Exam
           </h1>
-          <p className="text-card-foreground/50 text-sm">Create the exam shell, then use the AI Question Designer (.txt/.pdf/Premade Bank &amp; Auto Marking Guide) on the next screen.</p>
+          <p className="text-card-foreground/50 text-sm">Create the exam shell, then use the AI Question Assistant (.txt/.pdf/Past Questions &amp; Auto Marking Guide) on the next screen.</p>
         </div>
       </div>
 

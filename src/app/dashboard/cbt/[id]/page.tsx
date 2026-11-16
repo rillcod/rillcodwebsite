@@ -280,9 +280,16 @@ export default function ExamDetailPage() {
   return (
     <div className={`space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/cbt`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeftIcon className="w-4 h-4" /> {classId ? 'Back to Class' : 'Back to CBT'}
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          <Link href={hostClassId ? `/dashboard/classes/${hostClassId}?operation=assessment` : `/dashboard/cbt`} className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeftIcon className="w-4 h-4" /> {hostClassId ? 'Back to Class Assessment' : 'Back to CBT'}
+          </Link>
+          {hostClassId && (
+            <Link href="/dashboard/cbt" className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+              All CBT Assessments →
+            </Link>
+          )}
+        </div>
 
         {/* Exam header */}
         <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">

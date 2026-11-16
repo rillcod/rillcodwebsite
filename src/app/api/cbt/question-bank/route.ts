@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import {
   inferCognitiveLevel,
   type CurriculumWeekItem,
@@ -43,42 +43,62 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const courseId = searchParams.get('course_id') || null;
     const programId = searchParams.get('program_id') || null;
-    const classId = searchParams.get('class_id') || null;
+    const requestedClassId = searchParams.get('class_id') || null;
 
-    const allowedSchoolIds =
-      caller.role === 'admin'
-        ? null
-        : caller.role === 'teacher'
-          ? await getTeacherSchoolIds(caller.id, caller.school_id ?? null)
-          : caller.school_id
-            ? [caller.school_id]
-            : [];
+    // Resolve strict teacher boundary so teachers never leak or bleed across other teachers' classes/exams
+    const teacherScope =
+      caller.role === 'teacher'
+        ? await getTeacherClassScope(db, caller.id, caller.school_id ?? null, false)
+        : null;
 
-    // 1. Fetch past CBT questions from the database
+    // Verify requestedClassId belongs to the teacher (when caller is a teacher)
+    const classId =
+      caller.role === 'teacher' && requestedClassId
+        ? teacherScope?.classIds.includes(requestedClassId)
+          ? requestedClassId
+          : null
+        : requestedClassId;
+
+    // 1. Fetch past CBT questions strictly scoped to caller authority
     let cbtExamQuery = db
       .from('cbt_exams')
-      .select('id, title, course_id, program_id, school_id, created_by, courses(title), programs(name)')
+      .select('id, title, course_id, program_id, school_id, class_id, created_by, courses(title), programs(name)')
       .order('created_at', { ascending: false })
       .limit(50);
 
     if (caller.role === 'teacher') {
-      if (allowedSchoolIds && allowedSchoolIds.length > 0) {
+      if (teacherScope && teacherScope.classIds.length > 0) {
         cbtExamQuery = cbtExamQuery.or(
-          `created_by.eq.${caller.id},school_id.in.(${allowedSchoolIds.join(',')})`,
+          `created_by.eq.${caller.id},class_id.in.(${teacherScope.classIds.join(',')})`,
         );
       } else {
         cbtExamQuery = cbtExamQuery.eq('created_by', caller.id);
       }
-    } else if (caller.role === 'school' && caller.school_id) {
+    } else if (caller.role === 'school') {
+      if (!caller.school_id) {
+        return NextResponse.json({ data: { questions: [], curriculumWeeks: [] } });
+      }
       cbtExamQuery = cbtExamQuery.eq('school_id', caller.school_id);
     }
 
-    // 2. Fetch past Written Exams from the database
-    const writtenExamQuery = db
+    // 2. Fetch past Written Exams strictly scoped to caller authority
+    let writtenExamQuery = db
       .from('exams')
-      .select('id, title, course_id, program_id, created_by, courses(title, school_id)')
+      .select('id, title, course_id, program_id, class_id, school_id, created_by, courses(title, school_id)')
       .order('created_at', { ascending: false })
       .limit(50);
+
+    if (caller.role === 'teacher') {
+      if (teacherScope && teacherScope.classIds.length > 0) {
+        writtenExamQuery = writtenExamQuery.or(
+          `created_by.eq.${caller.id},class_id.in.(${teacherScope.classIds.join(',')})`,
+        );
+      } else {
+        writtenExamQuery = writtenExamQuery.eq('created_by', caller.id);
+      }
+    } else if (caller.role === 'school' && caller.school_id) {
+      writtenExamQuery = writtenExamQuery.eq('school_id', caller.school_id);
+    }
 
     const [{ data: cbtExams }, { data: writtenExams }] = await Promise.all([
       cbtExamQuery,
@@ -92,11 +112,12 @@ export async function GET(request: NextRequest) {
 
     const writtenExamMap = new Map<string, any>();
     for (const ex of writtenExams ?? []) {
-      const exSchoolId = ex.courses?.school_id ?? null;
+      const exSchoolId = ex.school_id ?? ex.courses?.school_id ?? null;
       if (
         caller.role === 'admin' ||
         ex.created_by === caller.id ||
-        (exSchoolId && allowedSchoolIds?.includes(exSchoolId))
+        (caller.role === 'teacher' && ex.class_id && teacherScope?.classIds.includes(ex.class_id)) ||
+        (caller.role === 'school' && caller.school_id && exSchoolId === caller.school_id)
       ) {
         writtenExamMap.set(ex.id, ex);
       }
@@ -111,14 +132,14 @@ export async function GET(request: NextRequest) {
             .from('cbt_questions')
             .select('id, exam_id, question_text, question_type, options, correct_answer, points, metadata')
             .in('exam_id', cbtExamIds)
-            .limit(250)
+            .limit(200)
         : Promise.resolve({ data: [] as any[] }),
       writtenExamIds.length > 0
         ? db
             .from('exam_questions')
             .select('id, exam_id, question_text, question_type, options, correct_answer, points, explanation')
             .in('exam_id', writtenExamIds)
-            .limit(250)
+            .limit(200)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
@@ -155,6 +176,7 @@ export async function GET(request: NextRequest) {
         correct_answer: String(q.correct_answer ?? ''),
         points: Number(q.points) || 5,
         section: normalizeSection(normalizedType, q.metadata?.section),
+        marking_guide: q.metadata?.marking_guide ? String(q.metadata.marking_guide) : undefined,
         curriculumTag: q.metadata?.curriculum_tag ? String(q.metadata.curriculum_tag) : courseTitle,
       });
     }
@@ -198,37 +220,65 @@ export async function GET(request: NextRequest) {
         points: Number(q.points) || 5,
         section: normalizeSection(normalizedType),
         explanation: q.explanation ? String(q.explanation) : undefined,
+        marking_guide: q.explanation ? String(q.explanation) : undefined,
         curriculumTag: courseTitle,
       });
     }
 
-    // 3. Load Curriculum Weeks & Lessons for the selected class / course / programme
+    // 3. Load Curriculum Weeks & Lessons for the selected class / course
     const curriculumWeeks: CurriculumWeekItem[] = [];
     const seenWeeks = new Set<number>();
 
-    if (classId || courseId || programId) {
+    if (classId || courseId) {
       let planQuery = db
         .from('lesson_plans')
-        .select('id, class_id, course_id, term_id, plan_data, status')
+        .select('id, class_id, course_id, school_id, created_by, term_id, plan_data, status')
         .neq('status', 'archived')
         .limit(5);
-      if (classId) planQuery = planQuery.eq('class_id', classId);
-      else if (courseId) planQuery = planQuery.eq('course_id', courseId);
+
+      if (classId) {
+        planQuery = planQuery.eq('class_id', classId);
+      } else if (courseId) {
+        planQuery = planQuery.eq('course_id', courseId);
+        if (caller.role === 'teacher') {
+          if (teacherScope && teacherScope.classIds.length > 0) {
+            planQuery = planQuery.or(
+              `created_by.eq.${caller.id},class_id.in.(${teacherScope.classIds.join(',')}),school_id.is.null`,
+            );
+          } else {
+            planQuery = planQuery.or(`created_by.eq.${caller.id},school_id.is.null`);
+          }
+        } else if (caller.role === 'school' && caller.school_id) {
+          planQuery = planQuery.or(`school_id.eq.${caller.school_id},school_id.is.null`);
+        }
+      }
 
       const { data: plans } = await planQuery;
       const planIds = (plans ?? []).map((p: any) => p.id);
 
       let lessonQuery = db
         .from('lessons')
-        .select('id, title, description, curriculum_week_number, session_number, status, content, content_layout, course_id, class_id')
+        .select('id, title, description, curriculum_week_number, session_number, status, content, content_layout, course_id, class_id, school_id, created_by')
         .order('curriculum_week_number', { ascending: true })
         .limit(30);
+
       if (classId) {
         lessonQuery = lessonQuery.eq('class_id', classId);
       } else if (planIds.length > 0) {
         lessonQuery = lessonQuery.in('lesson_plan_id', planIds);
       } else if (courseId) {
         lessonQuery = lessonQuery.eq('course_id', courseId);
+        if (caller.role === 'teacher') {
+          if (teacherScope && teacherScope.classIds.length > 0) {
+            lessonQuery = lessonQuery.or(
+              `created_by.eq.${caller.id},class_id.in.(${teacherScope.classIds.join(',')}),school_id.is.null`,
+            );
+          } else {
+            lessonQuery = lessonQuery.or(`created_by.eq.${caller.id},school_id.is.null`);
+          }
+        } else if (caller.role === 'school' && caller.school_id) {
+          lessonQuery = lessonQuery.or(`school_id.eq.${caller.school_id},school_id.is.null`);
+        }
       }
 
       const { data: lessons } = await lessonQuery;
@@ -256,7 +306,6 @@ export async function GET(request: NextRequest) {
           String(lesson.status ?? '').toLowerCase(),
         );
 
-        // Also extract any embedded lesson quiz blocks into bankItems
         const blocks = Array.isArray(contentObj.blocks) ? contentObj.blocks : [];
         blocks.forEach((b: any, bIdx: number) => {
           if (b?.type === 'quiz' && typeof b.question === 'string' && b.question.trim()) {
@@ -315,9 +364,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const sortedBankItems = [...bankItems].sort((a, b) => {
+      const aScore =
+        (courseId && a.courseId === courseId ? 4 : 0) +
+        (programId && a.programId === programId ? 2 : 0) +
+        (a.source === 'lesson_quiz' ? 1 : 0);
+      const bScore =
+        (courseId && b.courseId === courseId ? 4 : 0) +
+        (programId && b.programId === programId ? 2 : 0) +
+        (b.source === 'lesson_quiz' ? 1 : 0);
+      return bScore - aScore;
+    });
+
     return NextResponse.json({
       data: {
-        questions: bankItems,
+        questions: sortedBankItems,
         curriculumWeeks: curriculumWeeks.sort((a, b) => a.week - b.week),
       },
     });

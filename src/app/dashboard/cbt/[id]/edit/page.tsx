@@ -68,6 +68,7 @@ export default function EditExamPage() {
     });
     const [questions, setQuestions] = useState<Question[]>([]);
     const [courses, setCourses] = useState<any[]>([]);
+    const [solvingCardIdx, setSolvingCardIdx] = useState<number | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -180,6 +181,63 @@ export default function EditExamPage() {
             const combined = [...cleanedActive, ...nextQuestions].map((q, idx) => ({ ...q, order_index: idx + 1 }));
             return [...combined, ...deleted];
         });
+    };
+
+    const handleAiSolveSingleCard = async (realIdx: number) => {
+        const target = questions[realIdx];
+        if (!target || !target.question_text.trim()) {
+            setError('Type the question text on this card first, then click AI Complete.');
+            return;
+        }
+        setSolvingCardIdx(realIdx);
+        setError(null);
+        try {
+            const selectedCourse = courses.find((c: any) => c.id === form.course_id);
+            const isObj = ['multiple_choice', 'true_false'].includes(target.question_type);
+            const optsText = isObj && target.options.filter(Boolean).length >= 2
+                ? `\n${target.options.filter(Boolean).map((o, idx) => `${String.fromCharCode(65 + idx)}) ${o}`).join('\n')}`
+                : '';
+            const rawPromptText = `1. ${target.question_text.trim()} [${target.points || 5} marks]${optsText}`;
+
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'cbt',
+                    cbtMode: 'align_premade',
+                    topic: form.title || selectedCourse?.title || 'Assessment Question',
+                    questionCount: 1,
+                    mcqCount: isObj ? 1 : 0,
+                    theoryCount: isObj ? 0 : 1,
+                    courseName: selectedCourse?.title || undefined,
+                    subject: selectedCourse?.title || undefined,
+                    sourceMaterial: rawPromptText,
+                    premadeQuestionsText: rawPromptText,
+                }),
+            });
+            const result = await res.json();
+            const solved = result?.data?.questions?.[0];
+            if (!res.ok || !solved) throw new Error(result?.error || 'Could not auto-complete this question.');
+
+            const nextOpts = target.question_type === 'true_false'
+                ? ['True', 'False']
+                : Array.isArray(solved.options) && solved.options.length >= 2
+                    ? solved.options.map(String)
+                    : target.options;
+
+            updateQuestion(realIdx, {
+                options: nextOpts,
+                correct_answer: String(solved.correct_answer || solved.marking_guide || target.correct_answer || ''),
+                metadata: {
+                    ...(target.metadata ?? {}),
+                    marking_guide: String(solved.marking_guide || solved.metadata?.marking_guide || target.metadata?.marking_guide || ''),
+                },
+            });
+        } catch (e: any) {
+            setError(e?.message || 'AI could not complete this question right now.');
+        } finally {
+            setSolvingCardIdx(null);
+        }
     };
 
     const removeQuestion = (i: number) => {
@@ -328,9 +386,27 @@ export default function EditExamPage() {
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-                <Link href={`/dashboard/cbt/${id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeftIcon className="w-4 h-4" /> Back to Exam
-                </Link>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-4">
+                        <Link href={`/dashboard/cbt/${id}`} className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+                            <ArrowLeftIcon className="w-4 h-4" /> Back to Exam
+                        </Link>
+                        {(originalClassId || form.class_id) && (
+                            <Link href={`/dashboard/classes/${originalClassId || form.class_id}?operation=assessment`} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline">
+                                ← Back to Class Assessment
+                            </Link>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleSubmit as any}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-black uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-md"
+                    >
+                        {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                        {saving ? 'Saving…' : 'Save Changes'}
+                    </button>
+                </div>
 
                 <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
                     <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
@@ -543,6 +619,8 @@ export default function EditExamPage() {
                     {!definitionLocked && (
                         <QuestionAuthoringStudio
                             mode="cbt"
+                            classId={form.class_id || originalClassId || null}
+                            className={availableClasses.find(c => c.id === (form.class_id || originalClassId))?.name ?? null}
                             programId={form.program_id}
                             programName={programs.find(p => p.id === form.program_id)?.name ?? ''}
                             courseId={form.course_id}
@@ -618,6 +696,20 @@ export default function EditExamPage() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAiSolveSingleCard(questions.indexOf(q))}
+                                            disabled={solvingCardIdx === questions.indexOf(q) || !q.question_text.trim()}
+                                            title="Use AI to fill options, correct answer, and marking guide for this question"
+                                            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 rounded-lg transition-colors disabled:opacity-40"
+                                        >
+                                            {solvingCardIdx === questions.indexOf(q) ? (
+                                                <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <SparklesIcon className="w-3 h-3" />
+                                            )}
+                                            {solvingCardIdx === questions.indexOf(q) ? 'Solving…' : 'AI Complete'}
+                                        </button>
                                         <button type="button" onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}
                                             className="p-1.5 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-xl transition-colors disabled:opacity-20">
                                             <ChevronUpIcon className="w-3.5 h-3.5" />

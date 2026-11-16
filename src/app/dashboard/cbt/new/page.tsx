@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { extractPdfText } from '@/lib/pdf/extract-text';
 import {
   ArrowLeftIcon, AcademicCapIcon, PlusIcon, TrashIcon,
-  CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, ChevronDownIcon,
+  CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, ChevronUpIcon, ChevronDownIcon,
   SparklesIcon, CheckCircleIcon,
 } from '@/lib/icons';
 import {
@@ -110,17 +109,16 @@ export default function NewExamPage() {
   const [sectionWeights, setSectionWeights] = useState({ objective: 60, subjective: 30, practical: 10 });
   const [useWeights, setUseWeights] = useState(false);
 
-  // AI Generation State
-  const [aiOpen, setAiOpen] = useState(!!preTopic);
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  // AI Generation State (synced with QuestionAuthoringStudio)
   const [aiTopic, setAiTopic] = useState(preTopic || '');
-  const [sourceText, setSourceText] = useState(preSource);
-  const [sourceName, setSourceName] = useState(preSource ? 'Taught weeks' : '');
-  const [extractingPdf, setExtractingPdf] = useState(false);
-  const [extractMsg, setExtractMsg] = useState('');
+  const [sourceText] = useState(preSource);
+  const [sourceName] = useState(preSource ? 'Taught weeks' : '');
   const [aiMcqCount, setAiMcqCount] = useState(initialSuggestion.mcqCount.toString());
   const [aiTheoryCount, setAiTheoryCount] = useState(initialSuggestion.theoryCount.toString());
+  const [solvingCardIdx, setSolvingCardIdx] = useState<number | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftStorageKey = `rillcod:cbt-new-draft:${preClassId || 'any'}:${preHostAssessment || 'std'}`;
+
   const teacherEdits = useRef({
     title: false,
     description: false,
@@ -144,11 +142,90 @@ export default function NewExamPage() {
     note: examSuggestion.boundaryNote,
   };
   const hostKind = preHostAssessment || hostAssessmentKindFromExam({ title: form.title });
+  const backHref =
+    hostKind && classId
+      ? hostPaperDatasheetHref({
+          kind: hostKind,
+          classId,
+          courseId: form.course_id || preCourseId,
+          programId: form.program_id || preProgramId,
+          schoolId: form.school_id || preSchoolId,
+          from: 'write',
+        })
+      : classId
+        ? `/dashboard/classes/${classId}?operation=assessment`
+        : '/dashboard/cbt';
+  const backLabel = hostKind
+    ? `Back to ${hostPaperLabel(hostKind)}`
+    : classId && className
+      ? `Back to ${className}`
+      : 'Back to CBT';
   const questionPoints = paperTotalFromQuestions(
     questions.filter((question, index) => selectedQuestions.has(index) && question.question_text.trim()),
   );
   const suggestedPaperMax = questionPoints || (hostKind ? SUGGESTED_HOST_PAPER_MAX[hostKind] : null);
   const paperMaxDisplay = paperOutOfEdited ? paperOutOf : String(suggestedPaperMax ?? '');
+
+  // Restore unsaved draft on mount so navigating back never loses teacher work
+  useEffect(() => {
+    if (typeof window === 'undefined' || preSource) return;
+    try {
+      const raw = window.sessionStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.questions?.length > 0 && parsed.questions.some((q: any) => q.question_text?.trim())) {
+        setQuestions(parsed.questions);
+        setSelectedQuestions(new Set(parsed.questions.map((_: any, i: number) => i)));
+        setDraftRestored(true);
+      }
+      if (parsed?.form?.title && !preTitle) {
+        setForm(prev => ({
+          ...prev,
+          title: parsed.form.title || prev.title,
+          description: parsed.form.description || prev.description,
+          program_id: preProgramId || parsed.form.program_id || prev.program_id,
+          course_id: preCourseId || parsed.form.course_id || prev.course_id,
+          school_id: preSchoolId || parsed.form.school_id || prev.school_id,
+        }));
+      }
+      if (parsed?.classId && !preClassId) {
+        setClassId(parsed.classId);
+        if (parsed.className) setClassName(parsed.className);
+      }
+    } catch {
+      // Ignore corrupt session draft
+    }
+  }, [draftStorageKey, preClassId, preCourseId, preProgramId, preSchoolId, preSource, preTitle]);
+
+  // Auto-save draft to sessionStorage whenever form or questions change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hasContent = form.title.trim().length > 0 || questions.some(q => q.question_text.trim().length > 0);
+    if (!hasContent) return;
+    try {
+      window.sessionStorage.setItem(
+        draftStorageKey,
+        JSON.stringify({
+          form,
+          questions,
+          classId,
+          className,
+          savedAt: Date.now(),
+        }),
+      );
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [form, questions, classId, className, draftStorageKey]);
+
+  const clearSavedDraft = () => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(draftStorageKey);
+    }
+    setQuestions([emptyQuestion()]);
+    setSelectedQuestions(new Set([0]));
+    setDraftRestored(false);
+  };
 
   const suggestAiTopic = useCallback((candidate: string | null | undefined, priority: number) => {
     const clean = candidate?.trim();
@@ -178,13 +255,10 @@ export default function NewExamPage() {
     }
   };
 
-  const handleQuestionMixChange = (field: 'mcq' | 'theory', value: string) => {
+  const handleStudioMixChange = (mcq: number, theory: number) => {
     teacherEdits.current.questionMix = true;
-    const mcq = field === 'mcq' ? parseInt(value, 10) || 0 : parseInt(aiMcqCount, 10) || 0;
-    const theory = field === 'theory' ? parseInt(value, 10) || 0 : parseInt(aiTheoryCount, 10) || 0;
-    if (field === 'mcq') setAiMcqCount(value);
-    else setAiTheoryCount(value);
-
+    setAiMcqCount(String(mcq));
+    setAiTheoryCount(String(theory));
     const suggestion = buildCbtEntrySuggestion(form.exam_type, {
       mcqCount: mcq,
       theoryCount: theory,
@@ -200,78 +274,60 @@ export default function NewExamPage() {
     }));
   };
 
-  const handleAiGenerate = async () => {
-    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
-    const mcq    = Math.max(0, Math.min(examBoundary.max, parseInt(aiMcqCount)    || 0));
-    const theory = Math.max(0, Math.min(examBoundary.max, parseInt(aiTheoryCount) || 0));
-    const total  = mcq + theory;
-    if (total < examBoundary.min) { setAiError(`${examBoundary.label} should have at least ${examBoundary.min} questions for a realistic paper.`); return; }
-    if (total > examBoundary.max) { setAiError(`${examBoundary.label} should not exceed ${examBoundary.max} generated questions. Reduce MCQ or theory count.`); return; }
-    setAiGenerating(true);
-    setAiError(null);
+  // Per-question 1-click AI solver/completer for teachers editing a single card
+  const handleAiSolveSingleCard = async (qi: number) => {
+    const target = questions[qi];
+    if (!target || !target.question_text.trim()) {
+      setError('Type the question text on this card first, then click AI Complete.');
+      return;
+    }
+    setSolvingCardIdx(qi);
+    setError(null);
     try {
-      // Ground the questions in the SELECTED programme/course (the form already
-      // captures them) so generation follows the normal programme/course scope.
       const selectedCourse = courses.find((c: any) => c.id === form.course_id);
-      const selectedProgramName = programs.find((p: any) => p.id === form.program_id)?.name
-        || (selectedCourse as any)?.programs?.name;
+      const isObj = ['multiple_choice', 'true_false'].includes(target.question_type);
+      const optsText = isObj && target.options.filter(Boolean).length >= 2
+        ? `\n${target.options.filter(Boolean).map((o, idx) => `${String.fromCharCode(65 + idx)}) ${o}`).join('\n')}`
+        : '';
+      const rawPromptText = `1. ${target.question_text.trim()} [${target.points || 5} marks]${optsText}`;
+
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'cbt',
-          topic: aiTopic,
-          questionCount: total,
-          mcqCount: mcq,
-          theoryCount: theory,
-          courseName: (selectedCourse as any)?.title || undefined,
-          subject: (selectedCourse as any)?.title || undefined,
-          programName: selectedProgramName || undefined,
+          cbtMode: 'align_premade',
+          topic: aiTopic || selectedCourse?.title || form.title || 'Assessment Question',
+          questionCount: 1,
+          mcqCount: isObj ? 1 : 0,
+          theoryCount: isObj ? 0 : 1,
+          courseName: selectedCourse?.title || undefined,
+          subject: selectedCourse?.title || undefined,
           className: className || undefined,
           examType: form.exam_type,
-          sourceName: sourceName || undefined,
-          ...(sourceText ? { sourceMaterial: sourceText } : {}),
-        })
+          sourceMaterial: rawPromptText,
+          premadeQuestionsText: rawPromptText,
+        }),
       });
       const result = await res.json();
-      if (result.error) throw new Error(result.error);
+      const solved = result?.data?.questions?.[0];
+      if (!res.ok || !solved) throw new Error(result?.error || 'Could not auto-complete this question.');
 
-      const data = result.data;
-      const generatedDuration = Number(data.duration_minutes) || examSuggestion.durationMinutes;
-      setForm(prev => ({
-        ...prev,
-        title: !teacherEdits.current.title && data.title ? data.title : prev.title,
-        description: !teacherEdits.current.description && data.description
-          ? data.description
-          : prev.description,
-        duration_minutes: !teacherEdits.current.duration
-          ? generatedDuration.toString()
-          : prev.duration_minutes,
-        passing_score: !teacherEdits.current.passingScore
-          ? (Number(data.passing_score) || examSuggestion.passingScore).toString()
-          : prev.passing_score,
-        access_window_minutes: !teacherEdits.current.accessWindow
-          ? (generatedDuration + 15).toString()
-          : prev.access_window_minutes,
-      }));
-      if (data.questions?.length > 0) {
-        const qs = data.questions.map((q: any) => ({
-          question_text: q.question_text || '',
-          question_type: q.question_type || 'multiple_choice',
-          options: q.options || ['', '', '', ''],
-          correct_answer: q.correct_answer || '',
-          points: q.points || 5,
-          section: (q.section || (['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type) ? 'subjective' : 'objective')) as Question['section'],
-        }));
-        setQuestions(qs);
-        // Select all generated questions by default
-        setSelectedQuestions(new Set(qs.map((_: any, i: number) => i)));
-      }
-      setAiOpen(false);
+      const nextOpts = target.question_type === 'true_false'
+        ? ['True', 'False']
+        : Array.isArray(solved.options) && solved.options.length >= 2
+          ? solved.options.map(String)
+          : target.options;
+
+      updateQuestion(qi, {
+        options: nextOpts,
+        correct_answer: String(solved.correct_answer || solved.marking_guide || target.correct_answer || ''),
+        marking_guide: String(solved.marking_guide || solved.metadata?.marking_guide || target.marking_guide || ''),
+      });
     } catch (e: any) {
-      setAiError(e.message || 'AI generation failed');
+      setError(e?.message || 'AI could not complete this question right now.');
     } finally {
-      setAiGenerating(false);
+      setSolvingCardIdx(null);
     }
   };
 
@@ -285,8 +341,21 @@ export default function NewExamPage() {
       .order('name');
     if (profile.role === 'teacher') classQuery = classQuery.eq('teacher_id', profile.id);
     classQuery.then(({ data }) => {
-      setAvailableClasses(((data ?? []) as AssessmentClassOption[])
-        .filter(item => item.status !== 'archived'));
+      const activeClasses = ((data ?? []) as AssessmentClassOption[]).filter(item => item.status !== 'archived');
+      setAvailableClasses(activeClasses);
+      // Time-saver for teachers: if they teach 1 active class and no class was pre-selected, select it automatically!
+      if (!preClassId && activeClasses.length === 1) {
+        const only = activeClasses[0];
+        setClassId(only.id);
+        setClassName(only.name);
+        suggestAiTopic(only.name, 1);
+        setForm(prev => ({
+          ...prev,
+          school_id: only.school_id || prev.school_id,
+          program_id: only.program_id || prev.program_id,
+          course_id: only.current_course_id || prev.course_id,
+        }));
+      }
     });
     
     // 1. Fetch admin school list; teachers load schools together with scoped courses below.
@@ -393,7 +462,6 @@ export default function NewExamPage() {
             ...previous,
             course_id: lesson.course_id || previous.course_id,
           }));
-          setAiOpen(true);
         });
     }
   }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId, preSchoolId, preLessonId, suggestAiTopic]);
@@ -440,6 +508,22 @@ export default function NewExamPage() {
     const copy = { ...current[i], options: [...(current[i].options ?? [])] };
     const next = [...current.slice(0, i + 1), copy, ...current.slice(i + 1)];
     setSelectedQuestions(new Set(next.map((_, idx) => idx)));
+    return next;
+  });
+  const moveQuestion = (i: number, dir: -1 | 1) => setQuestions(current => {
+    const target = i + dir;
+    if (target < 0 || target >= current.length) return current;
+    const next = [...current];
+    [next[i], next[target]] = [next[target], next[i]];
+    setSelectedQuestions(prev => {
+      const updated = new Set<number>();
+      prev.forEach(idx => {
+        if (idx === i) updated.add(target);
+        else if (idx === target) updated.add(i);
+        else updated.add(idx);
+      });
+      return updated;
+    });
     return next;
   });
   const handleStudioImport = (imported: StudioGeneratedQuestion[], importMode: 'append' | 'replace') => {
@@ -626,21 +710,11 @@ export default function NewExamPage() {
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create exam'); }
 
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(draftStorageKey);
+      }
       const kind = preHostAssessment || hostAssessmentKindFromExam({ title: form.title });
-      router.push(
-        kind && classId
-          ? hostPaperDatasheetHref({
-              kind,
-              classId,
-              courseId: form.course_id || preCourseId,
-              programId: form.program_id || preProgramId,
-              schoolId: form.school_id || preSchoolId,
-              from: 'write',
-            })
-          : classId
-            ? `/dashboard/classes/${classId}?operation=assessment`
-            : '/dashboard/cbt',
-      );
+      router.push(backHref);
     } catch (e: any) {
       setError(e.message ?? 'Failed to create exam');
     } finally {
@@ -695,9 +769,23 @@ export default function NewExamPage() {
     <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
       <div className={`${isMinimal ? 'w-full' : 'max-w-4xl mx-auto'} space-y-6`}>
         {!isMinimal && (
-          <Link href={hostKind && classId ? hostPaperDatasheetHref({ kind: hostKind, classId, courseId: form.course_id || preCourseId, from: 'write' }) : '/dashboard/cbt'} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeftIcon className="w-4 h-4" /> {hostKind ? `Back to ${hostPaperLabel(hostKind)}` : 'Back to CBT'}
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeftIcon className="w-4 h-4" /> {backLabel}
+            </Link>
+            {draftRestored && (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300 font-semibold">
+                <span>Unsaved draft restored</span>
+                <button
+                  type="button"
+                  onClick={clearSavedDraft}
+                  className="underline font-black hover:text-foreground"
+                >
+                  Clear draft
+                </button>
+              </div>
+            )}
+          </div>
         )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
@@ -772,41 +860,10 @@ export default function NewExamPage() {
           </div>
         </div>
 
-        {/* Smart AI Question Designer, TXT/PDF Premade Extractor & Blueprint Studio */}
-        <QuestionAuthoringStudio
-          mode="cbt"
-          courseId={form.course_id || null}
-          courseTitle={courses.find((c: any) => c.id === form.course_id)?.title || null}
-          programId={form.program_id || null}
-          programName={programs.find((p: any) => p.id === form.program_id)?.name || null}
-          classId={classId}
-          className={className || null}
-          examType={form.exam_type}
-          currentQuestions={questions}
-          existingQuestionTexts={questions.map(q => q.question_text)}
-          onImportQuestions={handleStudioImport}
-          onUpdateExamMeta={meta => {
-            setForm(prev => ({
-              ...prev,
-              title: !teacherEdits.current.title && meta.title ? meta.title : prev.title,
-              description: !teacherEdits.current.description && meta.description ? meta.description : prev.description,
-              duration_minutes: !teacherEdits.current.duration && meta.durationMinutes ? String(meta.durationMinutes) : prev.duration_minutes,
-              passing_score: !teacherEdits.current.passingScore && meta.passingScore ? String(meta.passingScore) : prev.passing_score,
-            }));
-          }}
-          initialTopic={aiTopic}
-          initialSourceText={sourceText}
-          initialSourceName={sourceName}
-          defaultMcqCount={parseInt(aiMcqCount, 10) || examSuggestion.mcqCount}
-          defaultTheoryCount={parseInt(aiTheoryCount, 10) || examSuggestion.theoryCount}
-          minQuestions={examBoundary.min}
-          maxQuestions={examBoundary.max}
-        />
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Exam Details */}
           <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Exam Details</h2>
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">1. Class &amp; Exam Setup</h2>
 
             <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
               <div>
@@ -835,11 +892,35 @@ export default function NewExamPage() {
                   </button>
                 )}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                   {assessmentScope === 'class_result' ? 'Result class' : 'Limit practice to a class'}
                   {assessmentScope === 'class_result' && <span className="text-rose-600 dark:text-rose-400"> *</span>}
                 </label>
+                {/* 1-Click Teacher Class Quick-Select Pills */}
+                {!preClassId && !preLessonPlanId && !preHostAssessment && availableClasses.length > 0 && availableClasses.length <= 8 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableClasses
+                      .filter(item => !form.school_id || item.school_id === form.school_id)
+                      .map(item => {
+                        const active = classId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => selectAssessmentClass(item.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                              active
+                                ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                                : 'bg-card border-border text-foreground hover:border-emerald-500/40'
+                            }`}
+                          >
+                            {item.name}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
                 <select
                   value={classId || ''}
                   onChange={event => selectAssessmentClass(event.target.value)}
@@ -857,7 +938,7 @@ export default function NewExamPage() {
                       </option>
                     ))}
                 </select>
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                   {classId
                     ? assessmentScope === 'class_result'
                       ? `${className || 'This class'} is linked to the evidence and result pipeline.`
@@ -1108,12 +1189,44 @@ export default function NewExamPage() {
             )}
           </div>
 
+          {/* 2. Streamlined AI Question Assistant — right above Questions so context is already set */}
+          <QuestionAuthoringStudio
+            mode="cbt"
+            courseId={form.course_id || null}
+            courseTitle={courses.find((c: any) => c.id === form.course_id)?.title || null}
+            programId={form.program_id || null}
+            programName={programs.find((p: any) => p.id === form.program_id)?.name || null}
+            classId={classId}
+            className={className || null}
+            examType={form.exam_type}
+            currentQuestions={questions}
+            existingQuestionTexts={questions.map(q => q.question_text)}
+            onImportQuestions={handleStudioImport}
+            onQuestionMixChange={handleStudioMixChange}
+            onUpdateExamMeta={meta => {
+              setForm(prev => ({
+                ...prev,
+                title: !teacherEdits.current.title && meta.title ? meta.title : prev.title,
+                description: !teacherEdits.current.description && meta.description ? meta.description : prev.description,
+                duration_minutes: !teacherEdits.current.duration && meta.durationMinutes ? String(meta.durationMinutes) : prev.duration_minutes,
+                passing_score: !teacherEdits.current.passingScore && meta.passingScore ? String(meta.passingScore) : prev.passing_score,
+              }));
+            }}
+            initialTopic={aiTopic}
+            initialSourceText={sourceText}
+            initialSourceName={sourceName}
+            defaultMcqCount={parseInt(aiMcqCount, 10) || examSuggestion.mcqCount}
+            defaultTheoryCount={parseInt(aiTheoryCount, 10) || examSuggestion.theoryCount}
+            minQuestions={examBoundary.min}
+            maxQuestions={examBoundary.max}
+          />
+
           {/* Questions */}
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                  Questions ({selectedQuestions.size} selected / {questions.length} total · {questionPoints || 0} pts)
+                  2. Paper Questions ({selectedQuestions.size} selected / {questions.length} total · {questionPoints || 0} pts)
                 </h2>
                 <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
                   Only ticked questions are included in the saved paper. Answers &amp; marking guides are auto-populated by the AI Studio.
@@ -1193,7 +1306,39 @@ export default function NewExamPage() {
                         )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleAiSolveSingleCard(qi)}
+                      disabled={solvingCardIdx === qi || !q.question_text.trim()}
+                      title="Use AI to fill options, correct answer, and marking guide for this question"
+                      className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 rounded-lg transition-colors disabled:opacity-40"
+                    >
+                      {solvingCardIdx === qi ? (
+                        <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <SparklesIcon className="w-3 h-3" />
+                      )}
+                      {solvingCardIdx === qi ? 'Solving…' : 'AI Complete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveQuestion(qi, -1)}
+                      disabled={qi === 0}
+                      title="Move question up"
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-25"
+                    >
+                      <ChevronUpIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveQuestion(qi, 1)}
+                      disabled={qi === questions.length - 1}
+                      title="Move question down"
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-25"
+                    >
+                      <ChevronDownIcon className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => duplicateQuestion(qi)}
@@ -1355,14 +1500,14 @@ export default function NewExamPage() {
 
           {/* Actions */}
           <div className="flex items-center gap-3 pt-2">
-            <Link href="/dashboard/cbt"
+            <Link href={backHref}
               className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl transition-colors">
-              Cancel
+              {backLabel}
             </Link>
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating…' : 'Create Exam'}
+              {saving ? 'Creating…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (form.is_active ? 'Publish Assessment' : 'Save Draft')}
             </button>
           </div>
         </form>

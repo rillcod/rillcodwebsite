@@ -18,6 +18,7 @@ interface Exam {
   id: string;
   title: string;
   description: string | null;
+  class_id?: string | null;
   course_id?: string | null;
   program_id?: string | null;
   duration_minutes: number | null;
@@ -253,7 +254,7 @@ export default function ExamDetailPage() {
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6 mobile-page-root">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Link href="/dashboard/exams" className="p-2 hover:bg-white/5 rounded-xl transition-all mt-1">
+        <Link href={exam.class_id ? `/dashboard/classes/${exam.class_id}?operation=assessment` : '/dashboard/exams'} className="p-2 hover:bg-white/5 rounded-xl transition-all mt-1" title={exam.class_id ? 'Back to Class Assessment' : 'Back to Written Exams'}>
           <ArrowLeftIcon className="w-5 h-5 text-card-foreground/50" />
         </Link>
         <div className="flex-1 min-w-0">
@@ -327,6 +328,7 @@ export default function ExamDetailPage() {
       {canManage && attempts.length === 0 && (
         <QuestionAuthoringStudio
           mode="written"
+          classId={exam.class_id ?? null}
           programId={exam.program_id ?? exam.courses?.program_id ?? ''}
           courseId={exam.course_id ?? exam.courses?.id ?? ''}
           courseTitle={exam.courses?.title ?? ''}

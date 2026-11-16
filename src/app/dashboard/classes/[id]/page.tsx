@@ -2286,6 +2286,17 @@ export default function ClassDetailPage() {
                           {assessmentPolicy?.usesHostEvaluation ? 'New practice CBT' : 'New CBT assessment'}
                         </Link>
                         <Link
+                          href={`/dashboard/exams/new?class_id=${id}${
+                            searchParams.get('course_id') || cls?.current_course_id
+                              ? `&course_id=${searchParams.get('course_id') || cls?.current_course_id}`
+                              : ''
+                          }${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`}
+                          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2 text-xs font-black text-foreground hover:border-primary/40"
+                        >
+                          <PlusIcon className="h-3.5 w-3.5 text-primary" />
+                          New written exam
+                        </Link>
+                        <Link
                           href={`/dashboard/grades?class_id=${id}`}
                           className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-black text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
                         >

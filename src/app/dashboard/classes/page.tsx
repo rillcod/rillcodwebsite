@@ -528,14 +528,24 @@ export default function ClassesPage() {
                       Assessments
                     </Link>
                     {profile?.role !== 'school' && (
-                      <Link
-                        href={`/dashboard/grades?class_id=${cls.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                        title="Mark work and review gradebook for this class"
-                      >
-                        <AcademicCapIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                        Mark Work
-                      </Link>
+                      <>
+                        <Link
+                          href={`/dashboard/cbt/new?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}${cls.program_id ? `&program_id=${cls.program_id}` : ''}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                          title="Create AI CBT or exam paper for this class"
+                        >
+                          <PlusIcon className="h-3 w-3" />
+                          + CBT / Exam
+                        </Link>
+                        <Link
+                          href={`/dashboard/grades?class_id=${cls.id}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                          title="Mark work and review gradebook for this class"
+                        >
+                          <AcademicCapIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                          Mark Work
+                        </Link>
+                      </>
                     )}
                     <Link
                       href={`/dashboard/attendance?class_id=${cls.id}`}
