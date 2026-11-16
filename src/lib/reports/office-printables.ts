@@ -553,10 +553,10 @@ export function printClassMasterBroadsheet(params: {
       ? [
           { label: '#', align: 'center', width: '34px' },
           { label: 'Student Name' },
-          { label: '1st Test (20)', align: 'center', width: '88px' },
-          { label: '2nd Test (20)', align: 'center', width: '88px' },
-          { label: 'Exam (60)', align: 'center', width: '88px' },
-          { label: 'Total %', align: 'center', width: '82px' },
+          { label: 'First Test', align: 'center', width: '88px' },
+          { label: 'Second Test', align: 'center', width: '88px' },
+          { label: 'Examination', align: 'center', width: '88px' },
+          { label: 'School Paper Total', align: 'center', width: '98px' },
           { label: 'WAEC Grade', align: 'center', width: '82px' },
           { label: 'Status', align: 'center', width: '92px' },
         ]

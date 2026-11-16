@@ -44,11 +44,15 @@ describe('school paper entry and report display workflow', () => {
 
   it('prints explicit paper columns and never reduces parent labels to 1, 2 and Ex', () => {
     const results = read('src/app/dashboard/results/page.tsx');
+    const printables = read('src/lib/reports/office-printables.ts');
     const parent = read('src/app/dashboard/parent-results/page.tsx');
 
-    expect(results).toContain('<th>First Test</th><th>Second Test</th><th>Examination</th>');
-    expect(results).toContain('School Paper Total');
+    expect(results).toContain('printClassMasterBroadsheet');
     expect(results).toContain('engagement_metrics');
+    expect(printables).toContain('First Test');
+    expect(printables).toContain('Second Test');
+    expect(printables).toContain('Examination');
+    expect(printables).toContain('School Paper Total');
     expect(parent).toContain('label: row.label');
     expect(parent).not.toContain("row.kind === 'examination' ? 'Ex' : row.kind === 'second_test' ? '2' : '1'");
   });
