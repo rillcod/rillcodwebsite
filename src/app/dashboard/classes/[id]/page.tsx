@@ -1678,6 +1678,29 @@ export default function ClassDetailPage() {
                   Students ({currentTermStudents.length})
                 </button>
                 {isStaff && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectOperation('roster');
+                      openSessionConfirm();
+                      setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+                    }}
+                    className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                      offBandCount > 0
+                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25'
+                        : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                    }`}
+                  >
+                    <CheckCircleIcon className="h-3.5 w-3.5" />
+                    Confirm Grades
+                    {offBandCount > 0 && (
+                      <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                        {offBandCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+                {isStaff && (
                   <>
                     <Link
                       href={learnerReportHref('write', {
@@ -1713,6 +1736,30 @@ export default function ClassDetailPage() {
         {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-snug text-rose-600 dark:text-rose-400">
             Class capacity has been reached. Move students to another class or increase capacity before adding more.
+          </div>
+        )}
+
+        {isStaff && offBandCount > 0 && !(activeOperation === 'roster' && showSessionConfirm) && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs shadow-sm">
+            <div className="min-w-0">
+              <p className="font-black text-amber-900 dark:text-amber-200">
+                Session Grade Check: {offBandCount} student{offBandCount === 1 ? ' still carries' : 's still carry'} a previous session&apos;s grade
+              </p>
+              <p className="mt-0.5 text-[11px] text-amber-800/85 dark:text-amber-300/85">
+                Confirm returning students with their new grade, withdraw anyone who left, or add new students inline.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                selectOperation('roster');
+                openSessionConfirm();
+                setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+              }}
+              className="shrink-0 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-slate-900 hover:bg-amber-400 transition-colors"
+            >
+              Confirm Session &amp; Grades →
+            </button>
           </div>
         )}
 
@@ -2028,6 +2075,75 @@ export default function ClassDetailPage() {
                         </div>
                       )}
                     </div>
+                    {rosterOpen && isStaff && !showSessionConfirm && (
+                      <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-black text-foreground">
+                            + Quick-Add or Auto-Adopt Student Inline
+                          </p>
+                          <span className="text-[10px] text-muted-foreground">
+                            Auto-matches school records (no duplicates) or creates login + ID card
+                          </span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="text"
+                            value={quickAddInput}
+                            onChange={(e) => setQuickAddInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && quickAddInput.trim() && !savingSessionConfirm) {
+                                e.preventDefault();
+                                void submitSessionConfirm(true);
+                              }
+                            }}
+                            placeholder="Type student name (e.g. Chinedu Eze or Ada Okafor JSS 1)"
+                            className="min-h-10 flex-1 rounded-xl border border-border bg-card px-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                          />
+                          <select
+                            aria-label="Grade for quick-added student"
+                            value={quickAddGrade}
+                            onChange={(e) => setQuickAddGrade(e.target.value)}
+                            className="min-h-10 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
+                          >
+                            <option value="">Auto grade ({defaultEntryGradeForClass() || 'Class'})</option>
+                            {SINGLE_GRADES.map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={savingSessionConfirm || !quickAddInput.trim()}
+                            onClick={() => void submitSessionConfirm(true)}
+                            className="min-h-10 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40 shrink-0"
+                          >
+                            {savingSessionConfirm ? 'Adding…' : '+ Add / Adopt'}
+                          </button>
+                        </div>
+                        {sessionConfirmNotice && (
+                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs space-y-1">
+                            <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
+                            {sessionConfirmNotice.ambiguous && sessionConfirmNotice.ambiguous.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {sessionConfirmNotice.ambiguous.flatMap((row) =>
+                                  row.candidates.map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      disabled={!!processingStudent}
+                                      onClick={() => void assignStudent(c.id, 'promote')}
+                                      className="rounded-lg border border-primary/35 bg-card px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/10"
+                                    >
+                                      + Adopt {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
+                                    </button>
+                                  )),
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {rosterOpen && showSessionConfirm && isStaff && (
                       <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.06] p-3.5 sm:p-4 space-y-3.5">
                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -2529,9 +2645,35 @@ export default function ClassDetailPage() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <span className="break-words text-sm font-bold text-foreground">{student.full_name}</span>
-                                  {student.grade && (
+                                  {isStaff ? (
+                                    <select
+                                      aria-label={`Quick grade for ${student.full_name}`}
+                                      value={student.grade || ''}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={async (e) => {
+                                        const nextG = e.target.value;
+                                        if (!nextG) return;
+                                        await fetch(`/api/classes/${id}/enroll`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ updates: [{ studentId: student.id, grade: nextG }] }),
+                                        });
+                                        await fetchData();
+                                      }}
+                                      className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide outline-none cursor-pointer ${
+                                        offBand
+                                          ? 'border-amber-500/50 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                                          : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                                      }`}
+                                    >
+                                      <option value="">No grade</option>
+                                      {SINGLE_GRADES.map((g) => (
+                                        <option key={g} value={g}>{g}</option>
+                                      ))}
+                                    </select>
+                                  ) : student.grade ? (
                                     <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{student.grade}</span>
-                                  )}
+                                  ) : null}
                                   {reportIndicatorEnabled && (() => {
                                     const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
                                     const sessionLabel = [student.report_term, student.report_period].filter(Boolean).join(' · ') || 'this term';
