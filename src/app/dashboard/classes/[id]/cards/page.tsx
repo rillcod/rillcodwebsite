@@ -212,7 +212,7 @@ export default function ClassCardsPage() {
     }
   };
 
-  const printRoster = async () => {
+  const printRoster = async (mode: 'print' | 'save' = 'print') => {
     const list = selectedRows.length ? selectedRows : rows;
     const eligible = list.filter((r) => r.has_published_report);
     if (!eligible.length) { toast.error('None of these students has a published result yet.'); return; }
@@ -230,9 +230,11 @@ export default function ClassCardsPage() {
         orgWebsite: cfg.orgWebsite,
         accentColor: cfg.accentColor,
         origin: window.location.origin,
-        mode: 'print',
+        mode,
+        filename: `rc-roster-${(cls?.name ?? 'class').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`,
       });
-      if (!ok) toast.error('Pop-up blocked — allow pop-ups to print the roster.');
+      if (!ok && mode === 'print') toast.error('Pop-up blocked — allow pop-ups to print the roster.');
+      else if (mode === 'save') toast.success(`RC roster PDF downloaded — ${rosterRows.length} student${rosterRows.length === 1 ? '' : 's'}`);
     } catch {
       toast.error('Could not prepare the roster. Please try again.');
     } finally {
@@ -267,6 +269,7 @@ export default function ClassCardsPage() {
         qrHint: 'Scan to check result',
       });
       openPrintWindow(html, win);
+      toast.message('In the print window, choose "Save as PDF" to keep a PDF copy.');
     } catch {
       win.close();
       toast.error('Could not prepare the cards. Please try again.');
@@ -497,13 +500,19 @@ export default function ClassCardsPage() {
               {busy === 'issue' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ShieldCheckIcon className="h-4 w-4" />}
               Give access{selectedNeedingCard.length ? ` (${selectedNeedingCard.length})` : ''}
             </button>
-            <button type="button" disabled={busy !== ''} onClick={() => void printRoster()}
+            <button type="button" disabled={busy !== ''} onClick={() => void printRoster('print')}
+              title="Opens the RC roster as a PDF ready to print"
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-700 px-4 text-xs font-black text-white hover:bg-emerald-800 disabled:opacity-40">
-              {busy === 'roster' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PrinterIcon className="h-4 w-4" />} RC roster
+              {busy === 'roster' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PrinterIcon className="h-4 w-4" />} Print RC roster (PDF)
+            </button>
+            <button type="button" disabled={busy !== ''} onClick={() => void printRoster('save')}
+              title="Download the RC roster PDF to share or print later"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-600/50 bg-background px-4 text-xs font-black text-emerald-800 hover:bg-emerald-500/10 disabled:opacity-40 dark:text-emerald-300">
+              <DocumentTextIcon className="h-4 w-4" /> Download PDF
             </button>
             <button type="button" disabled={busy !== ''} onClick={() => void printCards()}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-black text-foreground hover:bg-muted disabled:opacity-40">
-              {busy === 'cards' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <IdentificationIcon className="h-4 w-4" />} Print cards
+              {busy === 'cards' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <IdentificationIcon className="h-4 w-4" />} Print ID cards (PDF)
             </button>
             <button type="button" onClick={() => void copyCodes()}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-4 text-xs font-black text-foreground hover:bg-muted">
