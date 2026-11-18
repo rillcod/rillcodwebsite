@@ -146,6 +146,18 @@ export default function ClassDetailPage() {
   const [modalGradeAction, setModalGradeAction] = useState<'promote' | 'demote' | 'retain'>('promote');
   const [modalStudentActions, setModalStudentActions] = useState<Record<string, 'promote' | 'demote' | 'retain'>>({});
   const [modalSchoolClasses, setModalSchoolClasses] = useState<Array<{ id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>>([]);
+  // Session Roster Confirmation + Inline Quick-Add
+  const [showSessionConfirm, setShowSessionConfirm] = useState(false);
+  const [confirmKeepIds, setConfirmKeepIds] = useState<Set<string>>(new Set());
+  const [confirmGrades, setConfirmGrades] = useState<Record<string, string>>({});
+  const [quickAddInput, setQuickAddInput] = useState('');
+  const [quickAddGrade, setQuickAddGrade] = useState('');
+  const [savingSessionConfirm, setSavingSessionConfirm] = useState(false);
+  const [sessionConfirmNotice, setSessionConfirmNotice] = useState<{
+    summary: string;
+    added: Array<{ fullName: string; grade: string | null; mode: string; email?: string; password?: string | null }>;
+    errors: Array<{ input: string; error: string }>;
+  } | null>(null);
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [pasteNamesText, setPasteNamesText] = useState('');
   const [pastePreview, setPastePreview] = useState<any | null>(null);
@@ -584,14 +596,20 @@ export default function ClassDetailPage() {
     }
   };
 
-  const assignStudent = async (studentId: string) => {
+  const assignStudent = async (studentId: string, actionOverride?: 'promote' | 'demote' | 'retain') => {
     if (!cls) return;
     setProcessingStudent(studentId);
     try {
+      const effectiveAction = actionOverride ?? modalStudentActions[studentId] ?? modalGradeAction ?? 'promote';
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId, forceClaim: pasteClaimEnabled === true, promoteToClassGrade: true }),
+        body: JSON.stringify({
+          studentId,
+          forceClaim: pasteClaimEnabled === true,
+          promoteToClassGrade: effectiveAction !== 'retain',
+          gradeAction: effectiveAction,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Failed to enroll student');
@@ -601,6 +619,105 @@ export default function ClassDetailPage() {
       alert(e.message);
     } finally {
       setProcessingStudent(null);
+    }
+  };
+
+  const nextStepGradeLabel = (currentGrade?: string | null): string => {
+    const clean = (currentGrade || '').trim();
+    if (!clean) return cls?.qa_grade_key || '';
+    const idx = (SINGLE_GRADES as readonly string[]).indexOf(clean);
+    if (idx >= 0 && idx < SINGLE_GRADES.length - 1) return SINGLE_GRADES[idx + 1];
+    return clean;
+  };
+
+  const defaultEntryGradeForClass = (): string => {
+    if (cls?.qa_grade_key && (SINGLE_GRADES as readonly string[]).includes(cls.qa_grade_key)) {
+      return cls.qa_grade_key;
+    }
+    const band = parseBandLabel(cls?.name?.split('·').pop()?.trim());
+    if (band) return `${band.lvl} ${band.low}`;
+    return '';
+  };
+
+  const openSessionConfirm = () => {
+    const active = currentTermStudents;
+    setConfirmKeepIds(new Set(active.map((s: any) => s.id)));
+    const nextMap: Record<string, string> = {};
+    const fallback = defaultEntryGradeForClass();
+    for (const s of active) {
+      nextMap[s.id] = (s.grade && (SINGLE_GRADES as readonly string[]).includes(s.grade))
+        ? s.grade
+        : (fallback || s.grade || '');
+    }
+    setConfirmGrades(nextMap);
+    setQuickAddGrade(fallback);
+    setSessionConfirmNotice(null);
+    setShowSessionConfirm(true);
+    setRosterOpen(true);
+  };
+
+  const promoteAllConfirmGrades = () => {
+    setConfirmGrades((prev) => {
+      const next = { ...prev };
+      for (const s of currentTermStudents) {
+        if (!confirmKeepIds.has(s.id)) continue;
+        const cur = next[s.id] || s.grade || '';
+        const stepped = nextStepGradeLabel(cur);
+        if (stepped) next[s.id] = stepped;
+      }
+      return next;
+    });
+  };
+
+  const submitSessionConfirm = async (onlyQuickAdd = false) => {
+    if (!id) return;
+    setSavingSessionConfirm(true);
+    setSessionConfirmNotice(null);
+    try {
+      const updates: Array<{ studentId: string; grade: string }> = [];
+      const withdrawStudentIds: string[] = [];
+
+      if (!onlyQuickAdd) {
+        for (const s of currentTermStudents) {
+          if (confirmKeepIds.has(s.id)) {
+            const targetG = (confirmGrades[s.id] || s.grade || '').trim();
+            if (targetG) updates.push({ studentId: s.id, grade: targetG });
+          } else {
+            withdrawStudentIds.push(s.id);
+          }
+        }
+      }
+
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          updates,
+          withdrawStudentIds,
+          quickAddNames: quickAddInput.trim() || undefined,
+          defaultGrade: quickAddGrade || defaultEntryGradeForClass() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not save session confirmation');
+
+      const added = Array.isArray(json.quickAdded) ? json.quickAdded : [];
+      const errs = Array.isArray(json.quickErrors) ? json.quickErrors : [];
+      const parts: string[] = [];
+      if (json.updatedCount) parts.push(`${json.updatedCount} confirmed`);
+      if (json.withdrawnCount) parts.push(`${json.withdrawnCount} withdrawn`);
+      if (added.length) parts.push(`${added.length} added/adopted`);
+      setSessionConfirmNotice({
+        summary: parts.length ? `Saved: ${parts.join(' · ')}.` : 'Roster is up to date.',
+        added,
+        errors: errs,
+      });
+      if (added.length > 0 && errs.length === 0) setQuickAddInput('');
+      await fetchData();
+    } catch (e: any) {
+      alert(e.message || 'Could not update roster');
+    } finally {
+      setSavingSessionConfirm(false);
     }
   };
 
@@ -1681,6 +1798,20 @@ export default function ClassDetailPage() {
                           ) : ' ✓'}
                         </p>
                       )}
+                      {isStaff && offBandCount > 0 && !showSessionConfirm && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs">
+                          <span className="font-semibold text-amber-800 dark:text-amber-200">
+                            {offBandCount} student{offBandCount === 1 ? ' still carries' : 's still carry'} a prior-session grade (off-band for {cls?.name}).
+                          </span>
+                          <button
+                            type="button"
+                            onClick={openSessionConfirm}
+                            className="rounded-lg bg-amber-500 px-3 py-1 text-[11px] font-black text-slate-900 hover:bg-amber-400 transition-colors"
+                          >
+                            Confirm Session &amp; Update Grades →
+                          </button>
+                        </div>
+                      )}
                       {isStaff && (
                         <div className="flex flex-wrap items-center gap-2">
                           <button
@@ -1689,7 +1820,19 @@ export default function ClassDetailPage() {
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground"
                           >
                             <PlusIcon className="h-3.5 w-3.5" />
-                            Add Students
+                            Add / Adopt Students
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => (showSessionConfirm ? setShowSessionConfirm(false) : openSessionConfirm())}
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${
+                              showSessionConfirm
+                                ? 'border-emerald-600 bg-emerald-700 text-white'
+                                : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                            }`}
+                          >
+                            <CheckCircleIcon className="h-3.5 w-3.5" />
+                            {showSessionConfirm ? 'Close Confirm' : 'Confirm Session & Grades'}
                           </button>
                           <Link
                             href={learnerReportHref('write', {
@@ -1798,6 +1941,216 @@ export default function ClassDetailPage() {
                         </div>
                       )}
                     </div>
+                    {rosterOpen && showSessionConfirm && isStaff && (
+                      <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.06] p-3.5 sm:p-4 space-y-3.5">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-black text-foreground">
+                              Confirm This Term&apos;s Class List &amp; Grades
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Tick students returning to this class, update their new session grade (e.g. JSS 2 → JSS 3), untick anyone who left to withdraw them cleanly, and add new names inline below.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {currentTermStudents.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={promoteAllConfirmGrades}
+                                className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-800 transition-colors"
+                              >
+                                ⬆ Promote All Checked (+1 Grade)
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowSessionConfirm(false)}
+                              className="inline-flex min-h-9 items-center rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Existing roster confirmation rows */}
+                        {currentTermStudents.length > 0 && (
+                          <div className="max-h-72 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border">
+                            <div className="flex items-center justify-between gap-2 bg-muted/40 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 accent-emerald-700"
+                                  checked={currentTermStudents.length > 0 && currentTermStudents.every((s: any) => confirmKeepIds.has(s.id))}
+                                  onChange={(e) =>
+                                    setConfirmKeepIds(
+                                      e.target.checked ? new Set(currentTermStudents.map((s: any) => s.id)) : new Set(),
+                                    )
+                                  }
+                                />
+                                Returning ({confirmKeepIds.size}/{currentTermStudents.length})
+                              </label>
+                              <span>New Session Grade</span>
+                            </div>
+                            {currentTermStudents.map((s: any) => {
+                              const kept = confirmKeepIds.has(s.id);
+                              const chosenGrade = confirmGrades[s.id] ?? s.grade ?? '';
+                              const changed = kept && chosenGrade && s.grade && chosenGrade !== s.grade;
+                              return (
+                                <div
+                                  key={`confirm-${s.id}`}
+                                  className={`flex flex-wrap items-center gap-2.5 px-3 py-2 text-xs transition-colors ${
+                                    kept ? 'bg-card' : 'bg-rose-500/5 opacity-75'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={kept}
+                                    onChange={(e) =>
+                                      setConfirmKeepIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (e.target.checked) next.add(s.id);
+                                        else next.delete(s.id);
+                                        return next;
+                                      })
+                                    }
+                                    aria-label={`Keep ${s.full_name} in class`}
+                                    className="h-4 w-4 shrink-0 accent-emerald-700"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      Was: {s.grade || 'No grade'}
+                                      {changed ? (
+                                        <span className="ml-1.5 font-black text-emerald-700 dark:text-emerald-300">
+                                          → {chosenGrade}
+                                        </span>
+                                      ) : null}
+                                      {!kept && (
+                                        <span className="ml-1.5 font-black text-rose-600 dark:text-rose-400">
+                                          · Will withdraw (history kept)
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                  {kept ? (
+                                    <select
+                                      aria-label={`Grade for ${s.full_name}`}
+                                      value={chosenGrade}
+                                      onChange={(e) =>
+                                        setConfirmGrades((prev) => ({ ...prev, [s.id]: e.target.value }))
+                                      }
+                                      className="min-h-9 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-bold text-foreground"
+                                    >
+                                      <option value="">Select grade</option>
+                                      {SINGLE_GRADES.map((g) => (
+                                        <option key={g} value={g}>{g}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span className="rounded-md bg-rose-500/15 px-2 py-1 text-[10px] font-black uppercase text-rose-700 dark:text-rose-300">
+                                      Withdraw
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Inline Quick-Add / Smart Auto-Adopt */}
+                        <div className="rounded-xl border border-primary/25 bg-card p-3 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-black text-foreground">
+                              + Quick-Add New or Returning Student Inline
+                            </p>
+                            <span className="text-[10px] font-semibold text-muted-foreground">
+                              Auto-matches existing school records (zero duplicates) or creates &amp; syncs new student + ID card
+                            </span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <textarea
+                              rows={2}
+                              value={quickAddInput}
+                              onChange={(e) => setQuickAddInput(e.target.value)}
+                              placeholder="Type student name(s) — e.g. Chinedu Eze (or paste one per line, optionally with grade like Ada Okafor JSS 1)"
+                              className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                            />
+                            <div className="flex sm:flex-col gap-2 shrink-0">
+                              <select
+                                aria-label="Grade for inline new students"
+                                value={quickAddGrade}
+                                onChange={(e) => setQuickAddGrade(e.target.value)}
+                                className="min-h-10 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground"
+                              >
+                                <option value="">Auto grade ({defaultEntryGradeForClass() || 'Class'})</option>
+                                {SINGLE_GRADES.map((g) => (
+                                  <option key={g} value={g}>{g}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                disabled={savingSessionConfirm || !quickAddInput.trim()}
+                                onClick={() => void submitSessionConfirm(true)}
+                                className="min-h-10 rounded-xl border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-40"
+                              >
+                                + Add &amp; Sync Now
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {sessionConfirmNotice && (
+                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 text-xs space-y-1.5">
+                            <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
+                            {sessionConfirmNotice.added.length > 0 && (
+                              <ul className="space-y-1 text-[11px] text-foreground">
+                                {sessionConfirmNotice.added.map((a, idx) => (
+                                  <li key={`${a.fullName}-${idx}`}>
+                                    <span className="font-bold">{a.fullName}</span>
+                                    {a.grade ? ` · ${a.grade}` : ''}
+                                    <span className="ml-1.5 rounded bg-background px-1.5 py-0.5 text-[10px] font-black uppercase text-primary">
+                                      {a.mode === 'adopted' ? 'Adopted (existing record)' : a.mode === 'created' ? 'New account synced' : 'Confirmed'}
+                                    </span>
+                                    {a.password ? (
+                                      <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+                                        {a.email} / {a.password}
+                                      </span>
+                                    ) : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {sessionConfirmNotice.errors.length > 0 && (
+                              <p className="text-[11px] font-bold text-rose-700 dark:text-rose-300">
+                                {sessionConfirmNotice.errors.map((e) => `${e.input}: ${e.error}`).join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            disabled={savingSessionConfirm}
+                            onClick={() => void submitSessionConfirm(false)}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2 text-xs font-black text-white hover:bg-emerald-800 disabled:opacity-50"
+                          >
+                            {savingSessionConfirm ? (
+                              <><ArrowPathIcon className="h-4 w-4 animate-spin" /> Saving &amp; Syncing…</>
+                            ) : (
+                              <>
+                                <CheckCircleIcon className="h-4 w-4" />
+                                Save &amp; Confirm Roster
+                                {currentTermStudents.length - confirmKeepIds.size > 0
+                                  ? ` (${confirmKeepIds.size} keep · ${currentTermStudents.length - confirmKeepIds.size} withdraw)`
+                                  : ''}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="relative">
                         <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -3500,6 +3853,9 @@ export default function ClassDetailPage() {
                                 {gradeText && (
                                   <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-foreground">
                                     {gradeText}
+                                    {student.suggested_grade && student.suggested_grade !== gradeText
+                                      ? ` → ${student.suggested_grade}`
+                                      : ''}
                                   </span>
                                 )}
                                 {!student.class_id && (
@@ -3555,6 +3911,20 @@ export default function ClassDetailPage() {
                                   );
                                 })}
                               </div>
+                            )}
+                            {!requiresRequest && !isBlocked && (
+                              <button
+                                type="button"
+                                disabled={!!processingStudent}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void assignStudent(student.id, modalStudentActions[student.id] || modalGradeAction || 'promote');
+                                }}
+                                title={`Adopt ${student.full_name} into ${cls?.name ?? 'this class'} immediately`}
+                                className="shrink-0 rounded-lg bg-emerald-700 px-2.5 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                              >
+                                {processingStudent === student.id ? 'Adopting…' : 'Adopt'}
+                              </button>
                             )}
                             {requiresRequest ? (
                               student.pending_transfer_request_id ? (

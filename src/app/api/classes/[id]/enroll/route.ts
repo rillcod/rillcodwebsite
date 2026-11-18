@@ -7,32 +7,132 @@ import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { isPasteClaimEnabled } from '@/lib/server/app-settings';
-import { SINGLE_GRADES } from '@/lib/classes/naming';
+import {
+  bandCoversGrade,
+  canonicalGrade,
+  cleanGrade,
+  parseBandLabel,
+  SINGLE_GRADES,
+  type CanonicalBand,
+} from '@/lib/classes/naming';
+import { cleanStudentName } from '@/lib/students/clean-name';
+import { parseBulkGrade, stripBulkGrade } from '@/lib/students/bulk-grade';
+import {
+  loadSchoolStudentsForClaim,
+  matchPastedNamesToStudents,
+  parsePastedStudentNames,
+} from '@/lib/students/claim-by-names';
+import { findOrCreateStudentPortal } from '@/lib/students/provision';
+import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 
 function previousFeederGrade(gradeKey?: string | null): string | null {
-  if (!gradeKey) return null;
-  const idx = (SINGLE_GRADES as readonly string[]).indexOf(gradeKey.trim());
+  const canon = canonicalGrade(gradeKey);
+  if (!canon) return null;
+  const idx = (SINGLE_GRADES as readonly string[]).indexOf(canon);
   return idx > 0 ? SINGLE_GRADES[idx - 1] : null;
 }
 
 function nextHigherGrade(gradeKey?: string | null): string | null {
-  if (!gradeKey) return null;
-  const idx = (SINGLE_GRADES as readonly string[]).indexOf(gradeKey.trim());
+  const canon = canonicalGrade(gradeKey);
+  if (!canon) return null;
+  const idx = (SINGLE_GRADES as readonly string[]).indexOf(canon);
   return idx >= 0 && idx < SINGLE_GRADES.length - 1 ? SINGLE_GRADES[idx + 1] : null;
+}
+
+function resolveClassBand(cls?: {
+  name?: string | null;
+  qa_grade_key?: string | null;
+  qa_grade_band?: string | null;
+} | null): CanonicalBand | null {
+  if (!cls) return null;
+  return (
+    parseBandLabel(cls.qa_grade_band)
+    ?? parseBandLabel(cls.qa_grade_key)
+    ?? parseBandLabel(cls.name?.includes('·') ? cls.name.split('·').pop()?.trim() : cls.name)
+  );
+}
+
+/**
+ * Feeder grades that naturally promote into this class at a session boundary.
+ * Notably, for JSS 1 (or JSS 1-3), BOTH Basic 5 and Basic 6 are feeder grades.
+ */
+function feederGradesForClass(cls?: {
+  name?: string | null;
+  qa_grade_key?: string | null;
+  qa_grade_band?: string | null;
+} | null): string[] {
+  const band = resolveClassBand(cls);
+  const entryGrade = band
+    ? `${band.lvl} ${band.low}`
+    : canonicalGrade(cls?.qa_grade_key) ?? canonicalGrade(cls?.name);
+  if (!entryGrade) return [];
+  if (entryGrade === 'JSS 1') return ['Basic 6', 'Basic 5'];
+  const prev = previousFeederGrade(entryGrade);
+  return prev ? [prev] : [];
 }
 
 function resolveGradeForAction(
   action: 'promote' | 'demote' | 'retain' | string | undefined,
   currentGrade: string | null | undefined,
-  classGrade: string | null | undefined,
+  clsOrGrade:
+    | { name?: string | null; qa_grade_key?: string | null; qa_grade_band?: string | null }
+    | string
+    | null
+    | undefined,
   explicitTargetGrade?: string | null,
 ): string | null {
-  if (explicitTargetGrade?.trim()) return explicitTargetGrade.trim();
-  if (action === 'retain') return null;
-  if (action === 'demote') {
-    return previousFeederGrade(currentGrade) ?? classGrade ?? null;
+  if (explicitTargetGrade?.trim()) {
+    return cleanGrade(explicitTargetGrade) ?? explicitTargetGrade.trim();
   }
-  return classGrade ?? nextHigherGrade(currentGrade) ?? null;
+  // Allow passing a direct canonical grade as the action itself (e.g. "JSS 3")
+  if (action && (SINGLE_GRADES as readonly string[]).includes(action.trim())) {
+    return action.trim();
+  }
+
+  const clsObj = typeof clsOrGrade === 'string' ? { qa_grade_key: clsOrGrade } : clsOrGrade;
+  const band = resolveClassBand(clsObj);
+  const entryGrade = band
+    ? `${band.lvl} ${band.low}`
+    : canonicalGrade(clsObj?.qa_grade_key) ?? canonicalGrade(clsObj?.name);
+  const canonCurrent = canonicalGrade(currentGrade);
+
+  if (action === 'retain') {
+    return canonCurrent ?? entryGrade ?? null;
+  }
+  if (action === 'demote') {
+    return previousFeederGrade(canonCurrent) ?? entryGrade ?? null;
+  }
+
+  // Default / 'promote':
+  if (band) {
+    // 1. Single-grade class (e.g. JSS 1, JSS 3): everyone promoted/adopted into this class gets its grade
+    if (band.low === band.high) {
+      return band.label;
+    }
+    // 2. Multi-grade band class (e.g. JSS 1-3, Basic 4-6, SS 1-3):
+    // Basic 5 and Basic 6 promoting into a JSS band always enter at JSS 1
+    if (band.lvl === 'JSS' && (canonCurrent === 'Basic 5' || canonCurrent === 'Basic 6')) {
+      return 'JSS 1';
+    }
+    if (band.lvl === 'SS' && canonCurrent === 'JSS 3') {
+      return 'SS 1';
+    }
+    const stepped = nextHigherGrade(canonCurrent);
+    if (stepped && bandCoversGrade(band, stepped)) {
+      return stepped;
+    }
+    if (canonCurrent && bandCoversGrade(band, canonCurrent)) {
+      return canonCurrent;
+    }
+    return entryGrade;
+  }
+
+  if (canonCurrent === 'Basic 5' || canonCurrent === 'Basic 6') {
+    const rawName = (clsObj?.name ?? clsObj?.qa_grade_key ?? '').toLowerCase();
+    if (rawName.includes('jss') || rawName.includes('teen')) return 'JSS 1';
+  }
+
+  return entryGrade ?? nextHigherGrade(canonCurrent) ?? canonCurrent ?? null;
 }
 
 export const dynamic = 'force-dynamic';
@@ -161,7 +261,7 @@ export async function GET(
   // Fetch the class to determine its school, grade, and term
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id, teacher_id, term_id, qa_grade_key, academic_offerings(enrollment_type)')
+    .select('name, school_id, teacher_id, term_id, qa_grade_key, qa_grade_band, academic_offerings(enrollment_type)')
     .eq('id', classId)
     .single();
 
@@ -227,24 +327,34 @@ export async function GET(
     ? (cls as any).academic_offerings[0]?.enrollment_type
     : (cls as any)?.academic_offerings?.enrollment_type;
 
-  const classGrade = (cls as any)?.qa_grade_key ?? null;
-  const feederGrade = previousFeederGrade(classGrade);
+  const classBand = resolveClassBand(cls as any);
+  const classGrade =
+    (cls as any)?.qa_grade_key
+    ?? (classBand ? classBand.label : null);
+  const feederGrades = feederGradesForClass(cls as any);
+  const feederGrade = feederGrades[0] ?? null;
+  const feederSet = new Set(feederGrades.map((g) => g.toLowerCase()));
 
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
     .filter((u: any) => !expectedEnrollmentType || u.enrollment_type === expectedEnrollmentType)
     .map((u: any) => {
       const currentTeacherId = u.classes?.teacher_id ?? u.primary_teacher_id ?? null;
-      const studentGrade = (u.grade || u.classes?.qa_grade_key || '').trim();
+      const studentGrade = canonicalGrade(u.grade || u.classes?.qa_grade_key || u.section_class) || (u.grade || u.classes?.qa_grade_key || '').trim();
       const fromPriorTerm = Boolean(cls?.term_id && u.classes?.term_id && u.classes.term_id !== cls.term_id);
-      const isFeederPromotion = Boolean(feederGrade && studentGrade.toLowerCase() === feederGrade.toLowerCase());
+      const isFeederPromotion = Boolean(studentGrade && feederSet.has(studentGrade.toLowerCase()));
+      const isInClassBand = Boolean(classBand && studentGrade && bandCoversGrade(classBand, studentGrade));
       const isCrossGradePromotion = Boolean(classGrade && studentGrade && studentGrade.toLowerCase() !== classGrade.toLowerCase());
-      // Students moving up from a feeder grade or prior session can be claimed directly into the new grade class
-      const requiresTransfer = (fromPriorTerm || isFeederPromotion || isCrossGradePromotion)
+      const suggestedGrade = resolveGradeForAction('promote', studentGrade, cls as any);
+      // Session handover: students moving up from feeder grades (including Basic 5 & Basic 6 -> JSS 1),
+      // prior terms, or into this class's grade band can be adopted directly by the class teacher.
+      const requiresTransfer = (fromPriorTerm || isFeederPromotion || isInClassBand || isCrossGradePromotion)
         ? false
         : requiresTeacherTransferRequest({ actorRole: caller.role, currentTeacherId, destinationTeacherId: cls?.teacher_id ?? null });
       return {
         ...u,
+        grade: studentGrade || u.grade,
+        suggested_grade: suggestedGrade,
         current_class_name: u.classes?.name ?? u.section_class ?? null,
         current_teacher_id: currentTeacherId,
         current_teacher_name: ownerMap.get(currentTeacherId)?.full_name ?? null,
@@ -283,7 +393,13 @@ export async function GET(
   const schoolClasses = Array.from(classBuckets.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   return NextResponse.json(
-    { students, class_grade: classGrade, feeder_grade: feederGrade, school_classes: schoolClasses },
+    {
+      students,
+      class_grade: classGrade,
+      feeder_grade: feederGrade,
+      feeder_grades: feederGrades,
+      school_classes: schoolClasses,
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
@@ -312,10 +428,10 @@ export async function POST(
 
   const admin = adminClient();
 
-  // Fetch class — include max_students for the capacity guard and qa_grade_key for promotion sync
+  // Fetch class — include max_students for the capacity guard and qa_grade_key/qa_grade_band for promotion sync
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key, qa_grade_band')
     .eq('id', classId)
     .single();
 
@@ -344,7 +460,7 @@ export async function POST(
   const targetGrade = resolveGradeForAction(
     body?.gradeAction,
     (currentStu as any)?.grade,
-    (cls as any).qa_grade_key,
+    cls as any,
     body?.targetGrade,
   );
 
@@ -418,10 +534,10 @@ export async function PUT(
 
   const admin = adminClient();
 
-  // Fetch class — include max_students for the capacity guard, teacher_id for authorized transfer, qa_grade_key for promotion
+  // Fetch class — include max_students for the capacity guard, teacher_id for authorized transfer, qa_grade_key/qa_grade_band for promotion
   const { data: cls } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key, qa_grade_band')
     .eq('id', classId)
     .single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -552,7 +668,7 @@ export async function PUT(
     const resolvedGrade = resolveGradeForAction(
       rowAction,
       currentGradeById.get(sid),
-      (cls as any).qa_grade_key,
+      cls as any,
       body?.targetGrade,
     );
     const result = await reinstateStudentToClass(admin as any, {
@@ -714,5 +830,300 @@ export async function DELETE(
             'Removed from the class register, but the programme enrolment could not be paused. '
             + 'Run scripts/audit-class-headcount.ts to see who is affected.',
       }),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/classes/[id]/enroll
+// Session Roster Confirmation, Grade Sync, Withdrawals & Inline Quick-Add:
+// Body:
+//  • updates?: Array<{ studentId: string; grade: string }>
+//  • withdrawStudentIds?: string[]
+//  • quickAddNames?: string[] | string
+//  • defaultGrade?: string
+// ─────────────────────────────────────────────────────────────────────────────
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  const staffResult = await requireStaff();
+  if (!staffResult || '_err' in staffResult) {
+    return NextResponse.json(
+      { error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' },
+      { status: 403 },
+    );
+  }
+  const caller = staffResult as Caller;
+  const { id: classId } = await context.params;
+  const admin = adminClient();
+
+  const { data: cls } = await admin
+    .from('classes')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key, qa_grade_band, schools(name)')
+    .eq('id', classId)
+    .single();
+  if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+  const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not assigned to the school this class belongs to.' },
+      { status: 403 },
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const updates: Array<{ studentId: string; grade: string }> = Array.isArray(body?.updates)
+    ? body.updates
+    : [];
+  const withdrawIds: string[] = Array.isArray(body?.withdrawStudentIds)
+    ? body.withdrawStudentIds.filter(Boolean)
+    : [];
+  const rawQuickNames = body?.quickAddNames;
+  const quickLines: string[] = Array.isArray(rawQuickNames)
+    ? rawQuickNames.map((s) => String(s ?? '').trim()).filter(Boolean)
+    : typeof rawQuickNames === 'string' && rawQuickNames.trim()
+      ? rawQuickNames
+          .split(/\r?\n|,/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+
+  const schoolName = (cls as any).schools?.name ?? null;
+  const nowIso = new Date().toISOString();
+
+  // 1. Apply in-place grade confirmations / promotions on current roster members
+  let updatedCount = 0;
+  const confirmedIds: string[] = [];
+  for (const item of updates) {
+    const sid = item?.studentId?.trim();
+    const cleanedG = cleanGrade(item?.grade) ?? item?.grade?.trim();
+    if (!sid || !cleanedG) continue;
+
+    const { error: pErr } = await admin
+      .from('portal_users')
+      .update({
+        grade: cleanedG,
+        class_id: classId,
+        section_class: cls.name,
+        is_active: true,
+        updated_at: nowIso,
+      })
+      .eq('id', sid)
+      .eq('role', 'student');
+
+    if (!pErr) {
+      updatedCount += 1;
+      confirmedIds.push(sid);
+      await admin
+        .from('students')
+        .update({
+          grade: cleanedG,
+          grade_level: cleanedG,
+          section: cls.name,
+          current_class: cls.name,
+          is_active: true,
+          status: 'active',
+          updated_at: nowIso,
+        })
+        .eq('user_id', sid);
+    }
+  }
+  if (confirmedIds.length > 0) {
+    await upsertClassTermRoster(admin, cls as any, confirmedIds, 'active', caller.id);
+  }
+
+  // 2. Withdraw unconfirmed / departed students while keeping their historical records intact
+  let withdrawnCount = 0;
+  if (withdrawIds.length > 0) {
+    await upsertClassTermRoster(admin, cls as any, withdrawIds, 'withdrawn', caller.id);
+    if (cls.program_id) {
+      await admin
+        .from('enrollments')
+        .update({
+          status: 'suspended',
+          updated_at: nowIso,
+          notes: 'Paused during session roster confirmation; history and reports preserved.',
+        })
+        .in('user_id', withdrawIds)
+        .eq('program_id', cls.program_id);
+    }
+    withdrawnCount = withdrawIds.length;
+  }
+
+  // 3. Inline Quick-Add / Smart Auto-Adopt (zero duplicate accounts)
+  const quickAdded: Array<{
+    fullName: string;
+    grade: string | null;
+    mode: 'adopted' | 'created' | 'confirmed';
+    studentId: string;
+    email?: string;
+    password?: string | null;
+  }> = [];
+  const quickErrors: Array<{ input: string; error: string }> = [];
+
+  if (quickLines.length > 0) {
+    const existingPool = await loadSchoolStudentsForClaim(
+      admin as any,
+      cls.school_id ?? null,
+      schoolName,
+      classId,
+    ).catch(() => []);
+
+    const existingGradesMap = new Map<string, string | null>();
+    if (existingPool.length > 0) {
+      const { data: gradeRows } = await admin
+        .from('portal_users')
+        .select('id, grade')
+        .in('id', existingPool.slice(0, 500).map((s) => s.id));
+      for (const r of gradeRows ?? []) existingGradesMap.set((r as any).id, (r as any).grade ?? null);
+    }
+
+    const defaultFallbackGrade =
+      cleanGrade(body?.defaultGrade)
+      ?? resolveGradeForAction('promote', null, cls as any);
+
+    for (const rawLine of quickLines) {
+      const parsedInline = parseBulkGrade(rawLine);
+      const stripped = stripBulkGrade(rawLine);
+      const cleanedName = cleanStudentName(stripped || rawLine) || parsePastedStudentNames([rawLine])[0];
+      if (!cleanedName || cleanedName.length < 2) continue;
+
+      const match = matchPastedNamesToStudents([cleanedName], existingPool, classId)[0];
+      const matchedCandidate =
+        match?.status === 'claimable' || match?.status === 'already_here'
+          ? match.student
+          : match?.status === 'ambiguous' && match.candidates.length > 0
+            ? match.candidates[0]
+            : null;
+
+      if (matchedCandidate) {
+        const currentG = existingGradesMap.get(matchedCandidate.id) ?? null;
+        const targetG =
+          parsedInline?.grade
+          ?? cleanGrade(body?.defaultGrade)
+          ?? resolveGradeForAction('promote', currentG, cls as any)
+          ?? defaultFallbackGrade;
+
+        const reinstate = await reinstateStudentToClass(admin as any, {
+          studentId: matchedCandidate.id,
+          classId,
+          actor: { id: caller.id, role: caller.role },
+          grade: targetG,
+          classArm: parsedInline?.arm ?? null,
+          forceCrossTeacher: true,
+        });
+
+        if (reinstate.ok) {
+          await ensureStudentCardIssued(admin as any, {
+            holderId: matchedCandidate.id,
+            schoolId: cls.school_id ?? null,
+            classId,
+            actorId: caller.id,
+            metadata: { source: 'session_roster_adopt' },
+          }).catch(() => {});
+
+          quickAdded.push({
+            fullName: reinstate.fullName,
+            grade: targetG ?? null,
+            mode: match?.status === 'already_here' ? 'confirmed' : 'adopted',
+            studentId: reinstate.studentId,
+            email: reinstate.email,
+          });
+        } else {
+          quickErrors.push({ input: cleanedName, error: reinstate.error });
+        }
+        continue;
+      }
+
+      // Not in school yet -> provision brand-new student account & sync to class, registry, and cards
+      const targetG = parsedInline?.grade ?? defaultFallbackGrade;
+      const slug = cleanedName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '.')
+        .replace(/^\.+|\.+$/g, '')
+        .slice(0, 28) || 'student';
+      const rand = Math.random().toString(36).slice(2, 6);
+      const generatedEmail = `${slug}.${rand}@student.rillcod.com`;
+
+      const provisioned = await findOrCreateStudentPortal(admin as any, {
+        email: generatedEmail,
+        fullName: cleanedName,
+        schoolId: cls.school_id ?? null,
+        schoolName,
+        classId,
+        sectionClass: cls.name,
+        grade: targetG,
+        enrollmentType: 'school',
+        batchLabel: `Inline Roster Add · ${cls.name}`,
+        classNameForArchive: cls.name,
+      });
+
+      if (!provisioned.ok || !provisioned.studentId) {
+        quickErrors.push({ input: cleanedName, error: provisioned.error || 'Could not create student account' });
+        continue;
+      }
+
+      // Ensure students registry shadow row exists & is synced
+      const { data: existingReg } = await admin
+        .from('students')
+        .select('id')
+        .eq('user_id', provisioned.studentId)
+        .maybeSingle();
+      if (!existingReg?.id) {
+        await admin.from('students').insert({
+          user_id: provisioned.studentId,
+          full_name: cleanedName,
+          name: cleanedName,
+          student_email: provisioned.email ?? generatedEmail,
+          school_id: cls.school_id ?? null,
+          school_name: schoolName,
+          section: cls.name,
+          current_class: cls.name,
+          grade: targetG ?? null,
+          grade_level: targetG ?? null,
+          status: 'active',
+          is_active: true,
+        });
+      }
+
+      await reinstateStudentToClass(admin as any, {
+        studentId: provisioned.studentId,
+        classId,
+        actor: { id: caller.id, role: caller.role },
+        grade: targetG,
+        classArm: parsedInline?.arm ?? null,
+        forceCrossTeacher: true,
+      });
+
+      await ensureStudentCardIssued(admin as any, {
+        holderId: provisioned.studentId,
+        schoolId: cls.school_id ?? null,
+        classId,
+        actorId: caller.id,
+        metadata: { source: 'inline_quick_add' },
+      }).catch(() => {});
+
+      quickAdded.push({
+        fullName: cleanedName,
+        grade: targetG ?? null,
+        mode: 'created',
+        studentId: provisioned.studentId,
+        email: provisioned.email,
+        password: provisioned.password ?? null,
+      });
+    }
+  }
+
+  const { data: afterCount } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+  await admin.from('classes').update({ current_students: Number(afterCount ?? 0) }).eq('id', classId);
+
+  return NextResponse.json({
+    success: true,
+    updatedCount,
+    withdrawnCount,
+    quickAdded,
+    quickErrors,
+    total: Number(afterCount ?? 0),
   });
 }

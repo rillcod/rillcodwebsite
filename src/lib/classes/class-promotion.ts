@@ -140,19 +140,30 @@ export function pickDestinationClass(
     termId: opts.termId,
   });
 
-  const matches = pool.filter(
+  const otherMatches = pool.filter(
     (c) =>
       c.id !== opts.excludeClassId &&
       bulkClassCoversGrade(c, opts.targetGrade),
   );
-  if (!matches.length) return null;
-
-  if (opts.preferTeacherId) {
-    const owned = matches.find((c) => c.teacher_id === opts.preferTeacherId);
-    if (owned) return owned as PromotionClassRow;
+  if (otherMatches.length > 0) {
+    if (opts.preferTeacherId) {
+      const owned = otherMatches.find((c) => c.teacher_id === opts.preferTeacherId);
+      if (owned) return owned as PromotionClassRow;
+    }
+    return otherMatches[0] as PromotionClassRow;
   }
 
-  return matches[0] as PromotionClassRow;
+  // In-band session promotion: when a school uses a multi-grade banded class (e.g. JSS 1-3 or Basic 4-6)
+  // and no separate single-grade class exists, a learner stepping JSS 1 → JSS 2 or JSS 2 → JSS 3 stays in
+  // the same banded class while their individual grade advances.
+  if (opts.excludeClassId) {
+    const selfMatch = pool.find(
+      (c) => c.id === opts.excludeClassId && bulkClassCoversGrade(c, opts.targetGrade),
+    );
+    if (selfMatch) return selfMatch as PromotionClassRow;
+  }
+
+  return null;
 }
 
 function pickPromotionDestination(
