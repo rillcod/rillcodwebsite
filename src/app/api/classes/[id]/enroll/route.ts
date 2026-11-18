@@ -24,6 +24,8 @@ import {
 } from '@/lib/students/claim-by-names';
 import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
+import { generateTempPassword } from '@/lib/utils/password';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 
 function previousFeederGrade(gradeKey?: string | null): string | null {
   const canon = canonicalGrade(gradeKey);
@@ -879,12 +881,28 @@ export async function PATCH(
   const withdrawIds: string[] = Array.isArray(body?.withdrawStudentIds)
     ? body.withdrawStudentIds.filter(Boolean)
     : [];
+  const reinstateIds: string[] = Array.isArray(body?.reinstateStudentIds)
+    ? body.reinstateStudentIds.filter(Boolean)
+    : [];
+  const resetPasswordIds: string[] = Array.isArray(body?.resetPasswordIds)
+    ? body.resetPasswordIds.filter(Boolean)
+    : [];
+  const updateStudent = body?.updateStudent && typeof body.updateStudent === 'object'
+    ? body.updateStudent as {
+        studentId?: string;
+        full_name?: string;
+        grade?: string | null;
+        gender?: string | null;
+        class_arm?: string | null;
+        resetPassword?: boolean;
+      }
+    : null;
   const rawQuickNames = body?.quickAddNames;
   const quickLines: string[] = Array.isArray(rawQuickNames)
     ? rawQuickNames.map((s) => String(s ?? '').trim()).filter(Boolean)
     : typeof rawQuickNames === 'string' && rawQuickNames.trim()
       ? rawQuickNames
-          .split(/\r?\n|,/)
+          .split(/\r?\n/)
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
@@ -984,9 +1002,17 @@ export async function PATCH(
       ?? resolveGradeForAction('promote', null, cls as any);
 
     for (const rawLine of quickLines) {
-      const parsedInline = parseBulkGrade(rawLine);
-      const stripped = stripBulkGrade(rawLine);
-      const cleanedName = cleanStudentName(stripped || rawLine) || parsePastedStudentNames([rawLine])[0];
+      // Optional inline email support: "Ada Okafor, ada@school.com" or "Ada Okafor <ada@school.com>"
+      let explicitEmail: string | null = null;
+      let lineWithoutEmail = rawLine;
+      const emailMatch = rawLine.match(/[^\s,<]+@[^\s,>]+\.[^\s,>]+/);
+      if (emailMatch) {
+        explicitEmail = emailMatch[0].toLowerCase();
+        lineWithoutEmail = rawLine.replace(emailMatch[0], ' ').replace(/[<>]/g, ' ').replace(/,\s*$/, '').trim();
+      }
+      const parsedInline = parseBulkGrade(lineWithoutEmail);
+      const stripped = stripBulkGrade(lineWithoutEmail);
+      const cleanedName = cleanStudentName(stripped || lineWithoutEmail) || parsePastedStudentNames([lineWithoutEmail])[0];
       if (!cleanedName || cleanedName.length < 2) continue;
 
       const match = matchPastedNamesToStudents([cleanedName], existingPool, classId)[0];
@@ -1044,7 +1070,8 @@ export async function PATCH(
         .replace(/^\.+|\.+$/g, '')
         .slice(0, 28) || 'student';
       const rand = Math.random().toString(36).slice(2, 6);
-      const generatedEmail = `${slug}.${rand}@student.rillcod.com`;
+      const generatedEmail = explicitEmail || `${slug}.${rand}@student.rillcod.com`;
+      const inlineBatchLabel = `Class Roster · ${cls.name}`;
 
       const provisioned = await findOrCreateStudentPortal(admin as any, {
         email: generatedEmail,
@@ -1055,7 +1082,7 @@ export async function PATCH(
         sectionClass: cls.name,
         grade: targetG,
         enrollmentType: 'school',
-        batchLabel: `Inline Roster Add · ${cls.name}`,
+        batchLabel: inlineBatchLabel,
         classNameForArchive: cls.name,
       });
 
@@ -1064,7 +1091,21 @@ export async function PATCH(
         continue;
       }
 
-      // Ensure students registry shadow row exists & is synced
+      // Ensure registration_batches row carries class_id & program_id (matches bulk-register)
+      if (cls.school_id) {
+        await admin
+          .from('registration_batches')
+          .update({
+            class_id: classId,
+            program_id: cls.program_id ?? null,
+            created_by: caller.id,
+          })
+          .eq('school_id', cls.school_id)
+          .eq('class_name', inlineBatchLabel)
+          .is('class_id', null);
+      }
+
+      // Ensure students registry shadow row exists & is synced with status 'approved' for Credentials Vault
       const { data: existingReg } = await admin
         .from('students')
         .select('id')
@@ -1082,7 +1123,7 @@ export async function PATCH(
           current_class: cls.name,
           grade: targetG ?? null,
           grade_level: targetG ?? null,
-          status: 'active',
+          status: 'approved',
           is_active: true,
         });
       }
@@ -1115,15 +1156,148 @@ export async function PATCH(
     }
   }
 
-  const { data: afterCount } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
-  await admin.from('classes').update({ current_students: Number(afterCount ?? 0) }).eq('id', classId);
+  // 4. Reinstate withdrawn students
+  let reinstatedCount = 0;
+  for (const sid of reinstateIds) {
+    const res = await reinstateStudentToClass(admin as any, {
+      studentId: sid,
+      classId,
+      actor: { id: caller.id, role: caller.role },
+      forceCrossTeacher: true,
+    });
+    if (res.ok) reinstatedCount += 1;
+  }
+
+  // 5. Full inline student CRUD update (+ optional auto-password reset) & bulk password resets
+  const resetCredentials: Array<{
+    studentId: string;
+    fullName: string;
+    email: string;
+    password: string;
+    grade: string | null;
+    sectionClass: string;
+  }> = [];
+
+  if (updateStudent?.studentId) {
+    const sid = updateStudent.studentId;
+    const { data: stu } = await admin
+      .from('portal_users')
+      .select('id, full_name, email, grade, school_id, school_name')
+      .eq('id', sid)
+      .eq('role', 'student')
+      .maybeSingle();
+
+    if (stu) {
+      const nextName = updateStudent.full_name?.trim()
+        ? (cleanStudentName(updateStudent.full_name) || updateStudent.full_name.trim())
+        : stu.full_name;
+      const nextGrade = updateStudent.grade !== undefined
+        ? (updateStudent.grade ? (cleanGrade(updateStudent.grade) ?? updateStudent.grade) : null)
+        : stu.grade;
+
+      const portalPatch: Record<string, unknown> = {
+        full_name: nextName,
+        grade: nextGrade,
+        updated_at: nowIso,
+      };
+      if (updateStudent.gender !== undefined) portalPatch.gender = updateStudent.gender || null;
+      if (updateStudent.class_arm !== undefined) {
+        portalPatch.class_arm = updateStudent.class_arm ? updateStudent.class_arm.trim().toUpperCase() : null;
+      }
+
+      await admin.from('portal_users').update(portalPatch).eq('id', sid);
+      await admin
+        .from('students')
+        .update({
+          full_name: nextName,
+          name: nextName,
+          grade: nextGrade,
+          grade_level: nextGrade,
+          ...(updateStudent.gender !== undefined ? { gender: updateStudent.gender || null } : {}),
+          updated_at: nowIso,
+        })
+        .eq('user_id', sid);
+
+      if (updateStudent.resetPassword && stu.email) {
+        const newPassword = generateTempPassword();
+        const { error: authUpdErr } = await admin.auth.admin.updateUserById(sid, {
+          password: newPassword,
+          email_confirm: true,
+          user_metadata: { full_name: nextName, role: 'student' },
+        });
+        if (!authUpdErr) {
+          await archivePortalCredential(admin as any, {
+            schoolId: stu.school_id ?? cls.school_id ?? null,
+            schoolName: stu.school_name ?? schoolName,
+            fullName: nextName,
+            email: stu.email,
+            password: newPassword,
+            className: cls.name,
+            batchLabel: `Class Roster · ${cls.name}`,
+            status: 'updated',
+          });
+          resetCredentials.push({
+            studentId: sid,
+            fullName: nextName,
+            email: stu.email,
+            password: newPassword,
+            grade: nextGrade ?? null,
+            sectionClass: cls.name,
+          });
+        }
+      }
+    }
+  }
+
+  if (resetPasswordIds.length > 0) {
+    const { data: targets } = await admin
+      .from('portal_users')
+      .select('id, full_name, email, grade, school_id, school_name')
+      .in('id', resetPasswordIds)
+      .eq('role', 'student');
+
+    for (const stu of targets ?? []) {
+      if (!stu.email) continue;
+      const newPassword = generateTempPassword();
+      const { error: authUpdErr } = await admin.auth.admin.updateUserById(stu.id, {
+        password: newPassword,
+        email_confirm: true,
+        user_metadata: { full_name: stu.full_name, role: 'student' },
+      });
+      if (!authUpdErr) {
+        await archivePortalCredential(admin as any, {
+          schoolId: stu.school_id ?? cls.school_id ?? null,
+          schoolName: stu.school_name ?? schoolName,
+          fullName: stu.full_name,
+          email: stu.email,
+          password: newPassword,
+          className: cls.name,
+          batchLabel: `Class Roster · ${cls.name}`,
+          status: 'updated',
+        });
+        resetCredentials.push({
+          studentId: stu.id,
+          fullName: stu.full_name,
+          email: stu.email,
+          password: newPassword,
+          grade: stu.grade ?? null,
+          sectionClass: cls.name,
+        });
+      }
+    }
+  }
+
+  const { data: activeTotal } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+  await admin.from('classes').update({ current_students: Number(activeTotal ?? 0) }).eq('id', classId);
 
   return NextResponse.json({
     success: true,
     updatedCount,
     withdrawnCount,
+    reinstatedCount,
     quickAdded,
     quickErrors,
-    total: Number(afterCount ?? 0),
+    resetCredentials,
+    total: Number(activeTotal ?? 0),
   });
 }

@@ -175,7 +175,12 @@ export default function ClassDetailPage() {
   const [editName, setEditName] = useState('');
   const [editGrade, setEditGrade] = useState('');
   const [editClassId, setEditClassId] = useState('');
+  const [editResetPassword, setEditResetPassword] = useState(false);
   const [savingIdentity, setSavingIdentity] = useState(false);
+  const [resettingPasswords, setResettingPasswords] = useState<string | null>(null);
+  const [issuedCredentials, setIssuedCredentials] = useState<
+    Array<{ studentId: string; fullName: string; email: string; password: string; grade?: string | null }>
+  >([]);
 
   // Bulk-remove checkboxes for enrolled students list
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
@@ -713,12 +718,84 @@ export default function ClassDetailPage() {
         errors: errs,
       });
       if (added.length > 0 && errs.length === 0) setQuickAddInput('');
+      const createdWithPwd = added
+        .filter((a: any) => a.password && a.email)
+        .map((a: any) => ({
+          studentId: a.studentId,
+          fullName: a.fullName,
+          email: a.email,
+          password: a.password,
+          grade: a.grade ?? null,
+        }));
+      const resetCreds = Array.isArray(json.resetCredentials) ? json.resetCredentials : [];
+      if (createdWithPwd.length > 0 || resetCreds.length > 0) {
+        setIssuedCredentials((prev) => [...createdWithPwd, ...resetCreds, ...prev.filter((p) => !createdWithPwd.some((c: any) => c.studentId === p.studentId) && !resetCreds.some((r: any) => r.studentId === p.studentId))]);
+      }
       await fetchData();
     } catch (e: any) {
       alert(e.message || 'Could not update roster');
     } finally {
       setSavingSessionConfirm(false);
     }
+  };
+
+  const resetStudentPasswords = async (ids: string[]) => {
+    if (!id || ids.length === 0) return;
+    setResettingPasswords(ids.length === 1 ? ids[0] : 'bulk');
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetPasswordIds: ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not reset password(s)');
+      const creds = Array.isArray(json.resetCredentials) ? json.resetCredentials : [];
+      if (creds.length > 0) {
+        setIssuedCredentials((prev) => [
+          ...creds,
+          ...prev.filter((p) => !creds.some((c: any) => c.studentId === p.studentId)),
+        ]);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Failed to reset password');
+    } finally {
+      setResettingPasswords(null);
+    }
+  };
+
+  const printIssuedCredentials = (
+    creds = issuedCredentials,
+  ) => {
+    if (!creds.length) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const cards = creds
+      .map(
+        (c, i) => `
+      <div style="border:1.5px solid #cbd5e1;border-radius:10px;padding:12px 14px;page-break-inside:avoid;background:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px;">
+          <strong style="font-size:13px;color:#0f172a;">${i + 1}. ${c.fullName}</strong>
+          <span style="font-size:10px;font-weight:700;color:#4338ca;background:#eef2ff;padding:2px 8px;border-radius:99px;">${c.grade || cls?.name || 'Student'}</span>
+        </div>
+        <div style="font-size:11px;color:#334155;line-height:1.6;">
+          <div><strong>Class:</strong> ${cls?.name || '—'}</div>
+          <div><strong>Login Email:</strong> <span style="font-family:monospace;">${c.email}</span></div>
+          <div><strong>Auto Password:</strong> <span style="font-family:monospace;font-weight:800;color:#047857;">${c.password}</span></div>
+          <div style="font-size:10px;color:#64748b;margin-top:4px;">Portal: ${window.location.origin}/login</div>
+        </div>
+      </div>`,
+      )
+      .join('');
+    win.document.write(`<!doctype html><html><head><title>Login Slips — ${cls?.name || 'Class'}</title></head><body style="font-family:system-ui,-apple-system,sans-serif;padding:20px;background:#f8fafc;">
+      <div style="max-width:860px;margin:0 auto;">
+        <h2 style="margin:0 0 4px;font-size:18px;color:#0f172a;">Student Login Slips — ${cls?.name || ''}</h2>
+        <p style="margin:0 0 16px;font-size:12px;color:#64748b;">Generated ${new Date().toLocaleDateString('en-GB')} · ${creds.length} account(s)</p>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">${cards}</div>
+      </div>
+      <script>window.onload=function(){window.print();}</script>
+    </body></html>`);
+    win.document.close();
   };
 
   const resetPasteClaimState = () => {
@@ -879,6 +956,7 @@ export default function ClassDetailPage() {
     setEditName(s.full_name || '');
     setEditGrade(s.grade || '');
     setEditClassId(s.class_id || id || '');
+    setEditResetPassword(false);
   };
 
   // Save a corrected name/grade. The endpoint cleans the name, normalises the grade, and
@@ -891,14 +969,19 @@ export default function ClassDetailPage() {
         const moveRes = await fetch(`/api/classes/${editClassId}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId }) });
         const moveJson = await moveRes.json();
         if (!moveRes.ok) throw new Error(moveJson.error || 'Failed to change section');
-      }      const res = await fetch(`/api/portal-users/${studentId}`, {
+      }
+      const res = await fetch(`/api/portal-users/${studentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ full_name: editName.trim(), grade: editGrade || null }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Failed to save');
+      if (editResetPassword) {
+        await resetStudentPasswords([studentId]);
+      }
       setEditingStudentId(null);
+      setEditResetPassword(false);
       await fetchData();
     } catch (e: any) {
       alert(e.message);
@@ -2151,6 +2234,75 @@ export default function ClassDetailPage() {
                       </div>
                     )}
 
+                    {rosterOpen && issuedCredentials.length > 0 && isStaff && (
+                      <div className="rounded-2xl border border-indigo-500/35 bg-indigo-500/[0.06] p-3.5 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-black text-indigo-900 dark:text-indigo-200">
+                              Auto-Generated Student Logins Ready ({issuedCredentials.length})
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Synced to student accounts and Credentials Vault. Share or print before dismissing.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const text = issuedCredentials
+                                  .map((c, idx) => `${idx + 1}. ${c.fullName}${c.grade ? ` (${c.grade})` : ''}\n   Email: ${c.email}\n   Password: ${c.password}`)
+                                  .join('\n\n');
+                                void navigator.clipboard?.writeText(text);
+                                alert(`Copied ${issuedCredentials.length} student login(s) to clipboard.`);
+                              }}
+                              className="rounded-lg border border-indigo-500/40 bg-card px-2.5 py-1.5 text-[10px] font-black uppercase text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10"
+                            >
+                              Copy All Logins
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => printIssuedCredentials(issuedCredentials)}
+                              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-indigo-700"
+                            >
+                              Print Login Slips (A4)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIssuedCredentials([])}
+                              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                        <div className="max-h-44 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border text-xs">
+                          {issuedCredentials.map((c) => (
+                            <div key={c.studentId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                              <div className="min-w-0">
+                                <span className="font-bold text-foreground">{c.fullName}</span>
+                                {c.grade ? <span className="ml-1.5 text-[10px] font-black text-muted-foreground">· {c.grade}</span> : null}
+                                <p className="font-mono text-[11px] text-muted-foreground break-all">{c.email}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 font-mono text-xs font-black text-emerald-700 dark:text-emerald-300">
+                                  {c.password}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void navigator.clipboard?.writeText(`${c.fullName}\nEmail: ${c.email}\nPassword: ${c.password}`);
+                                  }}
+                                  className="rounded border border-border px-2 py-0.5 text-[10px] font-bold text-muted-foreground hover:text-foreground"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="relative">
                         <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -2217,6 +2369,17 @@ export default function ClassDetailPage() {
                                 ))}
                               </select>
                             )}
+                            {isStaff && checkedEnrollIds.size > 0 && (
+                              <button
+                                type="button"
+                                disabled={resettingPasswords !== null}
+                                onClick={() => void resetStudentPasswords([...checkedEnrollIds])}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/35 bg-indigo-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700 transition-colors hover:bg-indigo-600 hover:text-white disabled:opacity-50 dark:text-indigo-300"
+                              >
+                                {resettingPasswords === 'bulk' ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : null}
+                                Reset Passwords ({checkedEnrollIds.size})
+                              </button>
+                            )}
                             {canView && checkedEnrollIds.size > 0 && (
                               <>
                                 <button
@@ -2274,7 +2437,18 @@ export default function ClassDetailPage() {
                                 </div>
                               </div>
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-[10px] text-muted-foreground">Grade and section are independent. Save updates the portal, records &amp; login.</p>
+                                <div className="space-y-1">
+                                  <label className="inline-flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editResetPassword}
+                                      onChange={(e) => setEditResetPassword(e.target.checked)}
+                                      className="h-4 w-4 accent-indigo-600"
+                                    />
+                                    Also generate new auto-password (Rillcod@…)
+                                  </label>
+                                  <p className="text-[10px] text-muted-foreground">Grade and section are independent. Save updates the portal, records &amp; login.</p>
+                                </div>
                                 <div className="grid grid-cols-2 gap-2 sm:flex">
                                   <button type="button" onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground">Cancel</button>
                                   <button type="button" onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
@@ -2535,6 +2709,15 @@ export default function ClassDetailPage() {
                                   <option value="full">Path · full details</option>
                                   <option value="milestone">Path · milestones only</option>
                                 </select>
+                                <button
+                                  type="button"
+                                  onClick={() => void resetStudentPasswords([student.id])}
+                                  disabled={resettingPasswords !== null}
+                                  title="Generate a new Rillcod@... auto-password and sync to Credentials Vault"
+                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-indigo-700 dark:text-indigo-300 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
+                                >
+                                  {resettingPasswords === student.id ? 'Resetting…' : 'Auto Password'}
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => removeStudent(student.id)}
