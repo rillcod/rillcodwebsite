@@ -140,7 +140,7 @@ export default function ClassDetailPage() {
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
-  const [modalPlacementFilter, setModalPlacementFilter] = useState<'all' | 'unassigned' | 'other'>('all');
+  const [modalPlacementFilter, setModalPlacementFilter] = useState<'all' | 'unassigned' | 'other' | 'feeder'>('all');
   const [modalGradeFilter, setModalGradeFilter] = useState('');
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [pasteNamesText, setPasteNamesText] = useState('');
@@ -585,7 +585,7 @@ export default function ClassDetailPage() {
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId, forceClaim: pasteClaimEnabled === true }),
+        body: JSON.stringify({ studentId, forceClaim: pasteClaimEnabled === true, promoteToClassGrade: true }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Failed to enroll student');
@@ -684,6 +684,7 @@ export default function ClassDetailPage() {
           studentIds: ids,
           // When admin has enabled paste-claim, take kids immediately (no transfer wait).
           forceClaim: pasteClaimEnabled === true,
+          promoteToClassGrade: true,
         }),
       });
       const json = await res.json();
@@ -2410,6 +2411,16 @@ export default function ClassDetailPage() {
                           </>
                         )}
                         <Link
+                          href={learnerReportHref('publish', {
+                            classId: cls?.name || id,
+                            schoolId: cls?.school_id,
+                            courseId: searchParams.get('course_id') || cls?.current_course_id,
+                          })}
+                          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/40"
+                        >
+                          Report View
+                        </Link>
+                        <Link
                           href={buildResultsHref({
                             classId: id,
                             courseId: searchParams.get('course_id') || cls?.current_course_id,
@@ -2420,7 +2431,7 @@ export default function ClassDetailPage() {
                               : 'border border-border bg-background text-foreground hover:border-primary/40'
                           }`}
                         >
-                          {assessmentCopy?.resultsAction ?? 'Open Results'}
+                          {assessmentCopy?.resultsAction ?? 'Auto-Fill Scores'}
                         </Link>
                       </div>
                     </div>
@@ -3134,6 +3145,8 @@ export default function ClassDetailPage() {
         const isFull = seatsLeft <= 0;
         const totalUnassignedCount = availableStudents.filter((s: any) => !s.class_id).length;
         const totalOtherCount = availableStudents.filter((s: any) => Boolean(s.class_id)).length;
+        const feederStudents = availableStudents.filter((s: any) => s.is_feeder_promotion);
+        const feederGradeName = feederStudents[0]?.grade || null;
         const distinctGradesInModal = Array.from(
           new Set(availableStudents.map((s: any) => s.grade || s.section_class).filter(Boolean)),
         ).sort() as string[];
@@ -3149,7 +3162,8 @@ export default function ClassDetailPage() {
           const matchesPlacement =
             modalPlacementFilter === 'all' ||
             (modalPlacementFilter === 'unassigned' && !s.class_id) ||
-            (modalPlacementFilter === 'other' && Boolean(s.class_id));
+            (modalPlacementFilter === 'other' && Boolean(s.class_id)) ||
+            (modalPlacementFilter === 'feeder' && Boolean(s.is_feeder_promotion));
           const studentGradeLabel = s.grade || s.section_class || '';
           const matchesGrade = !modalGradeFilter || studentGradeLabel === modalGradeFilter;
           return matchesSearch && matchesPlacement && matchesGrade;
@@ -3189,21 +3203,21 @@ export default function ClassDetailPage() {
                   onClick={() => setEnrolMode('current')}
                   className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
-                  Pick from list
+                  Pick &amp; Promote
                 </button>
-                {pasteClaimEnabled && (
+                {(isStaff || pasteClaimEnabled) && (
                   <button
                     type="button"
                     onClick={() => { setEnrolMode('paste'); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
-                    className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-900 dark:text-slate-200 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                    className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                   >
-                    Paste names
+                    Paste Names (Auto-Match)
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setEnrolMode('create')}
-                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   + New class
                 </button>
@@ -3212,13 +3226,47 @@ export default function ClassDetailPage() {
               {/* Current-class mode: select students */}
               {enrolMode === 'current' && (
                 <>
+                  {/* 1-Tap Feeder Grade Promotion Banner */}
+                  {feederStudents.length > 0 && (
+                    <div className="mx-4 sm:mx-6 mt-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-emerald-900 dark:text-emerald-200">
+                          Promote {feederStudents.length} returning student{feederStudents.length === 1 ? '' : 's'} from {feederGradeName || 'previous grade'} → {cls?.qa_grade_key || cls?.name}
+                        </p>
+                        <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                          Claims existing DB accounts directly into this class, updates their grade, and keeps all past reports with zero duplicates.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalPlacementFilter('feeder');
+                            setSelectedStudentIds(new Set(feederStudents.slice(0, seatsLeft).map((s: any) => s.id)));
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-background text-[11px] font-bold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20"
+                        >
+                          Select All ({feederStudents.length})
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!!processingStudent}
+                          onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id))}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black disabled:opacity-50"
+                        >
+                          Promote All Now
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Search & Filter controls */}
                   {availableStudents.length > 0 && (
                     <div className="px-4 sm:px-6 pt-3 pb-1 space-y-2 flex-shrink-0">
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input aria-label="Search students"
                           type="text"
-                          placeholder="Search by name, grade, email or school..."
+                          placeholder="Search by name, grade, previous class, email or school..."
                           value={studentSearch}
                           onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
                           className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
@@ -3240,8 +3288,11 @@ export default function ClassDetailPage() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         {([
                           { id: 'all', label: `All (${availableStudents.length})` },
-                          { id: 'unassigned', label: `Unassigned · No class (${totalUnassignedCount})` },
-                          { id: 'other', label: `In another class (${totalOtherCount})` },
+                          ...(feederStudents.length > 0
+                            ? [{ id: 'feeder' as const, label: `Promote from ${feederGradeName || 'Prior Grade'} (${feederStudents.length})` }]
+                            : []),
+                          { id: 'unassigned', label: `Unassigned (${totalUnassignedCount})` },
+                          { id: 'other', label: `Other classes (${totalOtherCount})` },
                         ] as const).map(tab => (
                           <button
                             key={tab.id}

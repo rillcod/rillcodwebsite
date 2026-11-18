@@ -717,6 +717,15 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
         <button onClick={()=>printSingle(r)} title="Print card" className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted hover:border-primary/50 transition-colors"><PrinterIcon className="w-4 h-4"/></button>
         {r.roleLabel === 'Student' && (
           <>
+            {r.classId && (
+              <Link
+                href={`/dashboard/classes/${r.classId}?operation=roster`}
+                title={`Open class ${r.sectionClass || ''}`}
+                className="px-2 py-1 rounded-lg border border-border bg-background text-[10px] font-black uppercase tracking-wide text-foreground hover:bg-muted transition-colors"
+              >
+                Class
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -730,8 +739,8 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
               <ClipboardIcon className="w-4 h-4" />
             </button>
             <Link
-              href={`/dashboard/reports/builder?student=${r.id}`}
-              title="Open student progress report"
+              href={`/dashboard/reports/builder?student=${r.id}${r.classId ? `&class_id=${r.classId}` : ''}`}
+              title="Open student in Result Builder"
               className="p-1.5 rounded-lg border border-border text-primary hover:bg-primary/10 transition-colors"
             >
               <DocumentTextIcon className="w-4 h-4" />
@@ -1241,6 +1250,33 @@ export default function CardStudioPage() {
   },[cardType,canAccess,activeTab,showHiddenAccounts,loadManageConfig,loadRecords,loadDbCards]); // eslint-disable-line
 
   useEffect(()=>{ setSelectedIds(new Set()); },[manageQuery,selectedClass,selectedGrade,selectedSchool,statusFilter,reportFilter]);
+
+  // Auto-select class & student when deep-linked from a Class Workspace (?class_id=...&student_id=...)
+  const urlClassId = searchParams.get('class_id');
+  const urlStudentId = searchParams.get('student_id');
+  const appliedClassDeepLink = useRef(false);
+  useEffect(() => {
+    if (appliedClassDeepLink.current || (!urlClassId && !urlStudentId) || records.length === 0) return;
+    appliedClassDeepLink.current = true;
+    const matchByClass = urlClassId
+      ? records.find((r) => r.classId === urlClassId || r.sectionClass === urlClassId)
+      : null;
+    const matchByStudent = urlStudentId
+      ? records.find((r) => r.id === urlStudentId)
+      : null;
+    const target = matchByStudent || matchByClass;
+    if (target) {
+      if (target.school && !schoolLock) setSelectedSchool(target.school);
+      if (target.gradeLevel) setSelectedGrade(target.gradeLevel);
+      if (target.sectionClass) {
+        setSelectedClass(target.sectionClass);
+        setDesignSelectedClass(target.sectionClass);
+      }
+      if (urlStudentId && matchByStudent) {
+        setSelectedIds(new Set([urlStudentId]));
+      }
+    }
+  }, [urlClassId, urlStudentId, records, schoolLock]);
 
   useEffect(() => { setSelectedRosterGrades(new Set()); }, [selectedSchool, schoolLock]);
 

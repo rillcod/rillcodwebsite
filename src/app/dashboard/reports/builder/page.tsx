@@ -960,8 +960,8 @@ function ReportBuilderInner() {
             setSessionConfig(s => ({ ...s, ...parsed.config } as SessionConfig));
             if (_periodUnlocked) setPeriodUnlocked(true);
 
-            // If a specific student was requested via URL, do not restore the stale session state
-            if (!prefStudentId) {
+            // If a specific student, class, or report was requested via URL, do not restore stale session state
+            if (!prefStudentId && !prefClassId && !prefReportId) {
                 if (_step && _step !== 'session') {
                     setResumedSession(true);
                     setStep(_step as any);
@@ -1608,7 +1608,9 @@ function ReportBuilderInner() {
             return;
         }
         if (appliedUrlScope.current || !prefClassId || teacherClasses.length === 0) return;
-        const linkedClass = teacherClasses.find((candidate) => candidate.id === prefClassId);
+        const linkedClass = teacherClasses.find(
+            (candidate) => candidate.id === prefClassId || candidate.name === prefClassId,
+        );
         if (!linkedClass) {
             setError('The requested section is not registered or is outside your teaching scope.');
             return;
@@ -1637,7 +1639,20 @@ function ReportBuilderInner() {
                     return;
                 }
             }
-            if (!cancelled) selectReportSection(linkedClass.id);
+            if (!cancelled) {
+                selectReportSection(linkedClass.id);
+                if (!prefStudentId && !prefReportId) {
+                    pendingRestoreStudentId.current = null;
+                    sessionStudents.current = [];
+                    setSelectedStudent(null);
+                    setOverrideFilters(false);
+                    setSearch('');
+                    skipAutoPickRef.current = true;
+                    setSessionDone(true);
+                    setSessionExpanded(false);
+                    setStep('pick');
+                }
+            }
         })();
         return () => { cancelled = true; };
     }, [prefClassId, prefTermId, teacherClasses]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -3789,14 +3804,73 @@ function ReportBuilderInner() {
                         <div ref={classProgressRef} className="scroll-mt-24 rounded-xl border border-border bg-card p-3 sm:p-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Current class progress</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Class Result Builder Workspace</p>
                                     <h2 className="mt-1 truncate text-base font-black text-foreground">{sessionConfig.section_class || 'Selected class'}</h2>
                                     <p className="mt-0.5 truncate text-xs text-muted-foreground">{sessionConfig.course_name} · {sessionConfig.report_term} · {sessionConfig.report_period}</p>
                                 </div>
-                                <button type="button" onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }}
-                                    className="min-h-11 rounded-xl border border-border bg-muted/30 px-4 py-2.5 text-xs font-black text-foreground hover:bg-muted">
-                                    Choose another class
-                                </button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {classRoster.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const firstNeed =
+                                                    classRoster.find((s: any) => !reportedIds.has(s.id) && !draftedIds.has(s.id)) ??
+                                                    classRoster.find((s: any) => !reportedIds.has(s.id)) ??
+                                                    classRoster[0];
+                                                if (firstNeed) {
+                                                    const idx = filteredStudents.findIndex((s) => s.id === firstNeed.id);
+                                                    void selectStudent(firstNeed as PortalUser, idx >= 0 ? idx : 0);
+                                                }
+                                            }}
+                                            className="min-h-10 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-90"
+                                        >
+                                            Grade Next Member
+                                        </button>
+                                    )}
+                                    {teacherClasses.length > 1 && (
+                                        <select
+                                            aria-label="Switch class in Result Builder"
+                                            value={sessionConfig.class_id || ''}
+                                            onChange={(e) => {
+                                                if (!e.target.value) return;
+                                                selectReportSection(e.target.value);
+                                                sessionStudents.current = [];
+                                                setSelectedStudent(null);
+                                                setSessionDone(true);
+                                                setStep('pick');
+                                            }}
+                                            className="min-h-10 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground"
+                                        >
+                                            <option value="" disabled>Switch class…</option>
+                                            {teacherClasses.map((c: any) => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {sessionConfig.class_id && (
+                                        <Link
+                                            href={`/dashboard/classes/${sessionConfig.class_id}?operation=roster`}
+                                            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
+                                        >
+                                            Class &amp; Members
+                                        </Link>
+                                    )}
+                                    <Link
+                                        href={learnerReportHref('publish', {
+                                            classId: sessionConfig.section_class || sessionConfig.class_id,
+                                            schoolId: sessionConfig.school_id,
+                                            term: sessionConfig.report_term,
+                                            period: sessionConfig.report_period,
+                                        })}
+                                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+                                    >
+                                        Report View
+                                    </Link>
+                                    <button type="button" onClick={async () => { if (isDirty) { const saved = await handleSave(false); if (!saved) return; } prepareNextClass(); }}
+                                        className="min-h-10 rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs font-bold text-foreground hover:bg-muted">
+                                        Session Setup
+                                    </button>
+                                </div>
                             </div>
                             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
@@ -4225,13 +4299,39 @@ function ReportBuilderInner() {
                                     <button
                                         type="button"
                                         disabled={saving || publishing}
-                                        onClick={() => void returnToRoster()}
-                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-10 sm:min-h-9 rounded-xl border border-border bg-muted/40 hover:bg-muted active:bg-muted/70 text-xs font-bold text-foreground transition-colors shadow-sm disabled:opacity-50 flex-shrink-0"
-                                        title="Return to results roster (auto-saves dirty draft)"
+                                        onClick={() => {
+                                            skipAutoPickRef.current = true;
+                                            setSelectedStudent(null);
+                                            setStep('pick');
+                                        }}
+                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-10 sm:min-h-9 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-xs font-black text-primary transition-colors shadow-sm disabled:opacity-50 flex-shrink-0"
+                                        title="View all members of this class in Result Builder"
                                     >
-                                        <ArrowLeftIcon className="h-3.5 w-3.5 text-primary" />
-                                        <span>{fromPrepare ? "Auto-fill" : "Results Roster"}</span>
+                                        <UserGroupIcon className="h-3.5 w-3.5" />
+                                        <span>Class Members ({classRoster.length || activeNavList.length})</span>
                                     </button>
+                                    {sessionConfig.class_id && (
+                                        <Link
+                                            href={`/dashboard/classes/${sessionConfig.class_id}?operation=roster`}
+                                            className="inline-flex items-center justify-center gap-1 px-2.5 py-2 min-h-10 sm:min-h-9 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-foreground transition-colors flex-shrink-0"
+                                            title="Open Class Workspace"
+                                        >
+                                            <span>Class</span>
+                                        </Link>
+                                    )}
+                                    <Link
+                                        href={learnerReportHref('publish', {
+                                            studentId: selectedStudent?.id,
+                                            classId: sessionConfig.section_class || sessionConfig.class_id,
+                                            schoolId: sessionConfig.school_id,
+                                            term: sessionConfig.report_term,
+                                            period: sessionConfig.report_period,
+                                        })}
+                                        className="inline-flex items-center justify-center gap-1 px-2.5 py-2 min-h-10 sm:min-h-9 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors flex-shrink-0"
+                                        title="Open Published Report View"
+                                    >
+                                        <span>Report View</span>
+                                    </Link>
                                     <div className="h-4 w-px bg-border hidden sm:block" />
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">

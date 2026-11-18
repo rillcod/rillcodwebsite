@@ -74,15 +74,6 @@ export async function POST(
 
   const admin = adminClient();
   const pasteClaimOn = await isPasteClaimEnabled(admin);
-  if (!pasteClaimOn) {
-    return NextResponse.json(
-      {
-        error: 'Paste-name claim is disabled. An admin must enable “Allow Paste-Name Claim” in LMS Settings.',
-        code: 'FEATURE_DISABLED',
-      },
-      { status: 403 },
-    );
-  }
 
   let body: any;
   try {
@@ -102,12 +93,23 @@ export async function POST(
 
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, school_id, teacher_id, max_students, schools(name)')
+    .select('id, name, school_id, teacher_id, max_students, qa_grade_key, schools(name)')
     .eq('id', classId)
     .maybeSingle();
 
   if (clsErr || !cls) {
     return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+  }
+
+  const isClassOwner = caller.role === 'admin' || cls.teacher_id === caller.id || !cls.teacher_id;
+  if (!pasteClaimOn && !isClassOwner) {
+    return NextResponse.json(
+      {
+        error: 'Paste-name claim is disabled for non-owning teachers. An admin must enable “Allow Paste-Name Claim” in LMS Settings.',
+        code: 'FEATURE_DISABLED',
+      },
+      { status: 403 },
+    );
   }
 
   const hasAccess = await callerHasClassAccess(caller, cls.school_id ?? null);
@@ -200,6 +202,7 @@ export async function POST(
       studentId: row.student.id,
       classId,
       actor: { id: caller.id, role: caller.role },
+      grade: (cls as any).qa_grade_key ?? null,
       forceCrossTeacher: true,
     });
 

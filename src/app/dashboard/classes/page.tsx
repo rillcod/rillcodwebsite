@@ -550,7 +550,7 @@ export default function ClassesPage() {
                         <Link
                           href={`/dashboard/reports/builder?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
                           className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
-                          title="Open Result Builder for this class and its members"
+                          title="Open Result Builder directly for this class and its members"
                         >
                           <DocumentTextIcon className="h-3 w-3" />
                           Result Builder
@@ -566,12 +566,12 @@ export default function ClassesPage() {
                       </>
                     )}
                     <Link
-                      href={`/dashboard/results?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}`}
+                      href={`/dashboard/results?class_id=${encodeURIComponent(cls.name)}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                      title="View published results and broadsheets for this class"
+                      title="Open published report cards view for this class"
                     >
                       <EyeIcon className="h-3 w-3 text-primary" />
-                      Results
+                      Report View
                     </Link>
                     <Link
                       href={`/dashboard/attendance?class_id=${cls.id}`}
@@ -588,14 +588,14 @@ export default function ClassesPage() {
                 <div className="flex flex-wrap items-stretch border-t border-white/5 bg-white/[0.01]">
                   <Link
                     href={`/dashboard/classes/${cls.id}`}
-                    className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary/5 hover:text-primary"
+                    className="flex min-w-[20%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary/5 hover:text-primary"
                   >
                     <EyeIcon className="h-3.5 w-3.5" />
                     View
                   </Link>
                   <Link
                     href={`/dashboard/classes/${cls.id}?operation=roster`}
-                    className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-primary/80 transition-all hover:bg-primary/10 hover:text-primary"
+                    className="flex min-w-[20%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-primary/80 transition-all hover:bg-primary/10 hover:text-primary"
                   >
                     <UserGroupIcon className="h-3.5 w-3.5" />
                     Roster ({cls.current_students ?? 0})
@@ -603,8 +603,16 @@ export default function ClassesPage() {
                   {profile?.role !== 'school' && (
                     <>
                       <Link
+                        href={`/dashboard/reports/builder?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
+                        className="flex min-w-[20%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 transition-all hover:bg-emerald-500/10"
+                        title="Open Result Builder for this class and its members"
+                      >
+                        <DocumentTextIcon className="h-3.5 w-3.5" />
+                        Builder
+                      </Link>
+                      <Link
                         href={`/dashboard/classes/${cls.id}/edit`}
-                        className="flex min-w-[25%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
+                        className="flex min-w-[20%] flex-1 items-center justify-center gap-1.5 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
                       >
                         <PencilIcon className="h-3.5 w-3.5" />
                         Edit

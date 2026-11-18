@@ -7,6 +7,13 @@ import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { isPasteClaimEnabled } from '@/lib/server/app-settings';
+import { SINGLE_GRADES } from '@/lib/classes/naming';
+
+function previousFeederGrade(gradeKey?: string | null): string | null {
+  if (!gradeKey) return null;
+  const idx = (SINGLE_GRADES as readonly string[]).indexOf(gradeKey.trim());
+  return idx > 0 ? SINGLE_GRADES[idx - 1] : null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -131,10 +138,10 @@ export async function GET(
   const { id: classId } = await context.params;
   const admin = adminClient();
 
-  // Fetch the class to determine its school
+  // Fetch the class to determine its school, grade, and term
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id, teacher_id, academic_offerings(enrollment_type)')
+    .select('school_id, teacher_id, term_id, qa_grade_key, academic_offerings(enrollment_type)')
     .eq('id', classId)
     .single();
 
@@ -148,7 +155,7 @@ export async function GET(
 
   let query = admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, primary_teacher_id, enrollment_type, is_active, classes:class_id(id, name, teacher_id)')
+    .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, primary_teacher_id, enrollment_type, is_active, classes:class_id(id, name, teacher_id, term_id, qa_grade_key)')
     .eq('role', 'student')
     .or('is_deleted.eq.false,is_deleted.is.null');
 
@@ -200,28 +207,46 @@ export async function GET(
     ? (cls as any).academic_offerings[0]?.enrollment_type
     : (cls as any)?.academic_offerings?.enrollment_type;
 
+  const classGrade = (cls as any)?.qa_grade_key ?? null;
+  const feederGrade = previousFeederGrade(classGrade);
+
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
     .filter((u: any) => !expectedEnrollmentType || u.enrollment_type === expectedEnrollmentType)
     .map((u: any) => {
       const currentTeacherId = u.classes?.teacher_id ?? u.primary_teacher_id ?? null;
+      const studentGrade = (u.grade || u.classes?.qa_grade_key || '').trim();
+      const fromPriorTerm = Boolean(cls?.term_id && u.classes?.term_id && u.classes.term_id !== cls.term_id);
+      const isFeederPromotion = Boolean(feederGrade && studentGrade.toLowerCase() === feederGrade.toLowerCase());
+      const isCrossGradePromotion = Boolean(classGrade && studentGrade && studentGrade.toLowerCase() !== classGrade.toLowerCase());
+      // Students moving up from a feeder grade or prior session can be claimed directly into the new grade class
+      const requiresTransfer = (fromPriorTerm || isFeederPromotion || isCrossGradePromotion)
+        ? false
+        : requiresTeacherTransferRequest({ actorRole: caller.role, currentTeacherId, destinationTeacherId: cls?.teacher_id ?? null });
       return {
         ...u,
         current_class_name: u.classes?.name ?? u.section_class ?? null,
         current_teacher_id: currentTeacherId,
         current_teacher_name: ownerMap.get(currentTeacherId)?.full_name ?? null,
         current_teacher_email: ownerMap.get(currentTeacherId)?.email ?? null,
-        requires_transfer_request: requiresTeacherTransferRequest({ actorRole: caller.role, currentTeacherId, destinationTeacherId: cls?.teacher_id ?? null }),
+        is_feeder_promotion: isFeederPromotion,
+        from_prior_term: fromPriorTerm,
+        requires_transfer_request: requiresTransfer,
         pending_transfer_request_id: pendingByStudent.get(u.id) ?? null,
       };
     })
     .sort((a: any, b: any) => {
+      if (a.is_feeder_promotion && !b.is_feeder_promotion) return -1;
+      if (!a.is_feeder_promotion && b.is_feeder_promotion) return 1;
       if (!a.class_id && b.class_id) return -1;
       if (a.class_id && !b.class_id) return 1;
       return 0;
     });
 
-  return NextResponse.json({ students }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json(
+    { students, class_grade: classGrade, feeder_grade: feederGrade },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,10 +273,10 @@ export async function POST(
 
   const admin = adminClient();
 
-  // Fetch class — include max_students for the capacity guard
+  // Fetch class — include max_students for the capacity guard and qa_grade_key for promotion sync
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id, teacher_id')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key')
     .eq('id', classId)
     .single();
 
@@ -267,16 +292,22 @@ export async function POST(
   }
 
   // ── School boundary + ownership handled inside reinstateStudentToClass ──
-  const directClaim = caller.role === 'admin' || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
-  if (caller.role === 'teacher' && cls.teacher_id !== caller.id && !directClaim) {
+  const directClaim =
+    caller.role === 'admin'
+    || body?.promoteToClassGrade === true
+    || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
+  if (caller.role === 'teacher' && cls.teacher_id && cls.teacher_id !== caller.id && !directClaim) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
   }
+
+  const targetGrade = body?.targetGrade ?? (body?.promoteToClassGrade !== false ? (cls as any).qa_grade_key : null);
 
   const reinstate = await reinstateStudentToClass(admin as any, {
     studentId,
     classId,
     actor: { id: caller.id, role: caller.role },
-    forceCrossTeacher: directClaim,
+    grade: targetGrade,
+    forceCrossTeacher: directClaim || cls.teacher_id === caller.id,
   });
 
   if (!reinstate.ok) {
@@ -341,10 +372,10 @@ export async function PUT(
 
   const admin = adminClient();
 
-  // Fetch class — include max_students for the capacity guard, teacher_id for authorized transfer
+  // Fetch class — include max_students for the capacity guard, teacher_id for authorized transfer, qa_grade_key for promotion
   const { data: cls } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id, teacher_id')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key')
     .eq('id', classId)
     .single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -358,12 +389,13 @@ export async function PUT(
     );
   }
 
-  // When paste-name claim is enabled, staff may force-claim directly (no transfer wait).
+  // When promoting into a new grade/session or paste-claim is enabled, staff may claim directly.
   const directClaim =
     caller.role === 'admin'
+    || body?.promoteToClassGrade === true
     || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
 
-  if (caller.role === 'teacher' && cls.teacher_id !== caller.id && !directClaim) {
+  if (caller.role === 'teacher' && cls.teacher_id && cls.teacher_id !== caller.id && !directClaim) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
   }
 
@@ -458,6 +490,7 @@ export async function PUT(
     }
   }
 
+  const targetGrade = body?.targetGrade ?? (body?.promoteToClassGrade !== false ? (cls as any).qa_grade_key : null);
   const enrolledIds: string[] = [];
   let reportsTransferred = 0;
   for (const sid of allowedIds) {
@@ -465,7 +498,8 @@ export async function PUT(
       studentId: sid,
       classId,
       actor: { id: caller.id, role: caller.role },
-      forceCrossTeacher: directClaim,
+      grade: targetGrade,
+      forceCrossTeacher: directClaim || cls.teacher_id === caller.id,
     });
     if (result.ok) {
       enrolledIds.push(sid);
