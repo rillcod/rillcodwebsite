@@ -941,7 +941,7 @@ export async function PATCH(
           section: cls.name,
           current_class: cls.name,
           is_active: true,
-          status: 'active',
+          status: 'approved',
           updated_at: nowIso,
         })
         .eq('user_id', sid);
