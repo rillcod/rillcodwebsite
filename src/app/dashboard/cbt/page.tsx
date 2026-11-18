@@ -126,10 +126,16 @@ export default function CBTPage() {
             <DocumentCheckIcon className="w-4 h-4" /> Written Exams
           </Link>
           {isStaff && (
-            <Link href="/dashboard/grades"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
-              <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
-            </Link>
+            <>
+              <Link href="/dashboard/grades"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+                <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+              </Link>
+              <Link href="/dashboard/reports/builder"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 text-xs sm:text-sm font-black transition-all">
+                <ChartBarIcon className="w-4 h-4" /> Result Builder
+              </Link>
+            </>
           )}
         </div>
 
@@ -378,6 +384,24 @@ export default function CBTPage() {
                               <EyeIcon className="w-4 h-4" />
                               <span>{pendingGrading > 0 ? `Grade (${pendingGrading})` : 'Manage & Results'}</span>
                             </Link>
+                            {exam.class_id && (
+                              <>
+                                <Link
+                                  href={`/dashboard/classes/${exam.class_id}?operation=assessment`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border transition-colors"
+                                  title="Open linked class workspace"
+                                >
+                                  <span>Class</span>
+                                </Link>
+                                <Link
+                                  href={`/dashboard/reports/builder?class_id=${exam.class_id}${exam.course_id ? `&course_id=${exam.course_id}` : ''}${exam.school_id ? `&school_id=${exam.school_id}` : ''}`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors"
+                                  title="Open Result Builder for this class"
+                                >
+                                  <span>Result Builder</span>
+                                </Link>
+                              </>
+                            )}
                             <Link
                               href={`/dashboard/cbt/${exam.id}?print=1`}
                               className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground bg-muted/60 hover:bg-muted border border-border transition-colors"

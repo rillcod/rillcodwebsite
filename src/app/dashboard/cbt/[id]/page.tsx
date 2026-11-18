@@ -295,9 +295,27 @@ export default function ExamDetailPage() {
             <ArrowLeftIcon className="w-4 h-4" /> {hostClassId ? 'Back to Class Assessment' : 'Back to CBT'}
           </Link>
           {hostClassId && (
-            <Link href="/dashboard/cbt" className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
-              All CBT Assessments →
-            </Link>
+            <>
+              <Link href="/dashboard/cbt" className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+                All CBT Assessments →
+              </Link>
+              {isStaff && (
+                <>
+                  <Link
+                    href={`/dashboard/grades?class_id=${hostClassId}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-bold text-foreground hover:border-primary/40 transition-colors"
+                  >
+                    Mark Class Work
+                  </Link>
+                  <Link
+                    href={`/dashboard/reports/builder?class_id=${hostClassId}${exam?.course_id ? `&course_id=${exam.course_id}` : ''}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                  >
+                    Result Builder
+                  </Link>
+                </>
+              )}
+            </>
           )}
         </div>
 

@@ -149,10 +149,16 @@ export default function ExamsPage() {
           <DocumentCheckIcon className="w-4 h-4" /> Written Exams
         </span>
         {canManage && (
-          <Link href="/dashboard/grades"
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
-            <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
-          </Link>
+          <>
+            <Link href="/dashboard/grades"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+              <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+            </Link>
+            <Link href="/dashboard/reports/builder"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 text-xs sm:text-sm font-black transition-all">
+              <ChartBarIcon className="w-4 h-4" /> Result Builder
+            </Link>
+          </>
         )}
       </div>
       {/* Header */}
@@ -182,12 +188,12 @@ export default function ExamsPage() {
           { label: 'Avg Duration', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + (e.duration_minutes || 0), 0) / exams.length)}m` : '—', icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400' },
           { label: 'Avg Pass Score', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + e.passing_score, 0) / exams.length)}%` : '—', icon: ChartBarIcon, color: 'text-primary' },
         ].map(s => (
-          <div key={s.label} className="bg-card border border-white/[0.08] rounded-xl p-4">
+          <div key={s.label} className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <s.icon className={`w-5 h-5 ${s.color}`} />
               <span className="text-2xl font-black text-card-foreground">{s.value}</span>
             </div>
-            <p className="text-xs font-bold text-card-foreground/40 uppercase tracking-wider">{s.label}</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{s.label}</p>
           </div>
         ))}
       </div>
@@ -207,16 +213,16 @@ export default function ExamsPage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-card-foreground/30" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input aria-label="Search exams" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
+            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50" />
         </div>
         <select aria-label="Filter written exams by course" value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}
-          className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
+          className="px-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50">
           <option value="">All Courses</option>
           {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
-        <button aria-label="Refresh exams" onClick={load} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-card-foreground/70 transition-all">
+        <button aria-label="Refresh exams" onClick={load} className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted border border-border rounded-xl text-sm font-bold text-foreground transition-all">
           <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -226,25 +232,25 @@ export default function ExamsPage() {
         <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <AcademicCapIcon className="w-16 h-16 text-card-foreground/10" />
-          <p className="text-card-foreground/40 font-semibold">No exams found</p>
+          <AcademicCapIcon className="w-16 h-16 text-muted-foreground/30" />
+          <p className="text-muted-foreground font-semibold">No exams found</p>
           {canManage && <Link href="/dashboard/exams/new" className="text-primary text-sm font-bold hover:underline">Create first exam</Link>}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map(exam => (
-            <div key={exam.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 hover:border-primary/30 transition-all group">
+            <div key={exam.id} className="bg-card border border-border rounded-2xl p-5 hover:border-primary/30 transition-all group">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <StatusBadge active={exam.is_active} />
                     {canManage && <ResultUseBadge exam={exam} />}
                     {exam.courses && (
-                      <span className="text-xs text-card-foreground/40 bg-white/5 px-2 py-0.5 rounded-full truncate max-w-[120px]">{exam.courses.title}</span>
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full truncate max-w-[120px]">{exam.courses.title}</span>
                     )}
                   </div>
                   <h3 className="font-black text-card-foreground text-base truncate">{exam.title}</h3>
-                  {exam.description && <p className="text-card-foreground/50 text-sm mt-1 line-clamp-2">{exam.description}</p>}
+                  {exam.description && <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{exam.description}</p>}
                 </div>
               </div>
 
@@ -255,20 +261,32 @@ export default function ExamsPage() {
                   { label: 'Pass Score', value: `${exam.passing_score}%`, icon: ChartBarIcon },
                   { label: 'Max Attempts', value: String(exam.max_attempts), icon: ArrowPathIcon },
                 ].map(m => (
-                  <div key={m.label} className="bg-white/[0.03] rounded-xl p-2 text-center">
-                    <p className="text-[10px] font-bold text-card-foreground/40 uppercase">{m.label}</p>
+                  <div key={m.label} className="bg-muted/40 border border-border/60 rounded-xl p-2 text-center">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{m.label}</p>
                     <p className="font-black text-card-foreground text-sm">{m.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-2 pt-3 border-t border-white/[0.06]">
+              <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
                 {canManage && <Link href={`/dashboard/exams/${exam.id}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-all">
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary/15 hover:bg-primary/25 text-primary text-xs font-bold rounded-xl transition-all">
                   <EyeIcon className="w-3.5 h-3.5" />
                   Manage
                 </Link>}
+                {canManage && exam.class_id && (
+                  <>
+                    <Link href={`/dashboard/classes/${exam.class_id}?operation=assessment`}
+                      className="px-2.5 py-2 border border-border bg-background hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all">
+                      Class
+                    </Link>
+                    <Link href={`/dashboard/reports/builder?class_id=${exam.class_id}${exam.course_id ? `&course_id=${exam.course_id}` : ''}`}
+                      className="px-2.5 py-2 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-xl transition-all">
+                      Result Builder
+                    </Link>
+                  </>
+                )}
                 {isStudent && exam.is_active && (
                   <Link href={`/dashboard/exams/${exam.id}/take`}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-all">
