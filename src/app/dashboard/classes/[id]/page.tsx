@@ -1466,6 +1466,21 @@ export default function ClassDetailPage() {
                 </button>
                 {isStaff && (
                   <>
+                    <Link
+                      href={learnerReportHref('write', {
+                        classId: id,
+                        courseId: searchParams.get('course_id') || cls?.current_course_id,
+                      })}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                    >
+                      <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                      Result Builder
+                      {reportIndicatorEnabled && needsReportCount > 0 && (
+                        <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                          {needsReportCount}
+                        </span>
+                      )}
+                    </Link>
                     <Link href={`/dashboard/classes/${id}/edit`}
                       className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground transition-colors hover:text-foreground">
                       <PencilIcon className="h-3.5 w-3.5" /> Setup
@@ -1667,6 +1682,28 @@ export default function ClassDetailPage() {
                             <PlusIcon className="h-3.5 w-3.5" />
                             Add Students
                           </button>
+                          <Link
+                            href={learnerReportHref('write', {
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                          >
+                            <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                            Result Builder
+                            {reportIndicatorEnabled && needsReportCount > 0 && (
+                              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                                {needsReportCount}
+                              </span>
+                            )}
+                          </Link>
+                          <Link
+                            href={`/dashboard/card-studio?class_id=${id}`}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                          >
+                            <UserGroupIcon className="h-3.5 w-3.5 text-primary" />
+                            ID / Access Cards
+                          </Link>
                           <div className="relative">
                             <button
                               type="button"
@@ -1986,15 +2023,33 @@ export default function ClassDetailPage() {
                                   <p className="mt-0.5 break-all text-xs text-muted-foreground">{student.email}</p>
                                 )}
                               </div>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); toggleStudentExpanded(student.id); }}
-                                aria-expanded={expanded}
-                                aria-label={expanded ? `Hide details for ${student.full_name}` : `Show details for ${student.full_name}`}
-                                className="mt-1.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                              >
-                                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                              </button>
+                              <div className="mt-1 flex items-center gap-1.5 flex-shrink-0">
+                                {isStaff && (
+                                  <Link
+                                    href={learnerReportHref('write', {
+                                      studentId: student.id,
+                                      classId: id,
+                                      courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                      term: student.report_term,
+                                      period: student.report_period,
+                                    })}
+                                    onClick={(e) => e.stopPropagation()}
+                                    title={`Open Result Builder for ${student.full_name}`}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
+                                  >
+                                    Result Builder
+                                  </Link>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleStudentExpanded(student.id); }}
+                                  aria-expanded={expanded}
+                                  aria-label={expanded ? `Hide details for ${student.full_name}` : `Show details for ${student.full_name}`}
+                                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                >
+                                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                                </button>
+                              </div>
                             </div>
                             {expanded && (
                               <div className="border-t border-border/60 px-3 pb-3 pt-3">
@@ -2048,6 +2103,38 @@ export default function ClassDetailPage() {
                             )}
                             {isStaff && expanded && (
                               <div className="grid grid-cols-1 gap-2 border-t border-border/60 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+                                <Link
+                                  href={learnerReportHref('write', {
+                                    studentId: student.id,
+                                    classId: id,
+                                    courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                    term: student.report_term,
+                                    period: student.report_period,
+                                  })}
+                                  title={`Open Result Builder for ${student.full_name}`}
+                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                                >
+                                  <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                                  Result Builder
+                                </Link>
+                                <Link
+                                  href={learnerReportHref('publish', {
+                                    studentId: student.id,
+                                    classId: id,
+                                    courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                  })}
+                                  title={`View published reports for ${student.full_name}`}
+                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                >
+                                  Results
+                                </Link>
+                                <Link
+                                  href={`/dashboard/card-studio?class_id=${id}&student_id=${student.id}`}
+                                  title={`Open ID / Access Card for ${student.full_name}`}
+                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                >
+                                  ID Card
+                                </Link>
                                 <button
                                   type="button"
                                   onClick={() => beginEditIdentity(student)}
@@ -2297,18 +2384,30 @@ export default function ClassDetailPage() {
                           2. Review:
                         </span>
                         {!isSchool && (
-                          <Link
-                            href={`/dashboard/grades?class_id=${id}`}
-                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
-                          >
-                            <AcademicCapIcon className="h-3.5 w-3.5" />
-                            Mark Class Work
-                            {assessmentSummary.awaiting_review > 0 && (
-                              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                                {assessmentSummary.awaiting_review}
-                              </span>
-                            )}
-                          </Link>
+                          <>
+                            <Link
+                              href={`/dashboard/grades?class_id=${id}`}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                            >
+                              <AcademicCapIcon className="h-3.5 w-3.5" />
+                              Mark Class Work
+                              {assessmentSummary.awaiting_review > 0 && (
+                                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                                  {assessmentSummary.awaiting_review}
+                                </span>
+                              )}
+                            </Link>
+                            <Link
+                              href={learnerReportHref('write', {
+                                classId: id,
+                                courseId: searchParams.get('course_id') || cls?.current_course_id,
+                              })}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3.5 py-2 text-xs font-black text-primary hover:bg-primary/20 transition-colors"
+                            >
+                              <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                              Result Builder
+                            </Link>
+                          </>
                         )}
                         <Link
                           href={buildResultsHref({

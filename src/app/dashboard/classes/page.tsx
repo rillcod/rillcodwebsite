@@ -547,8 +547,32 @@ export default function ClassesPage() {
                           <AcademicCapIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                           Mark Work
                         </Link>
+                        <Link
+                          href={`/dashboard/reports/builder?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
+                          title="Open Result Builder for this class and its members"
+                        >
+                          <DocumentTextIcon className="h-3 w-3" />
+                          Result Builder
+                        </Link>
+                        <Link
+                          href={`/dashboard/card-studio?class_id=${cls.id}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                          title="Open Card Studio for this class's members"
+                        >
+                          <UserGroupIcon className="h-3 w-3 text-primary" />
+                          ID Cards
+                        </Link>
                       </>
                     )}
+                    <Link
+                      href={`/dashboard/results?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                      title="View published results and broadsheets for this class"
+                    >
+                      <EyeIcon className="h-3 w-3 text-primary" />
+                      Results
+                    </Link>
                     <Link
                       href={`/dashboard/attendance?class_id=${cls.id}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
