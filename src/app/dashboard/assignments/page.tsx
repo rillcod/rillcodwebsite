@@ -393,15 +393,21 @@ function AssignmentsPageInner() {
             <DocumentTextIcon className="w-4 h-4" /> Written Exams
           </Link>
           {isStaff && (
-            <Link href="/dashboard/grades"
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
-              <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
-              {pendingCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black">
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
+            <>
+              <Link href="/dashboard/grades"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+                <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+                {pendingCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                    {pendingCount}
+                  </span>
+                )}
+              </Link>
+              <Link href="/dashboard/reports/builder"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 text-xs sm:text-sm font-black transition-all">
+                <DocumentTextIcon className="w-4 h-4" /> Result Builder
+              </Link>
+            </>
           )}
         </div>
 
@@ -800,6 +806,24 @@ function AssignmentsPageInner() {
                           <EyeIcon className="w-3.5 h-3.5" />
                           <span>{submittedCnt > 0 ? `Review (${submittedCnt})` : 'Open'}</span>
                         </Link>
+                        {a.class_id && (
+                          <>
+                            <Link
+                              href={`/dashboard/classes/${a.class_id}?operation=assessment`}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border transition-colors"
+                              title="Open linked class workspace"
+                            >
+                              <span>Class</span>
+                            </Link>
+                            <Link
+                              href={`/dashboard/reports/builder?class_id=${a.class_id}${a.course_id ? `&course_id=${a.course_id}` : ''}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors"
+                              title="Open Result Builder for this class"
+                            >
+                              <span>Result Builder</span>
+                            </Link>
+                          </>
+                        )}
                         <Link
                           href={`/dashboard/assignments/${a.id}/edit`}
                           className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"

@@ -275,12 +275,20 @@ export default function ExamDetailPage() {
         {canManage && (
           <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
             {exam.class_id && (
-              <Link
-                href={`/dashboard/reports/builder?class_id=${exam.class_id}${exam.course_id ? `&course_id=${exam.course_id}` : ''}`}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 transition-all"
-              >
-                Result Builder
-              </Link>
+              <>
+                <Link
+                  href={`/dashboard/classes/${exam.class_id}?operation=assessment`}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-border bg-card hover:bg-muted text-foreground transition-all"
+                >
+                  Class
+                </Link>
+                <Link
+                  href={`/dashboard/reports/builder?class_id=${exam.class_id}${exam.course_id ? `&course_id=${exam.course_id}` : ''}`}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 transition-all"
+                >
+                  Result Builder
+                </Link>
+              </>
             )}
             <button onClick={toggleActive}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${exam.is_active ? 'bg-amber-200 border-amber-400 text-amber-950 hover:bg-amber-300 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-300' : 'bg-emerald-200 border-emerald-400 text-emerald-950 hover:bg-emerald-300 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-300'}`}>
@@ -326,10 +334,10 @@ export default function ExamDetailPage() {
           { label: 'Pass Score', value: `${exam.passing_score}%`, icon: CheckBadgeIcon },
           { label: 'Max Attempts', value: String(exam.max_attempts), icon: ArrowPathIcon },
         ].map(m => (
-          <div key={m.label} className="bg-card border border-white/[0.08] rounded-xl p-3 text-center">
+          <div key={m.label} className="bg-card border border-border rounded-xl p-3 text-center">
             <m.icon className="w-4 h-4 text-primary mx-auto mb-1.5" />
             <p className="font-black text-card-foreground">{m.value}</p>
-            <p className="text-[10px] font-bold text-card-foreground/40 uppercase tracking-wider">{m.label}</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{m.label}</p>
           </div>
         ))}
       </div>
@@ -504,20 +512,20 @@ export default function ExamDetailPage() {
 
       {/* Question Form Modal */}
       {showForm && canManage && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div role="dialog" aria-modal="true" className="bg-card border border-white/[0.12] rounded-2xl w-full max-w-2xl shadow-2xl my-4">
-            <div className="flex items-center justify-between p-5 border-b border-white/[0.08]">
-              <h3 className="font-black text-card-foreground text-lg">{editQ ? 'Edit Question' : 'Add Question'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><XMarkIcon className="w-5 h-5 text-card-foreground/50" /></button>
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div role="dialog" aria-modal="true" className="bg-card border border-border rounded-2xl w-full max-w-2xl shadow-2xl my-4">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h3 className="font-black text-foreground text-lg">{editQ ? 'Edit Question' : 'Add Question'}</h3>
+              <button onClick={() => setShowForm(false)} aria-label="Close modal" className="p-1.5 hover:bg-muted rounded-lg"><XMarkIcon className="w-5 h-5 text-muted-foreground" /></button>
             </div>
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
               {/* Type */}
               <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Question Type</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1.5">Question Type</label>
                 <div className="flex flex-wrap gap-2">
                   {Q_TYPES.map(t => (
-                    <button key={t} onClick={() => setQForm(f => ({ ...f, question_type: t }))}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${qForm.question_type === t ? 'bg-primary text-white' : 'bg-white/5 text-card-foreground/60 hover:bg-white/10'}`}>
+                    <button key={t} type="button" onClick={() => setQForm(f => ({ ...f, question_type: t }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize border transition-all ${qForm.question_type === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                       {t.replace(/_/g, ' ')}
                     </button>
                   ))}
@@ -526,36 +534,36 @@ export default function ExamDetailPage() {
 
               {/* Question text */}
               <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Question Text</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1.5">Question Text</label>
                 <textarea value={qForm.question_text} onChange={e => setQForm(f => ({ ...f, question_text: e.target.value }))} rows={3}
                   placeholder="Enter your question here…"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50 resize-none" />
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 resize-none" />
               </div>
 
               {/* Points */}
               <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Points</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1.5">Points</label>
                 <input type="number" min={1} value={qForm.points} onChange={e => setQForm(f => ({ ...f, points: Number(e.target.value) }))}
-                  className="w-28 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50" />
+                  className="w-28 px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50" />
               </div>
 
               {/* Options for MCQ / T-F */}
               {['multiple_choice', 'true_false'].includes(qForm.question_type) && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-card-foreground/50 uppercase">Answer Options</label>
+                    <label className="text-xs font-bold text-muted-foreground uppercase">Answer Options</label>
                     {qForm.question_type === 'multiple_choice' && (
-                      <button onClick={() => { setOptionCount(n => n + 1); setQForm(f => ({ ...f, options: [...f.options, ''] })); }}
+                      <button type="button" onClick={() => { setOptionCount(n => n + 1); setQForm(f => ({ ...f, options: [...f.options, ''] })); }}
                         className="text-xs text-primary font-bold hover:underline">+ Add option</button>
                     )}
                   </div>
                   <div className="space-y-2">
                     {qForm.question_type === 'true_false' ? (
-                      ['True', 'False'].map((opt, i) => (
+                      ['True', 'False'].map((opt) => (
                         <label key={opt} className="flex items-center gap-3 cursor-pointer">
                           <input type="radio" name="correct" checked={qForm.correct_answer === opt}
                             onChange={() => setQForm(f => ({ ...f, options: ['True', 'False'], correct_answer: opt }))} />
-                          <span className="text-sm text-card-foreground">{opt}</span>
+                          <span className="text-sm text-foreground">{opt}</span>
                         </label>
                       ))
                     ) : (
@@ -565,37 +573,37 @@ export default function ExamDetailPage() {
                             onChange={() => setQForm(f => ({ ...f, correct_answer: String(i) }))} />
                           <input value={opt} onChange={e => setQForm(f => ({ ...f, options: f.options.map((o, oi) => oi === i ? e.target.value : o) }))}
                             placeholder={`Option ${i + 1}`}
-                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
+                            className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50" />
                         </div>
                       ))
                     )}
                   </div>
-                  <p className="text-[10px] text-card-foreground/30 mt-1">Select the correct answer using the radio button</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Select the correct answer using the radio button</p>
                 </div>
               )}
 
-              {/* Correct answer for short_answer / fill_in_blank */}
-              {['short_answer', 'fill_in_blank'].includes(qForm.question_type) && (
+              {/* Correct answer for short_answer / fill_in_blank / essay */}
+              {['short_answer', 'fill_in_blank', 'essay'].includes(qForm.question_type) && (
                 <div>
-                  <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Expected Answer</label>
-                  <input value={qForm.correct_answer} onChange={e => setQForm(f => ({ ...f, correct_answer: e.target.value }))}
-                    placeholder="Enter the expected answer…"
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
+                  <label className="block text-xs font-bold text-muted-foreground uppercase mb-1.5">Expected Answer / Model Answer</label>
+                  <textarea rows={2} value={qForm.correct_answer} onChange={e => setQForm(f => ({ ...f, correct_answer: e.target.value }))}
+                    placeholder="Enter the expected answer or model solution…"
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 resize-y" />
                 </div>
               )}
 
-              {/* Explanation */}
+              {/* Marking Guide & Explanation */}
               <div>
-                <label className="block text-xs font-bold text-card-foreground/50 uppercase mb-1.5">Explanation (optional)</label>
-                <input value={qForm.explanation} onChange={e => setQForm(f => ({ ...f, explanation: e.target.value }))}
-                  placeholder="Explain the correct answer…"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground placeholder-card-foreground/30 focus:outline-none focus:border-primary/50" />
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1.5">Marking Guide / Rubric &amp; Rationale</label>
+                <textarea rows={2} value={qForm.explanation} onChange={e => setQForm(f => ({ ...f, explanation: e.target.value }))}
+                  placeholder="e.g. Award 3 marks for correct definition, 2 marks for a working example…"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 resize-y" />
               </div>
             </div>
-            <div className="flex gap-3 p-5 border-t border-white/[0.08]">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-card-foreground/70 font-bold rounded-xl transition-all">Cancel</button>
-              <button onClick={saveQuestion} disabled={submitting || !qForm.question_text.trim()}
-                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl transition-all">
+            <div className="flex gap-3 p-5 border-t border-border">
+              <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 bg-background border border-border hover:bg-muted text-foreground font-bold rounded-xl transition-all">Cancel</button>
+              <button type="button" onClick={saveQuestion} disabled={submitting || !qForm.question_text.trim()}
+                className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-bold rounded-xl transition-all">
                 {submitting ? 'Saving…' : editQ ? 'Update' : 'Add Question'}
               </button>
             </div>

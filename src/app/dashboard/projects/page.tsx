@@ -959,6 +959,22 @@ export default function ProjectsPage() {
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
                         <CommandLineIcon className="w-4 h-4" /> CBT Exams
                     </Link>
+                    <Link href="/dashboard/exams"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
+                        <AcademicCapIcon className="w-4 h-4" /> Written Exams
+                    </Link>
+                    {isStaff && (
+                        <>
+                            <Link href="/dashboard/grades"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-sm font-black transition-all">
+                                <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
+                            </Link>
+                            <Link href="/dashboard/reports/builder"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 text-sm font-black transition-all">
+                                <ClipboardDocumentListIcon className="w-4 h-4" /> Result Builder
+                            </Link>
+                        </>
+                    )}
                 </div>
             </div>
             <div className="px-4 sm:px-6 md:px-10 py-4">
