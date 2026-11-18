@@ -15,6 +15,26 @@ function previousFeederGrade(gradeKey?: string | null): string | null {
   return idx > 0 ? SINGLE_GRADES[idx - 1] : null;
 }
 
+function nextHigherGrade(gradeKey?: string | null): string | null {
+  if (!gradeKey) return null;
+  const idx = (SINGLE_GRADES as readonly string[]).indexOf(gradeKey.trim());
+  return idx >= 0 && idx < SINGLE_GRADES.length - 1 ? SINGLE_GRADES[idx + 1] : null;
+}
+
+function resolveGradeForAction(
+  action: 'promote' | 'demote' | 'retain' | string | undefined,
+  currentGrade: string | null | undefined,
+  classGrade: string | null | undefined,
+  explicitTargetGrade?: string | null,
+): string | null {
+  if (explicitTargetGrade?.trim()) return explicitTargetGrade.trim();
+  if (action === 'retain') return null;
+  if (action === 'demote') {
+    return previousFeederGrade(currentGrade) ?? classGrade ?? null;
+  }
+  return classGrade ?? nextHigherGrade(currentGrade) ?? null;
+}
+
 export const dynamic = 'force-dynamic';
 
 function adminClient() {
@@ -243,8 +263,27 @@ export async function GET(
       return 0;
     });
 
+  // Build school_classes summary so teachers can select any class in the same school to promote/demote from
+  const classBuckets = new Map<string, { id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>();
+  for (const s of students) {
+    if (!s.class_id) continue;
+    const existing = classBuckets.get(s.class_id);
+    if (existing) {
+      existing.student_count += 1;
+    } else {
+      classBuckets.set(s.class_id, {
+        id: s.class_id,
+        name: s.current_class_name || s.section_class || 'Class',
+        qa_grade_key: s.classes?.qa_grade_key ?? s.grade ?? null,
+        teacher_name: s.current_teacher_name ?? null,
+        student_count: 1,
+      });
+    }
+  }
+  const schoolClasses = Array.from(classBuckets.values()).sort((a, b) => a.name.localeCompare(b.name));
+
   return NextResponse.json(
-    { students, class_grade: classGrade, feeder_grade: feederGrade },
+    { students, class_grade: classGrade, feeder_grade: feederGrade, school_classes: schoolClasses },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }
@@ -295,12 +334,19 @@ export async function POST(
   const directClaim =
     caller.role === 'admin'
     || body?.promoteToClassGrade === true
+    || Boolean(body?.gradeAction)
     || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
   if (caller.role === 'teacher' && cls.teacher_id && cls.teacher_id !== caller.id && !directClaim) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
   }
 
-  const targetGrade = body?.targetGrade ?? (body?.promoteToClassGrade !== false ? (cls as any).qa_grade_key : null);
+  const { data: currentStu } = await admin.from('portal_users').select('grade').eq('id', studentId).maybeSingle();
+  const targetGrade = resolveGradeForAction(
+    body?.gradeAction,
+    (currentStu as any)?.grade,
+    (cls as any).qa_grade_key,
+    body?.targetGrade,
+  );
 
   const reinstate = await reinstateStudentToClass(admin as any, {
     studentId,
@@ -389,10 +435,12 @@ export async function PUT(
     );
   }
 
-  // When promoting into a new grade/session or paste-claim is enabled, staff may claim directly.
+  // When promoting/demoting into a new grade/session or paste-claim is enabled, staff may claim directly.
   const directClaim =
     caller.role === 'admin'
     || body?.promoteToClassGrade === true
+    || Boolean(body?.gradeAction)
+    || Boolean(body?.studentActions)
     || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
 
   if (caller.role === 'teacher' && cls.teacher_id && cls.teacher_id !== caller.id && !directClaim) {
@@ -490,15 +538,28 @@ export async function PUT(
     }
   }
 
-  const targetGrade = body?.targetGrade ?? (body?.promoteToClassGrade !== false ? (cls as any).qa_grade_key : null);
+  const { data: currentStuRows } = allowedIds.length > 0
+    ? await admin.from('portal_users').select('id, grade').in('id', allowedIds)
+    : { data: [] as any[] };
+  const currentGradeById = new Map((currentStuRows ?? []).map((r: any) => [r.id, r.grade]));
+  const perStudentActions: Record<string, string> =
+    body?.studentActions && typeof body.studentActions === 'object' ? body.studentActions : {};
+
   const enrolledIds: string[] = [];
   let reportsTransferred = 0;
   for (const sid of allowedIds) {
+    const rowAction = perStudentActions[sid] || body?.gradeAction || (body?.promoteToClassGrade === false ? 'retain' : 'promote');
+    const resolvedGrade = resolveGradeForAction(
+      rowAction,
+      currentGradeById.get(sid),
+      (cls as any).qa_grade_key,
+      body?.targetGrade,
+    );
     const result = await reinstateStudentToClass(admin as any, {
       studentId: sid,
       classId,
       actor: { id: caller.id, role: caller.role },
-      grade: targetGrade,
+      grade: resolvedGrade,
       forceCrossTeacher: directClaim || cls.teacher_id === caller.id,
     });
     if (result.ok) {

@@ -44,6 +44,7 @@ import {
 import { automaticResultHasNoEvidence } from '@/lib/reports/score';
 import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
 import { printClassMasterBroadsheet } from '@/lib/reports/office-printables';
+import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { escapeHtml } from '@/lib/cbt/print-utils';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
@@ -1585,6 +1586,14 @@ function ResultsPageInner() {
                                 <UserGroupIcon className="h-4 w-4 text-primary" />
                                 <span>Classes</span>
                             </Link>
+                            <Link
+                                href={`/dashboard/card-studio?view=roster${filterClass ? `&class_id=${encodeURIComponent(filterClass)}` : ''}${filterSchool ? `&school=${encodeURIComponent(filterSchool)}` : ''}`}
+                                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+                                title="Open RC Roster & Result Access Cards"
+                            >
+                                <DocumentTextIcon className="h-4 w-4" />
+                                <span>RC Roster &amp; Cards</span>
+                            </Link>
                         </div>
                     )}
 
@@ -2161,6 +2170,31 @@ function ResultsPageInner() {
 
                                             {selectedReport && (
                                                 <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                                    {selectedStudent?.id && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const rcCode = formatAccessCardCodeDisplay(accessCardCodeForStudent(selectedStudent.id));
+                                                                    void navigator.clipboard?.writeText(rcCode);
+                                                                    alert(`Copied student RC Result Code: ${rcCode}`);
+                                                                }}
+                                                                title="Click to copy student RC Result Check code"
+                                                                className="inline-flex h-7 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 font-mono text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/20"
+                                                            >
+                                                                {formatAccessCardCodeDisplay(accessCardCodeForStudent(selectedStudent.id))}
+                                                            </button>
+                                                            {isStaff && (
+                                                                <Link
+                                                                    href={`/dashboard/card-studio?student_id=${selectedStudent.id}`}
+                                                                    title="Open this student's RC ID & Result Card in Card Studio"
+                                                                    className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-[10px] font-black uppercase tracking-wide text-foreground transition-all hover:bg-muted"
+                                                                >
+                                                                    RC Card
+                                                                </Link>
+                                                            )}
+                                                        </>
+                                                    )}
                                                     <button
                                                         onClick={() => window.print()}
                                                         title="Print"

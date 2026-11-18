@@ -212,6 +212,42 @@ export default function TakeExamPage() {
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+  // Keyboard navigation for students (← / → to move, A–D for MCQ when not typing in an input)
+  useEffect(() => {
+    if (loading || submitted || questions.length === 0) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrent((c) => Math.min(questions.length - 1, c + 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrent((c) => Math.max(0, c - 1));
+      } else if (/^[a-dA-D]$/.test(e.key)) {
+        const curQ = questions[current];
+        if (!curQ || !isObjectiveQuestion(curQ) || curQ.question_type === 'true_false') return;
+        const opts = Array.isArray(curQ.options) ? curQ.options.filter((o: any) => String(o ?? '').trim().length > 0) : [];
+        const idx = e.key.toUpperCase().charCodeAt(0) - 65;
+        if (idx >= 0 && idx < opts.length) {
+          setAnswers((a) => ({ ...a, [curQ.id]: opts[idx] }));
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [loading, submitted, questions, current]);
+
+  const confirmAndSubmit = () => {
+    const unanswered = questions.length - Object.values(answers).filter((v) => String(v ?? '').trim().length > 0).length;
+    if (unanswered > 0) {
+      if (!window.confirm(`You still have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'}. Submit your exam anyway?`)) {
+        return;
+      }
+    }
+    void handleSubmit(false);
+  };
+
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -369,6 +405,9 @@ export default function TakeExamPage() {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
+                <span className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-black text-primary tracking-wider uppercase">
+                  {isObjectiveQuestion(q) ? 'Section A · Objective' : 'Section B · Theory / Written'}
+                </span>
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
                 <span className="sm:hidden text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-auto">{current + 1}/{questions.length}</span>
               </div>
@@ -441,29 +480,41 @@ export default function TakeExamPage() {
 
           {/* Desktop Question Jump Strip */}
           {questions.length > 1 && (
-            <div className="hidden sm:flex flex-wrap items-center gap-1.5 pt-4 border-t border-border/60">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2">Questions:</span>
-              {questions.map((item, idx) => {
-                const isDone = String(answers[item.id] ?? '').trim().length > 0;
-                const isActive = idx === current;
-                return (
-                  <button
-                    key={item.id ?? idx}
-                    type="button"
-                    onClick={() => setCurrent(idx)}
-                    className={`w-8 h-8 rounded-lg text-xs font-black border transition-all ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                        : isDone
-                          ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30'
-                          : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
-                    }`}
-                    aria-label={`Jump to question ${idx + 1}`}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
+            <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-border/60">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2">Questions:</span>
+                {questions.map((item, idx) => {
+                  const isDone = String(answers[item.id] ?? '').trim().length > 0;
+                  const isActive = idx === current;
+                  return (
+                    <button
+                      key={item.id ?? idx}
+                      type="button"
+                      onClick={() => setCurrent(idx)}
+                      className={`w-8 h-8 rounded-lg text-xs font-black border transition-all ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          : isDone
+                            ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30'
+                            : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                      }`}
+                      aria-label={`Jump to question ${idx + 1}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+              {answered > 0 && current < questions.length - 1 && (
+                <button
+                  type="button"
+                  onClick={confirmAndSubmit}
+                  disabled={submitting}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black uppercase tracking-wider disabled:opacity-50"
+                >
+                  {submitting ? 'Finalizing…' : `Finish & Submit (${answered}/${questions.length})`}
+                </button>
+              )}
             </div>
           )}
 
@@ -490,7 +541,7 @@ export default function TakeExamPage() {
                 <ChevronRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             ) : (
-              <button onClick={() => handleSubmit(false)} disabled={submitting}
+              <button onClick={confirmAndSubmit} disabled={submitting}
                 className="relative group overflow-hidden px-6 sm:px-10 py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] italic text-xs rounded-xl transition-all shadow-xl shadow-emerald-900/20 disabled:opacity-50 order-3">
                 <span className="relative z-10">{submitting ? 'Finalizing…' : 'Complete Exam'}</span>
               </button>
@@ -531,7 +582,7 @@ export default function TakeExamPage() {
           ) : (
             <button
               type="button"
-              onClick={() => handleSubmit(false)}
+              onClick={confirmAndSubmit}
               disabled={submitting}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
             >
@@ -549,32 +600,12 @@ export default function TakeExamPage() {
                 onClick={() => setCurrent(i)}
                 className={`h-9 w-9 shrink-0 rounded-lg text-xs font-black transition-all ${
                   i === current
-                    ? 'bg-emerald-500 text-white shadow-md'
+                    ? 'bg-emerald-700 text-white shadow-md'
                     : answers[questions[i]?.id]
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
                       : 'bg-muted/30 text-muted-foreground border border-border'
                 }`}
               >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop question grid footer */}
-      <div className="hidden md:block bg-background/90 backdrop-blur-xl border-t border-border px-3 sm:px-6 py-3 sm:py-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex-shrink-0">Jump To</span>
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {questions.map((_, i) => (
-              <button key={i} onClick={() => setCurrent(i)}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-black transition-all duration-300 flex-shrink-0 ${i === current
-                  ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] sm:scale-110'
-                  : answers[questions[i]?.id]
-                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                    : 'bg-muted/30 text-muted-foreground border border-border hover:border-emerald-500/30'
-                  }`}>
                 {i + 1}
               </button>
             ))}

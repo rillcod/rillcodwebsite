@@ -142,6 +142,10 @@ export default function ClassDetailPage() {
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
   const [modalPlacementFilter, setModalPlacementFilter] = useState<'all' | 'unassigned' | 'other' | 'feeder'>('all');
   const [modalGradeFilter, setModalGradeFilter] = useState('');
+  const [modalClassFilter, setModalClassFilter] = useState('');
+  const [modalGradeAction, setModalGradeAction] = useState<'promote' | 'demote' | 'retain'>('promote');
+  const [modalStudentActions, setModalStudentActions] = useState<Record<string, 'promote' | 'demote' | 'retain'>>({});
+  const [modalSchoolClasses, setModalSchoolClasses] = useState<Array<{ id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>>([]);
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [pasteNamesText, setPasteNamesText] = useState('');
   const [pastePreview, setPastePreview] = useState<any | null>(null);
@@ -561,13 +565,15 @@ export default function ClassDetailPage() {
     setProcessingStudent('loading');
     try {
       const [enrollJson, progJson, schJson] = await Promise.all([
-        fetchJsonWithTimeout(`/api/classes/${id}/enroll`, { students: [], error: null }, 'class enrollable students'),
+        fetchJsonWithTimeout(`/api/classes/${id}/enroll`, { students: [] as any[], school_classes: [] as any[], error: null }, 'class enrollable students'),
         programsList.length === 0 ? fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'class enrol programs') : Promise.resolve(null),
         schoolsList.length === 0 ? fetchJsonWithTimeout('/api/schools', { data: [] }, 'class enrol schools') : Promise.resolve(null),
       ]);
       if (enrollJson.error) throw new Error(String(enrollJson.error));
       setAvailableStudents(enrollJson.students ?? []);
+      setModalSchoolClasses(enrollJson.school_classes ?? []);
       setSelectedStudentIds(new Set());
+      setModalStudentActions({});
       if (progJson) setProgramsList(progJson.data ?? []);
       if (schJson) setSchoolsList(schJson.data ?? []);
     } catch (e: any) {
@@ -668,7 +674,7 @@ export default function ClassDetailPage() {
     }
   };
 
-  const syncSelectedStudents = async (idsToEnroll?: string[]) => {
+  const syncSelectedStudents = async (idsToEnroll?: string[], actionOverride?: 'promote' | 'demote' | 'retain') => {
     const ids = idsToEnroll ?? (selectedStudentIds.size > 0
       ? Array.from(selectedStudentIds)
       : availableStudents
@@ -677,14 +683,16 @@ export default function ClassDetailPage() {
     if (ids.length === 0) return;
     setProcessingStudent('loading');
     try {
+      const effectiveAction = actionOverride ?? modalGradeAction;
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentIds: ids,
-          // When admin has enabled paste-claim, take kids immediately (no transfer wait).
           forceClaim: pasteClaimEnabled === true,
-          promoteToClassGrade: true,
+          promoteToClassGrade: effectiveAction !== 'retain',
+          gradeAction: effectiveAction,
+          studentActions: modalStudentActions,
         }),
       });
       const json = await res.json();
@@ -790,7 +798,7 @@ export default function ClassDetailPage() {
     if (!window.confirm(`Move ${student.full_name} to ${destination.name} (${term})? This updates the official grade, section and term roster.`)) return;
     setMovingStudent(student.id);
     try {
-      const res = await fetch(`/api/classes/${destinationClassId}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: student.id }) });
+      const res = await fetch(`/api/classes/${destinationClassId}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: student.id, promoteToClassGrade: true }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to move student');
       await fetchData();
@@ -811,7 +819,7 @@ export default function ClassDetailPage() {
       const res = await fetch(`/api/classes/${destinationClassId}/enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentIds: ids }),
+        body: JSON.stringify({ studentIds: ids, promoteToClassGrade: true }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to move selected students');
@@ -3166,7 +3174,8 @@ export default function ClassDetailPage() {
             (modalPlacementFilter === 'feeder' && Boolean(s.is_feeder_promotion));
           const studentGradeLabel = s.grade || s.section_class || '';
           const matchesGrade = !modalGradeFilter || studentGradeLabel === modalGradeFilter;
-          return matchesSearch && matchesPlacement && matchesGrade;
+          const matchesClass = !modalClassFilter || s.class_id === modalClassFilter;
+          return matchesSearch && matchesPlacement && matchesGrade && matchesClass;
         });
         const filteredDirectlyEnrollable = filteredModalStudents.filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request);
         const allFilteredEnrollableSelected =
@@ -3226,36 +3235,88 @@ export default function ClassDetailPage() {
               {/* Current-class mode: select students */}
               {enrolMode === 'current' && (
                 <>
-                  {/* 1-Tap Feeder Grade Promotion Banner */}
-                  {feederStudents.length > 0 && (
-                    <div className="mx-4 sm:mx-6 mt-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-emerald-900 dark:text-emerald-200">
-                          Promote {feederStudents.length} returning student{feederStudents.length === 1 ? '' : 's'} from {feederGradeName || 'previous grade'} → {cls?.qa_grade_key || cls?.name}
-                        </p>
-                        <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-                          Claims existing DB accounts directly into this class, updates their grade, and keeps all past reports with zero duplicates.
-                        </p>
+                  {/* Team Promotion / Demotion & Source Class Selector Banner */}
+                  {availableStudents.length > 0 && (
+                    <div className="mx-4 sm:mx-6 mt-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-emerald-900 dark:text-emerald-200">
+                            {feederStudents.length > 0
+                              ? `Returning Students & Team Handover (${feederStudents.length} from ${feederGradeName || 'prior grade'} → ${cls?.qa_grade_key || cls?.name})`
+                              : `Team Handover & Class Promotion into ${cls?.name}`}
+                          </p>
+                          <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                            Pick any class in this school, choose who to promote, demote, or retain, and move them with all existing records intact (zero duplicates).
+                          </p>
+                        </div>
+                        {feederStudents.length > 0 && (
+                          <button
+                            type="button"
+                            disabled={!!processingStudent}
+                            onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id), 'promote')}
+                            className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black disabled:opacity-50 shrink-0"
+                          >
+                            Promote All {feederGradeName} ({feederStudents.length})
+                          </button>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalPlacementFilter('feeder');
-                            setSelectedStudentIds(new Set(feederStudents.slice(0, seatsLeft).map((s: any) => s.id)));
-                          }}
-                          className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-background text-[11px] font-bold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20"
-                        >
-                          Select All ({feederStudents.length})
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!!processingStudent}
-                          onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id))}
-                          className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black disabled:opacity-50"
-                        >
-                          Promote All Now
-                        </button>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
+                            1. Select Source Class (Same School)
+                          </label>
+                          <select
+                            aria-label="Filter by source class in same school"
+                            value={modalClassFilter}
+                            onChange={(e) => {
+                              const nextClsId = e.target.value;
+                              setModalClassFilter(nextClsId);
+                              setShowMoreStudents(false);
+                              if (nextClsId) {
+                                const matchingIds = availableStudents
+                                  .filter((s: any) => s.class_id === nextClsId && (pasteClaimEnabled || !s.requires_transfer_request))
+                                  .slice(0, seatsLeft)
+                                  .map((s: any) => s.id);
+                                setSelectedStudentIds(new Set(matchingIds));
+                              }
+                            }}
+                            className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
+                          >
+                            <option value="">All Classes in School ({availableStudents.length})</option>
+                            {modalSchoolClasses.map((sc) => (
+                              <option key={sc.id} value={sc.id}>
+                                {sc.name}{sc.qa_grade_key ? ` (${sc.qa_grade_key})` : ''}{sc.teacher_name ? ` — ${sc.teacher_name}` : ''} · {sc.student_count} student{sc.student_count === 1 ? '' : 's'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
+                            2. Default Action (Override per student below)
+                          </label>
+                          <div className="grid grid-cols-3 gap-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
+                            {([
+                              { id: 'promote', label: `⬆ Promote${cls?.qa_grade_key ? ` (${cls.qa_grade_key})` : ''}` },
+                              { id: 'demote', label: '⬇ Demote' },
+                              { id: 'retain', label: '↔ Keep Grade' },
+                            ] as const).map((act) => (
+                              <button
+                                key={act.id}
+                                type="button"
+                                onClick={() => setModalGradeAction(act.id)}
+                                className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${
+                                  modalGradeAction === act.id
+                                    ? 'bg-emerald-700 text-white'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                {act.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -3463,6 +3524,38 @@ export default function ClassDetailPage() {
                                 </div>
                               )}
                             </div>
+                            {isChecked && !requiresRequest && (
+                              <div
+                                className="flex items-center gap-1 shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {(['promote', 'demote', 'retain'] as const).map((act) => {
+                                  const effective = modalStudentActions[student.id] || modalGradeAction;
+                                  const active = effective === act;
+                                  return (
+                                    <button
+                                      key={act}
+                                      type="button"
+                                      onClick={() =>
+                                        setModalStudentActions((prev) => ({ ...prev, [student.id]: act }))
+                                      }
+                                      title={act === 'promote' ? 'Promote grade' : act === 'demote' ? 'Demote 1 grade' : 'Keep current grade'}
+                                      className={`px-2 py-1 rounded-md text-[9px] font-black uppercase border transition-colors ${
+                                        active
+                                          ? act === 'demote'
+                                            ? 'bg-amber-500 text-black border-amber-500'
+                                            : act === 'retain'
+                                              ? 'bg-primary text-primary-foreground border-primary'
+                                              : 'bg-emerald-700 text-white border-emerald-700'
+                                          : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                                      }`}
+                                    >
+                                      {act === 'promote' ? '⬆ Promote' : act === 'demote' ? '⬇ Demote' : '↔ Keep'}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                             {requiresRequest ? (
                               student.pending_transfer_request_id ? (
                                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Request pending</span>
@@ -3565,8 +3658,8 @@ export default function ClassDetailPage() {
                 </>
               )}
 
-              {/* Paste names → full-ownership emergency claim */}
-              {enrolMode === 'paste' && pasteClaimEnabled && (() => {
+              {/* Paste names → full-ownership claim & smart duplicate-free matcher */}
+              {enrolMode === 'paste' && (isStaff || pasteClaimEnabled) && (() => {
                 const claimable = pastePreview?.claimable ?? [];
                 const alreadyHere = pastePreview?.alreadyHere ?? [];
                 const ambiguous = pastePreview?.ambiguous ?? [];
@@ -3751,11 +3844,21 @@ export default function ClassDetailPage() {
                             <p className="mb-2 text-[11px] text-muted-foreground">More than one student matched these names. Disambiguate with a unique spelling, then rematch.</p>
                             <ul className="space-y-2 text-xs">
                               {ambiguous.map((row: any) => (
-                                <li key={`a-${row.input}`} className="break-words rounded-lg border border-amber-500/15 bg-background/60 px-2.5 py-2">
-                                  <span className="font-bold text-foreground">{row.input}</span>
-                                  <span className="mt-1 block text-muted-foreground">
-                                    {[...(row.candidates ?? [])].map((c: any) => `${c.full_name}${c.email ? ` (${c.email})` : ''}`).join(' · ')}
-                                  </span>
+                                <li key={`a-${row.input}`} className="break-words rounded-lg border border-amber-500/15 bg-background/60 px-2.5 py-2 space-y-1.5">
+                                  <span className="font-bold text-foreground block">{row.input}</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {(row.candidates ?? []).map((c: any) => (
+                                      <button
+                                        key={c.id}
+                                        type="button"
+                                        disabled={!!processingStudent}
+                                        onClick={() => void assignStudent(c.id)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/20"
+                                      >
+                                        + Claim {c.full_name} {c.current_class_name ? `(${c.current_class_name})` : ''}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </li>
                               ))}
                             </ul>
