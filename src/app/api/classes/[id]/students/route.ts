@@ -249,7 +249,10 @@ export async function GET(
     ].filter(Boolean);
     const [[reportIndicatorEnabled, pasteClaimEnabled], canonicalTermResult, liveCountResult] =
       await Promise.all([rosterSettingsPromise, canonicalTermPromise, liveCountPromise]);
-    if (reportIndicatorEnabled) {
+    // ?with_reports=1 (class ID-card / RC roster screen) always needs report status,
+    // even when the roster indicator setting is switched off.
+    const forceReports = new URL(_request.url).searchParams.get('with_reports') === '1';
+    if (reportIndicatorEnabled || forceReports) {
       const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds, {
         ...academicPeriod,
         termId: (canonicalTermResult.data as { id?: string } | null)?.id ?? null,

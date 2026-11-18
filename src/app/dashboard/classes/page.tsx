@@ -556,9 +556,9 @@ export default function ClassesPage() {
                           Result Builder
                         </Link>
                         <Link
-                          href={`/dashboard/card-studio?class_id=${cls.id}`}
+                          href={`/dashboard/classes/${cls.id}/cards`}
                           className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                          title="Open Card Studio for this class's members"
+                          title="Tick class members, give report access (ID card + RC number), print the RC roster"
                         >
                           <UserGroupIcon className="h-3 w-3 text-primary" />
                           ID Cards

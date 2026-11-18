@@ -1707,7 +1707,7 @@ export default function ClassDetailPage() {
                             )}
                           </Link>
                           <Link
-                            href={`/dashboard/card-studio?class_id=${id}`}
+                            href={`/dashboard/classes/${id}/cards`}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
                           >
                             <UserGroupIcon className="h-3.5 w-3.5 text-primary" />
@@ -2138,7 +2138,7 @@ export default function ClassDetailPage() {
                                   Results
                                 </Link>
                                 <Link
-                                  href={`/dashboard/card-studio?class_id=${id}&student_id=${student.id}`}
+                                  href={`/dashboard/classes/${id}/cards?student=${student.id}`}
                                   title={`Open ID / Access Card for ${student.full_name}`}
                                   className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
                                 >
