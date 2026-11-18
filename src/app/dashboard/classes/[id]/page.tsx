@@ -156,6 +156,7 @@ export default function ClassDetailPage() {
   const [sessionConfirmNotice, setSessionConfirmNotice] = useState<{
     summary: string;
     added: Array<{ fullName: string; grade: string | null; mode: string; email?: string; password?: string | null }>;
+    ambiguous?: Array<{ input: string; candidates: Array<{ id: string; full_name: string; grade: string | null; current_class_name: string | null }> }>;
     errors: Array<{ input: string; error: string }>;
   } | null>(null);
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
@@ -707,17 +708,20 @@ export default function ClassDetailPage() {
       if (!res.ok) throw new Error(json.error || 'Could not save session confirmation');
 
       const added = Array.isArray(json.quickAdded) ? json.quickAdded : [];
+      const ambiguous = Array.isArray(json.quickAmbiguous) ? json.quickAmbiguous : [];
       const errs = Array.isArray(json.quickErrors) ? json.quickErrors : [];
       const parts: string[] = [];
       if (json.updatedCount) parts.push(`${json.updatedCount} confirmed`);
       if (json.withdrawnCount) parts.push(`${json.withdrawnCount} withdrawn`);
       if (added.length) parts.push(`${added.length} added/adopted`);
+      if (ambiguous.length) parts.push(`${ambiguous.length} need choice`);
       setSessionConfirmNotice({
         summary: parts.length ? `Saved: ${parts.join(' · ')}.` : 'Roster is up to date.',
         added,
+        ambiguous,
         errors: errs,
       });
-      if (added.length > 0 && errs.length === 0) setQuickAddInput('');
+      if (added.length > 0 && errs.length === 0 && ambiguous.length === 0) setQuickAddInput('');
       const createdWithPwd = added
         .filter((a: any) => a.password && a.email)
         .map((a: any) => ({
@@ -2202,6 +2206,31 @@ export default function ClassDetailPage() {
                                   </li>
                                 ))}
                               </ul>
+                            )}
+                            {sessionConfirmNotice.ambiguous && sessionConfirmNotice.ambiguous.length > 0 && (
+                              <div className="rounded-lg border border-amber-500/35 bg-amber-500/10 p-2.5 space-y-2">
+                                <p className="text-[11px] font-black text-amber-800 dark:text-amber-200">
+                                  Multiple students matched — click the exact student to adopt:
+                                </p>
+                                {sessionConfirmNotice.ambiguous.map((row) => (
+                                  <div key={`qa-${row.input}`} className="space-y-1">
+                                    <p className="text-[11px] font-bold text-foreground">{row.input}:</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {row.candidates.map((c) => (
+                                        <button
+                                          key={c.id}
+                                          type="button"
+                                          disabled={!!processingStudent}
+                                          onClick={() => void assignStudent(c.id, 'promote')}
+                                          className="rounded-lg border border-primary/35 bg-card px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/10"
+                                        >
+                                          + Adopt {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                             {sessionConfirmNotice.errors.length > 0 && (
                               <p className="text-[11px] font-bold text-rose-700 dark:text-rose-300">

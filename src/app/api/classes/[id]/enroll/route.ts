@@ -978,6 +978,10 @@ export async function PATCH(
     email?: string;
     password?: string | null;
   }> = [];
+  const quickAmbiguous: Array<{
+    input: string;
+    candidates: Array<{ id: string; full_name: string; grade: string | null; current_class_name: string | null }>;
+  }> = [];
   const quickErrors: Array<{ input: string; error: string }> = [];
 
   if (quickLines.length > 0) {
@@ -997,6 +1001,7 @@ export async function PATCH(
       for (const r of gradeRows ?? []) existingGradesMap.set((r as any).id, (r as any).grade ?? null);
     }
 
+    const feederSetForQuick = new Set(feederGradesForClass(cls as any).map((g) => g.toLowerCase()));
     const defaultFallbackGrade =
       cleanGrade(body?.defaultGrade)
       ?? resolveGradeForAction('promote', null, cls as any);
@@ -1016,12 +1021,31 @@ export async function PATCH(
       if (!cleanedName || cleanedName.length < 2) continue;
 
       const match = matchPastedNamesToStudents([cleanedName], existingPool, classId)[0];
-      const matchedCandidate =
+      let matchedCandidate =
         match?.status === 'claimable' || match?.status === 'already_here'
           ? match.student
-          : match?.status === 'ambiguous' && match.candidates.length > 0
-            ? match.candidates[0]
-            : null;
+          : null;
+
+      if (!matchedCandidate && match?.status === 'ambiguous' && match.candidates.length > 0) {
+        const feederMatches = match.candidates.filter((c) => {
+          const g = canonicalGrade(existingGradesMap.get(c.id) ?? null);
+          return g && feederSetForQuick.has(g.toLowerCase());
+        });
+        if (feederMatches.length === 1) {
+          matchedCandidate = feederMatches[0];
+        } else {
+          quickAmbiguous.push({
+            input: cleanedName,
+            candidates: match.candidates.map((c) => ({
+              id: c.id,
+              full_name: c.full_name,
+              grade: existingGradesMap.get(c.id) ?? null,
+              current_class_name: c.current_class_name,
+            })),
+          });
+          continue;
+        }
+      }
 
       if (matchedCandidate) {
         const currentG = existingGradesMap.get(matchedCandidate.id) ?? null;
@@ -1091,18 +1115,29 @@ export async function PATCH(
         continue;
       }
 
-      // Ensure registration_batches row carries class_id & program_id (matches bulk-register)
+      // Ensure registration_batches row carries class_id, program_id, and live student_count
       if (cls.school_id) {
-        await admin
+        const { data: batchRow } = await admin
           .from('registration_batches')
-          .update({
-            class_id: classId,
-            program_id: cls.program_id ?? null,
-            created_by: caller.id,
-          })
+          .select('id')
           .eq('school_id', cls.school_id)
           .eq('class_name', inlineBatchLabel)
-          .is('class_id', null);
+          .maybeSingle();
+        if (batchRow?.id) {
+          const { count: regCount } = await admin
+            .from('registration_results')
+            .select('id', { count: 'exact', head: true })
+            .eq('batch_id', batchRow.id);
+          await admin
+            .from('registration_batches')
+            .update({
+              class_id: classId,
+              program_id: cls.program_id ?? null,
+              created_by: caller.id,
+              student_count: regCount ?? 1,
+            })
+            .eq('id', batchRow.id);
+        }
       }
 
       // Ensure students registry shadow row exists & is synced with status 'approved' for Credentials Vault
@@ -1218,6 +1253,13 @@ export async function PATCH(
         })
         .eq('user_id', sid);
 
+      if (stu.email) {
+        await admin
+          .from('registration_results')
+          .update({ full_name: nextName, class_name: cls.name })
+          .eq('email', stu.email.trim().toLowerCase());
+      }
+
       if (updateStudent.resetPassword && stu.email) {
         const newPassword = generateTempPassword();
         const { error: authUpdErr } = await admin.auth.admin.updateUserById(sid, {
@@ -1296,6 +1338,7 @@ export async function PATCH(
     withdrawnCount,
     reinstatedCount,
     quickAdded,
+    quickAmbiguous,
     quickErrors,
     resetCredentials,
     total: Number(activeTotal ?? 0),
