@@ -8,9 +8,10 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
-  CheckIcon, XMarkIcon, TrashIcon, ChevronDownIcon, LockOpenIcon, LockClosedIcon,
+  CheckIcon, XMarkIcon, TrashIcon, ChevronDownIcon, LockOpenIcon, LockClosedIcon, ClipboardIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
+import { parseEssayAnswer } from '@/lib/cbt/essay-attachments';
 import {
   isObjectiveQuestion,
   isTheoryQuestion,
@@ -51,6 +52,7 @@ export default function ExamDetailPage() {
   const [questionsOpen, setQuestionsOpen] = useState(true);
   const [togglingActive, setTogglingActive] = useState(false);
   const [deletingExam, setDeletingExam] = useState(false);
+  const [copiedExamLink, setCopiedExamLink] = useState(false);
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
   const [printMcqCount, setPrintMcqCount] = useState<string>('');      // '' = all
   const [printTheoryCount, setPrintTheoryCount] = useState<string>(''); // '' = all
@@ -350,6 +352,20 @@ export default function ExamDetailPage() {
               <div className="flex flex-wrap items-center gap-2 flex-shrink-0" ref={printMenuRef}>
                 <button
                   type="button"
+                  onClick={() => {
+                    const link = `${window.location.origin}/dashboard/cbt/${exam.id}/take`;
+                    void navigator.clipboard?.writeText(link);
+                    setCopiedExamLink(true);
+                    setTimeout(() => setCopiedExamLink(false), 2200);
+                  }}
+                  title="Copy direct student exam link"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted border border-border text-foreground text-xs font-bold rounded-xl transition-colors"
+                >
+                  <ClipboardIcon className="w-4 h-4 text-primary" />
+                  {copiedExamLink ? 'Link Copied!' : 'Copy Exam Link'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => handlePrintExam('student', 'all')}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-black rounded-xl transition-colors shadow-sm"
                 >
@@ -564,15 +580,72 @@ export default function ExamDetailPage() {
             <span className="flex items-center gap-1.5"><CheckCircleIcon className="w-4 h-4" />{exam.passing_score ?? 70}% to pass</span>
             <span className="flex items-center gap-1.5"><UserGroupIcon className="w-4 h-4" />{questions.length} questions · {totalPoints} pts total</span>
           </div>
-          {!isStaff && !mySession && (
-            <div className="mt-4">
-              <Link href={`/dashboard/cbt/${exam.id}/take`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold text-sm rounded-xl transition-all">
-                Start Exam
-              </Link>
+          {isStaff && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(() => {
+                const submittedCount = sessions.filter((s: any) => ['completed', 'passed', 'failed', 'pending_grading'].includes(s.status)).length;
+                const inProgressCount = sessions.filter((s: any) => s.status === 'in_progress').length;
+                const pendingGradeCount = sessions.filter((s: any) => s.status === 'pending_grading' || s.needs_grading).length;
+                const notStartedCount = Math.max(0, roster.length - sessions.length);
+                return [
+                  { label: 'Submitted', value: submittedCount, cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200' },
+                  { label: 'In Progress', value: inProgressCount, cls: 'border-primary/30 bg-primary/10 text-primary' },
+                  { label: 'Needs Grading', value: pendingGradeCount, cls: pendingGradeCount > 0 ? 'border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200' : 'border-border bg-muted/40 text-muted-foreground' },
+                  { label: roster.length > 0 ? 'Not Started' : 'Questions', value: roster.length > 0 ? notStartedCount : questions.length, cls: 'border-border bg-muted/40 text-foreground' },
+                ].map((stat) => (
+                  <div key={stat.label} className={`rounded-2xl border px-3 py-2.5 ${stat.cls}`}>
+                    <p className="text-lg font-black leading-none">{stat.value}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider opacity-85">{stat.label}</p>
+                  </div>
+                ));
+              })()}
             </div>
           )}
-          {mySession && (
+          {!isStaff && (!mySession || mySession.status === 'in_progress') && (() => {
+            const now = Date.now();
+            const startsAt = exam.start_date ? new Date(exam.start_date).getTime() : null;
+            const endsAt = exam.end_date ? new Date(exam.end_date).getTime() : null;
+            const isInProgress = mySession?.status === 'in_progress';
+            const notYetOpen = !isInProgress && startsAt !== null && Number.isFinite(startsAt) && now < startsAt;
+            const alreadyClosed = !isInProgress && endsAt !== null && Number.isFinite(endsAt) && now > endsAt;
+            const inactive = !isInProgress && exam.is_active === false;
+
+            if (inactive) {
+              return (
+                <div className="mt-4 rounded-xl border border-border bg-muted/50 px-4 py-3 text-xs font-bold text-muted-foreground">
+                  This exam is not currently active. Your teacher will activate it when it is time to begin.
+                </div>
+              );
+            }
+            if (notYetOpen && startsAt) {
+              return (
+                <div className="mt-4 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-xs font-bold text-primary">
+                  Scheduled — opens {new Date(startsAt).toLocaleString()}
+                </div>
+              );
+            }
+            if (alreadyClosed && endsAt) {
+              return (
+                <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-700 dark:text-rose-300">
+                  Exam window closed on {new Date(endsAt).toLocaleString()}.
+                </div>
+              );
+            }
+            return (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Link href={`/dashboard/cbt/${exam.id}/take`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm rounded-xl transition-all shadow-md">
+                  {isInProgress ? 'Resume Exam →' : 'Start Exam →'}
+                </Link>
+                {isInProgress && (
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Your saved answers are waiting — click Resume to continue before the timer ends.
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+          {mySession && mySession.status !== 'in_progress' && (
             <div className={`mt-4 p-4 rounded-xl border ${
               mySession.status === 'passed'
                 ? 'bg-emerald-500/10 border-emerald-500/20'
@@ -601,7 +674,7 @@ export default function ExamDetailPage() {
               )}
             </div>
           )}
-          {!isStaff && mySession && mySession.answers && questions.length > 0 && (
+          {!isStaff && mySession && mySession.status !== 'in_progress' && mySession.answers && questions.length > 0 && (
             <div className="mt-3">
               <button
                 onClick={() => setShowReview(v => !v)}
@@ -747,12 +820,36 @@ export default function ExamDetailPage() {
                       )}
 
                       {/* Manual/open question */}
-                      {isManual && (
+                      {isManual && (() => {
+                        const parsedEssay = parseEssayAnswer(studentAnswer);
+                        return (
                         <div className="pl-8 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Answer</p>
                           <div className="px-3 py-2.5 border border-border bg-muted/40 rounded-xl text-xs text-foreground leading-relaxed whitespace-pre-wrap">
-                            {studentAnswer || <span className="italic text-muted-foreground">No answer submitted</span>}
+                            {parsedEssay.text || (parsedEssay.attachments.length > 0 ? <span className="italic text-muted-foreground">Submitted as attached work below</span> : <span className="italic text-muted-foreground">No answer submitted</span>)}
                           </div>
+                          {parsedEssay.attachments.length > 0 && (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {parsedEssay.attachments.map((att) => (
+                                <a
+                                  key={att.url}
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="group overflow-hidden rounded-xl border border-border bg-background hover:border-primary/50 transition-colors"
+                                >
+                                  {att.isImage ? (
+                                    <img src={att.url} alt={att.name} className="aspect-[4/3] w-full object-cover" />
+                                  ) : (
+                                    <div className="flex aspect-[4/3] items-center justify-center p-2 text-center text-[11px] font-bold text-primary">
+                                      {att.name}
+                                    </div>
+                                  )}
+                                  <p className="truncate px-2 py-1 text-[10px] font-semibold text-muted-foreground">{att.name}</p>
+                                </a>
+                              ))}
+                            </div>
+                          )}
                           {q.correct_answer && (
                             <div className="px-3 py-2.5 border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl text-xs text-emerald-900 dark:text-emerald-200">
                               <span className="font-black uppercase tracking-wider text-[10px] block mb-0.5">Model Answer / Key Points</span>
@@ -761,7 +858,8 @@ export default function ExamDetailPage() {
                           )}
                           <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-300">Awaiting manual review</p>
                         </div>
-                      )}
+                        );
+                      })()}
                       {(q.metadata?.marking_guide || q.explanation) && (
                         <div className="ml-8 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-foreground">
                           <span className="font-black uppercase tracking-wider text-[10px] text-primary block mb-0.5">

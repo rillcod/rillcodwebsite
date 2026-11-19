@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   BookOpenIcon, RocketLaunchIcon,
   SparklesIcon, CheckBadgeIcon,
-  ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon,
+  ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon, ClockIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { learnerSubmissionState } from '@/lib/assignments/learner-state';
@@ -42,11 +42,21 @@ export default function StudentDashboard() {
     upcomingDue: { id: string; title: string; due_date: string; course: string | null }[];
     overdueDue: { id: string; title: string; due_date: string; course: string | null }[];
     recentGrades: { id: string; title: string; grade: number | null; max_points: number | null; submitted_at: string | null }[];
+    cbtExams: Array<{
+      id: string;
+      title: string;
+      duration_minutes: number | null;
+      total_questions: number | null;
+      start_date: string | null;
+      end_date: string | null;
+      session_status: string | null;
+      session_score: number | null;
+    }>;
     lmsSettings: Record<string, string>;
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
     nextLesson: null, thisWeekNumber: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
-    isEnrolled: false, upcomingDue: [], overdueDue: [], recentGrades: [],
+    isEnrolled: false, upcomingDue: [], overdueDue: [], recentGrades: [], cbtExams: [],
     lmsSettings: {} as Record<string, string>,
   });
   const [loading, setLoading] = useState(true);
@@ -90,7 +100,7 @@ export default function StudentDashboard() {
         // applies the same enrollment/program/class visibility as the assignments page) —
         // NOT a raw client query, which would leak other programmes' assignments and was
         // also hiding past-due work via a `.gte('due_date', now)` filter.
-        const [assignmentsRes, recentGradesRes, activityRes] = await Promise.allSettled([
+        const [assignmentsRes, recentGradesRes, activityRes, cbtExamsRes, cbtSessionsRes] = await Promise.allSettled([
           fetchActionJson<any>('/api/assignments', { cache: 'no-store', signal: controller.signal }, 'Your assignments are taking longer than expected.', 20_000)
             .then(({ response, data }) => { if (!response.ok || !Array.isArray(data.data)) throw new Error('Assignments unavailable'); return data; }),
           db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points, term_id)')
@@ -98,9 +108,40 @@ export default function StudentDashboard() {
             .order('submitted_at', { ascending: false }).limit(12),
           db.from('assignment_submissions').select('status, submitted_at, assignments(title, term_id)')
             .eq('portal_user_id', studentId).order('submitted_at', { ascending: false }).limit(10),
+          fetch('/api/cbt/exams', { cache: 'no-store', signal: controller.signal }).then((r) => (r.ok ? r.json() : { data: [] })),
+          fetch('/api/cbt/sessions', { cache: 'no-store', signal: controller.signal }).then((r) => (r.ok ? r.json() : { data: [] })),
         ]);
         if (!active) return;
         if (assignmentsRes.status === 'rejected') throw new Error('Assignments unavailable');
+
+        const rawExams: any[] = cbtExamsRes.status === 'fulfilled' && Array.isArray(cbtExamsRes.value?.data) ? cbtExamsRes.value.data : [];
+        const rawSessions: any[] = cbtSessionsRes.status === 'fulfilled' && Array.isArray(cbtSessionsRes.value?.data) ? cbtSessionsRes.value.data : [];
+        const sessionByExam = new Map<string, any>();
+        for (const ses of rawSessions) {
+          if (ses?.exam_id && !sessionByExam.has(ses.exam_id)) sessionByExam.set(ses.exam_id, ses);
+        }
+        const nowForExam = Date.now();
+        const cbtExams = rawExams
+          .filter((e: any) => e && e.is_active !== false)
+          .filter((e: any) => !e.end_date || new Date(e.end_date).getTime() >= nowForExam || sessionByExam.has(e.id))
+          .map((e: any) => {
+            const ses = sessionByExam.get(e.id);
+            return {
+              id: e.id,
+              title: e.title || 'CBT Examination',
+              duration_minutes: e.duration_minutes ?? null,
+              total_questions: e.total_questions ?? (Array.isArray(e.cbt_questions) ? e.cbt_questions.length : null),
+              start_date: e.start_date ?? null,
+              end_date: e.end_date ?? null,
+              session_status: ses?.status ?? null,
+              session_score: typeof ses?.score === 'number' ? ses.score : null,
+            };
+          })
+          .sort((a, b) => {
+            const rank = (x: typeof a) => (x.session_status === 'in_progress' ? 0 : !x.session_status ? 1 : 2);
+            return rank(a) - rank(b);
+          })
+          .slice(0, 4);
 
         const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
         const liveTermId = await resolveAssignmentTermId(db as any, {});
@@ -173,6 +214,7 @@ export default function StudentDashboard() {
           recentActivity,
           nextLesson,
           thisWeekNumber,
+          cbtExams,
         }));
 
       } catch (err) {
@@ -243,8 +285,104 @@ export default function StudentDashboard() {
   );
 
   // Enrolled — full performance dashboard
+  const readyExams = data.cbtExams.filter((e) => !e.session_status || e.session_status === 'in_progress');
+
   return (
     <div className="space-y-6 p-4 sm:p-6">
+
+      {/* ── DIRECT ACCESS: ACTIVE EXAMINATIONS (1-CLICK START / RESUME) ── */}
+      {data.cbtExams.length > 0 && (
+        <section className="rounded-3xl border border-emerald-500/35 bg-card p-5 sm:p-6 shadow-lg space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+                <AcademicCapIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-black tracking-tight text-foreground">
+                  {readyExams.length > 0 ? 'Examinations Ready to Take' : 'Your Recent Examinations'}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {readyExams.length > 0
+                    ? 'Tap Start or Resume below to enter your exam immediately — answers auto-save as you go.'
+                    : 'View your completed exam results and answer reviews.'}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/cbt"
+              className="text-xs font-black text-primary hover:underline shrink-0"
+            >
+              All Exams →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {data.cbtExams.map((exam) => {
+              const isInProgress = exam.session_status === 'in_progress';
+              const isCompleted = !!exam.session_status && !isInProgress;
+              const startsAtMs = exam.start_date ? new Date(exam.start_date).getTime() : null;
+              const notYetOpen = !isInProgress && !isCompleted && startsAtMs !== null && Number.isFinite(startsAtMs) && Date.now() < startsAtMs;
+              const actionHref = isCompleted || notYetOpen
+                ? `/dashboard/cbt/${exam.id}`
+                : `/dashboard/cbt/${exam.id}/take`;
+              return (
+                <div
+                  key={exam.id}
+                  className={`flex flex-col justify-between gap-3 rounded-2xl border p-4 transition-all ${
+                    isInProgress
+                      ? 'border-amber-500/45 bg-amber-500/5'
+                      : !isCompleted && !notYetOpen
+                        ? 'border-emerald-500/35 bg-emerald-500/5 hover:border-emerald-500/60'
+                        : 'border-border bg-background'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                        isInProgress
+                          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-500/35'
+                          : isCompleted
+                            ? 'bg-muted text-muted-foreground border border-border'
+                            : notYetOpen
+                              ? 'bg-primary/10 text-primary border border-primary/25'
+                              : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-500/35'
+                      }`}>
+                        {isInProgress ? 'In Progress' : isCompleted ? (exam.session_status === 'pending_grading' ? 'Pending Grading' : `Completed · ${exam.session_score ?? 0}%`) : notYetOpen ? 'Scheduled' : 'Live Now'}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                        <ClockIcon className="h-3.5 w-3.5" />
+                        {exam.duration_minutes ?? 60} min
+                        {exam.total_questions ? ` · ${exam.total_questions} Qs` : ''}
+                      </span>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-black text-foreground leading-snug line-clamp-2">
+                      {exam.title}
+                    </h3>
+                    {notYetOpen && startsAtMs && (
+                      <p className="text-[11px] font-semibold text-primary">
+                        Opens {new Date(startsAtMs).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={actionHref}
+                    className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all shadow-sm ${
+                      isInProgress
+                        ? 'bg-amber-700 hover:bg-amber-800 text-white'
+                        : isCompleted || notYetOpen
+                          ? 'border border-border bg-card text-foreground hover:bg-muted'
+                          : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                    }`}
+                  >
+                    {isInProgress ? 'Resume Exam Now →' : isCompleted ? 'View Result & Review →' : notYetOpen ? 'View Exam Details' : 'Start Exam Now →'}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── TOP SECTION: PRIMARY LEARNING ACTIONS ── */}
       <div className="grid grid-cols-1 gap-4">

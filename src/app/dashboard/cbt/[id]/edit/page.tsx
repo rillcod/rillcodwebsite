@@ -12,6 +12,17 @@ import {
     ChevronUpIcon, ChevronDownIcon, SparklesIcon, CheckCircleIcon,
 } from '@/lib/icons';
 import QuestionAuthoringStudio, { type StudioGeneratedQuestion } from '@/components/cbt/QuestionAuthoringStudio';
+import { cbtAnswerMatchesOption } from '@/lib/cbt/grading';
+
+function resolveNormalizedOptionAnswer(options: string[], rawAnswer: string): string {
+    const cleanOpts = options.map((o) => o.trim()).filter(Boolean);
+    const trimmed = (rawAnswer || '').trim();
+    if (!trimmed || cleanOpts.length === 0) return trimmed;
+    const exact = cleanOpts.find((o) => o === trimmed);
+    if (exact) return exact;
+    const matchedIdx = cleanOpts.findIndex((opt, idx) => cbtAnswerMatchesOption(opt, idx, trimmed));
+    return matchedIdx >= 0 ? cleanOpts[matchedIdx] : trimmed;
+}
 
 interface Question {
     id?: string;
@@ -290,18 +301,37 @@ export default function EditExamPage() {
             setError('Add at least one question.');
             return;
         }
-        if (!definitionLocked && activeQuestions.some(question => !question.question_text.trim())) {
-            setError('Every question needs question text before this assessment can be saved.');
+        const missingTextNums = activeQuestions
+            .map((q, idx) => (!q.question_text.trim() ? `Q${idx + 1}` : null))
+            .filter(Boolean);
+        if (!definitionLocked && missingTextNums.length > 0) {
+            setError(`Question(s) ${missingTextNums.join(', ')} need question text before this assessment can be saved.`);
             return;
         }
-        if (!definitionLocked && form.is_active && activeQuestions.some(question => {
-            if (!['multiple_choice', 'true_false'].includes(question.question_type)) return false;
-            const options = question.options.filter(option => option.trim());
-            return options.length < 2 || !question.correct_answer.trim()
-                || !options.includes(question.correct_answer);
-        })) {
-            setError('Every objective question needs at least two options and one selected correct answer before publishing.');
-            return;
+        const normalizedActiveQuestions = activeQuestions.map((q) => {
+            if (!['multiple_choice', 'true_false'].includes(q.question_type)) return q;
+            const cleanOpts = q.options.map((o) => o.trim()).filter(Boolean);
+            return {
+                ...q,
+                options: cleanOpts,
+                correct_answer: resolveNormalizedOptionAnswer(cleanOpts, q.correct_answer),
+            };
+        });
+        if (!definitionLocked && form.is_active) {
+            const badObjNums = normalizedActiveQuestions
+                .map((q, idx) => {
+                    if (!['multiple_choice', 'true_false'].includes(q.question_type)) return null;
+                    const options = q.options.filter((option) => option.trim());
+                    if (options.length < 2 || !q.correct_answer.trim() || !options.includes(q.correct_answer)) {
+                        return `Q${idx + 1}`;
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+            if (badObjNums.length > 0) {
+                setError(`Question(s) ${badObjNums.join(', ')} need at least two options and a selected correct answer before publishing.`);
+                return;
+            }
         }
         const durationMinutes = parseInt(form.duration_minutes, 10);
         const passingScore = parseInt(form.passing_score, 10);
@@ -346,7 +376,7 @@ export default function EditExamPage() {
               payload.deletedQuestionIds = questions
                 .filter((q: any) => q._deleted && q.id)
                 .map((q: any) => q.id);
-              payload.questions = activeQuestions.map((q: any, i: number) => ({
+              payload.questions = normalizedActiveQuestions.map((q: any, i: number) => ({
                     id: q._new ? undefined : q.id,
                     question_text: q.question_text.trim(),
                     question_type: q.question_type,
@@ -644,11 +674,12 @@ export default function EditExamPage() {
 
                     {/* ── Question Canvas ── */}
                     <fieldset disabled={definitionLocked} className="space-y-4 disabled:opacity-70">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card shadow-sm border border-border rounded-2xl px-5 py-4">
+                        <div className="space-y-3 bg-card shadow-sm border border-border rounded-2xl px-5 py-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                                 <h2 className="font-black text-foreground">Exam Paper Questions</h2>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    {visibleQuestions.length} question{visibleQuestions.length !== 1 ? 's' : ''} ·&nbsp;
+                                    {visibleQuestions.length} question{visibleQuestions.length !== 1 ? 's' : ''} ({visibleQuestions.filter(q => ['multiple_choice', 'true_false'].includes(q.question_type)).length} objective · {visibleQuestions.filter(q => !['multiple_choice', 'true_false'].includes(q.question_type)).length} theory) ·&nbsp;
                                     {visibleQuestions.reduce((s, q) => s + (q.points || 0), 0)} total points
                                 </p>
                             </div>
@@ -671,6 +702,45 @@ export default function EditExamPage() {
                                 </button>
                             </div>
                         </div>
+                        {visibleQuestions.length > 0 && (() => {
+                            const issues = visibleQuestions.map((q, idx) => {
+                                if (!q.question_text.trim()) return { idx, reason: 'missing text' };
+                                if (['multiple_choice', 'true_false'].includes(q.question_type)) {
+                                    const cleanOpts = q.options.map((o) => o.trim()).filter(Boolean);
+                                    const resolved = resolveNormalizedOptionAnswer(cleanOpts, q.correct_answer);
+                                    if (cleanOpts.length < 2) return { idx, reason: 'needs 2+ options' };
+                                    if (!resolved || !cleanOpts.includes(resolved)) return { idx, reason: 'missing answer key' };
+                                }
+                                return null;
+                            }).filter(Boolean) as Array<{ idx: number; reason: string }>;
+
+                            if (issues.length === 0) {
+                                return (
+                                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                                        <CheckCircleIcon className="h-4 w-4 shrink-0" />
+                                        All {visibleQuestions.length} questions verified — ready to deploy to students!
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs">
+                                    <span className="font-black text-amber-900 dark:text-amber-200">
+                                        {issues.length} question{issues.length === 1 ? '' : 's'} need attention before publishing:
+                                    </span>
+                                    {issues.map((item) => (
+                                        <button
+                                            key={`issue-${item.idx}`}
+                                            type="button"
+                                            onClick={() => document.getElementById(`edit-q-${item.idx}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                                            className="rounded-lg border border-amber-500/40 bg-card px-2 py-0.5 text-[11px] font-black text-amber-900 dark:text-amber-200 hover:bg-amber-500/20"
+                                        >
+                                            Q{item.idx + 1} ({item.reason})
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                        </div>
 
                         {visibleQuestions.length === 0 && (
                             <div className="text-center py-16 bg-card shadow-sm border border-dashed border-border rounded-xl">
@@ -680,7 +750,7 @@ export default function EditExamPage() {
                         )}
 
                         {visibleQuestions.map((q, qi) => (
-                            <div key={q.id ?? `new-${qi}`} className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                            <div key={q.id ?? `new-${qi}`} id={`edit-q-${qi}`} className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                                 {/* Question header */}
                                 <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
                                     <div className="flex items-center gap-3">

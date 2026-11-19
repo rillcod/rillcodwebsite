@@ -42,6 +42,7 @@ const QUICK_ACTIONS = {
     { name: 'Write reports', href: '/dashboard/reports/builder', icon: DocumentChartBarIcon, desc: 'Type scores, then publish' },
   ],
   student: [
+    { name: 'Take Exams (CBT)', href: '/dashboard/cbt', icon: AcademicCapIcon, desc: 'Start or resume active exams' },
     { name: 'Continue learning', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'Open your next lesson' },
     { name: 'My assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'Work that is due' },
     { name: 'My grades', href: '/dashboard/grades', icon: ChartBarIcon, desc: 'See your scores' },
