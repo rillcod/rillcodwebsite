@@ -212,6 +212,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    if (searchParams.get('with_credentials') === '1' && rows.length) {
+      const emails = [...new Set(rows.map((r: any) => String(r.email || '').trim().toLowerCase()).filter(Boolean))];
+      if (emails.length > 0) {
+        const passByEmail = new Map<string, string>();
+        for (let i = 0; i < emails.length; i += 400) {
+          const slice = emails.slice(i, i + 400);
+          const { data: credRows } = await admin
+            .from('registration_results')
+            .select('email, password, created_at')
+            .in('email', slice)
+            .order('created_at', { ascending: false });
+          for (const c of credRows ?? []) {
+            const em = String((c as any).email || '').trim().toLowerCase();
+            const pw = String((c as any).password || '').trim();
+            if (em && pw && !passByEmail.has(em)) passByEmail.set(em, pw);
+          }
+        }
+        rows = rows.map((r: any) => ({
+          ...r,
+          temp_password: passByEmail.get(String(r.email || '').trim().toLowerCase()) ?? null,
+        }));
+      }
+    }
+
     return NextResponse.json({ data: rows, total: rows.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

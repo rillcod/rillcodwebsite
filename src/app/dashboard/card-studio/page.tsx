@@ -41,6 +41,7 @@ import {
   type HierarchyItemFields,
 } from '@/lib/cards/cardHierarchy';
 import { buildBulkPrintHtml, openPrintWindow, sortCardHolders, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
+import { downloadClassCredentialsPdf } from '@/lib/classes/print-credentials-sheet';
 import { LocalQr } from '@/components/cards/LocalQr';
 import { HD_QR_EMBED_PX } from '@/lib/qr/hd-qr';
 import { cardPreviewPage } from '@/lib/cards/preview-page';
@@ -146,7 +147,7 @@ interface CardConfig {
 
 type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; grade?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
-type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; gradeLevel: string; sectionClass: string; classId?: string | null; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
+type CardRecord = { id: string; name: string; email: string; tempPassword?: string | null; roleLabel: string; school: string; badge: string; gradeLevel: string; sectionClass: string; classId?: string | null; profileUrl: string; schoolId: string | null; isHidden?: boolean; has_published_report?: boolean; has_draft_report?: boolean };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -1256,13 +1257,14 @@ export default function CardStudioPage() {
           isHidden: !!(r as any).is_deleted,
         })));
       } else {
-        const reportQS = type === 'student' ? '&with_reports=1' : '';
+        const reportQS = type === 'student' ? '&with_reports=1&with_credentials=1' : '&with_credentials=1';
         const res = await readCardResponse(`/api/portal-users?role=${type}&scoped=true${reportQS}${hiddenQS}`,{cache:'no-store'});
         const json = await res.json();
         if(!res.ok) throw new Error(json?.error||`Failed to load ${type}s`);
         if (request !== holdersRequest.current) return;
         setRecords((json?.data||[]).map((r:any)=>({
           id:r.id,name:r.full_name||'Unknown',email:r.email||'N/A',
+          tempPassword: r.temp_password ?? null,
           roleLabel:type==='teacher'?'Teacher':'Student',
           school:r.school_name||'Rillcod Technologies',
           badge:type==='teacher'?'Staff':'',
@@ -1630,7 +1632,7 @@ export default function CardStudioPage() {
   const exportManageCsv = useCallback((list: CardRecord[], label = `${cardType}-cards`) => {
     if (!list.length) { toast.error('No records to export'); return; }
     const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const headers = ['Name', 'Role', 'School', 'Class', 'Section', 'Email', 'RC Number', 'Card Status', 'Report Status'];
+    const headers = ['Name', 'Role', 'School', 'Class', 'Section', 'Email', 'Password', 'RC Number', 'Card Status', 'Report Status'];
     const rows = list.map((r) => [
       r.name,
       r.roleLabel,
@@ -1638,6 +1640,7 @@ export default function CardStudioPage() {
       r.gradeLevel,
       r.sectionClass,
       r.email === 'N/A' ? '' : r.email,
+      r.tempPassword ?? '',
       recordRcCode(r),
       cardStatus(r),
       r.roleLabel === 'Student' ? reportBucket(r) : 'n/a',
@@ -1727,6 +1730,7 @@ export default function CardStudioPage() {
         id: r.id,
         full_name: r.name,
         email: r.email==='N/A'?null:r.email,
+        temp_password: r.tempPassword ?? null,
         school_name: r.school,
         grade: r.gradeLevel || null,
         section_class: r.sectionClass||null,
@@ -2744,6 +2748,35 @@ export default function CardStudioPage() {
                 Reset
               </button>
             )}
+            <button
+              type="button"
+              onClick={async () => {
+                const target = selectedRecords.length ? selectedRecords : filtered;
+                if (!target.length) return;
+                const label = selectedGrade !== 'all' ? selectedGrade : selectedSchool !== 'all' ? selectedSchool : `${cardType}s`;
+                try {
+                  await downloadClassCredentialsPdf({
+                    className: label,
+                    schoolName: selectedSchool !== 'all' ? selectedSchool : schoolLock || null,
+                    students: target.map((r) => ({
+                      id: r.id,
+                      full_name: r.name,
+                      grade: r.gradeLevel || null,
+                      email: r.email === 'N/A' ? null : r.email,
+                      temp_password: r.tempPassword ?? null,
+                    })),
+                  });
+                  toast.success(`Downloaded Login + Password + RC PDF (${target.length})`);
+                } catch {
+                  toast.error('Could not download PDF');
+                }
+              }}
+              disabled={filtered.length === 0}
+              title="Download straight A4 PDF of Username, Password & RC Number (no published result required)"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 shrink-0"
+            >
+              <DocumentTextIcon className="w-3.5 h-3.5" /> Login + RC PDF
+            </button>
             <button
               type="button"
               onClick={() => exportManageCsv(selectedRecords.length ? selectedRecords : filtered, `${cardType}-cards`)}
