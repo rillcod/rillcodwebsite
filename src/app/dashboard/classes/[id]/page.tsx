@@ -17,7 +17,11 @@ import {
   CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon, PrinterIcon, ClipboardIcon
 } from '@/lib/icons';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
-import { openClassCredentialsPrintSheet, type CredentialSheetStudent } from '@/lib/classes/print-credentials-sheet';
+import {
+  downloadClassCredentialsPdf,
+  openClassCredentialsPrintSheet,
+  type CredentialSheetStudent,
+} from '@/lib/classes/print-credentials-sheet';
 import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
@@ -780,7 +784,24 @@ export default function ClassDetailPage() {
       schoolName: cls?.schools?.name ?? null,
       students: credSheetRows,
     });
-    if (!ok) alert('Pop-up blocked — allow pop-ups to print or save the PDF list.');
+    if (!ok) alert('Could not open print preview. Try Download PDF instead.');
+  };
+
+  const downloadClassCredPdf = async () => {
+    if (!credSheetRows.length) return;
+    setCredSheetBusy(true);
+    try {
+      await downloadClassCredentialsPdf({
+        className: cls?.name || 'Class',
+        schoolName: cls?.schools?.name ?? null,
+        students: credSheetRows,
+      });
+      setCredSheetNotice(`Downloaded PDF list for ${credSheetRows.length} student${credSheetRows.length === 1 ? '' : 's'}.`);
+    } catch {
+      setCredSheetNotice('Could not generate PDF. Please try Print List instead.');
+    } finally {
+      setCredSheetBusy(false);
+    }
   };
 
   const copyClassCredSheet = async () => {
@@ -2482,12 +2503,21 @@ export default function ClassDetailPage() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <button
                               type="button"
-                              disabled={credSheetLoading || credSheetRows.length === 0}
-                              onClick={printClassCredSheet}
+                              disabled={credSheetLoading || credSheetBusy || credSheetRows.length === 0}
+                              onClick={() => void downloadClassCredPdf()}
                               className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40"
                             >
+                              <CloudArrowDownIcon className="h-3.5 w-3.5" />
+                              Download PDF ({credSheetRows.length})
+                            </button>
+                            <button
+                              type="button"
+                              disabled={credSheetLoading || credSheetRows.length === 0}
+                              onClick={printClassCredSheet}
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-black text-white hover:bg-emerald-800 disabled:opacity-40"
+                            >
                               <PrinterIcon className="h-3.5 w-3.5" />
-                              Print / Save PDF ({credSheetRows.length})
+                              Print List
                             </button>
                             <button
                               type="button"

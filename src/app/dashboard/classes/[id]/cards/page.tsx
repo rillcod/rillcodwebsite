@@ -27,7 +27,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { buildStudentRosterRows, downloadStudentRosterPdf } from '@/lib/cards/exportRoster';
 import { buildBulkPrintHtml, fetchCardConfig, openPrintWindow, type CardHolder } from '@/lib/cards/printCard';
-import { openClassCredentialsPrintSheet } from '@/lib/classes/print-credentials-sheet';
+import { downloadClassCredentialsPdf, openClassCredentialsPrintSheet } from '@/lib/classes/print-credentials-sheet';
 
 type Member = {
   id: string;
@@ -318,6 +318,30 @@ export default function ClassCardsPage() {
     () => rows.filter((r) => !r.temp_password),
     [rows],
   );
+
+  const downloadCredentialsPdf = async () => {
+    const list = selectedRows.length ? selectedRows : rows;
+    if (!list.length) { toast.error('No students to download.'); return; }
+    setBusy('sheet');
+    try {
+      await downloadClassCredentialsPdf({
+        className: cls?.name ?? 'Class',
+        schoolName: cls?.schools?.name ?? null,
+        students: list.map((r) => ({
+          id: r.id,
+          full_name: r.full_name,
+          grade: r.grade ?? null,
+          email: r.email ?? null,
+          temp_password: r.temp_password ?? null,
+        })),
+      });
+      toast.success(`Downloaded Login + Password + RC PDF (${list.length} students)`);
+    } catch {
+      toast.error('Could not download PDF. Try Print Login + RC Sheet instead.');
+    } finally {
+      setBusy('');
+    }
+  };
 
   const printCredentialsSheet = () => {
     const list = selectedRows.length ? selectedRows : rows;
@@ -619,10 +643,15 @@ export default function ClassCardsPage() {
               {busy === 'issue' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ShieldCheckIcon className="h-4 w-4" />}
               Give access{selectedNeedingCard.length ? ` (${selectedNeedingCard.length})` : ''}
             </button>
+            <button type="button" disabled={busy !== ''} onClick={() => void downloadCredentialsPdf()}
+              title="Download a clean A4 PDF with Username, Password, and Result RC Code — works anytime (no published result required)"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40">
+              {busy === 'sheet' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <DocumentTextIcon className="h-4 w-4" />} Login + RC PDF
+            </button>
             <button type="button" disabled={busy !== ''} onClick={printCredentialsSheet}
               title="Print one clean A4 sheet with Email, Password, and Result RC Code for every student"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40">
-              <PrinterIcon className="h-4 w-4" /> Print Login + RC Sheet
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-4 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-40">
+              <PrinterIcon className="h-4 w-4" /> Print Login + RC
             </button>
             <button type="button" disabled={busy !== ''} onClick={() => void printRoster('print')}
               title="Opens the RC roster as a PDF ready to print"
