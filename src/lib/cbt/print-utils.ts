@@ -184,20 +184,20 @@ const SCREEN_STYLES = {
     text: '#111',
   },
   screen: {
-    body: '1rem',
-    bodyCompact: '0.95rem',
-    list: '0.95rem',
-    listCompact: '0.9rem',
+    body: 'inherit',
+    bodyCompact: 'inherit',
+    list: '0.95em',
+    listCompact: '0.9em',
     codeBg: '#0f172a',
     codeColor: '#e2e8f0',
     codeBorder: '#10b981',
-    codeFont: '0.8rem',
+    codeFont: '0.82rem',
     codePad: '10px 12px',
     codeMargin: '8px 0',
-    inlineCodeBg: 'rgba(16,185,129,0.12)',
-    inlineCodeColor: '#6ee7b7',
-    inlineCodeBorder: 'rgba(16,185,129,0.25)',
-    heading: '#6ee7b7',
+    inlineCodeBg: 'rgba(15,23,42,0.08)',
+    inlineCodeColor: 'inherit',
+    inlineCodeBorder: 'rgba(100,116,139,0.32)',
+    heading: 'inherit',
     quoteBg: 'rgba(16,185,129,0.08)',
     quoteBorder: '#10b981',
     text: 'inherit',
@@ -327,14 +327,17 @@ function renderMarkdownHtml(text: string, styles: MdStyles, compact = false): st
       && !/^\d+\. /.test(lines[i])
       && !/^> /.test(lines[i])
       && !/^---+$/.test(lines[i].trim())
-      && !/^\x00C/.test(lines[i])
+      && !/^\x00C\d+\x00$/.test(lines[i].trim())
     ) {
       para.push(lines[i]);
       i++;
     }
+    const bodySize = compact ? styles.bodyCompact : styles.body;
     if (para.length) {
-      const bodySize = compact ? styles.bodyCompact : styles.body;
       out.push(`<div style="font-size:${bodySize};line-height:1.65;color:${styles.text}">${inl(para.join(' '))}</div>`);
+    } else if (i < lines.length) {
+      out.push(`<div style="font-size:${bodySize};line-height:1.65;color:${styles.text}">${inl(lines[i])}</div>`);
+      i++;
     }
   }
   return out.join('');

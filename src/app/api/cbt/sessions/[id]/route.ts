@@ -413,3 +413,149 @@ export async function PATCH(
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/cbt/sessions/[id] — Reset an individual student's CBT exam sitting
+// Scoped to admin, or teacher/school for their own class(es) and assigned school(s).
+// ─────────────────────────────────────────────────────────────────────────────
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const caller = await getCaller();
+    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    }
+
+    const { id } = await context.params;
+    const admin = adminClient();
+
+    const { data: session } = await admin
+      .from('cbt_sessions')
+      .select('id, user_id, exam_id, status, score, start_time, end_time, cbt_exams(id, title, school_id, created_by, class_id)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!session) {
+      return NextResponse.json({ error: 'Exam session not found' }, { status: 404 });
+    }
+
+    const exam = (session as any).cbt_exams ?? {};
+    const examSchoolId: string | null = exam?.school_id ?? null;
+    const examCreatedBy: string | null = exam?.created_by ?? null;
+    const examClassId: string | null = exam?.class_id ?? null;
+
+    // Fetch student's class & school so teachers/schools can reset learners in their own class/school
+    const { data: student } = await admin
+      .from('portal_users')
+      .select('id, full_name, school_id, class_id')
+      .eq('id', session.user_id)
+      .maybeSingle();
+
+    let allowed = caller.role === 'admin';
+
+    if (!allowed && caller.role === 'school') {
+      allowed = Boolean(
+        caller.school_id
+        && (examSchoolId === caller.school_id || student?.school_id === caller.school_id),
+      );
+    }
+
+    if (!allowed && caller.role === 'teacher') {
+      if (examCreatedBy === caller.id) {
+        allowed = true;
+      }
+      if (!allowed && (examClassId || student?.class_id)) {
+        const classIds = [examClassId, student?.class_id].filter((c): c is string => Boolean(c));
+        const { data: ownedClass } = await admin
+          .from('classes')
+          .select('id')
+          .in('id', classIds)
+          .eq('teacher_id', caller.id)
+          .limit(1)
+          .maybeSingle();
+        if (ownedClass) allowed = true;
+      }
+      if (!allowed && (examSchoolId || student?.school_id)) {
+        const schoolIds = [examSchoolId, student?.school_id].filter((s): s is string => Boolean(s));
+        const { data: ts } = await admin
+          .from('teacher_schools')
+          .select('school_id')
+          .eq('teacher_id', caller.id)
+          .in('school_id', schoolIds)
+          .limit(1)
+          .maybeSingle();
+        if (ts) allowed = true;
+      }
+    }
+
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Access denied: you can only reset exams for students in your own class or school.' },
+        { status: 403 },
+      );
+    }
+
+    let reason = '';
+    try {
+      const body = await request.json();
+      if (typeof body?.reason === 'string') reason = body.reason.trim().slice(0, 300);
+    } catch {
+      // Optional body
+    }
+
+    const { error: deleteErr } = await admin
+      .from('cbt_sessions')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) {
+      return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+    }
+
+    await logAudit(admin as any, {
+      action: 'reset_cbt_session',
+      actorId: caller.id,
+      resourceType: 'cbt_session',
+      resourceId: id,
+      tableName: 'cbt_sessions',
+      oldValue: `${session.status ?? 'unknown'} (${session.score ?? 'no score'})`,
+      newValue: 'reset_for_retake',
+      oldValues: {
+        exam_id: session.exam_id,
+        user_id: session.user_id,
+        status: session.status,
+        score: session.score,
+      },
+      newValues: {
+        reset: true,
+        reason: reason || 'Teacher/school reset individual exam sitting',
+      },
+    }).catch(() => {});
+
+    if (session.user_id) {
+      const examTitle = exam?.title || 'CBT Assessment';
+      void admin.from('notifications').insert({
+        user_id: session.user_id,
+        title: 'Exam Reset — Ready to Retake',
+        message: `Your sitting for "${examTitle}" was reset by your teacher. You can now start the exam again.`,
+        type: 'info',
+        is_read: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    return NextResponse.json({
+      data: {
+        reset: true,
+        session_id: id,
+        user_id: session.user_id,
+        student_name: student?.full_name ?? 'Student',
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}

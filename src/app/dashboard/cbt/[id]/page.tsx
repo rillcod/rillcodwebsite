@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -9,6 +9,7 @@ import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
   CheckIcon, XMarkIcon, TrashIcon, ChevronDownIcon, LockOpenIcon, LockClosedIcon, ClipboardIcon,
+  ArrowPathIcon, ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
 import { parseEssayAnswer } from '@/lib/cbt/essay-attachments';
@@ -58,6 +59,16 @@ export default function ExamDetailPage() {
   const [printTheoryCount, setPrintTheoryCount] = useState<string>(''); // '' = all
   const [printDuration, setPrintDuration] = useState<string>('');       // '' = use exam default
   const [printPassMark, setPrintPassMark] = useState<string>('');       // '' = use exam default
+  const [liveMonitor, setLiveMonitor] = useState(true);
+  const [monitorFilter, setMonitorFilter] = useState<'all' | 'live' | 'submitted' | 'not_started'>('all');
+  const [refreshingSessions, setRefreshingSessions] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [resetTarget, setResetTarget] = useState<any | null>(null);
+  const [resetReason, setResetReason] = useState('');
+  const [resettingSessionId, setResettingSessionId] = useState<string | null>(null);
+  const [monitorNotice, setMonitorNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const userMapRef = useRef<Record<string, any>>({});
   const printMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,6 +114,7 @@ export default function ExamDetailPage() {
       ]).then(async ([examData, sesRes, usersJson]) => {
         const umap: Record<string, any> = {};
         (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
+        userMapRef.current = umap;
         let rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
         // Filter by school if school role
         if (role === 'school' && profile.school_id) {
@@ -115,6 +127,7 @@ export default function ExamDetailPage() {
         setExam(examData);
         setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
         setSessions(enriched);
+        setLastSyncedAt(new Date());
         const classIdForRoster = examData?.class_id || examData?.metadata?.target_class_id;
         const paperMax = hostMaxFromExam({
           metadata: examData?.metadata,
@@ -164,6 +177,82 @@ export default function ExamDetailPage() {
       });
     }
   }, [profile?.id, params?.id, authLoading]); // eslint-disable-line
+
+  const refreshLiveSessions = useCallback(async (manual = false) => {
+    const id = params?.id as string;
+    if (!id || !isStaff) return;
+    if (manual) setRefreshingSessions(true);
+    try {
+      const sesRes = await fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then((r) => r.json());
+      const umap = userMapRef.current;
+      let rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
+      if (role === 'school' && profile?.school_id) {
+        rawSessions = rawSessions.filter((s: any) => umap[s.user_id]?.school_id === profile.school_id);
+      }
+      const enriched = rawSessions.map((s: any) => ({
+        ...s,
+        portal_users: umap[s.user_id] ?? roster.find((r) => r.id === s.user_id) ?? null,
+      }));
+      setSessions(enriched);
+      setLastSyncedAt(new Date());
+    } catch {
+      // Transient polling errors are ignored silently
+    } finally {
+      if (manual) setRefreshingSessions(false);
+    }
+  }, [params?.id, isStaff, role, profile?.school_id, roster]);
+
+  // Real-time 5-second polling for staff while tab is visible
+  useEffect(() => {
+    if (!isStaff || !liveMonitor || loading || !exam?.id) return;
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshLiveSessions(false);
+      }
+    }, 5_000);
+    return () => window.clearInterval(poll);
+  }, [isStaff, liveMonitor, loading, exam?.id, refreshLiveSessions]);
+
+  // 1-second local tick so live countdown timers for in-progress students update smoothly
+  useEffect(() => {
+    if (!isStaff || !liveMonitor) return;
+    const hasLive = sessions.some((s: any) => s.status === 'in_progress');
+    if (!hasLive) return;
+    const tick = window.setInterval(() => setNowTick(Date.now()), 1_000);
+    return () => window.clearInterval(tick);
+  }, [isStaff, liveMonitor, sessions]);
+
+  const handleConfirmResetSession = async () => {
+    if (!resetTarget?.id) return;
+    setResettingSessionId(resetTarget.id);
+    setMonitorNotice(null);
+    try {
+      const res = await fetch(`/api/cbt/sessions/${resetTarget.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: resetReason.trim() || undefined }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Could not reset this student exam.');
+      }
+      const studentName = resetTarget.portal_users?.full_name || json?.data?.student_name || 'Student';
+      setSessions((prev) => prev.filter((item) => item.id !== resetTarget.id));
+      setResetTarget(null);
+      setResetReason('');
+      setMonitorNotice({
+        type: 'success',
+        text: `Reset exam for ${studentName}. They can now retake this exam fresh from Question 1.`,
+      });
+    } catch (err: any) {
+      setMonitorNotice({
+        type: 'error',
+        text: err?.message || 'Could not reset this student exam.',
+      });
+    } finally {
+      setResettingSessionId(null);
+    }
+  };
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
@@ -587,11 +676,18 @@ export default function ExamDetailPage() {
                 const inProgressCount = sessions.filter((s: any) => s.status === 'in_progress').length;
                 const pendingGradeCount = sessions.filter((s: any) => s.status === 'pending_grading' || s.needs_grading).length;
                 const notStartedCount = Math.max(0, roster.length - sessions.length);
+                const windowClosed = Boolean(exam.end_date && new Date(exam.end_date).getTime() < nowTick);
                 return [
                   { label: 'Submitted', value: submittedCount, cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200' },
                   { label: 'In Progress', value: inProgressCount, cls: 'border-primary/30 bg-primary/10 text-primary' },
                   { label: 'Needs Grading', value: pendingGradeCount, cls: pendingGradeCount > 0 ? 'border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-200' : 'border-border bg-muted/40 text-muted-foreground' },
-                  { label: roster.length > 0 ? 'Not Started' : 'Questions', value: roster.length > 0 ? notStartedCount : questions.length, cls: 'border-border bg-muted/40 text-foreground' },
+                  {
+                    label: roster.length > 0 ? (windowClosed ? 'Absent' : 'Not Started') : 'Questions',
+                    value: roster.length > 0 ? notStartedCount : questions.length,
+                    cls: roster.length > 0 && windowClosed && notStartedCount > 0
+                      ? 'border-rose-500/35 bg-rose-500/10 text-rose-800 dark:text-rose-200'
+                      : 'border-border bg-muted/40 text-foreground',
+                  },
                 ].map((stat) => (
                   <div key={stat.label} className={`rounded-2xl border px-3 py-2.5 ${stat.cls}`}>
                     <p className="text-lg font-black leading-none">{stat.value}</p>
@@ -941,76 +1037,307 @@ export default function ExamDetailPage() {
           </div>
         )}
 
-        {/* Staff: sessions (collapsible with counts) */}
-        {isStaff && sessions.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setResultsOpen(v => !v)}
-              aria-expanded={resultsOpen}
-              className="w-full p-4 sm:p-5 border-b border-border flex items-center justify-between text-left hover:bg-muted/30 transition-colors"
-            >
-              <h2 className="font-bold flex items-center gap-2 text-foreground">
-                <ChartBarIcon className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-                Student Results
-                <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 text-xs font-black text-emerald-800 dark:text-emerald-300">
-                  {sessions.length}
-                </span>
-              </h2>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {sessions.filter(s => s.status === 'passed').length} passed
-                </span>
-                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${resultsOpen ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-            {resultsOpen && (
-            <div className="divide-y divide-border">
-              {sessions.map((s: any) => (
-                <div key={s.id} className="px-5 py-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-foreground text-sm">{s.portal_users?.full_name ?? 'Student'}</p>
-                    <p className="text-xs text-muted-foreground">{s.portal_users?.email}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 mb-1">
-                        {s.status === 'pending_grading' ? (
-                          <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-                            Pending Grading
-                          </span>
-                        ) : (
-                          <span className={`px-2.5 py-1 rounded-xl border text-[10px] font-black uppercase tracking-widest ${
-                            s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                            : s.status === 'failed' ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
-                            : 'bg-card shadow-sm border-border text-muted-foreground'
-                          }`}>
-                            {s.status === 'passed' ? `Passed` : s.status === 'failed' ? 'Failed' : s.status} {s.score != null ? `— ${parsePaperMarkAnswers(s.answers) ? formatHostMark(parsePaperMarkAnswers(s.answers)) : `${s.score}%`}` : ''}
-                          </span>
-                        )}
-                      </div>
-                      {isPaperCaptureAnswers(s.answers) && (
-                        <p className="text-[10px] text-muted-foreground truncate">Hall mark</p>
-                      )}
-                      {s.end_time && (
-                        <p className="text-[10px] text-muted-foreground truncate">Submitted {new Date(s.end_time).toLocaleDateString()}</p>
-                      )}
-                    </div>
-                    {/* Always show Grade/Review button for staff */}
-                    <Link href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
-                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
-                        s.status === 'pending_grading'
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-foreground shadow-lg shadow-emerald-900/30'
-                          : 'bg-muted hover:bg-muted text-muted-foreground'
-                      }`}>
-                      <ChartBarIcon className="w-3.5 h-3.5" />
-                      {s.status === 'pending_grading' ? 'Grade' : 'Review'}
-                    </Link>
+        {/* Staff: Real-Time Exam Monitor & Individual Exam Reset */}
+        {isStaff && (sessions.length > 0 || roster.length > 0) && (() => {
+          const totalQ = questions.length;
+          const countAnswered = (ans: any) => {
+            if (!ans || typeof ans !== 'object' || Array.isArray(ans)) return 0;
+            return Object.values(ans).filter((v) => String(v ?? '').trim().length > 0).length;
+          };
+          const formatRemaining = (startTime: string | null) => {
+            if (!startTime || !exam?.duration_minutes) return null;
+            const endMs = new Date(startTime).getTime() + Number(exam.duration_minutes) * 60_000;
+            const examEndMs = exam.end_date ? new Date(exam.end_date).getTime() : Number.POSITIVE_INFINITY;
+            const secs = Math.max(0, Math.floor((Math.min(endMs, examEndMs) - nowTick) / 1000));
+            return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+          };
+
+          const liveSessions = sessions.filter((s: any) => s.status === 'in_progress');
+          const submittedSessions = sessions.filter((s: any) => s.status !== 'in_progress');
+          const sessionUserIds = new Set(sessions.map((s: any) => s.user_id));
+          const notStartedRoster = roster.filter((student) => !sessionUserIds.has(student.id));
+          const windowClosed = Boolean(exam.end_date && new Date(exam.end_date).getTime() < nowTick);
+          const windowNotOpenYet = Boolean(exam.start_date && new Date(exam.start_date).getTime() > nowTick);
+
+          const visibleSessions = monitorFilter === 'live'
+            ? liveSessions
+            : monitorFilter === 'submitted'
+              ? submittedSessions
+              : monitorFilter === 'not_started'
+                ? []
+                : [...liveSessions, ...submittedSessions];
+
+          return (
+            <div className="bg-card shadow-sm border border-border rounded-2xl overflow-hidden">
+              <div className="p-4 sm:p-5 border-b border-border space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setResultsOpen(v => !v)}
+                    aria-expanded={resultsOpen}
+                    className="flex items-center gap-2 text-left"
+                  >
+                    <ChartBarIcon className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+                    <h2 className="font-black text-foreground">Live Exam Monitor &amp; Results</h2>
+                    {liveSessions.length > 0 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 dark:text-emerald-300">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        {liveSessions.length} Live
+                      </span>
+                    )}
+                    <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${resultsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {lastSyncedAt && (
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        Synced {lastSyncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setLiveMonitor((v) => !v)}
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-black transition-colors ${
+                        liveMonitor
+                          ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                          : 'border-border bg-muted/40 text-muted-foreground'
+                      }`}
+                    >
+                      <span className={`h-2 w-2 rounded-full ${liveMonitor ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/50'}`} />
+                      {liveMonitor ? 'Auto-Live (5s)' : 'Paused'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void refreshLiveSessions(true)}
+                      disabled={refreshingSessions}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background hover:bg-muted px-3 py-1.5 text-[11px] font-bold text-foreground disabled:opacity-50"
+                    >
+                      <ArrowPathIcon className={`h-3.5 w-3.5 ${refreshingSessions ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
                   </div>
                 </div>
-              ))}
+
+                {monitorNotice && (
+                  <div className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold ${
+                    monitorNotice.type === 'success'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                      : 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                  }`}>
+                    <span>{monitorNotice.text}</span>
+                    <button type="button" onClick={() => setMonitorNotice(null)} aria-label="Dismiss notice" className="p-0.5 opacity-70 hover:opacity-100">
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {resultsOpen && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {([
+                      { key: 'all', label: `All (${sessions.length + notStartedRoster.length})` },
+                      { key: 'live', label: `Live Now (${liveSessions.length})` },
+                      { key: 'submitted', label: `Submitted (${submittedSessions.length})` },
+                      ...(roster.length > 0 ? [{ key: 'not_started' as const, label: `${windowClosed ? 'Absent' : 'Not Started'} (${notStartedRoster.length})` }] : []),
+                    ] as const).map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setMonitorFilter(tab.key)}
+                        className={`rounded-xl px-3 py-1.5 text-[11px] font-black transition-colors ${
+                          monitorFilter === tab.key
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {resultsOpen && (
+                <div className="divide-y divide-border">
+                  {visibleSessions.map((s: any) => {
+                    const isLive = s.status === 'in_progress';
+                    const answeredCnt = countAnswered(s.answers);
+                    const pct = totalQ > 0 ? Math.min(100, Math.round((answeredCnt / totalQ) * 100)) : 0;
+                    const remStr = isLive ? formatRemaining(s.start_time) : null;
+
+                    return (
+                      <div key={s.id} className="px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-bold text-foreground text-sm truncate">
+                              {s.portal_users?.full_name ?? 'Student'}
+                            </p>
+                            {isLive ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Live Now
+                              </span>
+                            ) : s.status === 'pending_grading' ? (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                                Pending Grading
+                              </span>
+                            ) : (
+                              <span className={`px-2 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${
+                                s.status === 'passed'
+                                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300'
+                                  : s.status === 'failed'
+                                    ? 'bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-300'
+                                    : 'bg-muted border-border text-muted-foreground'
+                              }`}>
+                                {s.status === 'passed' ? 'Passed' : s.status === 'failed' ? 'Failed' : s.status}
+                                {s.score != null ? ` · ${parsePaperMarkAnswers(s.answers) ? formatHostMark(parsePaperMarkAnswers(s.answers)) : `${s.score}%`}` : ''}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                            {s.portal_users?.email && <span className="truncate">{s.portal_users.email}</span>}
+                            {isLive && (
+                              <>
+                                <span className="font-bold text-foreground">
+                                  {answeredCnt}/{totalQ || '?'} answered ({pct}%)
+                                </span>
+                                {remStr && (
+                                  <span className="inline-flex items-center gap-1 font-bold text-primary tabular-nums">
+                                    <ClockIcon className="h-3.5 w-3.5" /> {remStr} left
+                                  </span>
+                                )}
+                                {s.updated_at && (
+                                  <span>Saved {new Date(s.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                )}
+                              </>
+                            )}
+                            {!isLive && s.end_time && (
+                              <span>Submitted {new Date(s.end_time).toLocaleString()}</span>
+                            )}
+                            {isPaperCaptureAnswers(s.answers) && <span>Hall mark</span>}
+                          </div>
+
+                          {isLive && totalQ > 0 && (
+                            <div className="h-1.5 w-full max-w-xs rounded-full bg-muted overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!isLive && (
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
+                              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
+                                s.status === 'pending_grading'
+                                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm'
+                                  : 'border border-border bg-background hover:bg-muted text-foreground'
+                              }`}
+                            >
+                              <ChartBarIcon className="w-3.5 h-3.5" />
+                              {s.status === 'pending_grading' ? 'Grade' : 'Review'}
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => { setResetTarget(s); setResetReason(''); }}
+                            disabled={resettingSessionId === s.id}
+                            title="Reset this student's exam so they can retake it fresh"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-2 text-xs font-black text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-50"
+                          >
+                            <ArrowPathIcon className="h-3.5 w-3.5" />
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {(monitorFilter === 'all' || monitorFilter === 'not_started') && notStartedRoster.map((student) => (
+                    <div key={`ns-${student.id}`} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 bg-muted/15">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground text-sm truncate">{student.full_name ?? 'Student'}</p>
+                        {student.email && <p className="text-[11px] text-muted-foreground truncate">{student.email}</p>}
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
+                        windowClosed
+                          ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                          : windowNotOpenYet
+                            ? 'border-primary/25 bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground'
+                      }`}>
+                        {windowClosed ? 'Absent · Missed Window' : windowNotOpenYet ? 'Scheduled' : 'Not Started'}
+                      </span>
+                    </div>
+                  ))}
+
+                  {visibleSessions.length === 0 && (monitorFilter !== 'all' && monitorFilter !== 'not_started' || notStartedRoster.length === 0) && (
+                    <div className="px-5 py-8 text-center text-xs font-semibold text-muted-foreground">
+                      No students in this view yet.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            )}
+          );
+        })()}
+
+        {/* Reset Individual Student Exam Confirmation Modal */}
+        {resetTarget && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => !resettingSessionId && setResetTarget(null)} />
+            <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400">
+                  <ExclamationTriangleIcon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-black text-foreground">Reset Individual Exam</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Resetting <span className="font-bold text-foreground">{resetTarget.portal_users?.full_name ?? 'this student'}</span>&apos;s sitting will clear their current answers and timer so they can retake <span className="font-semibold text-foreground">{exam.title}</span> fresh.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-muted/30 px-3.5 py-2.5 text-xs flex items-center justify-between">
+                <span className="text-muted-foreground font-semibold">Current status</span>
+                <span className="font-black text-foreground uppercase">
+                  {resetTarget.status === 'in_progress' ? 'In Progress (Live)' : `${resetTarget.status}${resetTarget.score != null ? ` · ${resetTarget.score}%` : ''}`}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-muted-foreground mb-1.5">
+                  Reason for reset (optional, saved in audit log)
+                </label>
+                <input
+                  type="text"
+                  value={resetReason}
+                  onChange={(e) => setResetReason(e.target.value)}
+                  placeholder="e.g. Network disconnect, browser crash, approved retake"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={Boolean(resettingSessionId)}
+                  onClick={() => setResetTarget(null)}
+                  className="rounded-xl border border-border bg-background hover:bg-muted px-4 py-2.5 text-xs font-bold text-foreground disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(resettingSessionId)}
+                  onClick={() => void handleConfirmResetSession()}
+                  className="rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2.5 text-xs font-black text-white shadow-sm disabled:opacity-50"
+                >
+                  {resettingSessionId ? 'Resetting…' : 'Confirm Reset Exam'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

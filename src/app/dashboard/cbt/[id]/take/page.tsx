@@ -164,6 +164,7 @@ export default function TakeExamPage() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const canvasScrollRef = useRef<HTMLDivElement | null>(null);
   const startTimeRef = useRef<Date>(new Date());
   const deadlineMsRef = useRef<number | null>(null);
   const clockOffsetMsRef = useRef<number>(0);
@@ -284,11 +285,14 @@ export default function TakeExamPage() {
       const maxAttempts = 3;
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25_000);
         try {
           const sessionRes = await fetch('/api/cbt/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: payloadBody,
+            signal: controller.signal,
           });
           if (!sessionRes.ok) {
             const j = await sessionRes.json().catch(() => ({}));
@@ -304,10 +308,15 @@ export default function TakeExamPage() {
             break;
           }
         } catch (err: any) {
-          lastError = err instanceof Error ? err : new Error('Network error while submitting exam');
-          if (err?.message && !/network|fetch|timeout|failed to fetch|500|502|503|504|Failed to submit exam/i.test(err.message)) {
+          const isAbort = err?.name === 'AbortError';
+          lastError = isAbort
+            ? new Error('Submission timed out — retrying…')
+            : (err instanceof Error ? err : new Error('Network error while submitting exam'));
+          if (!isAbort && err?.message && !/network|fetch|timeout|failed to fetch|500|502|503|504|Failed to submit exam/i.test(err.message)) {
             throw err;
           }
+        } finally {
+          clearTimeout(timeoutId);
         }
         if (attempt < maxAttempts) {
           await new Promise((r) => setTimeout(r, attempt * 1000));
@@ -327,9 +336,11 @@ export default function TakeExamPage() {
         }
       }
 
+      const finalScore = Number(savedSession?.score ?? 0);
+      const passingScore = Number(exam?.passing_score ?? 70);
       setResult({
-        score: savedSession?.score ?? 0,
-        passed: !!savedSession?.passed,
+        score: finalScore,
+        passed: typeof savedSession?.passed === 'boolean' ? savedSession.passed : finalScore >= passingScore,
         correct: savedSession?.correct ?? 0,
         status: savedSession?.status ?? 'completed',
       });
@@ -558,19 +569,24 @@ export default function TakeExamPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [loading, submitted, questions, current]);
 
+  // Always scroll the question canvas back to the top when moving between questions
+  useEffect(() => {
+    canvasScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [current]);
+
   const confirmAndSubmit = () => {
     setShowSubmitModal(true);
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
+    <div className="flex-1 min-h-0 h-full w-full bg-background flex items-center justify-center mobile-page-root">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (examError && !exam) return (
-    <div className="min-h-screen bg-background flex items-center justify-center text-foreground mobile-page-root">
-      <div className="text-center max-w-md px-6 pb-12">
+    <div className="flex-1 min-h-0 h-full w-full overflow-y-auto bg-background flex items-center justify-center text-foreground mobile-page-root">
+      <div className="text-center max-w-md px-6 py-12">
         <XCircleIcon className="w-16 h-16 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
         <h1 className="text-2xl font-bold">Exam Not Available</h1>
         <p className="text-muted-foreground mt-2">{examError}</p>
@@ -580,8 +596,8 @@ export default function TakeExamPage() {
   );
 
   if (!loading && questions.length === 0) return (
-    <div className="min-h-screen bg-background flex items-center justify-center text-foreground mobile-page-root">
-      <div className="text-center pb-12">
+    <div className="flex-1 min-h-0 h-full w-full overflow-y-auto bg-background flex items-center justify-center text-foreground mobile-page-root">
+      <div className="text-center px-6 py-12">
         <XCircleIcon className="w-16 h-16 mx-auto text-amber-600 dark:text-amber-400 mb-4" />
         <h1 className="text-2xl font-bold">No Questions Yet</h1>
         <p className="text-muted-foreground mt-2">This exam hasn't been configured with any questions.</p>
@@ -594,7 +610,7 @@ export default function TakeExamPage() {
     const isPending = result.status === 'pending_grading';
 
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center text-foreground p-6 relative overflow-hidden mobile-page-root">
+      <div className="flex-1 min-h-0 h-full w-full overflow-y-auto bg-background flex items-start sm:items-center justify-center text-foreground p-4 sm:p-6 pb-[calc(var(--app-bottom-nav-height)+2rem)] sm:pb-6 relative mobile-page-root">
         {/* Animated Background Accents */}
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -693,17 +709,17 @@ export default function TakeExamPage() {
   const isCurrentFlagged = Boolean(q && flaggedIds.has(q.id));
 
   return (
-    <div className={"min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30 pb-[calc(var(--app-bottom-nav-height)+9.5rem)] md:pb-0 mobile-page-root"}>
-      {/* Cinematic Header */}
-      <div className="sticky top-0 z-50 bg-background/90 backdrop-blur-2xl border-b border-border px-3 sm:px-6 py-3 sm:py-4">
-        <div className="max-w-5xl mx-auto flex items-start sm:items-center justify-between gap-3 sm:gap-8">
+    <div className="flex-1 min-h-0 h-full w-full bg-background text-foreground flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30 mobile-page-root">
+      {/* Exam Header — always pinned at the top */}
+      <div className="shrink-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border px-3 sm:px-6 py-2.5 sm:py-3.5">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-6">
           <div className="flex-1 min-w-0 flex items-center gap-3 sm:gap-6">
             <div className="min-w-0 flex-1 sm:flex-shrink-0">
-              <div className="text-[9px] sm:text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.16em] sm:tracking-[0.2em] mb-1">Live Examination</div>
-              <h2 className="text-xs sm:text-sm font-bold text-muted-foreground truncate max-w-[56vw] sm:max-w-md">{exam?.title}</h2>
+              <div className="text-[9px] sm:text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.16em] sm:tracking-[0.2em] mb-0.5">Live Examination</div>
+              <h2 className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[44vw] sm:max-w-md">{exam?.title}</h2>
             </div>
-            <div className="hidden sm:flex flex-1 items-center gap-3">
-              <div className="flex-1 h-1 bg-card shadow-sm rounded-full overflow-hidden max-w-[120px]">
+            <div className="hidden md:flex flex-1 items-center gap-3">
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[140px]">
                 <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
               </div>
               <span className="text-[10px] font-black text-muted-foreground tracking-tighter uppercase">{current + 1} of {questions.length}</span>
@@ -713,7 +729,7 @@ export default function TakeExamPage() {
           <div className="flex items-center gap-2 shrink-0">
             {saveState !== 'idle' && (
               <span
-                className={`hidden sm:inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
+                className={`hidden lg:inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
                   saveState === 'error'
                     ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
                     : saveState === 'saving'
@@ -725,33 +741,49 @@ export default function TakeExamPage() {
                 {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Retry pending' : 'Saved'}
               </span>
             )}
-            <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
-              <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600/50 dark:text-emerald-400/50'}`} />
-              <span className="text-sm sm:text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
+            <div className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/40 border-border text-foreground'}`}>
+              <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+              <span className="text-xs sm:text-base font-black tracking-widest leading-none tabular-nums">{formatTime(timeLeft)}</span>
             </div>
+            <button
+              type="button"
+              onClick={confirmAndSubmit}
+              disabled={submitting}
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Submitting…' : 'Submit'}
+            </button>
           </div>
         </div>
         {examError && (
-          <div className="max-w-5xl mx-auto mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400">
-            {examError}
+          <div className="max-w-5xl mx-auto mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-bold text-rose-700 dark:text-rose-300">
+            <span>{examError}</span>
+            <button
+              type="button"
+              onClick={() => void handleSubmit(false)}
+              disabled={submitting}
+              className="rounded-lg bg-rose-600 hover:bg-rose-700 px-3 py-1 text-[11px] font-black text-white disabled:opacity-50"
+            >
+              {submitting ? 'Retrying…' : 'Retry Submit'}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Main Examination Canvas */}
-      <div className="flex-1 flex flex-col items-stretch sm:items-center justify-start sm:justify-center px-3 sm:px-6 py-4 sm:py-6 relative overflow-hidden">
-        {/* Subtle Ambient Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-emerald-500/[0.02] blur-[150px] rounded-full pointer-events-none" />
-
-        <div className="max-w-4xl w-full space-y-5 sm:space-y-8 relative z-10 py-4 sm:py-12">
-          <div className="space-y-5 sm:space-y-8 min-h-[auto] sm:min-h-[400px]">
-            <div className="space-y-3 sm:space-y-4">
+      {/* Main Scrollable Examination Canvas */}
+      <div
+        ref={canvasScrollRef}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-4 sm:pt-6 pb-[calc(var(--app-bottom-nav-height)+11rem)] md:pb-12 relative"
+      >
+        <div className="max-w-4xl mx-auto w-full space-y-5 sm:space-y-7 relative z-10">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm space-y-3 sm:space-y-4">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-600 dark:text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
+                <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-700 dark:text-emerald-400 tracking-widest uppercase">Question {current + 1} of {questions.length}</span>
                 <span className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-black text-primary tracking-wider uppercase">
                   {isObjectiveQuestion(q) ? 'Section A · Objective' : 'Section B · Theory / Written'}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points ?? 1} Point{Number(q?.points ?? 1) === 1 ? '' : 's'}</span>
                 {q && (
                   <button
                     type="button"
@@ -759,17 +791,22 @@ export default function TakeExamPage() {
                     className={`ml-auto inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
                       isCurrentFlagged
                         ? 'border-amber-500/50 bg-amber-500/15 text-amber-800 dark:text-amber-300'
-                        : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <ExclamationTriangleIcon className="h-3.5 w-3.5" />
                     {isCurrentFlagged ? 'Flagged' : 'Flag'}
                   </button>
                 )}
-                <span className="sm:hidden text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{current + 1}/{questions.length}</span>
               </div>
-              <div className="text-lg sm:text-3xl font-bold text-foreground leading-snug sm:leading-tight break-words">
-                <CbtMarkdown text={q?.question_text ?? ''} />
+              <div className="text-base sm:text-2xl font-bold text-foreground leading-relaxed sm:leading-snug break-words">
+                {q?.question_text && String(q.question_text).trim().length > 0 ? (
+                  <CbtMarkdown text={String(q.question_text)} className="text-foreground" />
+                ) : (
+                  <p className="text-sm font-medium italic text-muted-foreground">
+                    Question prompt is empty — please notify your instructor.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1136,9 +1173,9 @@ export default function TakeExamPage() {
 
       {/* Smart Pre-Submit Review Modal */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-3 sm:p-6">
+        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-3 pb-[calc(var(--app-bottom-nav-height)+0.75rem)] sm:p-6">
           <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitModal(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-2xl space-y-4">
+          <div className="relative z-10 w-full max-w-md max-h-[82dvh] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-black text-foreground">Review &amp; Submit Exam</h3>

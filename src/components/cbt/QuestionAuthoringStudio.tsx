@@ -133,6 +133,22 @@ export default function QuestionAuthoringStudio({
   const userEditedTopicRef = useRef(false);
   const userEditedCountsRef = useRef(false);
   const lastScopeKeyRef = useRef(`${classId || ''}:${courseId || ''}:${programId || ''}`);
+  const aiAbortRef = useRef<AbortController | null>(null);
+  const aiUserCancelledRef = useRef(false);
+
+  const cancelAiGeneration = () => {
+    aiUserCancelledRef.current = true;
+    aiAbortRef.current?.abort();
+    aiAbortRef.current = null;
+    setAiGenerating(false);
+    setAiSolvingPremade(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      aiAbortRef.current?.abort();
+    };
+  }, []);
 
   // Premade Bank filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -486,10 +502,16 @@ export default function QuestionAuthoringStudio({
     setAiGenerating(true);
     setAiError(null);
     setAiSuccessMsg(null);
+    aiAbortRef.current?.abort();
+    const controller = new AbortController();
+    aiAbortRef.current = controller;
+    aiUserCancelledRef.current = false;
+    const timeoutId = window.setTimeout(() => controller.abort(), 65_000);
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           type: 'cbt',
           cbtMode: 'generate',
@@ -506,7 +528,7 @@ export default function QuestionAuthoringStudio({
           ...(effectiveSourceText ? { sourceMaterial: effectiveSourceText } : {}),
         }),
       });
-      const result = await res.json();
+      const result = await res.json().catch(() => ({}));
       if (!res.ok || result.error) {
         throw new Error(result.error || 'AI question generation failed.');
       }
@@ -539,8 +561,20 @@ export default function QuestionAuthoringStudio({
         `Added ${generatedList.length} AI questions with verified answers & marking guides.`,
       );
     } catch (err: any) {
-      setAiError(err?.message || 'Could not generate questions right now.');
+      if (err?.name === 'AbortError') {
+        if (aiUserCancelledRef.current) {
+          setAiError('Generation cancelled.');
+        } else {
+          setAiError('AI took too long to respond (65s). Please click Generate again or reduce question count slightly.');
+        }
+      } else {
+        setAiError(err?.message || 'Could not generate questions right now.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
+      if (aiAbortRef.current === controller) {
+        aiAbortRef.current = null;
+      }
       setAiGenerating(false);
     }
   };
@@ -588,10 +622,16 @@ export default function QuestionAuthoringStudio({
     setAiSolvingPremade(true);
     setAiError(null);
     setAiSuccessMsg(null);
+    aiAbortRef.current?.abort();
+    const controller = new AbortController();
+    aiAbortRef.current = controller;
+    aiUserCancelledRef.current = false;
+    const timeoutId = window.setTimeout(() => controller.abort(), 65_000);
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           type: 'cbt',
           cbtMode: 'align_premade',
@@ -609,7 +649,7 @@ export default function QuestionAuthoringStudio({
           premadeQuestionsText: serializedCurrent,
         }),
       });
-      const result = await res.json();
+      const result = await res.json().catch(() => ({}));
       if (!res.ok || result.error) {
         if (localParsed.length > 0) {
           onImportQuestions(
@@ -672,8 +712,37 @@ export default function QuestionAuthoringStudio({
         `Solved answers & marking guides for ${finalQuestions.length} questions!`,
       );
     } catch (err: any) {
-      setAiError(err?.message || 'Failed to solve premade questions.');
+      if (err?.name === 'AbortError') {
+        if (aiUserCancelledRef.current) {
+          setAiError('AI alignment cancelled.');
+        } else if (localParsed.length > 0) {
+          onImportQuestions(
+            localParsed.map((item) => ({
+              question_text: item.question_text,
+              question_type: item.question_type,
+              options: item.options,
+              correct_answer: item.correct_answer,
+              marking_guide: item.marking_guide,
+              points: item.points,
+              section: item.section,
+              explanation: item.explanation || item.marking_guide,
+              curriculumTag: item.curriculumTag,
+              cognitiveLevel: item.difficulty,
+            })),
+            fromCurrentPaper ? 'replace' : importBehavior,
+          );
+          setAiSuccessMsg(`AI timed out — imported ${localParsed.length} parsed questions directly.`);
+        } else {
+          setAiError('AI took too long to respond (65s). Please try again.');
+        }
+      } else {
+        setAiError(err?.message || 'Failed to solve premade questions.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
+      if (aiAbortRef.current === controller) {
+        aiAbortRef.current = null;
+      }
       setAiSolvingPremade(false);
     }
   };
@@ -1031,12 +1100,12 @@ export default function QuestionAuthoringStudio({
               </div>
             </div>
 
-            <div className="sm:col-span-4">
+            <div className="sm:col-span-4 flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleAiGenerate}
                 disabled={aiGenerating || aiSolvingPremade}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all disabled:opacity-50"
               >
                 {aiGenerating || aiSolvingPremade ? (
                   <>
@@ -1055,6 +1124,15 @@ export default function QuestionAuthoringStudio({
                   </>
                 )}
               </button>
+              {(aiGenerating || aiSolvingPremade) && (
+                <button
+                  type="button"
+                  onClick={cancelAiGeneration}
+                  className="shrink-0 px-3 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs font-black hover:bg-rose-500/20 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
 

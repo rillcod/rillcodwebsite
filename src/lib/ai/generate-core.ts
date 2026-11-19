@@ -2314,30 +2314,57 @@ export async function generateAIContent(
   const plan = await resolveGenerationPlan(normalizedBody);
   let lastError: string | null = null;
 
-  const geminiReasoning = [
-    "cbt",
-    "cbt-grading",
-    "code-generation",
+  // Bounded end-to-end budget so generation NEVER stalls past proxy/Cloudflare timeouts
+  const isLongTask = [
+    "lesson",
+    "lesson-notes",
     "curriculum",
     "programme-curriculum",
-  ].includes(type)
-    ? "high"
+  ].includes(type);
+  const totalBudgetMs = isLongTask ? 85_000 : 50_000;
+  const startedAt = Date.now();
+  const remainingBudgetMs = () => Math.max(0, totalBudgetMs - (Date.now() - startedAt));
+  const withBudgetTimeout = <T,>(promise: Promise<T>, maxMs: number): Promise<T | null> => {
+    const ms = Math.min(maxMs, remainingBudgetMs());
+    if (ms < 1_500) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), ms);
+      promise
+        .then((val) => {
+          clearTimeout(timer);
+          resolve(val);
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          resolve(null);
+        });
+    });
+  };
+
+  // Use low reasoning for CBT/grading so Gemini responds fluidly instead of stalling in long thinking loops
+  const geminiReasoning = ["cbt", "cbt-grading"].includes(type)
+    ? "low"
+    : ["code-generation", "curriculum", "programme-curriculum"].includes(type)
+    ? "medium"
     : type === "report-feedback"
     ? "none"
-    : "medium";
+    : "low";
 
   // ── Gemini Direct API fast path ────────────────────────────────────────────
   // Try the free direct Gemini API before spending OpenRouter credits.
-  const geminiResult = await geminiGenerateText(
-    plan.systemPrompt,
-    plan.prompt,
-    {
-      json: plan.useJsonFormat,
-      reasoning: geminiReasoning,
-      maxOutputTokens: plan.maxTokens,
-      temperature: plan.temperature,
-    }
-  ).catch(() => null);
+  const geminiResult = await withBudgetTimeout(
+    geminiGenerateText(
+      plan.systemPrompt,
+      plan.prompt,
+      {
+        json: plan.useJsonFormat,
+        reasoning: geminiReasoning,
+        maxOutputTokens: plan.maxTokens,
+        temperature: plan.temperature,
+      }
+    ),
+    isLongTask ? 38_000 : 22_000,
+  );
 
   if (geminiResult?.text) {
     if (type === "lesson-notes") {
@@ -2391,11 +2418,14 @@ export async function generateAIContent(
   }
 
   // ── Cloudflare Workers AI free tier (10,000 Neurons/day) ───────────────────
-  if (hasCloudflareAi()) {
-    const cfResult = await cloudflareGenerateText(plan.systemPrompt, plan.prompt, {
-      maxTokens: Math.min(plan.maxTokens, 4096),
-      temperature: plan.temperature,
-    }).catch(() => null);
+  if (hasCloudflareAi() && remainingBudgetMs() >= 8_000) {
+    const cfResult = await withBudgetTimeout(
+      cloudflareGenerateText(plan.systemPrompt, plan.prompt, {
+        maxTokens: Math.min(plan.maxTokens, 4096),
+        temperature: plan.temperature,
+      }),
+      15_000,
+    );
 
     if (cfResult?.text && cfResult.text.length >= MIN_CONTENT_CHARS) {
       if (type === "lesson-notes") {
@@ -2470,11 +2500,17 @@ export async function generateAIContent(
   }
 
   for (const modelId of plan.modelQueue) {
+    const leftMs = remainingBudgetMs();
+    if (leftMs < 5_000) {
+      lastError = lastError || "AI generation timed out before a model responded — please retry.";
+      break;
+    }
     try {
       const controller = new AbortController();
-      const timeoutMs = ["lesson", "lesson-notes", "curriculum", "programme-curriculum"].includes(type)
-        ? 55000
-        : 30000;
+      const timeoutMs = Math.min(
+        isLongTask ? 35_000 : 18_000,
+        Math.max(4_000, leftMs - 1_500),
+      );
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       // Resumes itself when it hits max_tokens instead of returning a body
