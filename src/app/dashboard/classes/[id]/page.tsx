@@ -168,7 +168,10 @@ export default function ClassDetailPage() {
   const [pasteStep, setPasteStep] = useState<'paste' | 'review' | 'done'>('paste');
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
+  const [rosterFilter, setRosterFilter] = useState<'active' | 'off_band' | 'needs_report' | 'withdrawn' | 'all'>('active');
   const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
+  const [schoolSuggestionsPool, setSchoolSuggestionsPool] = useState<any[]>([]);
+  const [loadingSchoolPool, setLoadingSchoolPool] = useState(false);
   const [reportIndicatorEnabled, setReportIndicatorEnabled] = useState(true); // admin setting: show report status?
   const [pasteClaimEnabled, setPasteClaimEnabled] = useState(false); // admin setting: paste-name claim (sensitive, off by default)
   // Inline identity edit (name + grade) on the roster — source of truth, round-trips everywhere.
@@ -528,6 +531,26 @@ export default function ClassDetailPage() {
     }
     else setLoading(false);
   }, [id, profile?.id, authLoading, activeOperation]);
+
+  // Silently prefetch same-school students when viewing the Students tab so Quick-Add
+  // auto-adopt suggestions and smart cross-record search are instant.
+  useEffect(() => {
+    if (activeOperation !== 'roster' || !id || !profile?.role || !['admin', 'teacher', 'school'].includes(profile.role)) return;
+    let cancelled = false;
+    setLoadingSchoolPool(true);
+    fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!cancelled && json && Array.isArray(json.students)) {
+          setSchoolSuggestionsPool(json.students);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingSchoolPool(false);
+      });
+    return () => { cancelled = true; };
+  }, [activeOperation, id, profile?.role, enrollments.length]);
 
   // Keep the realtime matcher in step with this class's loaded work.
   // Must stay above early returns — conditional hooks crash the page after load.
@@ -1499,18 +1522,60 @@ export default function ClassDetailPage() {
   const reportedCount = currentTermStudents.filter((s: any) => s.has_published_report).length;
   const needsReportCount = currentTermStudents.length - reportedCount;
 
-  // ── Roster search: filter both active and historical lists by name/email. ──
+  // ── Smart roster search: token-order-independent match across name, email, grade, section ──
+  const tokenMatches = (haystack: string, rawQuery: string): boolean => {
+    const tokens = rawQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return true;
+    const lower = haystack.toLowerCase();
+    return tokens.every((t) => lower.includes(t));
+  };
   const rosterQ = rosterSearch.trim().toLowerCase();
+  const matchesRosterText = (student: any) => {
+    if (!rosterQ) return true;
+    const blob = [student.full_name, student.email, student.grade, student.section_class].filter(Boolean).join(' ');
+    return tokenMatches(blob, rosterQ);
+  };
   const matchesRoster = (student: any) =>
-    (!rosterQ ||
-      (student.full_name ?? '').toLowerCase().includes(rosterQ) ||
-      (student.email ?? '').toLowerCase().includes(rosterQ)) &&
-    (!showNeedsReportOnly || !student.has_published_report);
-  // Un-reported students float to the top so what needs attention is seen first.
+    matchesRosterText(student) &&
+    (!showNeedsReportOnly || !student.has_published_report) &&
+    (rosterFilter !== 'off_band' || isOffBand(student)) &&
+    (rosterFilter !== 'needs_report' || !student.has_published_report);
+  // Un-reported & off-band students float to the top so what needs attention is seen first.
   const byNeedsReport = (a: any, b: any) => (a.has_published_report === b.has_published_report ? 0 : a.has_published_report ? 1 : -1);
-  const visibleCurrent = currentTermStudents.filter(matchesRoster).slice().sort(byNeedsReport);
-  const visibleInactive = inactiveTermStudents.filter(matchesRoster);
-  const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 6;
+  const visibleCurrent = rosterFilter === 'withdrawn'
+    ? []
+    : currentTermStudents.filter(matchesRoster).slice().sort(byNeedsReport);
+  const visibleInactive = (rosterFilter === 'off_band' || rosterFilter === 'needs_report')
+    ? []
+    : inactiveTermStudents.filter(matchesRosterText);
+  const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 0;
+
+  // Smart cross-school search matches (for adopting returning/old students directly from search or Quick-Add)
+  const schoolSearchMatches = (() => {
+    if (rosterQ.length < 2 || schoolSuggestionsPool.length === 0) return [];
+    return schoolSuggestionsPool
+      .filter((s: any) => tokenMatches([s.full_name, s.email, s.grade, s.current_class_name].filter(Boolean).join(' '), rosterQ))
+      .slice(0, 6);
+  })();
+
+  const quickAddQuery = quickAddInput.trim();
+  const quickAddSingleLine = quickAddQuery && !quickAddQuery.includes('\n');
+  const quickAlreadyInClass = quickAddSingleLine && quickAddQuery.length >= 2
+    ? currentTermStudents.filter((s: any) => tokenMatches([s.full_name, s.email].filter(Boolean).join(' '), quickAddQuery)).slice(0, 3)
+    : [];
+  const smartQuickSuggestions = (() => {
+    if (!quickAddSingleLine || quickAddQuery.length < 2 || schoolSuggestionsPool.length === 0) return [];
+    return schoolSuggestionsPool
+      .filter((s: any) => tokenMatches([s.full_name, s.email, s.grade, s.current_class_name].filter(Boolean).join(' '), quickAddQuery))
+      .sort((a: any, b: any) => {
+        if (a.is_feeder_promotion && !b.is_feeder_promotion) return -1;
+        if (!a.is_feeder_promotion && b.is_feeder_promotion) return 1;
+        if (!a.class_id && b.class_id) return -1;
+        if (a.class_id && !b.class_id) return 1;
+        return (a.full_name || '').localeCompare(b.full_name || '');
+      })
+      .slice(0, 6);
+  })();
   // Each mode carries its own numbers, so the page header does not have to repeat them.
   // `attention` is work waiting on a person — it is the only thing that gets a red badge.
   const operationCards = [
@@ -1947,14 +2012,14 @@ export default function ClassDetailPage() {
                         </div>
                       )}
                       {isStaff && (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                           <button
                             type="button"
                             onClick={() => { setShowStudentModal(true); setEnrolMode('current'); setModalPlacementFilter('all'); setModalGradeFilter(''); resetPasteClaimState(); loadAvailableStudents(); }}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground"
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-black text-primary-foreground"
                           >
-                            <PlusIcon className="h-3.5 w-3.5" />
-                            Add / Adopt Students
+                            <PlusIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Add / Adopt</span>
                           </button>
                           <button
                             type="button"
@@ -1965,8 +2030,8 @@ export default function ClassDetailPage() {
                                 : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
                             }`}
                           >
-                            <CheckCircleIcon className="h-3.5 w-3.5" />
-                            {showSessionConfirm ? 'Close Confirm' : 'Confirm Session & Grades'}
+                            <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{showSessionConfirm ? 'Close Confirm' : 'Confirm Grades'}</span>
                           </button>
                           <Link
                             href={learnerReportHref('write', {
@@ -1975,8 +2040,8 @@ export default function ClassDetailPage() {
                             })}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
                           >
-                            <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                            Result Builder
+                            <ClipboardDocumentListIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">Result Builder</span>
                             {reportIndicatorEnabled && needsReportCount > 0 && (
                               <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
                                 {needsReportCount}
@@ -1987,36 +2052,50 @@ export default function ClassDetailPage() {
                             href={`/dashboard/classes/${id}/cards`}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
                           >
-                            <UserGroupIcon className="h-3.5 w-3.5 text-primary" />
-                            ID / Access Cards
+                            <UserGroupIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span className="truncate">ID / RC Cards</span>
                           </Link>
-                          <div className="relative">
+                          <div className="relative col-span-2 sm:col-span-1">
                             <button
                               type="button"
                               onClick={() => setShowRosterActions(v => !v)}
-                              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                              aria-expanded={showRosterActions}
+                              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50 sm:w-auto"
                             >
-                              More
+                              More Actions
                               <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showRosterActions ? 'rotate-180' : ''}`} />
                             </button>
                             {showRosterActions && (
                               <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowRosterActions(false)} />
-                                <div className="absolute left-0 top-full mt-1 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl p-1.5 space-y-0.5">
+                                <div
+                                  className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-none"
+                                  onClick={() => setShowRosterActions(false)}
+                                />
+                                <div className="fixed inset-x-3 bottom-3 z-[120] max-h-[75vh] overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-2xl space-y-1 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-64 sm:max-h-[70vh] sm:rounded-xl sm:p-1.5 sm:space-y-0.5">
+                                  <div className="flex items-center justify-between border-b border-border px-3 py-2 sm:hidden">
+                                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Class Roster Actions</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowRosterActions(false)}
+                                      className="rounded-lg px-2 py-1 text-xs font-black text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    >
+                                      Close
+                                    </button>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => { setShowRosterActions(false); setShowRegisterModal(true); }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
                                   >
-                                    <UserPlusIcon className="h-4 w-4 text-primary" />
+                                    <UserPlusIcon className="h-4 w-4 shrink-0 text-primary" />
                                     Register New Student
                                   </button>
                                   <Link
                                     href={`/dashboard/classes/transfer?from=${id}`}
                                     onClick={() => setShowRosterActions(false)}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
                                   >
-                                    <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
+                                    <ArrowsRightLeftIcon className="h-4 w-4 shrink-0 text-primary" />
                                     Transfer / Move
                                   </Link>
                                   <button
@@ -2026,25 +2105,25 @@ export default function ClassDetailPage() {
                                       setRosterOpen(true);
                                       document.getElementById('class-promotion-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                     }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/10 transition-colors"
                                   >
-                                    <AcademicCapIcon className="h-4 w-4" />
-                                    Promote to next grade
+                                    <AcademicCapIcon className="h-4 w-4 shrink-0" />
+                                    Promote to Next Grade
                                   </button>
                                   <Link
                                     href={`/dashboard/classes/transfer-requests?class=${id}`}
                                     onClick={() => setShowRosterActions(false)}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-500/10 transition-colors"
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-500/10 transition-colors"
                                   >
-                                    <ArrowsRightLeftIcon className="h-4 w-4" />
+                                    <ArrowsRightLeftIcon className="h-4 w-4 shrink-0" />
                                     Ownership Requests
                                   </Link>
                                   <button
                                     type="button"
                                     onClick={() => { setShowRosterActions(false); handleExportLogins(); }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
                                   >
-                                    <CloudArrowDownIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                    <CloudArrowDownIcon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                     Export Logins (A4 PDF)
                                   </button>
                                   <button
@@ -2063,9 +2142,9 @@ export default function ClassDetailPage() {
                                         scoringMode: assessmentPolicy?.usesHostEvaluation ? 'host_papers' : 'rillcod_weighted',
                                       });
                                     }}
-                                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
                                   >
-                                    <ClipboardDocumentListIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                                    <ClipboardDocumentListIcon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                                     Blank Mark Sheet (PDF)
                                   </button>
                                 </div>
@@ -2119,6 +2198,77 @@ export default function ClassDetailPage() {
                             {savingSessionConfirm ? 'Adding…' : '+ Add / Adopt'}
                           </button>
                         </div>
+                        {/* Live smart suggestions from this school as teacher types */}
+                        {quickAddSingleLine && quickAddQuery.length >= 2 && (quickAlreadyInClass.length > 0 || smartQuickSuggestions.length > 0 || !loadingSchoolPool) && (
+                          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border text-xs">
+                            {quickAlreadyInClass.map((s: any) => (
+                              <div key={`in-${s.id}`} className="flex items-center justify-between gap-2 bg-emerald-500/5 px-3 py-2">
+                                <div className="min-w-0">
+                                  <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
+                                    Already in this class ✓ · Grade: {s.grade || 'Not set'}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                  Active
+                                </span>
+                              </div>
+                            ))}
+                            {smartQuickSuggestions.map((s: any) => {
+                              const targetG = quickAddGrade || s.suggested_grade || defaultEntryGradeForClass();
+                              return (
+                                <div key={`sug-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 hover:bg-muted/40 transition-colors">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="font-bold text-foreground truncate">{s.full_name}</span>
+                                      {s.grade && (
+                                        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-foreground">
+                                          {s.grade}{targetG && targetG !== s.grade ? ` → ${targetG}` : ''}
+                                        </span>
+                                      )}
+                                      {s.is_feeder_promotion && (
+                                        <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                          Returning Feeder
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground truncate">
+                                      {s.current_class_name
+                                        ? `From: ${s.current_class_name}${s.current_teacher_name ? ` · ${s.current_teacher_name}` : ''}`
+                                        : 'Unassigned / Old record in this school'}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={!!processingStudent}
+                                    onClick={async () => {
+                                      await assignStudent(s.id, 'promote');
+                                      setQuickAddInput('');
+                                    }}
+                                    className="shrink-0 min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                  >
+                                    {processingStudent === s.id ? 'Adopting…' : `Adopt${targetG ? ` → ${targetG}` : ''}`}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                            {quickAlreadyInClass.length === 0 && (
+                              <button
+                                type="button"
+                                disabled={savingSessionConfirm}
+                                onClick={() => void submitSessionConfirm(true)}
+                                className="flex w-full items-center justify-between gap-2 bg-primary/[0.04] px-3 py-2 text-left hover:bg-primary/10 transition-colors"
+                              >
+                                <span className="font-bold text-primary truncate">
+                                  + Register “{quickAddQuery}” as new student ({quickAddGrade || defaultEntryGradeForClass() || 'auto grade'})
+                                </span>
+                                <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
+                                  Auto login + ID card
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                         {sessionConfirmNotice && (
                           <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs space-y-1">
                             <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
@@ -2449,14 +2599,52 @@ export default function ClassDetailPage() {
                     )}
 
                     {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
-                      <div className="relative">
-                        <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <input aria-label="Search this class roster"
-                          value={rosterSearch}
-                          onChange={(e) => setRosterSearch(e.target.value)}
-                          placeholder="Search this class…"
-                          className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
-                        />
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <input
+                            aria-label="Search this class roster"
+                            value={rosterSearch}
+                            onChange={(e) => setRosterSearch(e.target.value)}
+                            placeholder="Search name, grade (e.g. JSS 2), email, or old records…"
+                            className="min-h-11 w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground outline-none focus:border-primary/50"
+                          />
+                          {rosterSearch && (
+                            <button
+                              type="button"
+                              aria-label="Clear search"
+                              onClick={() => setRosterSearch('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md px-1.5 py-0.5 text-xs font-black text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                          {([
+                            { id: 'active', label: `Active (${currentTermStudents.length})` },
+                            ...(offBandCount > 0 ? [{ id: 'off_band', label: `Old / Off-band (${offBandCount})` }] : []),
+                            ...(reportIndicatorEnabled && needsReportCount > 0 ? [{ id: 'needs_report', label: `Needs Report (${needsReportCount})` }] : []),
+                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn', label: `Withdrawn / Old (${inactiveTermStudents.length})` }] : []),
+                            ...(inactiveTermStudents.length > 0 ? [{ id: 'all', label: `All (${currentTermStudents.length + inactiveTermStudents.length})` }] : []),
+                          ] as Array<{ id: typeof rosterFilter; label: string }>).map((chip) => (
+                            <button
+                              key={chip.id}
+                              type="button"
+                              onClick={() => {
+                                setRosterFilter(chip.id);
+                                if (chip.id === 'withdrawn' || chip.id === 'all') setShowWithdrawnList(true);
+                              }}
+                              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors ${
+                                rosterFilter === chip.id
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {chip.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2467,8 +2655,41 @@ export default function ClassDetailPage() {
                       <p className="text-sm font-semibold text-muted-foreground">No students in this class yet.</p>
                     </div>
                   ) : visibleCurrent.length === 0 && visibleInactive.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border p-8 text-center">
-                      <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
+                    <div className="rounded-xl border border-dashed border-border p-5 text-center space-y-3">
+                      <p className="text-sm font-semibold text-muted-foreground">
+                        No students in this class match “{rosterSearch || rosterFilter}”.
+                      </p>
+                      {isStaff && schoolSearchMatches.length > 0 && (
+                        <div className="mx-auto max-w-lg rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-left space-y-2">
+                          <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
+                            Found {schoolSearchMatches.length} matching student{schoolSearchMatches.length === 1 ? '' : 's'} in this school — adopt into {cls?.name}:
+                          </p>
+                          <div className="space-y-1.5">
+                            {schoolSearchMatches.map((s: any) => (
+                              <div key={`sm-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-xs">
+                                <div className="min-w-0">
+                                  <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {s.grade ? `${s.grade}${s.suggested_grade && s.suggested_grade !== s.grade ? ` → ${s.suggested_grade}` : ''} · ` : ''}
+                                    {s.current_class_name || 'Unassigned'}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={!!processingStudent}
+                                  onClick={async () => {
+                                    await assignStudent(s.id, 'promote');
+                                    setRosterSearch('');
+                                  }}
+                                  className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                >
+                                  {processingStudent === s.id ? 'Adopting…' : 'Adopt Here'}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -2912,7 +3133,7 @@ export default function ClassDetailPage() {
                         <button
                           type="button"
                           onClick={() => setShowWithdrawnList(open => !open)}
-                          aria-expanded={showWithdrawnList}
+                          aria-expanded={showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn'}
                           className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
                         >
                           <div className="min-w-0 flex-1">
@@ -2923,16 +3144,16 @@ export default function ClassDetailPage() {
                               Keep old results and can be reinstated into this term.
                             </p>
                           </div>
-                          <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-amber-600 transition-transform dark:text-amber-400 ${showWithdrawnList ? 'rotate-180' : ''}`} />
+                          <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-amber-600 transition-transform dark:text-amber-400 ${showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn' ? 'rotate-180' : ''}`} />
                         </button>
-                        {showWithdrawnList && (
+                        {(showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn') && (
                           <div className="space-y-2 border-t border-amber-500/20 p-2.5 md:max-h-[min(50vh,26rem)] md:overflow-y-auto md:overscroll-contain">
                             {isStaff && (
-                              <div className="flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-background/60 p-2.5 sm:flex-row sm:items-center sm:justify-between">
-                                <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-700/90 dark:text-amber-300/90">
+                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-background/80 px-3 py-2">
+                                <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-800 dark:text-amber-200">
                                   <input
                                     type="checkbox"
-                                    className="h-4 w-4 accent-red-600"
+                                    className="h-4 w-4 accent-emerald-700"
                                     checked={checkedWithdrawnIds.size > 0 && visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id))}
                                     ref={el => { if (el) el.indeterminate = checkedWithdrawnIds.size > 0 && !visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id)); }}
                                     onChange={e => {
@@ -2940,61 +3161,104 @@ export default function ClassDetailPage() {
                                       else setCheckedWithdrawnIds(new Set());
                                     }}
                                   />
-                                  {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : 'Select withdrawn to delete'}
+                                  {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : `Select all (${visibleInactive.length})`}
                                 </label>
-                                <button
-                                  type="button"
-                                  onClick={() => bulkHardDelete(false)}
-                                  disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
-                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
-                                >
-                                  <TrashIcon className="h-3.5 w-3.5" />
-                                  {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
-                                </button>
-                              </div>
-                            )}
-                            {visibleInactive.map((student: any) => (
-                              <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`min-w-0 rounded-xl border p-3 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-background/60'}`}>
-                                <div className="flex min-w-0 items-center gap-3">
-                                  {isStaff && (
-                                    <input
-                                      type="checkbox"
-                                      className="h-4 w-4 flex-shrink-0 accent-red-600"
-                                      checked={checkedWithdrawnIds.has(student.id)}
-                                      onChange={() => toggleWithdrawn(student.id)}
-                                      title="Select for permanent deletion"
-                                    />
-                                  )}
-                                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-600 dark:text-amber-400">
-                                    {(student.full_name ?? '?')[0].toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="break-words text-sm font-bold text-foreground">{student.full_name}</p>
-                                    <p className="break-words text-[11px] font-bold uppercase tracking-wide text-amber-600/80 dark:text-amber-400/80">
-                                      {(student.roster_status ?? 'withdrawn').toString().replace('_', ' ')}
-                                      {student.roster_ended_at ? ` · left ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
-                                    </p>
-                                  </div>
-                                </div>
-                                {isStaff && (
-                                  <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-500/20 pt-3 sm:grid-cols-2">
-                                    <button type="button" onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="min-h-11 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
-                                      {processingStudent === student.id ? '…' : 'Reinstate'}
+                                {checkedWithdrawnIds.size > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      disabled={savingSessionConfirm}
+                                      onClick={async () => {
+                                        setSavingSessionConfirm(true);
+                                        try {
+                                          const res = await fetch(`/api/classes/${id}/enroll`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ reinstateStudentIds: [...checkedWithdrawnIds] }),
+                                          });
+                                          if (!res.ok) throw new Error('Could not reinstate selected students');
+                                          setCheckedWithdrawnIds(new Set());
+                                          await fetchData();
+                                        } catch (e: any) {
+                                          alert(e.message || 'Reinstate failed');
+                                        } finally {
+                                          setSavingSessionConfirm(false);
+                                        }
+                                      }}
+                                      className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-40"
+                                    >
+                                      {savingSessionConfirm ? 'Reinstating…' : `Reinstate (${checkedWithdrawnIds.size})`}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => bulkHardDelete(false, [student.id])}
+                                      onClick={() => bulkHardDelete(false)}
                                       disabled={hardDeleting}
-                                      title="Permanently delete this student from the whole system"
-                                      className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-700 dark:text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
+                                      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-red-500/40 bg-red-600/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-red-700 dark:text-red-300 hover:bg-red-600/20 disabled:opacity-40"
                                     >
                                       <TrashIcon className="h-3.5 w-3.5" />
-                                      Delete
+                                      {hardDeleting ? 'Wiping…' : 'Delete'}
                                     </button>
                                   </div>
                                 )}
                               </div>
-                            ))}
+                            )}
+                            <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+                              {visibleInactive.map((student: any) => (
+                                <div
+                                  key={`${student.id}-${student.roster_status ?? 'former'}`}
+                                  className={`flex flex-wrap items-center gap-2.5 px-3 py-2.5 transition-colors ${
+                                    checkedWithdrawnIds.has(student.id) ? 'bg-primary/5' : 'hover:bg-muted/30'
+                                  }`}
+                                >
+                                  {isStaff && (
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4 flex-shrink-0 accent-emerald-700"
+                                      checked={checkedWithdrawnIds.has(student.id)}
+                                      onChange={() => toggleWithdrawn(student.id)}
+                                      aria-label={`Select ${student.full_name}`}
+                                    />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
+                                      {student.grade && (
+                                        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-muted-foreground">
+                                          {student.grade}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="truncate text-[10px] font-semibold text-muted-foreground">
+                                      {(student.roster_status ?? 'withdrawn').toString().replace('_', ' ')}
+                                      {student.roster_ended_at ? ` · ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
+                                      {student.email ? ` · ${student.email}` : ''}
+                                    </p>
+                                  </div>
+                                  {isStaff && (
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => void assignStudent(student.id, 'promote')}
+                                        disabled={processingStudent === student.id}
+                                        className="min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-50"
+                                      >
+                                        {processingStudent === student.id ? '…' : 'Reinstate'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => bulkHardDelete(false, [student.id])}
+                                        disabled={hardDeleting}
+                                        aria-label={`Delete ${student.full_name} permanently`}
+                                        title="Permanently delete this student from the whole system"
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-600/10 text-red-700 dark:text-red-300 hover:bg-red-600/20 disabled:opacity-40"
+                                      >
+                                        <TrashIcon className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
