@@ -2196,14 +2196,13 @@ export default function ClassDetailPage() {
                       )}
                       {isStaff && (
                         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                          <button
-                            type="button"
-                            onClick={() => { setShowStudentModal(true); setEnrolMode('current'); setModalPlacementFilter('all'); setModalGradeFilter(''); resetPasteClaimState(); loadAvailableStudents(); }}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-black text-primary-foreground"
+                          <Link
+                            href={`/dashboard/classes/${id}/enroll`}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
                           >
                             <PlusIcon className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">Add / Adopt</span>
-                          </button>
+                          </Link>
                           <button
                             type="button"
                             onClick={() => (showSessionConfirm ? setShowSessionConfirm(false) : openSessionConfirm())}
