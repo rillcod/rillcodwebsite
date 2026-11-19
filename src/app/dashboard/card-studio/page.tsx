@@ -55,6 +55,7 @@ type TabId = 'design' | 'manage';
 type CardType = 'student' | 'parent' | 'teacher';
 type StatusFilter = 'all' | 'active' | 'unissued' | 'revoked' | 'expired';
 type GroupMode = 'none' | 'grade' | 'section' | 'hierarchy';
+type ManageSortMode = 'hierarchy' | 'name_asc' | 'name_desc' | 'status_unissued' | 'status_active' | 'report_ready' | 'rc_code';
 
 type DesignStudent = ReportStatusInput & {
   id: string;
@@ -678,7 +679,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   );
 }
 
-// ─── Manage Tab – compact LIST row (default view; grid is opt-in) ─────────────
+// ─── Manage Tab – modern compact LIST row (default view; grid is opt-in) ──────
 function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle, canDelete, permanentlyDeleteHolder, isDeletingIds }: {
   r: CardRecord; dbCardsMap: Map<string,DbCard>; selectedIds: Set<string>;
   toggleSelected: (id:string)=>void; issueCard: (r:CardRecord)=>void;
@@ -694,75 +695,110 @@ function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, 
   const isIssuing = isIssuingIds.has(r.id);
   const isRevoking = isRevokingIds.has(r.id);
   const isDeleting = isDeletingIds.has(r.id);
+  const rcCode = r.roleLabel === 'Student'
+    ? accessCardCodeForStudent(r.id)
+    : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id));
+  const initials = (r.name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || '?';
+
   return (
-    <div className={`flex flex-col gap-2 px-3 py-2.5 transition-colors sm:flex-row sm:items-center sm:gap-3 ${isSelected?'bg-primary/5':''} ${r.isHidden?'bg-rose-500/5':''} hover:bg-muted/40`}>
+    <div className={`group flex flex-col gap-2.5 px-3.5 py-3 transition-colors sm:flex-row sm:items-center sm:gap-3 ${isSelected ? 'bg-primary/5' : ''} ${r.isHidden ? 'bg-rose-500/5' : ''} hover:bg-muted/35`}>
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button onClick={()=>toggleSelected(r.id)} className={`w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected?'bg-primary border-primary':'border-border'}`}>
-          {isSelected&&<span className="text-primary-foreground text-[8px]">✓</span>}
+        <button
+          type="button"
+          onClick={() => toggleSelected(r.id)}
+          aria-label={isSelected ? `Deselect ${r.name}` : `Select ${r.name}`}
+          className={`w-5 h-5 rounded-md border flex-shrink-0 flex items-center justify-center transition-all ${isSelected ? 'bg-primary border-primary shadow-sm' : 'border-border hover:border-primary/60 bg-background'}`}
+        >
+          {isSelected && <span className="text-primary-foreground text-[9px] font-black">✓</span>}
         </button>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
-            <span className="truncate">{r.name}{r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-600 dark:text-rose-400">Hidden</span>}</span>
-            {r.roleLabel === 'Student' && (
-              <span title={reportDotTitle(r)}
-                className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`} />
-            )}
-          </p>
-          <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.gradeLevel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
-          <span className={`mt-1 inline-flex sm:hidden text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${sm.color}`}>{sm.label}</span>
+        <div className="hidden xs:flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/15 text-[11px] font-black text-primary">
+          {initials}
         </div>
-        <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-sm font-bold text-foreground truncate">
+              {r.name}
+              {r.isHidden && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wide text-rose-600 dark:text-rose-400">Hidden</span>}
+            </p>
+            {r.roleLabel === 'Student' && (
+              <span
+                title={reportDotTitle(r)}
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${reportDotClass(r)}`}
+              />
+            )}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+            <span className="truncate">{[r.gradeLevel, r.sectionClass, r.school].filter(Boolean).join(' · ') || r.roleLabel}</span>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(rcCode);
+                toast.success(`Copied ${rcCode}`);
+              }}
+              title="Click to copy RC code"
+              className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary hover:bg-primary/15 transition-colors"
+            >
+              {formatAccessCardCodeDisplay(rcCode)}
+              <ClipboardIcon className="w-3 h-3 opacity-70" />
+            </button>
+          </div>
+          <span className={`mt-1.5 inline-flex sm:hidden text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${sm.color}`}>{sm.label}</span>
+        </div>
+        <span className={`hidden sm:inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${sm.color}`}>{sm.label}</span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:pl-0 sm:flex-shrink-0">
-        <button onClick={()=>printSingle(r)} title="Print card" className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted hover:border-primary/50 transition-colors"><PrinterIcon className="w-4 h-4"/></button>
+        <button
+          type="button"
+          onClick={() => printSingle(r)}
+          title="Print card"
+          aria-label={`Print card for ${r.name}`}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-foreground hover:bg-muted hover:border-primary/40 transition-colors"
+        >
+          <PrinterIcon className="w-3.5 h-3.5" />
+          <span className="hidden lg:inline">Print</span>
+        </button>
         {r.roleLabel === 'Student' && (
           <>
             {r.classId && (
               <Link
                 href={`/dashboard/classes/${r.classId}?operation=roster`}
                 title={`Open class ${r.sectionClass || ''}`}
-                className="px-2 py-1 rounded-lg border border-border bg-background text-[10px] font-black uppercase tracking-wide text-foreground hover:bg-muted transition-colors"
+                className="px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] font-semibold text-foreground hover:bg-muted transition-colors"
               >
                 Class
               </Link>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                const code = accessCardCodeForStudent(r.id);
-                void navigator.clipboard?.writeText(code);
-                toast.success(`Copied ${code}`);
-              }}
-              title="Copy RC number"
-              className="p-1.5 rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
-            >
-              <ClipboardIcon className="w-4 h-4" />
-            </button>
             <Link
               href={`/dashboard/reports/builder?student=${r.id}${r.classId ? `&class_id=${r.classId}` : ''}`}
               title="Open student in Result Builder"
-              className="p-1.5 rounded-lg border border-border text-primary hover:bg-primary/10 transition-colors"
+              aria-label={`Open result builder for ${r.name}`}
+              className="p-1.5 rounded-lg border border-border bg-background text-primary hover:bg-primary/10 transition-colors"
             >
               <DocumentTextIcon className="w-4 h-4" />
             </Link>
           </>
         )}
-        {!dbCard&&(
-          <button onClick={()=>issueCard(r)} disabled={isIssuing} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">{isIssuing?'…':'Issue'}</button>
+        {!dbCard && (
+          <button type="button" onClick={() => issueCard(r)} disabled={isIssuing} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm">{isIssuing ? '…' : 'Issue'}</button>
         )}
-        {dbCard?.status==='revoked'&&(
-          <button onClick={()=>updateCardStatus(r,dbCard,'active')} disabled={isRevoking} className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Restore</button>
+        {dbCard?.status === 'revoked' && (
+          <button type="button" onClick={() => updateCardStatus(r, dbCard, 'active')} disabled={isRevoking} className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold disabled:opacity-50 transition-colors">Restore</button>
         )}
-        {dbCard?.status==='active'&&(
+        {dbCard?.status === 'active' && (
           <>
-            <button onClick={()=>{if(confirm(`Reissue card for ${r.name}? The current card stops working and a new card number + QR code are generated.`))reissueCard(r,dbCard)}} disabled={isRevoking} title="Replace lost/damaged card" className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Reissue</button>
-            <button onClick={()=>{if(confirm(`Revoke card for ${r.name}?`))updateCardStatus(r,dbCard,'revoked')}} disabled={isRevoking} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Revoke</button>
+            <button type="button" onClick={() => { if (confirm(`Reissue card for ${r.name}? The current card stops working and a new card number + QR code are generated.`)) reissueCard(r, dbCard); }} disabled={isRevoking} title="Replace lost/damaged card" className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-500/20 disabled:opacity-50 transition-colors">Reissue</button>
+            <button type="button" onClick={() => { if (confirm(`Revoke card for ${r.name}?`)) updateCardStatus(r, dbCard, 'revoked'); }} disabled={isRevoking} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-300 text-[11px] font-bold hover:bg-rose-500/20 disabled:opacity-50 transition-colors">Revoke</button>
           </>
         )}
         {canDelete && (
-          <button onClick={()=>permanentlyDeleteHolder(r)} disabled={isDeleting} title="Permanently wipe account and all records"
-            className="p-1.5 rounded-lg border border-rose-600/30 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 disabled:opacity-50 transition-colors">
-            {isDeleting ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin inline-block"/> : <TrashIcon className="w-4 h-4"/>}
+          <button type="button" onClick={() => permanentlyDeleteHolder(r)} disabled={isDeleting} title="Permanently wipe account and all records" aria-label={`Wipe ${r.name}`}
+            className="p-1.5 rounded-lg border border-rose-600/30 bg-background text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 disabled:opacity-50 transition-colors">
+            {isDeleting ? <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin inline-block" /> : <TrashIcon className="w-4 h-4" />}
           </button>
         )}
       </div>
@@ -1149,6 +1185,8 @@ export default function CardStudioPage() {
   const [manageToolsOpen, setManageToolsOpen] = useState(false);
   const [reportFilter, setReportFilter] = useState<ReportFilter>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('hierarchy');
+  const [manageSort, setManageSort] = useState<ManageSortMode>('hierarchy');
+  const [collapsedClasses, setCollapsedClasses] = useState<Set<string>>(new Set());
   const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
   const [designShowHidden, setDesignShowHidden] = useState(false);
   const [isDeletingIds, setIsDeletingIds] = useState<Set<string>>(new Set());
@@ -1445,19 +1483,31 @@ export default function CardStudioPage() {
 
   const cardStatus = (r: CardRecord): string => { const c=dbCardsMap.get(r.id); return c?c.status:'unissued'; };
 
+  const recordRcCode = useCallback((r: CardRecord): string => {
+    const dbCard = dbCardsMap.get(r.id);
+    return r.roleLabel === 'Student'
+      ? accessCardCodeForStudent(r.id)
+      : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id));
+  }, [dbCardsMap]);
+
   const manageHierarchyPool = useMemo(() => {
     const q = manageQuery.trim().toLowerCase();
+    const qCompact = q.replace(/[^a-z0-9]/g, '');
     return records.filter((r) => {
       if (schoolLock && (r.school || '') !== schoolLock) return false;
-      const matchQ = !q || [r.name, r.email, r.school, r.badge, r.gradeLevel, r.sectionClass].some((v) =>
-        (v || '').toLowerCase().includes(q),
-      );
+      const rc = recordRcCode(r).toLowerCase();
+      const rcCompact = rc.replace(/[^a-z0-9]/g, '');
+      const matchQ = !q
+        || [r.name, r.email, r.school, r.badge, r.gradeLevel, r.sectionClass, rc].some((v) =>
+          (v || '').toLowerCase().includes(q),
+        )
+        || (qCompact.length >= 3 && rcCompact.includes(qCompact));
       const matchStatus = statusFilter === 'all' || cardStatus(r) === statusFilter;
       const matchReport = matchesReportFilter(r, reportFilter);
       return matchQ && matchStatus && matchReport;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, manageQuery, statusFilter, reportFilter, schoolLock, dbCardsMap]);
+  }, [records, manageQuery, statusFilter, reportFilter, schoolLock, dbCardsMap, recordRcCode]);
 
   const manageHierarchyFilter = useMemo((): HierarchyFilterState => ({
     schoolLock: schoolLock || undefined,
@@ -1505,6 +1555,7 @@ export default function CardStudioPage() {
     || selectedGrade !== 'all'
     || selectedClass !== 'all'
     || groupMode !== 'hierarchy'
+    || manageSort !== 'hierarchy'
     || !!manageQuery.trim();
 
   const resetManageFilters = () => {
@@ -1514,10 +1565,20 @@ export default function CardStudioPage() {
     setSelectedGrade('all');
     setSelectedClass('all');
     setGroupMode('hierarchy');
+    setManageSort('hierarchy');
     setManageQuery('');
   };
 
-  const manageSelectClass = 'text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:border-primary min-w-0 max-w-full disabled:opacity-50 disabled:cursor-not-allowed';
+  const toggleClassCollapse = (className: string) => {
+    setCollapsedClasses((prev) => {
+      const next = new Set(prev);
+      if (next.has(className)) next.delete(className);
+      else next.add(className);
+      return next;
+    });
+  };
+
+  const manageSelectClass = 'text-xs bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 min-w-0 max-w-full disabled:opacity-50 disabled:cursor-not-allowed transition-all';
 
   const counts = useMemo(()=>{
     let issued=0,unissued=0,revoked=0,expired=0;
@@ -1528,12 +1589,86 @@ export default function CardStudioPage() {
 
   const reportCounts = useMemo(() => reportCountsFrom(manageHierarchyPool), [manageHierarchyPool]);
 
+  const sortManageList = useCallback((list: CardRecord[]): CardRecord[] => {
+    if (manageSort === 'hierarchy') {
+      return sortBySchoolHierarchy(list, manageHierarchyPick);
+    }
+    const statusRank = (r: CardRecord, prefer: 'unissued' | 'active') => {
+      const s = cardStatus(r);
+      if (prefer === 'unissued') return s === 'unissued' ? 0 : s === 'revoked' ? 1 : s === 'expired' ? 2 : 3;
+      return s === 'active' ? 0 : s === 'unissued' ? 1 : s === 'expired' ? 2 : 3;
+    };
+    const reportRank = (r: CardRecord) => (r.has_published_report ? 0 : r.has_draft_report ? 1 : 2);
+    return [...list].sort((a, b) => {
+      if (manageSort === 'name_asc') return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      if (manageSort === 'name_desc') return b.name.localeCompare(a.name, undefined, { sensitivity: 'base' });
+      if (manageSort === 'rc_code') return recordRcCode(a).localeCompare(recordRcCode(b));
+      if (manageSort === 'status_unissued') {
+        const diff = statusRank(a, 'unissued') - statusRank(b, 'unissued');
+        return diff !== 0 ? diff : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
+      if (manageSort === 'status_active') {
+        const diff = statusRank(a, 'active') - statusRank(b, 'active');
+        return diff !== 0 ? diff : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
+      if (manageSort === 'report_ready') {
+        const diff = reportRank(a) - reportRank(b);
+        return diff !== 0 ? diff : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      }
+      return 0;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manageSort, dbCardsMap, recordRcCode]);
+
   const filtered = useMemo(() => {
     const list = manageHierarchyPool.filter((r) =>
       matchesHierarchyFilter(r, manageHierarchyPick, manageHierarchyFilter),
     );
-    return sortBySchoolHierarchy(list, manageHierarchyPick);
-  }, [manageHierarchyPool, manageHierarchyFilter]);
+    return sortManageList(list);
+  }, [manageHierarchyPool, manageHierarchyFilter, sortManageList]);
+
+  const exportManageCsv = useCallback((list: CardRecord[], label = `${cardType}-cards`) => {
+    if (!list.length) { toast.error('No records to export'); return; }
+    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const headers = ['Name', 'Role', 'School', 'Class', 'Section', 'Email', 'RC Number', 'Card Status', 'Report Status'];
+    const rows = list.map((r) => [
+      r.name,
+      r.roleLabel,
+      r.school,
+      r.gradeLevel,
+      r.sectionClass,
+      r.email === 'N/A' ? '' : r.email,
+      recordRcCode(r),
+      cardStatus(r),
+      r.roleLabel === 'Student' ? reportBucket(r) : 'n/a',
+    ].map(esc).join(','));
+    const csv = `\uFEFF${[headers.map(esc).join(','), ...rows].join('\r\n')}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${label.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${list.length} record${list.length === 1 ? '' : 's'} to CSV`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardType, dbCardsMap, recordRcCode]);
+
+  const copyRcSummaryList = useCallback(async (list: CardRecord[]) => {
+    if (!list.length) { toast.error('No records to copy'); return; }
+    const lines = list.map((r, i) => {
+      const cls = [r.gradeLevel, r.sectionClass].filter(Boolean).join(' · ');
+      return `${i + 1}. ${r.name}${cls ? ` (${cls})` : ''} — ${recordRcCode(r)}`;
+    });
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast.success(`Copied ${list.length} RC code${list.length === 1 ? '' : 's'} to clipboard`);
+    } catch {
+      toast.error('Could not copy to clipboard');
+    }
+  }, [recordRcCode]);
 
   // Bound mounted rows/QR canvases, not the dataset used for class printing or bulk actions.
   const [managePage, setManagePage] = useState(1);
@@ -2158,26 +2293,39 @@ export default function CardStudioPage() {
       </div>
 
       {/* Center: Live Preview */}
-      <div className={`${designSubTab === 'preview' ? 'flex-1 min-h-0 w-full flex' : 'hidden'} md:flex md:flex-1 flex-col items-center justify-start overflow-y-auto p-3 sm:p-6 min-w-0 bg-background scrollbar-thin`}>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Live Preview</span>
-          <div className="flex items-center gap-1 bg-card border border-border px-2 py-1 rounded-md">
-            <button onClick={()=>setPreviewZoom(z=>Math.max(0.6,+(z-0.1).toFixed(2)))} className="text-muted-foreground hover:text-foreground text-[12px] font-bold px-1 transition-colors">−</button>
-            <span className="text-[9px] text-muted-foreground font-mono w-10 text-center">{Math.round(previewZoom*100)}%</span>
-            <button onClick={()=>setPreviewZoom(z=>Math.min(1.8,+(z-0.1).toFixed(2)))} className="text-muted-foreground hover:text-foreground text-[12px] font-bold px-1 transition-colors">+</button>
-            <button onClick={()=>setPreviewZoom(1.0)} className="text-[9px] text-muted-foreground/60 hover:text-foreground ml-1.5 transition-colors border-l border-border pl-1.5">Reset</button>
+      <div className={`${designSubTab === 'preview' ? 'flex-1 min-h-0 w-full flex' : 'hidden'} md:flex md:flex-1 flex-col items-center justify-start overflow-y-auto p-4 sm:p-6 min-w-0 bg-muted/20 scrollbar-thin`}
+        style={{ backgroundImage: 'radial-gradient(circle, rgba(148,163,184,0.22) 1px, transparent 1px)', backgroundSize: '18px 18px' }}>
+        <div className="flex flex-wrap items-center justify-center gap-2 shrink-0 rounded-2xl border border-border bg-card/95 backdrop-blur px-3 py-1.5 shadow-sm">
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-black px-1">Live Preview</span>
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={()=>setPreviewZoom(z=>Math.max(0.6,+(z-0.1).toFixed(2)))} aria-label="Zoom out" className="w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted text-sm font-bold transition-colors">−</button>
+            <span className="text-[11px] text-foreground font-mono font-bold w-11 text-center">{Math.round(previewZoom*100)}%</span>
+            <button type="button" onClick={()=>setPreviewZoom(z=>Math.min(1.8,+(z+0.1).toFixed(2)))} aria-label="Zoom in" className="w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted text-sm font-bold transition-colors">+</button>
+          </div>
+          <div className="hidden sm:flex items-center gap-1 border-l border-border pl-2">
+            {[0.8, 1.0, 1.25, 1.5].map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setPreviewZoom(z)}
+                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-colors ${Math.abs(previewZoom - z) < 0.02 ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+              >
+                {Math.round(z * 100)}%
+              </button>
+            ))}
           </div>
         </div>
         <div className="flex-1 w-full flex items-center justify-center p-4 sm:p-8 max-w-full overflow-auto touch-pan-x touch-pan-y min-h-[360px]">
           <CardPreview cfg={cfg} scale={previewZoom}/>
         </div>
-        {lastSaved&&<p className="text-[9px] text-muted-foreground">Last saved: {lastSaved.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>}
-        <div className="flex flex-wrap gap-2 justify-center">
-          <button onClick={handlePrintSample} className="flex items-center gap-1.5 px-4 py-2 border border-border hover:border-muted-foreground/30 bg-card hover:bg-muted text-foreground text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
-            <PrinterIcon className="w-3.5 h-3.5"/> Print Sample
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border bg-card/95 backdrop-blur px-3 py-2 shadow-sm">
+          <button type="button" onClick={handlePrintSample} className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all rounded-xl shadow-sm">
+            <PrinterIcon className="w-4 h-4"/> Print Sample Card
           </button>
+          {lastSaved && <span className="text-[11px] text-muted-foreground px-2">Saved {lastSaved.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>}
         </div>
-        <p className="text-[9px] text-muted-foreground text-center max-w-xs px-4">All card prints use this design saved globally.</p>
+        <p className="mt-2 text-[11px] text-muted-foreground text-center max-w-sm px-4">Every bulk print and single card print uses this shared design.</p>
       </div>
 
       {/* Right sidebar: Generate panel */}
@@ -2480,66 +2628,170 @@ export default function CardStudioPage() {
   );
 
   // ── Manage Tab Render ─────────────────────────────────────────────────────
-  const renderManageTab = () => (
+  const renderManageTab = () => {
+    const selectedRecords = filtered.filter((r) => selectedIds.has(r.id));
+    const missingScope = cardActionScope(filtered, selectedIds, dbCardsMap).missing;
+    const unissuedInFiltered = filtered.filter((r) => cardStatus(r) === 'unissued');
+    const publishedInFiltered = filtered.filter((r) => r.has_published_report);
+
+    return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
       {/* Cap toolbar height on mobile — otherwise filters eat the viewport and the list can't scroll */}
-      <div className="flex-none max-h-[min(40vh,300px)] md:max-h-none overflow-y-auto overscroll-contain border-b border-border bg-card">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3">
-          <div className="relative w-full md:w-56 min-w-0 flex-1 md:flex-none">
-            <MagnifyingGlassIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60"/>
-            <input aria-label="Search card holders by name, class or school" value={manageQuery} onChange={e=>setManageQuery(e.target.value)} placeholder="Search name, class, school…"
-              className="w-full pl-8 pr-3 py-2 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"/>
+      <div className="flex-none max-h-[min(46vh,360px)] md:max-h-none overflow-y-auto overscroll-contain border-b border-border bg-card shadow-sm">
+        {/* Interactive 1-click Stat & Quick-Filter Strip */}
+        <div className="hidden md:flex items-center gap-2 px-4 pt-3 pb-2 overflow-x-auto scrollbar-none">
+          {[
+            { id: 'all' as StatusFilter, label: 'All', value: counts.total, active: statusFilter === 'all' && reportFilter === 'all', tone: 'primary' },
+            { id: 'active' as StatusFilter, label: 'Issued', value: counts.issued, active: statusFilter === 'active', tone: 'emerald' },
+            { id: 'unissued' as StatusFilter, label: 'Not Issued', value: counts.unissued, active: statusFilter === 'unissued', tone: 'amber' },
+            { id: 'revoked' as StatusFilter, label: 'Revoked', value: counts.revoked, active: statusFilter === 'revoked', tone: 'rose' },
+          ].map((stat) => (
+            <button
+              key={stat.id}
+              type="button"
+              onClick={() => {
+                setStatusFilter(stat.id);
+                if (stat.id === 'all') setReportFilter('all');
+              }}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all shrink-0 ${
+                stat.active
+                  ? stat.tone === 'emerald'
+                    ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 shadow-sm'
+                    : stat.tone === 'amber'
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 shadow-sm'
+                      : stat.tone === 'rose'
+                        ? 'border-rose-500/50 bg-rose-500/10 text-rose-800 dark:text-rose-200 shadow-sm'
+                        : 'border-primary/50 bg-primary/10 text-primary shadow-sm'
+                  : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-muted-foreground/40'
+              }`}
+            >
+              <span>{stat.label}</span>
+              <span className="rounded-md bg-muted/80 px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">{stat.value}</span>
+            </button>
+          ))}
+          {cardType === 'student' && (
+            <button
+              type="button"
+              onClick={() => setReportFilter(reportFilter === 'published' ? 'all' : 'published')}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all shrink-0 ${
+                reportFilter === 'published'
+                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 shadow-sm'
+                  : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-muted-foreground/40'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Reports Ready</span>
+              <span className="rounded-md bg-muted/80 px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">{reportCounts.published}</span>
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+            <span className="font-bold text-foreground">{filtered.length}</span>
+            <span>{filtered.length !== counts.total ? `of ${counts.total}` : ''} showing</span>
           </div>
-          <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto scrollbar-none pt-1 md:pt-0">
+        </div>
+
+        {/* Search + Sort + Utility Bar */}
+        <div className="flex flex-col md:flex-row md:items-center gap-2.5 px-4 py-2.5">
+          <div className="relative w-full md:w-72 min-w-0 flex-1 md:flex-none">
+            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60"/>
+            <input
+              aria-label="Search card holders by name, RC code, class or school"
+              value={manageQuery}
+              onChange={e=>setManageQuery(e.target.value)}
+              placeholder="Search name, RC code, class, school…"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+            />
+            {manageQuery && (
+              <button
+                type="button"
+                onClick={() => setManageQuery('')}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md px-1.5 py-0.5 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          <select
+            value={manageSort}
+            onChange={(e) => setManageSort(e.target.value as ManageSortMode)}
+            aria-label="Sort card holders"
+            className={`${manageSelectClass} md:w-48 ${manageSort !== 'hierarchy' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}
+          >
+            <option value="hierarchy">Sort: School → Class</option>
+            <option value="name_asc">Sort: Name (A → Z)</option>
+            <option value="name_desc">Sort: Name (Z → A)</option>
+            <option value="status_unissued">Sort: Unissued first</option>
+            <option value="status_active">Sort: Issued first</option>
+            {cardType === 'student' && <option value="report_ready">Sort: Published report first</option>}
+            <option value="rc_code">Sort: RC Code</option>
+          </select>
+
+          <div className="flex items-center gap-2 md:ml-auto w-full md:w-auto overflow-x-auto scrollbar-none pt-0.5 md:pt-0">
             <button
               type="button"
               onClick={() => setManageToolsOpen((v) => !v)}
               aria-expanded={manageToolsOpen}
-              className={`md:hidden shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide border transition-colors ${manageToolsOpen || manageFiltersActive ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground bg-background'}`}
+              className={`md:hidden shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${manageToolsOpen || manageFiltersActive ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground bg-background'}`}
             >
               {manageToolsOpen ? 'Hide filters' : 'Show filters'}
               {manageFiltersActive && !manageToolsOpen ? ' •' : ''}
             </button>
             {manageFiltersActive && (
-              <button onClick={resetManageFilters}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted transition-colors shrink-0">
-                Reset filters
+              <button type="button" onClick={resetManageFilters}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted transition-colors shrink-0">
+                Reset
               </button>
             )}
-            {canDesign&&(
-              <button onClick={()=>switchTab('design')}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors bg-background hover:bg-muted">
-                <SparklesIcon className="w-3.5 h-3.5"/> Design
-              </button>
-            )}
-            <button onClick={()=>{loadManageConfig(cardType);loadRecords(cardType);loadDbCards(cardType);}}
-              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors bg-background">
+            <button
+              type="button"
+              onClick={() => exportManageCsv(selectedRecords.length ? selectedRecords : filtered, `${cardType}-cards`)}
+              disabled={filtered.length === 0}
+              title="Download CSV spreadsheet of current or selected records"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border text-foreground hover:bg-muted transition-colors bg-background disabled:opacity-40 shrink-0"
+            >
+              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void copyRcSummaryList(selectedRecords.length ? selectedRecords : filtered)}
+              disabled={filtered.length === 0}
+              title="Copy formatted Name + RC Code list"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border text-foreground hover:bg-muted transition-colors bg-background disabled:opacity-40 shrink-0"
+            >
+              <ClipboardIcon className="w-3.5 h-3.5" /> Copy RCs
+            </button>
+            <button type="button" onClick={()=>{loadManageConfig(cardType);loadRecords(cardType);loadDbCards(cardType);}}
+              title="Refresh cards and records"
+              aria-label="Refresh cards and records"
+              className="p-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors bg-background shrink-0">
               <ArrowPathIcon className="w-4 h-4"/>
             </button>
             {canDeleteAccounts && cardType === 'student' && (
-              <button onClick={()=>{ setShowHiddenAccounts(v => !v); setSelectedIds(new Set()); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${showHiddenAccounts?'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400':'border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted'}`}>
-                {showHiddenAccounts ? 'Active only' : 'Show hidden'}
+              <button type="button" onClick={()=>{ setShowHiddenAccounts(v => !v); setSelectedIds(new Set()); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors shrink-0 ${showHiddenAccounts?'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300':'border-border text-muted-foreground hover:text-foreground bg-background hover:bg-muted'}`}>
+                {showHiddenAccounts ? 'Active only' : 'Hidden'}
               </button>
             )}
           </div>
           <div className="flex items-center justify-between gap-2 md:hidden">
-            <span className="text-[10px] text-muted-foreground">
-              <span className="font-semibold text-foreground">{filtered.length}</span>
+            <span className="text-xs text-muted-foreground">
+              <span className="font-bold text-foreground">{filtered.length}</span>
               {filtered.length !== counts.total ? ` of ${counts.total}` : ''} shown
             </span>
-{manageViewControl}
+            {manageViewControl}
           </div>
         </div>
 
         <div className={`${manageToolsOpen ? 'block' : 'hidden'} md:block`}>
         {manageHierarchyGrades.length > 1 && cardType === 'student' && manageView !== 'roster' && !manageGradesNeedSchool && (
           <div className="px-4 py-2 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground shrink-0 mr-1">Class:</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0 mr-1">Class:</span>
             <button
               type="button"
               onClick={() => { setSelectedGrade('all'); setSelectedClass('all'); }}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-black border shrink-0 transition-colors ${selectedGrade === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border shrink-0 transition-colors ${selectedGrade === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
             >
               All ({manageHierarchyPool.length})
             </button>
@@ -2551,7 +2803,7 @@ export default function CardStudioPage() {
                   key={grade}
                   type="button"
                   onClick={() => { setSelectedGrade(active ? 'all' : grade); setSelectedClass('all'); }}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border shrink-0 transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border shrink-0 transition-colors ${active ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
                 >
                   {grade} ({cnt})
                 </button>
@@ -2569,10 +2821,10 @@ export default function CardStudioPage() {
           </div>
         )}
 
-        <div className="px-4 pb-3 border-t border-border/40 pt-3 space-y-2.5">
+        <div className="px-4 pb-2.5 border-t border-border/40 pt-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as StatusFilter)} aria-label="Card status"
-              className={`${manageSelectClass} ${statusFilter !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
+              className={`${manageSelectClass} ${statusFilter !== 'all' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}>
               <option value="all">All statuses ({counts.total})</option>
               <option value="active">Issued ({counts.issued})</option>
               <option value="unissued">Unissued ({counts.unissued})</option>
@@ -2581,8 +2833,8 @@ export default function CardStudioPage() {
             </select>
             {cardType === 'student' && (
               <select value={reportFilter} onChange={e=>setReportFilter(e.target.value as ReportFilter)} aria-label="Progress report"
-                className={`${manageSelectClass} ${reportFilter !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                <option value="all">All students ({reportCounts.total})</option>
+                className={`${manageSelectClass} ${reportFilter !== 'all' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}>
+                <option value="all">All reports ({reportCounts.total})</option>
                 <option value="published">Published report ({reportCounts.published})</option>
                 <option value="draft">Draft only ({reportCounts.draft})</option>
                 <option value="no_report">No report ({reportCounts.noReport})</option>
@@ -2598,7 +2850,7 @@ export default function CardStudioPage() {
                   setSelectedRosterGrades(new Set());
                 }}
                 aria-label="School"
-                className={`${manageSelectClass} max-w-[220px] ${selectedSchool !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+                className={`${manageSelectClass} max-w-[220px] ${selectedSchool !== 'all' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}
               >
                 <option value="all">All schools ({manageHierarchyPool.length})</option>
                 {manageHierarchySchools.map((s) => (
@@ -2618,7 +2870,7 @@ export default function CardStudioPage() {
                   setSelectedRosterGrades(new Set());
                 }}
                 aria-label="Class (grade)"
-                className={`${manageSelectClass} max-w-[200px] ${selectedGrade !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+                className={`${manageSelectClass} max-w-[200px] ${selectedGrade !== 'all' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}
               >
                 <option value="all">
                   {manageGradesNeedSchool ? 'Pick school first' : `All classes (${manageHierarchyPool.length})`}
@@ -2636,7 +2888,7 @@ export default function CardStudioPage() {
                 disabled={manageSectionsNeedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 aria-label="Section"
-                className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5' : ''}`}
+                className={`${manageSelectClass} max-w-[200px] ${selectedClass !== 'all' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}
               >
                 <option value="all">
                   {manageSectionsNeedClass ? 'Pick class first' : `All sections (${manageHierarchyPool.length})`}
@@ -2650,89 +2902,120 @@ export default function CardStudioPage() {
             )}
             {cardType !== 'parent' && (manageHierarchyGrades.length > 0 || manageHierarchySections.length > 0) && (
               <select value={groupMode} onChange={e=>setGroupMode(e.target.value as GroupMode)} aria-label="Layout"
-                className={`${manageSelectClass} ${groupMode !== 'hierarchy' ? 'border-primary/40 bg-primary/5' : ''}`}>
-                <option value="hierarchy">School → class → section</option>
+                className={`${manageSelectClass} ${groupMode !== 'hierarchy' ? 'border-primary/40 bg-primary/5 font-semibold' : ''}`}>
+                <option value="hierarchy">Group: School → Class</option>
                 <option value="none">Flat list</option>
                 {manageHierarchyGrades.length > 0 && <option value="grade">Group by class</option>}
                 {manageHierarchySections.length > 0 && <option value="section">Group by section</option>}
               </select>
             )}
-            <span className="text-[10px] text-muted-foreground ml-auto hidden sm:inline">
-              <span className="font-semibold text-foreground">{filtered.length}</span>
-              {filtered.length !== counts.total ? ` of ${counts.total}` : ''} shown
-            </span>
           </div>
         </div>
         </div>
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-t border-border [&_button]:min-h-11 [&_select]:min-h-11" aria-label="Card actions">
-            {/* Actions stay available when filters are closed on phones. */}
-            <div className="hidden md:block">{manageViewControl}</div>
-            {filtered.length>0&&selectedIds.size===0&&(
-              <button onClick={()=>setSelectedIds(new Set(filtered.map(r=>r.id)))}
-                className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
+
+        {/* Smart Selection, Print & Bulk Action Bar */}
+        <div
+          className={`flex flex-wrap items-center gap-2 px-4 py-2.5 border-t border-border [&_button]:min-h-10 [&_select]:min-h-10 transition-colors ${selectedIds.size > 0 ? 'bg-primary/5' : 'bg-muted/20'}`}
+          aria-label="Card actions"
+        >
+          {/* Actions stay available when filters are closed on phones. */}
+          <div className="hidden md:block">{manageViewControl}</div>
+
+          {filtered.length > 0 && selectedIds.size === 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button type="button" onClick={() => setSelectedIds(new Set(filtered.map(r => r.id)))}
+                className="px-3 py-1.5 text-xs font-semibold border border-border text-foreground hover:bg-muted rounded-xl transition-colors bg-background">
                 Select all ({filtered.length})
               </button>
-            )}
-            {selectedIds.size>0&&(<>
-              <button onClick={()=>setSelectedIds(new Set())} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">Clear ({selectedIds.size})</button>
-              {canDeleteAccounts && (
-                <button disabled={bulkDeleting} onClick={()=>bulkPermanentlyDelete()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-rose-600/35 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 rounded-lg disabled:opacity-50 transition-colors bg-background">
-                  {bulkDeleting ? <span className="w-2.5 h-2.5 border border-rose-600 border-t-transparent rounded-full animate-spin"/> : <TrashIcon className="w-3 h-3"/>}
-                  Delete accounts ({selectedIds.size})
+              {unissuedInFiltered.length > 0 && unissuedInFiltered.length < filtered.length && (
+                <button type="button" onClick={() => setSelectedIds(new Set(unissuedInFiltered.map(r => r.id)))}
+                  className="px-2.5 py-1.5 text-xs font-semibold border border-amber-500/35 text-amber-800 dark:text-amber-200 hover:bg-amber-500/10 rounded-xl transition-colors bg-background">
+                  Select unissued ({unissuedInFiltered.length})
                 </button>
               )}
-              {manageView !== 'roster' && (
-              <button onClick={()=>printManageCards(filtered.filter(r=>selectedIds.has(r.id)),`Selected ${cardType} cards`)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors shadow">
-                <PrinterIcon className="w-3 h-3"/> Print cards ({selectedIds.size})
+              {cardType === 'student' && publishedInFiltered.length > 0 && publishedInFiltered.length < filtered.length && (
+                <button type="button" onClick={() => setSelectedIds(new Set(publishedInFiltered.map(r => r.id)))}
+                  className="hidden lg:inline-flex px-2.5 py-1.5 text-xs font-semibold border border-emerald-500/35 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/10 rounded-xl transition-colors bg-background">
+                  Select reports ready ({publishedInFiltered.length})
+                </button>
+              )}
+            </div>
+          )}
+
+          {selectedIds.size > 0 && (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
+                {selectedIds.size} selected
+              </span>
+              <button type="button" onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground rounded-xl transition-colors bg-background hover:bg-muted">
+                Clear
               </button>
+              {manageView !== 'roster' && (
+                <button type="button" onClick={() => printManageCards(selectedRecords, `Selected ${cardType} cards`)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl transition-colors shadow-sm">
+                  <PrinterIcon className="w-3.5 h-3.5" /> Print cards ({selectedIds.size})
+                </button>
               )}
               {cardType === 'student' && (
-                <button onClick={()=>void printManageRosterPdf(filtered.filter(r=>selectedIds.has(r.id)), `Selected students — RC roster`)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide rounded-lg transition-colors shadow ${
-                    manageView === 'roster'
-                      ? 'bg-emerald-700 text-white hover:bg-emerald-800'
-                      : 'border border-primary/30 text-primary hover:bg-primary/5 bg-background'
-                  }`}>
-                  <PrinterIcon className="w-3 h-3"/> {manageView === 'roster' ? `Print roster (${selectedIds.size})` : `Roster PDF (${selectedIds.size})`}
+                <>
+                  <button type="button" onClick={() => void printManageRosterPdf(selectedRecords, `Selected students — RC roster`)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-colors shadow-sm bg-emerald-700 text-white hover:bg-emerald-800">
+                    <PrinterIcon className="w-3.5 h-3.5" /> Print roster ({selectedIds.size})
+                  </button>
+                  <button type="button" onClick={() => void saveManageRosterPdf(selectedRecords, `${cardType}-rc-roster-selected`)}
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-border text-foreground hover:bg-muted bg-background transition-colors">
+                    <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Save PDF
+                  </button>
+                </>
+              )}
+              {canDeleteAccounts && (
+                <button type="button" disabled={bulkDeleting} onClick={() => bulkPermanentlyDelete()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-rose-600/35 text-rose-600 dark:text-rose-400 hover:bg-rose-600/10 rounded-xl disabled:opacity-50 transition-colors bg-background">
+                  {bulkDeleting ? <span className="w-3 h-3 border border-rose-600 border-t-transparent rounded-full animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
+                  Delete ({selectedIds.size})
                 </button>
               )}
-            </>)}
-            {cardActionScope(filtered, selectedIds, dbCardsMap).missing.length > 0 && (<>
+            </>
+          )}
+
+          {missingScope.length > 0 && (
+            <div className="flex items-center gap-1.5">
               <select value={issueValidityMonths} onChange={e=>setIssueValidityMonths(Number(e.target.value))}
                 title="How long newly issued cards stay valid"
-                className="text-[10px] font-black uppercase tracking-wide bg-background border border-border rounded-lg px-2 py-1.5 text-muted-foreground focus:outline-none focus:border-primary cursor-pointer">
+                aria-label="Card validity period"
+                className="text-xs font-semibold bg-background border border-border rounded-xl px-2.5 py-1.5 text-muted-foreground focus:outline-none focus:border-primary cursor-pointer">
                 <option value={0}>No expiry</option>
                 <option value={6}>Valid 6 months</option>
                 <option value={12}>Valid 1 year</option>
                 <option value={24}>Valid 2 years</option>
                 <option value={36}>Valid 3 years</option>
               </select>
-              <button disabled={bulkIssuing} onClick={()=>bulkIssueList(cardActionScope(filtered, selectedIds, dbCardsMap).missing)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/5 rounded-lg disabled:opacity-50 transition-colors bg-background">
-                {bulkIssuing ? 'Creating cards…' : `Create missing cards (${cardActionScope(filtered, selectedIds, dbCardsMap).missing.length})`}
+              <button type="button" disabled={bulkIssuing} onClick={()=>bulkIssueList(cardActionScope(filtered, selectedIds, dbCardsMap).missing)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl disabled:opacity-50 transition-colors">
+                {bulkIssuing ? 'Creating cards…' : `Issue missing (${missingScope.length})`}
               </button>
-            </>)}
-            {manageView !== 'roster' && selectedIds.size === 0 && filtered.length > 0 && (
-            <button onClick={()=>printManageCards(filtered,`${cardType} access cards`, { groupBy: groupMode === 'section' ? 'section' : 'grade' })}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
-              <PrinterIcon className="w-3 h-3"/> Print shown cards ({filtered.length})
+            </div>
+          )}
+
+          {manageView !== 'roster' && selectedIds.size === 0 && filtered.length > 0 && (
+            <button type="button" onClick={()=>printManageCards(filtered,`${cardType} access cards`, { groupBy: groupMode === 'section' ? 'section' : 'grade' })}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl transition-colors shadow-sm md:ml-auto">
+              <PrinterIcon className="w-3.5 h-3.5"/> Print cards ({filtered.length})
             </button>
-            )}
-            {cardType === 'student' && filteredRosterRows.length > 0 && selectedIds.size === 0 && (
-              <>
-                <button onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide bg-emerald-700 text-white hover:bg-emerald-800 rounded-lg transition-colors shadow">
-                  <PrinterIcon className="w-3 h-3"/> Print class lists
-                </button>
-                <button onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
-                  <ArrowDownTrayIcon className="w-3 h-3"/> Download class lists
-                </button>
-              </>
-            )}
-          </div>
+          )}
+          {cardType === 'student' && filteredRosterRows.length > 0 && selectedIds.size === 0 && (
+            <>
+              <button type="button" onClick={()=>void printManageRosterPdf(filtered, `${cardType} RC roster`, { splitByClass: true })}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl transition-colors shadow-sm">
+                <PrinterIcon className="w-3.5 h-3.5"/> Print class lists
+              </button>
+              <button type="button" onClick={()=>void saveManageRosterPdf(filtered, `${cardType}-rc-roster`, { splitByClass: true })}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border text-foreground hover:bg-muted rounded-xl transition-colors bg-background">
+                <ArrowDownTrayIcon className="w-3.5 h-3.5"/> Download PDF
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Manage content area — min-h-0 so flex child can shrink and scroll inside shell */}
@@ -2775,60 +3058,105 @@ export default function CardStudioPage() {
             </div>
           </div>
         ):manageView !== 'roster' && groupMode==='hierarchy'?(
-          <div className="space-y-8">
-            {groupedByHierarchy.filter(g => g.sections.some(s => s.items.some(r => visibleIds.has(r.id)))).map(({ className, sections }) => (
-              <section key={className} className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border/60 pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-1 bg-primary rounded"/>
-                    <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Class: {className}</h2>
-                    <span className="text-[10px] text-muted-foreground font-semibold">
-                      ({sections.reduce((n, s) => n + s.items.length, 0)} {cardType}{sections.reduce((n, s) => n + s.items.length, 0) !== 1 ? 's' : ''})
+          <div className="space-y-6">
+            {groupedByHierarchy.filter(g => g.sections.some(s => s.items.some(r => visibleIds.has(r.id)))).map(({ className, sections }) => {
+              const allClassItems = sections.flatMap((sec) => sec.items);
+              const classIds = allClassItems.map((r) => r.id);
+              const allClassSelected = classIds.length > 0 && classIds.every((id) => selectedIds.has(id));
+              const classMissing = allClassItems.filter((r) => !dbCardsMap.has(r.id));
+              const isCollapsed = collapsedClasses.has(className);
+              return (
+              <section key={className} className="rounded-2xl border border-border bg-card/60 overflow-hidden shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 px-4 py-3 bg-muted/30 border-b border-border/70">
+                  <button
+                    type="button"
+                    onClick={() => toggleClassCollapse(className)}
+                    className="flex items-center gap-2.5 text-left min-w-0 group"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground group-hover:text-foreground">
+                      {isCollapsed ? <ChevronDownIcon className="w-3.5 h-3.5" /> : <ChevronUpIcon className="w-3.5 h-3.5" />}
                     </span>
-                  </div>
-                  <div className="sm:ml-auto flex gap-2">
+                    <h2 className="text-sm font-black tracking-tight text-foreground truncate">{className}</h2>
+                    <span className="rounded-full bg-background border border-border px-2 py-0.5 text-[11px] font-bold text-muted-foreground shrink-0">
+                      {allClassItems.length} {cardType}{allClassItems.length !== 1 ? 's' : ''}
+                    </span>
+                    {classMissing.length > 0 && (
+                      <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200 shrink-0">
+                        {classMissing.length} unissued
+                      </span>
+                    )}
+                  </button>
+                  <div className="sm:ml-auto flex flex-wrap items-center gap-1.5">
                     <button
+                      type="button"
+                      onClick={() => setSelectedIds((prev) => {
+                        const n = new Set(prev);
+                        if (allClassSelected) classIds.forEach((id) => n.delete(id));
+                        else classIds.forEach((id) => n.add(id));
+                        return n;
+                      })}
+                      className={`px-2.5 py-1.5 text-[11px] font-semibold border rounded-lg transition-colors ${allClassSelected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                    >
+                      {allClassSelected ? 'Deselect class' : 'Select class'}
+                    </button>
+                    {classMissing.length > 0 && (
+                      <button
+                        type="button"
+                        disabled={bulkIssuing}
+                        onClick={() => bulkIssueList(classMissing)}
+                        className="px-2.5 py-1.5 text-[11px] font-semibold border border-primary/35 bg-primary/5 text-primary hover:bg-primary/15 rounded-lg disabled:opacity-50 transition-colors"
+                      >
+                        Issue ({classMissing.length})
+                      </button>
+                    )}
+                    <button
+                      type="button"
                       onClick={() => void printManageCards(
-                        sections.flatMap((sec) => sec.items),
+                        allClassItems,
                         `Access Cards — ${className}`,
                         { groupBy: 'section' },
                       )}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold border border-border text-foreground hover:bg-muted rounded-lg transition-colors bg-background"
                     >
-                      <PrinterIcon className="w-3 h-3"/> Print Class
+                      <PrinterIcon className="w-3.5 h-3.5"/> Print Cards
                     </button>
                     {cardType === 'student' && (
                       <button
+                        type="button"
                         onClick={() => void printManageRosterPdf(
-                          sections.flatMap((sec) => sec.items),
+                          allClassItems,
                           `RC roster — ${className}`,
                           { splitByClass: false, groupMode: 'section' },
                         )}
-                        className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold border border-emerald-500/35 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
                       >
-                        <PrinterIcon className="w-3 h-3"/> Roster PDF
+                        <PrinterIcon className="w-3.5 h-3.5"/> Roster PDF
                       </button>
                     )}
                   </div>
                 </div>
+                {!isCollapsed && (
+                <div className="p-3 sm:p-4 space-y-4">
                 {sections.filter(s => s.items.some(r => visibleIds.has(r.id))).map(({ sectionName, items: sectionItems }) => (
-                  <div key={`${className}-${sectionName}`} className="space-y-3 pl-3 border-l border-border/50">
+                  <div key={`${className}-${sectionName}`} className="space-y-2.5">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Section: {sectionName}</h3>
-                        <span className="text-[10px] text-muted-foreground font-semibold">({sectionItems.length})</span>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{sectionName}</h3>
+                        <span className="text-[11px] text-muted-foreground font-semibold">({sectionItems.length})</span>
                       </div>
-                      <div className="sm:ml-auto flex gap-2">
+                      <div className="sm:ml-auto flex gap-1.5">
                         <button
+                          type="button"
                           onClick={() => void printManageCards(sectionItems, `Access Cards — ${sectionName}`, { groupBy: 'none' })}
-                          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
+                          className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted"
                         >
                           <PrinterIcon className="w-3 h-3"/> Print Section
                         </button>
                         {cardType === 'student' && (
                           <button
+                            type="button"
                             onClick={() => void printManageRosterPdf(sectionItems, `RC roster — ${sectionName}`, { splitByClass: false })}
-                            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
+                            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors bg-background"
                           >
                             <PrinterIcon className="w-3 h-3"/> Roster
                           </button>
@@ -2850,8 +3178,11 @@ export default function CardStudioPage() {
                     )}
                   </div>
                 ))}
+                </div>
+                )}
               </section>
-            ))}
+              );
+            })}
           </div>
         ):manageView !== 'roster' && groupMode!=='none'?(
           <div className="space-y-8">
@@ -3068,7 +3399,8 @@ export default function CardStudioPage() {
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   // ── Main shell ────────────────────────────────────────────────────────────
   // Fill DashboardShell fullscreen main (header→bottom-nav), not 100dvh — that clips scroll.
