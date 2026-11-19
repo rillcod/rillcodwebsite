@@ -160,6 +160,7 @@ export default function ClassDetailPage() {
   const [credSheetLoading, setCredSheetLoading] = useState(false);
   const [credSheetBusy, setCredSheetBusy] = useState(false);
   const [credSheetNotice, setCredSheetNotice] = useState<string | null>(null);
+  const [credIncludeRc, setCredIncludeRc] = useState(false);
   const [confirmKeepIds, setConfirmKeepIds] = useState<Set<string>>(new Set());
   const [confirmGrades, setConfirmGrades] = useState<Record<string, string>>({});
   const [lastSavedGradeSnapshot, setLastSavedGradeSnapshot] = useState<Array<{ studentId: string; grade: string }> | null>(null);
@@ -783,6 +784,7 @@ export default function ClassDetailPage() {
       className: cls?.name || 'Class',
       schoolName: cls?.schools?.name ?? null,
       students: credSheetRows,
+      includeRc: credIncludeRc,
     });
     if (!ok) alert('Could not open print preview. Try Download PDF instead.');
   };
@@ -795,8 +797,9 @@ export default function ClassDetailPage() {
         className: cls?.name || 'Class',
         schoolName: cls?.schools?.name ?? null,
         students: credSheetRows,
+        includeRc: credIncludeRc,
       });
-      setCredSheetNotice(`Downloaded PDF list for ${credSheetRows.length} student${credSheetRows.length === 1 ? '' : 's'}.`);
+      setCredSheetNotice(`Downloaded PDF list for ${credSheetRows.length} student${credSheetRows.length === 1 ? '' : 's'}${credIncludeRc ? ' (with RC)' : ' (Username & Password only)'}.`);
     } catch {
       setCredSheetNotice('Could not generate PDF. Please try Print List instead.');
     } finally {
@@ -808,17 +811,19 @@ export default function ClassDetailPage() {
     if (!credSheetRows.length) return;
     const host = window.location.origin.replace(/^https?:\/\//, '');
     const text = [
-      `${cls?.name || 'Class'} — Student Username, Password & RC List`,
-      `Portal Login: ${host}/login | Result Check: ${host}/result-check`,
+      `${cls?.name || 'Class'} — Student Portal Login${credIncludeRc ? ' & RC' : ''} List`,
+      credIncludeRc
+        ? `Portal Login: ${host}/login | Result Check: ${host}/result-check`
+        : `Portal Login: ${host}/login`,
       '',
       ...credSheetRows.map((s, idx) => {
-        const rc = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
-        return `${idx + 1}. ${s.full_name}${s.grade ? ` (${s.grade})` : ''} | Email: ${s.email || '—'} | Pass: ${s.temp_password || '—'} | RC: ${rc}`;
+        const rc = credIncludeRc ? ` | RC: ${formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id))}` : '';
+        return `${idx + 1}. ${s.full_name}${s.grade ? ` (${s.grade})` : ''} | Email: ${s.email || '—'} | Pass: ${s.temp_password || '—'}${rc}`;
       }),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
-      setCredSheetNotice(`Copied ${credSheetRows.length} student login & RC details to clipboard.`);
+      setCredSheetNotice(`Copied ${credSheetRows.length} student login detail${credSheetRows.length === 1 ? '' : 's'} to clipboard.`);
     } catch {
       setCredSheetNotice('Could not copy — browser blocked clipboard access.');
     }
@@ -2493,13 +2498,22 @@ export default function ClassDetailPage() {
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
                             <h3 className="text-sm font-black text-foreground">
-                              Student Username, Password &amp; Result RC List
+                              Student Username &amp; Password List{credIncludeRc ? ' (+ RC)' : ''}
                             </h3>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Straight printable list for every active student in this class — works anytime (no published result required).
+                              Straight printable list for every active student in this class — RC number is optional so parent result-check keys stay protected.
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5">
+                            <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">
+                              <input
+                                type="checkbox"
+                                checked={credIncludeRc}
+                                onChange={(e) => setCredIncludeRc(e.target.checked)}
+                                className="h-4 w-4 accent-primary"
+                              />
+                              Include RC
+                            </label>
                             <button
                               type="button"
                               disabled={credSheetLoading || credSheetBusy || credSheetRows.length === 0}
@@ -2586,12 +2600,12 @@ export default function ClassDetailPage() {
                                   <th className="px-3 py-2">Student</th>
                                   <th className="px-3 py-2">Username (Email)</th>
                                   <th className="px-3 py-2">Password</th>
-                                  <th className="px-3 py-2">Result RC</th>
+                                  {credIncludeRc && <th className="px-3 py-2">Result RC</th>}
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border/60">
                                 {credSheetRows.map((s, idx) => {
-                                  const rc = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
+                                  const rc = credIncludeRc ? formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id)) : '';
                                   return (
                                     <tr key={`cred-${s.id}`} className="hover:bg-muted/30">
                                       <td className="px-3 py-2 text-center font-semibold text-muted-foreground">{idx + 1}</td>
@@ -2603,7 +2617,7 @@ export default function ClassDetailPage() {
                                       <td className="px-3 py-2 font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-300 select-all">
                                         {s.temp_password || <span className="font-sans font-normal text-muted-foreground">Not archived</span>}
                                       </td>
-                                      <td className="px-3 py-2 font-mono text-[11px] font-black text-primary select-all">{rc}</td>
+                                      {credIncludeRc && <td className="px-3 py-2 font-mono text-[11px] font-black text-primary select-all">{rc}</td>}
                                     </tr>
                                   );
                                 })}

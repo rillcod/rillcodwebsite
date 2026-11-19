@@ -21,8 +21,10 @@ function buildCredentialsHtml(input: {
   className: string;
   schoolName?: string | null;
   students: CredentialSheetStudent[];
+  includeRc?: boolean;
   autoPrint?: boolean;
 }): string {
+  const includeRc = input.includeRc === true;
   const originHost = typeof window !== 'undefined'
     ? window.location.origin.replace(/^https?:\/\//, '')
     : 'rillcod.com';
@@ -34,7 +36,9 @@ function buildCredentialsHtml(input: {
 
   const rowsHtml = input.students
     .map((s, idx) => {
-      const rcDisplay = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
+      const rcCell = includeRc
+        ? `<td class="mono rc">${esc(formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id)))}</td>`
+        : '';
       return `
       <tr>
         <td class="num">${idx + 1}</td>
@@ -44,23 +48,27 @@ function buildCredentialsHtml(input: {
         </td>
         <td class="mono">${esc(s.email || '—')}</td>
         <td class="mono pw">${esc(s.temp_password || 'Not archived — tap Generate')}</td>
-        <td class="mono rc">${esc(rcDisplay)}</td>
+        ${rcCell}
       </tr>`;
     })
     .join('');
+
+  const heading = includeRc
+    ? 'Student Username, Password & Result RC List'
+    : 'Student Portal Login List (Username & Password)';
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Student Login, Password & RC List — ${esc(input.className)}</title>
+  <title>${esc(heading)} — ${esc(input.className)}</title>
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     body { font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: #111827; margin: 0; font-size: 11px; }
     .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3A8F; padding-bottom: 8px; margin-bottom: 10px; }
     .hdr h1 { margin: 0; font-size: 16px; color: #1A3A8F; letter-spacing: -0.01em; }
     .hdr p { margin: 2px 0 0; color: #4b5563; font-size: 10px; }
-    .guide { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
+    .guide { display: grid; grid-template-columns: ${includeRc ? '1fr 1fr' : '1fr'}; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
     .guide strong { color: #1A3A8F; }
     table { width: 100%; border-collapse: collapse; }
     th { background: #1A3A8F; color: #fff; text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -79,14 +87,14 @@ function buildCredentialsHtml(input: {
 <body>
   <div class="hdr">
     <div>
-      <h1>Student Username, Password &amp; Result RC List</h1>
+      <h1>${esc(heading)}</h1>
       <p><strong>${esc(input.className)}</strong>${input.schoolName ? ` · ${esc(input.schoolName)}` : ''} · ${input.students.length} student${input.students.length === 1 ? '' : 's'}</p>
     </div>
     <p>Printed ${esc(today)}</p>
   </div>
   <div class="guide">
-    <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and enter the Username (Email) &amp; Password below.</div>
-    <div><strong>Result Check:</strong> Visit <strong>${esc(originHost)}/result-check</strong> and enter the RC Number below.</div>
+    <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and enter your Username (Email) &amp; Password below.</div>
+    ${includeRc ? `<div><strong>Result Check:</strong> Visit <strong>${esc(originHost)}/result-check</strong> and enter the RC Number below.</div>` : ''}
   </div>
   <table>
     <thead>
@@ -95,7 +103,7 @@ function buildCredentialsHtml(input: {
         <th>Student &amp; Grade</th>
         <th>Username (Email)</th>
         <th>Password</th>
-        <th>Result RC Number</th>
+        ${includeRc ? '<th>Result RC Number</th>' : ''}
       </tr>
     </thead>
     <tbody>${rowsHtml}</tbody>
@@ -110,14 +118,15 @@ function buildCredentialsHtml(input: {
 }
 
 /**
- * Opens a clean A4 printable sheet showing EVERY student's Username (Email),
- * Password, and Result Check RC Number — falls back to a hidden print iframe
- * if pop-ups are blocked so printing always works on phones and desktops.
+ * Opens a clean A4 printable sheet showing EVERY student's Username (Email) & Password
+ * (with optional Result Check RC Number when `includeRc: true`).
+ * Falls back to a hidden print iframe if pop-ups are blocked.
  */
 export function openClassCredentialsPrintSheet(input: {
   className: string;
   schoolName?: string | null;
   students: CredentialSheetStudent[];
+  includeRc?: boolean;
 }): boolean {
   if (!input.students.length || typeof window === 'undefined') return false;
   const html = buildCredentialsHtml({ ...input, autoPrint: true });
@@ -127,7 +136,6 @@ export function openClassCredentialsPrintSheet(input: {
     return true;
   }
 
-  // Fallback when pop-ups are blocked: print cleanly via hidden iframe
   try {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -157,16 +165,17 @@ export function openClassCredentialsPrintSheet(input: {
 }
 
 /**
- * Direct 1-click A4 PDF download (jsPDF) of every student's Username (Email),
- * Password, and Result RC Number — works on every phone/desktop with zero pop-ups
- * and zero requirement for published results.
+ * Direct 1-click A4 PDF download (jsPDF) of every student's Username (Email) & Password
+ * (with optional Result RC Number when `includeRc: true`).
  */
 export async function downloadClassCredentialsPdf(input: {
   className: string;
   schoolName?: string | null;
   students: CredentialSheetStudent[];
+  includeRc?: boolean;
 }): Promise<boolean> {
   if (!input.students.length || typeof window === 'undefined') return false;
+  const includeRc = input.includeRc === true;
   const { default: JsPDF } = await import('jspdf');
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -182,9 +191,13 @@ export async function downloadClassCredentialsPdf(input: {
 
   const colNum = margin;
   const colName = margin + 9;
-  const colEmail = margin + 62;
-  const colPass = margin + 124;
+  const colEmail = includeRc ? margin + 62 : margin + 74;
+  const colPass = includeRc ? margin + 124 : margin + 144;
   const colRc = margin + 157;
+
+  const heading = includeRc
+    ? 'Student Username, Password & Result RC List'
+    : 'Student Portal Login List (Username & Password)';
 
   const drawHeader = (pageNum: number) => {
     doc.setFillColor(26, 58, 143);
@@ -192,7 +205,7 @@ export async function downloadClassCredentialsPdf(input: {
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text('Student Username, Password & Result RC List', margin + 4, 16.5);
+    doc.text(heading, margin + 4, 16.5);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     const sub = `${input.className}${input.schoolName ? ` · ${input.schoolName}` : ''} · ${input.students.length} students`;
@@ -204,9 +217,11 @@ export async function downloadClassCredentialsPdf(input: {
     doc.rect(margin, 25, contentW, 8, 'FD');
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(8);
-    doc.text(`Portal Login: ${originHost}/login   |   Result Check: ${originHost}/result-check`, margin + 3, 30);
+    const guideText = includeRc
+      ? `Portal Login: ${originHost}/login   |   Result Check: ${originHost}/result-check`
+      : `Student Portal Login: Visit ${originHost}/login and sign in with your Username (Email) & Password below.`;
+    doc.text(guideText, margin + 3, 30);
 
-    // Table header
     doc.setFillColor(241, 245, 249);
     doc.rect(margin, 35, contentW, 7, 'F');
     doc.setFont('helvetica', 'bold');
@@ -216,7 +231,7 @@ export async function downloadClassCredentialsPdf(input: {
     doc.text('STUDENT & GRADE', colName, 39.7);
     doc.text('USERNAME (EMAIL)', colEmail, 39.7);
     doc.text('PASSWORD', colPass, 39.7);
-    doc.text('RESULT RC', colRc, 39.7);
+    if (includeRc) doc.text('RESULT RC', colRc, 39.7);
     doc.setDrawColor(203, 213, 225);
     doc.line(margin, 42, pageW - margin, 42);
   };
@@ -239,7 +254,6 @@ export async function downloadClassCredentialsPdf(input: {
       doc.rect(margin, y - 4.8, contentW, rowH, 'F');
     }
 
-    const rcDisplay = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.2);
     doc.setTextColor(100, 116, 139);
@@ -248,19 +262,22 @@ export async function downloadClassCredentialsPdf(input: {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(17, 24, 39);
     const nameLine = s.grade ? `${s.full_name} (${s.grade})` : s.full_name;
-    doc.text(nameLine.slice(0, 30), colName, y);
+    doc.text(nameLine.slice(0, includeRc ? 30 : 38), colName, y);
 
     doc.setFont('courier', 'normal');
     doc.setTextColor(30, 41, 59);
-    doc.text((s.email || '—').slice(0, 34), colEmail, y);
+    doc.text((s.email || '—').slice(0, includeRc ? 34 : 38), colEmail, y);
 
     doc.setFont('courier', 'bold');
     doc.setTextColor(4, 120, 87);
     doc.text((s.temp_password || '—').slice(0, 18), colPass, y);
 
-    doc.setFont('courier', 'bold');
-    doc.setTextColor(26, 58, 143);
-    doc.text(rcDisplay, colRc, y);
+    if (includeRc) {
+      const rcDisplay = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
+      doc.setFont('courier', 'bold');
+      doc.setTextColor(26, 58, 143);
+      doc.text(rcDisplay, colRc, y);
+    }
 
     doc.setDrawColor(229, 231, 235);
     doc.line(margin, y + 3.5, pageW - margin, y + 3.5);
@@ -269,6 +286,7 @@ export async function downloadClassCredentialsPdf(input: {
 
   const slug = input.className.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'class';
   const dateStr = new Date().toISOString().slice(0, 10);
-  doc.save(`${slug}-login-password-rc-${dateStr}.pdf`);
+  const suffix = includeRc ? 'login-password-rc' : 'login-password';
+  doc.save(`${slug}-${suffix}-${dateStr}.pdf`);
   return true;
 }
