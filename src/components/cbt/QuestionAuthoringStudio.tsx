@@ -19,6 +19,7 @@ import {
 import {
   ACCEPTED_DOCUMENT_EXTENSIONS,
   buildCombinedSourceMaterial,
+  classifyDocumentRole,
   extractDocumentText,
   type ExtractedSourceDocument,
 } from '@/lib/files/extract-document-text';
@@ -29,6 +30,7 @@ import {
   filterPremadeQuestions,
   parsePremadeQuestionsFromText,
   resolveMcqAnswerToOption,
+  stripOptionPrefix,
   type AssessmentBlueprint,
   type CurriculumWeekItem,
   type PremadeQuestionItem,
@@ -134,6 +136,7 @@ export default function QuestionAuthoringStudio({
   const [aiSuccessMsg, setAiSuccessMsg] = useState<string | null>(null);
   const [extractingFile, setExtractingFile] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [lastAiBlueprint, setLastAiBlueprint] = useState<AssessmentBlueprint | null>(null);
 
   // Track manual edits to prevent stale bleed while still updating dynamically on context switches
@@ -256,14 +259,22 @@ export default function QuestionAuthoringStudio({
     return () => controller.abort();
   }, [courseId, programId, classId]);
 
-  // Detect premade questions inside uploaded .txt / .pdf / pasted text
+  // Detect premade questions inside uploaded Question Paper + Answer Key file(s) OR pasted text
   const detectedPremadeFromSource = useMemo(() => {
-    if (!sourceText.trim() || isWeekDerivedSource) return [];
-    return parsePremadeQuestionsFromText(sourceText, {
+    const selectedQuestionDocs = uploadedDocs.filter(
+      (d) => d.selected && (d.role === 'question_paper' || d.role === 'answer_key'),
+    );
+    const hasUploadedQuestionPaper = selectedQuestionDocs.some((d) => d.role === 'question_paper');
+    const pasted = !isWeekDerivedSource ? sourceText.trim() : '';
+    const textToParse = hasUploadedQuestionPaper
+      ? buildCombinedSourceMaterial(selectedQuestionDocs, pasted, 24_000).combinedText
+      : pasted;
+    if (!textToParse.trim()) return [];
+    return parsePremadeQuestionsFromText(textToParse, {
       sourceName: sourceName || 'Uploaded Document',
       defaultTrack: courseTitle || programName || aiTopic || 'Course Alignment',
     });
-  }, [sourceText, sourceName, courseTitle, programName, aiTopic, isWeekDerivedSource]);
+  }, [uploadedDocs, sourceText, sourceName, courseTitle, programName, aiTopic, isWeekDerivedSource]);
 
   const combinedBankQuestions = useMemo(() => {
     const merged: PremadeQuestionItem[] = [...detectedPremadeFromSource, ...bankQuestions];
@@ -407,10 +418,12 @@ export default function QuestionAuthoringStudio({
           }
           const clean = text.trim();
           const words = clean.split(/\s+/).filter(Boolean).length;
+          const role = classifyDocumentRole(file.name, clean);
           added.push({
             id: `${Date.now()}-${idx}-${file.name}`,
             name: file.name,
             kind,
+            role,
             text: clean,
             charCount: clean.length,
             wordCount: words,
@@ -492,7 +505,7 @@ export default function QuestionAuthoringStudio({
       .map((q: any) => {
         const rawType = String(q.question_type || '').trim().toLowerCase();
         const rawOpts = Array.isArray(q.options)
-          ? q.options.map((o: any) => String(o ?? '').trim()).filter(Boolean)
+          ? q.options.map((o: any) => stripOptionPrefix(String(o ?? ''))).filter(Boolean)
           : [];
 
         let qType: StudioGeneratedQuestion['question_type'];
@@ -532,16 +545,21 @@ export default function QuestionAuthoringStudio({
                 : ['', '', '', '']
               : [];
         const rawCorrect = String(
-          q.correct_answer ?? q.marking_guide ?? q.metadata?.marking_guide ?? q.explanation ?? '',
+          q.correct_answer ?? q.answer ?? q.marking_guide ?? q.metadata?.marking_guide ?? q.explanation ?? '',
         ).trim();
-        const resolvedCorrect =
-          qType === 'multiple_choice'
-            ? resolveMcqAnswerToOption(rawCorrect, opts) || opts[0] || ''
-            : qType === 'true_false'
-              ? /^false$/i.test(rawCorrect)
-                ? 'False'
-                : 'True'
-              : rawCorrect;
+        let resolvedCorrect = rawCorrect;
+        if (qType === 'multiple_choice') {
+          const direct = resolveMcqAnswerToOption(rawCorrect, opts);
+          const matchedDirect = opts.find((o) => o === direct);
+          if (matchedDirect) {
+            resolvedCorrect = matchedDirect;
+          } else {
+            const fromGuide = resolveMcqAnswerToOption(String(q.explanation ?? q.marking_guide ?? ''), opts);
+            resolvedCorrect = opts.find((o) => o === fromGuide) || opts[0] || '';
+          }
+        } else if (qType === 'true_false') {
+          resolvedCorrect = /^false$/i.test(rawCorrect) ? 'False' : 'True';
+        }
         const markingGuide =
           String(
             q.marking_guide ??
@@ -700,6 +718,12 @@ export default function QuestionAuthoringStudio({
   };
 
   const handleAiAlignAndSolvePremade = async (fromCurrentPaper = false) => {
+    const combinedUploaded = buildCombinedSourceMaterial(
+      uploadedDocs,
+      !isWeekDerivedSource ? sourceText : '',
+      24_000,
+    ).combinedText;
+
     const serializedCurrent = fromCurrentPaper
       ? currentQuestions
           .filter((q) => String(q.question_text ?? '').trim())
@@ -715,10 +739,10 @@ export default function QuestionAuthoringStudio({
             return `${idx + 1}. ${q.question_text} [${q.points || 5} marks]${opts}${ans}`;
           })
           .join('\n\n')
-      : sourceText.trim();
+      : combinedUploaded.trim();
 
     if (!serializedCurrent) {
-      setAiError('Upload a .txt or .pdf file or paste premade questions first.');
+      setAiError('Upload PPT / PDF / DOC / TXT file(s) or paste premade questions first.');
       return;
     }
 
@@ -1150,28 +1174,45 @@ export default function QuestionAuthoringStudio({
             </div>
           )}
 
-          {/* Multi-File Source Uploader & Combiner (PPTX / PDF / DOCX / DOC / TXT) */}
+          {/* Unified Smart Multi-File Uploader & Combiner (PPT / PDF / DOC / TXT) */}
           <div
-            onDragOver={(e) => { e.preventDefault(); }}
+            onDragOver={(e) => { e.preventDefault(); setIsDraggingFiles(true); }}
+            onDragLeave={() => setIsDraggingFiles(false)}
             onDrop={(e) => {
               e.preventDefault();
+              setIsDraggingFiles(false);
               if (e.dataTransfer?.files?.length) {
                 void handleFilesUpload(e.dataTransfer.files);
               }
             }}
-            className="rounded-2xl border border-dashed border-primary/35 bg-primary/[0.03] p-3.5 space-y-2.5"
+            className={`rounded-2xl border-2 border-dashed p-3.5 transition-all space-y-2.5 ${
+              isDraggingFiles
+                ? 'border-emerald-500 bg-emerald-500/10'
+                : uploadedDocs.length > 0
+                  ? 'border-emerald-500/35 bg-emerald-500/[0.03]'
+                  : 'border-primary/30 bg-primary/[0.02] hover:border-primary/50'
+            }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
-                  Generate from Files (PPT, PDF, DOC, TXT)
+                  Upload Slides or Docs (PPT, PDF, DOC, TXT)
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Upload 1 file to generate solely from it, or upload multiple files and combine them together.
+                  Drop 1 file to generate solely from it, or combine multiple files (e.g. slides + notes, or question paper + answer key).
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {uploadedDocs.length > 1 && selectedUploadedDocs.length < uploadedDocs.length && (
+                  <button
+                    type="button"
+                    onClick={() => setUploadedDocs((prev) => prev.map((d) => ({ ...d, selected: true })))}
+                    className="text-[11px] font-bold text-primary hover:underline"
+                  >
+                    Select All
+                  </button>
+                )}
                 {uploadedDocs.length > 0 && (
                   <button
                     type="button"
@@ -1183,7 +1224,7 @@ export default function QuestionAuthoringStudio({
                 )}
                 <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer text-xs font-black shadow-sm transition-colors">
                   <PlusIcon className="w-3.5 h-3.5" />
-                  <span>{extractingFile ? extractMsg || 'Reading…' : uploadedDocs.length > 0 ? 'Add More Files' : 'Upload Files'}</span>
+                  <span>{extractingFile ? extractMsg || 'Reading…' : uploadedDocs.length > 0 ? 'Add More' : 'Upload Files'}</span>
                   <input
                     type="file"
                     multiple
@@ -1224,7 +1265,16 @@ export default function QuestionAuthoringStudio({
                       <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-primary">
                         {doc.kind}
                       </span>
-                      <span className="font-bold truncate max-w-[160px]" title={doc.name}>
+                      <span className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase ${
+                        doc.role === 'answer_key'
+                          ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200'
+                          : doc.role === 'question_paper'
+                            ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200'
+                            : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {doc.role === 'answer_key' ? 'Answer Key' : doc.role === 'question_paper' ? 'Questions' : 'Notes'}
+                      </span>
+                      <span className="font-bold truncate max-w-[150px]" title={doc.name}>
                         {doc.name}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
@@ -1375,7 +1425,11 @@ export default function QuestionAuthoringStudio({
                 ) : (
                   <>
                     <SparklesIcon className="w-4 h-4" />
-                    Generate {Math.max(minQuestions, targetTotal)} Questions
+                    {selectedUploadedDocs.length === 1
+                      ? `Generate ${Math.max(minQuestions, targetTotal)} Qs from File`
+                      : selectedUploadedDocs.length > 1
+                        ? `Generate ${Math.max(minQuestions, targetTotal)} Qs (${selectedUploadedDocs.length} Files)`
+                        : `Generate ${Math.max(minQuestions, targetTotal)} Questions`}
                   </>
                 )}
               </button>
@@ -1432,83 +1486,21 @@ export default function QuestionAuthoringStudio({
                 htmlFor="cbt-premade-paste"
                 className="text-xs font-black uppercase tracking-wider text-foreground block"
               >
-                Paste Exam Questions, Lesson Notes, or Upload PPT / PDF / DOC / TXT
+                Paste Exam Questions or Lesson Notes
               </label>
               <p className="text-[11px] text-muted-foreground">
-                Upload 1 or multiple files (PowerPoint, PDF, Word, or Text) to generate fresh questions solely from them, or paste premade questions to auto-solve.
+                Paste premade questions to auto-solve answers &amp; marking guides, or paste notes/code to generate fresh MCQ, Theory &amp; Coding questions.
               </p>
             </div>
-
-            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-primary/50 hover:bg-primary/5 bg-background cursor-pointer text-xs font-bold text-foreground transition-colors">
-              <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
-              <span>{extractingFile ? extractMsg || 'Reading…' : 'Upload PPT / PDF / DOC / TXT'}</span>
-              <input
-                type="file"
-                multiple
-                accept={ACCEPTED_DOCUMENT_EXTENSIONS}
-                className="sr-only"
-                disabled={extractingFile}
-                onChange={async (e) => {
-                  const files = e.currentTarget.files;
-                  if (!files || files.length === 0) return;
-                  const copy = Array.from(files);
-                  e.currentTarget.value = '';
-                  await handleFilesUpload(copy);
-                }}
-              />
-            </label>
+            <button
+              type="button"
+              onClick={() => setActiveTab('ai')}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background hover:bg-muted px-3 py-1.5 text-[11px] font-bold text-primary transition-colors"
+            >
+              <DocumentTextIcon className="w-3.5 h-3.5" />
+              {uploadedDocs.length > 0 ? `Manage ${uploadedDocs.length} Uploaded File${uploadedDocs.length === 1 ? '' : 's'}` : 'Upload PPT / PDF / DOC →'}
+            </button>
           </div>
-
-          {uploadedDocs.length > 0 && (
-            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {uploadedDocs.map((doc) => (
-                  <div
-                    key={`tab2-${doc.id}`}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs ${
-                      doc.selected
-                        ? 'border-emerald-500/40 bg-card text-foreground'
-                        : 'border-border bg-muted/40 text-muted-foreground opacity-70'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={doc.selected}
-                      onChange={() => toggleUploadedDoc(doc.id)}
-                      aria-label={`Include ${doc.name}`}
-                      className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer"
-                    />
-                    <span className="rounded bg-primary/15 px-1 py-0.5 text-[9px] font-black uppercase text-primary">{doc.kind}</span>
-                    <span className="font-bold truncate max-w-[150px]">{doc.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeUploadedDoc(doc.id)}
-                      aria-label={`Remove ${doc.name}`}
-                      className="text-rose-600 dark:text-rose-400"
-                    >
-                      <XMarkIcon className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-200">
-                  {selectedUploadedDocs.length} file{selectedUploadedDocs.length === 1 ? '' : 's'} ready · {strictFileOnly ? 'Strictly from uploaded file(s)' : 'Blended with topic'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleAiGenerate}
-                  disabled={aiGenerating || selectedUploadedDocs.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-50"
-                >
-                  {aiGenerating ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
-                  {aiGenerating
-                    ? 'Generating…'
-                    : `Generate ${Math.max(minQuestions, targetTotal)} Qs from ${selectedUploadedDocs.length} File${selectedUploadedDocs.length === 1 ? '' : 's'}`}
-                </button>
-              </div>
-            </div>
-          )}
 
           <textarea
             id="cbt-premade-paste"

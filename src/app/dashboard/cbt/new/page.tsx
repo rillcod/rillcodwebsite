@@ -17,6 +17,7 @@ import {
   buildCbtPrintHtml,
   openCbtPrintWindow,
 } from '@/lib/cbt/print-utils';
+import { resolveMcqAnswerToOption, stripOptionPrefix } from '@/lib/cbt/question-bank-catalog';
 import { hostAssessmentKindFromExam, parseHostAssessmentKind } from '@/lib/academic/taught-assessment';
 import { hostPaperLabel, paperTotalFromQuestions, SUGGESTED_HOST_PAPER_MAX } from '@/lib/academic/host-marks';
 import { hostPaperDatasheetHref } from '@/lib/curriculum/href';
@@ -140,6 +141,12 @@ export default function NewExamPage() {
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
   const [paperOutOf, setPaperOutOf] = useState('');
   const [paperOutOfEdited, setPaperOutOfEdited] = useState(false);
+  const [showAdvancedSetup, setShowAdvancedSetup] = useState(false);
+
+  const toLocalDateTimeInput = (date: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
   const examSuggestion = buildCbtEntrySuggestion(form.exam_type);
   const examBoundary = {
     label: examSuggestion.label,
@@ -536,18 +543,26 @@ export default function NewExamPage() {
   const handleStudioImport = (imported: StudioGeneratedQuestion[], importMode: 'append' | 'replace') => {
     const mapped: Question[] = imported.map(q => {
       const cbtType = q.question_type === 'short_answer' ? 'fill_blank' : q.question_type;
+      const cleanedOpts =
+        cbtType === 'true_false'
+          ? ['True', 'False']
+          : cbtType === 'multiple_choice'
+            ? q.options.length >= 2
+              ? q.options.map((o) => stripOptionPrefix(o))
+              : ['', '', '', '']
+            : ['', '', '', ''];
+      const rawAns = String(q.correct_answer || q.marking_guide || '').trim();
+      const resolvedAns =
+        cbtType === 'multiple_choice'
+          ? resolveMcqAnswerToOption(rawAns, cleanedOpts)
+          : cbtType === 'true_false'
+            ? /^false$/i.test(rawAns) ? 'False' : 'True'
+            : rawAns;
       return {
         question_text: q.question_text,
         question_type: cbtType,
-        options:
-          cbtType === 'true_false'
-            ? ['True', 'False']
-            : cbtType === 'multiple_choice'
-              ? q.options.length >= 2
-                ? [...q.options]
-                : ['', '', '', '']
-              : ['', '', '', ''],
-        correct_answer: q.correct_answer || q.marking_guide || '',
+        options: cleanedOpts,
+        correct_answer: resolvedAns,
         marking_guide: q.marking_guide || q.explanation,
         curriculumTag: q.curriculumTag,
         cognitiveLevel: q.cognitiveLevel,
@@ -1464,47 +1479,69 @@ export default function NewExamPage() {
                   </div>
                 )}
 
-                {q.question_type === 'multiple_choice' && (
+                {q.question_type === 'multiple_choice' && (() => {
+                  const matchedCorrect = resolveMcqAnswerToOption(q.correct_answer, q.options);
+                  const hasMatchedCorrect = q.options.some((o) => o.trim() !== '' && o === matchedCorrect);
+                  return (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs text-muted-foreground uppercase tracking-widest">Options (Select the correct one)</label>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="block text-xs text-muted-foreground uppercase tracking-widest">Options (Click A–D to mark the correct answer)</label>
+                      {!hasMatchedCorrect && q.options.some((o) => o.trim()) && (
+                        <span className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-200">
+                          No answer selected yet — click A–D to pick
+                        </span>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {q.options.map((opt, oi) => {
-                        const isCorrect = q.correct_answer === opt && opt !== '';
+                        const isCorrect = opt.trim() !== '' && (q.correct_answer === opt || matchedCorrect === opt);
+                        const letter = String.fromCharCode(65 + oi);
                         return (
-                          <div 
-                            key={oi} 
-                            onClick={(e) => {
-                              if (opt.trim()) updateQuestion(qi, { correct_answer: opt });
-                            }}
-                            className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-card shadow-sm border-border hover:border-border'}`}
+                          <div
+                            key={oi}
+                            className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/60 ring-1 ring-emerald-500/30' : 'bg-card shadow-sm border-border hover:border-primary/40'}`}
                           >
-                            <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : 'border-border group-hover/opt:border-border text-muted-foreground'}`}>
-                              {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{String.fromCharCode(65 + oi)}</span>}
-                            </div>
-                            <input 
-                              type="text" 
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (opt.trim()) updateQuestion(qi, { correct_answer: opt });
+                              }}
+                              aria-label={`Mark option ${letter} as correct answer`}
+                              title={opt.trim() ? `Mark option ${letter} as correct` : 'Type option text first'}
+                              className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all cursor-pointer ${isCorrect ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' : 'border-border hover:border-emerald-500 text-muted-foreground hover:text-emerald-700'}`}
+                            >
+                              {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{letter}</span>}
+                            </button>
+                            <input
+                              type="text"
                               value={opt}
-                              onClick={e => e.stopPropagation()}
                               onChange={e => {
                                 const newVal = e.target.value;
-                                const wasCorrect = q.correct_answer === opt;
+                                const wasCorrect = isCorrect;
                                 updateOption(qi, oi, newVal);
                                 if (wasCorrect) updateQuestion(qi, { correct_answer: newVal });
                               }}
-                              placeholder={`Enter option ${String.fromCharCode(65 + oi)}…`}
-                              className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none" 
+                              placeholder={`Enter option ${letter}…`}
+                              className="flex-1 min-w-0 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none"
                             />
-                            {isCorrect && (
-                              <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
-                            )}
+                            {isCorrect ? (
+                              <span className="shrink-0 rounded-md bg-emerald-600/15 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mr-1">Correct</span>
+                            ) : opt.trim() ? (
+                              <button
+                                type="button"
+                                onClick={() => updateQuestion(qi, { correct_answer: opt })}
+                                className="shrink-0 opacity-0 group-hover/opt:opacity-100 focus:opacity-100 rounded-md border border-border bg-background px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground hover:text-emerald-700 hover:border-emerald-500/40 mr-1 transition-opacity"
+                              >
+                                Set
+                              </button>
+                            ) : null}
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
                 </div>
               </div>
               );

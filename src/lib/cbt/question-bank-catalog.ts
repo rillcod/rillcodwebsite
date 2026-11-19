@@ -91,27 +91,67 @@ export function inferCognitiveLevel(questionText: string, questionType: string):
 }
 
 /**
- * Resolves a letter answer (e.g. "B", "Option B", "(c)", "B) 8") to the exact option text in `options`.
+ * Strips redundant leading option labels like "A) ", "A. ", "(a) ", "Option B: " from an option string.
+ */
+export function stripOptionPrefix(raw: string): string {
+  return String(raw ?? '')
+    .trim()
+    .replace(/^(?:option\s+)?(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:\-])\s+/i, '')
+    .trim();
+}
+
+function normalizeForOptionMatch(raw: string): string {
+  return stripOptionPrefix(raw)
+    .replace(/^[`"'“”‘’]+|[`"'“”‘’]+$/g, '')
+    .replace(/[.;:]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Resolves any answer format (exact text, letter "B", "Option B", "(c)", "B) 8",
+ * "Answer: C", quoted/backticked text, or partial match) to the exact option string in `options`.
  */
 export function resolveMcqAnswerToOption(rawAnswer: string, options: string[]): string {
   const clean = String(rawAnswer ?? '').trim();
-  if (!clean || options.length === 0) return clean;
+  const validOptions = options.map((o) => String(o ?? '').trim());
+  if (!clean || validOptions.length === 0) return clean;
 
-  // Direct case-insensitive match with an option
-  const exact = options.find((opt) => opt.trim().toLowerCase() === clean.toLowerCase());
+  // 1. Direct case-insensitive exact match
+  const exact = validOptions.find((opt) => opt.toLowerCase() === clean.toLowerCase());
   if (exact) return exact;
 
-  // Match "Option B" or "B" or "B)" or "(B)"
-  const letterMatch = clean.match(/^(?:option\s+)?\(?([A-Fa-f])\)?(?:[\.\)\:\-\s]|$)/i);
-  if (letterMatch) {
-    const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65;
-    if (options[idx]) return options[idx];
+  // 2. Normalized match (ignores A)/B) prefix, quotes, backticks, trailing punctuation, extra spaces)
+  const normAns = normalizeForOptionMatch(clean);
+  if (normAns) {
+    const normMatch = validOptions.find((opt) => normalizeForOptionMatch(opt) === normAns);
+    if (normMatch) return normMatch;
   }
 
-  // Numeric index "0", "1", "2", "3"
+  // 3. Explicit letter match: "B", "(b)", "B)", "Option B", "Answer: B", "Correct answer is B"
+  const letterMatch = clean.match(
+    /^(?:(?:the\s+)?(?:correct\s+)?(?:answer|ans|option)\s*(?:is|[:\-])?\s*)?\(?([A-Fa-f])\)?(?:[\.\)\:\-\s]|$)/i,
+  );
+  if (letterMatch) {
+    const idx = letterMatch[1].toUpperCase().charCodeAt(0) - 65;
+    if (validOptions[idx]) return validOptions[idx];
+  }
+
+  // 4. Numeric index ("0".."5" or 1-based if equals options.length)
   if (/^\d+$/.test(clean)) {
-    const idx = parseInt(clean, 10);
-    if (options[idx]) return options[idx];
+    const num = parseInt(clean, 10);
+    if (num >= 0 && num < validOptions.length && validOptions[num]) return validOptions[num];
+    if (num >= 1 && num <= validOptions.length && validOptions[num - 1]) return validOptions[num - 1];
+  }
+
+  // 5. Unique substring match (e.g. "B) Loops repeat code — because..." matching "Loops repeat code")
+  if (normAns.length >= 3) {
+    const containing = validOptions.filter((opt) => {
+      const nOpt = normalizeForOptionMatch(opt);
+      return nOpt.length >= 2 && (normAns.includes(nOpt) || nOpt.includes(normAns));
+    });
+    if (containing.length === 1) return containing[0];
   }
 
   return clean;

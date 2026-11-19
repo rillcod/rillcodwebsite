@@ -11,15 +11,41 @@
 import { extractPdfText } from '@/lib/pdf/extract-text';
 
 export type SupportedDocumentKind = 'pdf' | 'pptx' | 'docx' | 'doc' | 'ppt' | 'txt';
+export type DocumentContentRole = 'study_material' | 'question_paper' | 'answer_key';
 
 export interface ExtractedSourceDocument {
   id: string;
   name: string;
   kind: SupportedDocumentKind;
+  role: DocumentContentRole;
   text: string;
   charCount: number;
   wordCount: number;
   selected: boolean;
+}
+
+/**
+ * Automatically classifies an uploaded file as Study Material (slides/notes),
+ * a Question Paper (numbered exam questions), or an Answer Key / Marking Scheme
+ * so multiple uploaded files can be combined intelligently.
+ */
+export function classifyDocumentRole(fileName: string, text: string): DocumentContentRole {
+  const lowerName = fileName.toLowerCase();
+  if (/(answer[\s_-]?key|marking[\s_-]?(?:scheme|guide)|solutions?|rubric|answers?\b)/i.test(lowerName)) {
+    return 'answer_key';
+  }
+  const head = text.slice(0, 1200);
+  const answerPairs = (text.match(/(?:^|\n)\s*(?:Q(?:uestion)?\s*)?\d+[\.\)\:\-]\s*(?:[A-Da-d]\b|True|False|Award\s+\d+)/gi) ?? []).length;
+  if (/(?:^|\n)\s*(?:ANSWER\s+KEY|MARKING\s+(?:GUIDE|SCHEME)|SOLUTIONS)\b/i.test(head) && answerPairs >= 3) {
+    return 'answer_key';
+  }
+
+  const numberedQs = (text.match(/(?:^|\n)\s*(?:Q(?:uestion)?\s*\d+|\d+[\.\)])\s+\S/gi) ?? []).length;
+  const optionLines = (text.match(/(?:^|\n|\s)(?:\([A-Da-d]\)|[A-Da-d][\.\)])\s+\S/g) ?? []).length;
+  if (numberedQs >= 3 && (optionLines >= 4 || /(?:exam|test|quiz|questions|section\s+a)/i.test(lowerName))) {
+    return 'question_paper';
+  }
+  return 'study_material';
 }
 
 export const ACCEPTED_DOCUMENT_EXTENSIONS =
@@ -378,11 +404,24 @@ export function buildCombinedSourceMaterial(
 
   const extraReserve = extra ? Math.min(4_000, extra.length) : 0;
   const budgetForDocs = Math.max(4_000, maxTotalChars - extraReserve);
-  const perDocBudget = Math.floor(budgetForDocs / active.length);
 
-  const sections = active.map((doc, idx) => {
+  // Order files smartly: Question Papers first, Study Material next, Answer Keys last
+  // (so trailing answer keys automatically pair with preceding question papers!)
+  const roleOrder: Record<DocumentContentRole, number> = {
+    question_paper: 0,
+    study_material: 1,
+    answer_key: 2,
+  };
+  const ordered = [...active].sort((a, b) => roleOrder[a.role] - roleOrder[b.role]);
+  const perDocBudget = Math.floor(budgetForDocs / ordered.length);
+
+  const sections = ordered.map((doc, idx) => {
     const snippet = doc.text.slice(0, perDocBudget).trim();
-    return `=== SOURCE FILE ${idx + 1} (${doc.kind.toUpperCase()}): ${doc.name} ===\n${snippet}`;
+    if (doc.role === 'answer_key') {
+      return `=== ANSWER KEY (${doc.kind.toUpperCase()}): ${doc.name} ===\nANSWER KEY:\n${snippet}`;
+    }
+    const roleTag = doc.role === 'question_paper' ? 'QUESTION PAPER' : 'STUDY MATERIAL';
+    return `=== SOURCE FILE ${idx + 1} [${roleTag} · ${doc.kind.toUpperCase()}]: ${doc.name} ===\n${snippet}`;
   });
 
   if (extra) {
