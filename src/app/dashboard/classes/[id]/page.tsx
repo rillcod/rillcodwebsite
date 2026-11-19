@@ -4529,35 +4529,36 @@ export default function ClassDetailPage() {
           filteredDirectlyEnrollable.length > 0 &&
           filteredDirectlyEnrollable.every((s: any) => selectedStudentIds.has(s.id));
         return (
-          <div className="mobile-native-dialog fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+          <div className="mobile-native-dialog fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
-            <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[92vh] ${enrolMode === 'paste' ? 'max-w-3xl' : 'max-w-xl'}`}>
+            <div className={`bg-card border-0 sm:border border-border rounded-none sm:rounded-2xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90dvh] pb-[env(safe-area-inset-bottom)] ${enrolMode === 'paste' ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}>
 
               {/* Header */}
-              <div className="px-4 sm:px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0 gap-3">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between flex-shrink-0 gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-bold text-foreground">Enrol Students into {cls?.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                  <h3 className="text-sm sm:text-base font-black text-foreground truncate">Add &amp; Adopt · {cls?.name}</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                     {enrolMode === 'paste'
-                      ? 'Emergency claim — pull existing kids here with full ownership'
-                      : `${totalUnassignedCount} unassigned · ${totalOtherCount} in other classes · ${selectedStudentIds.size} selected${cls?.max_students ? ` (${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}`}
+                      ? 'Paste names to auto-match & transfer'
+                      : `${totalUnassignedCount} unassigned · ${totalOtherCount} other · ${selectedStudentIds.size} selected`}
                   </p>
                 </div>
                 <button
                   type="button"
+                  aria-label="Close Add and Adopt modal"
                   onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setModalPlacementFilter('all'); setModalGradeFilter(''); setShowMoreStudents(false); resetPasteClaimState(); }}
-                  className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-colors text-lg"
+                  className="w-9 h-9 flex-shrink-0 flex items-center justify-center bg-muted/60 hover:bg-muted rounded-xl text-foreground transition-colors text-xl font-bold"
                 >
                   &times;
                 </button>
               </div>
 
               {/* Mode tabs */}
-              <div className="px-4 sm:px-6 pt-4 pb-1 flex flex-wrap gap-2 flex-shrink-0">
+              <div className="px-4 sm:px-6 pt-2.5 pb-2 flex gap-1.5 flex-shrink-0 border-b border-border/60">
                 <button
                   type="button"
                   onClick={() => setEnrolMode('current')}
-                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   Pick &amp; Promote
                 </button>
@@ -4565,152 +4566,52 @@ export default function ClassDetailPage() {
                   <button
                     type="button"
                     onClick={() => { setEnrolMode('paste'); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
-                    className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                    className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-900 shadow-sm' : 'bg-background text-muted-foreground hover:bg-muted border border-border'}`}
                   >
-                    Paste Names (Auto-Match)
+                    Paste Names
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setEnrolMode('create')}
-                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 py-2 px-2 rounded-xl text-[11px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-700 text-white shadow-sm' : 'bg-background text-muted-foreground hover:bg-muted border border-border'}`}
                 >
                   + New class
                 </button>
               </div>
 
-              {/* Current-class mode: select students */}
+              {/* Current-class mode: compact fixed search + full scrollable body so student names are ALWAYS visible on iPhone */}
               {enrolMode === 'current' && (
                 <>
-                  {/* Team Promotion / Demotion & Source Class Selector Banner */}
                   {availableStudents.length > 0 && (
-                    <div className="mx-4 sm:mx-6 mt-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 space-y-2.5">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-black text-emerald-900 dark:text-emerald-200">
-                            {feederStudents.length > 0
-                              ? `Returning Students & Team Handover (${feederStudents.length} from ${feederGradeName || 'prior grade'} → ${cls?.qa_grade_key || cls?.name})`
-                              : `Team Handover & Class Promotion into ${cls?.name}`}
-                          </p>
-                          <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-                            Pick any class in this school, choose who to promote, demote, or retain, and move them with all existing records intact (zero duplicates).
-                          </p>
-                        </div>
-                        {feederStudents.length > 0 && (
+                    <div className="px-4 sm:px-6 py-2.5 border-b border-border/60 flex-shrink-0 bg-card space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          aria-label="Search students"
+                          type="text"
+                          placeholder="Search student name, grade, class…"
+                          value={studentSearch}
+                          onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
+                          className="flex-1 min-w-0 px-3.5 py-2 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                        {selectedStudentIds.size > 0 && (
                           <button
                             type="button"
+                            onClick={() => syncSelectedStudents()}
                             disabled={!!processingStudent}
-                            onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id), 'promote')}
-                            className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black disabled:opacity-50 shrink-0"
+                            className="shrink-0 px-3.5 py-2 bg-primary text-primary-foreground text-xs font-black rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                           >
-                            Promote All {feederGradeName} ({feederStudents.length})
+                            {processingStudent === 'loading'
+                              ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                              : <>Adopt ({selectedStudentIds.size})</>}
                           </button>
                         )}
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                        <div>
-                          <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
-                            1. Select Source Class (Same School)
-                          </label>
-                          <select
-                            aria-label="Filter by source class in same school"
-                            value={modalClassFilter}
-                            onChange={(e) => {
-                              const nextClsId = e.target.value;
-                              setModalClassFilter(nextClsId);
-                              setShowMoreStudents(false);
-                              if (nextClsId) {
-                                const matchingIds = availableStudents
-                                  .filter((s: any) => s.class_id === nextClsId && (pasteClaimEnabled || !s.requires_transfer_request))
-                                  .slice(0, seatsLeft)
-                                  .map((s: any) => s.id);
-                                setSelectedStudentIds(new Set(matchingIds));
-                              }
-                            }}
-                            className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
-                          >
-                            <option value="">All Classes in School ({availableStudents.length})</option>
-                            {modalSchoolClasses.map((sc) => (
-                              <option key={sc.id} value={sc.id}>
-                                {sc.name}{sc.qa_grade_key ? ` (${sc.qa_grade_key})` : ''}{sc.teacher_name ? ` — ${sc.teacher_name}` : ''} · {sc.student_count} student{sc.student_count === 1 ? '' : 's'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
-                            2. Action &amp; Target Grade Pitch
-                          </label>
-                          <div className="flex flex-col sm:flex-row gap-1.5">
-                            <div className="grid grid-cols-3 gap-1 flex-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
-                              {([
-                                { id: 'promote', label: '⬆ Promote (+1)' },
-                                { id: 'demote', label: '⬇ Demote (-1)' },
-                                { id: 'retain', label: '↔ Keep Grade' },
-                              ] as const).map((act) => (
-                                <button
-                                  key={act.id}
-                                  type="button"
-                                  onClick={() => setModalGradeAction(act.id)}
-                                  className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${
-                                    modalGradeAction === act.id
-                                      ? 'bg-emerald-700 text-white'
-                                      : 'text-muted-foreground hover:text-foreground'
-                                  }`}
-                                >
-                                  {act.label}
-                                </button>
-                              ))}
-                            </div>
-                            <select
-                              aria-label="Target grade pitch"
-                              value={modalTargetGrade}
-                              onChange={(e) => setModalTargetGrade(e.target.value)}
-                              className="rounded-lg border border-emerald-500/35 bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground focus:outline-none focus:border-primary"
-                            >
-                              <option value="">Auto (+1 Increment)</option>
-                              {SINGLE_GRADES.map((g) => (
-                                <option key={`modal-pitch-${g}`} value={g}>Pitch: {g}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Search & Filter controls */}
-                  {availableStudents.length > 0 && (
-                    <div className="px-4 sm:px-6 pt-3 pb-1 space-y-2 flex-shrink-0">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input aria-label="Search students"
-                          type="text"
-                          placeholder="Search by name, grade, previous class, email or school..."
-                          value={studentSearch}
-                          onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
-                          className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                        />
-                        {distinctGradesInModal.length > 0 && (
-                          <select
-                            aria-label="Filter by grade"
-                            value={modalGradeFilter}
-                            onChange={e => { setModalGradeFilter(e.target.value); setShowMoreStudents(false); }}
-                            className="px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-xs font-bold text-foreground focus:outline-none focus:border-primary"
-                          >
-                            <option value="">All grades ({availableStudents.length})</option>
-                            {distinctGradesInModal.map(g => (
-                              <option key={g} value={g}>{g}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
                         {([
                           { id: 'all', label: `All (${availableStudents.length})` },
                           ...(feederStudents.length > 0
-                            ? [{ id: 'feeder' as const, label: `Promote from ${feederGradeName || 'Prior Grade'} (${feederStudents.length})` }]
+                            ? [{ id: 'feeder' as const, label: `${feederGradeName || 'Prior'} (${feederStudents.length})` }]
                             : []),
                           { id: 'unassigned', label: `Unassigned (${totalUnassignedCount})` },
                           { id: 'other', label: `Other classes (${totalOtherCount})` },
@@ -4719,7 +4620,7 @@ export default function ClassDetailPage() {
                             key={tab.id}
                             type="button"
                             onClick={() => { setModalPlacementFilter(tab.id); setShowMoreStudents(false); }}
-                            className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
+                            className={`shrink-0 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
                               modalPlacementFilter === tab.id
                                 ? 'border-primary bg-primary/15 text-primary'
                                 : 'border-border bg-background text-muted-foreground hover:text-foreground'
@@ -4731,9 +4632,121 @@ export default function ClassDetailPage() {
                       </div>
                     </div>
                   )}
-                  {/* Toolbar */}
+
+                  {/* Single smooth scrollable area on iPhone & desktop — names are immediately visible */}
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-3 pb-8 custom-scrollbar space-y-3">
+                  {/* Collapsible Team Promotion / Source Class / Target Grade Pitch (keeps iPhone screen clear for names) */}
                   {availableStudents.length > 0 && (
-                    <div className="px-4 sm:px-6 pt-2 pb-2 flex flex-wrap items-center gap-2 flex-shrink-0">
+                    <details className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 overflow-hidden">
+                      <summary className="cursor-pointer select-none px-3 py-2.5 flex items-center justify-between gap-2 text-xs font-black text-emerald-900 dark:text-emerald-200">
+                        <span className="truncate">
+                          Filter by Class · Action ({modalGradeAction === 'promote' ? '⬆ +1' : modalGradeAction === 'demote' ? '⬇ -1' : '↔ Keep'}{modalTargetGrade ? ` → ${modalTargetGrade}` : ''})
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">Options ▾</span>
+                      </summary>
+                      <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-emerald-500/20">
+                        {feederStudents.length > 0 && (
+                          <button
+                            type="button"
+                            disabled={!!processingStudent}
+                            onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id), 'promote')}
+                            className="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black disabled:opacity-50"
+                          >
+                            Promote All {feederGradeName} ({feederStudents.length})
+                          </button>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
+                              1. Source Class / Grade
+                            </label>
+                            <div className="flex flex-col gap-1.5">
+                              <select
+                                aria-label="Filter by source class in same school"
+                                value={modalClassFilter}
+                                onChange={(e) => {
+                                  const nextClsId = e.target.value;
+                                  setModalClassFilter(nextClsId);
+                                  setShowMoreStudents(false);
+                                  if (nextClsId) {
+                                    const matchingIds = availableStudents
+                                      .filter((s: any) => s.class_id === nextClsId && (pasteClaimEnabled || !s.requires_transfer_request))
+                                      .slice(0, seatsLeft)
+                                      .map((s: any) => s.id);
+                                    setSelectedStudentIds(new Set(matchingIds));
+                                  }
+                                }}
+                                className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
+                              >
+                                <option value="">All Classes in School ({availableStudents.length})</option>
+                                {modalSchoolClasses.map((sc) => (
+                                  <option key={sc.id} value={sc.id}>
+                                    {sc.name}{sc.qa_grade_key ? ` (${sc.qa_grade_key})` : ''} · {sc.student_count}
+                                  </option>
+                                ))}
+                              </select>
+                              {distinctGradesInModal.length > 0 && (
+                                <select
+                                  aria-label="Filter by grade"
+                                  value={modalGradeFilter}
+                                  onChange={e => { setModalGradeFilter(e.target.value); setShowMoreStudents(false); }}
+                                  className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
+                                >
+                                  <option value="">All grades ({availableStudents.length})</option>
+                                  {distinctGradesInModal.map(g => (
+                                    <option key={g} value={g}>{g}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
+                              2. Action &amp; Target Grade Pitch
+                            </label>
+                            <div className="flex flex-col gap-1.5">
+                              <div className="grid grid-cols-3 gap-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
+                                {([
+                                  { id: 'promote', label: '⬆ +1' },
+                                  { id: 'demote', label: '⬇ -1' },
+                                  { id: 'retain', label: '↔ Keep' },
+                                ] as const).map((act) => (
+                                  <button
+                                    key={act.id}
+                                    type="button"
+                                    onClick={() => setModalGradeAction(act.id)}
+                                    className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${
+                                      modalGradeAction === act.id
+                                        ? 'bg-emerald-700 text-white'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                  >
+                                    {act.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <select
+                                aria-label="Target grade pitch"
+                                value={modalTargetGrade}
+                                onChange={(e) => setModalTargetGrade(e.target.value)}
+                                className="w-full rounded-lg border border-emerald-500/35 bg-background px-2.5 py-2 text-xs font-bold text-foreground focus:outline-none focus:border-primary"
+                              >
+                                <option value="">Auto (+1 Increment)</option>
+                                {SINGLE_GRADES.map((g) => (
+                                  <option key={`modal-pitch-${g}`} value={g}>Pitch: {g}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  )}
+
+                  {/* Quick Select Toolbar */}
+                  {availableStudents.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -4754,45 +4767,31 @@ export default function ClassDetailPage() {
                             });
                           }
                         }}
-                        className="px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground rounded-xl transition-all"
+                        className="px-3 py-1.5 bg-background hover:bg-muted border border-border text-[11px] font-bold text-foreground rounded-xl transition-all"
                       >
                         {allFilteredEnrollableSelected
-                          ? `Deselect Matching (${filteredDirectlyEnrollable.length})`
-                          : `Select Available (${filteredDirectlyEnrollable.length})`}
+                          ? `Deselect (${filteredDirectlyEnrollable.length})`
+                          : `Select All (${filteredDirectlyEnrollable.length})`}
                       </button>
                       {selectedStudentIds.size > 0 && (
                         <button
                           type="button"
                           onClick={() => setSelectedStudentIds(new Set())}
-                          className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
+                          className="px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground underline"
                         >
                           Clear ({selectedStudentIds.size})
                         </button>
                       )}
-                      <div className="flex-1" />
                       {requestableTransfers.length > 0 && (
-                        <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-[10px] font-bold text-slate-900 dark:text-slate-200 rounded-xl transition-all">
-                          Request all {requestableTransfers.length} transfers
-                        </button>
-                      )}
-                      {selectedStudentIds.size > 0 && (
-                        <button
-                          onClick={() => syncSelectedStudents()}
-                          disabled={!!processingStudent}
-                          className="px-4 py-1.5 bg-primary hover:bg-primary text-[10px] font-bold text-primary-foreground rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5"
-                        >
-                          {processingStudent === 'loading'
-                            ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Enrolling…</>
-                            : pasteClaimEnabled
-                              ? <>Claim {selectedStudentIds.size} now</>
-                              : <>Enrol {selectedStudentIds.size} student{selectedStudentIds.size !== 1 ? 's' : ''}</>}
+                        <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="ml-auto px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-[11px] font-bold text-slate-900 rounded-xl transition-all">
+                          Request {requestableTransfers.length} transfers
                         </button>
                       )}
                     </div>
                   )}
 
                   {/* Student list */}
-                  <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 custom-scrollbar space-y-4">
+                  <div className="space-y-3">
                     {processingStudent === 'loading' ? (
                       <div className="py-20 text-center">
                         <ArrowPathIcon className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
@@ -4841,7 +4840,7 @@ export default function ClassDetailPage() {
                                 return n;
                               });
                             }}
-                            className={`flex items-center gap-3 p-3 border rounded-xl transition-all ${
+                            className={`flex flex-col sm:flex-row sm:items-center gap-2.5 p-3 border rounded-xl transition-all ${
                               requiresRequest
                                 ? 'bg-amber-500/[0.04] border-amber-500/25'
                                 : isBlocked
@@ -4851,47 +4850,46 @@ export default function ClassDetailPage() {
                                     : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-primary/20 cursor-pointer' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20 cursor-pointer'
                             }`}
                           >
-                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : requiresRequest ? 'border-amber-400/60 bg-amber-500/10' : 'border-border'}`}>
-                              {isChecked ? <CheckIconOutline className="w-3 h-3 text-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-700 dark:text-amber-300" /> : null}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
-                                {gradeText && (
-                                  <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-foreground">
-                                    {gradeText}
-                                    {student.suggested_grade && student.suggested_grade !== gradeText
-                                      ? ` → ${student.suggested_grade}`
-                                      : ''}
-                                  </span>
-                                )}
-                                {!student.class_id && (
-                                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400">
-                                    Unassigned
-                                  </span>
-                                )}
+                            <div className="flex items-start gap-3 min-w-0 flex-1">
+                              <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : requiresRequest ? 'border-amber-400/60 bg-amber-500/10' : 'border-border'}`}>
+                                {isChecked ? <CheckIconOutline className="w-3 h-3 text-primary-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-700 dark:text-amber-300" /> : null}
                               </div>
-                              <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                                <p className="text-xs text-muted-foreground truncate">{student.email}</p>
-                                {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">{student.school_name}</span>}
-                                {canDirectClaim && (
-                                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400">
-                                    Direct claim
-                                  </span>
-                                )}
-                              </div>
-                              {student.class_id && (
-                                <div className="mt-1 text-[10px] text-amber-700/90 dark:text-amber-300/90">
-                                  <p><span className="font-black">Class:</span> {student.current_class_name || student.section_class || 'Another class'}</p>
-                                  <p><span className="font-black">Owner:</span> {student.current_teacher_name || 'Unknown teacher'}{student.current_teacher_email ? ` · ${student.current_teacher_email}` : ''}</p>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="text-sm font-bold text-foreground break-words">{student.full_name}</p>
+                                  {gradeText && (
+                                    <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-foreground">
+                                      {gradeText}
+                                      {student.suggested_grade && student.suggested_grade !== gradeText
+                                        ? ` → ${student.suggested_grade}`
+                                        : ''}
+                                    </span>
+                                  )}
+                                  {!student.class_id && (
+                                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                      Unassigned
+                                    </span>
+                                  )}
                                 </div>
-                              )}
+                                <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                  <p className="text-xs text-muted-foreground break-all">{student.email}</p>
+                                  {canDirectClaim && (
+                                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                      Direct claim
+                                    </span>
+                                  )}
+                                </div>
+                                {student.class_id && (
+                                  <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-300 break-words">
+                                    <span className="font-bold">From:</span> {student.current_class_name || student.section_class || 'Another class'}
+                                    {student.current_teacher_name ? ` · ${student.current_teacher_name}` : ''}
+                                  </p>
+                                )}
+                              </div>
                             </div>
+                            <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:pl-0 sm:shrink-0" onClick={(e) => e.stopPropagation()}>
                             {isChecked && !requiresRequest && (
-                              <div
-                                className="flex items-center gap-1 shrink-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                              <div className="flex items-center gap-1">
                                 {(['promote', 'demote', 'retain'] as const).map((act) => {
                                   const effective = modalStudentActions[student.id] || modalGradeAction;
                                   const active = effective === act;
@@ -4903,7 +4901,7 @@ export default function ClassDetailPage() {
                                         setModalStudentActions((prev) => ({ ...prev, [student.id]: act }))
                                       }
                                       title={act === 'promote' ? 'Promote grade' : act === 'demote' ? 'Demote 1 grade' : 'Keep current grade'}
-                                      className={`px-2 py-1 rounded-md text-[9px] font-black uppercase border transition-colors ${
+                                      className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border transition-colors ${
                                         active
                                           ? act === 'demote'
                                             ? 'bg-amber-500 text-black border-amber-500'
@@ -4913,7 +4911,7 @@ export default function ClassDetailPage() {
                                           : 'bg-background text-muted-foreground border-border hover:text-foreground'
                                       }`}
                                     >
-                                      {act === 'promote' ? '⬆ Promote' : act === 'demote' ? '⬇ Demote' : '↔ Keep'}
+                                      {act === 'promote' ? '⬆ +1' : act === 'demote' ? '⬇ -1' : '↔ Keep'}
                                     </button>
                                   );
                                 })}
@@ -4928,7 +4926,7 @@ export default function ClassDetailPage() {
                                   void assignStudent(student.id, modalStudentActions[student.id] || modalGradeAction || 'promote');
                                 }}
                                 title={`Adopt ${student.full_name} into ${cls?.name ?? 'this class'} immediately`}
-                                className="shrink-0 rounded-lg bg-emerald-700 px-2.5 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40 ml-auto sm:ml-0"
                               >
                                 {processingStudent === student.id ? 'Adopting…' : 'Adopt'}
                               </button>
@@ -4937,13 +4935,14 @@ export default function ClassDetailPage() {
                               student.pending_transfer_request_id ? (
                                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Request pending</span>
                               ) : (
-                                <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-900 dark:text-slate-200 hover:bg-amber-400">
+                                <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-900 hover:bg-amber-400">
                                   Request transfer
                                 </button>
                               )
                             ) : isBlocked ? (
                               <span className="text-[8px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">Full</span>
                             ) : null}
+                            </div>
                           </div>
                         );
                       };
@@ -5009,8 +5008,9 @@ export default function ClassDetailPage() {
                       );
                     })()}
                   </div>
+                  </div>
 
-                  <div className="px-4 sm:px-6 py-4 border-t border-border flex-shrink-0 flex items-center justify-between gap-3">
+                  <div className="px-4 sm:px-6 py-3 border-t border-border bg-card flex-shrink-0 flex items-center justify-between gap-3">
                     <span className="text-xs font-bold text-muted-foreground">{selectedStudentIds.size} selected</span>
                     <div className="flex items-center gap-2">
                       <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-xl transition-all">
