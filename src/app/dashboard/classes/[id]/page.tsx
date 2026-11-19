@@ -1752,14 +1752,14 @@ export default function ClassDetailPage() {
                     }}
                     className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
                       offBandCount > 0
-                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25'
-                        : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                        ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                        : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/20'
                     }`}
                   >
                     <CheckCircleIcon className="h-3.5 w-3.5" />
                     Confirm Grades
                     {offBandCount > 0 && (
-                      <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black text-primary-foreground">
                         {offBandCount}
                       </span>
                     )}
@@ -1805,12 +1805,12 @@ export default function ClassDetailPage() {
         )}
 
         {isStaff && offBandCount > 0 && !(activeOperation === 'roster' && showSessionConfirm) && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-card px-4 py-3 text-xs shadow-sm">
             <div className="min-w-0">
-              <p className="font-black text-amber-900 dark:text-amber-200">
-                Session Grade Check: {offBandCount} student{offBandCount === 1 ? ' still carries' : 's still carry'} a previous session&apos;s grade
+              <p className="font-black text-foreground">
+                Session Grade Check · <span className="text-primary">{offBandCount} student{offBandCount === 1 ? '' : 's'}</span> still carry a previous session&apos;s grade
               </p>
-              <p className="mt-0.5 text-[11px] text-amber-800/85 dark:text-amber-300/85">
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
                 Confirm returning students with their new grade, withdraw anyone who left, or add new students inline.
               </p>
             </div>
@@ -1821,7 +1821,7 @@ export default function ClassDetailPage() {
                 openSessionConfirm();
                 setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
               }}
-              className="shrink-0 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-slate-900 hover:bg-amber-400 transition-colors"
+              className="shrink-0 min-h-10 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity"
             >
               Confirm Session &amp; Grades →
             </button>
@@ -1996,20 +1996,6 @@ export default function ClassDetailPage() {
                             </button>
                           ) : ' ✓'}
                         </p>
-                      )}
-                      {isStaff && offBandCount > 0 && !showSessionConfirm && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs">
-                          <span className="font-semibold text-amber-800 dark:text-amber-200">
-                            {offBandCount} student{offBandCount === 1 ? ' still carries' : 's still carry'} a prior-session grade (off-band for {cls?.name}).
-                          </span>
-                          <button
-                            type="button"
-                            onClick={openSessionConfirm}
-                            className="rounded-lg bg-amber-500 px-3 py-1 text-[11px] font-black text-slate-900 hover:bg-amber-400 transition-colors"
-                          >
-                            Confirm Session &amp; Update Grades →
-                          </button>
-                        </div>
                       )}
                       {isStaff && (
                         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -2883,7 +2869,7 @@ export default function ClassDetailPage() {
                                       }}
                                       className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide outline-none cursor-pointer ${
                                         offBand
-                                          ? 'border-amber-500/50 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                                          ? 'border-primary/40 bg-primary/10 text-primary'
                                           : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
                                       }`}
                                     >

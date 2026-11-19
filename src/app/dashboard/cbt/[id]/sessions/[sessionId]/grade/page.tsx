@@ -12,6 +12,7 @@ import {
 } from '@/lib/icons';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { gradeCbtWithManualScores, isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
+import { parseEssayAnswer } from '@/lib/cbt/essay-attachments';
 
 export default function GradeSessionPage() {
     const params = useParams() as { id: string, sessionId: string };
@@ -357,7 +358,6 @@ export default function GradeSessionPage() {
 
                 <div className="grid grid-cols-1 gap-10">
                     {subjectiveQuestions.map((q, i) => {
-                        const studentAnswer = session.answers[q.id] || '(No response provided by student)';
                         const scoreWeight = (manualScores[q.id] || 0) / (q.points || 1);
                         
                         return (
@@ -453,9 +453,52 @@ export default function GradeSessionPage() {
                                                             </span>
                                                         </div>
                                                     </div>
-                                                ) : (
-                                                    `"${studentAnswer}"`
-                                                )}
+                                                ) : (() => {
+                                                    const parsed = parseEssayAnswer(session.answers?.[q.id]);
+                                                    if (!parsed.text.trim() && parsed.attachments.length === 0) {
+                                                        return '(No response provided by student)';
+                                                    }
+                                                    return (
+                                                        <div className="space-y-4 not-italic">
+                                                            {parsed.text.trim() ? (
+                                                                <p className="whitespace-pre-wrap text-foreground font-medium">{parsed.text}</p>
+                                                            ) : null}
+                                                            {parsed.attachments.length > 0 && (
+                                                                <div className="space-y-2 pt-2 border-t border-border/60">
+                                                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                                                        Attached Student Work ({parsed.attachments.length})
+                                                                    </p>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                        {parsed.attachments.map((att) => (
+                                                                            <a
+                                                                                key={att.url}
+                                                                                href={att.url}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="block overflow-hidden rounded-xl border border-border bg-card hover:border-primary/50 transition-colors"
+                                                                            >
+                                                                                {att.isImage ? (
+                                                                                    <img
+                                                                                        src={att.url}
+                                                                                        alt={att.name}
+                                                                                        className="w-full max-h-56 object-contain bg-muted/40"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="p-4 text-center text-xs font-bold text-primary">
+                                                                                        Open PDF: {att.name}
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground truncate border-t border-border/60">
+                                                                                    {att.name} · Click to open full size
+                                                                                </div>
+                                                                            </a>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
 

@@ -5,10 +5,20 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon
+  ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
+  PhotoIcon, CameraIcon, DocumentTextIcon, XMarkIcon,
+  ExclamationTriangleIcon, CloudArrowUpIcon,
 } from '@/lib/icons';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import { isObjectiveQuestion, normalizeCbtOptions } from '@/lib/cbt/print-utils';
+import {
+  countEssayWords,
+  hasEssayResponse,
+  isImageAttachment,
+  parseEssayAnswer,
+  serializeEssayAnswer,
+  type EssayAttachment,
+} from '@/lib/cbt/essay-attachments';
 
 function CodingBlocksChallenge({
   question,
@@ -91,6 +101,14 @@ export default function TakeExamPage() {
   const [loading, setLoading] = useState(true);
   const [examError, setExamError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [uploadingForQ, setUploadingForQ] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const startTimeRef = useRef<Date>(new Date());
   const submitRef = useRef<any>(null);
 
@@ -144,8 +162,8 @@ export default function TakeExamPage() {
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (submitting || submitted) return;
-    if (!auto && !confirm('Submit exam? You cannot change answers after submission.')) return;
     setSubmitting(true);
+    setShowSubmitModal(false);
     setExamError(null);
     try {
       const sessionRes = await fetch('/api/cbt/sessions', {
@@ -181,24 +199,104 @@ export default function TakeExamPage() {
     }
   }, [submitting, submitted, questions, answers, exam, profile]);
 
+  const persistAnswersNow = useCallback(async (nextAnswers: Record<string, string>) => {
+    if (!sessionId || submitted || loading) return;
+    setSaveState('saving');
+    try {
+      const res = await fetch(`/api/cbt/sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: nextAnswers }),
+      });
+      setSaveState(res.ok ? 'saved' : 'error');
+    } catch {
+      setSaveState('error');
+    }
+  }, [loading, sessionId, submitted]);
+
+  const uploadEssayFiles = useCallback(async (questionId: string, fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter(Boolean);
+    if (files.length === 0) return;
+
+    const currentParsed = parseEssayAnswer(answers[questionId]);
+    const remainingSlots = Math.max(0, 5 - currentParsed.attachments.length);
+    if (remainingSlots === 0) {
+      setUploadError('Maximum 5 attachments per question. Remove one to add another.');
+      return;
+    }
+
+    setUploadingForQ(questionId);
+    setUploadError(null);
+    const added: EssayAttachment[] = [];
+
+    try {
+      for (const file of files.slice(0, remainingSlots)) {
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`"${file.name}" is larger than 10 MB.`);
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json?.error || `Could not upload "${file.name}".`);
+        }
+        const uploadedUrl = json?.data?.public_url || json?.data?.url || json?.data?.receipt?.url;
+        if (!uploadedUrl) {
+          throw new Error(`Upload succeeded but no file link was returned for "${file.name}".`);
+        }
+        added.push({
+          name: file.name || 'Attachment',
+          url: uploadedUrl,
+          isImage: file.type ? file.type.startsWith('image/') : isImageAttachment(file.name || uploadedUrl),
+        });
+      }
+
+      if (added.length > 0) {
+        const nextValue = serializeEssayAnswer(currentParsed.text, [...currentParsed.attachments, ...added]);
+        const nextAnswers = { ...answers, [questionId]: nextValue };
+        setAnswers(nextAnswers);
+        void persistAnswersNow(nextAnswers);
+      }
+    } catch (err: any) {
+      setUploadError(err?.message || 'Could not attach image. Please retry.');
+    } finally {
+      setUploadingForQ(null);
+    }
+  }, [answers, persistAnswersNow]);
+
+  const removeEssayAttachment = useCallback((questionId: string, urlToRemove: string) => {
+    const parsed = parseEssayAnswer(answers[questionId]);
+    const nextAttachments = parsed.attachments.filter((a) => a.url !== urlToRemove);
+    const nextValue = serializeEssayAnswer(parsed.text, nextAttachments);
+    const nextAnswers = { ...answers, [questionId]: nextValue };
+    setAnswers(nextAnswers);
+    void persistAnswersNow(nextAnswers);
+  }, [answers, persistAnswersNow]);
+
+  const toggleFlag = (questionId: string) => {
+    setFlaggedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(questionId)) next.delete(questionId);
+      else next.add(questionId);
+      return next;
+    });
+  };
+
   useEffect(() => {
     submitRef.current = handleSubmit;
   }, [handleSubmit]);
 
   useEffect(() => {
     if (!sessionId || submitted || loading) return;
-    const save = () => {
-      fetch(`/api/cbt/sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers }),
-      }).catch(() => {
-        // Autosave is best-effort; final submission still reports hard failures.
-      });
-    };
-    const t = setInterval(save, 10_000);
+    const t = setInterval(() => {
+      void persistAnswersNow(answers);
+    }, 10_000);
     return () => clearInterval(t);
-  }, [answers, loading, sessionId, submitted]);
+  }, [answers, loading, persistAnswersNow, sessionId, submitted]);
 
   // Countdown timer
   useEffect(() => {
@@ -239,13 +337,7 @@ export default function TakeExamPage() {
   }, [loading, submitted, questions, current]);
 
   const confirmAndSubmit = () => {
-    const unanswered = questions.length - Object.values(answers).filter((v) => String(v ?? '').trim().length > 0).length;
-    if (unanswered > 0) {
-      if (!window.confirm(`You still have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'}. Submit your exam anyway?`)) {
-        return;
-      }
-    }
-    void handleSubmit(false);
+    setShowSubmitModal(true);
   };
 
   if (authLoading || loading) return (
@@ -361,9 +453,22 @@ export default function TakeExamPage() {
 
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;
-  const answered = questions.filter((question) => String(answers[question.id] ?? '').trim().length > 0).length;
+  const isQuestionAnswered = (question: any) => hasEssayResponse(answers[question?.id]);
+  const answered = questions.filter(isQuestionAnswered).length;
+  const totalAttachments = questions.reduce(
+    (sum, question) => sum + parseEssayAnswer(answers[question.id]).attachments.length,
+    0,
+  );
+  const unansweredIndices = questions
+    .map((question, idx) => (!isQuestionAnswered(question) ? idx : -1))
+    .filter((idx) => idx >= 0);
+  const flaggedIndices = questions
+    .map((question, idx) => (flaggedIds.has(question.id) ? idx : -1))
+    .filter((idx) => idx >= 0);
   const mcqOptions = q ? normalizeCbtOptions(q.options, q.question_type) : [];
   const showMcq = q && isObjectiveQuestion(q) && mcqOptions.length > 0 && q.question_type !== 'true_false';
+  const currentEssayParsed = q ? parseEssayAnswer(answers[q.id]) : { text: '', attachments: [] };
+  const isCurrentFlagged = Boolean(q && flaggedIds.has(q.id));
 
   return (
     <div className={"min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30 pb-[calc(var(--app-bottom-nav-height)+9.5rem)] md:pb-0 mobile-page-root"}>
@@ -383,9 +488,25 @@ export default function TakeExamPage() {
             </div>
           </div>
 
-          <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
-            <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600/50 dark:text-emerald-400/50'}`} />
-            <span className="text-sm sm:text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            {saveState !== 'idle' && (
+              <span
+                className={`hidden sm:inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
+                  saveState === 'error'
+                    ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    : saveState === 'saving'
+                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                      : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                }`}
+              >
+                <CloudArrowUpIcon className="h-3.5 w-3.5" />
+                {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Retry pending' : 'Saved'}
+              </span>
+            )}
+            <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
+              <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600/50 dark:text-emerald-400/50'}`} />
+              <span className="text-sm sm:text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
+            </div>
           </div>
         </div>
         {examError && (
@@ -409,7 +530,21 @@ export default function TakeExamPage() {
                   {isObjectiveQuestion(q) ? 'Section A · Objective' : 'Section B · Theory / Written'}
                 </span>
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
-                <span className="sm:hidden text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-auto">{current + 1}/{questions.length}</span>
+                {q && (
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag(q.id)}
+                    className={`ml-auto inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                      isCurrentFlagged
+                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                        : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+                    {isCurrentFlagged ? 'Flagged' : 'Flag'}
+                  </button>
+                )}
+                <span className="sm:hidden text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{current + 1}/{questions.length}</span>
               </div>
               <div className="text-lg sm:text-3xl font-bold text-foreground leading-snug sm:leading-tight break-words">
                 <CbtMarkdown text={q?.question_text ?? ''} />
@@ -456,15 +591,158 @@ export default function TakeExamPage() {
               )}
 
               {(q?.question_type === 'fill_blank' || q?.question_type === 'essay') && (
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-emerald-500/5 blur-2xl rounded-[2rem] opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                  <textarea
-                    rows={q.question_type === 'essay' ? 8 : 3}
-                    value={answers[q?.id] ?? ''}
-                    onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
-                    placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Provide the specific answer…'}
-                    className="relative w-full px-4 sm:px-8 py-4 sm:py-6 bg-muted/20 border-2 border-border rounded-2xl sm:rounded-[2rem] text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-y shadow-2xl"
-                  />
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-emerald-500/5 blur-2xl rounded-[2rem] opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
+                    <textarea
+                      aria-label={q.question_type === 'essay' ? 'Essay answer' : 'Written answer'}
+                      rows={q.question_type === 'essay' ? 7 : 3}
+                      value={currentEssayParsed.text}
+                      onChange={(e) => {
+                        const serialized = serializeEssayAnswer(e.target.value, currentEssayParsed.attachments);
+                        setAnswers((a) => ({ ...a, [q.id]: serialized }));
+                      }}
+                      onPaste={(e) => {
+                        const items = Array.from(e.clipboardData?.items ?? []);
+                        const pastedImages = items
+                          .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+                          .map((item) => item.getAsFile())
+                          .filter((f): f is File => Boolean(f));
+                        if (pastedImages.length > 0) {
+                          e.preventDefault();
+                          void uploadEssayFiles(q.id, pastedImages);
+                        }
+                      }}
+                      placeholder={
+                        q.question_type === 'essay'
+                          ? 'Type your answer here… (Tip: you can also paste a screenshot with Ctrl+V or attach photos of your written work below)'
+                          : 'Provide the specific answer…'
+                      }
+                      className="relative w-full px-4 sm:px-6 py-4 sm:py-5 bg-muted/20 border-2 border-border rounded-2xl sm:rounded-[1.75rem] text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-y shadow-sm"
+                    />
+                  </div>
+
+                  {/* Smart Essay Attachment & Word Count Bar */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (e.dataTransfer?.files?.length) {
+                        void uploadEssayFiles(q.id, e.dataTransfer.files);
+                      }
+                    }}
+                    className="rounded-2xl border border-dashed border-border bg-card/80 p-3.5 sm:p-4 space-y-3"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      multiple
+                      className="hidden"
+                      aria-label="Upload image or PDF for answer"
+                      onChange={(e) => {
+                        if (e.target.files?.length) void uploadEssayFiles(q.id, e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      aria-label="Take photo of written work"
+                      onChange={(e) => {
+                        if (e.target.files?.length) void uploadEssayFiles(q.id, e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={uploadingForQ === q.id || currentEssayParsed.attachments.length >= 5}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3 py-1.5 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-40 transition-colors"
+                        >
+                          <PhotoIcon className="h-4 w-4" />
+                          {uploadingForQ === q.id ? 'Uploading…' : 'Attach Image / PDF'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={uploadingForQ === q.id || currentEssayParsed.attachments.length >= 5}
+                          onClick={() => cameraInputRef.current?.click()}
+                          className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-black text-foreground hover:border-primary/40 disabled:opacity-40 transition-colors sm:hidden"
+                        >
+                          <CameraIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          Take Photo
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground">
+                        <span>{countEssayWords(currentEssayParsed.text)} word{countEssayWords(currentEssayParsed.text) === 1 ? '' : 's'}</span>
+                        <span>·</span>
+                        <span>{currentEssayParsed.attachments.length}/5 attached</span>
+                      </div>
+                    </div>
+
+                    {uploadError && (
+                      <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-700 dark:text-rose-300">
+                        {uploadError}
+                      </p>
+                    )}
+
+                    {currentEssayParsed.attachments.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        {currentEssayParsed.attachments.map((att) => (
+                          <div
+                            key={att.url}
+                            className="group relative overflow-hidden rounded-xl border border-border bg-background"
+                          >
+                            {att.isImage ? (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImageUrl(att.url)}
+                                className="block w-full aspect-[4/3] overflow-hidden bg-muted"
+                                title={`Preview ${att.name}`}
+                              >
+                                <img
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={att.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 bg-muted/40 p-3 text-center hover:bg-muted/70"
+                              >
+                                <DocumentTextIcon className="h-8 w-8 text-primary" />
+                                <span className="line-clamp-2 text-[11px] font-bold text-foreground">{att.name}</span>
+                              </a>
+                            )}
+                            <div className="flex items-center justify-between gap-1 px-2 py-1.5 text-[10px]">
+                              <span className="truncate font-semibold text-muted-foreground">{att.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeEssayAttachment(q.id, att.url)}
+                                aria-label={`Remove ${att.name}`}
+                                className="shrink-0 rounded-md p-1 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+                              >
+                                <XMarkIcon className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">
+                        Attach diagrams, code screenshots, or photos of handwritten working (JPEG, PNG, WebP, or PDF up to 10 MB — or paste with Ctrl+V).
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -484,21 +762,24 @@ export default function TakeExamPage() {
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-2">Questions:</span>
                 {questions.map((item, idx) => {
-                  const isDone = String(answers[item.id] ?? '').trim().length > 0;
+                  const isDone = isQuestionAnswered(item);
+                  const isFlagged = flaggedIds.has(item.id);
                   const isActive = idx === current;
                   return (
                     <button
                       key={item.id ?? idx}
                       type="button"
                       onClick={() => setCurrent(idx)}
-                      className={`w-8 h-8 rounded-lg text-xs font-black border transition-all ${
+                      className={`relative w-8 h-8 rounded-lg text-xs font-black border transition-all ${
                         isActive
                           ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                          : isDone
-                            ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30'
-                            : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                          : isFlagged
+                            ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/50'
+                            : isDone
+                              ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30'
+                              : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
                       }`}
-                      aria-label={`Jump to question ${idx + 1}`}
+                      aria-label={`Jump to question ${idx + 1}${isFlagged ? ' (flagged)' : ''}`}
                     >
                       {idx + 1}
                     </button>
@@ -591,27 +872,161 @@ export default function TakeExamPage() {
           )}
         </div>
         <div className="px-3 py-2.5">
-          <p className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Jump to</p>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {questions.map((_, i) => (
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Jump to</p>
+            {answered > 0 && current < questions.length - 1 && (
               <button
-                key={i}
                 type="button"
-                onClick={() => setCurrent(i)}
-                className={`h-9 w-9 shrink-0 rounded-lg text-xs font-black transition-all ${
-                  i === current
-                    ? 'bg-emerald-700 text-white shadow-md'
-                    : answers[questions[i]?.id]
-                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'bg-muted/30 text-muted-foreground border border-border'
-                }`}
+                onClick={confirmAndSubmit}
+                disabled={submitting}
+                className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
               >
-                {i + 1}
+                Finish ({answered}/{questions.length})
               </button>
-            ))}
+            )}
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {questions.map((item, i) => {
+              const isFlagged = flaggedIds.has(item?.id);
+              const isDone = isQuestionAnswered(item);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setCurrent(i)}
+                  className={`h-9 w-9 shrink-0 rounded-lg text-xs font-black transition-all ${
+                    i === current
+                      ? 'bg-emerald-700 text-white shadow-md'
+                      : isFlagged
+                        ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/50'
+                        : isDone
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                          : 'bg-muted/30 text-muted-foreground border border-border'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* Smart Pre-Submit Review Modal */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-3 sm:p-6">
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitModal(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-foreground">Review &amp; Submit Exam</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Check your progress before final submission. You cannot edit answers once submitted.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSubmitModal(false)}
+                aria-label="Close review modal"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                <p className="text-xl font-black text-emerald-700 dark:text-emerald-300">{answered}/{questions.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Answered</p>
+              </div>
+              <div className={`rounded-2xl border p-3 ${unansweredIndices.length > 0 ? 'border-amber-500/35 bg-amber-500/10' : 'border-border bg-muted/30'}`}>
+                <p className={`text-xl font-black ${unansweredIndices.length > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}>{unansweredIndices.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Unanswered</p>
+              </div>
+              <div className="rounded-2xl border border-primary/25 bg-primary/10 p-3">
+                <p className="text-xl font-black text-primary">{totalAttachments}</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Attached</p>
+              </div>
+            </div>
+
+            {unansweredIndices.length > 0 && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                <p className="text-[11px] font-black text-amber-800 dark:text-amber-200">
+                  Skipped questions — tap to jump back:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {unansweredIndices.map((idx) => (
+                    <button
+                      key={`unans-${idx}`}
+                      type="button"
+                      onClick={() => { setCurrent(idx); setShowSubmitModal(false); }}
+                      className="rounded-lg border border-amber-500/40 bg-card px-2.5 py-1 text-xs font-black text-amber-800 dark:text-amber-200 hover:bg-amber-500/20"
+                    >
+                      Q{idx + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {flaggedIndices.length > 0 && (
+              <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3 space-y-2">
+                <p className="text-[11px] font-black text-primary">
+                  Flagged for review — tap to check:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {flaggedIndices.map((idx) => (
+                    <button
+                      key={`flag-${idx}`}
+                      type="button"
+                      onClick={() => { setCurrent(idx); setShowSubmitModal(false); }}
+                      className="rounded-lg border border-primary/35 bg-card px-2.5 py-1 text-xs font-black text-primary hover:bg-primary/10"
+                    >
+                      Q{idx + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setShowSubmitModal(false)}
+                className="min-h-11 flex-1 rounded-xl border border-border bg-background px-4 text-xs font-black text-foreground hover:bg-muted"
+              >
+                Keep Reviewing
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void handleSubmit(false)}
+                className="min-h-11 flex-1 rounded-xl bg-emerald-700 px-4 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-50"
+              >
+                {submitting ? 'Submitting…' : 'Submit Exam Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Size Image Preview Lightbox */}
+      {previewImageUrl && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onClick={() => setPreviewImageUrl(null)}>
+          <div className="relative max-h-[90vh] max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewImageUrl(null)}
+              aria-label="Close image preview"
+              className="absolute right-3 top-3 rounded-full bg-black/70 p-2 text-white hover:bg-black"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+            <img src={previewImageUrl} alt="Attached work preview" className="max-h-[85vh] w-auto object-contain" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
