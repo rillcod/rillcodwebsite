@@ -27,6 +27,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { buildStudentRosterRows, downloadStudentRosterPdf } from '@/lib/cards/exportRoster';
 import { buildBulkPrintHtml, fetchCardConfig, openPrintWindow, type CardHolder } from '@/lib/cards/printCard';
+import { openClassCredentialsPrintSheet } from '@/lib/classes/print-credentials-sheet';
 
 type Member = {
   id: string;
@@ -313,89 +314,26 @@ export default function ClassCardsPage() {
     }
   };
 
+  const missingPasswordRows = useMemo(
+    () => rows.filter((r) => !r.temp_password),
+    [rows],
+  );
+
   const printCredentialsSheet = () => {
     const list = selectedRows.length ? selectedRows : rows;
     if (!list.length) { toast.error('No students to print.'); return; }
-    const win = window.open('', '_blank');
-    if (!win) { toast.error('Pop-up blocked — allow pop-ups to print the sheet.'); return; }
-    const esc = (v: string) => String(v ?? '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const originHost = window.location.origin.replace(/^https?:\/\//, '');
-    const className = cls?.name ?? 'Class';
-    const schoolName = cls?.schools?.name ?? '';
-    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const rowsHtml = list.map((r, idx) => `
-      <tr>
-        <td class="num">${idx + 1}</td>
-        <td>
-          <div class="name">${esc(r.full_name)}</div>
-          <div class="meta">${esc(r.grade || '—')}</div>
-        </td>
-        <td class="mono">${esc(r.email || '—')}</td>
-        <td class="mono pw">${esc(r.temp_password || 'Use reset / existing')}</td>
-        <td class="mono rc">${esc(r.rcDisplay)}</td>
-      </tr>
-    `).join('');
-
-    const html = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Student Login & RC Sheet — ${esc(className)}</title>
-  <style>
-    @page { size: A4 portrait; margin: 12mm; }
-    body { font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: #111827; margin: 0; font-size: 11px; }
-    .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3A8F; padding-bottom: 8px; margin-bottom: 10px; }
-    .hdr h1 { margin: 0; font-size: 16px; color: #1A3A8F; letter-spacing: -0.01em; }
-    .hdr p { margin: 2px 0 0; color: #4b5563; font-size: 10px; }
-    .guide { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
-    .guide strong { color: #1A3A8F; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #1A3A8F; color: #fff; text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-    td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
-    tr:nth-child(even) td { background: #f9fafb; }
-    .num { width: 26px; text-align: center; color: #6b7280; font-weight: 700; }
-    .name { font-weight: 700; color: #111827; font-size: 11.5px; }
-    .meta { font-size: 9.5px; color: #6b7280; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; }
-    .pw { font-weight: 700; color: #047857; }
-    .rc { font-weight: 800; color: #1A3A8F; }
-    .foot { margin-top: 10px; font-size: 9.5px; color: #6b7280; display: flex; justify-content: space-between; }
-    @media print { .no-print { display: none; } }
-  </style>
-</head>
-<body>
-  <div class="hdr">
-    <div>
-      <h1>Student Login, Password &amp; Result RC Sheet</h1>
-      <p><strong>${esc(className)}</strong>${schoolName ? ` · ${esc(schoolName)}` : ''} · ${list.length} student${list.length === 1 ? '' : 's'}</p>
-    </div>
-    <p>Printed ${esc(today)}</p>
-  </div>
-  <div class="guide">
-    <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and sign in with the Email &amp; Password below.</div>
-    <div><strong>Parent Result Check:</strong> Visit <strong>${esc(originHost)}/result-check</strong> and enter the student&apos;s RC Number below.</div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th class="num">#</th>
-        <th>Student &amp; Grade</th>
-        <th>Portal Email</th>
-        <th>Password</th>
-        <th>Result RC Number</th>
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-  <div class="foot">
-    <span>Keep passwords private. Students can change their password after logging in.</span>
-    <span>${esc(originHost)}</span>
-  </div>
-  <script>window.onload = () => { setTimeout(() => window.print(), 250); };</script>
-</body>
-</html>`;
-    openPrintWindow(html, win);
+    const ok = openClassCredentialsPrintSheet({
+      className: cls?.name ?? 'Class',
+      schoolName: cls?.schools?.name ?? null,
+      students: list.map((r) => ({
+        id: r.id,
+        full_name: r.full_name,
+        grade: r.grade ?? null,
+        email: r.email ?? null,
+        temp_password: r.temp_password ?? null,
+      })),
+    });
+    if (!ok) toast.error('Pop-up blocked — allow pop-ups to print or save the PDF sheet.');
   };
 
   const copyCodes = async () => {
@@ -508,25 +446,42 @@ export default function ClassCardsPage() {
         </div>
       )}
 
-      {legacyEmailRows.length > 0 && (
+      {(legacyEmailRows.length > 0 || missingPasswordRows.length > 0) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs">
           <div className="space-y-0.5">
             <p className="font-black text-foreground">
-              {legacyEmailRows.length} student{legacyEmailRows.length === 1 ? '' : 's'} still use the old <code className="font-mono">@student.rillcod.com</code> email pattern
+              {legacyEmailRows.length > 0
+                ? `${legacyEmailRows.length} student${legacyEmailRows.length === 1 ? '' : 's'} use @student.rillcod.com`
+                : `${missingPasswordRows.length} student${missingPasswordRows.length === 1 ? '' : 's'} have no archived password yet`}
             </p>
             <p className="text-muted-foreground">
-              Convert them to the clean <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code> pattern so their login details print cleanly.
+              Standardize to <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code> so every student&apos;s username, password, and RC print cleanly on one sheet.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={busy !== ''}
-            onClick={() => void fixLegacyCredentials(false)}
-            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
-            {busy === 'fix' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SparklesIcon className="h-4 w-4" />}
-            Fix {legacyEmailRows.length} Email{legacyEmailRows.length === 1 ? '' : 's'} &amp; Passwords
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {legacyEmailRows.length > 0 && (
+              <button
+                type="button"
+                disabled={busy !== ''}
+                onClick={() => void fixLegacyCredentials(false)}
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {busy === 'fix' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SparklesIcon className="h-4 w-4" />}
+                Fix {legacyEmailRows.length} Email{legacyEmailRows.length === 1 ? '' : 's'}
+              </button>
+            )}
+            {missingPasswordRows.length > 0 && (
+              <button
+                type="button"
+                disabled={busy !== ''}
+                onClick={() => void fixLegacyCredentials(true)}
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-600/40 bg-emerald-500/10 px-4 py-2 text-xs font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                {busy === 'fix' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SparklesIcon className="h-4 w-4" />}
+                Generate {missingPasswordRows.length} Missing Password{missingPasswordRows.length === 1 ? '' : 's'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -14,8 +14,10 @@ import {
   ClipboardDocumentListIcon, ChevronRightIcon,
   CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
-  CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon
+  CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon, PrinterIcon, ClipboardIcon
 } from '@/lib/icons';
+import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import { openClassCredentialsPrintSheet, type CredentialSheetStudent } from '@/lib/classes/print-credentials-sheet';
 import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
@@ -149,6 +151,11 @@ export default function ClassDetailPage() {
   const [modalSchoolClasses, setModalSchoolClasses] = useState<Array<{ id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>>([]);
   // Session Roster Confirmation + Inline Quick-Add
   const [showSessionConfirm, setShowSessionConfirm] = useState(false);
+  const [showCredSheet, setShowCredSheet] = useState(false);
+  const [credSheetRows, setCredSheetRows] = useState<CredentialSheetStudent[]>([]);
+  const [credSheetLoading, setCredSheetLoading] = useState(false);
+  const [credSheetBusy, setCredSheetBusy] = useState(false);
+  const [credSheetNotice, setCredSheetNotice] = useState<string | null>(null);
   const [confirmKeepIds, setConfirmKeepIds] = useState<Set<string>>(new Set());
   const [confirmGrades, setConfirmGrades] = useState<Record<string, string>>({});
   const [lastSavedGradeSnapshot, setLastSavedGradeSnapshot] = useState<Array<{ studentId: string; grade: string }> | null>(null);
@@ -701,7 +708,99 @@ export default function ClassDetailPage() {
     setQuickAddGrade(defaultEntryGradeForClass());
     setSessionConfirmNotice(null);
     setShowSessionConfirm(true);
+    setShowCredSheet(false);
     setRosterOpen(true);
+  };
+
+  const loadCredSheet = async () => {
+    if (!id) return;
+    setCredSheetLoading(true);
+    setCredSheetNotice(null);
+    try {
+      const res = await fetch(`/api/classes/${id}/students?with_credentials=1`, { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not load student login details');
+      const list: CredentialSheetStudent[] = (json.students ?? [])
+        .filter((s: any) => s.is_current_term_active !== false)
+        .map((s: any) => ({
+          id: s.id,
+          full_name: s.full_name || 'Student',
+          grade: s.grade ?? null,
+          email: s.email ?? null,
+          temp_password: s.temp_password ?? null,
+        }))
+        .sort((a: CredentialSheetStudent, b: CredentialSheetStudent) => a.full_name.localeCompare(b.full_name));
+      setCredSheetRows(list);
+    } catch (e: any) {
+      setCredSheetNotice(e?.message || 'Could not load student login details');
+    } finally {
+      setCredSheetLoading(false);
+    }
+  };
+
+  const openCredSheet = () => {
+    setShowCredSheet(true);
+    setShowSessionConfirm(false);
+    setRosterOpen(true);
+    void loadCredSheet();
+  };
+
+  const fixOrGenerateClassCreds = async (includeMissingPasswords: boolean) => {
+    if (!id) return;
+    setCredSheetBusy(true);
+    setCredSheetNotice(null);
+    try {
+      const res = await fetch(`/api/classes/${id}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'normalize_credentials',
+          includeMissingPasswords,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not update credentials');
+      setCredSheetNotice(
+        json.fixed_count > 0
+          ? `Updated ${json.fixed_count} student account${json.fixed_count === 1 ? '' : 's'} with clean firstname123@rillcod.com & rillcod@XXXX credentials.`
+          : 'All students in this class already have clean emails & passwords ready to print.',
+      );
+      await loadCredSheet();
+      await fetchData();
+    } catch (e: any) {
+      setCredSheetNotice(e?.message || 'Could not update credentials');
+    } finally {
+      setCredSheetBusy(false);
+    }
+  };
+
+  const printClassCredSheet = () => {
+    const ok = openClassCredentialsPrintSheet({
+      className: cls?.name || 'Class',
+      schoolName: cls?.schools?.name ?? null,
+      students: credSheetRows,
+    });
+    if (!ok) alert('Pop-up blocked — allow pop-ups to print or save the PDF list.');
+  };
+
+  const copyClassCredSheet = async () => {
+    if (!credSheetRows.length) return;
+    const host = window.location.origin.replace(/^https?:\/\//, '');
+    const text = [
+      `${cls?.name || 'Class'} — Student Username, Password & RC List`,
+      `Portal Login: ${host}/login | Result Check: ${host}/result-check`,
+      '',
+      ...credSheetRows.map((s, idx) => {
+        const rc = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
+        return `${idx + 1}. ${s.full_name}${s.grade ? ` (${s.grade})` : ''} | Email: ${s.email || '—'} | Pass: ${s.temp_password || '—'} | RC: ${rc}`;
+      }),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCredSheetNotice(`Copied ${credSheetRows.length} student login & RC details to clipboard.`);
+    } catch {
+      setCredSheetNotice('Could not copy — browser blocked clipboard access.');
+    }
   };
 
   const promoteAllConfirmGrades = () => {
@@ -2111,6 +2210,18 @@ export default function ClassDetailPage() {
                               </span>
                             )}
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => (showCredSheet ? setShowCredSheet(false) : openCredSheet())}
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${
+                              showCredSheet
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                            }`}
+                          >
+                            <PrinterIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{showCredSheet ? 'Hide Login List' : 'Login & RC List'}</span>
+                          </button>
                           <Link
                             href={`/dashboard/classes/${id}/cards`}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
@@ -2352,6 +2463,123 @@ export default function ClassDetailPage() {
                                 )}
                               </div>
                             )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {rosterOpen && showCredSheet && isStaff && (
+                      <div className="rounded-2xl border border-primary/30 bg-card p-3.5 sm:p-4 space-y-3 shadow-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-black text-foreground">
+                              Student Username, Password &amp; Result RC List
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Straight printable list for every active student in this class — works anytime (no published result required).
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={credSheetLoading || credSheetRows.length === 0}
+                              onClick={printClassCredSheet}
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                            >
+                              <PrinterIcon className="h-3.5 w-3.5" />
+                              Print / Save PDF ({credSheetRows.length})
+                            </button>
+                            <button
+                              type="button"
+                              disabled={credSheetLoading || credSheetRows.length === 0}
+                              onClick={() => void copyClassCredSheet()}
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-40"
+                            >
+                              <ClipboardIcon className="h-3.5 w-3.5" />
+                              Copy List
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowCredSheet(false)}
+                              className="inline-flex min-h-9 items-center rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        </div>
+
+                        {(() => {
+                          const legacyCount = credSheetRows.filter((s) => String(s.email || '').toLowerCase().endsWith('@student.rillcod.com')).length;
+                          const missingPwCount = credSheetRows.filter((s) => !s.temp_password).length;
+                          if (!legacyCount && !missingPwCount) return null;
+                          return (
+                            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+                              {legacyCount > 0 && (
+                                <button
+                                  type="button"
+                                  disabled={credSheetBusy}
+                                  onClick={() => void fixOrGenerateClassCreds(false)}
+                                  className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-primary px-3 py-1 text-[11px] font-black text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                                >
+                                  {credSheetBusy ? 'Updating…' : `Fix ${legacyCount} @student.rillcod.com email${legacyCount === 1 ? '' : 's'}`}
+                                </button>
+                              )}
+                              {missingPwCount > 0 && (
+                                <button
+                                  type="button"
+                                  disabled={credSheetBusy}
+                                  onClick={() => void fixOrGenerateClassCreds(true)}
+                                  className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
+                                >
+                                  {credSheetBusy ? 'Generating…' : `Generate rillcod@XXXX password for ${missingPwCount} missing`}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {credSheetNotice && (
+                          <p className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                            {credSheetNotice}
+                          </p>
+                        )}
+
+                        {credSheetLoading ? (
+                          <div className="py-6 text-center text-xs text-muted-foreground">Loading student usernames &amp; passwords…</div>
+                        ) : credSheetRows.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-muted-foreground">No active students in this class yet.</div>
+                        ) : (
+                          <div className="max-h-80 overflow-auto rounded-xl border border-border bg-background">
+                            <table className="w-full min-w-[560px] text-left text-xs">
+                              <thead className="sticky top-0 bg-muted/80 backdrop-blur text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                                <tr>
+                                  <th className="px-3 py-2 w-8 text-center">#</th>
+                                  <th className="px-3 py-2">Student</th>
+                                  <th className="px-3 py-2">Username (Email)</th>
+                                  <th className="px-3 py-2">Password</th>
+                                  <th className="px-3 py-2">Result RC</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/60">
+                                {credSheetRows.map((s, idx) => {
+                                  const rc = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
+                                  return (
+                                    <tr key={`cred-${s.id}`} className="hover:bg-muted/30">
+                                      <td className="px-3 py-2 text-center font-semibold text-muted-foreground">{idx + 1}</td>
+                                      <td className="px-3 py-2">
+                                        <p className="font-bold text-foreground">{s.full_name}</p>
+                                        {s.grade && <p className="text-[10px] text-muted-foreground">{s.grade}</p>}
+                                      </td>
+                                      <td className="px-3 py-2 font-mono text-[11px] text-foreground select-all">{s.email || '—'}</td>
+                                      <td className="px-3 py-2 font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-300 select-all">
+                                        {s.temp_password || <span className="font-sans font-normal text-muted-foreground">Not archived</span>}
+                                      </td>
+                                      <td className="px-3 py-2 font-mono text-[11px] font-black text-primary select-all">{rc}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         )}
                       </div>
