@@ -4531,7 +4531,7 @@ export default function ClassDetailPage() {
         return (
           <div className="mobile-native-dialog fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
-            <div className={`bg-card border-0 sm:border border-border rounded-none sm:rounded-2xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90dvh] pb-[env(safe-area-inset-bottom)] ${enrolMode === 'paste' ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}>
+            <div className={`bg-card border-0 sm:border border-border rounded-none sm:rounded-2xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col h-[100dvh] sm:h-[88dvh] sm:max-h-[860px] pb-[env(safe-area-inset-bottom)] ${enrolMode === 'paste' ? 'sm:max-w-4xl' : 'sm:max-w-3xl lg:max-w-4xl'}`}>
 
               {/* Header */}
               <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between flex-shrink-0 gap-3">
