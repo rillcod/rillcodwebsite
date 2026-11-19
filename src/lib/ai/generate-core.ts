@@ -247,8 +247,12 @@ export interface GenerateRequest {
   term_count?: number;
   weeks_per_term?: number;
   notes?: string;
-  /** Extracted text from a teacher's PDF or TXT file — grounds generation in their real material. */
+  /** Extracted text from a teacher's PPTX/PDF/DOCX/TXT file(s) — grounds generation in their real material. */
   sourceMaterial?: string;
+  /** When true, generate questions SOLELY from the uploaded source document(s) without introducing external topics. */
+  strictSourceOnly?: boolean;
+  /** Number of combined source documents included in sourceMaterial. */
+  sourceFileCount?: number;
   /** Mode for CBT designer: generate fresh aligned questions or extract/align premade questions from TXT/PDF/paste. */
   cbtMode?: "generate" | "align_premade";
   /** Raw premade questions text from TXT/PDF/paste to clean, complete, and align with blueprint output. */
@@ -626,13 +630,24 @@ export function finalizeGeneratedData(
 }
 
 export function buildPrompt(req: GenerateRequest): string {
-  // Shared grounding block — when a teacher attaches a document (extracted PDF text),
-  // generation must build strictly from it. Used by assignment & cbt cases (lesson
-  // builds its own inline).
+  // Shared grounding block — when a teacher attaches 1 or more documents (PPTX/PDF/DOCX/TXT),
+  // generation builds strictly from them (up to 22,000 chars for multi-file synthesis).
+  const isMultiFile = Number(req.sourceFileCount ?? 0) > 1;
+  const sourceHeader = req.strictSourceOnly
+    ? `STRICT SOURCE-ONLY MODE — You MUST read, understand, and generate EVERY question, option, correct answer, and marking guide SOLELY from the uploaded document(s) below. Do NOT introduce any fact, definition, or example that is not present in the provided document(s).${
+        isMultiFile
+          ? ` Multiple files (${req.sourceFileCount}) are combined below — draw balanced questions across ALL provided files and synthesize concepts where helpful.`
+          : ""
+      }`
+    : `SOURCE MATERIAL — base this STRICTLY on the teacher's uploaded document(s) below; keep their scope, examples and terminology, and do not introduce topics they do not cover.${
+        isMultiFile
+          ? ` Multiple files (${req.sourceFileCount}) are combined below — cover ALL provided files evenly.`
+          : ""
+      }`;
   const sourceBlock = req.sourceMaterial?.trim()
-    ? `\nSOURCE MATERIAL — base this STRICTLY on the teacher's document below; keep its scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(
+    ? `\n${sourceHeader}\n"""\n${req.sourceMaterial.slice(
         0,
-        8000
+        22000
       )}\n"""`
     : "";
 
@@ -1376,12 +1391,12 @@ RULES:
           : "";
       const theoryInstruction =
         openCount > 0
-          ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate. Use ${plan.theoryPoints} points for essay/coding_blocks and 3-5 points for fill_blank.`
+          ? `SECTION B — Theory / Essay / Coding: Generate EXACTLY ${openCount} open-ended questions mixing Theory/Essay ("essay"), Short Answer ("fill_blank"), and Coding/Practical ("essay" with fenced code or "coding_blocks" when the topic involves programming/algorithms/web/databases). These MUST have NO "options" array (or empty []). Use ${plan.theoryPoints} points for essay/coding and 3-5 points for fill_blank.`
           : "";
 
       const premadeAlignBlock =
         req.cbtMode === "align_premade" || req.premadeQuestionsText?.trim()
-          ? `\nPREMADE QUESTIONS TO EXTRACT, REFINE & ALIGN TO BLUEPRINT:\nThe teacher has provided premade questions below (from a .txt/.pdf file or pasted draft). CRITICAL RULES FOR PASTED QUESTIONS:\n1. PRESERVE EVERY QUESTION'S TYPE & SECTION: Keep every Objective/MCQ question (A-D/a-d/options) as "multiple_choice" (or "true_false") with its options intact; NEVER convert Objective MCQs into Theory/Essay. Keep Subjective/Short Answer questions as "fill_blank" (with NO options) and Essay/Theory questions as "essay" (with NO options).\n2. REFINE & SOLVE COMPLETELY: Clean up formatting/grammar if needed, solve every Objective question so "correct_answer" matches the exact winning option text (without A)/B) prefix), AND generate a clear "marking_guide" (point-by-point scoring rubric, e.g. 'Award 2 marks for..., 3 marks for...') + model answer for EVERY Theory/Essay/Subjective question (and rationale for Objective questions).\n3. ALIGN TO COURSE/BLUEPRINT: Tag each question's cognitive_level (foundation/application/reasoning) and curriculum_tag. ${
+          ? `\nPREMADE QUESTIONS TO EXTRACT, REFINE & ALIGN TO BLUEPRINT:\nThe teacher has provided premade questions below (from uploaded file(s) or pasted draft). CRITICAL RULES FOR PASTED QUESTIONS:\n1. PRESERVE EVERY QUESTION'S TYPE & SECTION INTELLIGENTLY: Keep every Objective/MCQ question (A-D/a-d/options) as "multiple_choice" (or "true_false") with its options intact; NEVER convert Objective MCQs into Theory/Essay. Keep Theory, Essay, and Coding/Practical prompts (including ones with sub-parts (a)/(b)/(c) or code writing/debugging tasks) as "essay" (with NO options) or "coding_blocks" (for block-assembly code questions), and Short Answer/Fill-in-Blank as "fill_blank" (with NO options). NEVER convert Theory, Essay, or Coding sub-parts into MCQ options.\n2. REFINE & SOLVE COMPLETELY: Clean up formatting/grammar if needed, solve every Objective question so "correct_answer" matches the exact winning option text (without A)/B) prefix), AND generate a clear "marking_guide" (point-by-point scoring rubric, e.g. 'Award 2 marks for..., 3 marks for...') + model answer/solution code for EVERY Theory/Essay/Coding/Subjective question (and rationale for Objective questions).\n3. ALIGN TO COURSE/BLUEPRINT: Tag each question's cognitive_level (foundation/application/reasoning) and curriculum_tag. ${
               req.cbtMode === "align_premade"
                 ? "Do NOT invent extra filler questions or drop any of the teacher's pasted questions — return EVERY question provided below:"
                 : `Generate extra aligned questions ONLY if needed to reach ${totalQ} total questions:`

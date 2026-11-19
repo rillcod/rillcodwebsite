@@ -276,15 +276,23 @@ export function parsePremadeQuestionsFromText(
     if (contentLines.length === 0) return;
 
     // Extract options A-F if present (supports "(A) ...", "(a) ...", "A) ...", "A. ...", "a. ...", "*B) ...", inline or multiline)
+    // Inside Theory / Essay / Coding sections, (a)/(b)/(c) are sub-questions, NOT MCQ choices.
+    const isTheoryOrCodingSection = sectionHint === 'subjective';
+    const hasCodingOrEssayCue = /\b(write\s+a\s+(?:python|javascript|html|css|sql|c\+\+|java|program|function|script|code|query)|explain\s+in\s+detail|discuss|compare\s+and\s+contrast|debug\s+the\s+following|design\s+an?\s+algorithm|write\s+an?\s+essay)\b/i.test(block);
     const extractedOptions: string[] = [];
     let starredOption = '';
     const stemLines: string[] = [];
 
     for (const line of contentLines) {
+      if (isTheoryOrCodingSection) {
+        stemLines.push(line);
+        continue;
+      }
+
       const inlineMatches = [
         ...line.matchAll(/(?:^|\s)(\*?)(?:\(([A-Fa-f])\)|([A-Fa-f])[\.\)\:])\s+([^\t]+?)(?=\s+\*?(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:])\s+|$)/g),
       ];
-      if (inlineMatches.length >= 2) {
+      if (inlineMatches.length >= 2 && !hasCodingOrEssayCue) {
         const firstIdx = inlineMatches[0].index ?? 0;
         const prefixStem = line.slice(0, firstIdx).trim();
         if (prefixStem) stemLines.push(prefixStem);
@@ -300,7 +308,9 @@ export function parsePremadeQuestionsFromText(
         continue;
       }
 
-      const singleOptMatch = line.match(/^(\*?)(?:\(([A-Fa-f])\)|([A-Fa-f])[\.\)\:\-])\s+(.+)$/);
+      const singleOptMatch = !hasCodingOrEssayCue
+        ? line.match(/^(\*?)(?:\(([A-Fa-f])\)|([A-Fa-f])[\.\)\:\-])\s+(.+)$/)
+        : null;
       if (singleOptMatch) {
         const rawOpt = singleOptMatch[4].trim();
         const isMarked = singleOptMatch[1] === '*' || /(?:\[correct\]|\(correct\)|✓)\s*$/i.test(rawOpt);

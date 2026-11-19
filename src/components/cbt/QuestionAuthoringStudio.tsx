@@ -16,7 +16,12 @@ import {
   ChevronDownIcon,
   XMarkIcon,
 } from '@/lib/icons';
-import { extractPdfText } from '@/lib/pdf/extract-text';
+import {
+  ACCEPTED_DOCUMENT_EXTENSIONS,
+  buildCombinedSourceMaterial,
+  extractDocumentText,
+  type ExtractedSourceDocument,
+} from '@/lib/files/extract-document-text';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import {
   buildAssessmentBlueprint,
@@ -31,7 +36,7 @@ import {
 
 export interface StudioGeneratedQuestion {
   question_text: string;
-  question_type: 'multiple_choice' | 'true_false' | 'fill_blank' | 'short_answer' | 'essay';
+  question_type: 'multiple_choice' | 'true_false' | 'fill_blank' | 'short_answer' | 'essay' | 'coding_blocks';
   options: string[];
   correct_answer: string;
   marking_guide?: string;
@@ -117,6 +122,8 @@ export default function QuestionAuthoringStudio({
   const [aiTopic, setAiTopic] = useState(initialTopic);
   const [sourceText, setSourceText] = useState(initialSourceText);
   const [sourceName, setSourceName] = useState(initialSourceName);
+  const [uploadedDocs, setUploadedDocs] = useState<ExtractedSourceDocument[]>([]);
+  const [strictFileOnly, setStrictFileOnly] = useState(true);
   const [isWeekDerivedSource, setIsWeekDerivedSource] = useState(false);
   const [mcqCount, setMcqCount] = useState(String(defaultMcqCount));
   const [theoryCount, setTheoryCount] = useState(String(defaultTheoryCount));
@@ -369,60 +376,161 @@ export default function QuestionAuthoringStudio({
     applyWeekAlignmentToAi(next);
   };
 
-  const handleFileUpload = async (file: File) => {
+  const selectedUploadedDocs = useMemo(
+    () => uploadedDocs.filter((d) => d.selected && d.text.trim().length > 0),
+    [uploadedDocs],
+  );
+
+  const handleFilesUpload = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter(Boolean);
+    if (files.length === 0) return;
+
     setExtractingFile(true);
     setAiError(null);
-    setExtractMsg(`Reading ${file.name}…`);
+    setAiSuccessMsg(null);
+
+    const added: ExtractedSourceDocument[] = [];
+    const failedNames: string[] = [];
+
     try {
-      const lowerName = file.name.toLowerCase();
-      if (lowerName.endsWith('.txt') || lowerName.endsWith('.md') || file.type === 'text/plain') {
-        const raw = await file.text();
-        const trimmed = raw.trim().slice(0, 15000);
-        if (!trimmed) {
-          setAiError('The uploaded text file is empty.');
-        } else {
-          setSourceText(trimmed);
-          setSourceName(file.name);
-          setIsWeekDerivedSource(false);
-          if (!aiTopic.trim()) {
-            setAiTopic(file.name.replace(/\.(txt|md)$/i, '').replace(/[_-]/g, ' '));
+      for (let idx = 0; idx < files.length; idx++) {
+        const file = files[idx];
+        const prefix = files.length > 1 ? `(${idx + 1}/${files.length}) ` : '';
+        setExtractMsg(`${prefix}Reading ${file.name}…`);
+        try {
+          const { kind, text } = await extractDocumentText(file, 20_000, (msg) =>
+            setExtractMsg(`${prefix}${msg}`),
+          );
+          if (!text || text.trim().length < 15) {
+            failedNames.push(file.name);
+            continue;
           }
-        }
-      } else {
-        const pdfText = await extractPdfText(file, 12000, setExtractMsg);
-        if (pdfText) {
-          setSourceText(pdfText);
-          setSourceName(file.name);
-          setIsWeekDerivedSource(false);
-          if (!aiTopic.trim()) {
-            setAiTopic(file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '));
-          }
-        } else {
-          setAiError('Could not read text from that PDF (it may be scanned images).');
+          const clean = text.trim();
+          const words = clean.split(/\s+/).filter(Boolean).length;
+          added.push({
+            id: `${Date.now()}-${idx}-${file.name}`,
+            name: file.name,
+            kind,
+            text: clean,
+            charCount: clean.length,
+            wordCount: words,
+            selected: true,
+          });
+        } catch {
+          failedNames.push(file.name);
         }
       }
-    } catch {
-      setAiError('Could not read the uploaded file. Try a .txt or text-based .pdf file.');
+
+      if (added.length > 0) {
+        setUploadedDocs((prev) => {
+          const byName = new Map(prev.map((d) => [d.name.toLowerCase(), d]));
+          for (const item of added) {
+            byName.set(item.name.toLowerCase(), item);
+          }
+          const merged = Array.from(byName.values());
+          const { summaryLabel } = buildCombinedSourceMaterial(merged);
+          setSourceName(summaryLabel);
+          setIsWeekDerivedSource(false);
+          return merged;
+        });
+
+        if (!aiTopic.trim()) {
+          const baseName = added[0].name
+            .replace(/\.(pdf|pptx?|docx?|txt|md|csv|rtf)$/i, '')
+            .replace(/[_-]+/g, ' ')
+            .trim();
+          if (baseName) setAiTopic(baseName);
+        }
+
+        setAiSuccessMsg(
+          added.length === 1
+            ? `Read "${added[0].name}" (${added[0].wordCount.toLocaleString()} words). Ready to generate questions!`
+            : `Read ${added.length} files (${added.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words combined). Select 1 or combine all to generate questions!`,
+        );
+      }
+
+      if (failedNames.length > 0) {
+        setAiError(
+          `Could not read readable text from: ${failedNames.join(', ')}. Make sure slides/docs contain text (or try .pptx, .docx, .pdf, or .txt).`,
+        );
+      }
     } finally {
       setExtractingFile(false);
       setExtractMsg('');
     }
   };
 
+  const toggleUploadedDoc = (docId: string) => {
+    setUploadedDocs((prev) => {
+      const next = prev.map((d) => (d.id === docId ? { ...d, selected: !d.selected } : d));
+      const { summaryLabel } = buildCombinedSourceMaterial(next);
+      setSourceName(summaryLabel);
+      return next;
+    });
+  };
+
+  const removeUploadedDoc = (docId: string) => {
+    setUploadedDocs((prev) => {
+      const next = prev.filter((d) => d.id !== docId);
+      const { summaryLabel } = buildCombinedSourceMaterial(next);
+      setSourceName(summaryLabel);
+      return next;
+    });
+  };
+
+  const selectOnlyUploadedDoc = (docId: string) => {
+    setUploadedDocs((prev) => {
+      const next = prev.map((d) => ({ ...d, selected: d.id === docId }));
+      const { summaryLabel } = buildCombinedSourceMaterial(next);
+      setSourceName(summaryLabel);
+      return next;
+    });
+  };
+
   const mapApiQuestionsToStudio = (rawList: any[], fallbackTag: string): StudioGeneratedQuestion[] => {
     return (rawList ?? [])
       .map((q: any) => {
-        const rawType = String(q.question_type || 'multiple_choice');
-        const qType: StudioGeneratedQuestion['question_type'] =
-          rawType === 'true_false' || rawType === 'fill_blank' || rawType === 'short_answer' || rawType === 'essay'
-            ? rawType
-            : 'multiple_choice';
+        const rawType = String(q.question_type || '').trim().toLowerCase();
+        const rawOpts = Array.isArray(q.options)
+          ? q.options.map((o: any) => String(o ?? '').trim()).filter(Boolean)
+          : [];
+
+        let qType: StudioGeneratedQuestion['question_type'];
+        if (rawType === 'true_false' || rawType === 'boolean') {
+          qType = 'true_false';
+        } else if (rawType === 'coding_blocks') {
+          qType = 'coding_blocks';
+        } else if (
+          rawType === 'essay'
+          || rawType === 'long_answer'
+          || rawType === 'theory'
+          || rawType === 'coding'
+          || rawType === 'practical'
+          || rawType === 'open_ended'
+        ) {
+          qType = 'essay';
+        } else if (
+          rawType === 'fill_blank'
+          || rawType === 'fill_in_blank'
+          || rawType === 'short_answer'
+          || rawType === 'subjective'
+        ) {
+          qType = 'fill_blank';
+        } else if (rawOpts.length >= 2) {
+          qType = 'multiple_choice';
+        } else {
+          // Never force an open-ended / theory / coding question without options into broken empty MCQ
+          qType = 'essay';
+        }
+
         const opts =
           qType === 'true_false'
             ? ['True', 'False']
-            : Array.isArray(q.options) && q.options.length > 0
-              ? q.options.map(String)
-              : ['', '', '', ''];
+            : qType === 'multiple_choice'
+              ? rawOpts.length >= 2
+                ? rawOpts
+                : ['', '', '', '']
+              : [];
         const rawCorrect = String(
           q.correct_answer ?? q.marking_guide ?? q.metadata?.marking_guide ?? q.explanation ?? '',
         ).trim();
@@ -439,7 +547,7 @@ export default function QuestionAuthoringStudio({
             q.marking_guide ??
               q.metadata?.marking_guide ??
               q.explanation ??
-              (qType === 'essay' || qType === 'fill_blank' ? resolvedCorrect : ''),
+              (qType === 'essay' || qType === 'fill_blank' || qType === 'coding_blocks' ? resolvedCorrect : ''),
           ).trim() || undefined;
 
         return {
@@ -448,31 +556,41 @@ export default function QuestionAuthoringStudio({
           options: opts,
           correct_answer: resolvedCorrect,
           marking_guide: markingGuide,
-          points: Number(q.points) || (qType === 'essay' ? 10 : 5),
+          points: Number(q.points) || (qType === 'essay' || qType === 'coding_blocks' ? 10 : 5),
           section: (q.section ||
             q.metadata?.section ||
-            (['essay', 'fill_blank', 'short_answer'].includes(qType)
+            (['essay', 'fill_blank', 'short_answer', 'coding_blocks'].includes(qType)
               ? 'subjective'
               : 'objective')) as StudioGeneratedQuestion['section'],
           explanation: markingGuide || (q.explanation ? String(q.explanation) : undefined),
           curriculumTag: q.metadata?.curriculum_tag || fallbackTag,
           cognitiveLevel: q.metadata?.cognitive_level || undefined,
+          metadata: q.metadata ?? null,
         };
       })
       .filter((q: StudioGeneratedQuestion) => q.question_text.length > 0);
   };
 
   const handleAiGenerate = async () => {
-    // If the teacher uploaded/pasted premade questions, solve & align them automatically!
-    if (detectedPremadeFromSource.length > 0) {
+    // If the teacher pasted premade questions directly (and didn't upload lecture files), solve & align them automatically!
+    if (selectedUploadedDocs.length === 0 && detectedPremadeFromSource.length > 0) {
       await handleAiAlignAndSolvePremade(false);
       return;
     }
 
-    // If curriculum weeks are selected and no custom sourceText is set yet, build the week brief on the fly
-    let effectiveSourceText = sourceText.trim();
-    let effectiveSourceName = sourceName.trim();
-    if (!effectiveSourceText && selectedWeeks.size > 0 && curriculumWeeks.length > 0) {
+    // Build combined source text from selected uploaded file(s) (PPTX/PDF/DOCX/TXT) + any extra notes
+    const combinedFromFiles = buildCombinedSourceMaterial(
+      uploadedDocs,
+      !isWeekDerivedSource ? sourceText : '',
+      22_000,
+    );
+
+    let effectiveSourceText = combinedFromFiles.combinedText;
+    let effectiveSourceName = combinedFromFiles.summaryLabel || sourceName.trim();
+    const useStrictFileOnly = combinedFromFiles.selectedCount > 0 && strictFileOnly;
+
+    // Only auto-attach taught weeks if NOT in strict uploaded-files-only mode and no custom source is set
+    if (!useStrictFileOnly && !effectiveSourceText && selectedWeeks.size > 0 && curriculumWeeks.length > 0) {
       const chosen = curriculumWeeks.filter((w) => selectedWeeks.has(w.week));
       if (chosen.length > 0) {
         const brief = buildCurriculumAlignmentBrief(chosen, courseTitle);
@@ -484,7 +602,7 @@ export default function QuestionAuthoringStudio({
     const effectiveTopic =
       aiTopic.trim() || effectiveSourceName || courseTitle?.trim() || programName?.trim() || '';
     if (!effectiveTopic && !effectiveSourceText) {
-      setAiError('Enter a topic, select a course/week, or upload a .txt / .pdf document first.');
+      setAiError('Enter a topic, select a course/week, or upload PPT / PDF / DOC / TXT file(s) first.');
       return;
     }
     const mcq = Math.max(0, Math.min(maxQuestions, parseInt(mcqCount, 10) || 0));
@@ -515,16 +633,18 @@ export default function QuestionAuthoringStudio({
         body: JSON.stringify({
           type: 'cbt',
           cbtMode: 'generate',
-          topic: effectiveTopic || 'Course Assessment',
+          topic: effectiveTopic || 'Document Assessment',
           questionCount: total,
           mcqCount: mcq,
           theoryCount: theory,
-          courseName: courseTitle || undefined,
-          subject: courseTitle || undefined,
-          programName: programName || undefined,
+          courseName: useStrictFileOnly ? undefined : (courseTitle || undefined),
+          subject: useStrictFileOnly ? undefined : (courseTitle || undefined),
+          programName: useStrictFileOnly ? undefined : (programName || undefined),
           className: className || undefined,
           examType,
           sourceName: effectiveSourceName || undefined,
+          strictSourceOnly: useStrictFileOnly,
+          sourceFileCount: combinedFromFiles.selectedCount,
           ...(effectiveSourceText ? { sourceMaterial: effectiveSourceText } : {}),
         }),
       });
@@ -1030,6 +1150,141 @@ export default function QuestionAuthoringStudio({
             </div>
           )}
 
+          {/* Multi-File Source Uploader & Combiner (PPTX / PDF / DOCX / DOC / TXT) */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer?.files?.length) {
+                void handleFilesUpload(e.dataTransfer.files);
+              }
+            }}
+            className="rounded-2xl border border-dashed border-primary/35 bg-primary/[0.03] p-3.5 space-y-2.5"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
+                  Generate from Files (PPT, PDF, DOC, TXT)
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Upload 1 file to generate solely from it, or upload multiple files and combine them together.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {uploadedDocs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setUploadedDocs([]); setSourceName(''); }}
+                    className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
+                  >
+                    Clear All
+                  </button>
+                )}
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer text-xs font-black shadow-sm transition-colors">
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  <span>{extractingFile ? extractMsg || 'Reading…' : uploadedDocs.length > 0 ? 'Add More Files' : 'Upload Files'}</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept={ACCEPTED_DOCUMENT_EXTENSIONS}
+                    className="sr-only"
+                    disabled={extractingFile}
+                    onChange={async (e) => {
+                      const files = e.currentTarget.files;
+                      if (!files || files.length === 0) return;
+                      const copy = Array.from(files);
+                      e.currentTarget.value = '';
+                      await handleFilesUpload(copy);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {uploadedDocs.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <div className="flex flex-wrap gap-2">
+                  {uploadedDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition-all ${
+                        doc.selected
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-foreground'
+                          : 'border-border bg-card text-muted-foreground opacity-70'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={doc.selected}
+                        onChange={() => toggleUploadedDoc(doc.id)}
+                        aria-label={`Include ${doc.name}`}
+                        className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer"
+                      />
+                      <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-primary">
+                        {doc.kind}
+                      </span>
+                      <span className="font-bold truncate max-w-[160px]" title={doc.name}>
+                        {doc.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        ({doc.wordCount.toLocaleString()}w)
+                      </span>
+                      {uploadedDocs.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => selectOnlyUploadedDoc(doc.id)}
+                          title="Use only this file"
+                          className="rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-background border border-border hover:border-primary/50 text-foreground"
+                        >
+                          Only
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeUploadedDoc(doc.id)}
+                        aria-label={`Remove ${doc.name}`}
+                        className="text-rose-600 dark:text-rose-400 hover:opacity-80"
+                      >
+                        <XMarkIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/60 text-[11px]">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                    {selectedUploadedDocs.length === 0
+                      ? 'No files checked — check at least one file above'
+                      : selectedUploadedDocs.length === 1
+                        ? `Using 1 file: ${selectedUploadedDocs[0].name}`
+                        : `Combining ${selectedUploadedDocs.length} files (${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words)`}
+                  </span>
+                  <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setStrictFileOnly(true)}
+                      className={`px-2 py-1 rounded-md text-[10px] font-black transition-colors ${
+                        strictFileOnly ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Solely from file(s)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStrictFileOnly(false)}
+                      className={`px-2 py-1 rounded-md text-[10px] font-black transition-colors ${
+                        !strictFileOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Blend with topic
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
             <div className="sm:col-span-5">
               <label
@@ -1177,48 +1432,83 @@ export default function QuestionAuthoringStudio({
                 htmlFor="cbt-premade-paste"
                 className="text-xs font-black uppercase tracking-wider text-foreground block"
               >
-                Paste Exam Questions, Lesson Notes, or Upload .TXT / .PDF
+                Paste Exam Questions, Lesson Notes, or Upload PPT / PDF / DOC / TXT
               </label>
               <p className="text-[11px] text-muted-foreground">
-                Objective (A–D / True-False), Subjective (Fill-blank), and Essay/Theory sections are detected automatically — MCQs are never turned into theory.
+                Upload 1 or multiple files (PowerPoint, PDF, Word, or Text) to generate fresh questions solely from them, or paste premade questions to auto-solve.
               </p>
             </div>
 
-            {sourceName && !isWeekDerivedSource ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/25 text-xs">
-                <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
-                <span className="font-bold text-foreground truncate max-w-[180px]">{sourceName}</span>
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-primary/50 hover:bg-primary/5 bg-background cursor-pointer text-xs font-bold text-foreground transition-colors">
+              <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
+              <span>{extractingFile ? extractMsg || 'Reading…' : 'Upload PPT / PDF / DOC / TXT'}</span>
+              <input
+                type="file"
+                multiple
+                accept={ACCEPTED_DOCUMENT_EXTENSIONS}
+                className="sr-only"
+                disabled={extractingFile}
+                onChange={async (e) => {
+                  const files = e.currentTarget.files;
+                  if (!files || files.length === 0) return;
+                  const copy = Array.from(files);
+                  e.currentTarget.value = '';
+                  await handleFilesUpload(copy);
+                }}
+              />
+            </label>
+          </div>
+
+          {uploadedDocs.length > 0 && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {uploadedDocs.map((doc) => (
+                  <div
+                    key={`tab2-${doc.id}`}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs ${
+                      doc.selected
+                        ? 'border-emerald-500/40 bg-card text-foreground'
+                        : 'border-border bg-muted/40 text-muted-foreground opacity-70'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={doc.selected}
+                      onChange={() => toggleUploadedDoc(doc.id)}
+                      aria-label={`Include ${doc.name}`}
+                      className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer"
+                    />
+                    <span className="rounded bg-primary/15 px-1 py-0.5 text-[9px] font-black uppercase text-primary">{doc.kind}</span>
+                    <span className="font-bold truncate max-w-[150px]">{doc.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeUploadedDoc(doc.id)}
+                      aria-label={`Remove ${doc.name}`}
+                      className="text-rose-600 dark:text-rose-400"
+                    >
+                      <XMarkIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-200">
+                  {selectedUploadedDocs.length} file{selectedUploadedDocs.length === 1 ? '' : 's'} ready · {strictFileOnly ? 'Strictly from uploaded file(s)' : 'Blended with topic'}
+                </span>
                 <button
                   type="button"
-                  aria-label="Clear uploaded or pasted source"
-                  onClick={() => {
-                    setSourceText('');
-                    setSourceName('');
-                  }}
-                  className="text-rose-600 dark:text-rose-400 hover:underline font-bold"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating || selectedUploadedDocs.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-50"
                 >
-                  ✕
+                  {aiGenerating ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
+                  {aiGenerating
+                    ? 'Generating…'
+                    : `Generate ${Math.max(minQuestions, targetTotal)} Qs from ${selectedUploadedDocs.length} File${selectedUploadedDocs.length === 1 ? '' : 's'}`}
                 </button>
               </div>
-            ) : (
-              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-border hover:border-primary/50 bg-background cursor-pointer text-xs font-bold text-foreground transition-colors">
-                <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
-                <span>{extractingFile ? extractMsg || 'Reading…' : 'Upload .TXT / .PDF'}</span>
-                <input
-                  type="file"
-                  accept=".pdf,.txt,.md,application/pdf,text/plain"
-                  className="sr-only"
-                  disabled={extractingFile}
-                  onChange={async (e) => {
-                    const file = e.currentTarget.files?.[0] ?? null;
-                    e.currentTarget.value = '';
-                    if (!file) return;
-                    await handleFileUpload(file);
-                  }}
-                />
-              </label>
-            )}
-          </div>
+            </div>
+          )}
 
           <textarea
             id="cbt-premade-paste"
@@ -1234,6 +1524,72 @@ export default function QuestionAuthoringStudio({
             placeholder={`Paste questions or notes here, e.g.:\nSECTION A: OBJECTIVE\n1. What is the output of print(7 // 2)?\nA) 3.5  B) 3  C) 1  D) 14\n\nSECTION B: THEORY\n2. Explain two uses of loops in Python. [10 marks]`}
             className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 resize-y"
           />
+
+          {/* Smart Generate Bar when teacher pastes notes, theory, or coding material (not numbered MCQs) */}
+          {!isWeekDerivedSource && sourceText.trim().length > 0 && detectedPremadeFromSource.length === 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black text-foreground">
+                  Notes / Theory / Coding Material Ready
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  AI will intelligently generate Objective (MCQ), Theory/Essay, and Coding questions from your pasted text.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-foreground">
+                  <span>MCQ:</span>
+                  <input
+                    type="number"
+                    aria-label="Number of MCQ questions from pasted text"
+                    min={0}
+                    max={maxQuestions}
+                    value={mcqCount}
+                    onChange={(e) => {
+                      userEditedCountsRef.current = true;
+                      setMcqCount(e.target.value);
+                      onQuestionMixChange?.(parseInt(e.target.value, 10) || 0, parseInt(theoryCount, 10) || 0);
+                    }}
+                    className="w-14 rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
+                  />
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-foreground">
+                  <span>Theory/Coding:</span>
+                  <input
+                    type="number"
+                    aria-label="Number of theory, essay, or coding questions from pasted text"
+                    min={0}
+                    max={maxQuestions}
+                    value={theoryCount}
+                    onChange={(e) => {
+                      userEditedCountsRef.current = true;
+                      setTheoryCount(e.target.value);
+                      onQuestionMixChange?.(parseInt(mcqCount, 10) || 0, parseInt(e.target.value, 10) || 0);
+                    }}
+                    className="w-14 rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-black text-white shadow-sm disabled:opacity-50"
+                >
+                  {aiGenerating ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <SparklesIcon className="w-3.5 h-3.5" />}
+                  {aiGenerating ? 'Generating…' : `Generate ${Math.max(minQuestions, targetTotal)} Questions`}
+                </button>
+                {aiGenerating && (
+                  <button
+                    type="button"
+                    onClick={cancelAiGeneration}
+                    className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-700 dark:text-rose-300"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Live Section Segmentation Preview */}
           {detectedPremadeFromSource.length > 0 && (

@@ -551,8 +551,8 @@ export default function NewExamPage() {
         marking_guide: q.marking_guide || q.explanation,
         curriculumTag: q.curriculumTag,
         cognitiveLevel: q.cognitiveLevel,
-        points: Math.max(1, Number(q.points) || (cbtType === 'essay' ? 10 : 5)),
-        section: q.section || (['essay', 'fill_blank'].includes(cbtType) ? 'subjective' : 'objective'),
+        points: Math.max(1, Number(q.points) || (['essay', 'coding_blocks'].includes(cbtType) ? 10 : 5)),
+        section: q.section || (['essay', 'fill_blank', 'coding_blocks'].includes(cbtType) ? 'subjective' : 'objective'),
       };
     });
     const nonEmptyCurrent = questions.filter(item => item.question_text.trim().length > 0);
