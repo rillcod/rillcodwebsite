@@ -1140,79 +1140,129 @@ export default function NewExamPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Start Date/Time</label>
-                <input type="datetime-local" value={form.start_date}
-                  onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Open Window (min)</label>
-                <input type="number" min="5" value={form.access_window_minutes}
-                  onChange={e => {
-                    teacherEdits.current.accessWindow = true;
-                    setForm(f => ({ ...f, access_window_minutes: e.target.value }));
-                  }}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
-              </div>
-              <div className="rounded-xl border border-border bg-card px-4 py-3">
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Auto Closes</label>
-                <p className="text-sm font-semibold text-foreground">
-                  {autoClosePreview ? autoClosePreview.toLocaleString() : 'Set a start time'}
-                </p>
-                <p className="mt-1 text-[10px] text-muted-foreground leading-relaxed">
-                  After this time students cannot start or continue the exam.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
-              <textarea rows={2} value={form.description}
-                onChange={e => {
-                  teacherEdits.current.description = true;
-                  setForm(f => ({ ...f, description: e.target.value }));
-                }}
-                placeholder="Optional exam description…"
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
-            </div>
-          </div>
-
-          {/* Within-paper section weights */}
-          <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Within-paper section weighting</h2>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Optional: change how sections combine inside this paper only. Official report weighting remains central.</p>
-              </div>
-              <button type="button" onClick={() => setUseWeights(w => !w)}
-                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
-                {useWeights ? 'Weighted ON' : 'Flat Points (default)'}
+            <div className="pt-1 border-t border-border/60">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedSetup((v) => !v)}
+                className="inline-flex items-center gap-2 text-xs font-black text-primary hover:underline"
+              >
+                <ChevronDownIcon className={`w-4 h-4 transition-transform ${showAdvancedSetup ? 'rotate-180' : ''}`} />
+                {showAdvancedSetup ? 'Hide Schedule, Description & Section Weights' : 'Schedule Window, Description & Section Weights (Optional)'}
+                {form.start_date && !showAdvancedSetup && (
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                    Scheduled
+                  </span>
+                )}
               </button>
             </div>
-            {useWeights && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {(['objective', 'subjective', 'practical'] as const).map(sec => (
-                    <div key={sec}>
-                      <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">{sec} %</label>
-                      <input type="number" min="0" max="100"
-                        value={sectionWeights[sec]}
-                        onChange={e => setSectionWeights(w => ({ ...w, [sec]: parseInt(e.target.value) || 0 }))}
-                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
-                    </div>
-                  ))}
+
+            {showAdvancedSetup && (
+              <div className="space-y-4 pt-2">
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="font-bold text-muted-foreground mr-1">Quick schedule:</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, start_date: '' }))}
+                    className={`rounded-lg border px-2.5 py-1 font-bold transition-colors ${!form.start_date ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border bg-card text-foreground hover:bg-muted'}`}
+                  >
+                    Live Immediately
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, start_date: toLocalDateTimeInput(new Date(Date.now() + 60 * 60_000)) }))}
+                    className="rounded-lg border border-border bg-card hover:bg-muted px-2.5 py-1 font-bold text-foreground transition-colors"
+                  >
+                    In 1 Hour
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 1);
+                      d.setHours(9, 0, 0, 0);
+                      setForm((f) => ({ ...f, start_date: toLocalDateTimeInput(d) }));
+                    }}
+                    className="rounded-lg border border-border bg-card hover:bg-muted px-2.5 py-1 font-bold text-foreground transition-colors"
+                  >
+                    Tomorrow 9:00 AM
+                  </button>
                 </div>
-                {(() => {
-                  const total = sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical;
-                  return (
-                    <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${total === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                      <div className={`w-2 h-2 rounded-full ${total === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      Total: {total}% {total === 100 ? '— Valid' : '— Must equal 100%'}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Start Date/Time</label>
+                    <input type="datetime-local" value={form.start_date}
+                      onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Open Window (min)</label>
+                    <input type="number" min="5" value={form.access_window_minutes}
+                      onChange={e => {
+                        teacherEdits.current.accessWindow = true;
+                        setForm(f => ({ ...f, access_window_minutes: e.target.value }));
+                      }}
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                  </div>
+                  <div className="rounded-xl border border-border bg-card px-4 py-3">
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Auto Closes</label>
+                    <p className="text-sm font-semibold text-foreground">
+                      {autoClosePreview ? autoClosePreview.toLocaleString() : 'Live immediately when published'}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground leading-relaxed">
+                      After closing, non-starters are marked Absent automatically.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
+                  <textarea rows={2} value={form.description}
+                    onChange={e => {
+                      teacherEdits.current.description = true;
+                      setForm(f => ({ ...f, description: e.target.value }));
+                    }}
+                    placeholder="Optional exam description…"
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                </div>
+
+                {/* Within-paper section weights */}
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Within-paper section weighting</p>
+                      <p className="text-[10px] text-muted-foreground">Optional: override how sections combine inside this paper only.</p>
                     </div>
-                  );
-                })()}
+                    <button type="button" onClick={() => setUseWeights(w => !w)}
+                      className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' : 'bg-card border-border text-muted-foreground hover:border-emerald-500/30'}`}>
+                      {useWeights ? 'Weighted ON' : 'Flat Points'}
+                    </button>
+                  </div>
+                  {useWeights && (
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        {(['objective', 'subjective', 'practical'] as const).map(sec => (
+                          <div key={sec}>
+                            <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">{sec} %</label>
+                            <input type="number" min="0" max="100"
+                              value={sectionWeights[sec]}
+                              onChange={e => setSectionWeights(w => ({ ...w, [sec]: parseInt(e.target.value) || 0 }))}
+                              className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                          </div>
+                        ))}
+                      </div>
+                      {(() => {
+                        const total = sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical;
+                        return (
+                          <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${total === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            <div className={`w-2 h-2 rounded-full ${total === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            Total: {total}% {total === 100 ? '— Valid' : '— Must equal 100%'}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1556,16 +1606,23 @@ export default function NewExamPage() {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
-            <Link href={backHref}
-              className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl transition-colors">
-              {backLabel}
-            </Link>
+          {/* Sticky Swift Publish & Assign Bar */}
+          <div className="sticky bottom-3 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-lg">
+            <div className="flex items-center gap-3 min-w-0">
+              <Link href={backHref}
+                className="px-4 py-2 bg-muted/60 hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-colors">
+                {backLabel}
+              </Link>
+              <div className="hidden sm:block text-xs text-muted-foreground truncate">
+                <span className="font-black text-foreground">{questions.filter((q, i) => q.question_text.trim() && selectedQuestions.has(i)).length}</span> selected
+                {questionPoints ? <> · <span className="font-bold text-foreground">{questionPoints} pts</span></> : null}
+                {form.start_date ? <> · <span className="text-emerald-700 dark:text-emerald-300 font-bold">Scheduled</span></> : null}
+              </div>
+            </div>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-md">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (form.is_active ? 'Publish Assessment' : 'Save Draft')}
+              {saving ? 'Publishing…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (form.is_active ? 'Publish & Assign Exam' : 'Save Draft')}
             </button>
           </div>
         </form>
