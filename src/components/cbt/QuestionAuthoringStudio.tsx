@@ -504,8 +504,8 @@ export default function QuestionAuthoringStudio({
     return (rawList ?? [])
       .map((q: any) => {
         const rawType = String(q.question_type || '').trim().toLowerCase();
-        const rawOpts = Array.isArray(q.options)
-          ? q.options.map((o: any) => stripOptionPrefix(String(o ?? ''))).filter(Boolean)
+        const rawOpts: string[] = Array.isArray(q.options)
+          ? q.options.map((o: unknown) => stripOptionPrefix(String(o ?? ''))).filter(Boolean)
           : [];
 
         let qType: StudioGeneratedQuestion['question_type'];
@@ -536,7 +536,7 @@ export default function QuestionAuthoringStudio({
           qType = 'essay';
         }
 
-        const opts =
+        const opts: string[] =
           qType === 'true_false'
             ? ['True', 'False']
             : qType === 'multiple_choice'
