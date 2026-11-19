@@ -275,13 +275,13 @@ export default function CBTPage() {
               return (
                 <div
                   key={exam.id}
-                  className="group relative bg-card border border-border hover:border-primary/20 transition-all overflow-hidden"
+                  className="group relative rounded-2xl bg-card border border-border hover:border-primary/25 transition-all overflow-hidden shadow-sm"
                 >
                   {/* Left accent bar */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${exam.is_active ? 'bg-primary' : 'bg-muted'}`} />
 
-                  <div className="pl-7 pr-6 py-5">
-                    <div className="flex items-start justify-between gap-4">
+                  <div className="p-4 pl-5 sm:pl-7 sm:pr-6 sm:py-5">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                       {/* Left content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -312,13 +312,15 @@ export default function CBTPage() {
                             </span>
                           )}
                           {!isStaff && studentSession && (
-                            <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${
+                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                              studentSession.status === 'in_progress' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/35' :
                               studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
                               studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30' :
                               studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' :
                               'bg-primary/20 text-primary border-primary/30'
                             }`}>
-                              {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
+                              {studentSession.status === 'in_progress' ? 'In Progress' :
+                               studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
                                studentSession.status === 'failed' ? `Failed · ${studentSession.score}%` :
                                studentSession.status === 'pending_grading' ? 'Pending Review' :
                                'Submitted'}
@@ -433,24 +435,31 @@ export default function CBTPage() {
                             )}
                           </>
                         ) : (
-                          studentSession ? (
+                          studentSession && studentSession.status === 'in_progress' ? (
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}/take`}
+                              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 shadow-sm transition-colors"
+                            >
+                              <PlayIcon className="w-4 h-4" /> Resume Exam
+                            </Link>
+                          ) : studentSession ? (
                             <Link
                               href={`/dashboard/cbt/${exam.id}`}
-                              className="flex items-center justify-center gap-2 bg-card hover:bg-muted text-muted-foreground font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 border border-border transition-colors"
+                              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-card hover:bg-muted text-foreground font-black text-xs uppercase tracking-wider px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 border border-border transition-colors"
                             >
                               <EyeIcon className="w-4 h-4" /> View Results
                             </Link>
                           ) : available ? (
                             <Link
                               href={`/dashboard/cbt/${exam.id}/take`}
-                              className="flex items-center justify-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 transition-colors"
+                              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 shadow-sm transition-colors"
                             >
                               <PlayIcon className="w-4 h-4" /> Start Exam
                             </Link>
                           ) : (
-                            <span className="flex items-center justify-center gap-2 text-muted-foreground font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 border border-border bg-card">
+                            <span className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl text-muted-foreground font-black text-xs uppercase tracking-wider px-5 py-3 min-h-[44px] sm:py-2.5 sm:min-h-0 border border-border bg-muted/40">
                               <ExclamationTriangleIcon className="w-4 h-4" />
-                              {ended ? 'Expired' : 'Not Available'}
+                              {ended ? 'Expired' : 'Scheduled'}
                             </span>
                           )
                         )}

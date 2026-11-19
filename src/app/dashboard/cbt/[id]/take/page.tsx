@@ -166,6 +166,7 @@ export default function TakeExamPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const startTimeRef = useRef<Date>(new Date());
   const deadlineMsRef = useRef<number | null>(null);
   const clockOffsetMsRef = useRef<number>(0);
@@ -611,22 +612,22 @@ export default function TakeExamPage() {
     const isPending = result.status === 'pending_grading';
 
     return (
-      <div className="flex-1 min-h-0 h-full w-full overflow-y-auto bg-background flex items-start sm:items-center justify-center text-foreground p-4 sm:p-6 pb-[calc(var(--app-bottom-nav-height)+2rem)] sm:pb-6 relative mobile-page-root">
+      <div className="flex-1 min-h-0 h-full w-full overflow-y-auto bg-background flex items-start sm:items-center justify-center text-foreground p-4 sm:p-6 pb-8 relative mobile-page-root">
         {/* Animated Background Accents */}
-        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse delay-700" />
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse pointer-events-none" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse delay-700 pointer-events-none" />
 
-        <div className="max-w-xl w-full relative z-10">
-          <div className="bg-card/80 backdrop-blur-3xl border border-border rounded-[2.5rem] p-12 shadow-2xl space-y-8 text-center">
-            <div className={`w-32 h-32 mx-auto rounded-[2rem] flex items-center justify-center border-2 rotate-3 transition-transform hover:rotate-0 duration-500 ${isPending ? 'border-amber-500/50 bg-amber-500/10' : (result.passed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-rose-500/50 bg-rose-500/10')}`}>
-              {isPending ? <ClockIcon className="w-16 h-16 text-amber-600 dark:text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-16 h-16 text-emerald-600 dark:text-emerald-400" /> : <XCircleIcon className="w-16 h-16 text-rose-600 dark:text-rose-400" />)}
+        <div className="max-w-xl w-full relative z-10 my-auto">
+          <div className="bg-card/90 backdrop-blur-2xl border border-border rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-10 shadow-2xl space-y-6 sm:space-y-8 text-center">
+            <div className={`w-20 h-20 sm:w-28 sm:h-28 mx-auto rounded-2xl sm:rounded-[2rem] flex items-center justify-center border-2 rotate-3 transition-transform hover:rotate-0 duration-500 ${isPending ? 'border-amber-500/50 bg-amber-500/10' : (result.passed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-rose-500/50 bg-rose-500/10')}`}>
+              {isPending ? <ClockIcon className="w-10 h-10 sm:w-14 sm:h-14 text-amber-600 dark:text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-10 h-10 sm:w-14 sm:h-14 text-emerald-600 dark:text-emerald-400" /> : <XCircleIcon className="w-10 h-10 sm:w-14 sm:h-14 text-rose-600 dark:text-rose-400" />)}
             </div>
 
-            <div className="space-y-2">
-              <h1 className={`text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-600 dark:text-amber-400' : (result.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}`}>
+            <div className="space-y-1.5">
+              <h1 className={`text-3xl sm:text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-600 dark:text-amber-400' : (result.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}`}>
                 {isPending ? 'SUBMITTED' : (result.passed ? 'EXCELLENT' : 'COMPLETE')}
               </h1>
-              <p className="text-muted-foreground font-medium tracking-widest uppercase text-xs">
+              <p className="text-muted-foreground font-semibold tracking-wider uppercase text-xs">
                 {exam?.title}
               </p>
             </div>
@@ -780,10 +781,32 @@ export default function TakeExamPage() {
         )}
       </div>
 
-      {/* Main Scrollable Examination Canvas — maximized vertical space on mobile */}
+      {/* Main Scrollable Examination Canvas — maximized vertical space on mobile with swipe navigation */}
       <div
         ref={canvasScrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-3 sm:pt-6 pb-[calc(var(--app-bottom-nav-height)+5.5rem)] md:pb-12 relative"
+        onTouchStart={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('textarea, input, .cbt-code-block')) {
+            touchStartRef.current = null;
+            return;
+          }
+          const t = e.touches[0];
+          if (t) touchStartRef.current = { x: t.clientX, y: t.clientY };
+        }}
+        onTouchEnd={(e) => {
+          const start = touchStartRef.current;
+          touchStartRef.current = null;
+          if (!start) return;
+          const t = e.changedTouches[0];
+          if (!t) return;
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+            if (dx < 0 && current < questions.length - 1) setCurrent((c) => c + 1);
+            else if (dx > 0 && current > 0) setCurrent((c) => c - 1);
+          }
+        }}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-3 sm:pt-6 pb-24 md:pb-12 relative"
       >
         <div className="max-w-4xl mx-auto w-full space-y-3.5 sm:space-y-6 relative z-10">
           <div className="space-y-3.5 sm:space-y-6">
@@ -1117,8 +1140,11 @@ export default function TakeExamPage() {
         </div>
       </div>
 
-      {/* Compact Single-Row Mobile Controls + Expandable Question Navigator Drawer */}
-      <div className="md:hidden fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-6px_20px_rgba(0,0,0,0.08)]">
+      {/* Compact Single-Row Mobile Controls + Expandable Question Navigator Drawer (flush to bottom in distraction-free mode) */}
+      <div
+        className="md:hidden fixed inset-x-0 bottom-0 z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-6px_20px_rgba(0,0,0,0.08)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {showMobileGrid && (
           <div className="border-b border-border bg-card px-3 py-3 space-y-2.5 max-h-[42dvh] overflow-y-auto">
             <div className="flex items-center justify-between gap-2">
@@ -1211,7 +1237,7 @@ export default function TakeExamPage() {
 
       {/* Smart Pre-Submit Review Modal */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-3 pb-[calc(var(--app-bottom-nav-height)+0.75rem)] sm:p-6">
+        <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center p-3 pb-4 sm:p-6">
           <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => !submitting && setShowSubmitModal(false)} />
           <div className="relative z-10 w-full max-w-md max-h-[82dvh] overflow-y-auto rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
