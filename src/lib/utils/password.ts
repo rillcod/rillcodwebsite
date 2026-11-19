@@ -1,21 +1,18 @@
 /**
  * Canonical temp-password generator for EVERY account in the system (students,
- * parents, staff, school accounts). One recognisable, staff-friendly pattern:
- *   Rillcod@<8 unambiguous characters>
- * One shared generator prevents account screens from inventing weaker formats.
- * The alphabet omits visually ambiguous 0/O and 1/I characters.
+ * parents, staff, school accounts). Simple, memorable, easy to type on phones:
+ *   rillcod@<4 digits>   (e.g. rillcod@1132)
  */
 export function generateTempPassword(): string {
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const values = new Uint32Array(8);
-    if (globalThis.crypto?.getRandomValues) {
-        globalThis.crypto.getRandomValues(values);
-    } else {
-        for (let index = 0; index < values.length; index += 1) {
-            values[index] = Math.floor(Math.random() * 0x100000000);
-        }
-    }
-    return `Rillcod@${[...values].map(value => alphabet[value % alphabet.length]).join('')}`;
+  let num: number;
+  if (globalThis.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(values);
+    num = 1000 + (values[0] % 9000);
+  } else {
+    num = 1000 + Math.floor(Math.random() * 9000);
+  }
+  return `rillcod@${num}`;
 }
 
 /** Alias — some call sites import this name. */

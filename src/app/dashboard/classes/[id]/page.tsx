@@ -18,7 +18,7 @@ import {
 } from '@/lib/icons';
 import { learnerReportHref } from '@/components/reports/LearnerReportFlowStrip';
 import { getWAECGrade } from '@/lib/grading';
-import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
+import { parseBandLabel, bandCoversGrade, parseGrade, canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchActionJson, fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import {
   buildAssignmentNewHref,
@@ -144,12 +144,14 @@ export default function ClassDetailPage() {
   const [modalGradeFilter, setModalGradeFilter] = useState('');
   const [modalClassFilter, setModalClassFilter] = useState('');
   const [modalGradeAction, setModalGradeAction] = useState<'promote' | 'demote' | 'retain'>('promote');
+  const [modalTargetGrade, setModalTargetGrade] = useState('');
   const [modalStudentActions, setModalStudentActions] = useState<Record<string, 'promote' | 'demote' | 'retain'>>({});
   const [modalSchoolClasses, setModalSchoolClasses] = useState<Array<{ id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>>([]);
   // Session Roster Confirmation + Inline Quick-Add
   const [showSessionConfirm, setShowSessionConfirm] = useState(false);
   const [confirmKeepIds, setConfirmKeepIds] = useState<Set<string>>(new Set());
   const [confirmGrades, setConfirmGrades] = useState<Record<string, string>>({});
+  const [lastSavedGradeSnapshot, setLastSavedGradeSnapshot] = useState<Array<{ studentId: string; grade: string }> | null>(null);
   const [quickAddInput, setQuickAddInput] = useState('');
   const [quickAddGrade, setQuickAddGrade] = useState('');
   const [savingSessionConfirm, setSavingSessionConfirm] = useState(false);
@@ -638,6 +640,7 @@ export default function ClassDetailPage() {
           forceClaim: pasteClaimEnabled === true,
           promoteToClassGrade: effectiveAction !== 'retain',
           gradeAction: effectiveAction,
+          targetGrade: modalTargetGrade || undefined,
         }),
       });
       const json = await res.json();
@@ -652,11 +655,19 @@ export default function ClassDetailPage() {
   };
 
   const nextStepGradeLabel = (currentGrade?: string | null): string => {
-    const clean = (currentGrade || '').trim();
-    if (!clean) return cls?.qa_grade_key || '';
-    const idx = (SINGLE_GRADES as readonly string[]).indexOf(clean);
+    const canon = canonicalGrade(currentGrade) ?? (currentGrade || '').trim();
+    if (!canon) return defaultEntryGradeForClass();
+    const idx = (SINGLE_GRADES as readonly string[]).indexOf(canon);
     if (idx >= 0 && idx < SINGLE_GRADES.length - 1) return SINGLE_GRADES[idx + 1];
-    return clean;
+    return canon;
+  };
+
+  const prevStepGradeLabel = (currentGrade?: string | null): string => {
+    const canon = canonicalGrade(currentGrade) ?? (currentGrade || '').trim();
+    if (!canon) return defaultEntryGradeForClass();
+    const idx = (SINGLE_GRADES as readonly string[]).indexOf(canon);
+    if (idx > 0) return SINGLE_GRADES[idx - 1];
+    return canon;
   };
 
   const defaultEntryGradeForClass = (): string => {
@@ -668,18 +679,21 @@ export default function ClassDetailPage() {
     return '';
   };
 
-  const openSessionConfirm = () => {
-    const active = currentTermStudents;
-    setConfirmKeepIds(new Set(active.map((s: any) => s.id)));
+  const buildInitialConfirmGrades = (active: any[]): Record<string, string> => {
     const nextMap: Record<string, string> = {};
     const fallback = defaultEntryGradeForClass();
     for (const s of active) {
-      nextMap[s.id] = (s.grade && (SINGLE_GRADES as readonly string[]).includes(s.grade))
-        ? s.grade
-        : (fallback || s.grade || '');
+      const canon = canonicalGrade(s.grade);
+      nextMap[s.id] = canon || (s.grade || '').trim() || fallback;
     }
-    setConfirmGrades(nextMap);
-    setQuickAddGrade(fallback);
+    return nextMap;
+  };
+
+  const openSessionConfirm = () => {
+    const active = currentTermStudents;
+    setConfirmKeepIds(new Set(active.map((s: any) => s.id)));
+    setConfirmGrades(buildInitialConfirmGrades(active));
+    setQuickAddGrade(defaultEntryGradeForClass());
     setSessionConfirmNotice(null);
     setShowSessionConfirm(true);
     setRosterOpen(true);
@@ -690,12 +704,58 @@ export default function ClassDetailPage() {
       const next = { ...prev };
       for (const s of currentTermStudents) {
         if (!confirmKeepIds.has(s.id)) continue;
-        const cur = next[s.id] || s.grade || '';
+        const cur = next[s.id] || canonicalGrade(s.grade) || s.grade || '';
         const stepped = nextStepGradeLabel(cur);
         if (stepped) next[s.id] = stepped;
       }
       return next;
     });
+  };
+
+  const demoteAllConfirmGrades = () => {
+    setConfirmGrades((prev) => {
+      const next = { ...prev };
+      for (const s of currentTermStudents) {
+        if (!confirmKeepIds.has(s.id)) continue;
+        const cur = next[s.id] || canonicalGrade(s.grade) || s.grade || '';
+        const stepped = prevStepGradeLabel(cur);
+        if (stepped) next[s.id] = stepped;
+      }
+      return next;
+    });
+  };
+
+  const revertConfirmGrades = () => {
+    setConfirmKeepIds(new Set(currentTermStudents.map((s: any) => s.id)));
+    setConfirmGrades(buildInitialConfirmGrades(currentTermStudents));
+  };
+
+  const undoLastSessionConfirmSave = async () => {
+    if (!id || !lastSavedGradeSnapshot || lastSavedGradeSnapshot.length === 0) return;
+    setSavingSessionConfirm(true);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: lastSavedGradeSnapshot }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not revert saved grades');
+      const restoredMap: Record<string, string> = {};
+      for (const item of lastSavedGradeSnapshot) restoredMap[item.studentId] = item.grade;
+      setConfirmGrades((prev) => ({ ...prev, ...restoredMap }));
+      setLastSavedGradeSnapshot(null);
+      setSessionConfirmNotice({
+        summary: `Reverted ${lastSavedGradeSnapshot.length} student grade${lastSavedGradeSnapshot.length === 1 ? '' : 's'} back to previous values.`,
+        added: [],
+        errors: [],
+      });
+      await fetchData();
+    } catch (e: any) {
+      alert(e?.message || 'Could not revert saved grades');
+    } finally {
+      setSavingSessionConfirm(false);
+    }
   };
 
   const submitSessionConfirm = async (onlyQuickAdd = false) => {
@@ -704,13 +764,20 @@ export default function ClassDetailPage() {
     setSessionConfirmNotice(null);
     try {
       const updates: Array<{ studentId: string; grade: string }> = [];
+      const previousSnapshot: Array<{ studentId: string; grade: string }> = [];
       const withdrawStudentIds: string[] = [];
 
       if (!onlyQuickAdd) {
         for (const s of currentTermStudents) {
           if (confirmKeepIds.has(s.id)) {
             const targetG = (confirmGrades[s.id] || s.grade || '').trim();
-            if (targetG) updates.push({ studentId: s.id, grade: targetG });
+            const prevG = (canonicalGrade(s.grade) || s.grade || '').trim();
+            if (targetG) {
+              updates.push({ studentId: s.id, grade: targetG });
+              if (prevG && prevG !== targetG) {
+                previousSnapshot.push({ studentId: s.id, grade: prevG });
+              }
+            }
           } else {
             withdrawStudentIds.push(s.id);
           }
@@ -729,6 +796,10 @@ export default function ClassDetailPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not save session confirmation');
+
+      if (!onlyQuickAdd && previousSnapshot.length > 0) {
+        setLastSavedGradeSnapshot(previousSnapshot);
+      }
 
       const added = Array.isArray(json.quickAdded) ? json.quickAdded : [];
       const ambiguous = Array.isArray(json.quickAmbiguous) ? json.quickAmbiguous : [];
@@ -913,6 +984,7 @@ export default function ClassDetailPage() {
           forceClaim: pasteClaimEnabled === true,
           promoteToClassGrade: effectiveAction !== 'retain',
           gradeAction: effectiveAction,
+          targetGrade: modalTargetGrade || undefined,
           studentActions: modalStudentActions,
         }),
       });
@@ -2293,13 +2365,32 @@ export default function ClassDetailPage() {
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5">
                             {currentTermStudents.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={promoteAllConfirmGrades}
-                                className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-800 transition-colors"
-                              >
-                                ⬆ Promote All Checked (+1 Grade)
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={promoteAllConfirmGrades}
+                                  title="Step each checked student up by +1 from their own grade (e.g. JSS 1 → JSS 2, SS 1 → SS 2)"
+                                  className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-800 transition-colors"
+                                >
+                                  ⬆ Promote All (+1)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={demoteAllConfirmGrades}
+                                  title="Step each checked student down by -1 grade (e.g. JSS 2 → JSS 1)"
+                                  className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted transition-colors"
+                                >
+                                  ⬇ Demote (-1)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={revertConfirmGrades}
+                                  title="Revert all unsaved grade & checkbox changes back to current saved values"
+                                  className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 transition-colors"
+                                >
+                                  ↺ Revert
+                                </button>
+                              </>
                             )}
                             <button
                               type="button"
@@ -2397,42 +2488,66 @@ export default function ClassDetailPage() {
                         )}
 
                         {/* Inline Quick-Add / Smart Auto-Adopt */}
-                        <div className="rounded-xl border border-primary/25 bg-card p-3 space-y-2">
+                        <div className="rounded-xl border border-primary/25 bg-card p-3 space-y-2.5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-black text-foreground">
                               + Quick-Add New or Returning Student Inline
                             </p>
-                            <span className="text-[10px] font-semibold text-muted-foreground">
-                              Auto-matches existing school records (zero duplicates) or creates &amp; syncs new student + ID card
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black text-primary">
+                              Target pitch: {quickAddGrade || `Auto (${defaultEntryGradeForClass() || 'Class'})`}
                             </span>
+                          </div>
+                          {/* 1-tap Target Grade Pitch bar */}
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Pitch grade:</span>
+                            <button
+                              type="button"
+                              onClick={() => setQuickAddGrade('')}
+                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
+                                !quickAddGrade
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              Auto
+                            </button>
+                            {SINGLE_GRADES.map((g) => {
+                              const active = quickAddGrade === g;
+                              const inBand = classBand ? bandCoversGrade(classBand, g) : false;
+                              return (
+                                <button
+                                  key={`pitch-${g}`}
+                                  type="button"
+                                  onClick={() => setQuickAddGrade(g)}
+                                  className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
+                                    active
+                                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                      : inBand
+                                        ? 'border-primary/35 bg-primary/5 text-primary hover:bg-primary/15'
+                                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  {g}
+                                </button>
+                              );
+                            })}
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
                             <textarea
                               rows={2}
                               value={quickAddInput}
                               onChange={(e) => setQuickAddInput(e.target.value)}
-                              placeholder="Type student name(s) — e.g. Chinedu Eze (or paste one per line, optionally with grade like Ada Okafor JSS 1)"
+                              placeholder={`Type student name(s) to push into ${quickAddGrade || defaultEntryGradeForClass() || 'this class'} — e.g. Samuel Agha (or paste one per line, optionally with grade like Ada Okafor JSS 2)`}
                               className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                             />
                             <div className="flex sm:flex-col gap-2 shrink-0">
-                              <select
-                                aria-label="Grade for inline new students"
-                                value={quickAddGrade}
-                                onChange={(e) => setQuickAddGrade(e.target.value)}
-                                className="min-h-10 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground"
-                              >
-                                <option value="">Auto grade ({defaultEntryGradeForClass() || 'Class'})</option>
-                                {SINGLE_GRADES.map((g) => (
-                                  <option key={g} value={g}>{g}</option>
-                                ))}
-                              </select>
                               <button
                                 type="button"
                                 disabled={savingSessionConfirm || !quickAddInput.trim()}
                                 onClick={() => void submitSessionConfirm(true)}
-                                className="min-h-10 rounded-xl border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-40"
+                                className="min-h-10 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground hover:bg-primary/90 disabled:opacity-40 shadow-sm"
                               >
-                                + Add &amp; Sync Now
+                                + Push to {quickAddGrade || defaultEntryGradeForClass() || 'Class'}
                               </button>
                             </div>
                           </div>
@@ -2440,7 +2555,19 @@ export default function ClassDetailPage() {
 
                         {sessionConfirmNotice && (
                           <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 text-xs space-y-1.5">
-                            <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
+                              {lastSavedGradeSnapshot && lastSavedGradeSnapshot.length > 0 && (
+                                <button
+                                  type="button"
+                                  disabled={savingSessionConfirm}
+                                  onClick={() => void undoLastSessionConfirmSave()}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-amber-500/45 bg-background px-2.5 py-1 text-[11px] font-black text-amber-900 dark:text-amber-200 hover:bg-amber-500/15 disabled:opacity-50"
+                                >
+                                  ↺ Undo Last Save ({lastSavedGradeSnapshot.length})
+                                </button>
+                              )}
+                            </div>
                             {sessionConfirmNotice.added.length > 0 && (
                               <ul className="space-y-1 text-[11px] text-foreground">
                                 {sessionConfirmNotice.added.map((a, idx) => (
@@ -4251,27 +4378,40 @@ export default function ClassDetailPage() {
 
                         <div>
                           <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
-                            2. Default Action (Override per student below)
+                            2. Action &amp; Target Grade Pitch
                           </label>
-                          <div className="grid grid-cols-3 gap-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
-                            {([
-                              { id: 'promote', label: `⬆ Promote${cls?.qa_grade_key ? ` (${cls.qa_grade_key})` : ''}` },
-                              { id: 'demote', label: '⬇ Demote' },
-                              { id: 'retain', label: '↔ Keep Grade' },
-                            ] as const).map((act) => (
-                              <button
-                                key={act.id}
-                                type="button"
-                                onClick={() => setModalGradeAction(act.id)}
-                                className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${
-                                  modalGradeAction === act.id
-                                    ? 'bg-emerald-700 text-white'
-                                    : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                              >
-                                {act.label}
-                              </button>
-                            ))}
+                          <div className="flex flex-col sm:flex-row gap-1.5">
+                            <div className="grid grid-cols-3 gap-1 flex-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
+                              {([
+                                { id: 'promote', label: '⬆ Promote (+1)' },
+                                { id: 'demote', label: '⬇ Demote (-1)' },
+                                { id: 'retain', label: '↔ Keep Grade' },
+                              ] as const).map((act) => (
+                                <button
+                                  key={act.id}
+                                  type="button"
+                                  onClick={() => setModalGradeAction(act.id)}
+                                  className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${
+                                    modalGradeAction === act.id
+                                      ? 'bg-emerald-700 text-white'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  {act.label}
+                                </button>
+                              ))}
+                            </div>
+                            <select
+                              aria-label="Target grade pitch"
+                              value={modalTargetGrade}
+                              onChange={(e) => setModalTargetGrade(e.target.value)}
+                              className="rounded-lg border border-emerald-500/35 bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground focus:outline-none focus:border-primary"
+                            >
+                              <option value="">Auto (+1 Increment)</option>
+                              {SINGLE_GRADES.map((g) => (
+                                <option key={`modal-pitch-${g}`} value={g}>Pitch: {g}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       </div>

@@ -32,6 +32,7 @@ type Member = {
   id: string;
   full_name: string;
   email?: string | null;
+  temp_password?: string | null;
   grade?: string | null;
   section_class?: string | null;
   school_name?: string | null;
@@ -74,7 +75,7 @@ export default function ClassCardsPage() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState<'' | 'issue' | 'roster' | 'cards'>('');
+  const [busy, setBusy] = useState<'' | 'issue' | 'roster' | 'cards' | 'fix' | 'sheet'>('');
 
   const loadCards = useCallback(async (schoolId: string | null) => {
     setCardsError('');
@@ -102,7 +103,7 @@ export default function ClassCardsPage() {
     try {
       const [clsRes, stuRes] = await Promise.all([
         fetch(`/api/classes/${id}`, { cache: 'no-store' }),
-        fetch(`/api/classes/${id}/students?with_reports=1`, { cache: 'no-store' }),
+        fetch(`/api/classes/${id}/students?with_reports=1&with_credentials=1`, { cache: 'no-store' }),
       ]);
       const clsJson = await clsRes.json().catch(() => ({}));
       const stuJson = await stuRes.json().catch(() => ({}));
@@ -256,6 +257,7 @@ export default function ClassCardsPage() {
         id: r.id,
         full_name: r.full_name,
         email: r.email ?? null,
+        temp_password: r.temp_password ?? null,
         school_name: r.school_name ?? cls?.schools?.name ?? null,
         grade: r.grade ?? null,
         section_class: r.section_class ?? cls?.name ?? null,
@@ -278,17 +280,143 @@ export default function ClassCardsPage() {
     }
   };
 
+  const legacyEmailRows = useMemo(
+    () => rows.filter((r) => String(r.email || '').toLowerCase().endsWith('@student.rillcod.com')),
+    [rows],
+  );
+
+  const fixLegacyCredentials = async (includeMissingPasswords = false) => {
+    setBusy('fix');
+    try {
+      const targetIds = selectedRows.length > 0 ? selectedRows.map((r) => r.id) : undefined;
+      const res = await fetch(`/api/classes/${id}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'normalize_credentials',
+          studentIds: targetIds,
+          includeMissingPasswords,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not update credentials');
+      if (json.fixed_count > 0) {
+        toast.success(`Updated ${json.fixed_count} student account${json.fixed_count === 1 ? '' : 's'} to name123@rillcod.com + rillcod@XXXX`);
+      } else {
+        toast.message('All selected accounts already use the clean pattern.');
+      }
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not update credentials');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const printCredentialsSheet = () => {
+    const list = selectedRows.length ? selectedRows : rows;
+    if (!list.length) { toast.error('No students to print.'); return; }
+    const win = window.open('', '_blank');
+    if (!win) { toast.error('Pop-up blocked — allow pop-ups to print the sheet.'); return; }
+    const esc = (v: string) => String(v ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const originHost = window.location.origin.replace(/^https?:\/\//, '');
+    const className = cls?.name ?? 'Class';
+    const schoolName = cls?.schools?.name ?? '';
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const rowsHtml = list.map((r, idx) => `
+      <tr>
+        <td class="num">${idx + 1}</td>
+        <td>
+          <div class="name">${esc(r.full_name)}</div>
+          <div class="meta">${esc(r.grade || '—')}</div>
+        </td>
+        <td class="mono">${esc(r.email || '—')}</td>
+        <td class="mono pw">${esc(r.temp_password || 'Use reset / existing')}</td>
+        <td class="mono rc">${esc(r.rcDisplay)}</td>
+      </tr>
+    `).join('');
+
+    const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Student Login & RC Sheet — ${esc(className)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    body { font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: #111827; margin: 0; font-size: 11px; }
+    .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3A8F; padding-bottom: 8px; margin-bottom: 10px; }
+    .hdr h1 { margin: 0; font-size: 16px; color: #1A3A8F; letter-spacing: -0.01em; }
+    .hdr p { margin: 2px 0 0; color: #4b5563; font-size: 10px; }
+    .guide { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
+    .guide strong { color: #1A3A8F; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #1A3A8F; color: #fff; text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
+    tr:nth-child(even) td { background: #f9fafb; }
+    .num { width: 26px; text-align: center; color: #6b7280; font-weight: 700; }
+    .name { font-weight: 700; color: #111827; font-size: 11.5px; }
+    .meta { font-size: 9.5px; color: #6b7280; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; }
+    .pw { font-weight: 700; color: #047857; }
+    .rc { font-weight: 800; color: #1A3A8F; }
+    .foot { margin-top: 10px; font-size: 9.5px; color: #6b7280; display: flex; justify-content: space-between; }
+    @media print { .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div>
+      <h1>Student Login, Password &amp; Result RC Sheet</h1>
+      <p><strong>${esc(className)}</strong>${schoolName ? ` · ${esc(schoolName)}` : ''} · ${list.length} student${list.length === 1 ? '' : 's'}</p>
+    </div>
+    <p>Printed ${esc(today)}</p>
+  </div>
+  <div class="guide">
+    <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and sign in with the Email &amp; Password below.</div>
+    <div><strong>Parent Result Check:</strong> Visit <strong>${esc(originHost)}/result-check</strong> and enter the student&apos;s RC Number below.</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="num">#</th>
+        <th>Student &amp; Grade</th>
+        <th>Portal Email</th>
+        <th>Password</th>
+        <th>Result RC Number</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="foot">
+    <span>Keep passwords private. Students can change their password after logging in.</span>
+    <span>${esc(originHost)}</span>
+  </div>
+  <script>window.onload = () => { setTimeout(() => window.print(), 250); };</script>
+</body>
+</html>`;
+    openPrintWindow(html, win);
+  };
+
   const copyCodes = async () => {
     const list = selectedRows.length ? selectedRows : rows;
+    const host = window.location.origin.replace(/^https?:\/\//, '');
     const text = [
-      `${cls?.name ?? 'Class'} — RC numbers for result check`,
-      `Open ${window.location.origin.replace(/^https?:\/\//, '')}/result-check and enter your child's number.`,
+      `${cls?.name ?? 'Class'} — Student Login & Result RC Details`,
+      `Portal Login: ${host}/login`,
+      `Result Check: ${host}/result-check`,
       '',
-      ...list.map((r, i) => `${i + 1}. ${r.full_name} — ${r.rcDisplay}`),
+      ...list.map((r, i) => {
+        const parts = [`${i + 1}. ${r.full_name}${r.grade ? ` (${r.grade})` : ''}`];
+        if (r.email) parts.push(`Email: ${r.email}`);
+        if (r.temp_password) parts.push(`Pass: ${r.temp_password}`);
+        parts.push(`RC: ${r.rcDisplay}`);
+        return parts.join(' | ');
+      }),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`Copied ${list.length} RC number${list.length === 1 ? '' : 's'} — paste into WhatsApp`);
+      toast.success(`Copied ${list.length} student detail${list.length === 1 ? '' : 's'} (Email, Password & RC)`);
     } catch {
       toast.error('Could not copy — your browser blocked clipboard access.');
     }
@@ -380,6 +508,28 @@ export default function ClassCardsPage() {
         </div>
       )}
 
+      {legacyEmailRows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs">
+          <div className="space-y-0.5">
+            <p className="font-black text-foreground">
+              {legacyEmailRows.length} student{legacyEmailRows.length === 1 ? '' : 's'} still use the old <code className="font-mono">@student.rillcod.com</code> email pattern
+            </p>
+            <p className="text-muted-foreground">
+              Convert them to the clean <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code> pattern so their login details print cleanly.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={busy !== ''}
+            onClick={() => void fixLegacyCredentials(false)}
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {busy === 'fix' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <SparklesIcon className="h-4 w-4" />}
+            Fix {legacyEmailRows.length} Email{legacyEmailRows.length === 1 ? '' : 's'} &amp; Passwords
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="space-y-3 rounded-2xl border border-border bg-card p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -445,7 +595,21 @@ export default function ClassCardsPage() {
                       className="h-5 w-5 shrink-0 rounded border-border accent-primary" />
                     <button type="button" onClick={() => toggle(r.id)} className="min-w-0 flex-1 text-left">
                       <p className="truncate text-sm font-bold text-foreground">{r.full_name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{[r.grade, r.section_class].filter(Boolean).join(' · ') || r.email || '—'}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[r.grade, r.section_class].filter(Boolean).join(' · ') || '—'}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        {r.email && (
+                          <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-foreground">
+                            {r.email}
+                          </span>
+                        )}
+                        {r.temp_password ? (
+                          <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono font-bold text-emerald-800 dark:text-emerald-300">
+                            {r.temp_password}
+                          </span>
+                        ) : null}
+                      </div>
                     </button>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <CardBadge state={r.cardState} />
@@ -499,6 +663,11 @@ export default function ClassCardsPage() {
               className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40">
               {busy === 'issue' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ShieldCheckIcon className="h-4 w-4" />}
               Give access{selectedNeedingCard.length ? ` (${selectedNeedingCard.length})` : ''}
+            </button>
+            <button type="button" disabled={busy !== ''} onClick={printCredentialsSheet}
+              title="Print one clean A4 sheet with Email, Password, and Result RC Code for every student"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40">
+              <PrinterIcon className="h-4 w-4" /> Print Login + RC Sheet
             </button>
             <button type="button" disabled={busy !== ''} onClick={() => void printRoster('print')}
               title="Opens the RC roster as a PDF ready to print"

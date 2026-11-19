@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { generateTempPassword } from './password';
 
 describe('temporary account passwords', () => {
-  it('uses the shared readable high-entropy format', () => {
-    expect(generateTempPassword()).toMatch(/^Rillcod@[A-HJ-NP-Z2-9]{8}$/);
+  it('uses the canonical rillcod@XXXX 4-digit format', () => {
+    expect(generateTempPassword()).toMatch(/^rillcod@\d{4}$/);
   });
 
-  it('does not repeat across a normal registration batch', () => {
-    const passwords = Array.from({ length: 100 }, generateTempPassword);
-    expect(new Set(passwords).size).toBe(passwords.length);
+  it('produces varied passwords across a registration batch', () => {
+    const passwords = Array.from({ length: 30 }, generateTempPassword);
+    expect(new Set(passwords).size).toBeGreaterThan(25);
   });
 });
 

@@ -134,7 +134,7 @@ function resolveGradeForAction(
     if (rawName.includes('jss') || rawName.includes('teen')) return 'JSS 1';
   }
 
-  return entryGrade ?? nextHigherGrade(canonCurrent) ?? canonCurrent ?? null;
+  return nextHigherGrade(canonCurrent) ?? entryGrade ?? canonCurrent ?? null;
 }
 
 export const dynamic = 'force-dynamic';
@@ -1088,13 +1088,29 @@ export async function PATCH(
 
       // Not in school yet -> provision brand-new student account & sync to class, registry, and cards
       const targetG = parsedInline?.grade ?? defaultFallbackGrade;
-      const slug = cleanedName
+      const firstNamePart = (cleanedName.split(/\s+/)[0] || 'student')
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '.')
-        .replace(/^\.+|\.+$/g, '')
-        .slice(0, 28) || 'student';
-      const rand = Math.random().toString(36).slice(2, 6);
-      const generatedEmail = explicitEmail || `${slug}.${rand}@student.rillcod.com`;
+        .replace(/[^a-z]/g, '')
+        .slice(0, 18) || 'student';
+      let generatedEmail = explicitEmail || '';
+      if (!generatedEmail) {
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const digits = 100 + Math.floor(Math.random() * 900);
+          const candidate = `${firstNamePart}${digits}@rillcod.com`;
+          const { data: taken } = await admin
+            .from('portal_users')
+            .select('id')
+            .eq('email', candidate)
+            .maybeSingle();
+          if (!taken) {
+            generatedEmail = candidate;
+            break;
+          }
+        }
+        if (!generatedEmail) {
+          generatedEmail = `${firstNamePart}${1000 + Math.floor(Math.random() * 9000)}@rillcod.com`;
+        }
+      }
       const inlineBatchLabel = `Class Roster · ${cls.name}`;
 
       const provisioned = await findOrCreateStudentPortal(admin as any, {

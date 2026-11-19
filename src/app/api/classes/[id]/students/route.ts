@@ -3,6 +3,8 @@ import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { reportCoverageForStudents, currentAcademicPeriod } from '@/lib/reports/coverage';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
+import { generateTempPassword } from '@/lib/utils/password';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -268,6 +270,36 @@ export async function GET(
       formerStudents = formerStudents.map(withReport);
     }
 
+    // ?with_credentials=1 attaches the latest archived temp password from registration_results
+    // so teachers can print a single unified sheet (Email + Password + RC Code) per class.
+    const withCredentials = new URL(_request.url).searchParams.get('with_credentials') === '1';
+    if (withCredentials) {
+      const emails = [...new Set(
+        [...students, ...formerStudents]
+          .map((s: any) => String(s.email || '').trim().toLowerCase())
+          .filter(Boolean),
+      )];
+      if (emails.length > 0) {
+        const { data: credRows } = await admin
+          .from('registration_results')
+          .select('email, password, created_at')
+          .in('email', emails)
+          .order('created_at', { ascending: false });
+        const passByEmail = new Map<string, string>();
+        for (const row of credRows ?? []) {
+          const em = String((row as any).email || '').trim().toLowerCase();
+          const pw = String((row as any).password || '').trim();
+          if (em && pw && !passByEmail.has(em)) passByEmail.set(em, pw);
+        }
+        const attachCred = (s: any) => ({
+          ...s,
+          temp_password: passByEmail.get(String(s.email || '').trim().toLowerCase()) ?? null,
+        });
+        students = students.map(attachCred);
+        formerStudents = formerStudents.map(attachCred);
+      }
+    }
+
     // ── Sync current_students count from DB (not from local array) ───────────
     const actualCount = liveCountResult.count ?? students.length;
     if (actualCount !== cls.current_students) {
@@ -290,6 +322,158 @@ export async function GET(
       },
       { headers: { 'Cache-Control': 'no-store' } },
     );
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
+// POST /api/classes/[id]/students
+// { action: 'normalize_credentials', studentIds?: string[], includeMissingPasswords?: boolean }
+// Repairs legacy @student.rillcod.com emails to firstname123@rillcod.com + rillcod@XXXX
+// and optionally provisions rillcod@XXXX passwords for students without an archived password.
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id: classId } = await context.params;
+    const admin = adminClient();
+    const serverSupabase = await createServerClient();
+
+    const { data: { user }, error: authErr } = await serverSupabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: caller } = await admin
+      .from('portal_users')
+      .select('role, id, school_id')
+      .eq('id', user.id)
+      .single();
+    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const { data: cls } = await admin
+      .from('classes')
+      .select('id, name, school_id')
+      .eq('id', classId)
+      .single();
+    if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+    if (caller.role === 'school' && cls.school_id && caller.school_id !== cls.school_id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    if (caller.role === 'teacher' && cls.school_id) {
+      const { data: ts } = await admin
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', caller.id)
+        .eq('school_id', cls.school_id)
+        .maybeSingle();
+      if (caller.school_id !== cls.school_id && !ts) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+    }
+
+    const body = await request.json().catch(() => ({}));
+    if (body?.action !== 'normalize_credentials') {
+      return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
+    }
+    const targetIds: string[] = Array.isArray(body?.studentIds) ? body.studentIds : [];
+    const includeMissingPasswords = body?.includeMissingPasswords === true;
+
+    let q = admin
+      .from('portal_users')
+      .select('id, full_name, email, school_id, school_name')
+      .eq('class_id', classId)
+      .eq('role', 'student')
+      .or('is_deleted.eq.false,is_deleted.is.null');
+    if (targetIds.length > 0) q = q.in('id', targetIds);
+    const { data: classStudents } = await q;
+
+    const candidates = (classStudents ?? []) as Array<{
+      id: string;
+      full_name: string | null;
+      email: string | null;
+      school_id: string | null;
+      school_name: string | null;
+    }>;
+
+    // Check which students already have archived credentials
+    const existingEmails = candidates.map((s) => String(s.email || '').trim().toLowerCase()).filter(Boolean);
+    const { data: existingCreds } = existingEmails.length > 0
+      ? await admin.from('registration_results').select('email, password').in('email', existingEmails)
+      : { data: [] as any[] };
+    const hasArchivedPass = new Set(
+      (existingCreds ?? [])
+        .filter((r: any) => String(r.password || '').trim().length > 0)
+        .map((r: any) => String(r.email || '').trim().toLowerCase()),
+    );
+
+    const fixed: Array<{ id: string; full_name: string; old_email: string; email: string; password: string }> = [];
+    const errors: Array<{ id: string; full_name: string; error: string }> = [];
+
+    for (const stu of candidates) {
+      const oldEmail = String(stu.email || '').trim().toLowerCase();
+      const hasLegacyEmail = oldEmail.endsWith('@student.rillcod.com');
+      const needsPass = includeMissingPasswords && !hasArchivedPass.has(oldEmail);
+      if (!hasLegacyEmail && !needsPass) continue;
+
+      const fullName = (stu.full_name || 'Student').trim();
+      let newEmail = oldEmail;
+      if (hasLegacyEmail) {
+        const firstNamePart = (fullName.split(/\s+/)[0] || 'student')
+          .toLowerCase()
+          .replace(/[^a-z]/g, '')
+          .slice(0, 18) || 'student';
+        let chosen = '';
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const digits = 100 + Math.floor(Math.random() * 900);
+          const candidate = `${firstNamePart}${digits}@rillcod.com`;
+          const { data: taken } = await admin.from('portal_users').select('id').eq('email', candidate).maybeSingle();
+          if (!taken) {
+            chosen = candidate;
+            break;
+          }
+        }
+        newEmail = chosen || `${firstNamePart}${1000 + Math.floor(Math.random() * 9000)}@rillcod.com`;
+      }
+
+      const newPassword = generateTempPassword();
+      const { error: authUpdateErr } = await admin.auth.admin.updateUserById(stu.id, {
+        ...(hasLegacyEmail ? { email: newEmail } : {}),
+        password: newPassword,
+        email_confirm: true,
+      });
+      if (authUpdateErr) {
+        errors.push({ id: stu.id, full_name: fullName, error: authUpdateErr.message });
+        continue;
+      }
+
+      if (hasLegacyEmail) {
+        await admin.from('portal_users').update({ email: newEmail }).eq('id', stu.id);
+        await admin.from('students').update({ student_email: newEmail }).eq('user_id', stu.id);
+      }
+
+      await archivePortalCredential(admin as any, {
+        schoolId: stu.school_id ?? cls.school_id ?? null,
+        schoolName: stu.school_name ?? null,
+        fullName,
+        email: newEmail,
+        password: newPassword,
+        className: cls.name,
+        batchLabel: `Class Roster · ${cls.name}`,
+        status: 'created',
+      });
+
+      fixed.push({ id: stu.id, full_name: fullName, old_email: oldEmail, email: newEmail, password: newPassword });
+    }
+
+    return NextResponse.json({
+      success: true,
+      fixed_count: fixed.length,
+      fixed,
+      errors,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
