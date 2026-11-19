@@ -462,18 +462,18 @@ export default function ClassEnrollWorkspacePage() {
         </div>
       ) : tab === 'pick' ? (
         <div className="space-y-4">
-          {/* Search + Filters */}
+          {/* Simplified Search & Clean Filter Bar */}
           <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4 space-y-3 shadow-sm">
             <div className="flex flex-col sm:flex-row gap-2.5">
               <div className="relative flex-1">
-                <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   aria-label="Search school students"
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setShowAllRows(false); }}
-                  placeholder="Search student name, grade, previous class, or email…"
-                  className="min-h-11 w-full rounded-xl border border-border bg-background pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                  placeholder="Type a student name to find & adopt…"
+                  className="min-h-11 w-full rounded-xl border border-border bg-background pl-10 pr-9 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                 />
                 {search && (
                   <button
@@ -498,7 +498,7 @@ export default function ClassEnrollWorkspacePage() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
               {([
                 { id: 'all' as PlacementFilter, label: `All (${available.length})` },
                 ...(feederStudents.length > 0 ? [{ id: 'feeder' as PlacementFilter, label: `Prior Grade (${feederStudents.length})` }] : []),
@@ -509,7 +509,7 @@ export default function ClassEnrollWorkspacePage() {
                   key={chip.id}
                   type="button"
                   onClick={() => { setPlacement(chip.id); setShowAllRows(false); }}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                  className={`rounded-full border px-3 py-1 text-xs font-bold transition-colors ${
                     placement === chip.id
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border bg-background text-muted-foreground hover:text-foreground'
@@ -518,64 +518,34 @@ export default function ClassEnrollWorkspacePage() {
                   {chip.label}
                 </button>
               ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
-              <select
-                aria-label="Filter by source class"
-                value={sourceClassId}
-                onChange={(e) => { setSourceClassId(e.target.value); setShowAllRows(false); }}
-                className="min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground"
-              >
-                <option value="">All Classes in School</option>
-                {schoolClasses.map((sc) => (
-                  <option key={sc.id} value={sc.id}>
-                    {sc.name}{sc.qa_grade_key ? ` (${sc.qa_grade_key})` : ''} · {sc.student_count}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Filter by grade"
-                value={gradeFilter}
-                onChange={(e) => { setGradeFilter(e.target.value); setShowAllRows(false); }}
-                className="min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground"
-              >
-                <option value="">All Grades</option>
-                {distinctGrades.map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-              <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-background p-1 text-[11px] font-black">
-                {([
-                  { id: 'promote' as GradeAction, label: '⬆ +1' },
-                  { id: 'demote' as GradeAction, label: '⬇ -1' },
-                  { id: 'retain' as GradeAction, label: '↔ Keep' },
-                ]).map((act) => (
-                  <button
-                    key={act.id}
-                    type="button"
-                    onClick={() => setGradeAction(act.id)}
-                    className={`rounded-lg py-1.5 transition-colors ${
-                      gradeAction === act.id
-                        ? 'bg-emerald-700 text-white'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
+              <div className="flex flex-wrap items-center gap-2 sm:ml-auto w-full sm:w-auto pt-1 sm:pt-0">
+                {schoolClasses.length > 0 && (
+                  <select
+                    aria-label="Filter by source class"
+                    value={sourceClassId}
+                    onChange={(e) => { setSourceClassId(e.target.value); setShowAllRows(false); }}
+                    className="min-h-9 flex-1 sm:flex-none rounded-xl border border-border bg-background px-2.5 text-xs font-semibold text-foreground"
                   >
-                    {act.label}
-                  </button>
-                ))}
+                    <option value="">All Classes</option>
+                    {schoolClasses.map((sc) => (
+                      <option key={sc.id} value={sc.id}>
+                        {sc.name} ({sc.student_count})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <select
+                  aria-label="Target grade pitch"
+                  value={targetGradePitch}
+                  onChange={(e) => setTargetGradePitch(e.target.value)}
+                  className="min-h-9 flex-1 sm:flex-none rounded-xl border border-primary/35 bg-primary/5 px-2.5 text-xs font-bold text-primary"
+                >
+                  <option value="">Grade: Auto (+1)</option>
+                  {SINGLE_GRADES.map((g) => (
+                    <option key={`pitch-sel-${g}`} value={g}>Set Grade: {g}</option>
+                  ))}
+                </select>
               </div>
-              <select
-                aria-label="Target grade pitch"
-                value={targetGradePitch}
-                onChange={(e) => setTargetGradePitch(e.target.value)}
-                className="min-h-10 rounded-xl border border-primary/35 bg-primary/5 px-3 text-xs font-black text-foreground"
-              >
-                <option value="">Pitch: Auto (+1 Increment)</option>
-                {SINGLE_GRADES.map((g) => (
-                  <option key={`pitch-sel-${g}`} value={g}>Pitch: {g}</option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -753,39 +723,47 @@ export default function ClassEnrollWorkspacePage() {
             </span>
           </div>
 
-          {/* 1-tap Target Grade Pitch */}
+          {/* Clean 1-tap Target Grade Pitch (only class band grades as pills + dropdown for others) */}
           <div className="space-y-1.5">
-            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">1. Pick Target Grade Pitch</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">1. Target Grade</p>
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setQuickGrade('')}
-                className={`rounded-xl border px-3 py-1.5 text-xs font-bold ${
+                className={`min-h-9 rounded-xl border px-3 text-xs font-bold ${
                   !quickGrade ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Auto
               </button>
-              {SINGLE_GRADES.map((g) => {
+              {SINGLE_GRADES.filter((g) => (classBand ? bandCoversGrade(classBand, g) : ['JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3'].includes(g))).map((g) => {
                 const active = quickGrade === g;
-                const inBand = classBand ? bandCoversGrade(classBand, g) : false;
                 return (
                   <button
                     key={`q-pitch-${g}`}
                     type="button"
                     onClick={() => setQuickGrade(g)}
-                    className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors ${
+                    className={`min-h-9 rounded-xl border px-3 text-xs font-bold transition-colors ${
                       active
                         ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                        : inBand
-                          ? 'border-primary/35 bg-primary/5 text-primary hover:bg-primary/15'
-                          : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                        : 'border-primary/35 bg-primary/5 text-primary hover:bg-primary/15'
                     }`}
                   >
                     {g}
                   </button>
                 );
               })}
+              <select
+                aria-label="Other target grade"
+                value={quickGrade}
+                onChange={(e) => setQuickGrade(e.target.value)}
+                className="min-h-9 rounded-xl border border-border bg-background px-2.5 text-xs font-bold text-foreground"
+              >
+                <option value="">Other grade…</option>
+                {SINGLE_GRADES.map((g) => (
+                  <option key={`q-other-${g}`} value={g}>{g}</option>
+                ))}
+              </select>
             </div>
           </div>
 
