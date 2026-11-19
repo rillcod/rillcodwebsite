@@ -462,6 +462,64 @@ export default function ClassEnrollWorkspacePage() {
         </div>
       ) : tab === 'pick' ? (
         <div className="space-y-4">
+          {/* Always-visible Inline Quick-Add / Auto-Adopt Bar */}
+          <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3.5 space-y-2 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-black text-foreground">
+                + Quick-Add or Auto-Adopt Student Inline
+              </p>
+              <span className="text-[11px] text-muted-foreground">
+                Auto-transfers existing school records (zero duplicates) or creates <code className="font-mono">name123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code>
+              </span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                aria-label="Quick-add student name inline"
+                value={quickInput}
+                onChange={(e) => setQuickInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && quickInput.trim() && busy !== 'quick') {
+                    e.preventDefault();
+                    void submitQuickAdd();
+                  }
+                }}
+                placeholder="Type student name (e.g. Samuel Agha or Ada Okafor JSS 2) and press Enter…"
+                className="min-h-11 flex-1 rounded-xl border border-border bg-card px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <select
+                aria-label="Grade for inline quick-add"
+                value={quickGrade}
+                onChange={(e) => setQuickGrade(e.target.value)}
+                className="min-h-11 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
+              >
+                <option value="">Auto ({defaultEntryGrade || 'Class'})</option>
+                {SINGLE_GRADES.map((g) => (
+                  <option key={`inline-g-${g}`} value={g}>{g}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={busy === 'quick' || !quickInput.trim()}
+                onClick={() => void submitQuickAdd()}
+                className="min-h-11 shrink-0 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40 shadow-sm"
+              >
+                {busy === 'quick' ? 'Adding…' : '+ Add / Adopt'}
+              </button>
+            </div>
+            {quickNotice && (
+              <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-emerald-900 dark:text-emerald-200">{quickNotice.summary}</span>
+                <Link
+                  href={`/dashboard/classes/${id}/cards`}
+                  className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-emerald-800"
+                >
+                  Login + RC PDF →
+                </Link>
+              </div>
+            )}
+          </div>
+
           {/* Simplified Search & Clean Filter Bar */}
           <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4 space-y-3 shadow-sm">
             <div className="flex flex-col sm:flex-row gap-2.5">

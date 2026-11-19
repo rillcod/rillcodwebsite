@@ -2348,7 +2348,7 @@ export default function ClassDetailPage() {
                         </div>
                       )}
                     </div>
-                    {rosterOpen && isStaff && !showSessionConfirm && (
+                    {isStaff && !showSessionConfirm && (
                       <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3 space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-xs font-black text-foreground">
@@ -2436,7 +2436,7 @@ export default function ClassDetailPage() {
                                     type="button"
                                     disabled={!!processingStudent}
                                     onClick={async () => {
-                                      await assignStudent(s.id, 'promote');
+                                      await assignStudent(s.id, 'promote', quickAddGrade || undefined);
                                       setQuickAddInput('');
                                     }}
                                     className="shrink-0 min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
