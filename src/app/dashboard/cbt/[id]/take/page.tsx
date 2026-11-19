@@ -161,6 +161,7 @@ export default function TakeExamPage() {
   const [uploadingForQ, setUploadingForQ] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showMobileGrid, setShowMobileGrid] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -710,13 +711,16 @@ export default function TakeExamPage() {
 
   return (
     <div className="flex-1 min-h-0 h-full w-full bg-background text-foreground flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30 mobile-page-root">
-      {/* Exam Header — always pinned at the top */}
-      <div className="shrink-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border px-3 sm:px-6 py-2.5 sm:py-3.5">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-6">
-          <div className="flex-1 min-w-0 flex items-center gap-3 sm:gap-6">
+      {/* Compact Pinned Exam Header */}
+      <div className="shrink-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-6">
+          <div className="flex-1 min-w-0 flex items-center gap-3 sm:gap-5">
             <div className="min-w-0 flex-1 sm:flex-shrink-0">
-              <div className="text-[9px] sm:text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.16em] sm:tracking-[0.2em] mb-0.5">Live Examination</div>
-              <h2 className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[44vw] sm:max-w-md">{exam?.title}</h2>
+              <div className="hidden sm:block text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.2em] mb-0.5">Live Examination</div>
+              <h2 className="text-xs sm:text-sm font-extrabold text-foreground truncate">{exam?.title}</h2>
+              <p className="sm:hidden text-[10px] font-bold text-muted-foreground">
+                {answered}/{questions.length} answered{saveState === 'saving' ? ' · Saving…' : saveState === 'saved' ? ' · Saved' : ''}
+              </p>
             </div>
             <div className="hidden md:flex flex-1 items-center gap-3">
               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[140px]">
@@ -726,7 +730,7 @@ export default function TakeExamPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {saveState !== 'idle' && (
               <span
                 className={`hidden lg:inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
@@ -741,65 +745,77 @@ export default function TakeExamPage() {
                 {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Retry pending' : 'Saved'}
               </span>
             )}
-            <div className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/40 border-border text-foreground'}`}>
+            <div className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 animate-pulse' : 'bg-muted/40 border-border text-foreground'}`}>
               <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
-              <span className="text-xs sm:text-base font-black tracking-widest leading-none tabular-nums">{formatTime(timeLeft)}</span>
+              <span className="text-xs sm:text-base font-black tracking-wider leading-none tabular-nums">{formatTime(timeLeft)}</span>
             </div>
             <button
               type="button"
               onClick={confirmAndSubmit}
               disabled={submitting}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors disabled:opacity-50"
             >
-              {submitting ? 'Submitting…' : 'Submit'}
+              {submitting ? '…' : 'Submit'}
             </button>
           </div>
         </div>
+        {/* Thin mobile progress bar */}
+        <div className="md:hidden h-0.5 w-full bg-muted overflow-hidden">
+          <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+        </div>
         {examError && (
-          <div className="max-w-5xl mx-auto mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2 text-xs font-bold text-rose-700 dark:text-rose-300">
-            <span>{examError}</span>
-            <button
-              type="button"
-              onClick={() => void handleSubmit(false)}
-              disabled={submitting}
-              className="rounded-lg bg-rose-600 hover:bg-rose-700 px-3 py-1 text-[11px] font-black text-white disabled:opacity-50"
-            >
-              {submitting ? 'Retrying…' : 'Retry Submit'}
-            </button>
+          <div className="max-w-5xl mx-auto px-3 sm:px-6 pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-700 dark:text-rose-300">
+              <span>{examError}</span>
+              <button
+                type="button"
+                onClick={() => void handleSubmit(false)}
+                disabled={submitting}
+                className="rounded-lg bg-rose-600 hover:bg-rose-700 px-2.5 py-1 text-[11px] font-black text-white disabled:opacity-50"
+              >
+                {submitting ? 'Retrying…' : 'Retry Submit'}
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Main Scrollable Examination Canvas */}
+      {/* Main Scrollable Examination Canvas — maximized vertical space on mobile */}
       <div
         ref={canvasScrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-4 sm:pt-6 pb-[calc(var(--app-bottom-nav-height)+11rem)] md:pb-12 relative"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-6 pt-3 sm:pt-6 pb-[calc(var(--app-bottom-nav-height)+5.5rem)] md:pb-12 relative"
       >
-        <div className="max-w-4xl mx-auto w-full space-y-5 sm:space-y-7 relative z-10">
-          <div className="space-y-4 sm:space-y-6">
-            <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm space-y-3 sm:space-y-4">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-700 dark:text-emerald-400 tracking-widest uppercase">Question {current + 1} of {questions.length}</span>
-                <span className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-black text-primary tracking-wider uppercase">
-                  {isObjectiveQuestion(q) ? 'Section A · Objective' : 'Section B · Theory / Written'}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points ?? 1} Point{Number(q?.points ?? 1) === 1 ? '' : 's'}</span>
+        <div className="max-w-4xl mx-auto w-full space-y-3.5 sm:space-y-6 relative z-10">
+          <div className="space-y-3.5 sm:space-y-6">
+            <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-6 shadow-sm space-y-2.5 sm:space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-wrap">
+                  <span className="px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-700 dark:text-emerald-400 tracking-wider uppercase">
+                    Q{current + 1}/{questions.length}
+                  </span>
+                  <span className="px-2 py-0.5 sm:py-1 rounded-lg sm:rounded-xl bg-primary/10 border border-primary/20 text-[10px] font-black text-primary tracking-wider uppercase">
+                    {isObjectiveQuestion(q) ? 'Objective' : 'Theory'}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                    {q?.points ?? 1} pt{Number(q?.points ?? 1) === 1 ? '' : 's'}
+                  </span>
+                </div>
                 {q && (
                   <button
                     type="button"
                     onClick={() => toggleFlag(q.id)}
-                    className={`ml-auto inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                    className={`shrink-0 inline-flex items-center gap-1 rounded-lg sm:rounded-xl border px-2 sm:px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
                       isCurrentFlagged
                         ? 'border-amber-500/50 bg-amber-500/15 text-amber-800 dark:text-amber-300'
                         : 'border-border bg-background text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <ExclamationTriangleIcon className="h-3.5 w-3.5" />
-                    {isCurrentFlagged ? 'Flagged' : 'Flag'}
+                    <span>{isCurrentFlagged ? 'Flagged' : 'Flag'}</span>
                   </button>
                 )}
               </div>
-              <div className="text-base sm:text-2xl font-bold text-foreground leading-relaxed sm:leading-snug break-words">
+              <div className="text-[15px] sm:text-2xl font-bold text-foreground leading-relaxed sm:leading-snug break-words">
                 {q?.question_text && String(q.question_text).trim().length > 0 ? (
                   <CbtMarkdown text={String(q.question_text)} className="text-foreground" />
                 ) : (
@@ -810,24 +826,35 @@ export default function TakeExamPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:gap-4 pt-2 sm:pt-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:gap-4">
               {showMcq && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {mcqOptions.map((opt: string, oi: number) => (
-                    <button key={oi} type="button"
-                      onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
-                      className={`group relative flex items-start gap-3 sm:gap-5 p-4 sm:p-5 rounded-2xl sm:rounded-[1.5rem] border-2 transition-all duration-300 text-left ${answers[q.id] === opt
-                        ? 'bg-emerald-500/10 border-emerald-500/50 sm:scale-[1.02]'
-                        : 'bg-muted/20 border-border hover:bg-muted hover:border-border'
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+                  {mcqOptions.map((opt: string, oi: number) => {
+                    const isSelected = answers[q.id] === opt;
+                    return (
+                      <button
+                        key={oi}
+                        type="button"
+                        onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
+                        className={`group relative flex items-center sm:items-start gap-3 sm:gap-4 p-3 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-150 active:scale-[0.99] text-left ${
+                          isSelected
+                            ? 'bg-emerald-500/12 border-emerald-600 dark:border-emerald-500 shadow-sm'
+                            : 'bg-card border-border hover:bg-muted/40 hover:border-primary/40'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : 'bg-muted/50 border-border text-foreground'
                         }`}>
-                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all flex-shrink-0 ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-foreground sm:rotate-6' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
-                        {String.fromCharCode(65 + oi)}
-                      </div>
-                      <div className={`text-sm sm:text-base font-medium transition-colors flex-1 min-w-0 break-words ${answers[q.id] === opt ? 'text-foreground' : 'text-muted-foreground group-hover:text-muted-foreground'}`}>
-                        <CbtMarkdown text={opt} className="text-sm sm:text-base" />
-                      </div>
-                    </button>
-                  ))}
+                          {isSelected ? <CheckCircleIcon className="w-4 h-4" /> : String.fromCharCode(65 + oi)}
+                        </div>
+                        <div className="text-sm sm:text-base font-semibold text-foreground leading-snug flex-1 min-w-0 break-words">
+                          <CbtMarkdown text={opt} className="text-sm sm:text-base text-foreground" />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -1090,84 +1117,95 @@ export default function TakeExamPage() {
         </div>
       </div>
 
-      {/* Mobile exam controls + jump grid — fixed above app dock */}
-      <div className="md:hidden fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
+      {/* Compact Single-Row Mobile Controls + Expandable Question Navigator Drawer */}
+      <div className="md:hidden fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] z-[55] border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-6px_20px_rgba(0,0,0,0.08)]">
+        {showMobileGrid && (
+          <div className="border-b border-border bg-card px-3 py-3 space-y-2.5 max-h-[42dvh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-foreground">
+                All Questions ({answered}/{questions.length} answered)
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowMobileGrid(false)}
+                className="rounded-lg px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground"
+              >
+                Close ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-6 gap-1.5">
+              {questions.map((item, i) => {
+                const isFlagged = flaggedIds.has(item?.id);
+                const isDone = isQuestionAnswered(item);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setCurrent(i);
+                      setShowMobileGrid(false);
+                    }}
+                    className={`h-9 rounded-lg text-xs font-black transition-all ${
+                      i === current
+                        ? 'bg-emerald-700 text-white shadow-sm'
+                        : isFlagged
+                          ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/50'
+                          : isDone
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/35'
+                            : 'bg-muted/40 text-muted-foreground border border-border'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2 px-3 py-2">
           <button
             type="button"
             onClick={() => setCurrent(c => Math.max(0, c - 1))}
             disabled={current === 0}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-border bg-card disabled:opacity-30"
+            className="inline-flex h-10 px-3 items-center justify-center gap-1 rounded-xl border border-border bg-card text-xs font-bold text-foreground disabled:opacity-35"
             aria-label="Previous question"
           >
-            <ChevronLeftIcon className="w-5 h-5" />
+            <ChevronLeftIcon className="w-4 h-4" />
+            <span>Prev</span>
           </button>
-          <div className="min-w-0 flex-1 text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Question {current + 1} / {questions.length}
-            </p>
-            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-              {answered} answered · {questions.length - answered} left
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowMobileGrid((v) => !v)}
+            className="min-w-0 flex-1 h-10 rounded-xl border border-border bg-muted/40 px-2 flex flex-col items-center justify-center"
+            aria-expanded={showMobileGrid}
+          >
+            <span className="text-[11px] font-black text-foreground leading-tight">
+              Q {current + 1} / {questions.length} {showMobileGrid ? '▴' : '▾'}
+            </span>
+            <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 leading-tight">
+              {answered} answered · tap grid
+            </span>
+          </button>
           {current < questions.length - 1 ? (
             <button
               type="button"
               onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-border bg-card"
+              className="inline-flex h-10 px-3.5 items-center justify-center gap-1 rounded-xl bg-primary text-primary-foreground text-xs font-black shadow-sm"
               aria-label="Next question"
             >
-              <ChevronRightIcon className="w-5 h-5" />
+              <span>Next</span>
+              <ChevronRightIcon className="w-4 h-4" />
             </button>
           ) : (
             <button
               type="button"
               onClick={confirmAndSubmit}
               disabled={submitting}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
+              className="inline-flex h-10 px-4 items-center justify-center rounded-xl bg-emerald-700 text-xs font-black uppercase tracking-wider text-white shadow-sm disabled:opacity-50"
             >
-              {submitting ? '…' : 'Submit'}
+              {submitting ? '…' : 'Finish'}
             </button>
           )}
-        </div>
-        <div className="px-3 py-2.5">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Jump to</p>
-            {answered > 0 && current < questions.length - 1 && (
-              <button
-                type="button"
-                onClick={confirmAndSubmit}
-                disabled={submitting}
-                className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white disabled:opacity-50"
-              >
-                Finish ({answered}/{questions.length})
-              </button>
-            )}
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {questions.map((item, i) => {
-              const isFlagged = flaggedIds.has(item?.id);
-              const isDone = isQuestionAnswered(item);
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setCurrent(i)}
-                  className={`h-9 w-9 shrink-0 rounded-lg text-xs font-black transition-all ${
-                    i === current
-                      ? 'bg-emerald-700 text-white shadow-md'
-                      : isFlagged
-                        ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/50'
-                        : isDone
-                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                          : 'bg-muted/30 text-muted-foreground border border-border'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
         </div>
       </div>
 
