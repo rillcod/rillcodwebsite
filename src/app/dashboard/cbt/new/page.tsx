@@ -330,13 +330,20 @@ export default function NewExamPage() {
       const nextOpts = target.question_type === 'true_false'
         ? ['True', 'False']
         : Array.isArray(solved.options) && solved.options.length >= 2
-          ? solved.options.map(String)
-          : target.options;
+          ? solved.options.map((o: any) => stripOptionPrefix(String(o ?? '')))
+          : target.options.map((o) => stripOptionPrefix(o));
+
+      const rawSolvedAns = String(solved.correct_answer || solved.answer || solved.marking_guide || target.correct_answer || '').trim();
+      const resolvedAns = target.question_type === 'multiple_choice'
+        ? resolveMcqAnswerToOption(rawSolvedAns, nextOpts)
+        : target.question_type === 'true_false'
+          ? (/^false$/i.test(rawSolvedAns) ? 'False' : 'True')
+          : rawSolvedAns;
 
       updateQuestion(qi, {
         options: nextOpts,
-        correct_answer: String(solved.correct_answer || solved.marking_guide || target.correct_answer || ''),
-        marking_guide: String(solved.marking_guide || solved.metadata?.marking_guide || target.marking_guide || ''),
+        correct_answer: resolvedAns,
+        marking_guide: String(solved.marking_guide || solved.metadata?.marking_guide || solved.explanation || target.marking_guide || ''),
       });
     } catch (e: any) {
       setError(e?.message || 'AI could not complete this question right now.');

@@ -590,8 +590,9 @@ export default function QuestionAuthoringStudio({
   };
 
   const handleAiGenerate = async () => {
-    // If the teacher pasted premade questions directly (and didn't upload lecture files), solve & align them automatically!
-    if (selectedUploadedDocs.length === 0 && detectedPremadeFromSource.length > 0) {
+    // If premade questions were detected (from uploaded Question Paper file(s) OR pasted text),
+    // automatically use AI to solve every answer & marking guide and align all options!
+    if (detectedPremadeFromSource.length > 0) {
       await handleAiAlignAndSolvePremade(false);
       return;
     }
@@ -939,7 +940,16 @@ export default function QuestionAuthoringStudio({
 
   const targetTotal = (parseInt(mcqCount, 10) || 0) + (parseInt(theoryCount, 10) || 0);
   const hasPaperQuestions = currentQuestions.some((q) => String(q.question_text ?? '').trim().length > 0);
-  const missingAnswersCount = Math.max(0, liveBlueprint.totalQuestions - liveBlueprint.answeredCount);
+  const missingAnswersCount = currentQuestions.filter((q) => {
+    if (!String(q.question_text ?? '').trim()) return false;
+    const ans = String(q.correct_answer ?? '').trim();
+    if (!ans) return true;
+    if (q.question_type === 'multiple_choice' && Array.isArray(q.options) && q.options.length > 0) {
+      const resolved = resolveMcqAnswerToOption(ans, q.options);
+      return !q.options.some((o) => String(o ?? '').trim() !== '' && (o === ans || o === resolved));
+    }
+    return false;
+  }).length;
 
   const studioTabs: Array<{
     id: 'generate' | 'premade' | 'bank' | 'blueprint';
@@ -1494,7 +1504,7 @@ export default function QuestionAuthoringStudio({
             </div>
             <button
               type="button"
-              onClick={() => setActiveTab('ai')}
+              onClick={() => setActiveTab('generate')}
               className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background hover:bg-muted px-3 py-1.5 text-[11px] font-bold text-primary transition-colors"
             >
               <DocumentTextIcon className="w-3.5 h-3.5" />
