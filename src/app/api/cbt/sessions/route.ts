@@ -113,7 +113,7 @@ async function finalizeExpiredSession(
     tableName: 'cbt_sessions',
     oldValues: { status: existing.status ?? null },
     newValues: { status: data.status, score: data.score, needs_grading: data.needs_grading, exam_id: examRow.id },
-  });
+  }).catch(() => {});
   return {
     ...data,
     correct: grading.correct,
@@ -494,9 +494,9 @@ export async function POST(request: NextRequest) {
         const deadline = cbtDeadlineMs(existing, examRow);
         if (deadline && Date.now() > deadline + 30_000) {
           const finalized = await finalizeExpiredSession(admin, existing, examRow);
-          return NextResponse.json({ data: finalized });
+          return NextResponse.json({ data: finalized, server_now: new Date().toISOString() });
         }
-        return NextResponse.json({ data: existing });
+        return NextResponse.json({ data: existing, server_now: new Date().toISOString() });
       }
 
       const { data: started, error: startErr } = await admin
@@ -530,8 +530,8 @@ export async function POST(request: NextRequest) {
         resourceType: 'cbt_session', resourceId: started.id,
         tableName: 'cbt_sessions',
         newValues: { exam_id, status: started.status },
-      });
-      return NextResponse.json({ data: started }, { status: 201 });
+      }).catch(() => {});
+      return NextResponse.json({ data: started, server_now: new Date().toISOString() }, { status: 201 });
     }
 
     if (!existing) {
@@ -562,9 +562,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'This exam has no questions configured' }, { status: 422 });
     }
 
-    const cleanAnswers = answers && typeof answers === 'object' && !Array.isArray(answers)
+    const incomingAnswers = answers && typeof answers === 'object' && !Array.isArray(answers)
       ? answers as Record<string, unknown>
       : {};
+    const savedAnswers = hasAnswers(existing.answers) ? existing.answers : {};
+    const cleanAnswers: Record<string, unknown> = { ...savedAnswers };
+    for (const [k, v] of Object.entries(incomingAnswers)) {
+      if (v !== undefined && v !== null && String(v).trim().length > 0) cleanAnswers[k] = v;
+      else if (!(k in cleanAnswers)) cleanAnswers[k] = v;
+    }
     const grading = gradeCbtSubmission(examRow, questionRows, cleanAnswers);
     const gradingNotes = [
       grading.needsGrading ? `Awaiting instructor review for ${grading.manualQuestionCount} subjective question(s).` : null,
@@ -611,7 +617,7 @@ export async function POST(request: NextRequest) {
       tableName: 'cbt_sessions',
       oldValues: { status: existing.status ?? null },
       newValues: { exam_id, status: data.status, score: data.score, needs_grading: data.needs_grading },
-    });
+    }).catch(() => {});
     return NextResponse.json({
       data: {
         ...data,
@@ -664,7 +670,7 @@ export async function GET(request: NextRequest) {
         .eq('exam_id', exam_id)
         .eq('user_id', user.id)
         .maybeSingle();
-      return NextResponse.json({ data });
+      return NextResponse.json({ data, server_now: new Date().toISOString() });
     }
 
     // No exam_id — return all sessions for this user

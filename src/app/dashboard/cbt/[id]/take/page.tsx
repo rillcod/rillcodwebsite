@@ -86,6 +86,61 @@ function CodingBlocksChallenge({
   );
 }
 
+async function compressImageForCbt(file: File): Promise<File> {
+  if (
+    typeof window === 'undefined' ||
+    !file.type.startsWith('image/') ||
+    file.type === 'image/gif' ||
+    file.type === 'image/svg+xml'
+  ) {
+    return file;
+  }
+
+  const MAX_DIM = 1600;
+  const SIZE_THRESHOLD = 1.2 * 1024 * 1024;
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Image decode failed'));
+      el.src = objectUrl;
+    });
+
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (file.size <= SIZE_THRESHOLD && w <= MAX_DIM && h <= MAX_DIM) {
+      return file;
+    }
+
+    const scale = Math.min(1, MAX_DIM / Math.max(w, h));
+    const targetW = Math.max(1, Math.round(w * scale));
+    const targetH = Math.max(1, Math.round(h * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.82)
+    );
+    if (!blob || blob.size >= file.size) return file;
+
+    const baseName = (file.name || 'photo').replace(/\.[^.]+$/, '');
+    return new File([blob], `${baseName}.jpg`, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export default function TakeExamPage() {
   const params = useParams() as { id?: string };
   const router = useRouter();
@@ -110,6 +165,13 @@ export default function TakeExamPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const startTimeRef = useRef<Date>(new Date());
+  const deadlineMsRef = useRef<number | null>(null);
+  const clockOffsetMsRef = useRef<number>(0);
+  const answersRef = useRef<Record<string, string>>({});
+  const sessionIdRef = useRef<string | null>(null);
+  const submittedRef = useRef<boolean>(false);
+  const draftKeyRef = useRef<string | null>(null);
+  const hasMountedAnswersRef = useRef<boolean>(false);
   const submitRef = useRef<any>(null);
 
   useEffect(() => {
@@ -120,7 +182,7 @@ export default function TakeExamPage() {
     const finalStatuses = new Set(['completed', 'passed', 'failed', 'pending_grading']);
     fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' })
       .then(r => r.json())
-      .then(({ data: existing }) => {
+      .then(({ data: existing, server_now: getServerNow }) => {
         if (existing && finalStatuses.has(existing.status)) { router.push(`/dashboard/cbt/${id}`); return; }
         return fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' })
           .then(async r => {
@@ -130,6 +192,7 @@ export default function TakeExamPage() {
           })
           .then(async ({ data: examData }) => {
             if (!examData) { throw new Error('This exam is not available.'); }
+            let serverNowStr: string | undefined = typeof getServerNow === 'string' ? getServerNow : undefined;
             const session = existing ?? await fetch('/api/cbt/sessions', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -137,20 +200,59 @@ export default function TakeExamPage() {
             }).then(async r => {
               const payload = await r.json();
               if (!r.ok) throw new Error(payload.error || 'Unable to start this exam.');
+              if (typeof payload.server_now === 'string') serverNowStr = payload.server_now;
               return payload.data;
             });
-            const startedAt = session?.start_time ? new Date(session.start_time) : new Date();
-            startTimeRef.current = startedAt;
-            setSessionId(session?.id ?? null);
-            if (session?.answers && typeof session.answers === 'object' && !Array.isArray(session.answers)) {
-              setAnswers(session.answers);
+
+            if (serverNowStr) {
+              const parsedServerNow = new Date(serverNowStr).getTime();
+              if (Number.isFinite(parsedServerNow)) {
+                clockOffsetMsRef.current = parsedServerNow - Date.now();
+              }
             }
+
+            const startedAt = session?.start_time ? new Date(session.start_time) : new Date(Date.now() + clockOffsetMsRef.current);
+            startTimeRef.current = startedAt;
+            const sid = session?.id ?? null;
+            setSessionId(sid);
+            sessionIdRef.current = sid;
+
+            const draftKey = `cbt_draft_${id}_${profile.id}`;
+            draftKeyRef.current = draftKey;
+            const serverAnswers: Record<string, string> =
+              session?.answers && typeof session.answers === 'object' && !Array.isArray(session.answers)
+                ? { ...session.answers }
+                : {};
+            let localDraft: Record<string, string> = {};
+            try {
+              const rawDraft = window.localStorage.getItem(draftKey);
+              if (rawDraft) {
+                const parsed = JSON.parse(rawDraft);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                  localDraft = parsed;
+                }
+              }
+            } catch {
+              // Ignore storage access errors in private/restricted browsers
+            }
+
+            const mergedAnswers: Record<string, string> = { ...serverAnswers };
+            for (const [k, v] of Object.entries(localDraft)) {
+              if (typeof v === 'string' && v.trim().length > 0 && !(mergedAnswers[k] && String(mergedAnswers[k]).trim().length > 0)) {
+                mergedAnswers[k] = v;
+              }
+            }
+            answersRef.current = mergedAnswers;
+            setAnswers(mergedAnswers);
+
             setExam(examData);
             setQuestions([...(examData.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
             const durationDeadline = startedAt.getTime() + (examData.duration_minutes ?? 60) * 60_000;
             const windowDeadline = examData.end_date ? new Date(examData.end_date).getTime() : Number.POSITIVE_INFINITY;
             const deadline = Math.min(durationDeadline, windowDeadline);
-            setTimeLeft(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
+            deadlineMsRef.current = deadline;
+            const syncedNow = Date.now() + clockOffsetMsRef.current;
+            setTimeLeft(Math.max(0, Math.floor((deadline - syncedNow) / 1000)));
             setLoading(false);
           });
       })
@@ -161,26 +263,69 @@ export default function TakeExamPage() {
   }, [profile?.id, authLoading]); // eslint-disable-line
 
   const handleSubmit = useCallback(async (auto = false) => {
-    if (submitting || submitted) return;
+    if (submitting || submitted || submittedRef.current) return;
+    if (!auto && uploadingForQ !== null) {
+      setExamError('Please wait for your attachment to finish uploading before submitting.');
+      return;
+    }
     setSubmitting(true);
     setShowSubmitModal(false);
     setExamError(null);
     try {
-      const sessionRes = await fetch('/api/cbt/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          exam_id: exam.id,
-          action: 'submit',
-          answers,
-          auto_submitted: auto,
-        }),
+      const payloadBody = JSON.stringify({
+        exam_id: exam.id,
+        action: 'submit',
+        answers: answersRef.current,
+        auto_submitted: auto,
       });
-      if (!sessionRes.ok) {
-        const j = await sessionRes.json();
-        throw new Error(j.error || 'Failed to submit exam');
+
+      let savedSession: any = null;
+      let lastError: Error | null = null;
+      const maxAttempts = 3;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const sessionRes = await fetch('/api/cbt/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payloadBody,
+          });
+          if (!sessionRes.ok) {
+            const j = await sessionRes.json().catch(() => ({}));
+            const err = new Error(j.error || 'Failed to submit exam');
+            if (sessionRes.status >= 400 && sessionRes.status < 500) {
+              throw err;
+            }
+            lastError = err;
+          } else {
+            const j = await sessionRes.json();
+            savedSession = j?.data ?? null;
+            lastError = null;
+            break;
+          }
+        } catch (err: any) {
+          lastError = err instanceof Error ? err : new Error('Network error while submitting exam');
+          if (err?.message && !/network|fetch|timeout|failed to fetch|500|502|503|504|Failed to submit exam/i.test(err.message)) {
+            throw err;
+          }
+        }
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, attempt * 1000));
+        }
       }
-      const { data: savedSession } = await sessionRes.json();
+
+      if (lastError) {
+        throw lastError;
+      }
+
+      submittedRef.current = true;
+      if (draftKeyRef.current) {
+        try {
+          window.localStorage.removeItem(draftKeyRef.current);
+        } catch {
+          // Ignore storage cleanup errors
+        }
+      }
 
       setResult({
         score: savedSession?.score ?? 0,
@@ -193,17 +338,18 @@ export default function TakeExamPage() {
       // Certificate is auto-issued by the database trigger on cbt_sessions INSERT.
       // No client-side call needed — and students are blocked from POST /api/certificates anyway.
     } catch (e: any) {
-      setExamError(e?.message || 'Failed to submit exam.');
+      setExamError(e?.message || 'Failed to submit exam. Your answers are saved locally — please retry.');
     } finally {
       setSubmitting(false);
     }
-  }, [submitting, submitted, questions, answers, exam, profile]);
+  }, [submitting, submitted, uploadingForQ, exam]);
 
   const persistAnswersNow = useCallback(async (nextAnswers: Record<string, string>) => {
-    if (!sessionId || submitted || loading) return;
+    const sid = sessionIdRef.current ?? sessionId;
+    if (!sid || submitted || submittedRef.current || loading) return;
     setSaveState('saving');
     try {
-      const res = await fetch(`/api/cbt/sessions/${sessionId}`, {
+      const res = await fetch(`/api/cbt/sessions/${sid}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: nextAnswers }),
@@ -218,7 +364,7 @@ export default function TakeExamPage() {
     const files = Array.from(fileList).filter(Boolean);
     if (files.length === 0) return;
 
-    const currentParsed = parseEssayAnswer(answers[questionId]);
+    const currentParsed = parseEssayAnswer(answersRef.current[questionId]);
     const remainingSlots = Math.max(0, 5 - currentParsed.attachments.length);
     if (remainingSlots === 0) {
       setUploadError('Maximum 5 attachments per question. Remove one to add another.');
@@ -230,9 +376,10 @@ export default function TakeExamPage() {
     const added: EssayAttachment[] = [];
 
     try {
-      for (const file of files.slice(0, remainingSlots)) {
+      for (const rawFile of files.slice(0, remainingSlots)) {
+        const file = await compressImageForCbt(rawFile);
         if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`"${file.name}" is larger than 10 MB.`);
+          throw new Error(`"${rawFile.name}" is larger than 10 MB.`);
         }
         const formData = new FormData();
         formData.append('file', file);
@@ -242,22 +389,24 @@ export default function TakeExamPage() {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(json?.error || `Could not upload "${file.name}".`);
+          throw new Error(json?.error || `Could not upload "${rawFile.name}".`);
         }
         const uploadedUrl = json?.data?.public_url || json?.data?.url || json?.data?.receipt?.url;
         if (!uploadedUrl) {
-          throw new Error(`Upload succeeded but no file link was returned for "${file.name}".`);
+          throw new Error(`Upload succeeded but no file link was returned for "${rawFile.name}".`);
         }
         added.push({
-          name: file.name || 'Attachment',
+          name: rawFile.name || file.name || 'Attachment',
           url: uploadedUrl,
           isImage: file.type ? file.type.startsWith('image/') : isImageAttachment(file.name || uploadedUrl),
         });
       }
 
       if (added.length > 0) {
-        const nextValue = serializeEssayAnswer(currentParsed.text, [...currentParsed.attachments, ...added]);
-        const nextAnswers = { ...answers, [questionId]: nextValue };
+        const latestParsed = parseEssayAnswer(answersRef.current[questionId]);
+        const nextValue = serializeEssayAnswer(latestParsed.text, [...latestParsed.attachments, ...added]);
+        const nextAnswers = { ...answersRef.current, [questionId]: nextValue };
+        answersRef.current = nextAnswers;
         setAnswers(nextAnswers);
         void persistAnswersNow(nextAnswers);
       }
@@ -266,16 +415,17 @@ export default function TakeExamPage() {
     } finally {
       setUploadingForQ(null);
     }
-  }, [answers, persistAnswersNow]);
+  }, [persistAnswersNow]);
 
   const removeEssayAttachment = useCallback((questionId: string, urlToRemove: string) => {
-    const parsed = parseEssayAnswer(answers[questionId]);
+    const parsed = parseEssayAnswer(answersRef.current[questionId]);
     const nextAttachments = parsed.attachments.filter((a) => a.url !== urlToRemove);
     const nextValue = serializeEssayAnswer(parsed.text, nextAttachments);
-    const nextAnswers = { ...answers, [questionId]: nextValue };
+    const nextAnswers = { ...answersRef.current, [questionId]: nextValue };
+    answersRef.current = nextAnswers;
     setAnswers(nextAnswers);
     void persistAnswersNow(nextAnswers);
-  }, [answers, persistAnswersNow]);
+  }, [persistAnswersNow]);
 
   const toggleFlag = (questionId: string) => {
     setFlaggedIds((prev) => {
@@ -290,22 +440,94 @@ export default function TakeExamPage() {
     submitRef.current = handleSubmit;
   }, [handleSubmit]);
 
+  // Layer 1 & 2: Instant localStorage mirror + 2-second debounced server autosave
   useEffect(() => {
-    if (!sessionId || submitted || loading) return;
-    const t = setInterval(() => {
-      void persistAnswersNow(answers);
-    }, 10_000);
-    return () => clearInterval(t);
+    answersRef.current = answers;
+    if (loading || submitted) return;
+    if (draftKeyRef.current) {
+      try {
+        window.localStorage.setItem(draftKeyRef.current, JSON.stringify(answers));
+      } catch {
+        // Ignore storage quota/private mode errors
+      }
+    }
+    if (!hasMountedAnswersRef.current) {
+      hasMountedAnswersRef.current = true;
+      return;
+    }
+    if (!sessionId) return;
+    const debounce = setTimeout(() => {
+      void persistAnswersNow(answersRef.current);
+    }, 2_000);
+    return () => clearTimeout(debounce);
   }, [answers, loading, persistAnswersNow, sessionId, submitted]);
 
-  // Countdown timer
+  // Layer 3: 15-second heartbeat + visibilitychange/pagehide keepalive flush
+  useEffect(() => {
+    if (!sessionId || submitted || loading) return;
+    const heartbeat = setInterval(() => {
+      void persistAnswersNow(answersRef.current);
+    }, 15_000);
+
+    const flushKeepalive = () => {
+      if (submittedRef.current || !sessionIdRef.current) return;
+      try {
+        void fetch(`/api/cbt/sessions/${sessionIdRef.current}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers: answersRef.current }),
+          keepalive: true,
+        });
+      } catch {
+        // Best-effort flush on tab switch or unload
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushKeepalive();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flushKeepalive);
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flushKeepalive);
+    };
+  }, [loading, persistAnswersNow, sessionId, submitted]);
+
+  // Server-synced wall-clock countdown timer (immune to background tab throttling)
   useEffect(() => {
     if (loading || submitted || questions.length === 0) return;
-    const t = setInterval(() => setTimeLeft(s => {
-      if (s <= 1) { clearInterval(t); submitRef.current?.(true); return 0; }
-      return s - 1;
-    }), 1000);
-    return () => clearInterval(t);
+
+    const syncTimeLeft = () => {
+      const deadline = deadlineMsRef.current;
+      if (deadline === null) return false;
+      const syncedNow = Date.now() + clockOffsetMsRef.current;
+      const remaining = Math.max(0, Math.floor((deadline - syncedNow) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        submitRef.current?.(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (syncTimeLeft()) return;
+    const t = setInterval(() => {
+      if (syncTimeLeft()) clearInterval(t);
+    }, 1000);
+    const onWake = () => {
+      if (document.visibilityState === 'visible') {
+        if (syncTimeLeft()) clearInterval(t);
+      }
+    };
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onWake);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onWake);
+    };
   }, [loading, submitted, questions.length]);
 
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -989,6 +1211,12 @@ export default function TakeExamPage() {
               </div>
             )}
 
+            {uploadingForQ !== null && (
+              <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 px-3.5 py-2.5 text-xs font-bold text-amber-800 dark:text-amber-200">
+                Please wait a moment — your image attachment is still uploading…
+              </div>
+            )}
+
             <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
               <button
                 type="button"
@@ -1000,11 +1228,11 @@ export default function TakeExamPage() {
               </button>
               <button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || uploadingForQ !== null}
                 onClick={() => void handleSubmit(false)}
                 className="min-h-11 flex-1 rounded-xl bg-emerald-700 px-4 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-50"
               >
-                {submitting ? 'Submitting…' : 'Submit Exam Now'}
+                {submitting ? 'Submitting…' : uploadingForQ !== null ? 'Uploading…' : 'Submit Exam Now'}
               </button>
             </div>
           </div>
