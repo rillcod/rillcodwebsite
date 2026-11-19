@@ -627,11 +627,16 @@ export default function ClassDetailPage() {
     }
   };
 
-  const assignStudent = async (studentId: string, actionOverride?: 'promote' | 'demote' | 'retain') => {
+  const assignStudent = async (
+    studentId: string,
+    actionOverride?: 'promote' | 'demote' | 'retain',
+    targetGradeOverride?: string,
+  ) => {
     if (!cls) return;
     setProcessingStudent(studentId);
     try {
       const effectiveAction = actionOverride ?? modalStudentActions[studentId] ?? modalGradeAction ?? 'promote';
+      const effectiveTargetGrade = (targetGradeOverride ?? modalTargetGrade ?? '').trim() || undefined;
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -640,7 +645,7 @@ export default function ClassDetailPage() {
           forceClaim: pasteClaimEnabled === true,
           promoteToClassGrade: effectiveAction !== 'retain',
           gradeAction: effectiveAction,
-          targetGrade: modalTargetGrade || undefined,
+          targetGrade: effectiveTargetGrade,
         }),
       });
       const json = await res.json();
@@ -2589,7 +2594,7 @@ export default function ClassDetailPage() {
                             {sessionConfirmNotice.ambiguous && sessionConfirmNotice.ambiguous.length > 0 && (
                               <div className="rounded-lg border border-amber-500/35 bg-amber-500/10 p-2.5 space-y-2">
                                 <p className="text-[11px] font-black text-amber-800 dark:text-amber-200">
-                                  Multiple students matched — click the exact student to adopt:
+                                  Existing student(s) found in this school — click to adopt &amp; transfer (prevents duplicates):
                                 </p>
                                 {sessionConfirmNotice.ambiguous.map((row) => (
                                   <div key={`qa-${row.input}`} className="space-y-1">
@@ -2600,10 +2605,10 @@ export default function ClassDetailPage() {
                                           key={c.id}
                                           type="button"
                                           disabled={!!processingStudent}
-                                          onClick={() => void assignStudent(c.id, 'promote')}
+                                          onClick={() => void assignStudent(c.id, 'promote', quickAddGrade || undefined)}
                                           className="rounded-lg border border-primary/35 bg-card px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/10"
                                         >
-                                          + Adopt {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
+                                          + Adopt &amp; Transfer {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
                                         </button>
                                       ))}
                                     </div>

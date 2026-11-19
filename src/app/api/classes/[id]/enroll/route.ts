@@ -985,26 +985,74 @@ export async function PATCH(
   const quickErrors: Array<{ input: string; error: string }> = [];
 
   if (quickLines.length > 0) {
-    const existingPool = await loadSchoolStudentsForClaim(
+    const existingPool = [...await loadSchoolStudentsForClaim(
       admin as any,
       cls.school_id ?? null,
       schoolName,
       classId,
-    ).catch(() => []);
+    ).catch(() => [] as Awaited<ReturnType<typeof loadSchoolStudentsForClaim>>)];
 
     const existingGradesMap = new Map<string, string | null>();
     if (existingPool.length > 0) {
-      const { data: gradeRows } = await admin
-        .from('portal_users')
-        .select('id, grade')
-        .in('id', existingPool.slice(0, 500).map((s) => s.id));
-      for (const r of gradeRows ?? []) existingGradesMap.set((r as any).id, (r as any).grade ?? null);
+      for (let i = 0; i < existingPool.length; i += 400) {
+        const slice = existingPool.slice(i, i + 400).map((s) => s.id);
+        const { data: gradeRows } = await admin
+          .from('portal_users')
+          .select('id, grade')
+          .in('id', slice);
+        for (const r of gradeRows ?? []) existingGradesMap.set((r as any).id, (r as any).grade ?? null);
+      }
     }
 
     const feederSetForQuick = new Set(feederGradesForClass(cls as any).map((g) => g.toLowerCase()));
     const defaultFallbackGrade =
       cleanGrade(body?.defaultGrade)
       ?? resolveGradeForAction('promote', null, cls as any);
+    const forceCreateSet = new Set(
+      (Array.isArray(body?.forceCreateNames) ? body.forceCreateNames : [])
+        .map((n: unknown) => String(n ?? '').trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+    const nameTokens = (raw: string): string[] =>
+      raw
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length >= 2);
+
+    const levenshtein1 = (a: string, b: string): boolean => {
+      if (a === b) return true;
+      if (Math.abs(a.length - b.length) > 1) return false;
+      if (a.length < 4 || b.length < 4) return false;
+      let i = 0, j = 0, edits = 0;
+      while (i < a.length && j < b.length) {
+        if (a[i] === b[j]) { i++; j++; continue; }
+        edits++;
+        if (edits > 1) return false;
+        if (a.length > b.length) i++;
+        else if (b.length > a.length) j++;
+        else { i++; j++; }
+      }
+      return true;
+    };
+
+    const findNearSchoolDuplicates = (inputName: string) => {
+      const inTokens = nameTokens(inputName);
+      if (inTokens.length === 0) return [];
+      return existingPool.filter((stu) => {
+        const stuTokens = nameTokens(stu.full_name);
+        if (stuTokens.length === 0) return false;
+        // 1. All input tokens appear in existing name (e.g. "Samuel Agha" vs "Samuel Osahon Agha")
+        //    or all existing tokens appear in input (e.g. "Samuel Osahon Agha" vs "Samuel Agha")
+        const inSubsetOfStu = inTokens.length >= 2 && inTokens.every((t) => stuTokens.some((st) => levenshtein1(t, st)));
+        const stuSubsetOfIn = stuTokens.length >= 2 && stuTokens.every((st) => inTokens.some((t) => levenshtein1(t, st)));
+        if (inSubsetOfStu || stuSubsetOfIn) return true;
+        // 2. At least 2 matching tokens (same first + surname with different middle name)
+        const overlap = inTokens.filter((t) => stuTokens.some((st) => levenshtein1(t, st))).length;
+        return overlap >= 2;
+      });
+    };
 
     for (const rawLine of quickLines) {
       // Optional inline email support: "Ada Okafor, ada@school.com" or "Ada Okafor <ada@school.com>"
@@ -1020,11 +1068,18 @@ export async function PATCH(
       const cleanedName = cleanStudentName(stripped || lineWithoutEmail) || parsePastedStudentNames([lineWithoutEmail])[0];
       if (!cleanedName || cleanedName.length < 2) continue;
 
-      const match = matchPastedNamesToStudents([cleanedName], existingPool, classId)[0];
-      let matchedCandidate =
-        match?.status === 'claimable' || match?.status === 'already_here'
-          ? match.student
-          : null;
+      // Check explicit email match first (never duplicate an existing school email)
+      let matchedCandidate = explicitEmail
+        ? (existingPool.find((s) => (s.email || '').toLowerCase() === explicitEmail) ?? null)
+        : null;
+
+      const match = matchedCandidate ? null : matchPastedNamesToStudents([cleanedName], existingPool, classId)[0];
+      if (!matchedCandidate) {
+        matchedCandidate =
+          match?.status === 'claimable' || match?.status === 'already_here'
+            ? match.student
+            : null;
+      }
 
       if (!matchedCandidate && match?.status === 'ambiguous' && match.candidates.length > 0) {
         const feederMatches = match.candidates.filter((c) => {
@@ -1037,6 +1092,27 @@ export async function PATCH(
           quickAmbiguous.push({
             input: cleanedName,
             candidates: match.candidates.map((c) => ({
+              id: c.id,
+              full_name: c.full_name,
+              grade: existingGradesMap.get(c.id) ?? null,
+              current_class_name: c.current_class_name,
+            })),
+          });
+          continue;
+        }
+      }
+
+      // School-wide anti-duplicate guard: catch middle-name / subset / 1-typo matches across the entire school.
+      // If exactly 1 student in the school matches, auto-adopt & full-transfer them instead of creating a duplicate!
+      // If 2+ match, pause and let staff pick the exact student (or explicitly confirm creating a new one).
+      if (!matchedCandidate && !forceCreateSet.has(cleanedName.toLowerCase())) {
+        const nearMatches = findNearSchoolDuplicates(cleanedName);
+        if (nearMatches.length === 1) {
+          matchedCandidate = nearMatches[0];
+        } else if (nearMatches.length > 1) {
+          quickAmbiguous.push({
+            input: cleanedName,
+            candidates: nearMatches.slice(0, 6).map((c) => ({
               id: c.id,
               full_name: c.full_name,
               grade: existingGradesMap.get(c.id) ?? null,
@@ -1195,6 +1271,19 @@ export async function PATCH(
         actorId: caller.id,
         metadata: { source: 'inline_quick_add' },
       }).catch(() => {});
+
+      // Add to in-memory pool immediately so duplicate lines in the same batch never create 2 accounts
+      existingPool.push({
+        id: provisioned.studentId,
+        full_name: cleanedName,
+        email: provisioned.email ?? generatedEmail,
+        class_id: classId,
+        dest_roster_status: 'active',
+        is_active: true,
+        current_class_name: cls.name,
+        current_teacher_name: null,
+      });
+      existingGradesMap.set(provisioned.studentId, targetG ?? null);
 
       quickAdded.push({
         fullName: cleanedName,
