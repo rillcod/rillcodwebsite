@@ -21,7 +21,49 @@ import { bandCoversGrade, canonicalGrade, parseBandLabel, SINGLE_GRADES } from '
 
 type TabKey = 'pick' | 'quick' | 'confirm';
 type PlacementFilter = 'all' | 'feeder' | 'unassigned' | 'other';
+type SortKey = 'name' | 'unassigned' | 'grade' | 'class';
 type GradeAction = 'promote' | 'demote' | 'retain';
+
+function normalizeNameTokens(raw: string): string[] {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+}
+
+function tokenNearEqual(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 4) return false;
+  let diffs = 0;
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    diffs++;
+    if (diffs > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return diffs + (a.length - i) + (b.length - j) <= 1;
+}
+
+function nameMatchScore(inputRaw: string, candidateRaw: string): number {
+  const aTokens = normalizeNameTokens(inputRaw);
+  const bTokens = normalizeNameTokens(candidateRaw);
+  if (aTokens.length === 0 || bTokens.length === 0) return 0;
+  if (aTokens.join(' ') === bTokens.join(' ')) return 100;
+  if ([...aTokens].sort().join(' ') === [...bTokens].sort().join(' ')) return 95;
+  let matched = 0;
+  for (const at of aTokens) {
+    if (bTokens.some((bt) => tokenNearEqual(at, bt))) matched++;
+  }
+  if (matched === aTokens.length && aTokens.length >= 2) return 88;
+  if (matched >= 2) return 75;
+  if (aTokens.length === 1 && matched === 1 && aTokens[0].length >= 4) return 60;
+  return 0;
+}
 
 type AvailableStudent = {
   id: string;
@@ -74,6 +116,7 @@ export default function ClassEnrollWorkspacePage() {
   // Pick & Adopt state
   const [search, setSearch] = useState('');
   const [placement, setPlacement] = useState<PlacementFilter>('all');
+  const [sortBy, setSortBy] = useState<SortKey>('name');
   const [sourceClassId, setSourceClassId] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
   const [gradeAction, setGradeAction] = useState<GradeAction>('promote');
@@ -82,9 +125,11 @@ export default function ClassEnrollWorkspacePage() {
   const [perStudentAction, setPerStudentAction] = useState<Record<string, GradeAction>>({});
   const [showAllRows, setShowAllRows] = useState(false);
 
-  // Quick-Add / Paste state
+  // Quick-Add / Paste state + Real-Time Live Verification overrides
   const [quickInput, setQuickInput] = useState('');
   const [quickGrade, setQuickGrade] = useState('');
+  const [quickUntickedKeys, setQuickUntickedKeys] = useState<Set<string>>(new Set());
+  const [quickChoiceByKey, setQuickChoiceByKey] = useState<Record<string, string>>({}); // studentId or '__create_new__'
   const [quickNotice, setQuickNotice] = useState<{
     summary: string;
     added: Array<{ fullName: string; grade: string | null; mode: string; email?: string; password?: string | null }>;
@@ -174,7 +219,7 @@ export default function ClassEnrollWorkspacePage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return available.filter((s) => {
+    const list = available.filter((s) => {
       if (placement === 'feeder' && !s.is_feeder_promotion) return false;
       if (placement === 'unassigned' && s.class_id) return false;
       if (placement === 'other' && !s.class_id) return false;
@@ -184,7 +229,173 @@ export default function ClassEnrollWorkspacePage() {
       return [s.full_name, s.email, s.grade, s.section_class, s.current_class_name]
         .some((v) => String(v || '').toLowerCase().includes(q));
     });
-  }, [available, search, placement, sourceClassId, gradeFilter]);
+    return [...list].sort((a, b) => {
+      if (sortBy === 'unassigned') {
+        const aUn = a.class_id ? 1 : 0;
+        const bUn = b.class_id ? 1 : 0;
+        if (aUn !== bUn) return aUn - bUn;
+      } else if (sortBy === 'grade') {
+        const gCmp = String(a.grade || a.section_class || 'zzz').localeCompare(String(b.grade || b.section_class || 'zzz'));
+        if (gCmp !== 0) return gCmp;
+      } else if (sortBy === 'class') {
+        const cCmp = String(a.current_class_name || 'zzz').localeCompare(String(b.current_class_name || 'zzz'));
+        if (cCmp !== 0) return cCmp;
+      }
+      return String(a.full_name || '').localeCompare(String(b.full_name || ''));
+    });
+  }, [available, search, placement, sourceClassId, gradeFilter, sortBy]);
+
+  // Real-time intelligent name matching for Quick-Add / Paste (newline or comma-separated)
+  const liveQuickRows = useMemo(() => {
+    const rawParts = quickInput
+      .split(/[\n,;]+/)
+      .map((p) => p.replace(/^\s*(?:\d+[\.\)\-]\s*|[-*•]\s*)/, '').trim())
+      .filter((p) => p.length >= 2);
+    const seen = new Set<string>();
+    const uniqueLines: string[] = [];
+    for (const line of rawParts) {
+      const k = line.toLowerCase();
+      if (!seen.has(k)) {
+        seen.add(k);
+        uniqueLines.push(line);
+      }
+    }
+
+    return uniqueLines.map((rawLine) => {
+      const key = rawLine.toLowerCase();
+      const inRoster = roster.find((r) => nameMatchScore(rawLine, r.full_name || '') >= 88);
+      if (inRoster) {
+        return {
+          key,
+          rawLine,
+          status: 'already_in_class' as const,
+          matchedRoster: inRoster,
+          candidates: [] as AvailableStudent[],
+          chosenId: null as string | null,
+          ticked: false,
+        };
+      }
+
+      const scored = available
+        .map((s) => ({ student: s, score: nameMatchScore(rawLine, s.full_name || '') }))
+        .filter((x) => x.score >= 60)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4);
+
+      const override = quickChoiceByKey[key];
+      const top = scored[0];
+      const isSingleClear = scored.length === 1 || (top && top.score >= 95 && (!scored[1] || scored[1].score < 90));
+
+      let status: 'adopt' | 'ambiguous' | 'create_new';
+      let chosenId: string | null = null;
+
+      if (override === '__create_new__') {
+        status = 'create_new';
+      } else if (override) {
+        status = 'adopt';
+        chosenId = override;
+      } else if (isSingleClear && top) {
+        status = 'adopt';
+        chosenId = top.student.id;
+      } else if (scored.length > 0) {
+        status = 'ambiguous';
+      } else {
+        status = 'create_new';
+      }
+
+      const ticked = !quickUntickedKeys.has(key) && status !== 'ambiguous';
+      return {
+        key,
+        rawLine,
+        status,
+        matchedRoster: null,
+        candidates: scored.map((x) => x.student),
+        chosenId,
+        ticked,
+      };
+    });
+  }, [quickInput, roster, available, quickChoiceByKey, quickUntickedKeys]);
+
+  const applyVerifiedQuickRows = async () => {
+    const adoptIds: string[] = [];
+    const createLines: string[] = [];
+    for (const row of liveQuickRows) {
+      if (!row.ticked) continue;
+      if (row.status === 'adopt' && row.chosenId) {
+        if (!adoptIds.includes(row.chosenId)) adoptIds.push(row.chosenId);
+      } else if (row.status === 'create_new') {
+        createLines.push(row.rawLine);
+      }
+    }
+    if (adoptIds.length === 0 && createLines.length === 0) {
+      toast.error('Tick at least one student (or pick a match for ambiguous names) to continue.');
+      return;
+    }
+
+    setBusy('quick');
+    setQuickNotice(null);
+    const addedSummary: Array<{ fullName: string; grade: string | null; mode: string; email?: string; password?: string | null }> = [];
+    const errors: Array<{ input: string; error: string }> = [];
+
+    try {
+      if (adoptIds.length > 0) {
+        const res = await fetch(`/api/classes/${id}/enroll`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentIds: adoptIds,
+            promoteToClassGrade: gradeAction !== 'retain',
+            gradeAction,
+            targetGrade: quickGrade || targetGradePitch || undefined,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || 'Could not adopt matched students');
+        for (const sid of adoptIds) {
+          const st = available.find((a) => a.id === sid);
+          if (st) {
+            addedSummary.push({
+              fullName: st.full_name,
+              grade: quickGrade || st.suggested_grade || st.grade || defaultEntryGrade || null,
+              mode: 'adopted',
+              email: st.email || undefined,
+            });
+          }
+        }
+      }
+
+      if (createLines.length > 0) {
+        const res = await fetch(`/api/classes/${id}/enroll`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quickAddNames: createLines.join('\n'),
+            defaultGrade: quickGrade || defaultEntryGrade || undefined,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || 'Could not create new students');
+        if (Array.isArray(json.quickAdded)) addedSummary.push(...json.quickAdded);
+        if (Array.isArray(json.quickErrors)) errors.push(...json.quickErrors);
+      }
+
+      setQuickNotice({
+        summary: `Done! Adopted ${adoptIds.length} existing & created ${Math.max(0, addedSummary.length - adoptIds.length)} new student${addedSummary.length === 1 ? '' : 's'} into ${cls?.name || 'this class'}.`,
+        added: addedSummary,
+        ambiguous: [],
+        errors,
+      });
+      toast.success(`Synced ${addedSummary.length} student${addedSummary.length === 1 ? '' : 's'} into ${cls?.name || 'class'}`);
+      setQuickInput('');
+      setQuickUntickedKeys(new Set());
+      setQuickChoiceByKey({});
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not apply verified students');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const enrollableFiltered = useMemo(() => filtered.filter((s) => !s.requires_transfer_request), [filtered]);
   const allFilteredSelected = enrollableFiltered.length > 0 && enrollableFiltered.every((s) => selectedIds.has(s.id));
@@ -266,45 +477,6 @@ export default function ClassEnrollWorkspacePage() {
       await loadAll();
     } catch (e: any) {
       toast.error(e?.message || 'Batch enrollment failed');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const submitQuickAdd = async () => {
-    if (!quickInput.trim()) return;
-    setBusy('quick');
-    setQuickNotice(null);
-    try {
-      const res = await fetch(`/api/classes/${id}/enroll`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quickAddNames: quickInput.trim(),
-          defaultGrade: quickGrade || defaultEntryGrade || undefined,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || 'Could not add students');
-      const added = Array.isArray(json.quickAdded) ? json.quickAdded : [];
-      const ambiguous = Array.isArray(json.quickAmbiguous) ? json.quickAmbiguous : [];
-      const errors = Array.isArray(json.quickErrors) ? json.quickErrors : [];
-      setQuickNotice({
-        summary: added.length
-          ? `Synced ${added.length} student${added.length === 1 ? '' : 's'} into ${cls?.name || 'this class'}.`
-          : ambiguous.length
-            ? `${ambiguous.length} name${ambiguous.length === 1 ? '' : 's'} matched multiple existing students — choose below.`
-            : 'No new students added.',
-        added,
-        ambiguous,
-        errors,
-      });
-      if (added.length > 0 && ambiguous.length === 0 && errors.length === 0) {
-        setQuickInput('');
-      }
-      await loadAll();
-    } catch (e: any) {
-      toast.error(e?.message || 'Quick-add failed');
     } finally {
       setBusy(null);
     }
@@ -481,7 +653,7 @@ export default function ClassEnrollWorkspacePage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && quickInput.trim() && busy !== 'quick') {
                     e.preventDefault();
-                    void submitQuickAdd();
+                    void applyVerifiedQuickRows();
                   }
                 }}
                 placeholder="Type student name (e.g. Samuel Agha or Ada Okafor JSS 2) and press Enter…"
@@ -501,12 +673,104 @@ export default function ClassEnrollWorkspacePage() {
               <button
                 type="button"
                 disabled={busy === 'quick' || !quickInput.trim()}
-                onClick={() => void submitQuickAdd()}
+                onClick={() => void applyVerifiedQuickRows()}
                 className="min-h-11 shrink-0 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40 shadow-sm"
               >
-                {busy === 'quick' ? 'Adding…' : '+ Add / Adopt'}
+                {busy === 'quick'
+                  ? 'Applying…'
+                  : liveQuickRows.length > 0
+                    ? `Apply ${liveQuickRows.filter((r) => r.ticked).length} Verified`
+                    : '+ Add / Adopt'}
               </button>
             </div>
+            {liveQuickRows.length > 0 && (
+              <div className="rounded-xl border border-border bg-card p-2.5 space-y-1.5 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-border/60">
+                  <span className="text-[11px] font-black text-foreground">
+                    Live Match Preview ({liveQuickRows.filter((r) => r.status === 'adopt').length} Adopt · {liveQuickRows.filter((r) => r.status === 'create_new').length} New{liveQuickRows.filter((r) => r.status === 'ambiguous').length > 0 ? ` · ${liveQuickRows.filter((r) => r.status === 'ambiguous').length} Pick` : ''})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTab('quick')}
+                    className="text-[11px] font-bold text-primary hover:underline"
+                  >
+                    Open Full Verification Table →
+                  </button>
+                </div>
+                {liveQuickRows.slice(0, 5).map((row) => {
+                  const chosen = row.chosenId ? row.candidates.find((c) => c.id === row.chosenId) : null;
+                  return (
+                    <div key={`inline-prev-${row.key}`} className="flex flex-wrap items-center justify-between gap-2 py-1">
+                      <label className="inline-flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={row.ticked}
+                          disabled={row.status === 'already_in_class' || row.status === 'ambiguous'}
+                          onChange={() =>
+                            setQuickUntickedKeys((prev) => {
+                              const n = new Set(prev);
+                              if (n.has(row.key)) n.delete(row.key);
+                              else n.add(row.key);
+                              return n;
+                            })
+                          }
+                          className="h-4 w-4 rounded accent-primary"
+                        />
+                        <span className="font-bold text-foreground truncate">{row.rawLine}</span>
+                      </label>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {row.status === 'already_in_class' && (
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">Already in class</span>
+                        )}
+                        {row.status === 'adopt' && chosen && (
+                          <>
+                            <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-300">
+                              ✓ Adopt: {chosen.full_name}{chosen.current_class_name ? ` (${chosen.current_class_name})` : ''}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setQuickChoiceByKey((p) => ({ ...p, [row.key]: '__create_new__' }))}
+                              className="text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
+                            >
+                              New instead
+                            </button>
+                          </>
+                        )}
+                        {row.status === 'ambiguous' && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {row.candidates.slice(0, 2).map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setQuickChoiceByKey((p) => ({ ...p, [row.key]: c.id }))}
+                                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-900 dark:text-amber-200 hover:bg-amber-500/20"
+                              >
+                                Pick {c.full_name}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setQuickChoiceByKey((p) => ({ ...p, [row.key]: '__create_new__' }))}
+                              className="rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-bold text-foreground"
+                            >
+                              + New
+                            </button>
+                          </div>
+                        )}
+                        {row.status === 'create_new' && (
+                          <span className="rounded-md bg-primary/10 border border-primary/25 px-2 py-0.5 text-[10px] font-black text-primary">
+                            + New Account
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {liveQuickRows.length > 5 && (
+                  <p className="text-[10px] text-muted-foreground">+{liveQuickRows.length - 5} more names ready…</p>
+                )}
+              </div>
+            )}
             {quickNotice && (
               <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
                 <span className="font-bold text-emerald-900 dark:text-emerald-200">{quickNotice.summary}</span>
@@ -592,6 +856,17 @@ export default function ClassEnrollWorkspacePage() {
                     ))}
                   </select>
                 )}
+                <select
+                  aria-label="Sort students"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortKey)}
+                  className="min-h-9 flex-1 sm:flex-none rounded-xl border border-border bg-background px-2.5 text-xs font-semibold text-foreground"
+                >
+                  <option value="name">Sort: Name A–Z</option>
+                  <option value="unassigned">Sort: Unassigned First</option>
+                  <option value="grade">Sort: Grade</option>
+                  <option value="class">Sort: Source Class</option>
+                </select>
                 <select
                   aria-label="Target grade pitch"
                   value={targetGradePitch}
@@ -825,28 +1100,183 @@ export default function ClassEnrollWorkspacePage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-[11px] font-black uppercase tracking-wider text-muted-foreground">
-              2. Type or Paste Student Names (one per line)
-            </label>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="block text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                2. Type or Paste Student Names (one per line or comma-separated) — Verified Live Below
+              </label>
+              {quickInput.trim() && (
+                <button
+                  type="button"
+                  onClick={() => { setQuickInput(''); setQuickUntickedKeys(new Set()); setQuickChoiceByKey({}); }}
+                  className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
+                >
+                  Clear List
+                </button>
+              )}
+            </div>
             <textarea
-              rows={6}
+              rows={5}
+              aria-label="Type or paste student names for real-time matching"
               value={quickInput}
               onChange={(e) => setQuickInput(e.target.value)}
-              placeholder={`Samuel Agha\nAdaeze Okonkwo\nChinedu Eze JSS 2`}
+              placeholder={`Samuel Agha\nAdaeze Okonkwo\nChinedu Eze\n(Paste a whole class list — existing school accounts are matched live in real time so you can verify and tick!)`}
               className="w-full rounded-2xl border border-border bg-background p-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={busy === 'quick' || !quickInput.trim()}
-                onClick={() => void submitQuickAdd()}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40 shadow-sm"
-              >
-                {busy === 'quick' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
-                Push to {quickGrade || defaultEntryGrade || cls?.name || 'Class'}
-              </button>
-            </div>
+
+            {/* Real-Time Intelligent Verification & Tick Table */}
+            {liveQuickRows.length > 0 && (() => {
+              const adoptCount = liveQuickRows.filter((r) => r.ticked && r.status === 'adopt').length;
+              const newCount = liveQuickRows.filter((r) => r.ticked && r.status === 'create_new').length;
+              const ambCount = liveQuickRows.filter((r) => r.status === 'ambiguous').length;
+              const alreadyCount = liveQuickRows.filter((r) => r.status === 'already_in_class').length;
+              const actionableRows = liveQuickRows.filter((r) => r.status === 'adopt' || r.status === 'create_new');
+              const allActionableTicked = actionableRows.length > 0 && actionableRows.every((r) => r.ticked);
+
+              return (
+                <div className="rounded-2xl border border-primary/25 bg-muted/20 p-3.5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="font-black text-foreground">Real-Time Verification ({liveQuickRows.length}):</span>
+                      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 font-black text-emerald-800 dark:text-emerald-300">
+                        {adoptCount} Adopt Existing
+                      </span>
+                      <span className="rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 font-black text-primary">
+                        {newCount} Create New
+                      </span>
+                      {ambCount > 0 && (
+                        <span className="rounded-full bg-amber-500/15 border border-amber-500/35 px-2.5 py-0.5 font-black text-amber-800 dark:text-amber-300">
+                          {ambCount} Need Pick
+                        </span>
+                      )}
+                      {alreadyCount > 0 && (
+                        <span className="rounded-full bg-muted border border-border px-2.5 py-0.5 font-bold text-muted-foreground">
+                          {alreadyCount} Already in Class
+                        </span>
+                      )}
+                    </div>
+                    {actionableRows.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (allActionableTicked) {
+                            setQuickUntickedKeys(new Set(actionableRows.map((r) => r.key)));
+                          } else {
+                            setQuickUntickedKeys(new Set());
+                          }
+                        }}
+                        className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-muted"
+                      >
+                        {allActionableTicked ? 'Untick All' : 'Tick All Ready'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+                    {liveQuickRows.map((row) => {
+                      const chosen = row.chosenId ? row.candidates.find((c) => c.id === row.chosenId) : null;
+                      return (
+                        <div key={`verify-${row.key}`} className="px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={row.ticked}
+                              disabled={row.status === 'already_in_class' || row.status === 'ambiguous'}
+                              onChange={() =>
+                                setQuickUntickedKeys((prev) => {
+                                  const n = new Set(prev);
+                                  if (n.has(row.key)) n.delete(row.key);
+                                  else n.add(row.key);
+                                  return n;
+                                })
+                              }
+                              aria-label={`Verify ${row.rawLine}`}
+                              className="mt-0.5 h-4 w-4 shrink-0 rounded accent-primary cursor-pointer"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-foreground break-words">{row.rawLine}</p>
+                              {row.status === 'already_in_class' && row.matchedRoster && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  Already active on this roster as <strong>{row.matchedRoster.full_name}</strong>
+                                </p>
+                              )}
+                              {row.status === 'adopt' && chosen && (
+                                <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium">
+                                  Matched: <strong>{chosen.full_name}</strong>
+                                  {chosen.grade ? ` · ${chosen.grade}` : ''}
+                                  {chosen.current_class_name ? ` · From ${chosen.current_class_name}` : ' · Unassigned'}
+                                  {chosen.email ? ` · ${chosen.email}` : ''}
+                                </p>
+                              )}
+                              {row.status === 'create_new' && (
+                                <p className="text-[11px] text-primary font-medium">
+                                  No existing match — will create fresh account ({quickGrade || defaultEntryGrade || 'Class grade'})
+                                </p>
+                              )}
+                              {row.status === 'ambiguous' && (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300">Pick exact match:</span>
+                                  {row.candidates.map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => setQuickChoiceByKey((p) => ({ ...p, [row.key]: c.id }))}
+                                      className="rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-900 dark:text-amber-200"
+                                    >
+                                      ✓ {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuickChoiceByKey((p) => ({ ...p, [row.key]: '__create_new__' }))}
+                                    className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1 text-[11px] font-bold text-foreground"
+                                  >
+                                    + Create New Instead
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 pl-6 sm:pl-0">
+                            {row.status === 'adopt' && (
+                              <button
+                                type="button"
+                                onClick={() => setQuickChoiceByKey((p) => ({ ...p, [row.key]: '__create_new__' }))}
+                                className="rounded-lg border border-border bg-background hover:bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground"
+                              >
+                                Create New Instead
+                              </button>
+                            )}
+                            {row.status === 'create_new' && row.candidates.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setQuickChoiceByKey((p) => { const n = { ...p }; delete n[row.key]; return n; })}
+                                className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-800 dark:text-emerald-300"
+                              >
+                                Use Existing Match
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={busy === 'quick' || (adoptCount + newCount === 0)}
+                      onClick={() => void applyVerifiedQuickRows()}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 text-xs font-black text-white disabled:opacity-40 shadow-sm"
+                    >
+                      {busy === 'quick' ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
+                      Confirm &amp; Apply {adoptCount + newCount} Ticked ({adoptCount} Adopt · {newCount} New)
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {quickNotice && (
@@ -1025,7 +1455,7 @@ export default function ClassEnrollWorkspacePage() {
 
       {/* Sticky bottom action bar when students are ticked in Pick & Adopt */}
       {tab === 'pick' && selectedIds.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] md:bottom-0 z-50 border-t border-border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <div className="text-xs font-semibold text-muted-foreground">
               <span className="font-black text-foreground">{selectedIds.size}</span> student{selectedIds.size === 1 ? '' : 's'} selected
