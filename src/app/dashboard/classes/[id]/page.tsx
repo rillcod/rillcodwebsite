@@ -779,6 +779,31 @@ export default function ClassDetailPage() {
     }
   };
 
+  const syncAllClassLogins = async () => {
+    if (!id) return;
+    if (!confirm('Sync every student account in this class so their printed password works immediately in login (and confirm any unconfirmed old emails)?')) return;
+    setCredSheetBusy(true);
+    setCredSheetNotice(null);
+    try {
+      const res = await fetch(`/api/classes/${id}/students`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_class_logins' }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not sync student logins');
+      setCredSheetNotice(
+        `Synced ${json.fixed_count ?? 0} student login${json.fixed_count === 1 ? '' : 's'} — every old account in this class now opens immediately with the exact password shown below.`,
+      );
+      await loadCredSheet();
+      await fetchData();
+    } catch (e: any) {
+      setCredSheetNotice(e?.message || 'Could not sync student logins');
+    } finally {
+      setCredSheetBusy(false);
+    }
+  };
+
   const printClassCredSheet = () => {
     const ok = openClassCredentialsPrintSheet({
       className: cls?.name || 'Class',
@@ -2575,6 +2600,17 @@ export default function ClassDetailPage() {
                                   className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
                                 >
                                   {credSheetBusy ? 'Generating…' : `Generate rillcod@XXXX password for ${missingPwCount} missing`}
+                                </button>
+                              )}
+                              {credSheetRows.length > 0 && (
+                                <button
+                                  type="button"
+                                  disabled={credSheetBusy}
+                                  onClick={() => void syncAllClassLogins()}
+                                  title="Push every student's shown password & email confirmation directly into Auth so old accounts log in immediately"
+                                  className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[11px] font-black text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 disabled:opacity-50"
+                                >
+                                  {credSheetBusy ? 'Syncing…' : 'Sync Old Logins to Auth'}
                                 </button>
                               )}
                             </div>

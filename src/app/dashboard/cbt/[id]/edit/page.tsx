@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import QuestionAuthoringStudio, { type StudioGeneratedQuestion } from '@/components/cbt/QuestionAuthoringStudio';
 import { cbtAnswerMatchesOption } from '@/lib/cbt/grading';
+import { dedupeCbtQuestions, resolveMcqAnswerToOption, stripOptionPrefix } from '@/lib/cbt/question-bank-catalog';
 
 function resolveNormalizedOptionAnswer(options: string[], rawAnswer: string): string {
     const cleanOpts = options.map((o) => o.trim()).filter(Boolean);
@@ -176,27 +177,50 @@ export default function EditExamPage() {
         setQuestions(prev => {
             const deleted = prev.filter(q => q._deleted);
             const active = prev.filter(q => !q._deleted);
-            const nextQuestions: Question[] = incoming.map((q, idx) => ({
-                question_text: q.question_text,
-                question_type: q.question_type,
-                options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['', '', '', ''],
-                correct_answer: q.correct_answer || q.marking_guide || '',
-                points: q.points || 5,
-                order_index: idx + 1,
-                metadata: q.metadata ?? {
-                    section: q.section || (['essay', 'fill_blank'].includes(q.question_type) ? 'subjective' : 'objective'),
-                    ...(q.marking_guide ? { marking_guide: q.marking_guide } : {}),
-                    ...(q.curriculumTag ? { curriculum_tag: q.curriculumTag } : {}),
-                    ...(q.cognitiveLevel ? { cognitive_level: q.cognitiveLevel } : {}),
-                },
-                _new: true,
-            }));
+            const nextQuestions: Question[] = incoming.map((q, idx) => {
+                const cbtType = q.question_type === 'short_answer' ? 'fill_blank' : q.question_type;
+                const cleanedOpts =
+                    cbtType === 'true_false'
+                        ? ['True', 'False']
+                        : cbtType === 'multiple_choice'
+                            ? Array.isArray(q.options) && q.options.length >= 2
+                                ? q.options.map((o) => stripOptionPrefix(o))
+                                : ['', '', '', '']
+                            : ['', '', '', ''];
+                const rawAns = String(q.correct_answer || q.marking_guide || '').trim();
+                const resolvedAns =
+                    cbtType === 'multiple_choice'
+                        ? resolveMcqAnswerToOption(rawAns, cleanedOpts)
+                        : cbtType === 'true_false'
+                            ? (/^false$/i.test(rawAns) ? 'False' : 'True')
+                            : rawAns;
+                return {
+                    question_text: q.question_text,
+                    question_type: cbtType,
+                    options: cleanedOpts,
+                    correct_answer: resolvedAns,
+                    points: Math.max(1, Number(q.points) || (['essay', 'coding_blocks'].includes(cbtType) ? 10 : 5)),
+                    order_index: idx + 1,
+                    metadata: q.metadata ?? {
+                        section: q.section || (['essay', 'fill_blank', 'coding_blocks'].includes(cbtType) ? 'subjective' : 'objective'),
+                        ...(q.marking_guide ? { marking_guide: q.marking_guide } : {}),
+                        ...(q.curriculumTag ? { curriculum_tag: q.curriculumTag } : {}),
+                        ...(q.cognitiveLevel ? { cognitive_level: q.cognitiveLevel } : {}),
+                    },
+                    _new: true,
+                };
+            });
             if (replaceExisting) {
+                const { unique: uniqueNext } = dedupeCbtQuestions(nextQuestions, []);
                 const markedDeleted = active.filter(q => q.id && !q._new).map(q => ({ ...q, _deleted: true }));
-                return [...nextQuestions, ...deleted, ...markedDeleted];
+                return [...uniqueNext.map((q, i) => ({ ...q, order_index: i + 1 })), ...deleted, ...markedDeleted];
             }
             const cleanedActive = active.filter(q => q.question_text.trim().length > 0);
-            const combined = [...cleanedActive, ...nextQuestions].map((q, idx) => ({ ...q, order_index: idx + 1 }));
+            const { unique: uniqueNext } = dedupeCbtQuestions(
+                nextQuestions,
+                cleanedActive.map((item) => item.question_text),
+            );
+            const combined = [...cleanedActive, ...uniqueNext].map((q, idx) => ({ ...q, order_index: idx + 1 }));
             return [...combined, ...deleted];
         });
     };
@@ -240,15 +264,22 @@ export default function EditExamPage() {
             const nextOpts = target.question_type === 'true_false'
                 ? ['True', 'False']
                 : Array.isArray(solved.options) && solved.options.length >= 2
-                    ? solved.options.map(String)
-                    : target.options;
+                    ? solved.options.map((o: unknown) => stripOptionPrefix(String(o ?? '')))
+                    : target.options.map((o) => stripOptionPrefix(o));
+
+            const rawSolved = String(solved.correct_answer || solved.answer || solved.marking_guide || target.correct_answer || '').trim();
+            const resolvedAns = target.question_type === 'multiple_choice'
+                ? resolveMcqAnswerToOption(rawSolved, nextOpts)
+                : target.question_type === 'true_false'
+                    ? (/^false$/i.test(rawSolved) ? 'False' : 'True')
+                    : rawSolved;
 
             updateQuestion(realIdx, {
                 options: nextOpts,
-                correct_answer: String(solved.correct_answer || solved.marking_guide || target.correct_answer || ''),
+                correct_answer: resolvedAns,
                 metadata: {
                     ...(target.metadata ?? {}),
-                    marking_guide: String(solved.marking_guide || solved.metadata?.marking_guide || target.metadata?.marking_guide || ''),
+                    marking_guide: String(solved.marking_guide || solved.metadata?.marking_guide || solved.explanation || target.metadata?.marking_guide || ''),
                 },
             });
         } catch (e: any) {
@@ -909,47 +940,68 @@ export default function EditExamPage() {
                                         </div>
                                     )}
 
-                                    {q.question_type === 'multiple_choice' && (
+                                    {q.question_type === 'multiple_choice' && (() => {
+                                        const matchedCorrect = resolveMcqAnswerToOption(q.correct_answer, q.options);
+                                        const hasMatchedCorrect = q.options.some((o) => o.trim() !== '' && (q.correct_answer === o || matchedCorrect === o));
+                                        return (
                                         <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest">Options (Select the correct one)</label>
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest">Options (Click A–D to mark the correct answer)</label>
+                                                {!hasMatchedCorrect && q.options.some((o) => o.trim()) && (
+                                                    <span className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-200">
+                                                        No answer selected yet — click A–D to pick
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 {q.options.map((opt, oi) => {
-                                                    const isCorrect = q.correct_answer === opt && opt !== '';
+                                                    const isCorrect = opt.trim() !== '' && (q.correct_answer === opt || matchedCorrect === opt);
+                                                    const letter = String.fromCharCode(65 + oi);
                                                     return (
-                                                        <div 
-                                                            key={oi} 
-                                                            onClick={() => {
-                                                                if (opt.trim()) updateQuestion(questions.indexOf(q), { correct_answer: opt });
-                                                            }}
-                                                            className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-card shadow-sm border-border hover:border-border'}`}
+                                                        <div
+                                                            key={oi}
+                                                            className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/60 ring-1 ring-emerald-500/30' : 'bg-card shadow-sm border-border hover:border-primary/40'}`}
                                                         >
-                                                            <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : 'border-border group-hover/opt:border-border text-muted-foreground'}`}>
-                                                                {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{String.fromCharCode(65 + oi)}</span>}
-                                                            </div>
-                                                            <input 
-                                                                type="text" 
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (opt.trim()) updateQuestion(questions.indexOf(q), { correct_answer: opt });
+                                                                }}
+                                                                aria-label={`Mark option ${letter} as correct answer`}
+                                                                className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all cursor-pointer ${isCorrect ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' : 'border-border hover:border-emerald-500 text-muted-foreground hover:text-emerald-700'}`}
+                                                            >
+                                                                {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{letter}</span>}
+                                                            </button>
+                                                            <input
+                                                                type="text"
                                                                 value={opt}
-                                                                onClick={e => e.stopPropagation()}
                                                                 onChange={e => {
                                                                     const newVal = e.target.value;
-                                                                    const wasCorrect = q.correct_answer === opt;
+                                                                    const wasCorrect = isCorrect;
                                                                     updateOption(questions.indexOf(q), oi, newVal);
                                                                     if (wasCorrect) updateQuestion(questions.indexOf(q), { correct_answer: newVal });
                                                                 }}
-                                                                placeholder={`Enter option ${String.fromCharCode(65 + oi)}…`}
-                                                                className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none" 
+                                                                placeholder={`Enter option ${letter}…`}
+                                                                className="flex-1 min-w-0 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none"
                                                             />
-                                                            {isCorrect && (
-                                                                <span className="hidden sm:block text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
-                                                            )}
+                                                            {isCorrect ? (
+                                                                <span className="shrink-0 rounded-md bg-emerald-600/15 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mr-1">Correct</span>
+                                                            ) : opt.trim() ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateQuestion(questions.indexOf(q), { correct_answer: opt })}
+                                                                    className="shrink-0 opacity-0 group-hover/opt:opacity-100 focus:opacity-100 rounded-md border border-border bg-background px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground hover:text-emerald-700 hover:border-emerald-500/40 mr-1 transition-opacity"
+                                                                >
+                                                                    Set
+                                                                </button>
+                                                            ) : null}
                                                         </div>
                                                     );
                                                 })}
                                             </div>
                                         </div>
-                                    )}
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         ))}
@@ -963,16 +1015,16 @@ export default function EditExamPage() {
                         </div>
                     )}
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-3 pt-2">
+                    {/* Sticky Save Changes Bar */}
+                    <div className="sticky bottom-3 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-lg">
                         <Link href={`/dashboard/cbt/${id}`}
-                            className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-xl transition-colors">
+                            className="px-4 py-2 bg-muted/60 hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-colors">
                             Cancel
                         </Link>
                         <button type="submit" disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-md">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                            {saving ? 'Saving…' : 'Save changes'}
+                            {saving ? 'Saving…' : 'Save Changes'}
                         </button>
                     </div>
                 </form>

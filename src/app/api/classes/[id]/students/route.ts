@@ -375,11 +375,12 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => ({}));
-    if (body?.action !== 'normalize_credentials') {
+    if (body?.action !== 'normalize_credentials' && body?.action !== 'sync_class_logins') {
       return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
     }
     const targetIds: string[] = Array.isArray(body?.studentIds) ? body.studentIds : [];
     const includeMissingPasswords = body?.includeMissingPasswords === true;
+    const syncAllAuthPasswords = body?.action === 'sync_class_logins';
 
     let q = admin
       .from('portal_users')
@@ -398,16 +399,23 @@ export async function POST(
       school_name: string | null;
     }>;
 
-    // Check which students already have archived credentials
+    // Check which students already have archived credentials (newest first)
     const existingEmails = candidates.map((s) => String(s.email || '').trim().toLowerCase()).filter(Boolean);
     const { data: existingCreds } = existingEmails.length > 0
-      ? await admin.from('registration_results').select('email, password').in('email', existingEmails)
+      ? await admin
+          .from('registration_results')
+          .select('email, password, created_at')
+          .in('email', existingEmails)
+          .order('created_at', { ascending: false })
       : { data: [] as any[] };
-    const hasArchivedPass = new Set(
-      (existingCreds ?? [])
-        .filter((r: any) => String(r.password || '').trim().length > 0)
-        .map((r: any) => String(r.email || '').trim().toLowerCase()),
-    );
+    const archivedPassByEmail = new Map<string, string>();
+    for (const r of existingCreds ?? []) {
+      const em = String(r.email || '').trim().toLowerCase();
+      const pw = String(r.password || '').trim();
+      if (em && pw && !archivedPassByEmail.has(em)) {
+        archivedPassByEmail.set(em, pw);
+      }
+    }
 
     const fixed: Array<{ id: string; full_name: string; old_email: string; email: string; password: string }> = [];
     const errors: Array<{ id: string; full_name: string; error: string }> = [];
@@ -415,8 +423,9 @@ export async function POST(
     for (const stu of candidates) {
       const oldEmail = String(stu.email || '').trim().toLowerCase();
       const hasLegacyEmail = oldEmail.endsWith('@student.rillcod.com');
-      const needsPass = includeMissingPasswords && !hasArchivedPass.has(oldEmail);
-      if (!hasLegacyEmail && !needsPass) continue;
+      const existingArchivedPw = archivedPassByEmail.get(oldEmail) || '';
+      const needsPass = includeMissingPasswords && !existingArchivedPw;
+      if (!syncAllAuthPasswords && !hasLegacyEmail && !needsPass) continue;
 
       const fullName = (stu.full_name || 'Student').trim();
       let newEmail = oldEmail;
@@ -438,7 +447,10 @@ export async function POST(
         newEmail = chosen || `${firstNamePart}${1000 + Math.floor(Math.random() * 9000)}@rillcod.com`;
       }
 
-      const newPassword = generateTempPassword();
+      // When syncing existing logins, reuse their archived password so printed sheets immediately work!
+      const newPassword = (syncAllAuthPasswords && !hasLegacyEmail && existingArchivedPw.length >= 6)
+        ? existingArchivedPw
+        : generateTempPassword();
       const { error: authUpdateErr } = await admin.auth.admin.updateUserById(stu.id, {
         ...(hasLegacyEmail ? { email: newEmail } : {}),
         password: newPassword,
