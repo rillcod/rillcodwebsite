@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
   CheckCircleIcon,
+  ClipboardIcon,
   CreditCardIcon,
   MagnifyingGlassIcon,
-  PlusIcon,
   SparklesIcon,
   UserGroupIcon,
   UserPlusIcon,
@@ -23,6 +23,18 @@ type TabKey = 'pick' | 'quick' | 'confirm';
 type PlacementFilter = 'all' | 'feeder' | 'unassigned' | 'other';
 type SortKey = 'name' | 'unassigned' | 'grade' | 'class';
 type GradeAction = 'promote' | 'demote' | 'retain';
+
+function extractNameAndGrade(rawLine: string): { cleanName: string; parsedGrade: string | null } {
+  const cleaned = rawLine.replace(/^\s*(?:\d+[\.\)\-]\s*|[-*•]\s*)/, '').trim();
+  const gradeRe = /(?:\s*[-–—|,(]\s*|\s+)((?:jss|sss|ss|js|basic|primary|pry|grade|kg|nursery|year)\s*\d+[a-z]?)\)?\s*$/i;
+  const m = cleaned.match(gradeRe);
+  if (!m) return { cleanName: cleaned, parsedGrade: null };
+  const candidateGrade = canonicalGrade(m[1]) || m[1].trim().toUpperCase();
+  const cleanName = cleaned.slice(0, m.index).replace(/[-–—|,\s]+$/, '').trim();
+  return cleanName.length >= 2
+    ? { cleanName, parsedGrade: candidateGrade }
+    : { cleanName: cleaned, parsedGrade: null };
+}
 
 function normalizeNameTokens(raw: string): string[] {
   return raw
@@ -98,6 +110,7 @@ type RosterStudent = {
 
 export default function ClassEnrollWorkspacePage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id as string;
   const searchParams = useSearchParams();
   const { profile } = useAuth();
@@ -122,6 +135,7 @@ export default function ClassEnrollWorkspacePage() {
   const [gradeAction, setGradeAction] = useState<GradeAction>('promote');
   const [targetGradePitch, setTargetGradePitch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [perStudentAction, setPerStudentAction] = useState<Record<string, GradeAction>>({});
   const [showAllRows, setShowAllRows] = useState(false);
 
@@ -219,6 +233,9 @@ export default function ClassEnrollWorkspacePage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const multiTerms = q.includes(',') || q.includes('\n') || q.includes(';')
+      ? q.split(/[\n,;]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
+      : [];
     const list = available.filter((s) => {
       if (placement === 'feeder' && !s.is_feeder_promotion) return false;
       if (placement === 'unassigned' && s.class_id) return false;
@@ -226,8 +243,13 @@ export default function ClassEnrollWorkspacePage() {
       if (sourceClassId && s.class_id !== sourceClassId) return false;
       if (gradeFilter && (s.grade || s.section_class || '') !== gradeFilter) return false;
       if (!q) return true;
-      return [s.full_name, s.email, s.grade, s.section_class, s.current_class_name]
-        .some((v) => String(v || '').toLowerCase().includes(q));
+      const haystack = [s.full_name, s.email, s.grade, s.section_class, s.current_class_name]
+        .map((v) => String(v || '').toLowerCase())
+        .join(' ');
+      if (multiTerms.length > 0) {
+        return multiTerms.some((term) => haystack.includes(term) || nameMatchScore(term, s.full_name || '') >= 60);
+      }
+      return haystack.includes(q) || nameMatchScore(q, s.full_name || '') >= 60;
     });
     return [...list].sort((a, b) => {
       if (sortBy === 'unassigned') {
@@ -263,11 +285,14 @@ export default function ClassEnrollWorkspacePage() {
 
     return uniqueLines.map((rawLine) => {
       const key = rawLine.toLowerCase();
-      const inRoster = roster.find((r) => nameMatchScore(rawLine, r.full_name || '') >= 88);
+      const { cleanName, parsedGrade } = extractNameAndGrade(rawLine);
+      const inRoster = roster.find((r) => nameMatchScore(cleanName, r.full_name || '') >= 88);
       if (inRoster) {
         return {
           key,
           rawLine,
+          cleanName,
+          parsedGrade,
           status: 'already_in_class' as const,
           matchedRoster: inRoster,
           candidates: [] as AvailableStudent[],
@@ -277,7 +302,7 @@ export default function ClassEnrollWorkspacePage() {
       }
 
       const scored = available
-        .map((s) => ({ student: s, score: nameMatchScore(rawLine, s.full_name || '') }))
+        .map((s) => ({ student: s, score: nameMatchScore(cleanName, s.full_name || '') }))
         .filter((x) => x.score >= 60)
         .sort((a, b) => b.score - a.score)
         .slice(0, 4);
@@ -307,6 +332,8 @@ export default function ClassEnrollWorkspacePage() {
       return {
         key,
         rawLine,
+        cleanName,
+        parsedGrade,
         status,
         matchedRoster: null,
         candidates: scored.map((x) => x.student),
@@ -401,14 +428,28 @@ export default function ClassEnrollWorkspacePage() {
   const allFilteredSelected = enrollableFiltered.length > 0 && enrollableFiltered.every((s) => selectedIds.has(s.id));
   const visibleRows = showAllRows ? filtered : filtered.slice(0, 60);
 
-  const toggleSelect = (sid: string) => {
+  const toggleSelect = (sid: string, shiftKey = false) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
+      if (shiftKey && lastSelectedId) {
+        const ids = visibleRows.filter((r) => !r.requires_transfer_request).map((r) => r.id);
+        const a = ids.indexOf(lastSelectedId);
+        const b = ids.indexOf(sid);
+        if (a >= 0 && b >= 0) {
+          const [lo, hi] = a <= b ? [a, b] : [b, a];
+          for (let i = lo; i <= hi; i++) {
+            if (next.size >= seatsLeft) break;
+            next.add(ids[i]);
+          }
+          return next;
+        }
+      }
       if (next.has(sid)) next.delete(sid);
       else if (next.size < seatsLeft) next.add(sid);
       else toast.error(`Class capacity reached (${cls?.max_students} max).`);
       return next;
     });
+    setLastSelectedId(sid);
   };
 
   const toggleAllFiltered = () => {
@@ -586,6 +627,23 @@ export default function ClassEnrollWorkspacePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {schoolClasses.length > 0 && (
+            <select
+              aria-label="Switch to another class enrollment workspace"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) router.push(`/dashboard/classes/${e.target.value}/enroll`);
+              }}
+              className="min-h-10 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground hover:border-primary/40"
+            >
+              <option value="">Switch class…</option>
+              {schoolClasses.map((sc) => (
+                <option key={`jump-${sc.id}`} value={sc.id}>
+                  {sc.name} ({sc.student_count})
+                </option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={() => void loadAll()}
@@ -880,6 +938,37 @@ export default function ClassEnrollWorkspacePage() {
                 </select>
               </div>
             </div>
+
+            {distinctGrades.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">Grade:</span>
+                <button
+                  type="button"
+                  onClick={() => { setGradeFilter(''); setShowAllRows(false); }}
+                  className={`rounded-lg border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                    !gradeFilter
+                      ? 'border-primary bg-primary/15 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All
+                </button>
+                {distinctGrades.map((g) => (
+                  <button
+                    key={`gf-${g}`}
+                    type="button"
+                    onClick={() => { setGradeFilter(gradeFilter === g ? '' : g); setShowAllRows(false); }}
+                    className={`rounded-lg border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                      gradeFilter === g
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Toolbar */}
@@ -932,8 +1021,8 @@ export default function ClassEnrollWorkspacePage() {
                 return (
                   <div
                     key={s.id}
-                    onClick={() => !locked && toggleSelect(s.id)}
-                    className={`flex flex-col gap-3 rounded-2xl border p-4 transition-all ${
+                    onClick={(e) => !locked && toggleSelect(s.id, e.shiftKey)}
+                    className={`flex flex-col gap-3 rounded-2xl border p-4 transition-all select-none ${
                       locked
                         ? 'border-amber-500/30 bg-amber-500/5'
                         : checked
@@ -946,10 +1035,13 @@ export default function ClassEnrollWorkspacePage() {
                         type="checkbox"
                         checked={checked}
                         disabled={locked}
-                        onChange={() => !locked && toggleSelect(s.id)}
-                        onClick={(e) => e.stopPropagation()}
+                        onChange={() => {}}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!locked) toggleSelect(s.id, e.shiftKey);
+                        }}
                         aria-label={`Select ${s.full_name}`}
-                        className="mt-1 h-5 w-5 shrink-0 rounded accent-primary"
+                        className="mt-1 h-5 w-5 shrink-0 rounded accent-primary cursor-pointer"
                       />
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-xs font-black text-primary">
                         {initials}
@@ -1156,19 +1248,34 @@ export default function ClassEnrollWorkspacePage() {
                       )}
                     </div>
                     {actionableRows.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (allActionableTicked) {
-                            setQuickUntickedKeys(new Set(actionableRows.map((r) => r.key)));
-                          } else {
-                            setQuickUntickedKeys(new Set());
-                          }
-                        }}
-                        className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-muted"
-                      >
-                        {allActionableTicked ? 'Untick All' : 'Tick All Ready'}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {liveQuickRows.some((r) => r.status === 'adopt') && liveQuickRows.some((r) => r.status === 'create_new') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickUntickedKeys(
+                                new Set(liveQuickRows.filter((r) => r.status !== 'adopt').map((r) => r.key)),
+                              );
+                            }}
+                            className="rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+                          >
+                            Tick Only Existing ({liveQuickRows.filter((r) => r.status === 'adopt').length})
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (allActionableTicked) {
+                              setQuickUntickedKeys(new Set(actionableRows.map((r) => r.key)));
+                            } else {
+                              setQuickUntickedKeys(new Set());
+                            }
+                          }}
+                          className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-muted"
+                        >
+                          {allActionableTicked ? 'Untick All' : 'Tick All Ready'}
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1194,7 +1301,14 @@ export default function ClassEnrollWorkspacePage() {
                               className="mt-0.5 h-4 w-4 shrink-0 rounded accent-primary cursor-pointer"
                             />
                             <div className="min-w-0 flex-1">
-                              <p className="font-bold text-foreground break-words">{row.rawLine}</p>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <p className="font-bold text-foreground break-words">{row.cleanName}</p>
+                                {row.parsedGrade && (
+                                  <span className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-black text-primary">
+                                    {row.parsedGrade}
+                                  </span>
+                                )}
+                              </div>
                               {row.status === 'already_in_class' && row.matchedRoster && (
                                 <p className="text-[11px] text-muted-foreground">
                                   Already active on this roster as <strong>{row.matchedRoster.full_name}</strong>
@@ -1283,12 +1397,28 @@ export default function ClassEnrollWorkspacePage() {
             <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-4 space-y-3 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-black text-emerald-900 dark:text-emerald-200">{quickNotice.summary}</p>
-                <Link
-                  href={`/dashboard/classes/${id}/cards`}
-                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-800"
-                >
-                  Print Login + RC PDF →
-                </Link>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {quickNotice.added.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const text = quickNotice.added
+                          .map((a) => `${a.fullName}${a.grade ? ` (${a.grade})` : ''} — ${a.email || ''}${a.password ? ` / ${a.password}` : ''}`)
+                          .join('\n');
+                        void navigator.clipboard.writeText(text).then(() => toast.success('Copied student logins to clipboard'));
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-600/40 bg-card px-3 py-1.5 text-[11px] font-black text-emerald-900 dark:text-emerald-200 hover:bg-emerald-500/15"
+                    >
+                      <ClipboardIcon className="h-3.5 w-3.5" /> Copy Logins
+                    </button>
+                  )}
+                  <Link
+                    href={`/dashboard/classes/${id}/cards`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-800"
+                  >
+                    Print Login + RC PDF →
+                  </Link>
+                </div>
               </div>
               {quickNotice.added.length > 0 && (
                 <div className="overflow-x-auto rounded-xl border border-border bg-card">

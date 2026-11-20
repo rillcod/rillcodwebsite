@@ -200,8 +200,11 @@ export default function ClassDetailPage() {
     Array<{ studentId: string; fullName: string; email: string; password: string; grade?: string | null }>
   >([]);
 
-  // Bulk-remove checkboxes for enrolled students list
+  // Bulk-action checkboxes + sort for enrolled students list
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
+  const [lastCheckedEnrollId, setLastCheckedEnrollId] = useState<string | null>(null);
+  const [rosterSort, setRosterSort] = useState<'attention' | 'name_asc' | 'name_desc' | 'grade'>('attention');
+  const [bulkSettingGrade, setBulkSettingGrade] = useState(false);
   const [bulkRemoving, setBulkRemoving] = useState(false);
 
   // Roster collapse: open by default when viewing the Students work mode so teachers
@@ -1287,6 +1290,29 @@ export default function ClassDetailPage() {
       setMovingStudent(null);
     }
   };
+  const bulkSetSelectedGrade = async (targetGrade: string) => {
+    if (!targetGrade || checkedEnrollIds.size === 0) return;
+    const ids = [...checkedEnrollIds];
+    if (!window.confirm(`Set grade to "${targetGrade}" for ${ids.length} selected student${ids.length !== 1 ? 's' : ''}?`)) return;
+    setBulkSettingGrade(true);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmUpdates: ids.map((studentId) => ({ studentId, grade: targetGrade })),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to update grades');
+      setCheckedEnrollIds(new Set());
+      await fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to update grades for selected students.');
+    } finally {
+      setBulkSettingGrade(false);
+    }
+  };
   const removeStudent = async (studentId: string) => {
     if (!confirm(
       'Withdraw this learner from the active class roster?\n\n'
@@ -1757,9 +1783,15 @@ export default function ClassDetailPage() {
     return tokens.every((t) => lower.includes(t));
   };
   const rosterQ = rosterSearch.trim().toLowerCase();
+  const rosterMultiTerms = rosterQ.includes(',') || rosterQ.includes(';')
+    ? rosterQ.split(/[,;]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
+    : [];
   const matchesRosterText = (student: any) => {
     if (!rosterQ) return true;
     const blob = [student.full_name, student.email, student.grade, student.section_class].filter(Boolean).join(' ');
+    if (rosterMultiTerms.length > 0) {
+      return rosterMultiTerms.some((term) => tokenMatches(blob, term));
+    }
     return tokenMatches(blob, rosterQ);
   };
   const matchesRoster = (student: any) =>
@@ -1767,11 +1799,21 @@ export default function ClassDetailPage() {
     (!showNeedsReportOnly || !student.has_published_report) &&
     (rosterFilter !== 'off_band' || isOffBand(student)) &&
     (rosterFilter !== 'needs_report' || !student.has_published_report);
-  // Un-reported & off-band students float to the top so what needs attention is seen first.
-  const byNeedsReport = (a: any, b: any) => (a.has_published_report === b.has_published_report ? 0 : a.has_published_report ? 1 : -1);
+  // Sort active roster by teacher's chosen sort order (default: needs-report attention first, then A-Z).
+  const sortRosterStudents = (a: any, b: any) => {
+    if (rosterSort === 'name_asc') return String(a.full_name || '').localeCompare(String(b.full_name || ''));
+    if (rosterSort === 'name_desc') return String(b.full_name || '').localeCompare(String(a.full_name || ''));
+    if (rosterSort === 'grade') {
+      const gCmp = String(a.grade || a.section_class || 'zzz').localeCompare(String(b.grade || b.section_class || 'zzz'));
+      if (gCmp !== 0) return gCmp;
+      return String(a.full_name || '').localeCompare(String(b.full_name || ''));
+    }
+    const repCmp = a.has_published_report === b.has_published_report ? 0 : a.has_published_report ? 1 : -1;
+    return repCmp !== 0 ? repCmp : String(a.full_name || '').localeCompare(String(b.full_name || ''));
+  };
   const visibleCurrent = rosterFilter === 'withdrawn'
     ? []
-    : currentTermStudents.filter(matchesRoster).slice().sort(byNeedsReport);
+    : currentTermStudents.filter(matchesRoster).slice().sort(sortRosterStudents);
   const visibleInactive = (rosterFilter === 'off_band' || rosterFilter === 'needs_report')
     ? []
     : inactiveTermStudents.filter(matchesRosterText);
@@ -3025,25 +3067,38 @@ export default function ClassDetailPage() {
 
                     {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="space-y-2">
-                        <div className="relative">
-                          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <input
-                            aria-label="Search this class roster"
-                            value={rosterSearch}
-                            onChange={(e) => setRosterSearch(e.target.value)}
-                            placeholder="Search name, grade (e.g. JSS 2), email, or old records…"
-                            className="min-h-11 w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground outline-none focus:border-primary/50"
-                          />
-                          {rosterSearch && (
-                            <button
-                              type="button"
-                              aria-label="Clear search"
-                              onClick={() => setRosterSearch('')}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md px-1.5 py-0.5 text-xs font-black text-muted-foreground hover:bg-muted hover:text-foreground"
-                            >
-                              ×
-                            </button>
-                          )}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="relative flex-1">
+                            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                              aria-label="Search this class roster"
+                              value={rosterSearch}
+                              onChange={(e) => setRosterSearch(e.target.value)}
+                              placeholder="Search name (or comma-separated names), grade, email…"
+                              className="min-h-11 w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground outline-none focus:border-primary/50"
+                            />
+                            {rosterSearch && (
+                              <button
+                                type="button"
+                                aria-label="Clear search"
+                                onClick={() => setRosterSearch('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md px-1.5 py-0.5 text-xs font-black text-muted-foreground hover:bg-muted hover:text-foreground"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                          <select
+                            aria-label="Sort class roster"
+                            value={rosterSort}
+                            onChange={(e) => setRosterSort(e.target.value as any)}
+                            className="min-h-11 shrink-0 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground outline-none focus:border-primary/50"
+                          >
+                            <option value="attention">Sort: Needs Report First</option>
+                            <option value="name_asc">Sort: Name A–Z</option>
+                            <option value="name_desc">Sort: Name Z–A</option>
+                            <option value="grade">Sort: Grade</option>
+                          </select>
                         </div>
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
                           {([
@@ -3256,7 +3311,7 @@ export default function ClassDetailPage() {
                         const expanded = expandedStudentIds.has(student.id);
                         const checked = checkedEnrollIds.has(student.id);
                         return (
-                          <div key={student.id} className={`min-w-0 rounded-xl border transition-colors ${checked ? 'border-rose-500/40 bg-rose-500/5' : 'border-border bg-card'}`}>
+                          <div key={student.id} className={`min-w-0 rounded-xl border transition-all ${checked ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/35'}`}>
                             <div
                               onClick={() => toggleStudentExpanded(student.id)}
                               className="flex min-w-0 cursor-pointer items-start gap-2.5 p-3"
@@ -3265,15 +3320,29 @@ export default function ClassDetailPage() {
                                 <input
                                   type="checkbox"
                                   checked={checked}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={e => {
-                                    setCheckedEnrollIds(prev => {
+                                  onChange={() => {}}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCheckedEnrollIds((prev) => {
                                       const next = new Set(prev);
-                                      if (e.target.checked) next.add(student.id); else next.delete(student.id);
+                                      if (e.shiftKey && lastCheckedEnrollId) {
+                                        const ids = visibleCurrent.map((r: any) => r.id);
+                                        const a = ids.indexOf(lastCheckedEnrollId);
+                                        const b = ids.indexOf(student.id);
+                                        if (a >= 0 && b >= 0) {
+                                          const [lo, hi] = a <= b ? [a, b] : [b, a];
+                                          for (let i = lo; i <= hi; i++) next.add(ids[i]);
+                                          return next;
+                                        }
+                                      }
+                                      if (next.has(student.id)) next.delete(student.id);
+                                      else next.add(student.id);
                                       return next;
                                     });
+                                    setLastCheckedEnrollId(student.id);
                                   }}
-                                  title="Select for bulk withdraw"
+                                  aria-label={`Select ${student.full_name}`}
+                                  title="Tick student (Shift+Click for range) to move class, set grade, reset password, or withdraw"
                                   className="mt-3 h-4 w-4 flex-shrink-0 cursor-pointer accent-primary"
                                 />
                               )}
@@ -5827,6 +5896,79 @@ export default function ClassDetailPage() {
                 ) : (
                   `Queue for ${reachableStudents.length} Student${reachableStudents.length !== 1 ? 's' : ''}`
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Sticky Bulk Roster Action Bar (Move, Set Grade, Reset Passwords, Withdraw) */}
+      {activeOperation === 'roster' && canView && checkedEnrollIds.size > 0 && (
+        <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] md:bottom-0 z-40 border-t border-border bg-card/95 px-3 sm:px-5 py-3 shadow-2xl backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-black text-primary-foreground">
+                {checkedEnrollIds.size} selected
+              </span>
+              <span className="hidden sm:inline text-muted-foreground font-semibold">
+                Tip: Shift+Click checkboxes to select a range
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {isStaff && destinationClasses.length > 0 && (
+                <select
+                  aria-label="Bulk move selected students to another class"
+                  value=""
+                  disabled={movingStudent === 'bulk'}
+                  onChange={(e) => void bulkMoveSelectedToClass(e.target.value)}
+                  className="min-h-10 rounded-xl border border-primary/45 bg-primary/10 px-3 text-xs font-black text-primary outline-none hover:border-primary disabled:opacity-50"
+                >
+                  <option value="">{movingStudent === 'bulk' ? 'Moving…' : `Move ${checkedEnrollIds.size} to Class…`}</option>
+                  {destinationClasses.map((destination: any) => (
+                    <option key={`sticky-dest-${destination.id}`} value={destination.id}>
+                      {destination.qa_grade_key ? `${destination.qa_grade_key} · ` : ''}{destination.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {isStaff && (
+                <select
+                  aria-label="Bulk set grade for selected students"
+                  value=""
+                  disabled={bulkSettingGrade}
+                  onChange={(e) => void bulkSetSelectedGrade(e.target.value)}
+                  className="min-h-10 rounded-xl border border-emerald-500/45 bg-emerald-500/10 px-3 text-xs font-black text-emerald-800 dark:text-emerald-300 outline-none hover:border-emerald-500 disabled:opacity-50"
+                >
+                  <option value="">{bulkSettingGrade ? 'Updating…' : 'Set Grade…'}</option>
+                  {SINGLE_GRADES.map((g) => (
+                    <option key={`sticky-g-${g}`} value={g}>{g}</option>
+                  ))}
+                </select>
+              )}
+              {isStaff && (
+                <button
+                  type="button"
+                  disabled={resettingPasswords !== null}
+                  onClick={() => void resetStudentPasswords([...checkedEnrollIds])}
+                  className="min-h-10 rounded-xl border border-indigo-500/35 bg-indigo-500/10 px-3 text-xs font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white disabled:opacity-50"
+                >
+                  Reset Logins
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={bulkRemoving}
+                onClick={bulkUnenrol}
+                className="min-h-10 rounded-xl border border-rose-500/35 bg-rose-700/10 px-3 text-xs font-black text-rose-700 dark:text-rose-300 hover:bg-rose-700 hover:text-white disabled:opacity-50"
+              >
+                Withdraw
+              </button>
+              <button
+                type="button"
+                onClick={() => setCheckedEnrollIds(new Set())}
+                className="min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
+              >
+                Clear
               </button>
             </div>
           </div>
