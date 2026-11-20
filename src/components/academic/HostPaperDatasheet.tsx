@@ -1,13 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon,
+  ChartBarIcon,
+  ClipboardDocumentListIcon,
   MagnifyingGlassIcon,
   PrinterIcon,
+  SparklesIcon,
   UserGroupIcon,
 } from '@/lib/icons';
 import { MOBILE_PAGE_BOTTOM } from '@/components/mobile/mobile-styles';
@@ -29,6 +32,8 @@ import {
   pickHostPaperExamIds,
   type HostAssessmentKind,
 } from '@/lib/academic/host-marks';
+import { getWAECGrade } from '@/lib/grading';
+import { openOfficialOfficePrintable } from '@/lib/reports/office-printables';
 import { buildCbtNewHref, buildClassTeachingHref, hostPaperDatasheetHref } from '@/lib/curriculum/href';
 
 type StudentRow = { id: string; full_name: string | null };
@@ -42,6 +47,14 @@ type SessionRow = {
 };
 
 type RowFeedback = { tone: 'saved' | 'warning' | 'error'; message: string };
+type SegmentFilter = 'all' | 'missing' | 'distinction' | 'credit' | 'at_risk' | 'cbt';
+type SortMode = 'name' | 'score_desc' | 'score_asc' | 'missing_first';
+
+type PaperSnapshot = {
+  examId: string | null;
+  max: number;
+  byStudent: Record<string, { earned: number; max: number; percent: number; isCbt: boolean }>;
+};
 
 type ExamRow = {
   id: string;
@@ -68,6 +81,31 @@ type ExamRow = {
   }>;
 };
 
+const ALL_KINDS: HostAssessmentKind[] = ['first_test', 'second_test', 'examination'];
+
+function waecToneClasses(pct: number): string {
+  if (pct >= 70) return 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300';
+  if (pct >= 50) return 'border-primary/35 bg-primary/10 text-primary';
+  return 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300';
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeTokens(raw: string): string[] {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+}
+
 export function HostPaperDatasheet(props: {
   classId: string;
   kind: HostAssessmentKind;
@@ -91,6 +129,11 @@ export function HostPaperDatasheet(props: {
   const [exam, setExam] = useState<ExamRow | null>(null);
   const [roster, setRoster] = useState<StudentRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [paperSnapshots, setPaperSnapshots] = useState<Record<HostAssessmentKind, PaperSnapshot>>({
+    first_test: { examId: null, max: SUGGESTED_HOST_PAPER_MAX.first_test, byStudent: {} },
+    second_test: { examId: null, max: SUGGESTED_HOST_PAPER_MAX.second_test, byStudent: {} },
+    examination: { examId: null, max: SUGGESTED_HOST_PAPER_MAX.examination, byStudent: {} },
+  });
   const [hallDraft, setHallDraft] = useState<Record<string, string>>({});
   const [baselineDraft, setBaselineDraft] = useState<Record<string, string>>({});
   const [paperOutOf, setPaperOutOf] = useState(String(SUGGESTED_HOST_PAPER_MAX[props.kind]));
@@ -101,7 +144,12 @@ export function HostPaperDatasheet(props: {
   const [noticeTone, setNoticeTone] = useState<'success' | 'warning'>('success');
   const [rowFeedback, setRowFeedback] = useState<Record<string, RowFeedback>>({});
   const [learnerSearch, setLearnerSearch] = useState('');
-  const [outstandingOnly, setOutstandingOnly] = useState(false);
+  const [segment, setSegment] = useState<SegmentFilter>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('name');
+  const [showPasteBox, setShowPasteBox] = useState(false);
+  const [pasteRaw, setPasteRaw] = useState('');
+
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const questions = useMemo(
     () => [...(exam?.cbt_questions ?? [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
@@ -112,6 +160,21 @@ export function HostPaperDatasheet(props: {
     ? 'Use a whole-number paper total from 1 to 1000.'
     : null;
   const hallMax = paperMaxError ? SUGGESTED_HOST_PAPER_MAX[props.kind] : parsedPaperMax;
+
+  const quickPresetMarks = useMemo(() => {
+    const pcts = [0.5, 0.7, 0.85, 1];
+    const seen = new Set<number>();
+    const vals: number[] = [];
+    for (const p of pcts) {
+      const m = Math.round(hallMax * p);
+      if (m >= 0 && m <= hallMax && !seen.has(m)) {
+        seen.add(m);
+        vals.push(m);
+      }
+    }
+    return vals;
+  }, [hallMax]);
+
   const markedCount = roster.filter((row) => String(hallDraft[row.id] ?? '').trim() !== '').length;
   const invalidRows = useMemo(() => roster
     .map((student) => ({ student, error: hallMarkDraftError(hallDraft[student.id], paperMaxError ? null : hallMax) }))
@@ -127,13 +190,141 @@ export function HostPaperDatasheet(props: {
       return next !== '' && (next !== previous || paperTotalChanged);
     })
     .map((student) => student.id)), [baselineDraft, hallDraft, paperTotalChanged, roster]);
+
+  // Live per-student analytics + 3-paper combined sync
+  const studentMetrics = useMemo(() => {
+    const map: Record<string, {
+      earned: number | null;
+      pct: number | null;
+      waec: ReturnType<typeof getWAECGrade> | null;
+      isCbt: boolean;
+      combinedEarned: number;
+      combinedMax: number;
+      combinedPct: number | null;
+      combinedWaec: ReturnType<typeof getWAECGrade> | null;
+      papersEntered: number;
+    }> = {};
+
+    for (const s of roster) {
+      const raw = String(hallDraft[s.id] ?? '').trim();
+      const num = raw !== '' && Number.isFinite(Number(raw)) ? Number(raw) : null;
+      const pct = num !== null && hallMax > 0 ? Math.round((num / hallMax) * 100) : null;
+      const existing = sessions.find((row) => row.user_id === s.id);
+      const isCbt = !!existing && !sessionAllowsPaperOverwrite(existing);
+
+      let combinedEarned = 0;
+      let combinedMax = 0;
+      let papersEntered = 0;
+      for (const k of ALL_KINDS) {
+        if (k === props.kind) {
+          if (num !== null && num >= 0 && num <= hallMax) {
+            combinedEarned += num;
+            combinedMax += hallMax;
+            papersEntered++;
+          }
+        } else {
+          const snap = paperSnapshots[k]?.byStudent[s.id];
+          if (snap) {
+            combinedEarned += snap.earned;
+            combinedMax += snap.max;
+            papersEntered++;
+          }
+        }
+      }
+      const combinedPct = combinedMax > 0 ? Math.round((combinedEarned / combinedMax) * 100) : null;
+
+      map[s.id] = {
+        earned: num,
+        pct,
+        waec: pct !== null ? getWAECGrade(pct) : null,
+        isCbt,
+        combinedEarned,
+        combinedMax,
+        combinedPct,
+        combinedWaec: combinedPct !== null ? getWAECGrade(combinedPct) : null,
+        papersEntered,
+      };
+    }
+    return map;
+  }, [roster, hallDraft, hallMax, sessions, paperSnapshots, props.kind]);
+
+  // Teacher monitoring & segmentation KPIs
+  const analytics = useMemo(() => {
+    let sumPct = 0;
+    let entered = 0;
+    let passed = 0;
+    let distinction = 0;
+    let credit = 0;
+    let atRisk = 0;
+    let cbtCount = 0;
+    let highest: number | null = null;
+    let lowest: number | null = null;
+
+    for (const s of roster) {
+      const m = studentMetrics[s.id];
+      if (!m) continue;
+      if (m.isCbt) cbtCount++;
+      if (m.pct !== null && m.earned !== null) {
+        entered++;
+        sumPct += m.pct;
+        if (m.pct >= 50) passed++;
+        if (m.pct >= 65) distinction++;
+        else if (m.pct >= 50) credit++;
+        else atRisk++;
+        if (highest === null || m.earned > highest) highest = m.earned;
+        if (lowest === null || m.earned < lowest) lowest = m.earned;
+      }
+    }
+    const avgPct = entered > 0 ? Math.round(sumPct / entered) : null;
+    const passRate = entered > 0 ? Math.round((passed / entered) * 100) : null;
+    return {
+      entered,
+      missing: Math.max(0, roster.length - entered),
+      avgPct,
+      avgWaec: avgPct !== null ? getWAECGrade(avgPct) : null,
+      passRate,
+      distinction,
+      credit,
+      atRisk,
+      cbtCount,
+      highest,
+      lowest,
+    };
+  }, [roster, studentMetrics]);
+
   const visibleRoster = useMemo(() => {
     const query = learnerSearch.trim().toLowerCase();
-    return roster.filter((student) => {
+    const list = roster.filter((student) => {
       if (query && !String(student.full_name ?? '').toLowerCase().includes(query)) return false;
-      return !outstandingOnly || String(hallDraft[student.id] ?? '').trim() === '';
+      const m = studentMetrics[student.id];
+      if (segment === 'missing') return m?.earned === null;
+      if (segment === 'distinction') return m?.pct !== null && m.pct >= 65;
+      if (segment === 'credit') return m?.pct !== null && m.pct >= 50 && m.pct < 65;
+      if (segment === 'at_risk') return m?.pct !== null && m.pct < 50;
+      if (segment === 'cbt') return Boolean(m?.isCbt);
+      return true;
     });
-  }, [hallDraft, learnerSearch, outstandingOnly, roster]);
+
+    return [...list].sort((a, b) => {
+      const ma = studentMetrics[a.id];
+      const mb = studentMetrics[b.id];
+      if (sortMode === 'score_desc') {
+        const va = ma?.earned ?? -1;
+        const vb = mb?.earned ?? -1;
+        if (vb !== va) return vb - va;
+      } else if (sortMode === 'score_asc') {
+        const va = ma?.earned ?? 999999;
+        const vb = mb?.earned ?? 999999;
+        if (va !== vb) return va - vb;
+      } else if (sortMode === 'missing_first') {
+        const missA = ma?.earned === null ? 0 : 1;
+        const missB = mb?.earned === null ? 0 : 1;
+        if (missA !== missB) return missA - missB;
+      }
+      return String(a.full_name ?? '').localeCompare(String(b.full_name ?? ''));
+    });
+  }, [learnerSearch, roster, segment, sortMode, studentMetrics]);
+
   const hasUnsavedChanges = dirtyStudentIds.size > 0 || clearedRows.length > 0;
 
   const backHref =
@@ -193,38 +384,77 @@ export function HostPaperDatasheet(props: {
         classId: props.classId,
         courseId: nextCourseId || null,
       });
-      const examId = picked[props.kind];
-      let loadedExam: ExamRow | null = null;
-      let loadedSessions: any[] = [];
-      if (examId) {
-        const [detail, sesRes] = await Promise.all([
-          fetch(`/api/cbt/exams/${examId}`, { cache: 'no-store' }).then(async (r) => {
-            const json = await r.json();
-            if (!r.ok) throw new Error(json.error || 'Paper not available');
-            return json.data as ExamRow;
-          }),
-          fetch(`/api/cbt/sessions?exam_id=${examId}`, { cache: 'no-store' }).then(async (r) => {
-            const json = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(json.error || `${paperName} marks could not be loaded`);
-            return json;
-          }),
-        ]);
-        loadedExam = detail;
-        loadedSessions = Array.isArray(sesRes.data) ? sesRes.data as SessionRow[] : [];
-      }
+
+      const classRoster = ((rosterRes.data ?? []) as StudentRow[]).sort((a, b) =>
+        String(a.full_name ?? '').localeCompare(String(b.full_name ?? '')),
+      );
+      setRoster(classRoster);
+
+      // Load active paper detail + ALL 3 papers' sessions in parallel for live 3-paper sync
+      const activeExamId = picked[props.kind];
+      const [detailRes, ...sessionResults] = await Promise.all([
+        activeExamId
+          ? fetch(`/api/cbt/exams/${activeExamId}`, { cache: 'no-store' }).then(async (r) => {
+              const json = await r.json().catch(() => ({}));
+              if (!r.ok) throw new Error(json.error || 'Paper not available');
+              return json.data as ExamRow;
+            })
+          : Promise.resolve(null),
+        ...ALL_KINDS.map((k) => {
+          const eid = picked[k];
+          if (!eid) return Promise.resolve([] as SessionRow[]);
+          return fetch(`/api/cbt/sessions?exam_id=${eid}`, { cache: 'no-store' })
+            .then(async (r) => {
+              const json = await r.json().catch(() => ({}));
+              return r.ok && Array.isArray(json.data) ? (json.data as SessionRow[]) : [];
+            })
+            .catch(() => [] as SessionRow[]);
+        }),
+      ]);
+
+      const loadedExam = detailRes;
+      const nextSnapshots: Record<HostAssessmentKind, PaperSnapshot> = {
+        first_test: { examId: picked.first_test ?? null, max: SUGGESTED_HOST_PAPER_MAX.first_test, byStudent: {} },
+        second_test: { examId: picked.second_test ?? null, max: SUGGESTED_HOST_PAPER_MAX.second_test, byStudent: {} },
+        examination: { examId: picked.examination ?? null, max: SUGGESTED_HOST_PAPER_MAX.examination, byStudent: {} },
+      };
+
+      ALL_KINDS.forEach((k, idx) => {
+        const eid = picked[k];
+        const metaExam = k === props.kind ? loadedExam : scoped.find((r) => r.id === eid);
+        const kMax = hostMaxFromExam({
+          metadata: metaExam?.metadata,
+          cbt_questions: (metaExam as ExamRow | null)?.cbt_questions,
+        }) || SUGGESTED_HOST_PAPER_MAX[k];
+        const kSessions = sessionResults[idx] ?? [];
+        const byStudent: PaperSnapshot['byStudent'] = {};
+        for (const student of classRoster) {
+          const existing = kSessions.find((row) => row.user_id === student.id);
+          const paper = parsePaperMarkAnswers(existing?.answers) || markFromPercent(existing?.score, kMax);
+          if (paper) {
+            byStudent[student.id] = {
+              earned: paper.earned,
+              max: paper.max || kMax,
+              percent: Math.round((paper.earned / (paper.max || kMax)) * 100),
+              isCbt: !!existing && !sessionAllowsPaperOverwrite(existing),
+            };
+          }
+        }
+        nextSnapshots[k] = { examId: eid ?? null, max: kMax, byStudent };
+      });
+
+      const activeIdx = ALL_KINDS.indexOf(props.kind);
+      const loadedSessions = sessionResults[activeIdx] ?? [];
+      const paperMax = nextSnapshots[props.kind].max;
+
+      setPaperSnapshots(nextSnapshots);
       setExam(loadedExam);
       setSessions(loadedSessions);
       setCourseName(loadedExam?.courses?.title || '');
       setProgramName(loadedExam?.programs?.name || '');
-      const paperMax = hostMaxFromExam({
-        metadata: loadedExam?.metadata,
-        cbt_questions: loadedExam?.cbt_questions,
-      }) || SUGGESTED_HOST_PAPER_MAX[props.kind];
       setPaperOutOf(String(paperMax));
       setBaselineMax(paperMax);
 
-      const classRoster = (rosterRes.data ?? []) as StudentRow[];
-      setRoster(classRoster);
       const draft: Record<string, string> = {};
       for (const student of classRoster) {
         const existing = loadedSessions.find((row) => row.user_id === student.id);
@@ -244,7 +474,7 @@ export function HostPaperDatasheet(props: {
     } finally {
       if (!options?.background) setLoading(false);
     }
-  }, [paperName, props.classId, props.courseId, props.kind, props.programId, props.schoolId]);
+  }, [props.classId, props.courseId, props.kind, props.programId, props.schoolId]);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -289,8 +519,6 @@ export function HostPaperDatasheet(props: {
       if (!res.ok) throw new Error(json.error || 'Could not open this paper');
       const id = json.data?.id as string;
       if (!id) throw new Error('Paper was not created');
-      // Keep the teacher's unsaved entries in place. Reloading here used to
-      // wipe the sheet immediately after opening its backing paper record.
       setExam((current) => ({ ...(current ?? {}), ...(json.data ?? {}), id }));
       return id;
     } finally {
@@ -333,7 +561,7 @@ export function HostPaperDatasheet(props: {
           earned: Number(row.earned),
           max: hallMax,
           expected_version: row.expected_version,
-      }));
+        }));
       if (scores.length === 0) throw new Error('Enter at least one mark.');
       const outcome: {
         saved: Array<{ user_id: string }>;
@@ -341,8 +569,7 @@ export function HostPaperDatasheet(props: {
         failed: Array<{ user_id: string; reason?: string }>;
         warnings: string[];
       } = { saved: [], skipped: [], failed: [], warnings: [] };
-      // The API deliberately caps one mutation at 80 learners. Large classes
-      // are split here while keeping one visible outcome per learner.
+
       for (let offset = 0; offset < scores.length; offset += 80) {
         const batch = scores.slice(offset, offset + 80);
         try {
@@ -374,29 +601,22 @@ export function HostPaperDatasheet(props: {
           })));
         }
       }
-      const json = { data: outcome };
-      const savedCount = json.data?.saved?.length ?? 0;
-      const skippedCount = json.data?.skipped?.length ?? 0;
-      const failedCount = json.data?.failed?.length ?? 0;
-      const warningText = Array.isArray(json.data?.warnings) ? json.data.warnings.join(' ') : '';
+      const savedCount = outcome.saved.length;
+      const skippedCount = outcome.skipped.length;
+      const failedCount = outcome.failed.length;
+      const warningText = outcome.warnings.join(' ');
       setNoticeTone(failedCount > 0 || skippedCount > 0 || !!warningText ? 'warning' : 'success');
       const nextFeedback: Record<string, RowFeedback> = {};
-      for (const row of json.data?.saved ?? []) {
-        nextFeedback[row.user_id] = { tone: 'saved', message: 'Saved' };
-      }
-      for (const row of json.data?.skipped ?? []) {
-        nextFeedback[row.user_id] = { tone: 'warning', message: row.reason || 'Refresh and review this mark' };
-      }
-      for (const row of json.data?.failed ?? []) {
-        nextFeedback[row.user_id] = { tone: 'error', message: row.reason || 'Not saved; retry this mark' };
-      }
+      for (const row of outcome.saved) nextFeedback[row.user_id] = { tone: 'saved', message: 'Saved' };
+      for (const row of outcome.skipped) nextFeedback[row.user_id] = { tone: 'warning', message: row.reason || 'Refresh and review this mark' };
+      for (const row of outcome.failed) nextFeedback[row.user_id] = { tone: 'error', message: row.reason || 'Not saved; retry this mark' };
       setRowFeedback(nextFeedback);
       setNotice(failedCount > 0
-        ? `${savedCount} marks saved. ${failedCount} could not be saved and ${skippedCount} newer or protected marks were left untouched. The sheet has been refreshed; retry only the unsaved entries. ${warningText}`.trim()
+        ? `${savedCount} marks saved. ${failedCount} could not be saved and ${skippedCount} newer or protected marks were left untouched. ${warningText}`.trim()
         : skippedCount > 0
-          ? `${savedCount} marks saved. ${skippedCount} changed elsewhere or belong to an online sitting and were left untouched; the refreshed sheet now shows the latest values. ${warningText}`.trim()
-          : `${savedCount} marks saved. Write reads these same marks. ${warningText}`.trim());
-      const failedIds = new Set<string>((json.data?.failed ?? []).map((row: { user_id: string }) => row.user_id));
+          ? `${savedCount} marks saved. ${skippedCount} changed elsewhere or belong to an online sitting and were left untouched. ${warningText}`.trim()
+          : `${savedCount} ${paperName} marks saved & synced to reports. ${warningText}`.trim());
+      const failedIds = new Set<string>(outcome.failed.map((row) => row.user_id));
       await load({
         background: true,
         preserveDraft: draftAtSave,
@@ -407,6 +627,66 @@ export function HostPaperDatasheet(props: {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Smart Bulk Paste Scores (handles "Name 18" OR plain column of numbers from Excel)
+  const applyPastedScores = () => {
+    const lines = pasteRaw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+
+    const allNumbersOnly = lines.every((l) => /^\d+(\.\d+)?$/.test(l));
+    const nextDraft = { ...hallDraft };
+    let applied = 0;
+
+    if (allNumbersOnly) {
+      visibleRoster.forEach((student, idx) => {
+        if (idx >= lines.length) return;
+        const existing = sessions.find((row) => row.user_id === student.id);
+        if (existing && !sessionAllowsPaperOverwrite(existing)) return;
+        nextDraft[student.id] = String(Math.round(Number(lines[idx])));
+        applied++;
+      });
+    } else {
+      for (const line of lines) {
+        const match = line.match(/(\d+(?:\.\d+)?)\s*(?:\/\s*\d+)?\s*$/);
+        if (!match) continue;
+        const scoreVal = String(Math.round(Number(match[1])));
+        const namePart = line.slice(0, match.index).replace(/^\d+[\.\)\-]\s*/, '').replace(/[-:,|\t]+$/, '').trim();
+        const tokens = normalizeTokens(namePart);
+        if (tokens.length === 0) continue;
+
+        let best: StudentRow | null = null;
+        let bestScore = 0;
+        for (const student of roster) {
+          const sTokens = normalizeTokens(student.full_name || '');
+          let hits = 0;
+          for (const t of tokens) {
+            if (sTokens.some((st) => st === t || st.startsWith(t) || t.startsWith(st))) hits++;
+          }
+          const sc = hits / Math.max(tokens.length, 1);
+          if (hits > 0 && sc > bestScore) {
+            bestScore = sc;
+            best = student;
+          }
+        }
+        if (best && bestScore >= 0.5) {
+          const existing = sessions.find((row) => row.user_id === best!.id);
+          if (existing && !sessionAllowsPaperOverwrite(existing)) continue;
+          nextDraft[best.id] = scoreVal;
+          applied++;
+        }
+      }
+    }
+
+    if (applied === 0) {
+      setError('No scores could be matched from that paste. Try "Student Name 18" per line, or a plain column of numbers.');
+      return;
+    }
+    setHallDraft(nextDraft);
+    setPasteRaw('');
+    setShowPasteBox(false);
+    setNoticeTone('success');
+    setNotice(`Filled ${applied} ${paperName} score${applied === 1 ? '' : 's'} from paste — review and click Save.`);
   };
 
   const handlePrintPaper = (mode: 'student' | 'staff') => {
@@ -431,36 +711,138 @@ export function HostPaperDatasheet(props: {
     }));
   };
 
+  // Executive Branded Single-Paper Mark Sheet PDF
   const handlePrintSheet = () => {
-    const rows = roster.map((student, index) => {
-      const earned = String(hallDraft[student.id] ?? '').trim();
-      return `<tr><td>${index + 1}</td><td>${escapeHtml(student.full_name || 'Student')}</td><td>${earned || ''}</td><td>${hallMax}</td></tr>`;
+    const rowsHtml = roster.map((student, index) => {
+      const m = studentMetrics[student.id];
+      const earnedText = m?.earned !== null ? `${m.earned} / ${hallMax}` : '—';
+      const pctText = m?.pct !== null ? `${m.pct}%` : '—';
+      const gradeCode = m?.waec?.code ?? '—';
+      const remark = m?.waec?.label ?? 'Pending';
+      const source = m?.isCbt ? 'Online CBT' : m?.earned !== null ? 'Hall Paper' : 'Missing';
+      return `<tr>
+        <td style="text-align:center;font-weight:700;color:#64748b;">${index + 1}</td>
+        <td style="font-weight:700;">${escapeHtml(student.full_name || 'Student')}</td>
+        <td style="text-align:right;font-weight:800;">${earnedText}</td>
+        <td style="text-align:right;font-weight:700;">${pctText}</td>
+        <td style="text-align:center;font-weight:900;">${escapeHtml(gradeCode)}</td>
+        <td>${escapeHtml(remark)}</td>
+        <td style="text-align:center;font-size:10px;color:#475569;">${source}</td>
+      </tr>`;
     }).join('');
-    const html = `<!doctype html><html><head><title>${paperName} mark sheet</title>
-      <style>
-        body{font-family:Georgia,serif;padding:18mm;color:#111}
-        h1{font-size:20px;margin:0 0 4px}
-        p{margin:0 0 12px;color:#444;font-size:13px}
-        table{width:100%;border-collapse:collapse}
-        th,td{border:1px solid #111;padding:6px 8px;font-size:13px}
-        th{text-align:left;background:#f3f4f6}
-        td:first-child,td:nth-child(3),td:nth-child(4){text-align:right;width:64px}
-        @page{size:A4;margin:14mm}
-      </style></head><body>
-      <h1>${escapeHtml(paperName)} mark sheet</h1>
-      <p>${escapeHtml([schoolName, className, courseName].filter(Boolean).join(' · '))}</p>
-      <table><thead><tr><th>#</th><th>Learner</th><th>Mark</th><th>Out of</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-      </body></html>`;
-    const popup = window.open('', '_blank');
-    if (!popup) {
-      setError('Allow pop-ups to print the mark sheet.');
-      return;
-    }
-    popup.document.write(html);
-    popup.document.close();
-    popup.focus();
-    popup.print();
+
+    const ok = openOfficialOfficePrintable({
+      title: `${paperName} Official Mark Sheet`,
+      subtitle: [className, courseName || programName].filter(Boolean).join(' · ') || 'Class Assessment Record',
+      docCodePrefix: props.kind === 'examination' ? 'RC-EXAM' : 'RC-TEST',
+      orientation: 'portrait',
+      schoolName: schoolName || profile?.school_name || 'Partner School',
+      metaItems: [
+        { label: 'Class', value: className || 'Class' },
+        { label: 'Course / Subject', value: courseName || programName || 'Coding & Robotics' },
+        { label: 'Assessment', value: `${paperName} (Max ${hallMax})` },
+        { label: 'Recorded By', value: profile?.full_name || 'Instructor' },
+      ],
+      kpis: [
+        { label: 'Learners Entered', value: `${analytics.entered} / ${roster.length}`, tone: 'indigo' },
+        { label: 'Class Average', value: analytics.avgPct !== null ? `${analytics.avgPct}% (${analytics.avgWaec?.code})` : '—', tone: 'emerald' },
+        { label: 'Pass Rate (≥50%)', value: analytics.passRate !== null ? `${analytics.passRate}%` : '—', tone: 'default' },
+        { label: 'Distinctions (A1–B3)', value: analytics.distinction, sub: `At-risk: ${analytics.atRisk}`, tone: analytics.atRisk > 0 ? 'amber' : 'emerald' },
+      ],
+      headers: [
+        { label: '#', align: 'center', width: '36px' },
+        { label: 'Learner Full Name', align: 'left' },
+        { label: `Score / ${hallMax}`, align: 'right', width: '88px' },
+        { label: '%', align: 'right', width: '58px' },
+        { label: 'Grade', align: 'center', width: '60px' },
+        { label: 'Remark', align: 'left', width: '110px' },
+        { label: 'Source', align: 'center', width: '78px' },
+      ],
+      rowsHtml,
+    });
+    if (!ok) setError('Allow pop-ups to open the printable PDF mark sheet.');
+  };
+
+  // Executive Combined 3-Paper Master Broadsheet PDF (1st Test + 2nd Test + Exam + Total + Rank)
+  const handlePrintCombinedBroadsheet = () => {
+    const f1Max = props.kind === 'first_test' ? hallMax : paperSnapshots.first_test.max;
+    const f2Max = props.kind === 'second_test' ? hallMax : paperSnapshots.second_test.max;
+    const exMax = props.kind === 'examination' ? hallMax : paperSnapshots.examination.max;
+
+    const ranked = roster.map((s) => {
+      const m = studentMetrics[s.id];
+      const f1 = props.kind === 'first_test' ? m?.earned : (paperSnapshots.first_test.byStudent[s.id]?.earned ?? null);
+      const f2 = props.kind === 'second_test' ? m?.earned : (paperSnapshots.second_test.byStudent[s.id]?.earned ?? null);
+      const ex = props.kind === 'examination' ? m?.earned : (paperSnapshots.examination.byStudent[s.id]?.earned ?? null);
+      return {
+        student: s,
+        f1,
+        f2,
+        ex,
+        total: m?.combinedEarned ?? 0,
+        max: m?.combinedMax ?? 0,
+        pct: m?.combinedPct ?? null,
+        waec: m?.combinedWaec ?? null,
+      };
+    });
+
+    const sortedForRank = [...ranked]
+      .filter((r) => r.pct !== null)
+      .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+    const rankById = new Map<string, number>();
+    sortedForRank.forEach((r, idx) => rankById.set(r.student.id, idx + 1));
+
+    const rowsHtml = ranked.map((r, idx) => {
+      const pos = rankById.get(r.student.id);
+      return `<tr>
+        <td style="text-align:center;color:#64748b;font-weight:700;">${idx + 1}</td>
+        <td style="font-weight:700;">${escapeHtml(r.student.full_name || 'Student')}</td>
+        <td style="text-align:right;">${r.f1 !== null ? r.f1 : '—'}</td>
+        <td style="text-align:right;">${r.f2 !== null ? r.f2 : '—'}</td>
+        <td style="text-align:right;">${r.ex !== null ? r.ex : '—'}</td>
+        <td style="text-align:right;font-weight:800;">${r.max > 0 ? `${r.total}/${r.max}` : '—'}</td>
+        <td style="text-align:right;font-weight:800;">${r.pct !== null ? `${r.pct}%` : '—'}</td>
+        <td style="text-align:center;font-weight:900;">${escapeHtml(r.waec?.code ?? '—')}</td>
+        <td style="text-align:center;font-weight:700;">${pos ? `#${pos}` : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    const combinedPcts = ranked.map((r) => r.pct).filter((p): p is number => p !== null);
+    const overallAvg = combinedPcts.length ? Math.round(combinedPcts.reduce((a, b) => a + b, 0) / combinedPcts.length) : null;
+    const overallPass = combinedPcts.length ? Math.round((combinedPcts.filter((p) => p >= 50).length / combinedPcts.length) * 100) : null;
+
+    const ok = openOfficialOfficePrintable({
+      title: 'Combined Assessment Master Broadsheet',
+      subtitle: `${[className, courseName || programName].filter(Boolean).join(' · ')} — First Test + Second Test + Examination`,
+      docCodePrefix: 'RC-BROADSHEET',
+      orientation: 'landscape',
+      schoolName: schoolName || profile?.school_name || 'Partner School',
+      metaItems: [
+        { label: 'Class', value: className || 'Class' },
+        { label: 'Course', value: courseName || programName || 'Coding & Robotics' },
+        { label: 'Weighting', value: `1st (${f1Max}) + 2nd (${f2Max}) + Exam (${exMax})` },
+        { label: 'Prepared By', value: profile?.full_name || 'Instructor' },
+      ],
+      kpis: [
+        { label: 'Class Size', value: roster.length, tone: 'indigo' },
+        { label: 'Combined Average', value: overallAvg !== null ? `${overallAvg}% (${getWAECGrade(overallAvg).code})` : '—', tone: 'emerald' },
+        { label: 'Combined Pass Rate', value: overallPass !== null ? `${overallPass}%` : '—', tone: 'default' },
+        { label: 'Graded Learners', value: combinedPcts.length, tone: 'default' },
+      ],
+      headers: [
+        { label: '#', align: 'center', width: '34px' },
+        { label: 'Learner Full Name', align: 'left' },
+        { label: `1st Test (/${f1Max})`, align: 'right', width: '84px' },
+        { label: `2nd Test (/${f2Max})`, align: 'right', width: '84px' },
+        { label: `Exam (/${exMax})`, align: 'right', width: '80px' },
+        { label: 'Total', align: 'right', width: '84px' },
+        { label: 'Overall %', align: 'right', width: '74px' },
+        { label: 'WAEC', align: 'center', width: '58px' },
+        { label: 'Rank', align: 'center', width: '56px' },
+      ],
+      rowsHtml,
+    });
+    if (!ok) setError('Allow pop-ups to print the combined broadsheet PDF.');
   };
 
   const updateHallDraft = (studentId: string, value: string) => {
@@ -472,6 +854,25 @@ export function HostPaperDatasheet(props: {
       return next;
     });
     setNotice(null);
+  };
+
+  const stepMark = (studentId: string, delta: number) => {
+    const cur = Number(hallDraft[studentId]);
+    const base = Number.isFinite(cur) && String(hallDraft[studentId] ?? '').trim() !== '' ? cur : 0;
+    const next = Math.max(0, Math.min(hallMax, base + delta));
+    updateHallDraft(studentId, String(next));
+  };
+
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (event.key === 'Enter' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      const nextStudent = visibleRoster[index + 1];
+      if (nextStudent) inputRefs.current[nextStudent.id]?.focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const prevStudent = visibleRoster[index - 1];
+      if (prevStudent) inputRefs.current[prevStudent.id]?.focus();
+    }
   };
 
   const guardNavigation = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -491,24 +892,65 @@ export function HostPaperDatasheet(props: {
   }
 
   return (
-    <div className={`max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5 ${MOBILE_PAGE_BOTTOM}`}>
-      <Link href={backHref} onClick={guardNavigation} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+    <div className={`max-w-6xl mx-auto px-3.5 sm:px-6 py-5 sm:py-6 space-y-5 ${MOBILE_PAGE_BOTTOM}`}>
+      <Link href={backHref} onClick={guardNavigation} className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
         <ArrowLeftIcon className="h-4 w-4" />
         {props.from === 'write' ? 'Back to Write' : 'Back to class'}
       </Link>
 
-      <header className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
-        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Official school result · mark entry</p>
-        <h1 className="mt-1 text-2xl font-black tracking-tight">{paperName}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {[schoolName, className, courseName || programName].filter(Boolean).join(' · ') || 'This class'}
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-foreground">
-          Enter every learner&apos;s <strong>{paperName}</strong> score below. Only changed rows are saved. The student, parent and PDF report read this same record.
-        </p>
-        <nav aria-label="School paper mark sheets" className="mt-4 grid grid-cols-3 gap-2">
-          {(['first_test', 'second_test', 'examination'] as HostAssessmentKind[]).map((kind) => {
+      {/* Modern Hero Header + Synced 3-Paper Switcher */}
+      <header className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+              Official Assessment Hub · Synced Live
+            </p>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-foreground">{paperName}</h1>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+              {[schoolName, className, courseName || programName].filter(Boolean).join(' · ') || 'This class'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handlePrintSheet}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-black text-foreground hover:border-primary/40"
+            >
+              <PrinterIcon className="h-4 w-4 text-primary" /> Mark Sheet PDF
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintCombinedBroadsheet}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
+            >
+              <ClipboardDocumentListIcon className="h-4 w-4" /> Broadsheet PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePrintPaper('student')}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
+            >
+              <PrinterIcon className="h-4 w-4" /> Exam Paper
+            </button>
+            <Link
+              href={generateHref}
+              onClick={guardNavigation}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-black text-primary-foreground hover:opacity-90 shadow-sm"
+            >
+              <SparklesIcon className="h-4 w-4" />
+              {questions.length > 0 ? 'Refresh Paper' : 'Generate Paper'}
+            </Link>
+          </div>
+        </div>
+
+        {/* Synced 3-Paper Tabs (First Test · Second Test · Examination) with live completion counts */}
+        <nav aria-label="School paper mark sheets" className="grid grid-cols-3 gap-2">
+          {ALL_KINDS.map((kind) => {
             const active = kind === props.kind;
+            const snapCount = kind === props.kind
+              ? markedCount
+              : Object.keys(paperSnapshots[kind]?.byStudent ?? {}).length;
+            const complete = roster.length > 0 && snapCount >= roster.length;
             return (
               <Link
                 key={kind}
@@ -522,69 +964,110 @@ export function HostPaperDatasheet(props: {
                 })}
                 aria-current={active ? 'page' : undefined}
                 onClick={guardNavigation}
-                className={`flex min-h-12 items-center justify-center rounded-xl border px-2 text-center text-xs font-black transition-colors ${
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2 rounded-xl border px-3 py-2.5 text-left transition-all ${
                   active
                     ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                     : 'border-border bg-background text-foreground hover:border-primary/40'
                 }`}
               >
-                {hostPaperLabel(kind)}
+                <span className="text-xs font-black truncate">{hostPaperLabel(kind)}</span>
+                <span className={`text-[10px] font-bold tabular-nums ${
+                  active
+                    ? 'text-primary-foreground/85'
+                    : complete
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-muted-foreground'
+                }`}>
+                  {snapCount}/{roster.length}{complete ? ' ✓' : ''}
+                </span>
               </Link>
             );
           })}
         </nav>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => handlePrintPaper('student')}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-black uppercase tracking-wider"
-          >
-            <PrinterIcon className="h-4 w-4" /> Print paper
-          </button>
-          <button
-            type="button"
-            onClick={handlePrintSheet}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-black uppercase tracking-wider"
-          >
-            <PrinterIcon className="h-4 w-4" /> Print mark sheet
-          </button>
-          <Link
-            href={generateHref}
-            onClick={guardNavigation}
-            className="inline-flex min-h-11 items-center rounded-xl bg-primary px-3 text-xs font-black uppercase tracking-wider text-primary-foreground"
-          >
-            {questions.length > 0 ? 'Refresh paper' : 'Generate paper'}
-          </Link>
-        </div>
       </header>
+
+      {/* Teacher Monitoring & Performance KPI Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Entered Progress</p>
+          <p className="mt-1 text-xl font-black text-foreground tabular-nums">
+            {analytics.entered}<span className="text-sm font-bold text-muted-foreground">/{roster.length}</span>
+          </p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${roster.length ? Math.round((analytics.entered / roster.length) * 100) : 0}%` }} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Class Average</p>
+          <div className="mt-1 flex items-baseline gap-2">
+            <p className="text-xl font-black text-foreground tabular-nums">
+              {analytics.avgPct !== null ? `${analytics.avgPct}%` : '—'}
+            </p>
+            {analytics.avgWaec && (
+              <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black ${waecToneClasses(analytics.avgPct!)}`}>
+                {analytics.avgWaec.code}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {analytics.highest !== null ? `High ${analytics.highest}/${hallMax} · Low ${analytics.lowest}/${hallMax}` : 'Enter marks to compute'}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Pass Rate (≥50%)</p>
+          <p className="mt-1 text-xl font-black text-emerald-700 dark:text-emerald-300 tabular-nums">
+            {analytics.passRate !== null ? `${analytics.passRate}%` : '—'}
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {analytics.distinction} Distinction · {analytics.credit} Credit
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Needs Attention</p>
+          <p className={`mt-1 text-xl font-black tabular-nums ${analytics.atRisk > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>
+            {analytics.atRisk} <span className="text-xs font-bold text-muted-foreground">at-risk</span>
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {analytics.missing} missing · {analytics.cbtCount} CBT online
+          </p>
+        </div>
+      </div>
 
       {error ? (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>
       ) : null}
       {notice ? (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${
+        <div className={`rounded-xl border px-4 py-3 text-sm font-medium ${
           noticeTone === 'warning'
             ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
             : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
         }`}>{notice}</div>
       ) : null}
 
+      {/* Main Mark Entry Sheet */}
       <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="border-b border-border px-5 py-4 space-y-3">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="border-b border-border p-4 sm:px-5 space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="font-black flex items-center gap-2">
+              <h2 className="font-black flex items-center gap-2 text-foreground">
                 <UserGroupIcon className="h-5 w-5 text-primary" />
-                {paperName} mark sheet
+                {paperName} Score Entry &amp; Sync
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {markedCount} of {roster.length} learners entered
-                {dirtyStudentIds.size > 0 ? ` · ${dirtyStudentIds.size} unsaved` : ' · all changes saved'}
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Tip: Press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd> or <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">↓</kbd> to jump smoothly to the next student.
               </p>
             </div>
-            <div>
-              <label htmlFor="school-paper-total" className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                {paperName} total
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPasteBox((v) => !v)}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3 text-xs font-black text-primary hover:bg-primary/20"
+              >
+                <ChartBarIcon className="h-4 w-4" />
+                {showPasteBox ? 'Close Paste' : 'Bulk Paste Scores'}
+              </button>
+              <label htmlFor="school-paper-total" className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                Max
                 <input
                   id="school-paper-total"
                   type="number"
@@ -596,15 +1079,53 @@ export function HostPaperDatasheet(props: {
                   onChange={(e) => { setPaperOutOf(e.target.value); setNotice(null); }}
                   aria-invalid={!!paperMaxError}
                   aria-describedby={paperMaxError ? 'school-paper-total-error' : undefined}
-                  className={`h-11 w-24 rounded-xl border bg-background px-2 text-right text-sm font-black text-foreground ${paperMaxError ? 'border-rose-500' : 'border-border'}`}
+                  className={`h-10 w-20 rounded-xl border bg-background px-2 text-right text-sm font-black text-foreground ${paperMaxError ? 'border-rose-500' : 'border-border'}`}
                 />
               </label>
-              {paperMaxError ? <p id="school-paper-total-error" className="mt-1 max-w-52 text-right text-[11px] text-rose-600 dark:text-rose-400">{paperMaxError}</p> : null}
             </div>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${roster.length ? Math.round((markedCount / roster.length) * 100) : 0}%` }} />
-          </div>
+          {paperMaxError ? <p id="school-paper-total-error" className="text-xs text-rose-600 dark:text-rose-400">{paperMaxError}</p> : null}
+
+          {/* Smart Bulk Paste Scores Drawer */}
+          {showPasteBox && (
+            <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3.5 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-black text-foreground">
+                  Paste Scores from Excel, WhatsApp, or Paper List
+                </p>
+                <span className="text-[11px] text-muted-foreground">
+                  Supports <code>Name 18</code> per line OR a plain column of numbers in roster order
+                </span>
+              </div>
+              <textarea
+                rows={4}
+                aria-label="Paste scores from Excel or WhatsApp"
+                value={pasteRaw}
+                onChange={(e) => setPasteRaw(e.target.value)}
+                placeholder={`Samuel Agha 18\nAdaeze Okonkwo 15\n(or just paste a column of scores: 18, 15, 19…)`}
+                className="w-full rounded-xl border border-border bg-card p-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowPasteBox(false); setPasteRaw(''); }}
+                  className="min-h-9 rounded-xl border border-border bg-card px-3 text-xs font-bold text-muted-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!pasteRaw.trim()}
+                  onClick={applyPastedScores}
+                  className="min-h-9 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40"
+                >
+                  Auto-Fill Scores
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Search + Sort + Performance Segmentation Pills */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <label className="relative flex-1">
               <span className="sr-only">Find a learner</span>
@@ -613,19 +1134,49 @@ export function HostPaperDatasheet(props: {
                 type="search"
                 value={learnerSearch}
                 onChange={(event) => setLearnerSearch(event.target.value)}
-                placeholder="Find learner by name"
+                placeholder="Find learner by name…"
                 className="h-11 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary"
               />
             </label>
-            <button
-              type="button"
-              aria-pressed={outstandingOnly}
-              onClick={() => setOutstandingOnly((current) => !current)}
-              className={`min-h-11 rounded-xl border px-3 text-xs font-black ${outstandingOnly ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-foreground'}`}
+            <select
+              aria-label="Sort learners on mark sheet"
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as SortMode)}
+              className="h-11 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground"
             >
-              {outstandingOnly ? 'Showing missing marks' : `Missing marks (${roster.length - markedCount})`}
-            </button>
+              <option value="name">Sort: Name A–Z</option>
+              <option value="missing_first">Sort: Missing First</option>
+              <option value="score_desc">Sort: Highest Score</option>
+              <option value="score_asc">Sort: Lowest Score</option>
+            </select>
           </div>
+
+          {/* Clickable Performance Segmentation Chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {([
+              { id: 'all' as SegmentFilter, label: `All (${roster.length})` },
+              { id: 'missing' as SegmentFilter, label: `Missing (${analytics.missing})` },
+              { id: 'distinction' as SegmentFilter, label: `Distinction A1–B3 (${analytics.distinction})` },
+              { id: 'credit' as SegmentFilter, label: `Credit C4–C6 (${analytics.credit})` },
+              { id: 'at_risk' as SegmentFilter, label: `At-Risk <50% (${analytics.atRisk})` },
+              ...(analytics.cbtCount > 0 ? [{ id: 'cbt' as SegmentFilter, label: `Online CBT (${analytics.cbtCount})` }] : []),
+            ]).map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                aria-pressed={segment === chip.id}
+                onClick={() => setSegment(chip.id)}
+                className={`rounded-full border px-3 py-1 text-[11px] font-bold transition-colors ${
+                  segment === chip.id
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
           {invalidRows.length > 0 || clearedRows.length > 0 ? (
             <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs leading-5 text-rose-700 dark:text-rose-300">
               {invalidRows.length > 0 ? `${invalidRows.length} mark${invalidRows.length === 1 ? '' : 's'} need correction. ` : ''}
@@ -635,25 +1186,53 @@ export function HostPaperDatasheet(props: {
           ) : null}
         </div>
 
-        <div className="divide-y divide-border sm:hidden">
-          {visibleRoster.map((student) => {
-            const existing = sessions.find((row) => row.user_id === student.id);
-            const locked = !!existing && !sessionAllowsPaperOverwrite(existing);
+        {/* Mobile-First Touch Score Entry Cards (with Stepper, 1-Tap Presets, Live WAEC & 3-Paper Sync) */}
+        <div className="divide-y divide-border md:hidden">
+          {visibleRoster.map((student, index) => {
+            const m = studentMetrics[student.id];
+            const locked = Boolean(m?.isCbt);
             const current = props.studentId === student.id;
             const inputError = hallMarkDraftError(hallDraft[student.id], paperMaxError ? null : hallMax);
             const cleared = String(baselineDraft[student.id] ?? '').trim() !== '' && String(hallDraft[student.id] ?? '').trim() === '';
             const feedback = rowFeedback[student.id];
+            const f1 = props.kind === 'first_test' ? m?.earned : (paperSnapshots.first_test.byStudent[student.id]?.earned ?? null);
+            const f2 = props.kind === 'second_test' ? m?.earned : (paperSnapshots.second_test.byStudent[student.id]?.earned ?? null);
+            const ex = props.kind === 'examination' ? m?.earned : (paperSnapshots.examination.byStudent[student.id]?.earned ?? null);
+
             return (
-              <div key={student.id} className={`p-4 ${current ? 'bg-primary/5' : ''}`}>
-                <div className="mb-2 flex items-start justify-between gap-3">
+              <div key={student.id} className={`p-4 space-y-2.5 ${current ? 'bg-primary/5' : ''}`}>
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-foreground">{student.full_name || 'Student'}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{paperName} · out of {hallMax}</p>
+                    <p className="text-sm font-black text-foreground break-words">
+                      <span className="mr-1.5 text-xs font-bold text-muted-foreground">{index + 1}.</span>
+                      {student.full_name || 'Student'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      1st: <strong>{f1 ?? '—'}</strong> · 2nd: <strong>{f2 ?? '—'}</strong> · Exam: <strong>{ex ?? '—'}</strong>
+                      {m?.combinedPct !== null ? ` → Total ${m.combinedPct}% (${m.combinedWaec?.code})` : ''}
+                    </p>
                   </div>
-                  {current ? <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-primary">Selected learner</span> : null}
+                  {m?.waec && m.pct !== null ? (
+                    <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-xs font-black tabular-nums ${waecToneClasses(m.pct)}`}>
+                      {m.pct}% · {m.waec.code}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-1.5">
+                  {!locked && (
+                    <button
+                      type="button"
+                      aria-label={`Decrease score for ${student.full_name || 'learner'}`}
+                      disabled={saving || preparing}
+                      onClick={() => stepMark(student.id, -1)}
+                      className="h-12 w-11 shrink-0 rounded-xl border border-border bg-background text-lg font-black text-foreground active:bg-muted disabled:opacity-40"
+                    >
+                      −
+                    </button>
+                  )}
                   <input
+                    ref={(el) => { inputRefs.current[student.id] = el; }}
                     type="number"
                     inputMode="numeric"
                     min={0}
@@ -662,51 +1241,93 @@ export function HostPaperDatasheet(props: {
                     disabled={locked || saving || preparing}
                     value={hallDraft[student.id] ?? ''}
                     onChange={(event) => updateHallDraft(student.id, event.target.value)}
+                    onKeyDown={(e) => handleInputKeyDown(e, index)}
                     aria-label={`${paperName} mark for ${student.full_name || 'this learner'}, out of ${hallMax}`}
                     aria-invalid={!!inputError || cleared}
-                    className={`h-12 min-w-0 flex-1 rounded-xl border bg-background px-3 text-right text-lg font-black ${inputError || cleared ? 'border-rose-500' : dirtyStudentIds.has(student.id) ? 'border-primary' : 'border-border'}`}
+                    className={`h-12 min-w-0 flex-1 rounded-xl border bg-background px-3 text-center text-lg font-black tabular-nums ${inputError || cleared ? 'border-rose-500' : dirtyStudentIds.has(student.id) ? 'border-primary ring-2 ring-primary/15' : 'border-border'}`}
                   />
-                  <span className="w-14 text-sm font-bold text-muted-foreground">/ {hallMax}</span>
+                  {!locked && (
+                    <button
+                      type="button"
+                      aria-label={`Increase score for ${student.full_name || 'learner'}`}
+                      disabled={saving || preparing}
+                      onClick={() => stepMark(student.id, 1)}
+                      className="h-12 w-11 shrink-0 rounded-xl border border-border bg-background text-lg font-black text-foreground active:bg-muted disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  )}
+                  <span className="w-12 text-right text-xs font-bold text-muted-foreground">/ {hallMax}</span>
                 </div>
-                {locked ? <p className="mt-2 text-xs text-muted-foreground">Online CBT sitting recorded; review it in CBT grading.</p> : null}
-                {inputError || cleared ? <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400">{inputError || 'Enter a corrected score; blank does not delete a saved mark.'}</p> : null}
-                {feedback ? <p className={`mt-2 text-xs font-semibold ${feedback.tone === 'saved' ? 'text-emerald-600 dark:text-emerald-400' : feedback.tone === 'warning' ? 'text-amber-700 dark:text-amber-300' : 'text-rose-600 dark:text-rose-400'}`}>{feedback.message}</p> : null}
-                {!feedback && dirtyStudentIds.has(student.id) && !inputError ? <p className="mt-2 text-xs font-semibold text-primary">Unsaved change</p> : null}
+
+                {/* 1-Tap Quick Score Presets on Mobile */}
+                {!locked && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground">Quick:</span>
+                    {quickPresetMarks.map((val) => (
+                      <button
+                        key={`preset-${student.id}-${val}`}
+                        type="button"
+                        onClick={() => updateHallDraft(student.id, String(val))}
+                        className={`rounded-lg border px-2.5 py-1 text-[11px] font-black transition-colors ${
+                          String(hallDraft[student.id] ?? '').trim() === String(val)
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-background text-foreground hover:border-primary/40'
+                        }`}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {locked ? <p className="text-xs text-muted-foreground">Online CBT sitting recorded; review it in CBT grading.</p> : null}
+                {inputError || cleared ? <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">{inputError || 'Enter a corrected score; blank does not delete a saved mark.'}</p> : null}
+                {feedback ? <p className={`text-xs font-semibold ${feedback.tone === 'saved' ? 'text-emerald-600 dark:text-emerald-400' : feedback.tone === 'warning' ? 'text-amber-700 dark:text-amber-300' : 'text-rose-600 dark:text-rose-400'}`}>{feedback.message}</p> : null}
+                {!feedback && dirtyStudentIds.has(student.id) && !inputError ? <p className="text-xs font-semibold text-primary">Unsaved change</p> : null}
               </div>
             );
           })}
           {visibleRoster.length === 0 ? <p className="px-4 py-8 text-sm text-muted-foreground">No learners match this view.</p> : null}
         </div>
 
-        <div className="hidden overflow-x-auto sm:block">
+        {/* Desktop Fast-Entry Table (with Live WAEC + 3-Paper Sync Column + Keyboard Enter/Arrow Flow) */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-[11px] font-black uppercase tracking-widest text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 w-12">#</th>
                 <th className="px-4 py-3">Learner</th>
-                <th className="px-4 py-3 w-40 text-right">Mark</th>
-                <th className="px-4 py-3 w-48">Save status</th>
+                <th className="px-4 py-3 w-44 text-right">{paperName} (/{hallMax})</th>
+                <th className="px-4 py-3 w-28 text-center">Grade</th>
+                <th className="px-4 py-3 w-56">All 3 Papers Sync</th>
+                <th className="px-4 py-3 w-36">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {visibleRoster.map((student) => {
-                const existing = sessions.find((row) => row.user_id === student.id);
-                const locked = !!existing && !sessionAllowsPaperOverwrite(existing);
+              {visibleRoster.map((student, index) => {
+                const m = studentMetrics[student.id];
+                const locked = Boolean(m?.isCbt);
                 const current = props.studentId === student.id;
                 const inputError = hallMarkDraftError(hallDraft[student.id], paperMaxError ? null : hallMax);
                 const cleared = String(baselineDraft[student.id] ?? '').trim() !== '' && String(hallDraft[student.id] ?? '').trim() === '';
                 const feedback = rowFeedback[student.id];
+                const f1 = props.kind === 'first_test' ? m?.earned : (paperSnapshots.first_test.byStudent[student.id]?.earned ?? null);
+                const f2 = props.kind === 'second_test' ? m?.earned : (paperSnapshots.second_test.byStudent[student.id]?.earned ?? null);
+                const ex = props.kind === 'examination' ? m?.earned : (paperSnapshots.examination.byStudent[student.id]?.earned ?? null);
+
                 return (
-                  <tr key={student.id} className={current ? 'bg-primary/5' : undefined}>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{roster.findIndex((row) => row.id === student.id) + 1}</td>
-                    <td className="px-4 py-3 font-semibold">
+                  <tr key={student.id} className={`transition-colors hover:bg-muted/25 ${current ? 'bg-primary/5' : ''}`}>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground font-semibold">{index + 1}</td>
+                    <td className="px-4 py-3 font-bold text-foreground">
                       {student.full_name || 'Student'}
-                      {current ? <span className="ml-2 text-[10px] font-black uppercase tracking-widest text-primary">This learner</span> : null}
+                      {current ? <span className="ml-2 text-[10px] font-black uppercase tracking-widest text-primary">Selected</span> : null}
                       {locked ? <p className="text-[11px] font-normal text-muted-foreground">CBT sitting already recorded</p> : null}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <input
+                          ref={(el) => { inputRefs.current[student.id] = el; }}
                           type="number"
                           min={0}
                           max={hallMax}
@@ -714,22 +1335,43 @@ export function HostPaperDatasheet(props: {
                           disabled={locked || saving || preparing}
                           value={hallDraft[student.id] ?? ''}
                           onChange={(e) => updateHallDraft(student.id, e.target.value)}
-                          // Forty identical boxes down a column: without the learner's
-                          // name here a screen reader announces every one of them as
-                          // "edit box", and there is no way to tell whose mark is whose.
+                          onKeyDown={(e) => handleInputKeyDown(e, index)}
                           aria-label={`${hostPaperLabel(props.kind)} mark for ${student.full_name || 'this learner'}, out of ${hallMax}`}
                           aria-invalid={!!inputError || cleared}
-                          className={`h-11 w-20 rounded-xl border bg-background px-2 text-right text-sm font-black ${inputError || cleared ? 'border-rose-500' : dirtyStudentIds.has(student.id) ? 'border-primary' : 'border-border'}`}
+                          className={`h-10 w-24 rounded-xl border bg-background px-2.5 text-right text-sm font-black tabular-nums focus:border-primary focus:outline-none ${inputError || cleared ? 'border-rose-500' : dirtyStudentIds.has(student.id) ? 'border-primary ring-2 ring-primary/15' : 'border-border'}`}
                         />
-                        <span className="w-10 text-xs text-muted-foreground">/{hallMax}</span>
+                        <span className="w-10 text-xs font-semibold text-muted-foreground">/{hallMax}</span>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-center">
+                      {m?.waec && m.pct !== null ? (
+                        <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-xs font-black tabular-nums ${waecToneClasses(m.pct)}`}>
+                          {m.pct}% · {m.waec.code}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>1st: <strong className="text-foreground">{f1 ?? '—'}</strong></span>
+                        <span>·</span>
+                        <span>2nd: <strong className="text-foreground">{f2 ?? '—'}</strong></span>
+                        <span>·</span>
+                        <span>Ex: <strong className="text-foreground">{ex ?? '—'}</strong></span>
+                      </div>
+                      {m?.combinedPct !== null && (
+                        <p className="mt-0.5 text-[11px] font-black text-primary">
+                          Combined: {m.combinedEarned}/{m.combinedMax} ({m.combinedPct}% · {m.combinedWaec?.code})
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs">
-                      {locked ? <span className="text-muted-foreground">Online CBT score</span>
-                        : inputError || cleared ? <span className="font-semibold text-rose-600 dark:text-rose-400">{inputError || 'Enter the corrected mark'}</span>
+                      {locked ? <span className="text-muted-foreground font-semibold">Online CBT</span>
+                        : inputError || cleared ? <span className="font-semibold text-rose-600 dark:text-rose-400">{inputError || 'Enter corrected mark'}</span>
                           : feedback ? <span className={feedback.tone === 'saved' ? 'font-semibold text-emerald-600 dark:text-emerald-400' : feedback.tone === 'warning' ? 'font-semibold text-amber-700 dark:text-amber-300' : 'font-semibold text-rose-600 dark:text-rose-400'}>{feedback.message}</span>
-                            : dirtyStudentIds.has(student.id) ? <span className="font-semibold text-primary">Unsaved change</span>
-                              : String(hallDraft[student.id] ?? '').trim() !== '' ? <span className="text-emerald-600 dark:text-emerald-400">Saved</span>
+                            : dirtyStudentIds.has(student.id) ? <span className="font-semibold text-primary">Unsaved</span>
+                              : String(hallDraft[student.id] ?? '').trim() !== '' ? <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Saved ✓</span>
                                 : <span className="text-muted-foreground">Not entered</span>}
                     </td>
                   </tr>
@@ -737,36 +1379,39 @@ export function HostPaperDatasheet(props: {
               })}
               {visibleRoster.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-sm text-muted-foreground">{roster.length === 0 ? 'No learners on this class yet.' : 'No learners match this view.'}</td>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">{roster.length === 0 ? 'No learners on this class yet.' : 'No learners match this filter.'}</td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
-        <div className="sticky bottom-2 z-20 flex flex-col gap-3 border-t border-border bg-card/95 px-5 py-4 shadow-[0_-12px_30px_rgba(0,0,0,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+
+        {/* Mobile-Safe Sticky Save Bar */}
+        <div className="sticky bottom-[calc(var(--app-bottom-nav-height)+0.25rem)] md:bottom-2 z-20 flex flex-col gap-3 border-t border-border bg-card/95 px-4 sm:px-5 py-3.5 shadow-[0_-12px_30px_rgba(0,0,0,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-muted-foreground">
             {exam?.id
               ? dirtyStudentIds.size > 0
-                ? `${dirtyStudentIds.size} changed ${paperName} mark${dirtyStudentIds.size === 1 ? '' : 's'} will be saved. Unchanged scores stay untouched.`
-                : `${paperName} is up to date. Student, parent and PDF views read these scores.`
-              : `The first save creates this ${paperName} record without losing what you typed.`}
+                ? `${dirtyStudentIds.size} changed ${paperName} mark${dirtyStudentIds.size === 1 ? '' : 's'} ready to save & sync.`
+                : `${paperName} is synced live with student reports, parent portal & PDF broadsheets.`
+              : `First save creates this ${paperName} sheet without losing what you entered.`}
           </p>
           <button
             type="button"
             onClick={() => void handleSave()}
             disabled={saving || preparing || roster.length === 0 || dirtyStudentIds.size === 0 || invalidRows.length > 0 || clearedRows.length > 0 || !!paperMaxError}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-wider text-primary-foreground disabled:opacity-50"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-wider text-primary-foreground disabled:opacity-50 shadow-sm"
           >
-            {saving || preparing ? 'Saving safely…' : dirtyStudentIds.size > 0 ? `Save ${dirtyStudentIds.size} changed mark${dirtyStudentIds.size === 1 ? '' : 's'}` : 'All changes saved'}
+            {saving || preparing ? 'Saving & Syncing…' : dirtyStudentIds.size > 0 ? `Save ${dirtyStudentIds.size} Mark${dirtyStudentIds.size === 1 ? '' : 's'}` : 'All Changes Saved'}
           </button>
         </div>
       </section>
 
+      {/* Collapsible Question Paper Preview */}
       <details className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
           <div>
-            <h2 className="font-black">View {paperName} questions</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className="font-black text-foreground">View {paperName} Questions</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {questions.length > 0
                 ? `${questions.length} question${questions.length === 1 ? '' : 's'} · ${questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0) || hallMax} marks`
                 : 'No questions yet. Generate the paper when the taught weeks are ready.'}
@@ -798,19 +1443,11 @@ export function HostPaperDatasheet(props: {
             ))}
           </ol>
         ) : (
-          <div className="border-t border-border px-5 py-8 text-sm text-muted-foreground">
-            No {paperName} questions have been prepared yet. The recorded marks remain available above.
+          <div className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
+            You do not need generated questions to record hall marks. Use <strong>Generate Paper</strong> above whenever you want a printable exam paper.
           </div>
         )}
       </details>
     </div>
   );
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

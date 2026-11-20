@@ -3911,13 +3911,13 @@ export default function ClassDetailPage() {
                   </div>
 
                   {!isSchool && assessmentPolicy?.usesHostEvaluation ? (
-                    <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4">
+                    <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-3.5 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                         <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
-                          Record official school papers
+                          1st Test, 2nd Test &amp; Examination Score Hub
                         </h3>
-                        <span className="text-[10px] font-bold text-muted-foreground">
-                          Click a paper to enter hall marks
+                        <span className="text-[11px] font-semibold text-muted-foreground">
+                          Live 3-paper sync · mobile score entry · executive PDF mark sheets &amp; broadsheet
                         </span>
                       </div>
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -3931,10 +3931,10 @@ export default function ClassDetailPage() {
                               programId: cls?.program_id,
                               schoolId: cls?.school_id,
                             })}
-                            className="inline-flex min-h-11 items-center justify-between rounded-xl border border-border bg-background px-3.5 text-xs font-black text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                            className="inline-flex min-h-12 items-center justify-between rounded-xl border border-border bg-card px-3.5 text-xs font-black text-foreground shadow-sm transition-all hover:border-primary/50 hover:text-primary"
                           >
-                            {kind === 'first_test' ? 'First Test' : kind === 'second_test' ? 'Second Test' : 'Examination'}
-                            <ChevronRightIcon className="h-4 w-4" />
+                            <span>{kind === 'first_test' ? '1st Assessment (First Test)' : kind === 'second_test' ? '2nd Assessment (Second Test)' : 'Examination'}</span>
+                            <ChevronRightIcon className="h-4 w-4 shrink-0" />
                           </Link>
                         ))}
                       </div>
