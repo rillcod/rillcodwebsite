@@ -41,8 +41,8 @@ export async function extractPdfText(
 
     for (const it of items) {
       const str = String(it.str ?? '');
-      const y = Array.isArray(it.transform) && typeof it.transform[5] === 'number' ? it.transform[5] : lastY;
-      const h = Array.isArray(it.transform) && typeof it.transform[0] === 'number'
+      const y: number | null = Array.isArray(it.transform) && typeof it.transform[5] === 'number' ? it.transform[5] : lastY;
+      const h: number = Array.isArray(it.transform) && typeof it.transform[0] === 'number'
         ? Math.max(8, Math.abs(it.transform[0]))
         : lastHeight;
 
