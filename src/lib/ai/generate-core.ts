@@ -26,6 +26,7 @@ import { hasHuggingFaceKey } from "@/lib/ai/huggingface";
 import { buildCbtEntrySuggestion } from "@/lib/cbt/predictive-entry";
 import {
   buildAssessmentBlueprint,
+  dedupeCbtQuestions,
   inferCognitiveLevel,
   parsePremadeQuestionsFromText,
   resolveMcqAnswerToOption,
@@ -253,6 +254,8 @@ export interface GenerateRequest {
   strictSourceOnly?: boolean;
   /** Number of combined source documents included in sourceMaterial. */
   sourceFileCount?: number;
+  /** Existing question stems already on the paper — AI must NOT repeat or paraphrase these. */
+  existingQuestions?: string[];
   /** Mode for CBT designer: generate fresh aligned questions or extract/align premade questions from TXT/PDF/paste. */
   cbtMode?: "generate" | "align_premade";
   /** Raw premade questions text from TXT/PDF/paste to clean, complete, and align with blueprint output. */
@@ -546,13 +549,19 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
     };
   });
 
+  const deduped = dedupeCbtQuestions(
+    questions,
+    req.cbtMode === "align_premade" ? [] : (req.existingQuestions ?? []),
+  );
+  const finalQuestions = deduped.unique.length > 0 ? deduped.unique : questions;
+
   const resolvedTitle =
     parsed?.title ||
     `${req.topic} ${
       plan.examType === "evaluation" ? "Evaluation" : "Examination"
     }`;
 
-  const blueprint = buildAssessmentBlueprint(questions, {
+  const blueprint = buildAssessmentBlueprint(finalQuestions, {
     title: resolvedTitle,
     courseTitle: req.courseName || req.subject || req.topic,
     sourceName: req.sourceName || req.topic,
@@ -567,7 +576,7 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
       `${plan.boundaryNote} Generated from the selected course context.`,
     duration_minutes: plan.durationMinutes,
     passing_score: plan.passingScore,
-    questions,
+    questions: finalQuestions,
     blueprint,
     generation_constraints: {
       exam_type: plan.examType,
@@ -1407,6 +1416,15 @@ RULES:
             ).slice(0, 24000)}\n"""\n`
           : "";
 
+      const existingExclusionBlock =
+        req.cbtMode !== "align_premade" && Array.isArray(req.existingQuestions) && req.existingQuestions.length > 0
+          ? `\nDO NOT REPEAT OR PARAPHRASE ANY EXISTING QUESTIONS ALREADY ON THIS PAPER:\n${req.existingQuestions
+              .filter(Boolean)
+              .slice(0, 60)
+              .map((q, i) => `${i + 1}. ${String(q).replace(/\s+/g, " ").slice(0, 140)}`)
+              .join("\n")}\nEvery newly generated question MUST test a DIFFERENT concept, angle, or example.\n`
+          : "";
+
       return `Generate a Computer Based Test (CBT) and Assessment Blueprint for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
@@ -1427,7 +1445,7 @@ ${
 }
 ${
   req.sourceName ? `Attached teacher material (.txt / .pdf / curriculum): "${req.sourceName}"` : ""
-}${sourceBlock}${premadeAlignBlock}
+}${sourceBlock}${premadeAlignBlock}${existingExclusionBlock}
 Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
 Realistic boundary: ${plan.boundaryNote}
 Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${
@@ -2036,7 +2054,7 @@ export async function resolveGenerationPlan(
     ((body.mcqCount ?? 0) + (body.theoryCount ?? 0) ||
       (body.questionCount ?? 10));
   const cbtTokens =
-    type === "cbt" ? Math.max(4096, Math.min(12000, cbtTotal * 280)) : 0;
+    type === "cbt" ? Math.max(4096, Math.min(16000, cbtTotal * 300)) : 0;
   const maxTokens =
     type === "lesson"
       ? 4000

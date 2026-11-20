@@ -26,15 +26,15 @@ export function buildCbtEntrySuggestion(
 ): CbtEntrySuggestion {
   const evaluation = examType === 'evaluation';
   const minimumQuestions = evaluation ? 5 : 10;
-  const maximumQuestions = evaluation ? 20 : 40;
+  const maximumQuestions = evaluation ? 60 : 100;
   const defaultMcq = evaluation ? 10 : 20;
   const defaultTheory = evaluation ? 0 : 5;
   const mcqCount = clamp(counts?.mcqCount ?? defaultMcq, 0, maximumQuestions);
   const theoryCount = clamp(counts?.theoryCount ?? defaultTheory, 0, maximumQuestions);
   const total = mcqCount + theoryCount;
   const durationMinutes = evaluation
-    ? clamp(total * 2 + theoryCount * 3, 20, 45)
-    : clamp(total * 2 + theoryCount * 4, 45, 120);
+    ? clamp(total * 2 + theoryCount * 3, 20, 90)
+    : clamp(total * 2 + theoryCount * 4, 45, 180);
 
   return {
     label: evaluation ? 'Evaluation / class test' : 'Main examination',

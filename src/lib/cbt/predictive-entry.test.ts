@@ -5,7 +5,7 @@ describe('predictive CBT authoring defaults', () => {
   it('creates a short, auto-gradable evaluation draft', () => {
     expect(buildCbtEntrySuggestion('evaluation')).toMatchObject({
       minimumQuestions: 5,
-      maximumQuestions: 20,
+      maximumQuestions: 60,
       mcqCount: 10,
       theoryCount: 0,
       durationMinutes: 20,
@@ -17,7 +17,7 @@ describe('predictive CBT authoring defaults', () => {
   it('creates a balanced main examination draft', () => {
     expect(buildCbtEntrySuggestion('examination')).toMatchObject({
       minimumQuestions: 10,
-      maximumQuestions: 40,
+      maximumQuestions: 100,
       mcqCount: 20,
       theoryCount: 5,
       durationMinutes: 70,
@@ -31,7 +31,7 @@ describe('predictive CBT authoring defaults', () => {
     expect(buildCbtEntrySuggestion('examination', { mcqCount: 40, theoryCount: 40 })).toMatchObject({
       mcqCount: 40,
       theoryCount: 40,
-      durationMinutes: 120,
+      durationMinutes: 180,
     });
   });
 });

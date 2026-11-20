@@ -61,12 +61,15 @@ export default function ExamDetailPage() {
   const [printPassMark, setPrintPassMark] = useState<string>('');       // '' = use exam default
   const [liveMonitor, setLiveMonitor] = useState(true);
   const [monitorFilter, setMonitorFilter] = useState<'all' | 'live' | 'submitted' | 'not_started'>('all');
+  const [monitorSearch, setMonitorSearch] = useState('');
+  const [monitorSort, setMonitorSort] = useState<'live' | 'progress' | 'score_desc' | 'score_asc' | 'name'>('live');
   const [refreshingSessions, setRefreshingSessions] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [resetTarget, setResetTarget] = useState<any | null>(null);
   const [resetReason, setResetReason] = useState('');
   const [resettingSessionId, setResettingSessionId] = useState<string | null>(null);
+  const [forcingSessionId, setForcingSessionId] = useState<string | null>(null);
   const [monitorNotice, setMonitorNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const userMapRef = useRef<Record<string, any>>({});
   const printMenuRef = useRef<HTMLDivElement>(null);
@@ -251,6 +254,41 @@ export default function ExamDetailPage() {
       });
     } finally {
       setResettingSessionId(null);
+    }
+  };
+
+  const handleForceSubmitSession = async (targetSession: any) => {
+    const studentName = targetSession?.portal_users?.full_name || 'this student';
+    if (!confirm(`Finalize and grade ${studentName}'s live sitting right now using their saved answers?`)) return;
+    setForcingSessionId(targetSession.id);
+    setMonitorNotice(null);
+    try {
+      const res = await fetch(`/api/cbt/sessions/${targetSession.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'force_submit' }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not finalize this exam sitting.');
+      const updated = json?.data;
+      setSessions((prev) =>
+        prev.map((item) =>
+          item.id === targetSession.id
+            ? { ...item, ...updated, portal_users: item.portal_users }
+            : item,
+        ),
+      );
+      setMonitorNotice({
+        type: 'success',
+        text: `Finalized ${studentName}'s exam — ${updated?.status === 'pending_grading' ? 'Pending manual grading' : `Score: ${updated?.score ?? 0}%`}.`,
+      });
+    } catch (err: any) {
+      setMonitorNotice({
+        type: 'error',
+        text: err?.message || 'Could not finalize this exam sitting.',
+      });
+    } finally {
+      setForcingSessionId(null);
     }
   };
 
@@ -1043,11 +1081,14 @@ export default function ExamDetailPage() {
             if (!ans || typeof ans !== 'object' || Array.isArray(ans)) return 0;
             return Object.values(ans).filter((v) => String(v ?? '').trim().length > 0).length;
           };
-          const formatRemaining = (startTime: string | null) => {
+          const remainingSecondsFor = (startTime: string | null) => {
             if (!startTime || !exam?.duration_minutes) return null;
             const endMs = new Date(startTime).getTime() + Number(exam.duration_minutes) * 60_000;
             const examEndMs = exam.end_date ? new Date(exam.end_date).getTime() : Number.POSITIVE_INFINITY;
-            const secs = Math.max(0, Math.floor((Math.min(endMs, examEndMs) - nowTick) / 1000));
+            return Math.max(0, Math.floor((Math.min(endMs, examEndMs) - nowTick) / 1000));
+          };
+          const formatRemaining = (secs: number | null) => {
+            if (secs === null) return null;
             return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
           };
 
@@ -1058,13 +1099,104 @@ export default function ExamDetailPage() {
           const windowClosed = Boolean(exam.end_date && new Date(exam.end_date).getTime() < nowTick);
           const windowNotOpenYet = Boolean(exam.start_date && new Date(exam.start_date).getTime() > nowTick);
 
-          const visibleSessions = monitorFilter === 'live'
+          const totalExpected = Math.max(sessions.length, roster.length);
+          const completionPct = totalExpected > 0 ? Math.round((submittedSessions.length / totalExpected) * 100) : 0;
+          const gradedScores = submittedSessions
+            .map((s: any) => Number(s.score))
+            .filter((n: number) => Number.isFinite(n));
+          const avgScore = gradedScores.length > 0
+            ? Math.round(gradedScores.reduce((a: number, b: number) => a + b, 0) / gradedScores.length)
+            : null;
+          const passRate = submittedSessions.length > 0
+            ? Math.round((submittedSessions.filter((s: any) => s.status === 'passed').length / submittedSessions.length) * 100)
+            : null;
+
+          const endingSoonCount = liveSessions.filter((s: any) => {
+            const rem = remainingSecondsFor(s.start_time);
+            return rem !== null && rem <= 300;
+          }).length;
+          const idleLiveCount = liveSessions.filter((s: any) => {
+            const lastMs = s.updated_at ? new Date(s.updated_at).getTime() : (s.start_time ? new Date(s.start_time).getTime() : 0);
+            return lastMs > 0 && nowTick - lastMs > 3 * 60_000;
+          }).length;
+
+          const searchNeedle = monitorSearch.trim().toLowerCase();
+          const matchesSearch = (name?: string | null, email?: string | null) => {
+            if (!searchNeedle) return true;
+            return (name ?? '').toLowerCase().includes(searchNeedle) || (email ?? '').toLowerCase().includes(searchNeedle);
+          };
+
+          const baseSessions = (monitorFilter === 'live'
             ? liveSessions
             : monitorFilter === 'submitted'
               ? submittedSessions
               : monitorFilter === 'not_started'
                 ? []
-                : [...liveSessions, ...submittedSessions];
+                : [...liveSessions, ...submittedSessions]
+          ).filter((s: any) => matchesSearch(s.portal_users?.full_name, s.portal_users?.email));
+
+          const visibleSessions = [...baseSessions].sort((a: any, b: any) => {
+            if (monitorSort === 'name') {
+              return String(a.portal_users?.full_name ?? '').localeCompare(String(b.portal_users?.full_name ?? ''));
+            }
+            if (monitorSort === 'score_desc') {
+              return (Number(b.score ?? -1)) - (Number(a.score ?? -1));
+            }
+            if (monitorSort === 'score_asc') {
+              return (Number(a.score ?? 999)) - (Number(b.score ?? 999));
+            }
+            if (monitorSort === 'progress') {
+              return countAnswered(b.answers) - countAnswered(a.answers);
+            }
+            // 'live': live first (lowest remaining time first), then most recently submitted
+            const aLive = a.status === 'in_progress' ? 0 : 1;
+            const bLive = b.status === 'in_progress' ? 0 : 1;
+            if (aLive !== bLive) return aLive - bLive;
+            if (aLive === 0) {
+              return (remainingSecondsFor(a.start_time) ?? 999999) - (remainingSecondsFor(b.start_time) ?? 999999);
+            }
+            return new Date(b.end_time ?? b.updated_at ?? 0).getTime() - new Date(a.end_time ?? a.updated_at ?? 0).getTime();
+          });
+
+          const filteredNotStarted = notStartedRoster.filter((student) => matchesSearch(student.full_name, student.email));
+
+          const handleExportMonitorCsv = () => {
+            const rows: string[][] = [
+              ['Student Name', 'Email', 'Status', 'Answered', 'Total Questions', 'Score (%)', 'Started At', 'Submitted At'],
+            ];
+            for (const s of [...liveSessions, ...submittedSessions]) {
+              rows.push([
+                String(s.portal_users?.full_name ?? 'Student'),
+                String(s.portal_users?.email ?? ''),
+                String(s.status ?? ''),
+                String(countAnswered(s.answers)),
+                String(totalQ),
+                s.score != null ? String(s.score) : '',
+                s.start_time ? new Date(s.start_time).toISOString() : '',
+                s.end_time ? new Date(s.end_time).toISOString() : '',
+              ]);
+            }
+            for (const st of notStartedRoster) {
+              rows.push([
+                String(st.full_name ?? 'Student'),
+                String(st.email ?? ''),
+                windowClosed ? 'absent_missed_window' : 'not_started',
+                '0',
+                String(totalQ),
+                '',
+                '',
+                '',
+              ]);
+            }
+            const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${(exam.title || 'cbt-monitor').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-monitor.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          };
 
           return (
             <div className="bg-card shadow-sm border border-border rounded-2xl overflow-hidden">
@@ -1131,26 +1263,100 @@ export default function ExamDetailPage() {
                 )}
 
                 {resultsOpen && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {([
-                      { key: 'all', label: `All (${sessions.length + notStartedRoster.length})` },
-                      { key: 'live', label: `Live Now (${liveSessions.length})` },
-                      { key: 'submitted', label: `Submitted (${submittedSessions.length})` },
-                      ...(roster.length > 0 ? [{ key: 'not_started' as const, label: `${windowClosed ? 'Absent' : 'Not Started'} (${notStartedRoster.length})` }] : []),
-                    ] as const).map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setMonitorFilter(tab.key)}
-                        className={`rounded-xl px-3 py-1.5 text-[11px] font-black transition-colors ${
-                          monitorFilter === tab.key
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
+                  <div className="space-y-3">
+                    {/* Class Completion & Live Telemetry Strip */}
+                    <div className="rounded-xl border border-border bg-muted/25 p-3 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-black text-foreground">
+                            Completion: {submittedSessions.length}/{totalExpected} ({completionPct}%)
+                          </span>
+                          {avgScore !== null && (
+                            <span className="font-bold text-muted-foreground">
+                              Avg: <strong className="text-foreground">{avgScore}%</strong>
+                            </span>
+                          )}
+                          {passRate !== null && (
+                            <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                              Pass Rate: {passRate}%
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {endingSoonCount > 0 && (
+                            <span className="rounded-full border border-rose-500/35 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:text-rose-300">
+                              {endingSoonCount} Ending &lt;5m
+                            </span>
+                          )}
+                          {idleLiveCount > 0 && (
+                            <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
+                              {idleLiveCount} Idle &gt;3m
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                          style={{ width: `${completionPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Filter Tabs + Search + Sort + Export CSV */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {([
+                          { key: 'all', label: `All (${sessions.length + notStartedRoster.length})` },
+                          { key: 'live', label: `Live Now (${liveSessions.length})` },
+                          { key: 'submitted', label: `Submitted (${submittedSessions.length})` },
+                          ...(roster.length > 0 ? [{ key: 'not_started' as const, label: `${windowClosed ? 'Absent' : 'Not Started'} (${notStartedRoster.length})` }] : []),
+                        ] as const).map((tab) => (
+                          <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setMonitorFilter(tab.key)}
+                            className={`rounded-xl px-3 py-1.5 text-[11px] font-black transition-colors ${
+                              monitorFilter === tab.key
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="search"
+                          aria-label="Search monitored students"
+                          value={monitorSearch}
+                          onChange={(e) => setMonitorSearch(e.target.value)}
+                          placeholder="Search student…"
+                          className="w-full sm:w-44 rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                        />
+                        <select
+                          aria-label="Sort monitored students"
+                          value={monitorSort}
+                          onChange={(e) => setMonitorSort(e.target.value as any)}
+                          className="rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:border-primary"
+                        >
+                          <option value="live">Sort: Live First</option>
+                          <option value="progress">Sort: Most Answered</option>
+                          <option value="score_desc">Sort: Highest Score</option>
+                          <option value="score_asc">Sort: Lowest Score</option>
+                          <option value="name">Sort: Name A–Z</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleExportMonitorCsv}
+                          className="rounded-xl border border-border bg-background hover:bg-muted px-3 py-1.5 text-xs font-bold text-foreground transition-colors"
+                        >
+                          Export CSV
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1161,7 +1367,15 @@ export default function ExamDetailPage() {
                     const isLive = s.status === 'in_progress';
                     const answeredCnt = countAnswered(s.answers);
                     const pct = totalQ > 0 ? Math.min(100, Math.round((answeredCnt / totalQ) * 100)) : 0;
-                    const remStr = isLive ? formatRemaining(s.start_time) : null;
+                    const remSecs = isLive ? remainingSecondsFor(s.start_time) : null;
+                    const remStr = formatRemaining(remSecs);
+                    const isEndingSoon = isLive && remSecs !== null && remSecs <= 300;
+                    const lastActivityMs = s.updated_at
+                      ? new Date(s.updated_at).getTime()
+                      : (s.start_time ? new Date(s.start_time).getTime() : 0);
+                    const idleMins = isLive && lastActivityMs > 0
+                      ? Math.floor((nowTick - lastActivityMs) / 60_000)
+                      : 0;
 
                     return (
                       <div key={s.id} className="px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1171,10 +1385,22 @@ export default function ExamDetailPage() {
                               {s.portal_users?.full_name ?? 'Student'}
                             </p>
                             {isLive ? (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Live Now
-                              </span>
+                              <>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Live Now
+                                </span>
+                                {isEndingSoon && (
+                                  <span className="rounded-full border border-rose-500/35 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase text-rose-700 dark:text-rose-300">
+                                    Ending Soon
+                                  </span>
+                                )}
+                                {idleMins >= 3 && (
+                                  <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:text-amber-300">
+                                    Idle {idleMins}m
+                                  </span>
+                                )}
+                              </>
                             ) : s.status === 'pending_grading' ? (
                               <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-wider">
                                 Pending Grading
@@ -1201,7 +1427,7 @@ export default function ExamDetailPage() {
                                   {answeredCnt}/{totalQ || '?'} answered ({pct}%)
                                 </span>
                                 {remStr && (
-                                  <span className="inline-flex items-center gap-1 font-bold text-primary tabular-nums">
+                                  <span className={`inline-flex items-center gap-1 font-bold tabular-nums ${isEndingSoon ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`}>
                                     <ClockIcon className="h-3.5 w-3.5" /> {remStr} left
                                   </span>
                                 )}
@@ -1223,8 +1449,19 @@ export default function ExamDetailPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          {!isLive && (
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {isLive ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleForceSubmitSession(s)}
+                              disabled={forcingSessionId === s.id}
+                              title="Finalize and grade this student's saved answers now"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-2 text-xs font-black text-amber-800 dark:text-amber-200 transition-colors disabled:opacity-50"
+                            >
+                              <CheckCircleIcon className="h-3.5 w-3.5" />
+                              {forcingSessionId === s.id ? 'Finalizing…' : 'Force Submit'}
+                            </button>
+                          ) : (
                             <Link
                               href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
                               className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
@@ -1252,7 +1489,7 @@ export default function ExamDetailPage() {
                     );
                   })}
 
-                  {(monitorFilter === 'all' || monitorFilter === 'not_started') && notStartedRoster.map((student) => (
+                  {(monitorFilter === 'all' || monitorFilter === 'not_started') && filteredNotStarted.map((student) => (
                     <div key={`ns-${student.id}`} className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 bg-muted/15">
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground text-sm truncate">{student.full_name ?? 'Student'}</p>
@@ -1270,9 +1507,9 @@ export default function ExamDetailPage() {
                     </div>
                   ))}
 
-                  {visibleSessions.length === 0 && (monitorFilter !== 'all' && monitorFilter !== 'not_started' || notStartedRoster.length === 0) && (
+                  {visibleSessions.length === 0 && ((monitorFilter !== 'all' && monitorFilter !== 'not_started') || filteredNotStarted.length === 0) && (
                     <div className="px-5 py-8 text-center text-xs font-semibold text-muted-foreground">
-                      No students in this view yet.
+                      {searchNeedle ? `No students matching "${monitorSearch}".` : 'No students in this view yet.'}
                     </div>
                   )}
                 </div>

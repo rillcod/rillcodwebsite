@@ -27,6 +27,7 @@ import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import {
   buildAssessmentBlueprint,
   buildCurriculumAlignmentBrief,
+  dedupeCbtQuestions,
   filterPremadeQuestions,
   parsePremadeQuestionsFromText,
   resolveMcqAnswerToOption,
@@ -108,7 +109,7 @@ export default function QuestionAuthoringStudio({
   defaultMcqCount = 10,
   defaultTheoryCount = 2,
   minQuestions = 1,
-  maxQuestions = 50,
+  maxQuestions = 100,
   disabled = false,
 }: QuestionAuthoringStudioProps) {
   // Clean segmented studio modes
@@ -664,6 +665,7 @@ export default function QuestionAuthoringStudio({
           sourceName: effectiveSourceName || undefined,
           strictSourceOnly: useStrictFileOnly,
           sourceFileCount: combinedFromFiles.selectedCount,
+          existingQuestions: importBehavior === 'append' ? existingQuestionTexts.filter(Boolean).slice(-60) : undefined,
           ...(effectiveSourceText ? { sourceMaterial: effectiveSourceText } : {}),
         }),
       });
@@ -695,10 +697,18 @@ export default function QuestionAuthoringStudio({
         throw new Error('No valid questions were returned. Try refining your topic or source material.');
       }
 
-      onImportQuestions(generatedList, importBehavior);
-      setAiSuccessMsg(
-        `Added ${generatedList.length} AI questions with verified answers & marking guides.`,
+      const { unique: dedupedList, skippedCount } = dedupeCbtQuestions(
+        generatedList,
+        importBehavior === 'append' ? existingQuestionTexts : [],
       );
+      if (dedupedList.length === 0) {
+        setAiSuccessMsg('All generated questions were already on your paper — try switching to Replace or choosing a different subtopic.');
+      } else {
+        onImportQuestions(dedupedList, importBehavior);
+        setAiSuccessMsg(
+          `Added ${dedupedList.length} unique AI question${dedupedList.length === 1 ? '' : 's'} with verified answers & marking guides${skippedCount > 0 ? ` (${skippedCount} duplicate${skippedCount === 1 ? '' : 's'} skipped)` : ''}.`,
+        );
+      }
     } catch (err: any) {
       if (err?.name === 'AbortError') {
         if (aiUserCancelledRef.current) {

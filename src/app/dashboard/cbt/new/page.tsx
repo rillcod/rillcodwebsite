@@ -17,7 +17,7 @@ import {
   buildCbtPrintHtml,
   openCbtPrintWindow,
 } from '@/lib/cbt/print-utils';
-import { resolveMcqAnswerToOption, stripOptionPrefix } from '@/lib/cbt/question-bank-catalog';
+import { dedupeCbtQuestions, resolveMcqAnswerToOption, stripOptionPrefix } from '@/lib/cbt/question-bank-catalog';
 import { hostAssessmentKindFromExam, parseHostAssessmentKind } from '@/lib/academic/taught-assessment';
 import { hostPaperLabel, paperTotalFromQuestions, SUGGESTED_HOST_PAPER_MAX } from '@/lib/academic/host-marks';
 import { hostPaperDatasheetHref } from '@/lib/curriculum/href';
@@ -578,9 +578,15 @@ export default function NewExamPage() {
       };
     });
     const nonEmptyCurrent = questions.filter(item => item.question_text.trim().length > 0);
+    const { unique: uniqueMapped } = dedupeCbtQuestions(
+      mapped,
+      importMode === 'replace' || nonEmptyCurrent.length === 0
+        ? []
+        : nonEmptyCurrent.map((item) => item.question_text),
+    );
     const next = importMode === 'replace' || nonEmptyCurrent.length === 0
-      ? mapped
-      : [...nonEmptyCurrent, ...mapped];
+      ? uniqueMapped
+      : [...nonEmptyCurrent, ...uniqueMapped];
     const resolved = next.length > 0 ? next : [emptyQuestion()];
     setQuestions(resolved);
     setSelectedQuestions(new Set(resolved.map((_, idx) => idx)));

@@ -91,6 +91,70 @@ export function inferCognitiveLevel(questionText: string, questionType: string):
 }
 
 /**
+ * Normalizes a question stem for duplicate / near-duplicate detection.
+ */
+export function normalizeQuestionStemKey(text: string): string {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/^(?:q(?:uestion)?\s*\d+[\.\:\)\-]?\s*|\(\d+\)\s*|\d+[\.\)\-]\s*)/i, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stemWordSet(norm: string): Set<string> {
+  return new Set(norm.split(' ').filter((w) => w.length >= 3));
+}
+
+function isNearDuplicateStem(normA: string, normB: string): boolean {
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  if (normA.length >= 24 && normB.length >= 24 && (normA.includes(normB) || normB.includes(normA))) {
+    return true;
+  }
+  const setA = stemWordSet(normA);
+  const setB = stemWordSet(normB);
+  if (setA.size < 4 || setB.size < 4) return false;
+  let overlap = 0;
+  for (const w of setA) {
+    if (setB.has(w)) overlap++;
+  }
+  const union = setA.size + setB.size - overlap;
+  return union > 0 && overlap / union >= 0.82;
+}
+
+/**
+ * Removes exact and near-duplicate questions within `incoming` and against `existingTexts`.
+ */
+export function dedupeCbtQuestions<T extends { question_text: string }>(
+  incoming: T[],
+  existingTexts: string[] = [],
+): { unique: T[]; skippedCount: number } {
+  const seenNorms: string[] = existingTexts
+    .map((t) => normalizeQuestionStemKey(t))
+    .filter((k) => k.length > 0);
+
+  const unique: T[] = [];
+  let skippedCount = 0;
+
+  for (const item of incoming) {
+    const norm = normalizeQuestionStemKey(item.question_text);
+    if (!norm) {
+      skippedCount++;
+      continue;
+    }
+    if (seenNorms.some((existing) => isNearDuplicateStem(norm, existing))) {
+      skippedCount++;
+      continue;
+    }
+    seenNorms.push(norm);
+    unique.push(item);
+  }
+
+  return { unique, skippedCount };
+}
+
+/**
  * Strips redundant leading option labels like "A) ", "A. ", "(a) ", "Option B: " from an option string.
  */
 export function stripOptionPrefix(raw: string): string {

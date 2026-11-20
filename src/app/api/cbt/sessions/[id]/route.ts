@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { gradeCbtWithManualScores } from '@/lib/cbt/grading';
+import { gradeCbtSubmission, gradeCbtWithManualScores } from '@/lib/cbt/grading';
 import { denyIfMissingCapability } from '@/lib/auth/capabilities';
 import { logAudit } from '@/lib/audit/log';
 
@@ -552,6 +552,145 @@ export async function DELETE(
         reset: true,
         session_id: id,
         user_id: session.user_id,
+        student_name: student?.full_name ?? 'Student',
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/cbt/sessions/[id] — Teacher/School/Admin Force-Submit an in_progress session
+// Immediately grades all saved answers and finalizes the sitting (e.g., if student lost connection).
+// ─────────────────────────────────────────────────────────────────────────────
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const caller = await getCaller();
+    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    if (body?.action !== 'force_submit') {
+      return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
+    }
+
+    const { id } = await context.params;
+    const admin = adminClient();
+
+    const { data: session } = await admin
+      .from('cbt_sessions')
+      .select('id, user_id, exam_id, status, answers, start_time, cbt_exams(id, title, school_id, created_by, class_id, passing_score, metadata)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!session) {
+      return NextResponse.json({ error: 'Exam session not found' }, { status: 404 });
+    }
+    if (session.status !== 'in_progress') {
+      return NextResponse.json({ error: 'This session is already submitted.' }, { status: 409 });
+    }
+
+    const exam = (session as any).cbt_exams ?? {};
+    const examSchoolId: string | null = exam?.school_id ?? null;
+    const examCreatedBy: string | null = exam?.created_by ?? null;
+    const examClassId: string | null = exam?.class_id ?? null;
+
+    const { data: student } = await admin
+      .from('portal_users')
+      .select('id, full_name, school_id, class_id')
+      .eq('id', session.user_id)
+      .maybeSingle();
+
+    let allowed = caller.role === 'admin';
+    if (!allowed && caller.role === 'school') {
+      allowed = Boolean(caller.school_id && (examSchoolId === caller.school_id || student?.school_id === caller.school_id));
+    }
+    if (!allowed && caller.role === 'teacher') {
+      if (examCreatedBy === caller.id) allowed = true;
+      if (!allowed && (examClassId || student?.class_id)) {
+        const classIds = [examClassId, student?.class_id].filter((c): c is string => Boolean(c));
+        const { data: ownedClass } = await admin
+          .from('classes')
+          .select('id')
+          .in('id', classIds)
+          .eq('teacher_id', caller.id)
+          .limit(1)
+          .maybeSingle();
+        if (ownedClass) allowed = true;
+      }
+      if (!allowed && (examSchoolId || student?.school_id)) {
+        const schoolIds = [examSchoolId, student?.school_id].filter((s): s is string => Boolean(s));
+        const { data: ts } = await admin
+          .from('teacher_schools')
+          .select('school_id')
+          .eq('teacher_id', caller.id)
+          .in('school_id', schoolIds)
+          .limit(1)
+          .maybeSingle();
+        if (ts) allowed = true;
+      }
+    }
+
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Access denied: you can only finalize exams for students in your own class or school.' },
+        { status: 403 },
+      );
+    }
+
+    const { data: questionRows, error: qErr } = await admin
+      .from('cbt_questions')
+      .select('id, question_type, options, correct_answer, points, metadata')
+      .eq('exam_id', session.exam_id)
+      .order('order_index');
+
+    if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
+
+    const cleanAnswers =
+      session.answers && typeof session.answers === 'object' && !Array.isArray(session.answers)
+        ? (session.answers as Record<string, unknown>)
+        : {};
+    const grading = gradeCbtSubmission(exam, questionRows ?? [], cleanAnswers);
+    const nowIso = new Date().toISOString();
+
+    const { data: updated, error: updErr } = await admin
+      .from('cbt_sessions')
+      .update({
+        end_time: nowIso,
+        score: grading.score,
+        status: grading.status,
+        manual_scores: grading.manualScores,
+        needs_grading: grading.needsGrading,
+        grading_notes: 'Finalized by teacher from Live Exam Monitor.',
+        updated_at: nowIso,
+      })
+      .eq('id', id)
+      .eq('status', 'in_progress')
+      .select('id, user_id, score, status, needs_grading, end_time, answers, start_time, updated_at')
+      .maybeSingle();
+
+    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
+    if (!updated) return NextResponse.json({ error: 'Session was already finalized.' }, { status: 409 });
+
+    await logAudit(admin as any, {
+      action: 'force_submit_cbt_session',
+      actorId: caller.id,
+      resourceType: 'cbt_session',
+      resourceId: id,
+      tableName: 'cbt_sessions',
+      oldValue: 'in_progress',
+      newValue: `${updated.status} (${updated.score}%)`,
+      newValues: { exam_id: session.exam_id, user_id: session.user_id, score: updated.score, status: updated.status },
+    }).catch(() => {});
+
+    return NextResponse.json({
+      data: {
+        ...updated,
         student_name: student?.full_name ?? 'Student',
       },
     });
