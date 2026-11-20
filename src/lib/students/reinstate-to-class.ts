@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
+import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
 
 export type ReinstateActor = {
   id: string;
@@ -107,7 +108,7 @@ export async function reinstateStudentToClass(
   const [{ data: student }, { data: cls }] = await Promise.all([
     admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, class_id, primary_teacher_id, is_deleted, is_active')
+      .select('id, full_name, email, role, school_id, school_name, grade, section_class, class_id, primary_teacher_id, is_deleted, is_active, classes:class_id(qa_grade_key)')
       .eq('id', studentId)
       .maybeSingle(),
     admin
@@ -124,18 +125,31 @@ export async function reinstateStudentToClass(
     return { ok: false, code: 'NOT_FOUND', error: 'Destination class not found.' };
   }
 
-  // School boundary -- force claim still requires same school (by id or name), but
-  // never asks for a transfer request.
+  // School boundary -- force claim still requires same school (by id or name),
+  // EXCEPT for sister schools (e.g. "Quincy Academy" -> "Quincy Secondary")
+  // where ONLY graduating Basic 5 and Basic 6 students may swiftly transition.
   if (cls.school_id && student.school_id && student.school_id !== cls.school_id) {
-    const { data: school } = await admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
-    const destName = (school?.name ?? '').trim().toLowerCase();
-    const studentName = (student.school_name ?? '').trim().toLowerCase();
-    const sameByName = Boolean(destName && studentName && destName === studentName);
-    if (!sameByName) {
+    const [{ data: destSchool }, { data: srcSchool }] = await Promise.all([
+      admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle(),
+      admin.from('schools').select('name').eq('id', student.school_id).maybeSingle(),
+    ]);
+    const destName = (destSchool?.name ?? '').trim();
+    const srcName = (srcSchool?.name ?? student.school_name ?? '').trim();
+    const sameByName = Boolean(destName && srcName && destName.toLowerCase() === srcName.toLowerCase());
+    const studentClassGradeKey = Array.isArray((student as any).classes)
+      ? (student as any).classes[0]?.qa_grade_key
+      : (student as any).classes?.qa_grade_key;
+    const sisterTransitionOk =
+      areSisterSchools(destName, srcName)
+      && isSisterSchoolTransitionGrade((student as any).grade, studentClassGradeKey, (student as any).section_class);
+
+    if (!sameByName && !sisterTransitionOk) {
       return {
         ok: false,
         code: 'SCHOOL',
-        error: `"${student.full_name}" belongs to a different school and cannot join this class.`,
+        error: areSisterSchools(destName, srcName)
+          ? `"${student.full_name}" is from sister school "${srcName}", but only Basic 5 and Basic 6 students can transition across sister schools.`
+          : `"${student.full_name}" belongs to a different school and cannot join this class.`,
       };
     }
   }

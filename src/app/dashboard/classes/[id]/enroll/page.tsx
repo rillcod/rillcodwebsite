@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   ClipboardIcon,
+  CloudArrowUpIcon,
   CreditCardIcon,
   MagnifyingGlassIcon,
   SparklesIcon,
@@ -18,6 +19,7 @@ import {
 } from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { bandCoversGrade, canonicalGrade, parseBandLabel, SINGLE_GRADES } from '@/lib/classes/naming';
+import { extractDocumentText } from '@/lib/files/extract-document-text';
 
 type TabKey = 'pick' | 'quick' | 'confirm';
 type PlacementFilter = 'all' | 'feeder' | 'unassigned' | 'other';
@@ -86,6 +88,7 @@ type AvailableStudent = {
   section_class?: string | null;
   class_id?: string | null;
   current_class_name?: string | null;
+  sister_school_name?: string | null;
   current_teacher_name?: string | null;
   is_feeder_promotion?: boolean;
   requires_transfer_request?: boolean;
@@ -139,11 +142,15 @@ export default function ClassEnrollWorkspacePage() {
   const [perStudentAction, setPerStudentAction] = useState<Record<string, GradeAction>>({});
   const [showAllRows, setShowAllRows] = useState(false);
 
-  // Quick-Add / Paste state + Real-Time Live Verification overrides
+  // Quick-Add / Paste state + Real-Time Live Verification + AI Smart Parse
   const [quickInput, setQuickInput] = useState('');
   const [quickGrade, setQuickGrade] = useState('');
   const [quickUntickedKeys, setQuickUntickedKeys] = useState<Set<string>>(new Set());
   const [quickChoiceByKey, setQuickChoiceByKey] = useState<Record<string, string>>({}); // studentId or '__create_new__'
+  const [aiParsing, setAiParsing] = useState(false);
+  const [aiNotes, setAiNotes] = useState<string | null>(null);
+  const [aiReasonByKey, setAiReasonByKey] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [quickNotice, setQuickNotice] = useState<{
     summary: string;
     added: Array<{ fullName: string; grade: string | null; mode: string; email?: string; password?: string | null }>;
@@ -303,9 +310,9 @@ export default function ClassEnrollWorkspacePage() {
 
       const scored = available
         .map((s) => ({ student: s, score: nameMatchScore(cleanName, s.full_name || '') }))
-        .filter((x) => x.score >= 60)
+        .filter((x) => x.score >= 55)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 4);
+        .slice(0, 25);
 
       const override = quickChoiceByKey[key];
       const top = scored[0];
@@ -342,6 +349,191 @@ export default function ClassEnrollWorkspacePage() {
       };
     });
   }, [quickInput, roster, available, quickChoiceByKey, quickUntickedKeys]);
+
+  // Active typed fragment (last line / comma-separated piece) for unlimited inline system suggestions
+  const activeTypedFragment = useMemo(() => {
+    const parts = quickInput.split(/[\n,;]/);
+    const last = (parts[parts.length - 1] || '').replace(/^\s*(?:\d+[\.\)\-]\s*|[-*•]\s*)/, '').trim();
+    const { cleanName } = extractNameAndGrade(last);
+    return cleanName;
+  }, [quickInput]);
+
+  // Unlimited inline system suggestions: surfaces EVERY matching record in the school system as you type
+  const inlineSystemSuggestions = useMemo(() => {
+    const q = activeTypedFragment.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const tokens = q.split(/\s+/).filter((t) => t.length >= 2);
+    const results: Array<{
+      id: string;
+      full_name: string;
+      email?: string | null;
+      grade?: string | null;
+      current_class_name?: string | null;
+      inThisClass: boolean;
+      locked: boolean;
+      score: number;
+    }> = [];
+
+    for (const r of roster) {
+      const name = (r.full_name || '').toLowerCase();
+      const email = (r.email || '').toLowerCase();
+      const score = name.startsWith(q)
+        ? 110
+        : name.includes(q)
+          ? 100
+          : tokens.length > 0 && tokens.every((t) => name.includes(t) || email.includes(t))
+            ? 92
+            : nameMatchScore(q, r.full_name || '');
+      if (score >= 55) {
+        results.push({
+          id: r.id,
+          full_name: r.full_name,
+          email: r.email,
+          grade: r.grade,
+          current_class_name: cls?.name || 'This class',
+          inThisClass: true,
+          locked: false,
+          score,
+        });
+      }
+    }
+
+    for (const s of available) {
+      const name = (s.full_name || '').toLowerCase();
+      const blob = [s.full_name, s.email, s.grade, s.section_class, s.current_class_name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      const score = name.startsWith(q)
+        ? 115
+        : name.includes(q)
+          ? 102
+          : tokens.length > 0 && tokens.every((t) => blob.includes(t))
+            ? 94
+            : nameMatchScore(q, s.full_name || '');
+      if (score >= 55) {
+        results.push({
+          id: s.id,
+          full_name: s.full_name,
+          email: s.email,
+          grade: s.grade || s.section_class,
+          current_class_name: s.current_class_name,
+          inThisClass: false,
+          locked: Boolean(s.requires_transfer_request),
+          score: score + (!s.class_id ? 3 : 0),
+        });
+      }
+    }
+
+    return results.sort((a, b) => {
+      if (a.inThisClass !== b.inThisClass) return a.inThisClass ? 1 : -1;
+      if (b.score !== a.score) return b.score - a.score;
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [activeTypedFragment, available, roster, cls?.name]);
+
+  const pickInlineSuggestion = (student: { id: string; full_name: string }) => {
+    const trimmed = quickInput;
+    const lastSepIdx = Math.max(trimmed.lastIndexOf('\n'), trimmed.lastIndexOf(','), trimmed.lastIndexOf(';'));
+    const prefix = lastSepIdx >= 0 ? trimmed.slice(0, lastSepIdx + 1) : '';
+    const sep = lastSepIdx >= 0 && trimmed[lastSepIdx] === '\n' ? '\n' : prefix ? ' ' : '';
+    const nextText = `${prefix}${sep}${student.full_name}\n`;
+    setQuickInput(nextText);
+    setQuickChoiceByKey((prev) => ({ ...prev, [student.full_name.toLowerCase()]: student.id }));
+    setQuickUntickedKeys((prev) => {
+      const n = new Set(prev);
+      n.delete(student.full_name.toLowerCase());
+      return n;
+    });
+  };
+
+  const runAiSmartParse = async (overrideText?: string) => {
+    const sourceText = (overrideText ?? quickInput).trim();
+    if (sourceText.length < 2) {
+      toast.error('Type, paste, or upload a student list first.');
+      return;
+    }
+    setAiParsing(true);
+    setAiNotes(null);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll/ai-parse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawText: sourceText,
+          className: cls?.name || '',
+          defaultGrade: quickGrade || defaultEntryGrade || '',
+          availableStudents: available.map((s) => ({
+            id: s.id,
+            full_name: s.full_name,
+            grade: s.grade || s.section_class || null,
+            current_class_name: s.current_class_name || null,
+          })),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'AI parsing failed');
+      const rows: Array<{
+        extractedName: string;
+        grade: string | null;
+        matchedStudentId: string | null;
+        confidence: string;
+        reason: string | null;
+      }> = Array.isArray(json.students) ? json.students : [];
+
+      if (rows.length === 0) {
+        toast.error('AI could not find any student names in that text.');
+        return;
+      }
+
+      const nextLines: string[] = [];
+      const nextChoices: Record<string, string> = {};
+      const nextReasons: Record<string, string> = {};
+      let matchedCount = 0;
+
+      for (const r of rows) {
+        const line = r.grade ? `${r.extractedName} — ${r.grade}` : r.extractedName;
+        const key = line.toLowerCase();
+        nextLines.push(line);
+        if (r.matchedStudentId) {
+          nextChoices[key] = r.matchedStudentId;
+          matchedCount++;
+        }
+        if (r.reason) nextReasons[key] = r.reason;
+      }
+
+      setQuickInput(nextLines.join('\n'));
+      setQuickChoiceByKey((prev) => ({ ...prev, ...nextChoices }));
+      setAiReasonByKey((prev) => ({ ...prev, ...nextReasons }));
+      setQuickUntickedKeys(new Set());
+      setAiNotes(json.notes || `AI extracted ${rows.length} student${rows.length === 1 ? '' : 's'} & matched ${matchedCount} existing record${matchedCount === 1 ? '' : 's'}.`);
+      if (rows.length > 1) setTab('quick');
+      toast.success(`AI extracted ${rows.length} student${rows.length === 1 ? '' : 's'} (${matchedCount} matched in system)`);
+    } catch (e: any) {
+      toast.error(e?.message || 'AI parse failed — live local matching is still active.');
+    } finally {
+      setAiParsing(false);
+    }
+  };
+
+  const handleClassListFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setAiParsing(true);
+    try {
+      const { text } = await extractDocumentText(file, 18_000);
+      if (!text.trim()) {
+        toast.error(`Could not extract readable text from ${file.name}.`);
+        return;
+      }
+      setQuickInput(text);
+      await runAiSmartParse(text);
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to read ${file.name}`);
+      setAiParsing(false);
+    }
+  };
 
   const applyVerifiedQuickRows = async () => {
     const adoptIds: string[] = [];
@@ -684,6 +876,16 @@ export default function ClassEnrollWorkspacePage() {
         ))}
       </div>
 
+      {/* Hidden file input for AI Class List upload (PDF/Word/PPTX/CSV/TXT) — always mounted across tabs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,.doc,.pptx,.ppt,.csv,.txt"
+        onChange={(e) => void handleClassListFileUpload(e)}
+        className="hidden"
+        aria-label="Upload class list file for AI extraction"
+      />
+
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -692,15 +894,33 @@ export default function ClassEnrollWorkspacePage() {
         </div>
       ) : tab === 'pick' ? (
         <div className="space-y-4">
-          {/* Always-visible Inline Quick-Add / Auto-Adopt Bar */}
-          <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3.5 space-y-2 shadow-sm">
+          {/* Always-visible Inline Quick-Add / Auto-Adopt Bar + Live System Suggestions + AI */}
+          <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3.5 space-y-2.5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-black text-foreground">
-                + Quick-Add or Auto-Adopt Student Inline
+              <p className="text-xs font-black text-foreground flex items-center gap-1.5">
+                <SparklesIcon className="h-4 w-4 text-primary" />
+                Smart Inline Add, Adopt &amp; AI Match
               </p>
-              <span className="text-[11px] text-muted-foreground">
-                Auto-transfers existing school records (zero duplicates) or creates <code className="font-mono">name123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code>
-              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={aiParsing}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-muted disabled:opacity-50"
+                >
+                  <CloudArrowUpIcon className="h-3.5 w-3.5 text-primary" />
+                  Upload List (PDF/Word/CSV)
+                </button>
+                <button
+                  type="button"
+                  disabled={aiParsing || !quickInput.trim()}
+                  onClick={() => void runAiSmartParse()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary hover:bg-primary/20 disabled:opacity-40"
+                >
+                  {aiParsing ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <SparklesIcon className="h-3.5 w-3.5" />}
+                  {aiParsing ? 'AI Extracting…' : 'AI Clean & Match'}
+                </button>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -714,7 +934,7 @@ export default function ClassEnrollWorkspacePage() {
                     void applyVerifiedQuickRows();
                   }
                 }}
-                placeholder="Type student name (e.g. Samuel Agha or Ada Okafor JSS 2) and press Enter…"
+                placeholder="Type any name (e.g. Samuel, Ada, Okonkwo) or paste a messy WhatsApp list…"
                 className="min-h-11 flex-1 rounded-xl border border-border bg-card px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               />
               <select
@@ -741,6 +961,70 @@ export default function ClassEnrollWorkspacePage() {
                     : '+ Add / Adopt'}
               </button>
             </div>
+
+            {/* Unlimited Inline Live System Suggestions (every matching record in the school) */}
+            {inlineSystemSuggestions.length > 0 && (
+              <div className="rounded-xl border border-emerald-500/30 bg-card shadow-sm overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20">
+                  <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-200">
+                    System Suggestions for “{activeTypedFragment}” — {inlineSystemSuggestions.length} record{inlineSystemSuggestions.length === 1 ? '' : 's'} found
+                  </span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">
+                    Click Adopt Now or Pick into list
+                  </span>
+                </div>
+                <div className="max-h-60 overflow-y-auto divide-y divide-border/60">
+                  {inlineSystemSuggestions.map((s) => (
+                    <div key={`sug-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-muted/40 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {s.grade ? `${s.grade} · ` : ''}
+                          {s.inThisClass
+                            ? 'Already in this class'
+                            : s.current_class_name
+                              ? `From: ${s.current_class_name}`
+                              : 'Unassigned'}
+                          {s.email ? ` · ${s.email}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {s.inThisClass ? (
+                          <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">
+                            On Roster
+                          </span>
+                        ) : s.locked ? (
+                          <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                            Other Teacher
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => pickInlineSuggestion(s)}
+                              className="rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20"
+                            >
+                              ✓ Pick
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!!busy}
+                              onClick={async () => {
+                                await adoptOne(s.id, 'promote', quickGrade || undefined);
+                                setQuickInput('');
+                              }}
+                              className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-emerald-800 disabled:opacity-40"
+                            >
+                              {busy === s.id ? 'Adopting…' : '+ Adopt'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {liveQuickRows.length > 0 && (
               <div className="rounded-xl border border-border bg-card p-2.5 space-y-1.5 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-border/60">
@@ -762,6 +1046,7 @@ export default function ClassEnrollWorkspacePage() {
                       <label className="inline-flex items-center gap-2 min-w-0">
                         <input
                           type="checkbox"
+                          aria-label={`Include ${row.cleanName}`}
                           checked={row.ticked}
                           disabled={row.status === 'already_in_class' || row.status === 'ambiguous'}
                           onChange={() =>
@@ -1061,6 +1346,11 @@ export default function ClassEnrollWorkspacePage() {
                                   : ''}
                             </span>
                           )}
+                          {s.sister_school_name && (
+                            <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-black text-indigo-800 dark:text-indigo-300">
+                              Sister School: {s.sister_school_name}
+                            </span>
+                          )}
                           {!s.class_id ? (
                             <span className="rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
                               Unassigned
@@ -1195,26 +1485,113 @@ export default function ClassEnrollWorkspacePage() {
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-[11px] font-black uppercase tracking-wider text-muted-foreground">
-                2. Type or Paste Student Names (one per line or comma-separated) — Verified Live Below
+                2. Type, Paste Anything (WhatsApp / Excel / Names) or Upload File — Verified Live Below
               </label>
-              {quickInput.trim() && (
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => { setQuickInput(''); setQuickUntickedKeys(new Set()); setQuickChoiceByKey({}); }}
-                  className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
+                  disabled={aiParsing}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-muted disabled:opacity-50"
                 >
-                  Clear List
+                  <CloudArrowUpIcon className="h-3.5 w-3.5 text-primary" />
+                  Upload PDF / Word / CSV
                 </button>
-              )}
+                <button
+                  type="button"
+                  disabled={aiParsing || !quickInput.trim()}
+                  onClick={() => void runAiSmartParse()}
+                  className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1 text-[11px] font-black text-primary-foreground hover:opacity-90 disabled:opacity-40 shadow-sm"
+                >
+                  {aiParsing ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <SparklesIcon className="h-3.5 w-3.5" />}
+                  {aiParsing ? 'AI Extracting & Matching…' : '✨ AI Smart Extract & Match'}
+                </button>
+                {quickInput.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickInput('');
+                      setQuickUntickedKeys(new Set());
+                      setQuickChoiceByKey({});
+                      setAiReasonByKey({});
+                      setAiNotes(null);
+                    }}
+                    className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline ml-1"
+                  >
+                    Clear List
+                  </button>
+                )}
+              </div>
             </div>
+            {aiNotes && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary font-bold">
+                <span className="flex items-center gap-1.5">
+                  <SparklesIcon className="h-4 w-4 shrink-0" />
+                  {aiNotes}
+                </span>
+                <button type="button" onClick={() => setAiNotes(null)} className="text-[11px] underline">
+                  Dismiss
+                </button>
+              </div>
+            )}
             <textarea
               rows={5}
               aria-label="Type or paste student names for real-time matching"
               value={quickInput}
               onChange={(e) => setQuickInput(e.target.value)}
-              placeholder={`Samuel Agha\nAdaeze Okonkwo\nChinedu Eze\n(Paste a whole class list — existing school accounts are matched live in real time so you can verify and tick!)`}
+              placeholder={`Paste a messy WhatsApp attendance message, Excel rows, or clean names:\n1. Samuel Agha - JSS 2 (paid)\n2. Adaeze Okonkwo\n3. Chinedu Eze\n(System suggestions appear live as you type, or click ✨ AI Smart Extract & Match!)`}
               className="w-full rounded-2xl border border-border bg-background p-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
+
+            {/* Unlimited Inline Live System Suggestions right below textarea */}
+            {inlineSystemSuggestions.length > 0 && (
+              <div className="rounded-xl border border-emerald-500/30 bg-card shadow-sm overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20">
+                  <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-200">
+                    Live System Suggestions for “{activeTypedFragment}” — {inlineSystemSuggestions.length} record{inlineSystemSuggestions.length === 1 ? '' : 's'} in system
+                  </span>
+                </div>
+                <div className="max-h-52 overflow-y-auto divide-y divide-border/60">
+                  {inlineSystemSuggestions.map((s) => (
+                    <div key={`qsug-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {s.grade ? `${s.grade} · ` : ''}
+                          {s.inThisClass ? 'Already in this class' : s.current_class_name ? `From: ${s.current_class_name}` : 'Unassigned'}
+                          {s.email ? ` · ${s.email}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {s.inThisClass ? (
+                          <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">On Roster</span>
+                        ) : s.locked ? (
+                          <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">Other Teacher</span>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => pickInlineSuggestion(s)}
+                              className="rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20"
+                            >
+                              ✓ Pick &amp; Lock
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!!busy}
+                              onClick={() => void adoptOne(s.id, 'promote', quickGrade || undefined)}
+                              className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-emerald-800 disabled:opacity-40"
+                            >
+                              + Adopt Now
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Real-Time Intelligent Verification & Tick Table */}
             {liveQuickRows.length > 0 && (() => {
@@ -1306,6 +1683,11 @@ export default function ClassEnrollWorkspacePage() {
                                 {row.parsedGrade && (
                                   <span className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-black text-primary">
                                     {row.parsedGrade}
+                                  </span>
+                                )}
+                                {aiReasonByKey[row.key] && (
+                                  <span className="rounded-md border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
+                                    ✨ AI: {aiReasonByKey[row.key]}
                                   </span>
                                 )}
                               </div>

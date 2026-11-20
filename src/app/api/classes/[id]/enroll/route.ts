@@ -6,6 +6,7 @@ import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rill
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
+import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
 import { isPasteClaimEnabled } from '@/lib/server/app-settings';
 import {
   bandCoversGrade,
@@ -288,22 +289,35 @@ export async function GET(
     query = query.or('is_active.eq.true,is_active.is.null') as any;
   }
 
+  let sisterSchoolMap = new Map<string, string>();
+  let clsSchoolNameForGet: string | null = null;
+
   if (caller.role === 'admin') {
     // Admin sees every student — no school filter
   } else if (cls?.school_id) {
-    // Scope strictly to this class's school only.
-    // This is the key guard: teachers/school users can only see students from the
-    // class's school, NOT from all their assigned schools. This prevents accidental
-    // cross-school enrolment via the picker.
-    const { data: schoolRow } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
+    // Scope to this class's school + sister schools (e.g. "Quincy Academy" <-> "Quincy Secondary")
+    // where ONLY Basic 5 and Basic 6 transition students are surfaced below.
+    const { data: allSchools } = await admin.from('schools').select('id, name');
+    const schoolRow = (allSchools ?? []).find((sc: any) => sc.id === cls.school_id);
     const schoolName = schoolRow?.name ?? null;
+    clsSchoolNameForGet = schoolName;
 
-    const idPart = `school_id.eq.${cls.school_id}`;
-    const namePart = schoolName
-      ? `and(school_id.is.null,school_name.eq.${JSON.stringify(schoolName)})`
-      : '';
-    const orClause = [idPart, namePart].filter(Boolean).join(',');
-    query = query.or(orClause) as any;
+    const sisterSchools = (allSchools ?? []).filter(
+      (sc: any) => sc.id !== cls.school_id && areSisterSchools(schoolName, sc.name),
+    );
+    sisterSchoolMap = new Map(sisterSchools.map((sc: any) => [sc.id, sc.name as string]));
+
+    const orParts: string[] = [`school_id.eq.${cls.school_id}`];
+    if (schoolName) {
+      orParts.push(`and(school_id.is.null,school_name.eq.${JSON.stringify(schoolName)})`);
+    }
+    for (const ss of sisterSchools) {
+      orParts.push(`school_id.eq.${ss.id}`);
+      if (ss.name) {
+        orParts.push(`and(school_id.is.null,school_name.eq.${JSON.stringify(ss.name)})`);
+      }
+    }
+    query = query.or(orParts.join(',')) as any;
   } else {
     // Class has no school — non-admins see nothing (no unconstrained exposure)
     if (caller.role !== 'admin') {
@@ -339,17 +353,39 @@ export async function GET(
 
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
+    .filter((u: any) => {
+      // For sister-school records (e.g. Quincy Academy -> Quincy Secondary),
+      // ONLY surface Basic 5 and Basic 6 transition students.
+      if (cls?.school_id && u.school_id && u.school_id !== cls.school_id) {
+        const isSister = sisterSchoolMap.has(u.school_id) || areSisterSchools(clsSchoolNameForGet, u.school_name);
+        if (isSister) {
+          return isSisterSchoolTransitionGrade(u.grade, u.classes?.qa_grade_key, u.section_class);
+        }
+      }
+      return true;
+    })
     .filter((u: any) => !expectedEnrollmentType || u.enrollment_type === expectedEnrollmentType)
     .map((u: any) => {
       const currentTeacherId = u.classes?.teacher_id ?? u.primary_teacher_id ?? null;
       const studentGrade = canonicalGrade(u.grade || u.classes?.qa_grade_key || u.section_class) || (u.grade || u.classes?.qa_grade_key || '').trim();
       const fromPriorTerm = Boolean(cls?.term_id && u.classes?.term_id && u.classes.term_id !== cls.term_id);
-      const isFeederPromotion = Boolean(studentGrade && feederSet.has(studentGrade.toLowerCase()));
+      const isSisterSchoolFeeder = Boolean(
+        cls?.school_id
+        && u.school_id
+        && u.school_id !== cls.school_id
+        && (sisterSchoolMap.has(u.school_id) || areSisterSchools(clsSchoolNameForGet, u.school_name))
+        && isSisterSchoolTransitionGrade(u.grade, u.classes?.qa_grade_key, u.section_class),
+      );
+      const sisterSchoolName = isSisterSchoolFeeder
+        ? (sisterSchoolMap.get(u.school_id) || u.school_name || 'Sister School')
+        : null;
+      const isFeederPromotion = isSisterSchoolFeeder || Boolean(studentGrade && feederSet.has(studentGrade.toLowerCase()));
       const isInClassBand = Boolean(classBand && studentGrade && bandCoversGrade(classBand, studentGrade));
       const isCrossGradePromotion = Boolean(classGrade && studentGrade && studentGrade.toLowerCase() !== classGrade.toLowerCase());
       const suggestedGrade = resolveGradeForAction('promote', studentGrade, cls as any);
-      // Session handover: students moving up from feeder grades (including Basic 5 & Basic 6 -> JSS 1),
-      // prior terms, or into this class's grade band can be adopted directly by the class teacher.
+      // Session handover: students moving up from feeder grades (including Basic 5 & Basic 6 -> JSS 1
+      // across sister schools like Quincy Academy -> Quincy Secondary), prior terms, or into this class's
+      // grade band can be adopted directly by the class teacher.
       const requiresTransfer = (fromPriorTerm || isFeederPromotion || isInClassBand || isCrossGradePromotion)
         ? false
         : requiresTeacherTransferRequest({ actorRole: caller.role, currentTeacherId, destinationTeacherId: cls?.teacher_id ?? null });
@@ -358,6 +394,7 @@ export async function GET(
         grade: studentGrade || u.grade,
         suggested_grade: suggestedGrade,
         current_class_name: u.classes?.name ?? u.section_class ?? null,
+        sister_school_name: sisterSchoolName,
         current_teacher_id: currentTeacherId,
         current_teacher_name: ownerMap.get(currentTeacherId)?.full_name ?? null,
         current_teacher_email: ownerMap.get(currentTeacherId)?.email ?? null,
@@ -569,19 +606,26 @@ export async function PUT(
   let rejectedNames: string[] = [];
 
   if (caller.role !== 'admin' && cls.school_id) {
-    const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
-    const clsSchoolName = clsSchool?.name ?? null;
+    const { data: allSchools } = await admin.from('schools').select('id, name');
+    const schoolNameById = new Map((allSchools ?? []).map((sc: any) => [sc.id, sc.name as string]));
+    const clsSchoolName = schoolNameById.get(cls.school_id) ?? null;
 
     const { data: studentRows } = await admin
       .from('portal_users')
-      .select('id, full_name, school_id, school_name')
+      .select('id, full_name, school_id, school_name, grade, section_class, classes:class_id(qa_grade_key)')
       .in('id', studentIds)
       .eq('role', 'student');
 
     const eligible = (studentRows ?? []).filter((s: any) => {
       const sameById   = s.school_id === cls.school_id;
       const sameByName = clsSchoolName && s.school_name === clsSchoolName;
-      return sameById || sameByName;
+      if (sameById || sameByName) return true;
+      // Sister-school transition (e.g. Quincy Academy -> Quincy Secondary):
+      // ONLY allowed for Basic 5 and Basic 6 students.
+      const srcSchoolName = (s.school_id ? schoolNameById.get(s.school_id) : null) || s.school_name || null;
+      const stuClassGradeKey = Array.isArray(s.classes) ? s.classes[0]?.qa_grade_key : s.classes?.qa_grade_key;
+      return areSisterSchools(clsSchoolName, srcSchoolName)
+        && isSisterSchoolTransitionGrade(s.grade, stuClassGradeKey, s.section_class);
     });
     const rejected = (studentRows ?? []).filter((s: any) => !eligible.some((e: any) => e.id === s.id));
 
@@ -591,7 +635,7 @@ export async function PUT(
     if (allowedIds.length === 0) {
       return NextResponse.json(
         {
-          error: `School boundary violation: none of the selected students belong to this class's school.`,
+          error: `School boundary violation: students from another school can only transition across sister schools if they are in Basic 5 or Basic 6.`,
           rejected: rejectedNames,
         },
         { status: 403 },
