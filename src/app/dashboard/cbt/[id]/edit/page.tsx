@@ -465,15 +465,36 @@ export default function EditExamPage() {
                             </Link>
                         )}
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleSubmit as any}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-md"
-                    >
-                        {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                        {saving ? 'Saving…' : 'Save Changes'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {!definitionLocked && (
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!confirm(`Delete "${form.title || 'this exam'}" permanently? This cannot be undone.`)) return;
+                                    setError(null);
+                                    const res = await fetch(`/api/cbt/exams/${id}`, { method: 'DELETE' });
+                                    const json = await res.json().catch(() => ({}));
+                                    if (!res.ok) {
+                                        setError(json?.error || 'Could not delete this exam.');
+                                        return;
+                                    }
+                                    router.push('/dashboard/cbt');
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-black uppercase tracking-wider rounded-xl transition-colors"
+                            >
+                                <TrashIcon className="w-4 h-4" /> Delete
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleSubmit as any}
+                            disabled={saving}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-md"
+                        >
+                            {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                            {saving ? 'Saving…' : 'Save Changes'}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="relative overflow-hidden border border-border/80 bg-card/90 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl">
@@ -1017,10 +1038,15 @@ export default function EditExamPage() {
 
                     {/* Sticky Save Changes Bar */}
                     <div className="sticky bottom-3 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-lg">
-                        <Link href={`/dashboard/cbt/${id}`}
-                            className="px-4 py-2 bg-muted/60 hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-colors">
-                            Cancel
-                        </Link>
+                        <div className="flex items-center gap-3 min-w-0">
+                            <Link href={`/dashboard/cbt/${id}`}
+                                className="px-4 py-2 bg-muted/60 hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-colors">
+                                Cancel
+                            </Link>
+                            <span className="hidden sm:inline text-xs text-muted-foreground">
+                                <strong className="text-foreground">{visibleQuestions.length}</strong> question{visibleQuestions.length === 1 ? '' : 's'} · <strong className="text-foreground">{visibleQuestions.reduce((s, q) => s + (Number(q.points) || 0), 0)}</strong> pts
+                            </span>
+                        </div>
                         <button type="submit" disabled={saving}
                             className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-md">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}

@@ -3,17 +3,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   SparklesIcon,
-  BookOpenIcon,
   AcademicCapIcon,
-  CheckIcon,
   PlusIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
   DocumentTextIcon,
   CheckCircleIcon,
-  ChartBarIcon,
   ExclamationTriangleIcon,
-  ChevronDownIcon,
   XMarkIcon,
 } from '@/lib/icons';
 import {
