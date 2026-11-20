@@ -41,8 +41,8 @@ const API_BASE = 'https://api.cloudflare.com/client/v4/accounts';
  *   GET /client/v4/accounts/{account}/ai/models/search
  */
 export const CF_TEXT_MODELS = [
-  '@cf/openai/gpt-oss-20b',
   '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/openai/gpt-oss-20b',
   '@cf/mistralai/mistral-small-3.1-24b-instruct',
   // Cheapest in Neurons — the one that keeps answering late in the day.
   '@cf/meta/llama-3.2-3b-instruct',
@@ -233,13 +233,14 @@ export async function cloudflareTextToSpeech(
 export async function cloudflareGenerateText(
   system: string,
   user: string,
-  options: { maxTokens?: number; temperature?: number; signal?: AbortSignal } = {},
+  options: { json?: boolean; maxTokens?: number; temperature?: number; signal?: AbortSignal } = {},
 ): Promise<{ text: string; model: string } | null> {
   if (!hasCloudflareAi()) return null;
 
   const rotatedModels = healthiestFirst([...CF_TEXT_MODELS], (m) => m);
 
   for (const model of rotatedModels) {
+    if (options.signal?.aborted) return null;
     try {
       const response = await fetch(endpoint(model), {
         method: 'POST',
@@ -249,8 +250,9 @@ export async function cloudflareGenerateText(
             { role: 'system', content: system },
             { role: 'user', content: user },
           ],
-          max_tokens: options.maxTokens ?? 4096,
+          max_tokens: Math.min(options.maxTokens ?? 4096, 8192),
           temperature: options.temperature ?? 0.3,
+          ...(options.json ? { response_format: { type: 'json_object' } } : {}),
         }),
         signal: options.signal,
       });
@@ -263,10 +265,13 @@ export async function cloudflareGenerateText(
       }
 
       const data = await response.json().catch(() => null);
-      const text = data?.result?.response;
-      if (typeof text === 'string' && text.trim()) {
+      const raw = data?.result?.response;
+      const text = typeof raw === 'string'
+        ? raw.trim()
+        : (raw && typeof raw === 'object' ? JSON.stringify(raw) : '');
+      if (text) {
         recordModelSuccess(model);
-        return { text: text.trim(), model };
+        return { text, model };
       }
       recordModelFailure(model, 502);
     } catch (err) {

@@ -34,10 +34,10 @@ export type AiTask = {
 
 function modelIntelligenceScore(id: string): number {
   const lower = id.toLowerCase();
-  if (/235b|405b|r1|gemini-2\.5|gemini-3|kimi|grok-2|deepseek-chat-v3/i.test(lower)) return 4;
-  if (/70b|72b|32b|30b|deepseek-chat|mistral-large|gemini-2\.0-flash(?!-lite)/i.test(lower)) return 3;
-  if (/14b|24b|20b|glm-4|step-3/i.test(lower)) return 2;
-  if (/3b|7b|8b|lite/i.test(lower)) return 0;
+  if (/235b|405b|r1|gemini-2\.5|gemini-3|kimi|grok-2|deepseek-chat-v3|deepseek-v3|llama-4-maverick/i.test(lower)) return 4;
+  if (/70b|72b|32b|30b|qwen3|deepseek-chat|mistral-large|gemma-3-27b|nemotron|gemini-2\.0-flash(?!-lite)/i.test(lower)) return 3;
+  if (/14b|17b|24b|20b|glm-4|step-3|mistral-small-3|llama-4-scout/i.test(lower)) return 2;
+  if (/3b|7b|8b|lite|mini/i.test(lower)) return 0;
   return 1;
 }
 

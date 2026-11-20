@@ -15,6 +15,7 @@
  */
 import { geminiGenerateText } from "@/lib/gemini/client";
 import { cloudflareGenerateText, hasCloudflareAi } from "@/lib/ai/cloudflare-ai";
+import { groqGenerateText, hasGroqKey } from "@/lib/ai/groq-free";
 import {
   openRouterComplete,
   MIN_CONTENT_CHARS,
@@ -2455,14 +2456,85 @@ export async function generateAIContent(
     }
   }
 
+  // ── Groq Free Tier ultra-fast path (300–700 tok/s, zero cost if GROQ_API_KEY set) ──
+  if (hasGroqKey() && remainingBudgetMs() >= 6_000) {
+    const groqResult = await withBudgetTimeout(
+      groqGenerateText(plan.systemPrompt, plan.prompt, {
+        json: plan.useJsonFormat,
+        maxTokens: Math.min(plan.maxTokens, 8192),
+        temperature: plan.temperature,
+      }),
+      isLongTask ? 22_000 : 14_000,
+    );
+
+    if (groqResult?.text && groqResult.text.length >= MIN_CONTENT_CHARS) {
+      if (type === "lesson-notes") {
+        const clean = groqResult.text
+          .replace(/^```(?:json|markdown)?\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+        if (clean.length > 100) {
+          try {
+            const parsed = safeParseJSON(clean);
+            if (parsed.lesson_notes) {
+              return {
+                success: true,
+                model: groqResult.model,
+                data: finalizeGeneratedData(type, parsed, body),
+              };
+            }
+          } catch {
+            // Raw text is the notes
+          }
+          return {
+            success: true,
+            model: groqResult.model,
+            data: finalizeGeneratedData(type, { lesson_notes: clean }, body),
+          };
+        }
+      } else {
+        try {
+          const parsed = safeParseJSON(groqResult.text);
+          if (type === "custom") {
+            return {
+              success: true,
+              model: groqResult.model,
+              content:
+                parsed.content ||
+                parsed.text ||
+                parsed.answer ||
+                groqResult.text,
+              extra: parsed,
+            };
+          }
+          return {
+            success: true,
+            model: groqResult.model,
+            data: finalizeGeneratedData(type, parsed, body),
+          };
+        } catch {
+          if (type === "custom") {
+            return {
+              success: true,
+              model: groqResult.model,
+              content: groqResult.text,
+            };
+          }
+          // Malformed JSON — fall through cleanly to Cloudflare / OpenRouter
+        }
+      }
+    }
+  }
+
   // ── Cloudflare Workers AI free tier (10,000 Neurons/day) ───────────────────
   if (hasCloudflareAi() && remainingBudgetMs() >= 8_000) {
     const cfResult = await withBudgetTimeout(
       cloudflareGenerateText(plan.systemPrompt, plan.prompt, {
-        maxTokens: Math.min(plan.maxTokens, 4096),
+        json: plan.useJsonFormat,
+        maxTokens: Math.min(plan.maxTokens, 8192),
         temperature: plan.temperature,
       }),
-      15_000,
+      16_000,
     );
 
     if (cfResult?.text && cfResult.text.length >= MIN_CONTENT_CHARS) {
