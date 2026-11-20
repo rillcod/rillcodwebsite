@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
+import { groqGenerateText, hasGroqKey } from '@/lib/ai/groq-free';
+import { cerebrasGenerateText, hasCerebrasKey } from '@/lib/ai/cerebras-free';
 import { cloudflareGenerateText, hasCloudflareAi } from '@/lib/ai/cloudflare-ai';
 import { modelQueueFor } from '@/lib/ai/model-policy';
 import { FREE_FALLBACK_MODELS } from '@/lib/ai/openrouter';
@@ -64,9 +66,30 @@ export async function generateTextFreeFirst(
     if (text.length > minLength) return { text, model: result!.model };
   }
 
+  if (hasGroqKey()) {
+    const groqResult = await groqGenerateText(system, user, {
+      json: Boolean(jsonMode),
+      maxTokens: options.maxOutputTokens ?? 8192,
+      temperature: options.temperature ?? 0.3,
+    }).catch(() => null);
+    const groqText = groqResult?.text?.trim() ?? '';
+    if (groqText.length > minLength) return { text: groqText, model: groqResult!.model };
+  }
+
+  if (hasCerebrasKey()) {
+    const cbResult = await cerebrasGenerateText(system, user, {
+      json: Boolean(jsonMode),
+      maxTokens: options.maxOutputTokens ?? 8192,
+      temperature: options.temperature ?? 0.3,
+    }).catch(() => null);
+    const cbText = cbResult?.text?.trim() ?? '';
+    if (cbText.length > minLength) return { text: cbText, model: cbResult!.model };
+  }
+
   if (hasCloudflareAi()) {
     const cfResult = await cloudflareGenerateText(system, user, {
-      maxTokens: options.maxOutputTokens ?? 4096,
+      json: Boolean(jsonMode),
+      maxTokens: options.maxOutputTokens ?? 8192,
       temperature: options.temperature ?? 0.3,
     }).catch(() => null);
     const cfText = cfResult?.text?.trim() ?? '';
@@ -75,39 +98,32 @@ export async function generateTextFreeFirst(
 
   if (!process.env.OPENROUTER_API_KEY) return null;
 
-  // No `prefer` list of our own, for a reason worth stating precisely.
-  //
-  // modelQueueFor filters every preference — free and paid — against the live
-  // OpenRouter catalogue, so a retired id in a prefer list is dropped rather
-  // than called. That is why the stale queues elsewhere in this codebase are
-  // inert rather than broken, and why the ai-model-drift cron treats a
-  // retirement as a cost issue rather than an outage.
-  //
-  // A prefer list here would therefore buy nothing but future rot: checked at
-  // the time of writing, all six hardcoded ':free' ids across the AI routes had
-  // been retired. FREE_FALLBACK_MODELS is the one maintained list, and is used
-  // only when the catalogue itself cannot be reached.
-  const queue = await modelQueueFor({ needsJson: Boolean(jsonMode) })
+  const queue = await modelQueueFor({ needsJson: Boolean(jsonMode), intelligence: 'high' })
     .catch(() => [...FREE_FALLBACK_MODELS]);
 
   for (const model of queue) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25_000);
     try {
-      const response = await openrouter.chat.completions.create({
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        temperature: options.temperature ?? 0.3,
-        // A whole curriculum is the payload here, not a paragraph. The default
-        // would truncate mid-JSON and be discarded as unparseable.
-        max_tokens: options.maxOutputTokens ?? 32_000,
-        ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
-      });
+      const response = await openrouter.chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          temperature: options.temperature ?? 0.3,
+          max_tokens: options.maxOutputTokens ?? 32_000,
+          ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
+        },
+        { signal: controller.signal },
+      );
       const text = response.choices?.[0]?.message?.content?.trim() ?? '';
       if (text.length > minLength) return { text, model };
     } catch {
       // Try the next free model. A dead or rate-limited one must not end the run.
+    } finally {
+      clearTimeout(timer);
     }
   }
 

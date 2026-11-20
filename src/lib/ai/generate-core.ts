@@ -16,6 +16,7 @@
 import { geminiGenerateText } from "@/lib/gemini/client";
 import { cloudflareGenerateText, hasCloudflareAi } from "@/lib/ai/cloudflare-ai";
 import { groqGenerateText, hasGroqKey } from "@/lib/ai/groq-free";
+import { cerebrasGenerateText, hasCerebrasKey } from "@/lib/ai/cerebras-free";
 import {
   openRouterComplete,
   MIN_CONTENT_CHARS,
@@ -2521,6 +2522,75 @@ export async function generateAIContent(
             };
           }
           // Malformed JSON — fall through cleanly to Cloudflare / OpenRouter
+        }
+      }
+    }
+  }
+
+  // ── Cerebras Free Tier (~2,000 tok/s, zero cost if CEREBRAS_API_KEY set) ───
+  if (hasCerebrasKey() && remainingBudgetMs() >= 6_000) {
+    const cbResult = await withBudgetTimeout(
+      cerebrasGenerateText(plan.systemPrompt, plan.prompt, {
+        json: plan.useJsonFormat,
+        maxTokens: Math.min(plan.maxTokens, 8192),
+        temperature: plan.temperature,
+      }),
+      isLongTask ? 20_000 : 12_000,
+    );
+
+    if (cbResult?.text && cbResult.text.length >= MIN_CONTENT_CHARS) {
+      if (type === "lesson-notes") {
+        const clean = cbResult.text
+          .replace(/^```(?:json|markdown)?\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+        if (clean.length > 100) {
+          try {
+            const parsed = safeParseJSON(clean);
+            if (parsed.lesson_notes) {
+              return {
+                success: true,
+                model: cbResult.model,
+                data: finalizeGeneratedData(type, parsed, body),
+              };
+            }
+          } catch {
+            // Raw text is the notes
+          }
+          return {
+            success: true,
+            model: cbResult.model,
+            data: finalizeGeneratedData(type, { lesson_notes: clean }, body),
+          };
+        }
+      } else {
+        try {
+          const parsed = safeParseJSON(cbResult.text);
+          if (type === "custom") {
+            return {
+              success: true,
+              model: cbResult.model,
+              content:
+                parsed.content ||
+                parsed.text ||
+                parsed.answer ||
+                cbResult.text,
+              extra: parsed,
+            };
+          }
+          return {
+            success: true,
+            model: cbResult.model,
+            data: finalizeGeneratedData(type, parsed, body),
+          };
+        } catch {
+          if (type === "custom") {
+            return {
+              success: true,
+              model: cbResult.model,
+              content: cbResult.text,
+            };
+          }
         }
       }
     }
