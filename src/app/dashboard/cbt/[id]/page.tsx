@@ -448,123 +448,137 @@ export default function ExamDetailPage() {
           )}
         </div>
 
-        {/* Exam header */}
-        <div className="relative border border-border/80 bg-card/90 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-lg">
-          <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-3xl pointer-events-none">
-            <div className="absolute -right-32 -top-32 w-96 h-96 bg-primary/10 rounded-full blur-[120px]" />
-          </div>
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="inline-block px-2.5 py-0.5 sm:px-3 sm:py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm">
-                  CBT Exam
+        {/* Exam Hero Card — 3 crisp vertical bands, responsive on iPhone, tablet & desktop */}
+        <div className="relative overflow-hidden border border-border bg-card rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm space-y-4">
+          <div className="relative z-10 space-y-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center px-2.5 py-0.5 bg-brand-red-accent text-white text-[10px] font-black uppercase tracking-wider rounded-full">
+                CBT Exam
+              </span>
+              {exam.programs?.name && (
+                <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider min-w-0 truncate">
+                  <AcademicCapIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{exam.programs.name}</span>
                 </span>
-                {exam.programs?.name && (
-                  <span className="text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                    <AcademicCapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    {exam.programs.name}
-                  </span>
-                )}
-                <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border ${exam.is_active ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' : 'bg-slate-200 text-slate-900 border-slate-300 dark:bg-muted dark:text-muted-foreground dark:border-border'}`}>
-                  {exam.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-2xl font-extrabold mb-1.5 leading-snug">{exam.title}</h1>
-              {exam.description && (
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{exam.description}</p>
               )}
+              <span className={`ml-auto sm:ml-0 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold border ${exam.is_active ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30' : 'bg-slate-200 text-slate-900 border-slate-300 dark:bg-muted dark:text-muted-foreground dark:border-border'}`}>
+                {exam.is_active ? 'Active' : 'Inactive'}
+              </span>
             </div>
-            {isStaff && (
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 flex-shrink-0 w-full sm:w-auto" ref={printMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const link = `${window.location.origin}/dashboard/cbt/${exam.id}/take`;
-                    void navigator.clipboard?.writeText(link);
-                    setCopiedExamLink(true);
-                    setTimeout(() => setCopiedExamLink(false), 2200);
-                  }}
-                  title="Copy direct student exam link"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted border border-border text-foreground text-xs font-bold rounded-xl transition-colors"
-                >
-                  <ClipboardIcon className="w-4 h-4 text-primary" />
-                  {copiedExamLink ? 'Link Copied!' : 'Copy Exam Link'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePrintExam('student', 'all')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-black rounded-xl transition-colors shadow-sm"
-                >
-                  <PrinterIcon className="w-4 h-4" /> Print Student Paper
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePrintExam('staff', 'all')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold rounded-xl transition-colors"
-                >
-                  <PrinterIcon className="w-4 h-4" /> Teacher Key
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPrintMenuOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted border border-border text-foreground text-xs font-bold rounded-xl transition-colors"
-                >
-                  <PrinterIcon className="w-4 h-4 text-primary" /> Print Options
-                </button>
-                {canManageExam && (
-                  <>
-                    <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-colors">
-                      <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
-                    </Link>
-                    <button
-                      type="button"
-                      disabled={togglingActive}
-                      onClick={async () => {
-                        setTogglingActive(true);
-                        try {
-                          const res = await fetch(`/api/cbt/exams/${exam.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ is_active: !exam.is_active }),
-                          });
-                          if (res.ok) setExam((prev: any) => prev ? { ...prev, is_active: !prev.is_active } : prev);
-                        } finally {
-                          setTogglingActive(false);
-                        }
-                      }}
-                      className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${exam.is_active ? 'bg-amber-200 border-amber-400 text-amber-950 hover:bg-amber-300 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-200' : 'bg-emerald-200 border-emerald-400 text-emerald-950 hover:bg-emerald-300 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-200'}`}
-                    >
-                      {exam.is_active ? <><LockClosedIcon className="w-3.5 h-3.5" /> Deactivate</> : <><LockOpenIcon className="w-3.5 h-3.5" /> Activate</>}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={deletingExam}
-                      onClick={async () => {
-                        if (!confirm(`Delete CBT exam "${exam.title}"? All questions and student sessions will be permanently deleted.`)) return;
-                        setDeletingExam(true);
-                        try {
-                          const res = await fetch(`/api/cbt/exams/${exam.id}`, { method: 'DELETE' });
-                          if (!res.ok) {
-                            const j = await res.json().catch(() => ({}));
-                            throw new Error(j.error || 'Delete failed');
-                          }
-                          router.push(hostClassId ? `/dashboard/classes/${hostClassId}?operation=assessment` : '/dashboard/cbt');
-                        } catch (err: any) {
-                          alert(err?.message || 'Delete failed');
-                          setDeletingExam(false);
-                        }
-                      }}
-                      aria-label="Delete CBT exam"
-                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-900 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" /> Delete
-                    </button>
-                  </>
-                )}
-              </div>
+
+            <h1 className="text-lg sm:text-2xl font-extrabold text-foreground leading-snug break-words">
+              {exam.title}
+            </h1>
+
+            {exam.description && (
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap break-words">
+                {exam.description}
+              </p>
             )}
           </div>
+
+          {isStaff && (
+            <div
+              ref={printMenuRef}
+              className="relative z-10 pt-3.5 border-t border-border/70 grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center gap-2"
+            >
+              {canManageExam && (
+                <Link
+                  href={`/dashboard/cbt/${exam.id}/edit`}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl transition-colors shadow-sm whitespace-nowrap"
+                >
+                  <PencilIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span>Edit Exam</span>
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => handlePrintExam('student', 'all')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-black rounded-xl transition-colors shadow-sm whitespace-nowrap"
+              >
+                <PrinterIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Student PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePrintExam('staff', 'all')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold rounded-xl transition-colors whitespace-nowrap"
+              >
+                <PrinterIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Teacher Key</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrintMenuOpen(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 bg-background hover:bg-muted border border-border text-foreground text-xs font-bold rounded-xl transition-colors whitespace-nowrap"
+              >
+                <PrinterIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>Print Options</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const link = `${window.location.origin}/dashboard/cbt/${exam.id}/take`;
+                  void navigator.clipboard?.writeText(link);
+                  setCopiedExamLink(true);
+                  setTimeout(() => setCopiedExamLink(false), 2200);
+                }}
+                title="Copy direct student exam link"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 bg-background hover:bg-muted border border-border text-foreground text-xs font-bold rounded-xl transition-colors whitespace-nowrap"
+              >
+                <ClipboardIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>{copiedExamLink ? 'Copied!' : 'Copy Link'}</span>
+              </button>
+              {canManageExam && (
+                <>
+                  <button
+                    type="button"
+                    disabled={togglingActive}
+                    onClick={async () => {
+                      setTogglingActive(true);
+                      try {
+                        const res = await fetch(`/api/cbt/exams/${exam.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ is_active: !exam.is_active }),
+                        });
+                        if (res.ok) setExam((prev: any) => prev ? { ...prev, is_active: !prev.is_active } : prev);
+                      } finally {
+                        setTogglingActive(false);
+                      }
+                    }}
+                    className={`w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 text-xs font-bold rounded-xl border transition-colors whitespace-nowrap ${exam.is_active ? 'bg-amber-100 border-amber-300 text-amber-950 hover:bg-amber-200 dark:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-200' : 'bg-emerald-100 border-emerald-300 text-emerald-950 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-200'}`}
+                  >
+                    {exam.is_active ? <><LockClosedIcon className="w-3.5 h-3.5 shrink-0" /><span>Deactivate</span></> : <><LockOpenIcon className="w-3.5 h-3.5 shrink-0" /><span>Activate</span></>}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingExam}
+                    onClick={async () => {
+                      if (!confirm(`Delete CBT exam "${exam.title}"? All questions and student sessions will be permanently deleted.`)) return;
+                      setDeletingExam(true);
+                      try {
+                        const res = await fetch(`/api/cbt/exams/${exam.id}`, { method: 'DELETE' });
+                        if (!res.ok) {
+                          const j = await res.json().catch(() => ({}));
+                          throw new Error(j.error || 'Delete failed');
+                        }
+                        router.push(hostClassId ? `/dashboard/classes/${hostClassId}?operation=assessment` : '/dashboard/cbt');
+                      } catch (err: any) {
+                        alert(err?.message || 'Delete failed');
+                        setDeletingExam(false);
+                      }
+                    }}
+                    aria-label="Delete CBT exam"
+                    className="col-span-2 sm:col-span-1 w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-[40px] sm:min-h-[36px] px-3 py-2 bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-900 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5 shrink-0" />
+                    <span>Delete Exam</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Responsive Print Options Modal — never clipped on mobile or desktop */}
           {isStaff && printMenuOpen && (
