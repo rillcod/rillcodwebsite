@@ -640,15 +640,20 @@ export function finalizeGeneratedData(
 
 export function buildPrompt(req: GenerateRequest): string {
   // Shared grounding block — when a teacher attaches 1 or more documents (PPTX/PDF/DOCX/TXT),
-  // generation builds strictly from them (up to 22,000 chars for multi-file synthesis).
+  // generation performs deep structural analysis across every slide/page/section (up to 28,000 chars).
   const isMultiFile = Number(req.sourceFileCount ?? 0) > 1;
   const sourceHeader = req.strictSourceOnly
-    ? `STRICT SOURCE-ONLY MODE — You MUST read, understand, and generate EVERY question, option, correct answer, and marking guide SOLELY from the uploaded document(s) below. Do NOT introduce any fact, definition, or example that is not present in the provided document(s).${
+    ? `DEEP DOCUMENT ANALYSIS — STRICT SOURCE-ONLY MODE:
+1. Carefully read and analyze EVERY slide, page, table, formula, and code example in the uploaded document(s) below from beginning to end (do NOT stop after the first few slides/pages).
+2. Generate EVERY question, option, correct answer, and point-by-point marking guide SOLELY from the provided document(s). Do NOT introduce outside concepts not covered in the document(s).
+3. Tag each question's metadata.curriculum_tag with the exact Slide/Page/Section heading it comes from.
+4. Aim for deep academic quality: mix conceptual understanding (35%), applied scenario / code tracing (40%), and analytical debugging / comparison / evaluation (25%).${
         isMultiFile
-          ? ` Multiple files (${req.sourceFileCount}) are combined below — draw balanced questions across ALL provided files and synthesize concepts where helpful.`
+          ? `\n5. Multiple files (${req.sourceFileCount}) are combined below — distribute questions evenly across ALL uploaded files and synthesize related ideas across them.`
           : ""
       }`
-    : `SOURCE MATERIAL — base this STRICTLY on the teacher's uploaded document(s) below; keep their scope, examples and terminology, and do not introduce topics they do not cover.${
+    : `DEEP DOCUMENT ANALYSIS — SOURCE MATERIAL:
+Analyze EVERY slide, page, table, and code example in the teacher's document(s) below from start to finish. Keep the exact terminology, scope, and examples, tag each question with its source Slide/Page heading, and write thorough point-by-point marking guides.${
         isMultiFile
           ? ` Multiple files (${req.sourceFileCount}) are combined below — cover ALL provided files evenly.`
           : ""
@@ -656,7 +661,7 @@ export function buildPrompt(req: GenerateRequest): string {
   const sourceBlock = req.sourceMaterial?.trim()
     ? `\n${sourceHeader}\n"""\n${req.sourceMaterial.slice(
         0,
-        22000
+        28000
       )}\n"""`
     : "";
 

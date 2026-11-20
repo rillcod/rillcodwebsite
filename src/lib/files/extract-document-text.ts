@@ -21,7 +21,58 @@ export interface ExtractedSourceDocument {
   text: string;
   charCount: number;
   wordCount: number;
+  sectionCount: number;
+  detectedTopics: string[];
+  hasCode: boolean;
   selected: boolean;
+}
+
+/**
+ * Extracts key structural metadata (slide/page count, headings/topics, code presence)
+ * from extracted document text so teachers see a live analysis before generating questions.
+ */
+export function analyzeExtractedDocument(text: string): {
+  sectionCount: number;
+  detectedTopics: string[];
+  hasCode: boolean;
+} {
+  const slideOrPageMarkers = text.match(/^\[(?:Slide|Page)\s+\d+\]/gim) ?? [];
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const topics: string[] = [];
+  const seen = new Set<string>();
+
+  for (const line of lines) {
+    if (topics.length >= 6) break;
+    const cleaned = line
+      .replace(/^\[(?:Slide|Page)\s+\d+\]\s*/i, '')
+      .replace(/^#{1,3}\s*/, '')
+      .replace(/^\d+[\.\)]\s*/, '')
+      .trim();
+    if (
+      cleaned.length >= 4
+      && cleaned.length <= 68
+      && !cleaned.endsWith('.')
+      && !/^(?:http|www\.|page\s+\d+|slide\s+\d+|table\s+of\s+contents)/i.test(cleaned)
+      && (
+        /^#{1,3}\s/.test(line)
+        || /^\[(?:Slide|Page)\s+\d+\]/i.test(line)
+        || /^[A-Z][A-Za-z0-9\s:&/\-]{3,55}$/.test(cleaned)
+      )
+    ) {
+      const key = cleaned.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        topics.push(cleaned);
+      }
+    }
+  }
+
+  const hasCode = /(?:```|\b(?:def|function|const|let|var|class|import|SELECT|CREATE TABLE|for\s*\(|while\s*\(|if\s*\(|print\s*\(|console\.log|<html|<div)\b)/i.test(text);
+  return {
+    sectionCount: Math.max(1, slideOrPageMarkers.length),
+    detectedTopics: topics,
+    hasCode,
+  };
 }
 
 /**
@@ -183,27 +234,50 @@ async function readZipEntries(
   return results;
 }
 
-function extractXmlTextRuns(xml: string, tagName: 'a:t' | 'w:t', paraBreakTag?: string): string {
-  let working = xml;
-  if (paraBreakTag) {
-    working = working.replace(new RegExp(`</${paraBreakTag}>`, 'g'), '\n');
-  }
-  const regex = new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)</${tagName}>|\\n`, 'g');
-  const parts: string[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(working)) !== null) {
-    if (match[0] === '\n') {
-      parts.push('\n');
-    } else if (match[1]) {
-      parts.push(decodeXmlEntities(match[1]));
+/**
+ * Paragraph- and table-aware OOXML text extractor.
+ * Concatenates runs inside the SAME paragraph directly (so words split across XML runs like "Py"+"thon" stay "Python"),
+ * separates table cells with " | ", and preserves paragraph breaks cleanly.
+ */
+function extractXmlTextRuns(xml: string, textTag: 'a:t' | 'w:t', paraTag: 'a:p' | 'w:p'): string {
+  const cellTag = textTag === 'a:t' ? 'a:tc' : 'w:tc';
+  const rowTag = textTag === 'a:t' ? 'a:tr' : 'w:tr';
+
+  // Preserve table row/cell structure cleanly before paragraph parsing
+  const withTables = xml
+    .replace(new RegExp(`</${cellTag}>`, 'g'), `</${paraTag}><${paraTag}><${textTag}> | </${textTag}></${paraTag}>`)
+    .replace(new RegExp(`</${rowTag}>`, 'g'), `</${paraTag}>`);
+
+  const paraRegex = new RegExp(`<${paraTag}(?:\\s[^>]*)?>([\\s\\S]*?)</${paraTag}>`, 'g');
+  const runRegex = new RegExp(`<${textTag}(?:\\s[^>]*)?>([\\s\\S]*?)</${textTag}>|<a:br\\s*/>|<w:br(?:\\s[^>]*)?/>|<w:tab\\s*/>`, 'g');
+
+  const lines: string[] = [];
+  let pMatch: RegExpExecArray | null;
+  while ((pMatch = paraRegex.exec(withTables)) !== null) {
+    const inner = pMatch[1];
+    let line = '';
+    let rMatch: RegExpExecArray | null;
+    runRegex.lastIndex = 0;
+    while ((rMatch = runRegex.exec(inner)) !== null) {
+      if (rMatch[1] !== undefined) {
+        line += decodeXmlEntities(rMatch[1]);
+      } else if (/tab/i.test(rMatch[0])) {
+        line += ' ';
+      } else {
+        line += '\n';
+      }
     }
+    const cleaned = line
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\s*\|\s*/g, ' | ')
+      .replace(/^\|\s*|\s*\|$/g, '')
+      .trim();
+    if (cleaned) lines.push(cleaned);
   }
-  return parts
-    .join(' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n[ \t]+/g, '\n')
+
+  return lines
+    .join('\n')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }
 
@@ -345,7 +419,7 @@ async function extractLegacyOfficeBinaryText(file: File, maxChars: number): Prom
 
 export async function extractDocumentText(
   file: File,
-  maxChars = 20_000,
+  maxChars = 28_000,
   onProgress?: (msg: string) => void,
 ): Promise<{ kind: SupportedDocumentKind; text: string }> {
   const kind = detectDocumentKind(file);
@@ -389,7 +463,7 @@ export async function extractDocumentText(
 export function buildCombinedSourceMaterial(
   docs: ExtractedSourceDocument[],
   extraNotes?: string,
-  maxTotalChars = 22_000,
+  maxTotalChars = 28_000,
 ): { combinedText: string; summaryLabel: string; selectedCount: number } {
   const active = docs.filter((d) => d.selected && d.text.trim().length > 0);
   const extra = (extraNotes ?? '').trim();

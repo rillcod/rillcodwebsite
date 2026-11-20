@@ -14,6 +14,7 @@ import {
 } from '@/lib/icons';
 import {
   ACCEPTED_DOCUMENT_EXTENSIONS,
+  analyzeExtractedDocument,
   buildCombinedSourceMaterial,
   classifyDocumentRole,
   extractDocumentText,
@@ -134,6 +135,7 @@ export default function QuestionAuthoringStudio({
   const [extractingFile, setExtractingFile] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const [showDocPreview, setShowDocPreview] = useState(false);
   const [lastAiBlueprint, setLastAiBlueprint] = useState<AssessmentBlueprint | null>(null);
 
   // Track manual edits to prevent stale bleed while still updating dynamically on context switches
@@ -406,7 +408,7 @@ export default function QuestionAuthoringStudio({
         const prefix = files.length > 1 ? `(${idx + 1}/${files.length}) ` : '';
         setExtractMsg(`${prefix}Reading ${file.name}…`);
         try {
-          const { kind, text } = await extractDocumentText(file, 20_000, (msg) =>
+          const { kind, text } = await extractDocumentText(file, 28_000, (msg) =>
             setExtractMsg(`${prefix}${msg}`),
           );
           if (!text || text.trim().length < 15) {
@@ -416,6 +418,7 @@ export default function QuestionAuthoringStudio({
           const clean = text.trim();
           const words = clean.split(/\s+/).filter(Boolean).length;
           const role = classifyDocumentRole(file.name, clean);
+          const analysis = analyzeExtractedDocument(clean);
           added.push({
             id: `${Date.now()}-${idx}-${file.name}`,
             name: file.name,
@@ -424,6 +427,9 @@ export default function QuestionAuthoringStudio({
             text: clean,
             charCount: clean.length,
             wordCount: words,
+            sectionCount: analysis.sectionCount,
+            detectedTopics: analysis.detectedTopics,
+            hasCode: analysis.hasCode,
             selected: true,
           });
         } catch {
@@ -1319,13 +1325,24 @@ export default function QuestionAuthoringStudio({
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/60 text-[11px]">
-                  <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                    {selectedUploadedDocs.length === 0
-                      ? 'No files checked — check at least one file above'
-                      : selectedUploadedDocs.length === 1
-                        ? `Using 1 file: ${selectedUploadedDocs[0].name}`
-                        : `Combining ${selectedUploadedDocs.length} files (${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words)`}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                      {selectedUploadedDocs.length === 0
+                        ? 'No files checked — check at least one file above'
+                        : selectedUploadedDocs.length === 1
+                          ? `1 file · ${selectedUploadedDocs[0].sectionCount} section${selectedUploadedDocs[0].sectionCount === 1 ? '' : 's'} · ${selectedUploadedDocs[0].wordCount.toLocaleString()} words`
+                          : `${selectedUploadedDocs.length} combined files · ${selectedUploadedDocs.reduce((s, d) => s + d.sectionCount, 0)} sections · ${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words`}
+                    </span>
+                    {selectedUploadedDocs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDocPreview((v) => !v)}
+                        className="rounded-lg border border-border bg-card hover:bg-muted px-2 py-0.5 text-[10px] font-bold text-primary transition-colors"
+                      >
+                        {showDocPreview ? 'Hide Analysis' : 'Inspect Extracted Data'}
+                      </button>
+                    )}
+                  </div>
                   <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5">
                     <button
                       type="button"
@@ -1347,6 +1364,43 @@ export default function QuestionAuthoringStudio({
                     </button>
                   </div>
                 </div>
+
+                {/* Live Document Analysis & Extracted Text Preview */}
+                {showDocPreview && selectedUploadedDocs.length > 0 && (
+                  <div className="rounded-xl border border-border bg-card p-3 space-y-2 text-[11px]">
+                    {(() => {
+                      const allTopics = Array.from(
+                        new Set(selectedUploadedDocs.flatMap((d) => d.detectedTopics)),
+                      ).slice(0, 8);
+                      const hasAnyCode = selectedUploadedDocs.some((d) => d.hasCode);
+                      const previewText = buildCombinedSourceMaterial(selectedUploadedDocs, '', 28_000).combinedText;
+                      return (
+                        <>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-black uppercase tracking-wider text-[10px] text-muted-foreground">
+                              Detected Concepts:
+                            </span>
+                            {allTopics.length > 0 ? allTopics.map((t) => (
+                              <span key={t} className="rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                                {t}
+                              </span>
+                            )) : (
+                              <span className="text-muted-foreground">General prose extracted cleanly</span>
+                            )}
+                            {hasAnyCode && (
+                              <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+                                Code Snippets Detected
+                              </span>
+                            )}
+                          </div>
+                          <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-2.5 font-mono text-[10px] leading-relaxed text-foreground">
+                            {previewText.slice(0, 3500)}{previewText.length > 3500 ? '\n… (full extracted content will be sent to AI)' : ''}
+                          </pre>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
           </div>

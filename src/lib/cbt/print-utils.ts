@@ -539,14 +539,24 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
     : '';
 
   const allQuestions = [...mcq, ...subjective, ...essay];
+  const stripOptLabel = (s: string) => s.trim().replace(/^(?:option\s+)?(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:\-])\s+/i, '').trim().toLowerCase();
   const answerKeyRows = allQuestions.map((q, i) => {
     const opts = normalizeCbtOptions(q.options, q.question_type);
     const showMcq = isObjectiveQuestion(q) && opts.length > 0;
-    const idx = showMcq ? opts.findIndex((o) => o.trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) : -1;
+    const rawAns = String(q.correct_answer ?? '').trim();
+    const normAns = stripOptLabel(rawAns);
+    let idx = showMcq ? opts.findIndex((o) => stripOptLabel(o) === normAns) : -1;
+    if (showMcq && idx < 0) {
+      const letterMatch = rawAns.match(/^(?:option\s+)?\(?([A-Fa-f])\)?(?:[\.\)\:\-\s]|$)/i);
+      if (letterMatch) {
+        const candidateIdx = letterMatch[1].toUpperCase().charCodeAt(0) - 65;
+        if (candidateIdx >= 0 && candidateIdx < opts.length) idx = candidateIdx;
+      }
+    }
     const letter = idx >= 0 ? (OPT_LABELS[idx] ?? '—') : '—';
     const short = (q.question_text ?? '').replace(/```[\s\S]*?```/g, '[code]').replace(/`[^`]+`/g, '`…`');
     const guide = q.marking_guide || q.explanation || (q.metadata?.marking_guide ? String(q.metadata.marking_guide) : '');
-    const answerText = q.correct_answer ?? '';
+    const answerText = idx >= 0 && opts[idx] ? opts[idx] : rawAns;
     const guideHtml = guide && guide.trim() !== answerText.trim()
       ? `<div style="font-size:7.5pt;color:#444;margin-top:2pt;"><strong>Marking Guide:</strong> ${escapeHtml(guide)}</div>`
       : '';
@@ -595,33 +605,33 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
   .screen-toolbar{display:none!important}
   .paper-sheet{max-width:none;margin:0;padding:0;box-shadow:none}
 }
-.official-hdr{display:flex;align-items:center;gap:10pt;padding-bottom:6pt;border-bottom:2.5pt double #000;margin-bottom:5pt;break-inside:avoid;page-break-inside:avoid}
+.official-hdr{display:flex;align-items:center;gap:10pt;padding:6pt 8pt;border-bottom:2.5pt solid #0f172a;background:#f8fafc;margin-bottom:6pt;break-inside:avoid;page-break-inside:avoid}
 .compact-hdr{margin-bottom:4pt}
 .hdr-logo{width:40pt;height:40pt;object-fit:contain;flex-shrink:0}
-.hdr-org{flex:1;text-align:center}
-.hdr-school{font-size:11.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;line-height:1.15}
-.hdr-brand{font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#444;margin-top:2pt}
-.hdr-type{background:#000;color:#fff;padding:4pt 8pt;font-size:7pt;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;flex-shrink:0}
-.title-band{text-align:center;margin:5pt 0 4pt;break-inside:avoid;page-break-inside:avoid}
-.exam-title{font-size:12.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.5px}
-.exam-sub{font-size:8pt;color:#444;margin-top:2pt}
-.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #000;margin:4pt 0;font-size:8.3pt;break-inside:avoid;page-break-inside:avoid}
-.meta-cell{padding:2.5pt 4pt;border-right:1pt solid #aaa;text-align:center}
+.hdr-org{flex:1;text-align:center;font-family:'Segoe UI',Arial,sans-serif}
+.hdr-school{font-size:12pt;font-weight:900;text-transform:uppercase;letter-spacing:1.1px;line-height:1.15;color:#0f172a}
+.hdr-brand{font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#475569;margin-top:2pt}
+.hdr-type{background:#0f172a;color:#fff;padding:4.5pt 9pt;border-radius:3pt;font-family:'Segoe UI',Arial,sans-serif;font-size:7pt;font-weight:900;text-transform:uppercase;letter-spacing:1.4px;flex-shrink:0}
+.title-band{text-align:center;margin:6pt 0 5pt;break-inside:avoid;page-break-inside:avoid}
+.exam-title{font-family:'Segoe UI',Arial,sans-serif;font-size:13pt;font-weight:900;text-transform:uppercase;letter-spacing:0.5px;color:#0f172a}
+.exam-sub{font-family:'Segoe UI',Arial,sans-serif;font-size:8.2pt;color:#475569;margin-top:2pt;font-weight:600}
+.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #0f172a;margin:5pt 0;font-family:'Segoe UI',Arial,sans-serif;font-size:8.3pt;break-inside:avoid;page-break-inside:avoid}
+.meta-cell{padding:3.5pt 4pt;border-right:0.8pt solid #cbd5e1;text-align:center}
 .meta-cell:last-child{border-right:none}
-.meta-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#666;display:block}
-.meta-val{font-size:9pt;font-weight:700;display:block;margin-top:1pt}
-.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #000;margin:4pt 0;break-inside:avoid;page-break-inside:avoid}
-.stu-field{padding:3pt 5pt 2.5pt;border-right:1pt solid #aaa}
+.meta-label{font-size:6pt;font-weight:800;text-transform:uppercase;color:#64748b;display:block;letter-spacing:0.6px}
+.meta-val{font-size:9pt;font-weight:800;color:#0f172a;display:block;margin-top:1pt}
+.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #0f172a;margin:5pt 0;font-family:'Segoe UI',Arial,sans-serif;break-inside:avoid;page-break-inside:avoid}
+.stu-field{padding:3.5pt 6pt 3pt;border-right:0.8pt solid #cbd5e1}
 .stu-field:last-child{border-right:none}
-.stu-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#555;display:block;margin-bottom:3pt}
-.stu-line{border-bottom:1pt solid #333;height:11pt}
-.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:3pt 6pt;margin:3pt 0 5pt;font-size:8pt;line-height:1.3;break-inside:avoid;page-break-inside:avoid}
-.instr-title{font-size:6.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:2pt}
+.stu-label{font-size:6pt;font-weight:800;text-transform:uppercase;color:#475569;display:block;margin-bottom:3pt;letter-spacing:0.5px}
+.stu-line{border-bottom:0.9pt solid #334155;height:12pt}
+.instructions{border:0.8pt solid #cbd5e1;border-left:3pt solid #0f172a;background:#f8fafc;padding:4pt 7pt;margin:4pt 0 6pt;font-family:'Segoe UI',Arial,sans-serif;font-size:8pt;line-height:1.35;color:#1e293b;break-inside:avoid;page-break-inside:avoid}
+.instr-title{font-size:6.8pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#0f172a;margin-bottom:2pt}
 .instructions p{margin:0 0 1.5pt}
-.instr-extra{margin-top:2pt!important;font-style:italic;color:#333}
-.section-hdr{display:flex;align-items:center;gap:6pt;margin:7pt 0 4pt;border-top:1pt solid #000;padding-top:3pt;break-after:avoid;page-break-after:avoid}
-.s-title{font-size:8.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px}
-.s-pts{font-size:8pt;color:#444;margin-left:auto}
+.instr-extra{margin-top:2pt!important;font-style:italic;color:#334155}
+.section-hdr{display:flex;align-items:center;gap:6pt;margin:9pt 0 5pt;padding:4pt 7pt;background:#f1f5f9;border-left:3pt solid #0f172a;border-top:0.6pt solid #cbd5e1;border-bottom:0.6pt solid #cbd5e1;font-family:'Segoe UI',Arial,sans-serif;break-after:avoid;page-break-after:avoid}
+.s-title{font-size:8.6pt;font-weight:900;text-transform:uppercase;letter-spacing:0.8px;color:#0f172a}
+.s-pts{font-size:7.8pt;font-weight:700;color:#334155;margin-left:auto}
 .q-list{display:block}
 .q-columns{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:5pt 15pt}
 .q-columns::before{content:"";position:absolute;top:0;bottom:0;left:50%;border-left:0.85pt solid #999;box-shadow:1.5pt 0 0 #f2f2f2;transform:translateX(-50%)}
