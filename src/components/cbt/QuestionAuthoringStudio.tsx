@@ -2103,6 +2103,66 @@ export default function QuestionAuthoringStudio({
             </div>
           </div>
 
+          {/* Live Question Quality Audit (Duplicates & Weak Distractor Guard) */}
+          {(() => {
+            const paperQs = currentQuestions ?? [];
+            const dedupeCheck = dedupeCbtQuestions(paperQs, []);
+            const weakDistractorCount = paperQs.filter((q) =>
+              q.question_type === 'multiple_choice'
+              && Array.isArray(q.options)
+              && q.options.some((opt) => /^(?:all|none)\s+of\s+the\s+above\b/i.test(String(opt || '').trim())),
+            ).length;
+            const incompleteMcqCount = paperQs.filter((q) =>
+              q.question_type === 'multiple_choice'
+              && (!Array.isArray(q.options) || q.options.filter((o) => String(o || '').trim()).length < 4),
+            ).length;
+            if (dedupeCheck.skippedCount === 0 && weakDistractorCount === 0 && incompleteMcqCount === 0) return null;
+            return (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-foreground">
+                  <span className="text-primary font-black uppercase text-[10px]">Quality Audit:</span>
+                  {dedupeCheck.skippedCount > 0 && (
+                    <span className="rounded-md bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 text-rose-700 dark:text-rose-300">
+                      {dedupeCheck.skippedCount} duplicate{dedupeCheck.skippedCount === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {weakDistractorCount > 0 && (
+                    <span className="rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-amber-800 dark:text-amber-300">
+                      {weakDistractorCount} &ldquo;All/None of above&rdquo; option{weakDistractorCount === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {incompleteMcqCount > 0 && (
+                    <span className="rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-amber-800 dark:text-amber-300">
+                      {incompleteMcqCount} MCQ under 4 options
+                    </span>
+                  )}
+                </div>
+                {dedupeCheck.skippedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const uniqueNormalized: StudioGeneratedQuestion[] = (dedupeCheck.unique as typeof paperQs).map((q) => ({
+                        question_text: q.question_text,
+                        question_type: (q.question_type || 'multiple_choice') as StudioGeneratedQuestion['question_type'],
+                        options: Array.isArray(q.options) ? q.options : [],
+                        correct_answer: String(q.correct_answer ?? ''),
+                        points: Number(q.points) || 5,
+                        section: (q.section === 'subjective' ? 'subjective' : 'objective') as StudioGeneratedQuestion['section'],
+                        explanation: q.explanation ?? undefined,
+                        metadata: q.metadata ?? null,
+                      }));
+                      onImportQuestions(uniqueNormalized, 'replace');
+                      setAiSuccessMsg(`Removed ${dedupeCheck.skippedCount} duplicate question${dedupeCheck.skippedCount === 1 ? '' : 's'}.`);
+                    }}
+                    className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[10px] font-black text-white"
+                  >
+                    Clean {dedupeCheck.skippedCount} Duplicate{dedupeCheck.skippedCount === 1 ? '' : 's'}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
           {liveBlueprint.readinessWarnings.length > 0 && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
               <p className="font-black uppercase text-[10px] flex items-center gap-1">

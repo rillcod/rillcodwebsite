@@ -188,6 +188,7 @@ export interface GenerateRequest {
   studentAnswers?: Record<string, string>;
   // For assignment generation
   assignmentType?: string;
+  questionMix?: string;
   /**
    * The Academic Office's house frame for a practical project, from
    * curriculum_project_registry. Shapes the task; never supplies its content —
@@ -1318,7 +1319,19 @@ UNIVERSAL RULES:
         meetingsThisWeek: req.meetingsThisWeek,
         alreadyTaughtThisWeek: req.alreadyTaughtThisWeek,
       });
-      return `Generate an assignment for Rillcod Technologies students.
+      const targetQCount = Math.max(4, Math.min(25, Number(req.questionCount) || 6));
+      const mixDirective = req.questionMix === 'mcq_only'
+        ? `Generate ONLY high-quality multiple_choice questions (4 parallel options each).`
+        : req.questionMix === 'theory_only'
+          ? `Generate ONLY applied essay / short_answer / practical questions with clear marking_guide rubrics.`
+          : req.questionMix === 'coding_logic'
+            ? `Prioritize coding_blocks, block_sequence, code-tracing multiple_choice, and practical coding essay challenges.`
+            : `Mix objective (multiple_choice / true_false) and applied subjective (essay / fill_blank / coding_blocks) questions naturally.`;
+      const difficultyDirective = req.difficulty
+        ? `Difficulty tier: ${req.difficulty.toUpperCase()} — calibrate vocabulary, code complexity, and reasoning depth accordingly.`
+        : `Calibrate difficulty smoothly from foundational recall to applied problem-solving.`;
+
+      return `Generate a rigorous, classroom-ready assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? "Basic 1–SS3"}
 Subject: ${req.subject ?? req.courseName ?? "Coding & Technology"}
@@ -1329,6 +1342,9 @@ ${
     : ""
 }${sourceBlock}
 Assignment type hint: ${req.assignmentType ?? "auto-detect"}
+Target Question Count: EXACTLY ${targetQCount} distinct questions
+Question Mix: ${mixDirective}
+${difficultyDirective}
 Max Points: 100
 ${syllabusAnchorBlock}${planWeekSection}${dedupAssign}${
         meetingContinuityBlock
@@ -1369,10 +1385,12 @@ Return a JSON object with this exact shape:
     {
       "question_text": "string",
       "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks, block_sequence",
-      "options": ["string — only for multiple_choice/true_false"],
-      "correct_answer": "string",
+      "options": ["string — 4 distinct plausible options for multiple_choice, or ['True','False'] for true_false"],
+      "correct_answer": "string — MUST match one of options[] verbatim for multiple_choice (NEVER a bare letter 'A')",
+      "explanation": "string — concise 1-2 sentence explanation or marking guide",
       "points": 10,
       "metadata": {
+        "cognitive_level": "recall|understand|apply|analyze|evaluate",
         "logic_sentence": "string — only for coding_blocks, e.g. 'When [BLANK] clicked, move [BLANK] steps'",
         "logic_blocks": ["string — only for coding_blocks, all available block options"],
         "blocks": ["string — only for block_sequence: ALL available blocks including distractors"],
@@ -1382,13 +1400,16 @@ Return a JSON object with this exact shape:
   ]
 }
 
-RULES:
+STRICT ACADEMIC QUALITY RULES:
+- Generate EXACTLY ${targetQCount} unique, non-overlapping questions covering distinct concepts (zero duplicate or reworded stems).
+- Balance Bloom's Taxonomy: ~35% Recall/Understand, ~40% Apply/Trace/Analyze, ~25% Debug/Scenario/Evaluate.
+- For multiple_choice: write 4 plausible, parallel-length options with NO letter prefixes ("A.", "B."). NEVER use giveaway options like "All of the above" or "None of the above". correct_answer MUST equal the exact winning option string verbatim.
+- Include a clear, helpful "explanation" (or marking criteria for essay) on EVERY question.
 - For 'coding_blocks': correct_answer = comma-separated blocks for [BLANK] slots in order. logic_sentence uses [BLANK] for each gap.
 - For 'block_sequence': correct_answer = comma-separated correct sequence. blocks[] includes the correct ones PLUS 1-2 distractor blocks mixed in.
 - For 'project': include deliverables[] with 3-5 concrete items, and rubric[] with 3-4 criteria summing to ~100 pts.
-- For visual/Scratch/block coding topics (grade Basic 1-JSS1): include at least 1 block_sequence question.
-- For programming topics (JSS2-SS3): include at least 1 coding_blocks and 1 coding challenge question.
-- Include at least 5 questions total.
+- For visual/Scratch/block coding topics (grade Basic 1-JSS1): include at least 1 block_sequence question when mix allows.
+- For programming topics (JSS2-SS3): include at least 1 coding_blocks or code-tracing question when mix allows.
 - metadata.deliverables and metadata.rubric should be null/omitted for non-project assignments.
 - Format the assignment description and instructions using rich Markdown (bold accents, bullet points, numbered lists, blockquotes).
 - Include clear, well-commented sample code or template scripts inside standard language code fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html, \`\`\`cpp) supporting all coding, database, and scripting topics.

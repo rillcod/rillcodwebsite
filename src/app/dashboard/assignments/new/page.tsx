@@ -13,8 +13,9 @@ import {
   CodeBracketIcon, CommandLineIcon, SparklesIcon as SparklesIconOutline
 } from '@/lib/icons';
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
-import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
-import { extractPdfText } from '@/lib/pdf/extract-text';
+import { ACCEPTED_DOCUMENT_EXTENSIONS, extractDocumentText } from '@/lib/files/extract-document-text';
+import { dedupeCbtQuestions, resolveMcqAnswerToOption, stripOptionPrefix } from '@/lib/cbt/question-bank-catalog';
+import type { AiDocumentAnalysis } from '@/app/api/ai/analyze-document/route';
 import { buildAssignmentEntrySuggestion } from '@/lib/assignments/predictive-entry';
 
 interface Question {
@@ -115,8 +116,13 @@ export default function NewAssignmentPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState('');
+  const [aiQuestionCount, setAiQuestionCount] = useState('8');
+  const [aiQuestionMix, setAiQuestionMix] = useState<'balanced' | 'mcq_only' | 'theory_only' | 'coding_logic'>('balanced');
+  const [aiDifficulty, setAiDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
   const [sourceText, setSourceText] = useState('');
   const [sourceName, setSourceName] = useState('');
+  const [aiDocAnalysis, setAiDocAnalysis] = useState<AiDocumentAnalysis | null>(null);
+  const [analyzingDoc, setAnalyzingDoc] = useState(false);
   const [extractingPdf, setExtractingPdf] = useState(false);
   const [extractMsg, setExtractMsg] = useState('');
   const [aiLastModel, setAiLastModel] = useState<string | null>(null);
@@ -136,60 +142,39 @@ export default function NewAssignmentPage() {
   }, []); // Initial smart draft only; later changes are handled explicitly below.
 
   const handleAiGenerate = async () => {
-    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+    if (!aiTopic.trim() && !sourceText.trim()) { setAiError('Enter a topic or upload a document first.'); return; }
     setAiGenerating(true);
     setAiError(null);
     setAiLastModel(null);
     try {
-      let data: any = null;
-
-      // Ground generation in the SELECTED course/programme (same as CBT/lessons) so
-      // assignments follow the normal programme/course scope rather than the topic alone.
       const selCourse: any = courses.find((c: any) => c.id === form.course_id);
       const selProgramName = selCourse?.programs?.name || '';
-      const courseCtx = selCourse
-        ? `\nCourse: "${selCourse.title}"${selProgramName ? ` (Programme: ${selProgramName})` : ''} — all questions and tasks MUST fit this course's scope and level.`
+      const effectiveTopic = aiTopic.trim() || aiDocAnalysis?.subject || sourceName || selCourse?.title || 'Assignment';
+      const briefPrefix = aiDocAnalysis
+        ? `=== AI ATTACHMENT BRIEF ===\nSubject: ${aiDocAnalysis.subject}\nSummary: ${aiDocAnalysis.summary}\nKey Concepts: ${aiDocAnalysis.keyConcepts.join(', ')}\n=== SOURCE MATERIAL ===\n`
         : '';
-      const srcCtx = sourceText ? `\nSOURCE MATERIAL — base it strictly on this teacher document:\n${sourceText.slice(0, 6000)}` : '';
+      const effectiveSource = sourceText ? `${briefPrefix}${sourceText}`.slice(0, 22_000) : undefined;
 
-      if (isPuterAvailable()) {
-        // Free path — Puter.js
-        const prompt = `Generate a structured, age-appropriate assignment on this topic: "${aiTopic}".${courseCtx}${srcCtx}
-Return ONLY valid JSON (no markdown, no code fence) with this shape:
-{
-  "title": "...",
-  "description": "...",
-  "instructions": "Step-by-step instructions...",
-  "assignment_type": "homework|project|coding|quiz",
-  "questions": [
-    { "question_text": "...", "question_type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "points": 5 }
-  ]
-}
-Include 3-5 questions. Match the difficulty and language to the named programme and course. If no level is supplied, use a clear middle-school level.`;
-        const raw = await puterChat(prompt);
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('AI returned unexpected format');
-        data = JSON.parse(jsonMatch[0]);
-        setAiLastModel('Puter.js (Free)');
-      } else {
-        // Fallback — server route
-        const res = await fetch('/api/ai/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'assignment',
-            topic: aiTopic,
-            courseName: selCourse?.title || undefined,
-            subject: selCourse?.title || undefined,
-            programName: selProgramName || undefined,
-            ...(sourceText ? { sourceMaterial: sourceText } : {}),
-          }),
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'Generation failed');
-        data = result.data;
-        setAiLastModel(result.model?.split('/')?.pop() ?? 'OpenRouter');
-      }
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'assignment',
+          topic: effectiveTopic,
+          assignmentType: form.assignment_type || undefined,
+          questionCount: Math.max(4, Math.min(25, Number(aiQuestionCount) || 8)),
+          questionMix: aiQuestionMix,
+          difficulty: aiDifficulty,
+          courseName: selCourse?.title || undefined,
+          subject: selCourse?.title || aiDocAnalysis?.subject || undefined,
+          programName: selProgramName || undefined,
+          ...(effectiveSource ? { sourceMaterial: effectiveSource } : {}),
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Generation failed');
+      const data = result.data ?? {};
+      setAiLastModel(result.model?.split('/')?.pop() ?? '5-Tier Free AI');
 
       setForm(prev => {
         const assignmentType = data.assignment_type || prev.assignment_type;
@@ -205,20 +190,60 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
           multi_step: smartDefaults.current.multiStepEdited ? prev.multi_step : suggestion.multiStep,
         };
       });
+
+      const metaObj = data.metadata && typeof data.metadata === 'object' ? data.metadata : data;
+      if (Array.isArray(metaObj?.deliverables) || Array.isArray(metaObj?.rubric)) {
+        setProjectMeta((prev) => ({
+          deliverables: Array.isArray(metaObj.deliverables) && metaObj.deliverables.length > 0
+            ? metaObj.deliverables.map((d: any) => String(d || '').trim()).filter(Boolean)
+            : prev.deliverables,
+          rubric: Array.isArray(metaObj.rubric) && metaObj.rubric.length > 0
+            ? metaObj.rubric.map((r: any) => ({
+                criterion: String(r?.criterion || '').trim(),
+                description: String(r?.description || '').trim(),
+                maxPoints: Math.max(1, Number(r?.maxPoints) || 25),
+              })).filter((r: any) => r.criterion)
+            : prev.rubric,
+        }));
+      }
+
       if (Array.isArray(data.questions) && data.questions.length > 0) {
-        setQuestions(data.questions.map((q: any) => ({
-          question_text: q.question_text || '',
-          question_type: q.question_type || 'multiple_choice',
-          options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
-          correct_answer: q.correct_answer || '',
-          points: q.points || 5,
-          metadata: { logic_sentence: '', logic_blocks: ['', '', ''] },
-        })));
+        const mapped = data.questions.map((q: any) => {
+          const qType = q.question_type || 'multiple_choice';
+          const rawOpts: string[] = Array.isArray(q.options)
+            ? q.options.map((o: any) => stripOptionPrefix(String(o ?? '').trim())).filter(Boolean)
+            : [];
+          const opts = qType === 'true_false'
+            ? ['True', 'False']
+            : qType === 'multiple_choice'
+              ? (rawOpts.length >= 2 ? rawOpts : ['', '', '', ''])
+              : [];
+          const rawCorrect = String(q.correct_answer ?? '').trim();
+          const correct = qType === 'multiple_choice'
+            ? (opts.find((o) => o === resolveMcqAnswerToOption(rawCorrect, opts)) || opts[0] || rawCorrect)
+            : qType === 'true_false'
+              ? (/^false$/i.test(rawCorrect) ? 'False' : 'True')
+              : rawCorrect;
+          return {
+            question_text: String(q.question_text || '').trim(),
+            question_type: qType,
+            options: opts,
+            correct_answer: correct,
+            points: Number(q.points) || 10,
+            metadata: {
+              logic_sentence: q.metadata?.logic_sentence || '',
+              logic_blocks: Array.isArray(q.metadata?.logic_blocks) ? q.metadata.logic_blocks : ['', '', ''],
+              ...(Array.isArray(q.metadata?.blocks) ? { blocks: q.metadata.blocks } : {}),
+            },
+          };
+        }).filter((q: Question) => q.question_text.length > 0);
+
+        const deduped = dedupeCbtQuestions(mapped, []);
+        setQuestions(deduped.unique as Question[]);
       }
       setAiJustGenerated(true);
       setTimeout(() => setAiJustGenerated(false), 3000);
       setAiOpen(false);
-      // Scroll form into view
       setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (e: any) {
       setAiError(e.message || 'AI generation failed');
@@ -552,9 +577,7 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
               </div>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
-              {isPuterAvailable() && (
-                <span className="rounded-full px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest">FREE</span>
-              )}
+              <span className="rounded-full px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest">5-TIER AI</span>
               <button
                 type="button"
                 onClick={() => setAiOpen(o => !o)}
@@ -567,11 +590,12 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
 
           {aiOpen && (
             <div className="space-y-4 px-6 pb-6 pt-2 relative animate-in slide-in-from-top-4 duration-500">
-              <div className="border-t border-white/10 pt-4">
+              <div className="border-t border-white/10 pt-4 space-y-4">
                 {/* Topic field */}
-                <div className="space-y-1 mb-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary">Topic</label>
+                <div className="space-y-1">
+                  <label htmlFor="ai-assignment-topic" className="text-[10px] font-black uppercase tracking-widest text-primary">Topic</label>
                   <input
+                    id="ai-assignment-topic"
                     value={aiTopic}
                     onChange={e => { aiTopicEdited.current = true; setAiTopic(e.target.value); }}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
@@ -580,31 +604,146 @@ Include 3-5 questions. Match the difficulty and language to the named programme 
                   />
                 </div>
 
-                {/* Optional: base the assignment on a PDF */}
-                <div className="space-y-1 mb-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Base on a PDF (optional)</label>
+                {/* Question Setting Controls: Count, Mix, Difficulty */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="space-y-1">
+                    <label htmlFor="ai-q-count" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Questions</label>
+                    <select
+                      id="ai-q-count"
+                      value={aiQuestionCount}
+                      onChange={(e) => setAiQuestionCount(e.target.value)}
+                      className="w-full min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground"
+                    >
+                      <option value="5">5 questions (Quick)</option>
+                      <option value="8">8 questions (Standard)</option>
+                      <option value="10">10 questions (Thorough)</option>
+                      <option value="15">15 questions (Deep Practice)</option>
+                      <option value="20">20 questions (Comprehensive)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="ai-q-mix" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Question Style</label>
+                    <select
+                      id="ai-q-mix"
+                      value={aiQuestionMix}
+                      onChange={(e) => setAiQuestionMix(e.target.value as any)}
+                      className="w-full min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground"
+                    >
+                      <option value="balanced">Balanced (MCQ + Theory)</option>
+                      <option value="mcq_only">Objective MCQ Only</option>
+                      <option value="theory_only">Theory &amp; Practical Only</option>
+                      <option value="coding_logic">Coding &amp; Logic Focus</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="ai-q-diff" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Difficulty</label>
+                    <select
+                      id="ai-q-diff"
+                      value={aiDifficulty}
+                      onChange={(e) => setAiDifficulty(e.target.value as any)}
+                      className="w-full min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground"
+                    >
+                      <option value="beginner">Beginner (Recall &amp; Basics)</option>
+                      <option value="intermediate">Intermediate (Apply &amp; Trace)</option>
+                      <option value="advanced">Advanced (Debug &amp; Evaluate)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Universal Attachment Upload (PDF, PPTX, DOCX, CSV, TXT, Images) + Deep AI Analysis */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Base on Attachment — PDF, Slides, Word, or Photo (optional)
+                  </label>
                   {sourceName ? (
-                    <div className="flex items-center gap-2 rounded-xl px-4 py-2.5 bg-violet-500/10 border border-violet-500/25">
-                      <span className="text-sm">📄</span>
-                      <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">{sourceName}</span>
-                      <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-white">Remove</button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 rounded-xl px-4 py-2.5 bg-violet-500/10 border border-violet-500/25">
+                        <span className="text-sm">📄</span>
+                        <span className="text-xs text-violet-700 dark:text-violet-300 font-bold truncate flex-1">{sourceName}</span>
+                        <button
+                          type="button"
+                          onClick={() => { setSourceText(''); setSourceName(''); setAiDocAnalysis(null); }}
+                          className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      {(analyzingDoc || aiDocAnalysis) && (
+                        <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 text-xs space-y-1.5">
+                          {analyzingDoc ? (
+                            <p className="font-bold text-primary">✨ Analyzing uploaded attachment with AI…</p>
+                          ) : aiDocAnalysis ? (
+                            <>
+                              <p className="font-bold text-foreground">{aiDocAnalysis.summary}</p>
+                              {aiDocAnalysis.keyConcepts.length > 0 && (
+                                <div className="flex flex-wrap gap-1 pt-0.5">
+                                  {aiDocAnalysis.keyConcepts.slice(0, 6).map((c) => (
+                                    <span key={c} className="rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                                      {c}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <label className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 border-2 border-dashed cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
-                      <span className="text-sm">📄</span>
-                      <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build from'}</span>
-                      <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
+                    <label className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 border-2 border-dashed cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-border hover:border-primary/40'}`}>
+                      <span className="text-sm">📎</span>
+                      <span className="text-xs font-bold text-muted-foreground">
+                        {extractingPdf ? (extractMsg || 'Extracting text…') : 'Upload PDF, PPTX, Word, CSV, or Photo/Screenshot'}
+                      </span>
+                      <input
+                        type="file"
+                        aria-label="Upload attachment for AI assignment generation"
+                        className="hidden"
+                        accept={ACCEPTED_DOCUMENT_EXTENSIONS}
+                        disabled={extractingPdf}
                         onChange={async e => {
                           const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
                           if (!file) return;
-                          setExtractingPdf(true); setAiError(null); setExtractMsg('Reading PDF…');
+                          setExtractingPdf(true); setAiError(null); setExtractMsg(`Reading ${file.name}…`);
                           try {
-                            const t = await extractPdfText(file, 8000, setExtractMsg);
-                            if (t) { setSourceText(t); setSourceName(file.name); }
-                            else setAiError('Could not read text from that PDF (is it scanned images?).');
-                          } catch { setAiError('Could not read that PDF.'); }
-                          finally { setExtractingPdf(false); }
-                        }} />
+                            const { text } = await extractDocumentText(file, 22_000, setExtractMsg);
+                            if (text && text.trim().length >= 15) {
+                              setSourceText(text.trim());
+                              setSourceName(file.name);
+                              if (!aiTopicEdited.current && !aiTopic.trim()) {
+                                setAiTopic(file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim());
+                              }
+                              setAnalyzingDoc(true);
+                              fetch('/api/ai/analyze-document', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  combinedText: text.trim(),
+                                  fileNames: [file.name],
+                                  totalWords: text.trim().split(/\s+/).filter(Boolean).length,
+                                }),
+                              })
+                                .then((r) => (r.ok ? r.json() : null))
+                                .then((j) => {
+                                  if (j?.data) {
+                                    setAiDocAnalysis(j.data as AiDocumentAnalysis);
+                                    if (!aiTopicEdited.current && j.data.subject && j.data.subject !== 'General Studies') {
+                                      setAiTopic(j.data.subject);
+                                    }
+                                  }
+                                })
+                                .catch(() => {})
+                                .finally(() => setAnalyzingDoc(false));
+                            } else {
+                              setAiError(`Could not read enough text from ${file.name}.`);
+                            }
+                          } catch {
+                            setAiError(`Could not read ${file.name}.`);
+                          } finally {
+                            setExtractingPdf(false);
+                          }
+                        }}
+                      />
                     </label>
                   )}
                 </div>
