@@ -20,6 +20,7 @@ import {
   extractDocumentText,
   type ExtractedSourceDocument,
 } from '@/lib/files/extract-document-text';
+import type { AiDocumentAnalysis } from '@/app/api/ai/analyze-document/route';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import {
   buildAssessmentBlueprint,
@@ -136,6 +137,9 @@ export default function QuestionAuthoringStudio({
   const [extractMsg, setExtractMsg] = useState('');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [showDocPreview, setShowDocPreview] = useState(false);
+  const [aiDocAnalysis, setAiDocAnalysis] = useState<AiDocumentAnalysis | null>(null);
+  const [analyzingDocs, setAnalyzingDocs] = useState(false);
+  const [selectedFocusConcepts, setSelectedFocusConcepts] = useState<Set<string>>(new Set());
   const [lastAiBlueprint, setLastAiBlueprint] = useState<AssessmentBlueprint | null>(null);
 
   // Track manual edits to prevent stale bleed while still updating dynamically on context switches
@@ -391,6 +395,43 @@ export default function QuestionAuthoringStudio({
     [uploadedDocs],
   );
 
+  const runAiDocumentAnalysis = async (docsToAnalyze: ExtractedSourceDocument[]) => {
+    const active = docsToAnalyze.filter((d) => d.selected && d.text.trim().length > 0);
+    if (active.length === 0) {
+      setAiDocAnalysis(null);
+      setSelectedFocusConcepts(new Set());
+      return;
+    }
+    const combined = buildCombinedSourceMaterial(active, '', 22_000).combinedText;
+    if (combined.length < 30) return;
+    setAnalyzingDocs(true);
+    try {
+      const res = await fetch('/api/ai/analyze-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          combinedText: combined,
+          fileNames: active.map((d) => d.name),
+          totalSections: active.reduce((sum, d) => sum + d.sectionCount, 0),
+          totalWords: active.reduce((sum, d) => sum + d.wordCount, 0),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.data) {
+        const analysis = json.data as AiDocumentAnalysis;
+        setAiDocAnalysis(analysis);
+        setSelectedFocusConcepts(new Set(analysis.keyConcepts ?? []));
+        if (!userEditedTopicRef.current && analysis.subject && analysis.subject !== 'General Studies') {
+          setAiTopic(analysis.subject);
+        }
+      }
+    } catch {
+      // Non-blocking: local extraction & analysis still works seamlessly
+    } finally {
+      setAnalyzingDocs(false);
+    }
+  };
+
   const handleFilesUpload = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList).filter(Boolean);
     if (files.length === 0) return;
@@ -430,6 +471,8 @@ export default function QuestionAuthoringStudio({
             sectionCount: analysis.sectionCount,
             detectedTopics: analysis.detectedTopics,
             hasCode: analysis.hasCode,
+            detectedQuestionCount: analysis.detectedQuestionCount,
+            qualityLevel: analysis.qualityLevel,
             selected: true,
           });
         } catch {
@@ -438,12 +481,14 @@ export default function QuestionAuthoringStudio({
       }
 
       if (added.length > 0) {
+        let mergedForAnalysis: ExtractedSourceDocument[] = [];
         setUploadedDocs((prev) => {
           const byName = new Map(prev.map((d) => [d.name.toLowerCase(), d]));
           for (const item of added) {
             byName.set(item.name.toLowerCase(), item);
           }
           const merged = Array.from(byName.values());
+          mergedForAnalysis = merged;
           const { summaryLabel } = buildCombinedSourceMaterial(merged);
           setSourceName(summaryLabel);
           setIsWeekDerivedSource(false);
@@ -452,7 +497,7 @@ export default function QuestionAuthoringStudio({
 
         if (!aiTopic.trim()) {
           const baseName = added[0].name
-            .replace(/\.(pdf|pptx?|docx?|txt|md|csv|rtf)$/i, '')
+            .replace(/\.(pdf|pptx?|docx?|txt|md|csv|rtf|png|jpe?g|webp)$/i, '')
             .replace(/[_-]+/g, ' ')
             .trim();
           if (baseName) setAiTopic(baseName);
@@ -460,9 +505,10 @@ export default function QuestionAuthoringStudio({
 
         setAiSuccessMsg(
           added.length === 1
-            ? `Read "${added[0].name}" (${added[0].wordCount.toLocaleString()} words). Ready to generate questions!`
-            : `Read ${added.length} files (${added.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words combined). Select 1 or combine all to generate questions!`,
+            ? `Read "${added[0].name}" (${added[0].wordCount.toLocaleString()} words). Running AI deep analysis…`
+            : `Read ${added.length} files (${added.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words combined). Running AI deep analysis…`,
         );
+        void runAiDocumentAnalysis(mergedForAnalysis.length > 0 ? mergedForAnalysis : added);
       }
 
       if (failedNames.length > 0) {
@@ -610,6 +656,22 @@ export default function QuestionAuthoringStudio({
     let effectiveSourceText = combinedFromFiles.combinedText;
     let effectiveSourceName = combinedFromFiles.summaryLabel || sourceName.trim();
     const useStrictFileOnly = combinedFromFiles.selectedCount > 0 && strictFileOnly;
+
+    // Prepend AI Attachment Intelligence Brief + Teacher's chosen Focus Concepts so generation is laser-focused
+    if (aiDocAnalysis && combinedFromFiles.selectedCount > 0) {
+      const activeConcepts = selectedFocusConcepts.size > 0
+        ? Array.from(selectedFocusConcepts)
+        : aiDocAnalysis.keyConcepts;
+      const briefHeader = [
+        '=== AI ATTACHMENT INTELLIGENCE BRIEF ===',
+        `Subject: ${aiDocAnalysis.subject}${aiDocAnalysis.gradeLevel ? ` (${aiDocAnalysis.gradeLevel})` : ''}`,
+        `Summary: ${aiDocAnalysis.summary}`,
+        activeConcepts.length > 0 ? `Priority Testable Concepts to Cover: ${activeConcepts.join(', ')}` : '',
+        aiDocAnalysis.learningObjectives.length > 0 ? `Learning Objectives:\n- ${aiDocAnalysis.learningObjectives.join('\n- ')}` : '',
+        '=== SOURCE MATERIAL ===',
+      ].filter(Boolean).join('\n');
+      effectiveSourceText = `${briefHeader}\n${effectiveSourceText}`.slice(0, 26_000);
+    }
 
     // Only auto-attach taught weeks if NOT in strict uploaded-files-only mode and no custom source is set
     if (!useStrictFileOnly && !effectiveSourceText && selectedWeeks.size > 0 && curriculumWeeks.length > 0) {
@@ -1334,13 +1396,23 @@ export default function QuestionAuthoringStudio({
                           : `${selectedUploadedDocs.length} combined files · ${selectedUploadedDocs.reduce((s, d) => s + d.sectionCount, 0)} sections · ${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words`}
                     </span>
                     {selectedUploadedDocs.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowDocPreview((v) => !v)}
-                        className="rounded-lg border border-border bg-card hover:bg-muted px-2 py-0.5 text-[10px] font-bold text-primary transition-colors"
-                      >
-                        {showDocPreview ? 'Hide Analysis' : 'Inspect Extracted Data'}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          disabled={analyzingDocs}
+                          onClick={() => void runAiDocumentAnalysis(selectedUploadedDocs)}
+                          className="rounded-lg border border-primary/35 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 text-[10px] font-black text-primary transition-colors disabled:opacity-50"
+                        >
+                          {analyzingDocs ? '✨ AI Analyzing…' : aiDocAnalysis ? '✨ Re-Analyze AI' : '✨ Deep AI Analysis'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDocPreview((v) => !v)}
+                          className="rounded-lg border border-border bg-card hover:bg-muted px-2 py-0.5 text-[10px] font-bold text-primary transition-colors"
+                        >
+                          {showDocPreview ? 'Hide Raw Text' : 'Inspect Extracted Text'}
+                        </button>
+                      </>
                     )}
                   </div>
                   <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5">
@@ -1364,6 +1436,104 @@ export default function QuestionAuthoringStudio({
                     </button>
                   </div>
                 </div>
+
+                {/* ✨ AI Attachment Intelligence Card (Summary, Quality, Clickable Focus Concepts, Recommended Mix) */}
+                {selectedUploadedDocs.length > 0 && (analyzingDocs || aiDocAnalysis) && (
+                  <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 space-y-2.5 text-[11px]">
+                    {analyzingDocs ? (
+                      <div className="flex items-center gap-2 text-primary font-bold">
+                        <ArrowPathIcon className="h-3.5 w-3.5 animate-spin shrink-0" />
+                        <span>AI is deeply analyzing your attachment(s) — extracting summary, concepts, objectives &amp; best question mix…</span>
+                      </div>
+                    ) : aiDocAnalysis ? (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                              <SparklesIcon className="h-3 w-3" /> AI Attachment Analysis
+                            </span>
+                            <span className="font-black text-foreground">{aiDocAnalysis.subject}</span>
+                            {aiDocAnalysis.gradeLevel && (
+                              <span className="rounded-md border border-border bg-card px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                {aiDocAnalysis.gradeLevel}
+                              </span>
+                            )}
+                            <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black ${
+                              aiDocAnalysis.qualityLevel === 'high'
+                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                : aiDocAnalysis.qualityLevel === 'medium'
+                                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                                  : 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                            }`}>
+                              {aiDocAnalysis.qualityLevel === 'high' ? '✓ Crisp Extraction' : aiDocAnalysis.qualityLevel === 'medium' ? '⚠ Fair Extraction' : '⚠ Low Text / Scan'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              userEditedCountsRef.current = true;
+                              setMcqCount(String(aiDocAnalysis.recommendedMix.mcq));
+                              setTheoryCount(String(aiDocAnalysis.recommendedMix.theory));
+                              setAiSuccessMsg(`Applied AI recommended mix: ${aiDocAnalysis.recommendedMix.mcq} MCQ + ${aiDocAnalysis.recommendedMix.theory} Theory (${aiDocAnalysis.recommendedMix.difficulty}).`);
+                            }}
+                            className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1 text-[10px] font-black text-white transition-colors"
+                          >
+                            Apply Mix ({aiDocAnalysis.recommendedMix.mcq} MCQ + {aiDocAnalysis.recommendedMix.theory} Theory)
+                          </button>
+                        </div>
+
+                        <p className="text-xs leading-relaxed text-foreground/90">{aiDocAnalysis.summary}</p>
+
+                        {aiDocAnalysis.qualityNote && (
+                          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium text-amber-900 dark:text-amber-200">
+                            ⚠ {aiDocAnalysis.qualityNote}
+                          </p>
+                        )}
+
+                        {aiDocAnalysis.keyConcepts.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                              Focus Concepts (click to include/exclude in questions):
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {aiDocAnalysis.keyConcepts.map((concept) => {
+                                const active = selectedFocusConcepts.has(concept);
+                                return (
+                                  <button
+                                    key={concept}
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedFocusConcepts((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(concept)) next.delete(concept);
+                                        else next.add(concept);
+                                        return next;
+                                      })
+                                    }
+                                    className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                                      active
+                                        ? 'border-primary bg-primary/15 text-primary'
+                                        : 'border-border bg-card text-muted-foreground line-through opacity-60 hover:opacity-100'
+                                    }`}
+                                  >
+                                    {active ? '✓ ' : ''}{concept}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {aiDocAnalysis.learningObjectives.length > 0 && (
+                          <div className="pt-1 border-t border-border/50 text-[11px] text-muted-foreground">
+                            <span className="font-black text-foreground">Objectives: </span>
+                            {aiDocAnalysis.learningObjectives.join(' · ')}
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* Live Document Analysis & Extracted Text Preview */}
                 {showDocPreview && selectedUploadedDocs.length > 0 && (

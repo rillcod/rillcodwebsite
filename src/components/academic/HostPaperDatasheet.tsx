@@ -907,7 +907,7 @@ export function HostPaperDatasheet(props: {
             </p>
             <h1 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-foreground">{paperName}</h1>
             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-              {[schoolName, className, courseName || programName].filter(Boolean).join(' · ') || 'This class'}
+              {[schoolName, className, courseName || programName].filter(Boolean).join(' · ') || 'This class'} · Only changed rows are saved.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

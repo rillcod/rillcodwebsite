@@ -10,7 +10,7 @@
 
 import { extractPdfText } from '@/lib/pdf/extract-text';
 
-export type SupportedDocumentKind = 'pdf' | 'pptx' | 'docx' | 'doc' | 'ppt' | 'txt';
+export type SupportedDocumentKind = 'pdf' | 'pptx' | 'docx' | 'doc' | 'ppt' | 'txt' | 'image';
 export type DocumentContentRole = 'study_material' | 'question_paper' | 'answer_key';
 
 export interface ExtractedSourceDocument {
@@ -24,17 +24,21 @@ export interface ExtractedSourceDocument {
   sectionCount: number;
   detectedTopics: string[];
   hasCode: boolean;
+  detectedQuestionCount?: number;
+  qualityLevel?: 'high' | 'medium' | 'low';
   selected: boolean;
 }
 
 /**
- * Extracts key structural metadata (slide/page count, headings/topics, code presence)
- * from extracted document text so teachers see a live analysis before generating questions.
+ * Extracts key structural metadata (slide/page count, headings/topics, code presence,
+ * detected questions, and extraction quality) so teachers see a live analysis before generating.
  */
 export function analyzeExtractedDocument(text: string): {
   sectionCount: number;
   detectedTopics: string[];
   hasCode: boolean;
+  detectedQuestionCount: number;
+  qualityLevel: 'high' | 'medium' | 'low';
 } {
   const slideOrPageMarkers = text.match(/^\[(?:Slide|Page)\s+\d+\]/gim) ?? [];
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -68,10 +72,23 @@ export function analyzeExtractedDocument(text: string): {
   }
 
   const hasCode = /(?:```|\b(?:def|function|const|let|var|class|import|SELECT|CREATE TABLE|for\s*\(|while\s*\(|if\s*\(|print\s*\(|console\.log|<html|<div)\b)/i.test(text);
+  const numberedQs = (text.match(/(?:^|\n)\s*(?:Q(?:uestion)?\s*\d+[\.\):]?|\d+[\.\)])\s+\S/gi) ?? []).length;
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const alphaChars = (text.match(/[A-Za-z]/g) ?? []).length;
+  const alphaRatio = text.length > 0 ? alphaChars / text.length : 0;
+  const qualityLevel: 'high' | 'medium' | 'low' =
+    wordCount >= 80 && alphaRatio >= 0.45
+      ? 'high'
+      : wordCount >= 25 && alphaRatio >= 0.3
+        ? 'medium'
+        : 'low';
+
   return {
     sectionCount: Math.max(1, slideOrPageMarkers.length),
     detectedTopics: topics,
     hasCode,
+    detectedQuestionCount: numberedQs,
+    qualityLevel,
   };
 }
 
@@ -100,7 +117,7 @@ export function classifyDocumentRole(fileName: string, text: string): DocumentCo
 }
 
 export const ACCEPTED_DOCUMENT_EXTENSIONS =
-  '.pdf,.ppt,.pptx,.doc,.docx,.txt,.md,.csv,.rtf,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword';
+  '.pdf,.ppt,.pptx,.doc,.docx,.txt,.md,.csv,.rtf,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,image/png,image/jpeg,image/webp';
 
 export function detectDocumentKind(file: File): SupportedDocumentKind {
   const lower = file.name.toLowerCase();
@@ -109,6 +126,7 @@ export function detectDocumentKind(file: File): SupportedDocumentKind {
   if (lower.endsWith('.ppt')) return 'ppt';
   if (lower.endsWith('.docx')) return 'docx';
   if (lower.endsWith('.doc')) return 'doc';
+  if (/\.(png|jpe?g|webp)$/i.test(lower) || file.type.startsWith('image/')) return 'image';
   return 'txt';
 }
 
@@ -442,6 +460,20 @@ export async function extractDocumentText(
     onProgress?.(`Reading slides from ${file.name}…`);
     const text = await extractPptxText(file, maxChars);
     return { kind, text };
+  }
+
+  if (kind === 'image') {
+    onProgress?.(`Running OCR on image ${file.name}…`);
+    const Tesseract = await import('tesseract.js');
+    const result = await Tesseract.recognize(file, 'eng', {
+      logger: (m: any) => {
+        if (m?.status === 'recognizing text' && typeof m?.progress === 'number') {
+          onProgress?.(`OCR ${file.name} (${Math.round(m.progress * 100)}%)…`);
+        }
+      },
+    });
+    const text = String(result?.data?.text || '').replace(/\r/g, '').trim().slice(0, maxChars);
+    return { kind, text: text ? `[Page 1]\n${text}` : '' };
   }
 
   if (kind === 'docx') {
