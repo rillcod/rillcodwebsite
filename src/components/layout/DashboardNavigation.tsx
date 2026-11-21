@@ -1250,8 +1250,8 @@ export default function DashboardNavigation() {
         </div>
       </nav>
 
-      {/* ── Mobile Bottom Navigation (hidden during active CBT exam for distraction-free focus) ── */}
-      {!/^\/dashboard\/cbt\/[^/]+\/take$/.test(pathname ?? '') && (
+      {/* ── Mobile Bottom Navigation (hidden during active CBT / Exam for distraction-free focus) ── */}
+      {!/^\/dashboard\/(?:cbt|exams)\/[^/]+\/take$/.test(pathname ?? '') && (
       <div
         role="navigation"
         aria-label="Primary app navigation"

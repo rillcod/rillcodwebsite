@@ -1,4 +1,4 @@
-﻿// @refresh reset
+// @refresh reset
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -15,7 +15,8 @@ import Link from 'next/link';
 import {
   RocketLaunchIcon, BookOpenIcon, CheckBadgeIcon,
   ArrowRightIcon, PlayIcon, ClipboardDocumentListIcon,
-  PresentationChartLineIcon, BoltIcon,
+  PresentationChartLineIcon, BoltIcon, AcademicCapIcon,
+  ChartBarIcon, FireIcon, TrophyIcon,
 } from '@/lib/icons';
 import MyProgressPanel from '@/components/engagement/MyProgressPanel';
 
@@ -289,35 +290,82 @@ export default function StudentLearningPage() {
                   : 'When your teacher shares this week, it will show up here.'}
               </p>
 
-              {nextLesson && (
-                <Link href={`/dashboard/lessons/${nextLesson.id}`}
-                  className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest transition-all border-2 border-transparent hover:border-brand-red-600">
-                  <RocketLaunchIcon className="w-4 h-4" />
-                  Open: {nextLesson.title}
-                  <ArrowRightIcon className="w-3.5 h-3.5" />
+              <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                {nextLesson && (
+                  <Link href={`/dashboard/lessons/${nextLesson.id}`}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl px-5 py-2.5 bg-primary hover:opacity-90 text-primary-foreground text-xs font-black uppercase tracking-wider transition-all shadow-sm">
+                    <RocketLaunchIcon className="w-4 h-4 shrink-0" />
+                    <span className="truncate max-w-[200px] sm:max-w-xs">Open: {nextLesson.title}</span>
+                    <ArrowRightIcon className="w-3.5 h-3.5 shrink-0" />
+                  </Link>
+                )}
+                <Link href="/dashboard/cbt"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background hover:border-primary/40 px-4 py-2.5 text-xs font-black text-foreground transition-colors">
+                  <AcademicCapIcon className="w-4 h-4 text-primary shrink-0" />
+                  CBT &amp; Exams
                 </Link>
-              )}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
-            <div className="bg-card border border-border p-5 flex items-center gap-4">
-              <CheckBadgeIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <div className="rounded-2xl bg-card border border-border p-4 flex flex-col justify-between shadow-sm">
+              <CheckBadgeIcon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="mt-2">
                 <p className="text-2xl font-black tabular-nums text-foreground">{stats.lessonsDone}</p>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Lessons done</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mt-0.5">Lessons Done</p>
               </div>
             </div>
-            {pendingAssignments > 0 && (
-              <Link href="/dashboard/assignments" className="bg-card border border-border p-5 flex items-center gap-4 hover:border-primary/40">
-                <ClipboardDocumentListIcon className="w-8 h-8 text-primary shrink-0" />
-                <div>
-                  <p className="text-2xl font-black tabular-nums text-foreground">{pendingAssignments}</p>
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Waiting on teacher</p>
-                </div>
-              </Link>
-            )}
+            <div className="rounded-2xl bg-card border border-border p-4 flex flex-col justify-between shadow-sm">
+              <FireIcon className="w-6 h-6 text-amber-500" />
+              <div className="mt-2">
+                <p className="text-2xl font-black tabular-nums text-foreground">{stats.streak}<span className="text-xs font-bold text-muted-foreground ml-0.5">d</span></p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mt-0.5">Day Streak</p>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-card border border-border p-4 flex flex-col justify-between shadow-sm">
+              <TrophyIcon className="w-6 h-6 text-primary" />
+              <div className="mt-2">
+                <p className="text-2xl font-black tabular-nums text-foreground">{stats.xp.toLocaleString()}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mt-0.5">Term XP</p>
+              </div>
+            </div>
+            <Link href="/dashboard/grades" className="rounded-2xl bg-card border border-border p-4 flex flex-col justify-between shadow-sm hover:border-primary/40 transition-colors">
+              <ChartBarIcon className="w-6 h-6 text-indigo-500" />
+              <div className="mt-2">
+                <p className="text-2xl font-black tabular-nums text-foreground">{stats.avgScore > 0 ? `${stats.avgScore}%` : '—'}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mt-0.5">Avg Score</p>
+              </div>
+            </Link>
           </div>
+        </div>
+
+        {/* Always-Visible Quick Learning Tools Strip (2-col iPhone -> 6-col desktop) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <Link href="/dashboard/cbt" className="flex items-center gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-xs font-black text-foreground shadow-sm hover:border-primary/40 transition-all">
+            <AcademicCapIcon className="h-5 w-5 text-primary shrink-0" />
+            <span className="truncate">CBT &amp; Exams</span>
+          </Link>
+          <Link href="/dashboard/assignments" className="flex items-center gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-xs font-black text-foreground shadow-sm hover:border-primary/40 transition-all">
+            <ClipboardDocumentListIcon className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span className="truncate">Tasks{pendingAssignments > 0 ? ` (${pendingAssignments})` : ''}</span>
+          </Link>
+          <Link href="/dashboard/flashcards" className="flex items-center gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-xs font-black text-foreground shadow-sm hover:border-primary/40 transition-all">
+            <BoltIcon className="h-5 w-5 text-amber-600 shrink-0" />
+            <span className="truncate">Practice{dueFlashcards > 0 ? ` (${dueFlashcards})` : ''}</span>
+          </Link>
+          <Link href="/dashboard/slides" className="flex items-center gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-xs font-black text-foreground shadow-sm hover:border-primary/40 transition-all">
+            <PresentationChartLineIcon className="h-5 w-5 text-violet-600 shrink-0" />
+            <span className="truncate">Slides</span>
+          </Link>
+          <Link href="/dashboard/projects" className="flex items-center gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-xs font-black text-foreground shadow-sm hover:border-primary/40 transition-all">
+            <RocketLaunchIcon className="h-5 w-5 text-sky-600 shrink-0" />
+            <span className="truncate">Projects</span>
+          </Link>
+          <Link href="/dashboard/grades" className="flex items-center gap-2.5 rounded-2xl border border-border bg-card p-3.5 text-xs font-black text-foreground shadow-sm hover:border-primary/40 transition-all">
+            <ChartBarIcon className="h-5 w-5 text-indigo-600 shrink-0" />
+            <span className="truncate">My Grades</span>
+          </Link>
         </div>
 
         <section className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6" aria-labelledby="student-class-package">
