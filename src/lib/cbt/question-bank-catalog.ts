@@ -218,6 +218,22 @@ export function resolveMcqAnswerToOption(rawAnswer: string, options: string[]): 
     if (containing.length === 1) return containing[0];
   }
 
+  // 6. High-confidence token-overlap match (catches minor wording variance without guessing)
+  const ansTokens = normAns.split(/\s+/).filter((t) => t.length >= 3);
+  if (ansTokens.length >= 2) {
+    const scored = validOptions
+      .map((opt) => {
+        const optTokens = normalizeForOptionMatch(opt).split(/\s+/).filter((t) => t.length >= 3);
+        if (optTokens.length === 0) return { opt, ratio: 0 };
+        const hits = optTokens.filter((t) => ansTokens.includes(t)).length;
+        return { opt, ratio: hits / Math.max(optTokens.length, ansTokens.length) };
+      })
+      .sort((a, b) => b.ratio - a.ratio);
+    if (scored[0] && scored[0].ratio >= 0.65 && (!scored[1] || scored[0].ratio - scored[1].ratio >= 0.2)) {
+      return scored[0].opt;
+    }
+  }
+
   return clean;
 }
 

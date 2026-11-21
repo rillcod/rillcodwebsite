@@ -108,9 +108,21 @@ export function classifyDocumentRole(fileName: string, text: string): DocumentCo
     return 'answer_key';
   }
 
-  const numberedQs = (text.match(/(?:^|\n)\s*(?:Q(?:uestion)?\s*\d+|\d+[\.\)])\s+\S/gi) ?? []).length;
+  // Only classify as a ready-to-import Question Paper when there is strong structural evidence
+  // of real exam questions (multiple A-D option blocks OR multiple genuine interrogative/command
+  // exam questions) — NEVER misclassify numbered lesson notes or slide decks!
+  const isSlideDeck = (text.match(/^\[Slide\s+\d+\]/gim) ?? []).length >= 2;
   const optionLines = (text.match(/(?:^|\n|\s)(?:\([A-Da-d]\)|[A-Da-d][\.\)])\s+\S/g) ?? []).length;
-  if (numberedQs >= 3 && (optionLines >= 4 || /(?:exam|test|quiz|questions|section\s+a)/i.test(lowerName))) {
+  const interrogativeNumberedQs = (
+    text.match(
+      /(?:^|\n)\s*(?:Q(?:uestion)?\s*\d+[\.\):]?|\d+[\.\)])\s+(?:[^\n]*\?|(?:what|which|who|when|where|why|how|define|explain|list|state|describe|calculate|compare|differentiate|write\s+a|outline|mention|identify|convert|evaluate|solve)\b[^\n]{8,})/gi,
+    ) ?? []
+  ).length;
+
+  if (optionLines >= 6 && interrogativeNumberedQs >= 2) {
+    return 'question_paper';
+  }
+  if (!isSlideDeck && interrogativeNumberedQs >= 4 && /(?:section\s+[ab]|answer\s+all|marks?\]|\(\d+\s*marks?\)|exam|test\s+paper|question\s+paper)/i.test(text.slice(0, 2000) + ' ' + lowerName)) {
     return 'question_paper';
   }
   return 'study_material';

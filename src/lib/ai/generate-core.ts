@@ -1483,15 +1483,18 @@ Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${
 ${mcqInstruction}
 ${theoryInstruction}
 
-CONTEXT-AWARE & BLUEPRINT ALIGNMENT RULES:
+CONTEXT-AWARE, ORIGINALITY & VERIFIED-ANSWER RULES:
 - Stay inside the selected programme/course/source scope. Do not introduce unrelated technologies or advanced topics not implied by the teacher context.
-- If source material (.txt, .pdf, or curriculum weeks) is provided, at least 85% of questions must be directly traceable to it.
-- If premade questions are provided (even if they have NO answers or NO marking guides), you MUST act as an expert examiner: solve every objective question accurately so "correct_answer" matches the exact option string in "options", and write a detailed, point-by-point "marking_guide" (and "correct_answer") for every theory/essay/fill_blank question.
-- For EVERY question, populate both "correct_answer" (exact option text for MCQ/true_false, or expected answer/rubric for theory/fill_blank) AND "marking_guide" (clear scoring criteria or explanation of why the answer is correct).
+- ANTI-COPY RULE (CRITICAL): NEVER copy raw paragraphs, slide titles, headings, or bullet lists verbatim from the source document as question stems. You MUST transform the facts, definitions, formulas, processes, and code in the document into genuine, self-contained examination questions.
+- If source material (.txt, .pdf, .pptx, .docx, or curriculum weeks) is provided, at least 85% of questions must be directly traceable to distinct concepts across the ENTIRE document (not just the first page).
+- STRICT ANSWER ACCURACY & SELF-VERIFICATION (CRITICAL):
+  1. Solve and double-check EVERY question step-by-step before choosing "correct_answer". For math, logic, or code-tracing questions, mentally execute every line to guarantee 100% factual accuracy.
+  2. For EVERY MCQ: provide EXACTLY 4 distinct, plausible, parallel-length options (NO "A."/"B." prefixes, NO "All of the above" / "None of the above"). Ensure ONLY ONE option is unambiguously true, and copy that exact winning option text verbatim into "correct_answer".
+  3. Write a crisp, authoritative "explanation" AND "marking_guide" for EVERY question: for MCQs explain clearly WHY the correct option is true (and why the main distractor is false); for Theory/Essay/Coding write a complete Model Answer + point-by-point marking rubric (e.g. "Award 2 marks for..., 3 marks for...").
+- If premade questions are provided (even if they have NO answers or NO marking guides), solve every objective question accurately and write a thorough point-by-point marking guide + model solution for every theory/essay/coding question.
 - Use realistic Nigerian classroom or academy scenarios only when they help the concept; avoid decorative stories that distract from assessment.
 - Difficulty spread (Blueprint distribution): about 40% foundation (recall/understanding), 40% application (code tracing/hands-on usage), 20% reasoning (debugging/design/evaluation).
 - For coding/web/database topics, include short code snippets in some questions using triple-backtick fences with the language. Keep snippets printable: 4-12 lines where possible.
-- For MCQ questions, make distractors plausible and similar in length. Avoid "all of the above" and joke options.
 - For theory questions, ask for explain/apply/debug/compare tasks, not vague "discuss everything" prompts.
 - Do not ask students to use tools, internet, phones, or unavailable hardware during the CBT.
 

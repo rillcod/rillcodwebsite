@@ -613,7 +613,8 @@ export default function QuestionAuthoringStudio({
             resolvedCorrect = matchedDirect;
           } else {
             const fromGuide = resolveMcqAnswerToOption(String(q.explanation ?? q.marking_guide ?? ''), opts);
-            resolvedCorrect = opts.find((o) => o === fromGuide) || opts[0] || '';
+            // NEVER silently fall back to opts[0] (Option A) when unmatched — leave blank so it's flagged clearly
+            resolvedCorrect = opts.find((o) => o === fromGuide) || '';
           }
         } else if (qType === 'true_false') {
           resolvedCorrect = /^false$/i.test(rawCorrect) ? 'False' : 'True';
@@ -644,18 +645,18 @@ export default function QuestionAuthoringStudio({
           metadata: q.metadata ?? null,
         };
       })
-      .filter((q: StudioGeneratedQuestion) => q.question_text.length > 0);
+      .filter((q: StudioGeneratedQuestion) => {
+        if (q.question_text.length < 6) return false;
+        if (q.question_type === 'multiple_choice' && q.options.filter((o) => o.trim().length > 0).length < 2) {
+          return false;
+        }
+        return true;
+      });
   };
 
   const handleAiGenerate = async () => {
-    // If premade questions were detected (from uploaded Question Paper file(s) OR pasted text),
-    // automatically use AI to solve every answer & marking guide and align all options!
-    if (detectedPremadeFromSource.length > 0) {
-      await handleAiAlignAndSolvePremade(false);
-      return;
-    }
-
-    // Build combined source text from selected uploaded file(s) (PPTX/PDF/DOCX/TXT) + any extra notes
+    // Build combined source text from selected uploaded file(s) (PPTX/PDF/DOCX/TXT/Image) + any extra notes.
+    // ALWAYS generate the teacher's exact requested MCQ + Theory count (never silently hijack into raw text copy!).
     const combinedFromFiles = buildCombinedSourceMaterial(
       uploadedDocs,
       !isWeekDerivedSource ? sourceText : '',
@@ -767,11 +768,59 @@ export default function QuestionAuthoringStudio({
       );
 
       if (generatedList.length === 0) {
-        throw new Error('No valid questions were returned. Try refining your topic or source material.');
+        throw new Error('No valid questions with options/answers were returned. Please try again or refine your source.');
+      }
+
+      // Automatic Gap-Fill Pass: if AI stopped short of the teacher's requested count (e.g. returned 6 instead of 15),
+      // automatically fetch the exact missing MCQ & Theory questions with zero duplicates.
+      let combinedGenerated = [...generatedList];
+      const gotMcq = combinedGenerated.filter((q) => q.question_type === 'multiple_choice' || q.question_type === 'true_false').length;
+      const gotTheory = combinedGenerated.length - gotMcq;
+      const missingMcq = Math.max(0, mcq - gotMcq);
+      const missingTheory = Math.max(0, theory - gotTheory);
+      if (missingMcq + missingTheory >= 2 && combinedGenerated.length < total) {
+        try {
+          const topUpRes = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              type: 'cbt',
+              cbtMode: 'generate',
+              topic: effectiveTopic || 'Document Assessment',
+              questionCount: missingMcq + missingTheory,
+              mcqCount: missingMcq,
+              theoryCount: missingTheory,
+              courseName: useStrictFileOnly ? undefined : (courseTitle || undefined),
+              subject: useStrictFileOnly ? undefined : (courseTitle || undefined),
+              programName: useStrictFileOnly ? undefined : (programName || undefined),
+              className: className || undefined,
+              examType,
+              sourceName: effectiveSourceName || undefined,
+              sourceMaterial: effectiveSourceText || undefined,
+              sourceDocumentCount: combinedFromFiles.selectedCount || undefined,
+              strictSourceOnly: useStrictFileOnly,
+              existingQuestions: [
+                ...(importBehavior === 'append' ? existingQuestionTexts : []),
+                ...combinedGenerated.map((q) => q.question_text),
+              ].slice(0, 80),
+            }),
+          });
+          const topUpJson = await topUpRes.json().catch(() => ({}));
+          if (topUpRes.ok && Array.isArray(topUpJson?.data?.questions)) {
+            const extra = mapApiQuestionsToStudio(
+              topUpJson.data.questions,
+              effectiveSourceName || effectiveTopic || 'Aligned Blueprint',
+            );
+            combinedGenerated = [...combinedGenerated, ...extra];
+          }
+        } catch {
+          // Keep the first pass questions if top-up times out
+        }
       }
 
       const { unique: dedupedList, skippedCount } = dedupeCbtQuestions(
-        generatedList,
+        combinedGenerated,
         importBehavior === 'append' ? existingQuestionTexts : [],
       );
       if (dedupedList.length === 0) {
@@ -879,26 +928,10 @@ export default function QuestionAuthoringStudio({
       });
       const result = await res.json().catch(() => ({}));
       if (!res.ok || result.error) {
-        if (localParsed.length > 0) {
-          onImportQuestions(
-            localParsed.map((item) => ({
-              question_text: item.question_text,
-              question_type: item.question_type,
-              options: item.options,
-              correct_answer: item.correct_answer,
-              marking_guide: item.marking_guide,
-              points: item.points,
-              section: item.section,
-              explanation: item.explanation || item.marking_guide,
-              curriculumTag: item.curriculumTag,
-              cognitiveLevel: item.difficulty,
-            })),
-            fromCurrentPaper ? 'replace' : importBehavior,
-          );
-          setAiSuccessMsg(`Extracted ${localParsed.length} questions from your document.`);
-          return;
-        }
-        throw new Error(result.error || 'Failed to solve and align premade questions.');
+        throw new Error(
+          result.error
+            || 'AI could not solve and align those questions right now. Click retry or use Generate Questions instead.',
+        );
       }
 
       const data = result.data;
