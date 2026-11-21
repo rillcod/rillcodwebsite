@@ -56,8 +56,13 @@ export function ExamInterface({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const submittedRef = useRef(false);
+  const answersRef = useRef<Record<string, unknown>>(initialAnswers);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
   const saveProgress = useCallback(async (currentAnswers: Record<string, unknown>, announce = false) => {
     setSaveState('saving');
@@ -88,7 +93,7 @@ export function ExamInterface({
       const response = await fetch(`/api/exams/${exam.id}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attemptId, answers }),
+        body: JSON.stringify({ attemptId, answers: answersRef.current }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Submission failed.');
@@ -100,23 +105,33 @@ export function ExamInterface({
     } finally {
       setIsSubmitting(false);
     }
-  }, [answers, attemptId, exam.id, router]);
+  }, [attemptId, exam.id, router]);
 
+  // Stable 30s auto-save interval (never resets while actively typing an essay)
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (!submittedRef.current && Object.keys(answers).length > 0) void saveProgress(answers);
+      const latest = answersRef.current;
+      if (!submittedRef.current && Object.keys(latest).length > 0) {
+        void saveProgress(latest);
+      }
     }, 30_000);
     return () => window.clearInterval(timer);
-  }, [answers, saveProgress]);
+  }, [saveProgress]);
 
+  // Stable 1s countdown timer (never stutters or pauses while typing)
   useEffect(() => {
-    if (timeLeft <= 0) {
-      void handleSubmit();
-      return;
-    }
-    const timer = window.setTimeout(() => setTimeLeft(previous => Math.max(0, previous - 1)), 1_000);
-    return () => window.clearTimeout(timer);
-  }, [handleSubmit, timeLeft]);
+    const interval = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(interval);
+          void handleSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1_000);
+    return () => window.clearInterval(interval);
+  }, [handleSubmit]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -163,7 +178,9 @@ export function ExamInterface({
   const unansweredCount = Math.max(0, questions.length - answeredCount);
   const progress = questions.length ? (answeredCount / questions.length) * 100 : 0;
   const options = Array.isArray(currentQuestion?.options)
-    ? currentQuestion.options.filter((option): option is string => typeof option === 'string')
+    ? currentQuestion.options
+        .map((option) => (typeof option === 'string' ? option : typeof (option as any)?.text === 'string' ? (option as any).text : typeof (option as any)?.label === 'string' ? (option as any).label : ''))
+        .filter((s): s is string => s.trim().length > 0)
     : [];
   const answerValue = currentQuestion ? String(answers[currentQuestion.id] ?? '') : '';
   const isFlagged = currentQuestion ? flaggedIds.has(currentQuestion.id) : false;

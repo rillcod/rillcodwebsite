@@ -532,30 +532,30 @@ export default function QuestionAuthoringStudio({
   };
 
   const toggleUploadedDoc = (docId: string) => {
-    setUploadedDocs((prev) => {
-      const next = prev.map((d) => (d.id === docId ? { ...d, selected: !d.selected } : d));
-      const { summaryLabel } = buildCombinedSourceMaterial(next);
-      setSourceName(summaryLabel);
-      return next;
-    });
+    const next = uploadedDocs.map((d) => (d.id === docId ? { ...d, selected: !d.selected } : d));
+    const { summaryLabel } = buildCombinedSourceMaterial(next);
+    setUploadedDocs(next);
+    setSourceName(summaryLabel);
+    setAiDocAnalysis(null);
+    setSelectedFocusConcepts(new Set());
   };
 
   const removeUploadedDoc = (docId: string) => {
-    setUploadedDocs((prev) => {
-      const next = prev.filter((d) => d.id !== docId);
-      const { summaryLabel } = buildCombinedSourceMaterial(next);
-      setSourceName(summaryLabel);
-      return next;
-    });
+    const next = uploadedDocs.filter((d) => d.id !== docId);
+    const { summaryLabel } = buildCombinedSourceMaterial(next);
+    setUploadedDocs(next);
+    setSourceName(summaryLabel);
+    setAiDocAnalysis(null);
+    setSelectedFocusConcepts(new Set());
   };
 
   const selectOnlyUploadedDoc = (docId: string) => {
-    setUploadedDocs((prev) => {
-      const next = prev.map((d) => ({ ...d, selected: d.id === docId }));
-      const { summaryLabel } = buildCombinedSourceMaterial(next);
-      setSourceName(summaryLabel);
-      return next;
-    });
+    const next = uploadedDocs.map((d) => ({ ...d, selected: d.id === docId }));
+    const { summaryLabel } = buildCombinedSourceMaterial(next);
+    setUploadedDocs(next);
+    setSourceName(summaryLabel);
+    setAiDocAnalysis(null);
+    setSelectedFocusConcepts(new Set());
   };
 
   const mapApiQuestionsToStudio = (rawList: any[], fallbackTag: string): StudioGeneratedQuestion[] => {
@@ -1309,7 +1309,7 @@ export default function QuestionAuthoringStudio({
                 {uploadedDocs.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => { setUploadedDocs([]); setSourceName(''); }}
+                    onClick={() => { setUploadedDocs([]); setSourceName(''); setAiDocAnalysis(null); setSelectedFocusConcepts(new Set()); }}
                     className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
                   >
                     Clear All

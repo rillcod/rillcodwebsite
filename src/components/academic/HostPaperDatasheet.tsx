@@ -149,7 +149,8 @@ export function HostPaperDatasheet(props: {
   const [showPasteBox, setShowPasteBox] = useState(false);
   const [pasteRaw, setPasteRaw] = useState('');
 
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const mobileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const desktopInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const questions = useMemo(
     () => [...(exam?.cbt_questions ?? [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
@@ -863,15 +864,16 @@ export function HostPaperDatasheet(props: {
     updateHallDraft(studentId, String(next));
   };
 
-  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number, mode: 'mobile' | 'desktop') => {
+    const refMap = mode === 'mobile' ? mobileInputRefs.current : desktopInputRefs.current;
     if (event.key === 'Enter' || event.key === 'ArrowDown') {
       event.preventDefault();
       const nextStudent = visibleRoster[index + 1];
-      if (nextStudent) inputRefs.current[nextStudent.id]?.focus();
+      if (nextStudent) refMap[nextStudent.id]?.focus();
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       const prevStudent = visibleRoster[index - 1];
-      if (prevStudent) inputRefs.current[prevStudent.id]?.focus();
+      if (prevStudent) refMap[prevStudent.id]?.focus();
     }
   };
 
@@ -1232,7 +1234,7 @@ export function HostPaperDatasheet(props: {
                     </button>
                   )}
                   <input
-                    ref={(el) => { inputRefs.current[student.id] = el; }}
+                    ref={(el) => { mobileInputRefs.current[student.id] = el; }}
                     type="number"
                     inputMode="numeric"
                     min={0}
@@ -1241,7 +1243,7 @@ export function HostPaperDatasheet(props: {
                     disabled={locked || saving || preparing}
                     value={hallDraft[student.id] ?? ''}
                     onChange={(event) => updateHallDraft(student.id, event.target.value)}
-                    onKeyDown={(e) => handleInputKeyDown(e, index)}
+                    onKeyDown={(e) => handleInputKeyDown(e, index, 'mobile')}
                     aria-label={`${paperName} mark for ${student.full_name || 'this learner'}, out of ${hallMax}`}
                     aria-invalid={!!inputError || cleared}
                     className={`h-12 min-w-0 flex-1 rounded-xl border bg-background px-3 text-center text-lg font-black tabular-nums ${inputError || cleared ? 'border-rose-500' : dirtyStudentIds.has(student.id) ? 'border-primary ring-2 ring-primary/15' : 'border-border'}`}
@@ -1327,7 +1329,7 @@ export function HostPaperDatasheet(props: {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <input
-                          ref={(el) => { inputRefs.current[student.id] = el; }}
+                          ref={(el) => { desktopInputRefs.current[student.id] = el; }}
                           type="number"
                           min={0}
                           max={hallMax}
@@ -1335,7 +1337,7 @@ export function HostPaperDatasheet(props: {
                           disabled={locked || saving || preparing}
                           value={hallDraft[student.id] ?? ''}
                           onChange={(e) => updateHallDraft(student.id, e.target.value)}
-                          onKeyDown={(e) => handleInputKeyDown(e, index)}
+                          onKeyDown={(e) => handleInputKeyDown(e, index, 'desktop')}
                           aria-label={`${hostPaperLabel(props.kind)} mark for ${student.full_name || 'this learner'}, out of ${hallMax}`}
                           aria-invalid={!!inputError || cleared}
                           className={`h-10 w-24 rounded-xl border bg-background px-2.5 text-right text-sm font-black tabular-nums focus:border-primary focus:outline-none ${inputError || cleared ? 'border-rose-500' : dirtyStudentIds.has(student.id) ? 'border-primary ring-2 ring-primary/15' : 'border-border'}`}
