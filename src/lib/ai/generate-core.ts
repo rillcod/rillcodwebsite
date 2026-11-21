@@ -17,6 +17,7 @@ import { geminiGenerateText } from "@/lib/gemini/client";
 import { cloudflareGenerateText, hasCloudflareAi } from "@/lib/ai/cloudflare-ai";
 import { groqGenerateText, hasGroqKey } from "@/lib/ai/groq-free";
 import { cerebrasGenerateText, hasCerebrasKey } from "@/lib/ai/cerebras-free";
+import { generateTextFreeFirst } from "@/lib/ai/text-free-first";
 import {
   openRouterComplete,
   MIN_CONTENT_CHARS,
@@ -32,6 +33,7 @@ import {
   inferCognitiveLevel,
   parsePremadeQuestionsFromText,
   resolveMcqAnswerToOption,
+  stripOptionPrefix,
 } from "@/lib/cbt/question-bank-catalog";
 import { meetingContinuityInstruction } from "@/lib/academic/session-identity";
 
@@ -473,15 +475,19 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
       : isObjective
       ? "multiple_choice"
       : "essay";
-    const options = isObjective
+    const options: string[] = isObjective
       ? type === "true_false"
         ? ["True", "False"]
         : Array.isArray(q.options) && q.options.length >= 2
-        ? q.options
-            .slice(0, 6)
-            .map((o: any) => String(o ?? "").replace(/^(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:])\s+/, "").trim())
-            .filter(Boolean)
-        : ["True", "False"]
+        ? Array.from(
+            new Set<string>(
+              q.options
+                .slice(0, 6)
+                .map((o: any) => stripOptionPrefix(String(o ?? "").trim()))
+                .filter((s: string) => s.length > 0),
+            ),
+          )
+        : []
       : [];
     const questionText =
       String(q.question_text ?? "").trim() ||
@@ -513,7 +519,12 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
         ? /^false$/i.test(rawAnswer)
           ? "False"
           : "True"
-        : resolveMcqAnswerToOption(rawAnswer, options) || options[0] || ""
+        : (() => {
+            const direct = resolveMcqAnswerToOption(rawAnswer, options);
+            if (options.includes(direct)) return direct;
+            const fromExp = resolveMcqAnswerToOption(String(q.explanation ?? q.marking_guide ?? ""), options);
+            return options.includes(fromExp) ? fromExp : "";
+          })()
       : rawAnswer ||
         String(q.explanation ?? "").trim() ||
         "Award full marks for accurate explanation, correct terminology, and a relevant example.";
@@ -2348,7 +2359,138 @@ export interface GenerationResult {
  * user (route handlers, lesson-plan generators) should use it directly rather
  * than making an HTTP request back to /api/ai/generate.
  */
+/**
+ * Independent 2nd-Stage AI Chief Examiner Verification & Solution-Upgrade Pass.
+ * Automatically re-solves every generated MCQ & Theory question step-by-step against the
+ * source context, fixes wrong or mismatched answers, eliminates weak/copied stems and
+ * giveaway distractors, and upgrades explanations / marking guides — via sub-second free
+ * LPU inference (fail-open so generation never breaks).
+ */
+async function verifyAndRefineExamData(
+  type: GenerateType,
+  data: any,
+  req: GenerateRequest,
+  remainingMs: number,
+): Promise<any> {
+  if ((type !== "cbt" && type !== "assignment") || remainingMs < 8_000) return data;
+  const rawQuestions: any[] = Array.isArray(data?.questions) ? data.questions : [];
+  if (rawQuestions.length === 0 || rawQuestions.length > 40) return data;
+
+  const compactQuestions = rawQuestions.map((q, idx) => ({
+    index: idx,
+    question_text: String(q.question_text ?? "").slice(0, 600),
+    question_type: String(q.question_type ?? "multiple_choice"),
+    options: Array.isArray(q.options) ? q.options : [],
+    correct_answer: String(q.correct_answer ?? ""),
+    explanation: String(q.explanation ?? q.marking_guide ?? "").slice(0, 400),
+  }));
+
+  const sourceSnippet = req.sourceMaterial?.trim()
+    ? `\nREFERENCE SOURCE MATERIAL (verify factual accuracy against this):\n"""\n${req.sourceMaterial.trim().slice(0, 8000)}\n"""\n`
+    : "";
+
+  const verifierSystem = [
+    "You are an Independent Chief Examiner auditing generated CBT/Assignment questions before students sit the paper.",
+    "For EVERY question in the input array:",
+    "1. Independently solve the question from scratch (trace code line-by-line, verify math/definitions/facts against the source material).",
+    "2. If a question stem looks like raw copied notes/bullets instead of a clear exam question, rewrite `question_text` into a crisp, self-contained formal examination question.",
+    "3. For multiple_choice: verify that ONLY ONE option is unambiguously correct and set `correct_answer` to that EXACT option string verbatim (no 'A.' prefix). If an option says 'All of the above' or 'None of the above' or two options are both right, fix the `options` array so there are 4 clean, distinct choices with 1 unambiguous answer.",
+    "4. Write a crisp, authoritative `explanation` AND `marking_guide` (for MCQs: state clearly WHY the answer is right and why the closest distractor is wrong; for Theory/Essay/Coding: write a complete Model Answer + point-by-point marking rubric).",
+    "5. Return STRICT JSON ONLY: {\"corrections\":[{\"index\":0,\"question_text\":\"...\",\"options\":[\"...\"],\"correct_answer\":\"...\",\"explanation\":\"...\",\"marking_guide\":\"...\"}]}",
+    "Include an entry for EVERY question that needs an answer fix, stem polish, option cleanup, or solution upgrade.",
+  ].join("\n");
+
+  const verifierUser = [
+    `Topic: ${req.topic || "Assessment"}`,
+    sourceSnippet,
+    "QUESTIONS TO AUDIT & VERIFY:",
+    JSON.stringify(compactQuestions),
+  ].join("\n");
+
+  try {
+    const verifyRes = await new Promise<{ text: string; model: string } | null>((resolve) => {
+      const capMs = Math.min(12_000, Math.max(4_000, remainingMs - 2_000));
+      const timer = setTimeout(() => resolve(null), capMs);
+      generateTextFreeFirst(verifierSystem, verifierUser, true, {
+        maxOutputTokens: 4096,
+        temperature: 0.1,
+        minLength: 15,
+        fastFirst: true,
+      })
+        .then((res) => {
+          clearTimeout(timer);
+          resolve(res);
+        })
+        .catch(() => {
+          clearTimeout(timer);
+          resolve(null);
+        });
+    });
+
+    if (!verifyRes?.text) return data;
+    const parsed = safeParseJSON(verifyRes.text);
+    const corrections: any[] = Array.isArray(parsed?.corrections) ? parsed.corrections : [];
+    if (corrections.length === 0) return data;
+
+    const updated = [...rawQuestions];
+    for (const c of corrections) {
+      const idx = Number(c?.index);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= updated.length) continue;
+      const orig = updated[idx];
+      const nextText = String(c.question_text ?? "").trim().length >= 8
+        ? String(c.question_text).trim()
+        : orig.question_text;
+      const nextOpts: string[] =
+        orig.question_type === "multiple_choice" && Array.isArray(c.options) && c.options.length >= 2
+          ? c.options.map((o: unknown) => stripOptionPrefix(String(o ?? "").trim())).filter(Boolean)
+          : Array.isArray(orig.options)
+            ? orig.options
+            : [];
+      const rawAns = String(c.correct_answer ?? "").trim();
+      let nextAns = orig.correct_answer;
+      if (orig.question_type === "multiple_choice" && rawAns && nextOpts.length >= 2) {
+        const resolved = resolveMcqAnswerToOption(rawAns, nextOpts);
+        if (nextOpts.includes(resolved)) nextAns = resolved;
+      } else if (orig.question_type !== "multiple_choice" && rawAns) {
+        nextAns = rawAns;
+      }
+      const nextExp = String(c.explanation ?? "").trim() || orig.explanation;
+      const nextGuide = String(c.marking_guide ?? "").trim() || nextExp || orig.marking_guide;
+      updated[idx] = {
+        ...orig,
+        question_text: nextText,
+        options: nextOpts,
+        correct_answer: nextAns,
+        explanation: nextExp,
+        marking_guide: nextGuide,
+        metadata: {
+          ...(orig.metadata && typeof orig.metadata === "object" ? orig.metadata : {}),
+          marking_guide: nextGuide,
+          ai_verified: true,
+        },
+      };
+    }
+
+    return { ...data, questions: updated };
+  } catch {
+    return data;
+  }
+}
+
 export async function generateAIContent(
+  body: GenerateRequest
+): Promise<GenerationResult> {
+  const startedAtOuter = Date.now();
+  const result = await generateAIContentInner(body);
+  if (result?.success && result?.data && (body.type === "cbt" || body.type === "assignment")) {
+    const elapsed = Date.now() - startedAtOuter;
+    const budgetLeft = Math.max(0, 52_000 - elapsed);
+    result.data = await verifyAndRefineExamData(body.type, result.data, body, budgetLeft);
+  }
+  return result;
+}
+
+async function generateAIContentInner(
   body: GenerateRequest
 ): Promise<GenerationResult> {
   const { type } = body;
@@ -2828,19 +2970,19 @@ export async function generateAIContent(
     }
   }
 
+  // Only allow local parser fallback in explicit align_premade mode when genuine MCQ options exist —
+  // NEVER dump raw PDF/slide study-note paragraphs as fake optionless questions during `generate` mode!
   if (
     type === "cbt" &&
-    (normalizedBody.premadeQuestionsText?.trim() || normalizedBody.sourceMaterial?.trim())
+    normalizedBody.cbtMode === "align_premade" &&
+    normalizedBody.premadeQuestionsText?.trim()
   ) {
-    const rawText =
-      normalizedBody.premadeQuestionsText?.trim() ||
-      normalizedBody.sourceMaterial?.trim() ||
-      "";
-    const parsedPremade = parsePremadeQuestionsFromText(rawText, {
+    const parsedPremade = parsePremadeQuestionsFromText(normalizedBody.premadeQuestionsText.trim(), {
       sourceName: normalizedBody.sourceName || "Premade Script",
       defaultTrack: normalizedBody.topic,
     });
-    if (parsedPremade.length > 0) {
+    const hasRealOptions = parsedPremade.some((q) => Array.isArray(q.options) && q.options.length >= 2);
+    if (parsedPremade.length > 0 && hasRealOptions) {
       return {
         success: true,
         model: "local-parser-fallback",
