@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       maxOutputTokens: 4096,
       temperature: 0.1,
       minLength: 10,
+      fastFirst: true,
     });
 
     if (!aiResult?.text) {

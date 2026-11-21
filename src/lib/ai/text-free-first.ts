@@ -41,14 +41,13 @@ export type FreeFirstOptions = {
   maxOutputTokens?: number;
   temperature?: number;
   minLength?: number;
+  /** Prefer sub-second LPU inference (Groq / Cerebras) before Gemini for snappy interactive analysis. */
+  fastFirst?: boolean;
 };
 
 /**
- * Try Gemini, then free OpenRouter models, and report which one answered.
- *
- * Returns null only when every option failed, so a caller can tell "the AI is
- * unavailable" apart from "the AI produced something unusable" — curriculum
- * repair keeps the original document in both cases, but says different things.
+ * Try free zero-cost AI tiers (Gemini, Groq, Cerebras, Cloudflare, OpenRouter :free)
+ * and report which one answered.
  */
 export async function generateTextFreeFirst(
   system: string,
@@ -58,42 +57,53 @@ export async function generateTextFreeFirst(
 ): Promise<FreeFirstResult> {
   const minLength = options.minLength ?? 20;
 
-  if (hasGeminiKey()) {
-    // geminiGenerateText takes `boolean | GenerateTextOptions`, so the boolean
-    // is a supported form rather than something needing a cast.
+  const tryGemini = async (): Promise<FreeFirstResult> => {
+    if (!hasGeminiKey()) return null;
     const result = await geminiGenerateText(system, user, Boolean(jsonMode)).catch(() => null);
     const text = result?.text?.trim() ?? '';
-    if (text.length > minLength) return { text, model: result!.model };
-  }
+    return text.length > minLength ? { text, model: result!.model } : null;
+  };
 
-  if (hasGroqKey()) {
+  const tryGroq = async (): Promise<FreeFirstResult> => {
+    if (!hasGroqKey()) return null;
     const groqResult = await groqGenerateText(system, user, {
       json: Boolean(jsonMode),
       maxTokens: options.maxOutputTokens ?? 8192,
       temperature: options.temperature ?? 0.3,
     }).catch(() => null);
     const groqText = groqResult?.text?.trim() ?? '';
-    if (groqText.length > minLength) return { text: groqText, model: groqResult!.model };
-  }
+    return groqText.length > minLength ? { text: groqText, model: groqResult!.model } : null;
+  };
 
-  if (hasCerebrasKey()) {
+  const tryCerebras = async (): Promise<FreeFirstResult> => {
+    if (!hasCerebrasKey()) return null;
     const cbResult = await cerebrasGenerateText(system, user, {
       json: Boolean(jsonMode),
       maxTokens: options.maxOutputTokens ?? 8192,
       temperature: options.temperature ?? 0.3,
     }).catch(() => null);
     const cbText = cbResult?.text?.trim() ?? '';
-    if (cbText.length > minLength) return { text: cbText, model: cbResult!.model };
-  }
+    return cbText.length > minLength ? { text: cbText, model: cbResult!.model } : null;
+  };
 
-  if (hasCloudflareAi()) {
+  const tryCloudflare = async (): Promise<FreeFirstResult> => {
+    if (!hasCloudflareAi()) return null;
     const cfResult = await cloudflareGenerateText(system, user, {
       json: Boolean(jsonMode),
       maxTokens: options.maxOutputTokens ?? 8192,
       temperature: options.temperature ?? 0.3,
     }).catch(() => null);
     const cfText = cfResult?.text?.trim() ?? '';
-    if (cfText.length > minLength) return { text: cfText, model: cfResult!.model };
+    return cfText.length > minLength ? { text: cfText, model: cfResult!.model } : null;
+  };
+
+  const orderedTiers = options.fastFirst
+    ? [tryGroq, tryCerebras, tryGemini, tryCloudflare]
+    : [tryGemini, tryGroq, tryCerebras, tryCloudflare];
+
+  for (const runTier of orderedTiers) {
+    const hit = await runTier();
+    if (hit) return hit;
   }
 
   if (!process.env.OPENROUTER_API_KEY) return null;

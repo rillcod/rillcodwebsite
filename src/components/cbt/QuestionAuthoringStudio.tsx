@@ -424,6 +424,15 @@ export default function QuestionAuthoringStudio({
         if (!userEditedTopicRef.current && analysis.subject && analysis.subject !== 'General Studies') {
           setAiTopic(analysis.subject);
         }
+        if (!userEditedCountsRef.current && analysis.recommendedMix) {
+          const recMcq = Math.min(maxQuestions, Math.max(0, analysis.recommendedMix.mcq));
+          const recTheory = Math.min(maxQuestions, Math.max(0, analysis.recommendedMix.theory));
+          if (recMcq + recTheory > 0) {
+            setMcqCount(String(recMcq));
+            setTheoryCount(String(recTheory));
+            onQuestionMixChange?.(recMcq, recTheory);
+          }
+        }
       }
     } catch {
       // Non-blocking: local extraction & analysis still works seamlessly
@@ -444,56 +453,56 @@ export default function QuestionAuthoringStudio({
     const failedNames: string[] = [];
 
     try {
-      for (let idx = 0; idx < files.length; idx++) {
-        const file = files[idx];
-        const prefix = files.length > 1 ? `(${idx + 1}/${files.length}) ` : '';
-        setExtractMsg(`${prefix}Reading ${file.name}…`);
-        try {
-          const { kind, text } = await extractDocumentText(file, 28_000, (msg) =>
-            setExtractMsg(`${prefix}${msg}`),
-          );
-          if (!text || text.trim().length < 15) {
-            failedNames.push(file.name);
-            continue;
+      setExtractMsg(files.length > 1 ? `Reading ${files.length} files in parallel…` : `Reading ${files[0].name}…`);
+      const settled = await Promise.all(
+        files.map(async (file, idx) => {
+          try {
+            const { kind, text } = await extractDocumentText(file, 28_000, (msg) => {
+              if (files.length === 1) setExtractMsg(msg);
+            });
+            if (!text || text.trim().length < 15) return { ok: false as const, name: file.name };
+            const clean = text.trim();
+            const words = clean.split(/\s+/).filter(Boolean).length;
+            const role = classifyDocumentRole(file.name, clean);
+            const analysis = analyzeExtractedDocument(clean);
+            const docItem: ExtractedSourceDocument = {
+              id: `${Date.now()}-${idx}-${file.name}`,
+              name: file.name,
+              kind,
+              role,
+              text: clean,
+              charCount: clean.length,
+              wordCount: words,
+              sectionCount: analysis.sectionCount,
+              detectedTopics: analysis.detectedTopics,
+              hasCode: analysis.hasCode,
+              detectedQuestionCount: analysis.detectedQuestionCount,
+              qualityLevel: analysis.qualityLevel,
+              selected: true,
+            };
+            return { ok: true as const, doc: docItem };
+          } catch {
+            return { ok: false as const, name: file.name };
           }
-          const clean = text.trim();
-          const words = clean.split(/\s+/).filter(Boolean).length;
-          const role = classifyDocumentRole(file.name, clean);
-          const analysis = analyzeExtractedDocument(clean);
-          added.push({
-            id: `${Date.now()}-${idx}-${file.name}`,
-            name: file.name,
-            kind,
-            role,
-            text: clean,
-            charCount: clean.length,
-            wordCount: words,
-            sectionCount: analysis.sectionCount,
-            detectedTopics: analysis.detectedTopics,
-            hasCode: analysis.hasCode,
-            detectedQuestionCount: analysis.detectedQuestionCount,
-            qualityLevel: analysis.qualityLevel,
-            selected: true,
-          });
-        } catch {
-          failedNames.push(file.name);
-        }
+        }),
+      );
+
+      for (const item of settled) {
+        if (item.ok) added.push(item.doc);
+        else failedNames.push(item.name);
       }
 
       if (added.length > 0) {
-        let mergedForAnalysis: ExtractedSourceDocument[] = [];
-        setUploadedDocs((prev) => {
-          const byName = new Map(prev.map((d) => [d.name.toLowerCase(), d]));
-          for (const item of added) {
-            byName.set(item.name.toLowerCase(), item);
-          }
-          const merged = Array.from(byName.values());
-          mergedForAnalysis = merged;
-          const { summaryLabel } = buildCombinedSourceMaterial(merged);
-          setSourceName(summaryLabel);
-          setIsWeekDerivedSource(false);
-          return merged;
-        });
+        const byName = new Map(uploadedDocs.map((d) => [d.name.toLowerCase(), d]));
+        for (const item of added) {
+          byName.set(item.name.toLowerCase(), item);
+        }
+        const mergedDocs = Array.from(byName.values());
+        const { summaryLabel } = buildCombinedSourceMaterial(mergedDocs);
+
+        setUploadedDocs(mergedDocs);
+        setSourceName(summaryLabel);
+        setIsWeekDerivedSource(false);
 
         if (!aiTopic.trim()) {
           const baseName = added[0].name
@@ -505,10 +514,10 @@ export default function QuestionAuthoringStudio({
 
         setAiSuccessMsg(
           added.length === 1
-            ? `Read "${added[0].name}" (${added[0].wordCount.toLocaleString()} words). Running AI deep analysis…`
-            : `Read ${added.length} files (${added.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words combined). Running AI deep analysis…`,
+            ? `Extracted "${added[0].name}" (${added[0].wordCount.toLocaleString()} words) — running fast AI analysis…`
+            : `Extracted ${added.length} files (${added.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words) — running fast AI analysis…`,
         );
-        void runAiDocumentAnalysis(mergedForAnalysis.length > 0 ? mergedForAnalysis : added);
+        void runAiDocumentAnalysis(mergedDocs);
       }
 
       if (failedNames.length > 0) {
@@ -1386,7 +1395,7 @@ export default function QuestionAuthoringStudio({
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/60 text-[11px]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-border/60 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-bold text-emerald-700 dark:text-emerald-300">
                       {selectedUploadedDocs.length === 0
@@ -1396,31 +1405,31 @@ export default function QuestionAuthoringStudio({
                           : `${selectedUploadedDocs.length} combined files · ${selectedUploadedDocs.reduce((s, d) => s + d.sectionCount, 0)} sections · ${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words`}
                     </span>
                     {selectedUploadedDocs.length > 0 && (
-                      <>
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <button
                           type="button"
                           disabled={analyzingDocs}
                           onClick={() => void runAiDocumentAnalysis(selectedUploadedDocs)}
-                          className="rounded-lg border border-primary/35 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 text-[10px] font-black text-primary transition-colors disabled:opacity-50"
+                          className="min-h-9 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 px-3 text-xs font-black text-primary transition-colors disabled:opacity-50"
                         >
-                          {analyzingDocs ? '✨ AI Analyzing…' : aiDocAnalysis ? '✨ Re-Analyze AI' : '✨ Deep AI Analysis'}
+                          {analyzingDocs ? '✨ AI Analyzing…' : aiDocAnalysis ? '✨ Re-Analyze' : '✨ Deep AI Analysis'}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowDocPreview((v) => !v)}
-                          className="rounded-lg border border-border bg-card hover:bg-muted px-2 py-0.5 text-[10px] font-bold text-primary transition-colors"
+                          className="min-h-9 rounded-xl border border-border bg-card hover:bg-muted px-3 text-xs font-bold text-foreground transition-colors"
                         >
-                          {showDocPreview ? 'Hide Raw Text' : 'Inspect Extracted Text'}
+                          {showDocPreview ? 'Hide Text' : 'Inspect Text'}
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
-                  <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5">
+                  <div className="grid grid-cols-2 sm:inline-flex items-center rounded-xl border border-border bg-card p-1">
                     <button
                       type="button"
                       onClick={() => setStrictFileOnly(true)}
-                      className={`px-2 py-1 rounded-md text-[10px] font-black transition-colors ${
-                        strictFileOnly ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:text-foreground'
+                      className={`min-h-8 px-3 py-1 rounded-lg text-[11px] font-black transition-colors ${
+                        strictFileOnly ? 'bg-emerald-700 text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       Solely from file(s)
@@ -1428,8 +1437,8 @@ export default function QuestionAuthoringStudio({
                     <button
                       type="button"
                       onClick={() => setStrictFileOnly(false)}
-                      className={`px-2 py-1 rounded-md text-[10px] font-black transition-colors ${
-                        !strictFileOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                      className={`min-h-8 px-3 py-1 rounded-lg text-[11px] font-black transition-colors ${
+                        !strictFileOnly ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       Blend with topic
