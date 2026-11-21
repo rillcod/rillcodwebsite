@@ -285,6 +285,7 @@ export function parsePremadeQuestionsFromText(
   const sectionTaggedBlocks: Array<{ block: string; sectionHint: 'objective' | 'subjective' | 'essay' | null }> = [];
   let currentSectionHint: 'objective' | 'subjective' | 'essay' | null = null;
   let currentChunk: string[] = [];
+  let lastQuestionNum = 0;
 
   const flushChunk = () => {
     const joined = currentChunk.join('\n').trim();
@@ -297,14 +298,35 @@ export function parsePremadeQuestionsFromText(
     const secMatch = trimmed.match(/^(?:SECTION|PART)\s+[A-Z0-9]+\s*[\:\-\–\.]?\s*(.*)$/i);
     if (secMatch && trimmed.length < 90) {
       flushChunk();
+      lastQuestionNum = 0;
       const label = (secMatch[1] || trimmed).toLowerCase();
       if (/objective|mcq|multiple\s*choice|true\s*or\s*false/.test(label)) currentSectionHint = 'objective';
       else if (/essay|theory|long\s*answer|extended/.test(label)) currentSectionHint = 'essay';
       else if (/subjective|short\s*answer|fill|practical|coding/.test(label)) currentSectionHint = 'subjective';
       continue;
     }
-    if (/^(?:Q(?:uestion)?\s*\d+(?:[\.\:\)]\s*|\s+)|\(\d+\)\s*|\d+[\.\)]\s*(?=\D)|\d+\s*[\-\–]\s+)/i.test(trimmed) && currentChunk.length > 0) {
-      flushChunk();
+
+    const qStartMatch = trimmed.match(/^(?:(Q(?:uestion)?)\s*(\d+)(?:[\.\:\)]\s*|\s+)|\((\d+)\)\s*|(\d+)[\.\)]\s*(?=\D)|(\d+)\s*[\-\–]\s+)/i);
+    if (qStartMatch && currentChunk.length > 0) {
+      const hasExplicitQ = Boolean(qStartMatch[1]);
+      const nextNum = parseInt(qStartMatch[2] || qStartMatch[3] || qStartMatch[4] || qStartMatch[5], 10);
+      const chunkJoined = currentChunk.join('\n');
+      const chunkHasOptionsOrAnswer = /(?:^|\n)\s*(?:\*?(?:\([A-Da-d]\)|[A-Da-d][\.\)\:])\s+|(?:answer|ans)\s*[\:\-])/i.test(chunkJoined);
+      // Keep embedded numbered lists (e.g. "1. Start\n2. Input X") inside ONE cohesive question
+      // unless this is an explicit "Q2"/"Question 2", options/answer already closed the prior item,
+      // or the question counter is advancing cleanly in sequence.
+      const isNewQuestion =
+        hasExplicitQ
+        || chunkHasOptionsOrAnswer
+        || lastQuestionNum === 0
+        || (nextNum === lastQuestionNum + 1 && nextNum > 1);
+      if (isNewQuestion) {
+        flushChunk();
+        if (Number.isFinite(nextNum)) lastQuestionNum = nextNum;
+      }
+    } else if (qStartMatch && currentChunk.length === 0) {
+      const nextNum = parseInt(qStartMatch[2] || qStartMatch[3] || qStartMatch[4] || qStartMatch[5], 10);
+      if (Number.isFinite(nextNum)) lastQuestionNum = nextNum;
     }
     currentChunk.push(rawLine);
   }
@@ -380,9 +402,15 @@ export function parsePremadeQuestionsFromText(
     if (contentLines.length === 0) return;
 
     // Extract options A-F if present (supports "(A) ...", "(a) ...", "A) ...", "A. ...", "a. ...", "*B) ...", inline or multiline)
-    // Inside Theory / Essay / Coding sections, (a)/(b)/(c) are sub-questions, NOT MCQ choices.
-    const isTheoryOrCodingSection = sectionHint === 'subjective';
-    const hasCodingOrEssayCue = /\b(write\s+a\s+(?:python|javascript|html|css|sql|c\+\+|java|program|function|script|code|query)|explain\s+in\s+detail|discuss|compare\s+and\s+contrast|debug\s+the\s+following|design\s+an?\s+algorithm|write\s+an?\s+essay)\b/i.test(block);
+    // Inside Theory / Essay / Coding sections — OR when (a)/(b)/(c) are sub-questions ("(a) List two...", "(b) Explain...") —
+    // keep everything together as ONE cohesive question rather than splitting into fake MCQ choices.
+    const isTheoryOrCodingSection = sectionHint === 'subjective' || sectionHint === 'essay';
+    const hasSubQuestionVerbs =
+      sectionHint !== 'objective'
+      && /(?:^|\n)\s*\([a-f]\)\s+(?:define|list|state|explain|describe|discuss|write|calculate|draw|mention|give|outline|compare|differentiate|highlight|identify|what\s+is|why\s+|how\s+)\s+\S+\s+\S+/i.test(block);
+    const hasCodingOrEssayCue =
+      hasSubQuestionVerbs
+      || /\b(write\s+a\s+(?:python|javascript|html|css|sql|c\+\+|java|program|function|script|code|query)|explain\s+in\s+detail|discuss|compare\s+and\s+contrast|debug\s+the\s+following|design\s+an?\s+algorithm|write\s+an?\s+essay)\b/i.test(block);
     const extractedOptions: string[] = [];
     let starredOption = '';
     const stemLines: string[] = [];
@@ -428,7 +456,29 @@ export function parsePremadeQuestionsFromText(
       }
     }
 
-    const questionStem = stemLines
+    // Rejoin broken mid-sentence wraps into one clean, cohesive question stem while preserving
+    // intentional sub-parts ((a), (b), (i)), bullets, and code lines.
+    const cohesiveStemLines: string[] = [];
+    for (const sLine of stemLines) {
+      const t = sLine.trim();
+      if (!t) continue;
+      const isIntentionalBreak =
+        /^(?:\([a-z]|[ivx]+\)|[ivx]+\.|[-*•]|\d+[\.\)])\s+/i.test(t)
+        || /^```/.test(t)
+        || /(?:def\s+\w+|function\s+\w+|const\s+\w+|let\s+\w+|var\s+\w+|class\s+\w+|SELECT\s+|print\s*\(|console\.log|<\/?[a-z])/i.test(t);
+      if (cohesiveStemLines.length === 0 || isIntentionalBreak) {
+        cohesiveStemLines.push(t);
+      } else {
+        const prev = cohesiveStemLines[cohesiveStemLines.length - 1];
+        if (/[?!:]$/.test(prev) || /^```/.test(prev)) {
+          cohesiveStemLines.push(t);
+        } else {
+          cohesiveStemLines[cohesiveStemLines.length - 1] = `${prev} ${t}`;
+        }
+      }
+    }
+
+    const questionStem = cohesiveStemLines
       .join('\n')
       .replace(/^(?:Q(?:uestion)?\s*\d+(?:[\.\:\)]\s*|\s+)|\(\d+\)\s*|\d+[\.\)]\s*(?=\D)|\d+\s*[\-\–]\s+)/i, '')
       .replace(/[\(\[]\s*\d+\s*(?:marks?|pts?|points?)\s*[\)\]]/gi, '')

@@ -60,17 +60,18 @@ export async function POST(request: NextRequest) {
     const totalWords = Number(body?.totalWords) || combinedText.split(/\s+/).filter(Boolean).length;
 
     const systemPrompt = [
-      'You are a senior curriculum & assessment analyst for Rillcod Academy.',
-      'Carefully read the uploaded teaching/exam attachment(s) and produce a sharp, factual academic intelligence brief.',
-      'Rules:',
-      '- Never invent topics that are not actually in the uploaded text.',
-      '- Extract 6 to 10 concrete, testable key concepts/terms/skills directly from the attachment.',
-      '- Extract 3 to 5 clear, measurable learning objectives grounded in the text.',
-      '- If the attachment already contains exam/test questions, count approximately how many (`detectedQuestionCount`). Otherwise 0.',
+      'You are a senior curriculum & examination board analyst for Rillcod Academy.',
+      'Carefully read the uploaded teaching/exam attachment(s) and produce a formal, publication-grade academic intelligence brief.',
+      'Formality & Quality Rules:',
+      '- Write in crisp, formal, examination-board academic English (complete grammatical sentences, proper capitalization, zero slang or casual filler).',
+      '- Never invent topics or facts that are not actually grounded in the uploaded text.',
+      '- Extract 6 to 10 concrete, formally phrased testable concepts/terms/skills directly from the attachment.',
+      '- Extract 3 to 5 formal, measurable Bloom-aligned learning objectives (starting with action verbs such as "Define", "Analyze", "Construct", "Evaluate").',
+      '- If the attachment already contains exam/test questions, count approximately how many complete questions (`detectedQuestionCount`) — treating multi-part sub-questions (a), (b), (c) under one number as ONE question. Otherwise 0.',
       '- Recommend a practical question mix (`mcq`, `theory`, `difficulty`, `reason`) suited to the content depth and length.',
-      '- Honestly assess extraction quality (`high`, `medium`, `low`): mark `low` or `medium` with a short helpful `qualityNote` if text looks sparse, OCR-noisy, or missing an answer key.',
+      '- Honestly assess extraction quality (`high`, `medium`, `low`): mark `low` or `medium` with a short formal `qualityNote` if text looks sparse, OCR-noisy, or missing an answer key.',
       '- Return STRICT JSON ONLY matching this exact schema:',
-      '{"summary":"2 concise factual sentences","subject":"string","gradeLevel":"string|null","keyConcepts":["string"],"learningObjectives":["string"],"detectedQuestionCount":0,"recommendedMix":{"mcq":15,"theory":5,"difficulty":"beginner|intermediate|advanced","reason":"short 1-sentence rationale"},"qualityLevel":"high|medium|low","qualityNote":"string|null"}',
+      '{"summary":"2 concise formal academic sentences","subject":"string","gradeLevel":"string|null","keyConcepts":["string"],"learningObjectives":["string"],"detectedQuestionCount":0,"recommendedMix":{"mcq":15,"theory":5,"difficulty":"beginner|intermediate|advanced","reason":"short 1-sentence formal rationale"},"qualityLevel":"high|medium|low","qualityNote":"string|null"}',
     ].join('\n');
 
     const userPrompt = [

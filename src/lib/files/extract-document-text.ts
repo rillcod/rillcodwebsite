@@ -435,6 +435,75 @@ async function extractLegacyOfficeBinaryText(file: File, maxChars: number): Prom
   return filterNoise(asciiChunks).join('\n').slice(0, maxChars).trim();
 }
 
+/**
+ * Normalizes raw PDF / PPTX / DOCX / OCR extracted text into clean, formal academic prose:
+ * - Rejoins hyphenated words split across PDF lines ("pro-\ngramming" -> "programming")
+ * - Replaces stray PDF/Word bullet glyphs with formal Markdown bullets ("- ")
+ * - Strips noisy standalone page-number footers ("Page 2 of 10", "- 4 -")
+ * - Rejoins broken mid-sentence line wraps while preserving headings, [Page]/[Slide] markers,
+ *   numbered questions, options (A.-D.), sub-parts ((a)-(d)), bullets, and code lines.
+ */
+export function normalizeExtractedAcademicText(raw: string): string {
+  if (!raw) return '';
+  const text = raw
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    // Rejoin words broken by PDF line-end hyphens
+    .replace(/([A-Za-z])-\n([a-z])/g, '$1$2')
+    // Normalize stray Office/PDF bullet symbols to formal "- "
+    .replace(/^[ \t]*[•▪➢➤●◦‣⁃]\s*/gm, '- ')
+    // Collapse runs of spaces/tabs inside lines (keep leading indentation for code)
+    .replace(/([^\s])[ \t]{2,}/g, '$1 ');
+
+  const rawLines = text.split('\n');
+  const out: string[] = [];
+
+  const isStructuralLine = (line: string): boolean => {
+    const t = line.trim();
+    if (!t) return true;
+    return (
+      /^\[(?:Page|Slide)\s+\d+\]/i.test(t)
+      || /^(?:SECTION|PART|CHAPTER|UNIT|TOPIC|MODULE|WEEK)\b/i.test(t)
+      || /^(?:ANSWER\s+KEY|MARKING\s+(?:GUIDE|SCHEME)|SOLUTIONS)\b/i.test(t)
+      || /^(?:Q(?:uestion)?\s*\d+|(?:\(\d+\)|\d+[\.\)\-])\s+)/i.test(t)
+      || /^(?:\*?(?:\([A-Fa-f]\)|[A-Fa-f][\.\)\:])\s+)/.test(t)
+      || /^(?:\([a-z]|[ivx]+\)|[ivx]+\.)\s+/i.test(t)
+      || /^[-*#>`]/.test(t)
+      || /^\s{2,}\S/.test(line)
+      || /(?:def\s+\w+|function\s+\w+|const\s+\w+|let\s+\w+|var\s+\w+|class\s+\w+|SELECT\s+|CREATE\s+TABLE|print\s*\(|console\.log|<\/?[a-z])/i.test(t)
+    );
+  };
+
+  for (const rawLine of rawLines) {
+    const trimmed = rawLine.trim();
+    // Skip standalone noisy page-number footers
+    if (/^(?:page\s+\d+(?:\s*(?:of|\/)\s*\d+)?|[-–—]\s*\d+\s*[-–—])$/i.test(trimmed)) {
+      continue;
+    }
+    if (!trimmed) {
+      if (out.length > 0 && out[out.length - 1] !== '') out.push('');
+      continue;
+    }
+
+    const prev = out.length > 0 ? out[out.length - 1] : '';
+    const canJoinToPrev =
+      prev !== ''
+      && !isStructuralLine(rawLine)
+      && !isStructuralLine(prev)
+      && !/[.!?:;)\]"]$/.test(prev.trim())
+      && prev.trim().length < 140;
+
+    if (canJoinToPrev) {
+      out[out.length - 1] = `${prev.trim()} ${trimmed}`;
+    } else {
+      out.push(trimmed);
+    }
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export async function extractDocumentText(
   file: File,
   maxChars = 28_000,
@@ -446,20 +515,20 @@ export async function extractDocumentText(
   if (kind === 'txt') {
     onProgress?.(`Reading ${file.name}…`);
     const raw = await file.text();
-    const cleaned = lower.endsWith('.rtf') ? stripRtf(raw) : raw.trim();
+    const cleaned = normalizeExtractedAcademicText(lower.endsWith('.rtf') ? stripRtf(raw) : raw);
     return { kind, text: cleaned.slice(0, maxChars).trim() };
   }
 
   if (kind === 'pdf') {
     onProgress?.(`Extracting text from ${file.name}…`);
-    const text = await extractPdfText(file, maxChars, onProgress);
-    return { kind, text };
+    const rawText = await extractPdfText(file, maxChars, onProgress);
+    return { kind, text: normalizeExtractedAcademicText(rawText).slice(0, maxChars) };
   }
 
   if (kind === 'pptx') {
     onProgress?.(`Reading slides from ${file.name}…`);
-    const text = await extractPptxText(file, maxChars);
-    return { kind, text };
+    const rawText = await extractPptxText(file, maxChars);
+    return { kind, text: normalizeExtractedAcademicText(rawText).slice(0, maxChars) };
   }
 
   if (kind === 'image') {
@@ -472,20 +541,20 @@ export async function extractDocumentText(
         }
       },
     });
-    const text = String(result?.data?.text || '').replace(/\r/g, '').trim().slice(0, maxChars);
+    const text = normalizeExtractedAcademicText(String(result?.data?.text || '')).slice(0, maxChars);
     return { kind, text: text ? `[Page 1]\n${text}` : '' };
   }
 
   if (kind === 'docx') {
     onProgress?.(`Reading Word document ${file.name}…`);
-    const text = await extractDocxText(file, maxChars);
-    return { kind, text };
+    const rawText = await extractDocxText(file, maxChars);
+    return { kind, text: normalizeExtractedAcademicText(rawText).slice(0, maxChars) };
   }
 
   // Legacy .doc / .ppt
   onProgress?.(`Extracting text from ${file.name}…`);
-  const text = await extractLegacyOfficeBinaryText(file, maxChars);
-  return { kind, text };
+  const rawText = await extractLegacyOfficeBinaryText(file, maxChars);
+  return { kind, text: normalizeExtractedAcademicText(rawText).slice(0, maxChars) };
 }
 
 /**
