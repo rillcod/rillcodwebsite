@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft, HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchActionJson, friendlyActionError, withTimeoutOrThrow } from "@/lib/async-timeout";
+import { validateDeliverableAuthEmail } from "@/lib/auth/email-deliverability";
 
 type UserRole = 'student' | 'parent';
 
@@ -88,13 +89,18 @@ export default function SignUpPage() {
       return;
     }
     if (password.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    const emailCheck = validateDeliverableAuthEmail(email, 'signup');
+    if (!emailCheck.ok) {
+      toast.error(emailCheck.message);
+      return;
+    }
 
     setLoading(true);
 
     try {
       const supabase = createClient();
       const { error: signUpError } = await withTimeoutOrThrow(supabase.auth.signUp({
-        email,
+        email: emailCheck.normalized,
         password,
         options: {
           data: {

@@ -2095,6 +2095,45 @@ export function safeParseJSON(raw: string): any {
       const cleaned = candidate.replace(/,\s*([\}\]])/g, "$1").trim();
       return JSON.parse(cleaned);
     } catch (e2) {
+      // 4. Truncated `"questions": [ {...}, {...}, ...` rescue — recover all complete question objects
+      // instead of throwing away a 90%-finished exam when a free model hits its token ceiling!
+      const qKeyIdx = stripped.search(/"questions"\s*:\s*\[/i);
+      if (qKeyIdx !== -1) {
+        const arrStart = stripped.indexOf("[", qKeyIdx);
+        if (arrStart !== -1) {
+          const recovered: any[] = [];
+          let depth = 0;
+          let inStr = false;
+          let esc = false;
+          let objStart = -1;
+          for (let i = arrStart + 1; i < stripped.length; i++) {
+            const ch = stripped[i];
+            if (inStr) {
+              if (esc) { esc = false; continue; }
+              if (ch === "\\") { esc = true; continue; }
+              if (ch === "\"") inStr = false;
+              continue;
+            }
+            if (ch === "\"") { inStr = true; continue; }
+            if (ch === "{") {
+              if (depth === 0) objStart = i;
+              depth++;
+            } else if (ch === "}") {
+              depth--;
+              if (depth === 0 && objStart !== -1) {
+                const slice = stripped.slice(objStart, i + 1).replace(/,\s*([\}\]])/g, "$1");
+                try {
+                  recovered.push(JSON.parse(slice));
+                } catch { /* skip malformed item */ }
+                objStart = -1;
+              }
+            }
+          }
+          if (recovered.length > 0) {
+            return { questions: recovered };
+          }
+        }
+      }
       console.error("Safe parse failed even after rescue:", e2);
     }
     throw new Error("AI returned malformed data — please refresh and try again");

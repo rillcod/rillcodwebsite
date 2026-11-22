@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Lock, Mail, Eye, EyeOff, ArrowLeft, ArrowRight, Loader2, CheckCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { withTimeoutOrThrow } from "@/lib/async-timeout";
+import { validateDeliverableAuthEmail } from "@/lib/auth/email-deliverability";
 import Image from "next/image";
 
 function ResetPasswordContent() {
@@ -46,11 +47,17 @@ function ResetPasswordContent() {
 
   const handleSendLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setActionError('');
+    const check = validateDeliverableAuthEmail(email, 'reset');
+    if (!check.ok) {
+      setActionError(check.message);
+      toast.error(check.message);
+      return;
+    }
+    setLoading(true);
     try {
       const { error } = await withTimeoutOrThrow(
-        supabase.auth.resetPasswordForEmail(email, {
+        supabase.auth.resetPasswordForEmail(check.normalized, {
           redirectTo: `${window.location.origin}/auth/recovery`,
         }),
         'Sending the reset link is taking longer than expected. Please try again.',

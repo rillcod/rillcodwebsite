@@ -49,11 +49,17 @@ export async function signIn(
     return data.user ? { userId: data.user.id } : null;
 }
 
+import { validateDeliverableAuthEmail } from '@/lib/auth/email-deliverability';
+
 /**
  * Request a password-reset email.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-    const { error } = await supabase().auth.resetPasswordForEmail(email, {
+    const check = validateDeliverableAuthEmail(email, 'reset');
+    if (!check.ok) {
+        throw new Error(check.message);
+    }
+    const { error } = await supabase().auth.resetPasswordForEmail(check.normalized, {
         redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {

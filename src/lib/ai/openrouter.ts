@@ -68,7 +68,7 @@ let cachedFreeModels: { at: number; ids: string[] } | null = null;
  * where a curriculum was expected.
  */
 const NOT_A_GENERAL_WRITER =
-  /(content-safety|guard|moderation|shield|-vl$|-vl:|embed|rerank|whisper|tts|stt)/i;
+  /(content-safety|guard|moderation|shield|-vl$|-vl:|embed|rerank|whisper|tts|stt|(?:^|[-_/:])(?:0\.\d+|1(?:\.\d+)?|2(?:\.\d+)?|3(?:\.\d+)?|4(?:\.\d+)?)b(?=$|[-_/:]))/i;
 
 function isGeneralWriter(model: any): boolean {
   const output: string[] = model?.architecture?.output_modalities ?? [];
@@ -449,7 +449,7 @@ export async function openRouterComplete(input: {
       body.response_format = { type: "json_object" };
     }
 
-    const response = await fetch(endpoint, {
+    let response = await fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -459,6 +459,23 @@ export async function openRouterComplete(input: {
       signal: input.signal,
       body: JSON.stringify(body),
     });
+
+    // Many OpenRouter :free models reject response_format: { type: "json_object" } with HTTP 400.
+    // Retry immediately without response_format so healthy large free models succeed on the 1st try!
+    if (response.status === 400 && body.response_format) {
+      const retryBody = { ...body };
+      delete retryBody.response_format;
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "X-Title": "Rillcod Technologies (Kid-Friendly Platform)",
+          "Content-Type": "application/json",
+        },
+        signal: input.signal,
+        body: JSON.stringify(retryBody),
+      });
+    }
 
     if (!response.ok) {
       // A 404 is a retired model and a 429 is exhausted quota — both are

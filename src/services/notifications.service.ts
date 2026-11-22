@@ -10,6 +10,7 @@ import { SMTP_FROM_EMAIL, SMTP_FROM_NAME } from '@/config/brand';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { recordDeadLetter } from '@/lib/operations/dead-letter';
 import { recordCommunicationDeliveryEvent } from '@/lib/communication/delivery-ledger';
+import { validateDeliverableAuthEmail } from '@/lib/auth/email-deliverability';
 
 /** Convert HTML to a readable plain-text fallback for spam filters and text-only clients */
 function htmlToPlainText(html: string): string {
@@ -662,6 +663,12 @@ export class NotificationsService {
 
     // Task 26.1: Create SendPulse integration for SendEmail
     async sendEmail(userId: string, payload: EmailPayload) {
+        const deliverability = validateDeliverableAuthEmail(payload.to, 'signup');
+        if (!deliverability.ok) {
+            console.log(`[notifications] Suppressing non-deliverable recipient "${payload.to}" (${deliverability.reason}) to prevent hard bounce.`);
+            await this.recordEmailDelivery(payload, null, undefined, 'suppressed');
+            return false;
+        }
         if (payload.category && !(await this.checkCategoryPreference(userId, payload.category))) {
             console.log(`User ${userId} has disabled ${payload.category} notifications. Skipping.`);
             await this.recordEmailDelivery(payload, null, undefined, 'suppressed');
@@ -751,7 +758,13 @@ export class NotificationsService {
     }
 
     // Send to non-portal recipients (no user preferences/logging)
-    async sendExternalEmail(payload: EmailPayload) {
+    async sendExternalEmail(payload: EmailPayload): Promise<EmailDispatchResult> {
+        const deliverability = validateDeliverableAuthEmail(payload.to, 'signup');
+        if (!deliverability.ok) {
+            console.log(`[notifications] Suppressing non-deliverable external recipient "${payload.to}" (${deliverability.reason}) to prevent hard bounce.`);
+            await this.recordEmailDelivery(payload, null, undefined, 'suppressed');
+            return { provider: 'resend', providerMessageId: `suppressed:${deliverability.reason}` };
+        }
         // attachments_binary = base64-encoded binary files (PDF, images, etc.)
         const attachmentsBinary = payload.attachments && payload.attachments.length > 0
             ? Object.fromEntries(payload.attachments.map(a => {
