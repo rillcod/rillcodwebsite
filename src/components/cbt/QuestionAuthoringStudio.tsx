@@ -140,6 +140,8 @@ export default function QuestionAuthoringStudio({
   const [aiDocAnalysis, setAiDocAnalysis] = useState<AiDocumentAnalysis | null>(null);
   const [analyzingDocs, setAnalyzingDocs] = useState(false);
   const [selectedFocusConcepts, setSelectedFocusConcepts] = useState<Set<string>>(new Set());
+  const [articleUrl, setArticleUrl] = useState('');
+  const [fetchingArticle, setFetchingArticle] = useState(false);
   const [lastAiBlueprint, setLastAiBlueprint] = useState<AssessmentBlueprint | null>(null);
 
   // Track manual edits to prevent stale bleed while still updating dynamically on context switches
@@ -528,6 +530,56 @@ export default function QuestionAuthoringStudio({
     } finally {
       setExtractingFile(false);
       setExtractMsg('');
+    }
+  };
+
+  const handleImportArticleUrl = async () => {
+    const trimmed = articleUrl.trim();
+    if (!trimmed) return;
+    setFetchingArticle(true);
+    setAiError(null);
+    setAiSuccessMsg(null);
+    try {
+      const res = await fetch('/api/ai/extract-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: trimmed }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.data?.text) {
+        throw new Error(json?.error || 'Could not extract readable text from that URL.');
+      }
+      const clean = String(json.data.text).trim();
+      const title = String(json.data.title || 'Web Article').trim();
+      const analysis = analyzeExtractedDocument(clean);
+      const docItem: ExtractedSourceDocument = {
+        id: `url-${Date.now()}`,
+        name: `${title.slice(0, 60)} (Article)`,
+        kind: 'txt',
+        role: 'study_material',
+        text: clean,
+        charCount: clean.length,
+        wordCount: Number(json.data.wordCount) || clean.split(/\s+/).filter(Boolean).length,
+        sectionCount: analysis.sectionCount,
+        detectedTopics: analysis.detectedTopics,
+        hasCode: analysis.hasCode,
+        detectedQuestionCount: analysis.detectedQuestionCount,
+        qualityLevel: analysis.qualityLevel,
+        selected: true,
+      };
+      const mergedDocs = [...uploadedDocs, docItem];
+      const { summaryLabel } = buildCombinedSourceMaterial(mergedDocs);
+      setUploadedDocs(mergedDocs);
+      setSourceName(summaryLabel);
+      setIsWeekDerivedSource(false);
+      if (!aiTopic.trim()) setAiTopic(title.slice(0, 80));
+      setArticleUrl('');
+      setAiSuccessMsg(`Imported article "${title}" (${docItem.wordCount.toLocaleString()} words) — running AI analysis…`);
+      void runAiDocumentAnalysis(mergedDocs);
+    } catch (err: any) {
+      setAiError(err?.message || 'Could not extract article URL.');
+    } finally {
+      setFetchingArticle(false);
     }
   };
 
@@ -1323,10 +1375,10 @@ export default function QuestionAuthoringStudio({
               <div className="min-w-0">
                 <p className="text-[11px] font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <DocumentTextIcon className="w-3.5 h-3.5 text-primary" />
-                  Upload Slides or Docs (PPT, PDF, DOC, TXT)
+                  Upload Slides, Docs, Images or Import Article URL
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Drop 1 file to generate solely from it, or combine multiple files (e.g. slides + notes, or question paper + answer key).
+                  Upload PDF, PPTX, DOCX, TXT, or photos/screenshots — or paste any web article URL below.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1367,6 +1419,32 @@ export default function QuestionAuthoringStudio({
                   />
                 </label>
               </div>
+            </div>
+
+            {/* Paste Article URL Importer */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <input
+                type="url"
+                aria-label="Paste educational article URL to extract"
+                value={articleUrl}
+                onChange={(e) => setArticleUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && articleUrl.trim() && !fetchingArticle) {
+                    e.preventDefault();
+                    void handleImportArticleUrl();
+                  }
+                }}
+                placeholder="Or paste an article URL (e.g. Wikipedia, MDN, W3Schools…) to extract & analyze"
+                className="min-h-10 flex-1 rounded-xl border border-border bg-card px-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <button
+                type="button"
+                disabled={fetchingArticle || !articleUrl.trim()}
+                onClick={() => void handleImportArticleUrl()}
+                className="min-h-10 shrink-0 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 px-3.5 text-xs font-black text-primary disabled:opacity-40 transition-colors"
+              >
+                {fetchingArticle ? 'Reading Article…' : 'Import Article'}
+              </button>
             </div>
 
             {uploadedDocs.length > 0 && (

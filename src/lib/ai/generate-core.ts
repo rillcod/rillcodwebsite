@@ -2910,7 +2910,7 @@ async function generateAIContentInner(
           apiKey: openRouterKey,
           model: modelId,
           system: plan.systemPrompt,
-          user: plan.prompt,
+          user: modelId.endsWith(":free") ? compactPrompt : plan.prompt,
           maxTokens: Math.min(plan.maxTokens, OPENROUTER_MAX_OUTPUT_TOKENS),
           temperature: plan.temperature,
           json: plan.useJsonFormat,
