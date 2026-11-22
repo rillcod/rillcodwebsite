@@ -6,8 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowsRightLeftIcon, MagnifyingGlassIcon, UserGroupIcon, AcademicCapIcon,
-  ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowLeftIcon,
+  ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowLeftIcon, XMarkIcon,
 } from '@/lib/icons';
+import { areSisterSchools } from '@/lib/schools/sister-school';
+import { canonicalGrade } from '@/lib/classes/naming';
 import { MOBILE_PAGE_ROOT } from '@/components/mobile/mobile-styles';
 
 type ClassRow = {
@@ -51,10 +53,13 @@ export default function ClassTransferPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lastTickedId, setLastTickedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [gradeAction, setGradeAction] = useState<'promote' | 'retain' | 'demote'>('promote');
 
   const [moving, setMoving] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; msg: string; destClassId?: string } | null>(null);
 
   // ── Load classes the user can manage ──────────────────────────────────────
   useEffect(() => {
@@ -104,24 +109,42 @@ export default function ClassTransferPage() {
   const sourceClass = classes.find(c => c.id === sourceId);
   const destClass = classes.find(c => c.id === destId);
 
-  // Destination options: same school as the source (or all when no source school),
+  // Destination options: same school OR sister school (e.g. Quincy Academy <-> Quincy Secondary),
   // never the source class itself.
   const destOptions = useMemo(() => {
-    return classes.filter(c => {
+    return classes.filter((c) => {
       if (c.id === sourceId) return false;
-      if (sourceClass?.school_id) return c.school_id === sourceClass.school_id;
+      if (sourceClass?.school_id) {
+        if (c.school_id === sourceClass.school_id) return true;
+        if (areSisterSchools(sourceClass.schools?.name, c.schools?.name)) return true;
+        return false;
+      }
       return true;
     });
-  }, [classes, sourceId, sourceClass?.school_id]);
+  }, [classes, sourceId, sourceClass?.school_id, sourceClass?.schools?.name]);
+
+  const distinctGrades = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          students
+            .map((s) => canonicalGrade(s.grade || s.grade_level || s.section_class) || s.grade || s.grade_level || '')
+            .filter(Boolean),
+        ),
+      ).sort(),
+    [students],
+  );
 
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return students;
     const multiTerms = q.includes(',') || q.includes(';') || q.includes('\n')
       ? q.split(/[\n,;]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
       : [];
     return students.filter((s) => {
-      const hay = [s.full_name, s.email, s.grade, s.section_class, s.grade_level]
+      const stuGrade = canonicalGrade(s.grade || s.grade_level || s.section_class) || s.grade || s.grade_level || '';
+      if (gradeFilter && stuGrade !== gradeFilter) return false;
+      if (!q) return true;
+      const hay = [s.full_name, s.email, stuGrade, s.grade, s.section_class, s.grade_level]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
@@ -130,16 +153,31 @@ export default function ClassTransferPage() {
       }
       return hay.includes(q);
     });
-  }, [students, search]);
+  }, [students, search, gradeFilter]);
 
   const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every(s => selected.has(s.id));
 
-  const toggle = (id: string) => {
-    setSelected(prev => {
+  const toggle = (id: string, shiftKey = false) => {
+    setSelected((prev) => {
       const n = new Set(prev);
+      if (shiftKey && lastTickedId) {
+        const ids = filteredStudents.map((s) => s.id);
+        const start = ids.indexOf(lastTickedId);
+        const end = ids.indexOf(id);
+        if (start >= 0 && end >= 0) {
+          const [lo, hi] = start < end ? [start, end] : [end, start];
+          const shouldSelect = !n.has(id);
+          for (let i = lo; i <= hi; i++) {
+            if (shouldSelect) n.add(ids[i]);
+            else n.delete(ids[i]);
+          }
+          return n;
+        }
+      }
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
+    setLastTickedId(id);
   };
   const toggleAll = () => {
     setSelected(prev => {
@@ -159,7 +197,7 @@ export default function ClassTransferPage() {
       const res = await fetch(`/api/classes/${destId}/enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentIds: ids }),
+        body: JSON.stringify({ studentIds: ids, grade_action: gradeAction }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Transfer failed');
@@ -186,7 +224,7 @@ export default function ClassTransferPage() {
 
       let msg = `Moved ${movedCount} student${movedCount !== 1 ? 's' : ''} → ${destClass?.name ?? 'class'}.`;
       if (rej.length > 0) msg += ` ${rej.length} skipped: ${rej.join(', ')}.`;
-      setResult({ ok: true, msg });
+      setResult({ ok: true, msg, destClassId: destId });
     } catch (e: any) {
       setResult({ ok: false, msg: e.message ?? 'Transfer failed' });
       // On failure, reload the true roster so the UI is never out of sync.
@@ -270,9 +308,17 @@ export default function ClassTransferPage() {
         </div>
       )}
       {result && (
-        <div className={`flex items-center gap-3 p-4 border text-sm rounded-xl ${result.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
+        <div className={`flex flex-wrap items-center gap-3 p-4 border text-sm rounded-xl ${result.ok ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'}`}>
           {result.ok ? <CheckCircleIcon className="w-4 h-4 flex-shrink-0" /> : <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />}
-          <span className="flex-1">{result.msg}</span>
+          <span className="flex-1 font-medium">{result.msg}</span>
+          {result.ok && result.destClassId && (
+            <Link
+              href={`/dashboard/classes/${result.destClassId}?operation=roster`}
+              className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1 text-xs font-black text-white transition-colors"
+            >
+              Open Destination Roster →
+            </Link>
+          )}
           <button onClick={() => setResult(null)} className="text-xs underline opacity-80 hover:opacity-100">Dismiss</button>
         </div>
       )}
@@ -312,9 +358,14 @@ export default function ClassTransferPage() {
             className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground focus:border-primary/50 outline-none disabled:opacity-50"
           >
             <option value="">Select destination…</option>
-            {destOptions.map(c => (
-              <option key={c.id} value={c.id}>{classLabel(c)}</option>
-            ))}
+            {destOptions.map(c => {
+              const isSister = Boolean(sourceClass?.school_id && c.school_id && c.school_id !== sourceClass.school_id);
+              return (
+                <option key={c.id} value={c.id}>
+                  {classLabel(c)}{isSister ? ` · Sister School (${c.schools?.name || 'Linked'})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -323,28 +374,71 @@ export default function ClassTransferPage() {
       {sourceId && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           {/* Roster toolbar */}
-          <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-bold text-foreground">
-              <UserGroupIcon className="h-4 w-4 flex-shrink-0 text-primary" />
-              <span className="break-words">{sourceClass?.name}</span>
-              <span className="font-medium text-muted-foreground">· {students.length} student{students.length !== 1 ? 's' : ''}</span>
+          <div className="space-y-3 border-b border-border p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-bold text-foreground">
+                <UserGroupIcon className="h-4 w-4 flex-shrink-0 text-primary" />
+                <span className="break-words">{sourceClass?.name}</span>
+                <span className="font-medium text-muted-foreground">· {students.length} student{students.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="relative min-w-0 flex-1 sm:ml-auto sm:max-w-xs">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  aria-label="Search students"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search names, grade, or paste list…"
+                  className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-8 text-sm text-foreground outline-none focus:border-primary/50"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={toggleAll}
+                disabled={filteredStudents.length === 0}
+                className="rounded-lg border border-border px-3 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary/50 disabled:opacity-40"
+              >
+                {allVisibleSelected ? `Untick Visible (${filteredStudents.length})` : `Tick All Visible (${filteredStudents.length})`}
+              </button>
             </div>
-            <div className="relative min-w-0 flex-1 sm:ml-auto sm:max-w-xs">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input aria-label="Search students"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search students…"
-                className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
-              />
-            </div>
-            <button
-              onClick={toggleAll}
-              disabled={filteredStudents.length === 0}
-              className="rounded-lg border border-border px-3 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary/50 disabled:opacity-40"
-            >
-              {allVisibleSelected ? 'Clear all' : 'Select all'}
-            </button>
+            {distinctGrades.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">Grade:</span>
+                <button
+                  type="button"
+                  onClick={() => setGradeFilter('')}
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                    !gradeFilter ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All ({students.length})
+                </button>
+                {distinctGrades.map((g) => (
+                  <button
+                    key={`tr-g-${g}`}
+                    type="button"
+                    onClick={() => setGradeFilter(gradeFilter === g ? '' : g)}
+                    className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                      gradeFilter === g ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+                <span className="ml-auto hidden sm:inline text-[10px] font-medium text-muted-foreground">
+                  Tip: Shift+Click to select a range
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Roster list */}
@@ -363,8 +457,9 @@ export default function ClassTransferPage() {
                 return (
                   <li key={s.id}>
                     <button
-                      onClick={() => toggle(s.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${on ? 'bg-primary/10' : 'hover:bg-muted/40'}`}
+                      type="button"
+                      onClick={(e) => toggle(s.id, e.shiftKey)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors select-none ${on ? 'bg-primary/10' : 'hover:bg-muted/40'}`}
                     >
                       <span className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${on ? 'bg-primary border-primary' : 'border-border'}`}>
                         {on && <CheckCircleIcon className="w-4 h-4 text-white" />}
@@ -410,7 +505,17 @@ export default function ClassTransferPage() {
               <p className="text-xs text-amber-600 dark:text-amber-400">Choose a destination class to move them.</p>
             )}
           </div>
-          <div className="flex w-full min-w-0 flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+          <div className="flex w-full min-w-0 flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <select
+              aria-label="Grade adjustment on transfer"
+              value={gradeAction}
+              onChange={(e) => setGradeAction(e.target.value as 'promote' | 'retain' | 'demote')}
+              className="rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-bold text-foreground outline-none focus:border-primary"
+            >
+              <option value="promote">Grade: Auto-Promote</option>
+              <option value="retain">Grade: Keep Current</option>
+              <option value="demote">Grade: Step Down</option>
+            </select>
             <button
               onClick={deactivate}
               disabled={moving || selected.size === 0}

@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -9,13 +9,14 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, CheckIcon,
   ExclamationTriangleIcon, ArrowPathIcon, UserIcon,
-  BuildingOfficeIcon, UserGroupIcon,
+  BuildingOfficeIcon, UserGroupIcon, MagnifyingGlassIcon, XMarkIcon,
 } from '@/lib/icons';
 import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
-import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
+import { composeClassName, canonicalGrade, type BandGranularity } from '@/lib/classes/naming';
 import { ClassPathwayPicker } from '@/components/classes/ClassPathwayPicker';
 import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import { liveAcademicSession } from '@/lib/reports/academic-period';
+import { areSisterSchools } from '@/lib/schools/sister-school';
 import { MOBILE_PAGE_ROOT } from '@/components/mobile/mobile-styles';
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
@@ -42,6 +43,10 @@ export default function AddClassPage() {
   const [liveCurrentTermId, setLiveCurrentTermId] = useState<string | null>(null);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentPlacement, setStudentPlacement] = useState<'all' | 'unassigned' | 'sister'>('all');
+  const [studentGradeFilter, setStudentGradeFilter] = useState('');
+  const [lastTickedId, setLastTickedId] = useState<string | null>(null);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -155,7 +160,7 @@ export default function AddClassPage() {
 
         let poolQuery = db
           .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, enrollment_type')
+          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, enrollment_type')
           .eq('role', 'student')
           .neq('is_deleted', true);
 
@@ -188,7 +193,19 @@ export default function AddClassPage() {
         }
 
         const { data: studs } = await poolQuery.eq('enrollment_type', form.enrollment_type).order('full_name');
-        setAvailableStudents(studs ?? []);
+        const sisterIds = new Set(
+          form.school_id && sName
+            ? schools.filter((sc: any) => sc.id !== form.school_id && areSisterSchools(sName, sc.name)).map((sc: any) => sc.id)
+            : [],
+        );
+        const sisterNameMap = new Map(schools.map((sc: any) => [sc.id, sc.name as string]));
+        setAvailableStudents(
+          (studs ?? []).map((u: any) => ({
+            ...u,
+            sister_school_name: u.school_id && sisterIds.has(u.school_id) ? sisterNameMap.get(u.school_id) ?? u.school_name ?? null : null,
+            canonical_grade: canonicalGrade(u.grade || u.section_class) || u.grade || u.section_class || null,
+          })),
+        );
 
         // Count pending (students table, no portal account yet)
         let pendingQuery = db.from('students').select('id').is('user_id', null);
@@ -235,7 +252,7 @@ export default function AddClassPage() {
         enrollment_type: form.enrollment_type,
         academic_offering_id: form.academic_offering_id || null,
         school_id: form.school_id || null,
-        max_students: parseInt(form.max_students) || 20,
+        max_students: Math.max(parseInt(form.max_students) || 20, selectedStudents.length),
         status: form.status,
         schedule: form.schedule.trim() || null,
         current_students: selectedStudents.length,
@@ -257,7 +274,7 @@ export default function AddClassPage() {
         const enrollRes = await fetch(`/api/classes/${newClass.id}/enroll`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ studentIds: selectedStudents }),
+          body: JSON.stringify({ studentIds: selectedStudents, grade_action: 'promote' }),
         });
         // This single route owns pathway, capacity, programme and term-roster integrity.
 
@@ -270,12 +287,62 @@ export default function AddClassPage() {
         }
       }
 
-      router.push('/dashboard/classes');
+      router.push(newClass?.id ? `/dashboard/classes/${newClass.id}?operation=roster` : '/dashboard/classes');
     } catch (e: any) {
       setError(e.message ?? 'Failed to create class');
     } finally {
       setSaving(false);
     }
+  };
+
+  const filteredAvailableStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    const multiTerms = q.includes(',') || q.includes(';') || q.includes('\n')
+      ? q.split(/[\n,;]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
+      : [];
+    return availableStudents.filter((s) => {
+      if (studentPlacement === 'unassigned' && s.class_id) return false;
+      if (studentPlacement === 'sister' && !s.sister_school_name) return false;
+      if (studentGradeFilter && (s.canonical_grade || '') !== studentGradeFilter) return false;
+      if (!q) return true;
+      const hay = [s.full_name, s.email, s.canonical_grade, s.section_class, s.sister_school_name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (multiTerms.length > 0) return multiTerms.some((term) => hay.includes(term));
+      return hay.includes(q);
+    });
+  }, [availableStudents, studentSearch, studentPlacement, studentGradeFilter]);
+
+  const distinctStudentGrades = useMemo(
+    () => Array.from(new Set(availableStudents.map((s) => s.canonical_grade).filter(Boolean) as string[])).sort(),
+    [availableStudents],
+  );
+  const unassignedAvailableCount = useMemo(() => availableStudents.filter((s) => !s.class_id).length, [availableStudents]);
+  const sisterAvailableCount = useMemo(() => availableStudents.filter((s) => Boolean(s.sister_school_name)).length, [availableStudents]);
+
+  const toggleStudentTick = (studentId: string, shiftKey = false) => {
+    setSelectedStudents((prev) => {
+      const next = new Set(prev);
+      if (shiftKey && lastTickedId) {
+        const ids = filteredAvailableStudents.map((s) => s.id);
+        const start = ids.indexOf(lastTickedId);
+        const end = ids.indexOf(studentId);
+        if (start >= 0 && end >= 0) {
+          const [lo, hi] = start < end ? [start, end] : [end, start];
+          const shouldSelect = !next.has(studentId);
+          for (let i = lo; i <= hi; i++) {
+            if (shouldSelect) next.add(ids[i]);
+            else next.delete(ids[i]);
+          }
+          return [...next];
+        }
+      }
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return [...next];
+    });
+    setLastTickedId(studentId);
   };
 
   if (authLoading) return (
@@ -591,29 +658,93 @@ export default function AddClassPage() {
             </div>
           ) : (
             <div className="border border-border rounded-xl overflow-hidden">
+              {/* Smart Search & Filter Bar */}
+              <div className="p-3 bg-card border-b border-border space-y-2">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    aria-label="Search students to enrol"
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    placeholder="Search by name, grade, or paste comma-separated names…"
+                    className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                  />
+                  {studentSearch && (
+                    <button
+                      type="button"
+                      aria-label="Clear student search"
+                      onClick={() => setStudentSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {([
+                    { id: 'all' as const, label: `All (${availableStudents.length})` },
+                    { id: 'unassigned' as const, label: `Unassigned (${unassignedAvailableCount})` },
+                    ...(sisterAvailableCount > 0 ? [{ id: 'sister' as const, label: `Sister Schools (${sisterAvailableCount})` }] : []),
+                  ]).map((chip) => (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => setStudentPlacement(chip.id)}
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors ${
+                        studentPlacement === chip.id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                  {distinctStudentGrades.length > 1 && (
+                    <select
+                      aria-label="Filter students by grade"
+                      value={studentGradeFilter}
+                      onChange={(e) => setStudentGradeFilter(e.target.value)}
+                      className="ml-auto rounded-lg border border-border bg-background px-2 py-0.5 text-[11px] font-bold text-foreground"
+                    >
+                      <option value="">All Grades</option>
+                      {distinctStudentGrades.map((g) => (
+                        <option key={`add-gf-${g}`} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
               {/* Select all bar */}
               <div className="flex items-center justify-between px-4 py-2.5 bg-muted border-b border-border">
                 <span className="text-xs text-muted-foreground">
-                  {availableStudents.length} student{availableStudents.length !== 1 ? 's' : ''} available
+                  {filteredAvailableStudents.length} of {availableStudents.length} shown · {selectedStudents.length} ticked (Shift+Click for range)
                 </span>
                 <button
                   type="button"
                   onClick={() => {
-                    if (selectedStudents.length === availableStudents.length) setSelectedStudents([]);
-                    else setSelectedStudents(availableStudents.map(s => s.id));
+                    if (filteredAvailableStudents.length > 0 && filteredAvailableStudents.every((s) => selectedStudents.includes(s.id))) setSelectedStudents((prev) => prev.filter((sid) => !filteredAvailableStudents.some((s) => s.id === sid)));
+                    else setSelectedStudents((prev) => Array.from(new Set([...prev, ...filteredAvailableStudents.map((s) => s.id)])));
+
                   }}
                   className="text-xs font-bold text-primary hover:text-primary transition-colors"
                 >
-                  {selectedStudents.length === availableStudents.length ? 'Deselect all' : 'Select all'}
+                  {filteredAvailableStudents.length > 0 && filteredAvailableStudents.every((s) => selectedStudents.includes(s.id)) ? `Untick Visible (${filteredAvailableStudents.length})` : `Tick All Visible (${filteredAvailableStudents.length})`}
                 </button>
               </div>
 
               {/* Student list */}
               <div className="max-h-72 overflow-y-auto divide-y divide-border">
-                {availableStudents.map(student => (
+                {filteredAvailableStudents.map(student => (
                   <label
                     key={student.id}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-primary/5 cursor-pointer transition-colors"
+                    onClick={e => {
+                      if (e.shiftKey) {
+                        e.preventDefault();
+                        toggleStudentTick(student.id, true);
+                      }
+                    }}
+                    className={`flex items-center gap-3 px-4 py-2.5 hover:bg-primary/5 cursor-pointer transition-colors select-none ${selectedStudents.includes(student.id) ? 'bg-primary/10' : ''}`}
                   >
                     <input
                       type="checkbox"
@@ -625,7 +756,15 @@ export default function AddClassPage() {
                       className="w-4 h-4 rounded-xl border-border bg-card text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
+                      <p className="text-sm font-semibold text-foreground truncate flex flex-wrap items-center gap-1.5">
+                        <span>{student.full_name}</span>
+                        {student.canonical_grade && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">{student.canonical_grade}</span>
+                        )}
+                        {student.sister_school_name && (
+                          <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">{student.sister_school_name}</span>
+                        )}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                     </div>
                     {selectedStudents.includes(student.id) && (
@@ -653,7 +792,7 @@ export default function AddClassPage() {
           >
             {saving
               ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating class...</>
-              : <><CheckIcon className="w-4 h-4" /> Create Class</>}
+              : <><CheckIcon className="w-4 h-4" /> {selectedStudents.length > 0 ? `Create Class & Enrol ${selectedStudents.length} Student${selectedStudents.length === 1 ? '' : 's'}` : 'Create Class'}</>}
           </button>
         </div>
 
