@@ -178,18 +178,47 @@ export default function QuestionAuthoringStudio({
 
   // Study Materials Library (Pull existing lesson materials + 1-click publish uploaded files to students)
   const [loadedCourseLessons, setLoadedCourseLessons] = useState<StudioCourseLessonOption[]>([]);
+  const [allLessonsCache, setAllLessonsCache] = useState<StudioCourseLessonOption[]>([]);
+  const [loadingAllLessons, setLoadingAllLessons] = useState(false);
+  const [materialsScope, setMaterialsScope] = useState<'course' | 'all'>('course');
   const [showMaterialsLibrary, setShowMaterialsLibrary] = useState(false);
   const [materialsSearch, setMaterialsSearch] = useState('');
+  const [selectedMaterialKeys, setSelectedMaterialKeys] = useState<Set<string>>(new Set());
   const [pullingMaterialId, setPullingMaterialId] = useState<string | null>(null);
+  const [bulkPulling, setBulkPulling] = useState(false);
   const [publishingDocId, setPublishingDocId] = useState<string | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState(false);
   const [publishedDocIds, setPublishedDocIds] = useState<Set<string>>(new Set());
   const [publishLessonId, setPublishLessonId] = useState<string>(defaultTargetLessonId || '');
   const rawFilesRef = useRef<Map<string, File>>(new Map());
 
-  const availableLessons = useMemo(
+  const courseScopedLessons = useMemo(
     () => (propCourseLessons && propCourseLessons.length > 0 ? propCourseLessons : loadedCourseLessons),
     [propCourseLessons, loadedCourseLessons],
   );
+
+  const availableLessons = useMemo(
+    () => (materialsScope === 'all' && allLessonsCache.length > 0 ? allLessonsCache : courseScopedLessons),
+    [materialsScope, allLessonsCache, courseScopedLessons],
+  );
+
+  // Lazy-load across all lessons when teacher switches to "All Lessons" search scope
+  useEffect(() => {
+    if (materialsScope !== 'all' || allLessonsCache.length > 0) return;
+    let cancelled = false;
+    setLoadingAllLessons(true);
+    const db = createClient();
+    db.from('lessons')
+      .select('id, title, session_number, content, lesson_materials(id, title, file_url, file_type)')
+      .order('created_at', { ascending: false })
+      .limit(80)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAllLessonsCache((data ?? []) as StudioCourseLessonOption[]);
+        setLoadingAllLessons(false);
+      });
+    return () => { cancelled = true; };
+  }, [materialsScope, allLessonsCache.length]);
 
   // Keep default target lesson synced for 1-click "Share to Students"
   useEffect(() => {
@@ -772,6 +801,132 @@ export default function QuestionAuthoringStudio({
     }
   };
 
+  const handlePullSelectedMaterials = async () => {
+    if (selectedMaterialKeys.size === 0) return;
+    setBulkPulling(true);
+    setAiError(null);
+    setAiSuccessMsg(null);
+    try {
+      const tasks: Array<Promise<{ doc: ExtractedSourceDocument; lessonId: string } | null>> = [];
+      for (const key of selectedMaterialKeys) {
+        if (key.startsWith('note:')) {
+          const lessonId = key.slice(5);
+          const lesson = availableLessons.find((l) => l.id === lessonId);
+          if (!lesson) continue;
+          tasks.push(
+            (async () => {
+              const rawNotes = String(lesson.content || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+              if (rawNotes.length < 20) return null;
+              const words = rawNotes.split(/\s+/).filter(Boolean).length;
+              const analysis = analyzeExtractedDocument(rawNotes);
+              return {
+                lessonId: lesson.id,
+                doc: {
+                  id: `lesson-note-${lesson.id}`,
+                  name: `Lesson: ${lesson.title}`,
+                  kind: 'txt' as const,
+                  role: classifyDocumentRole(lesson.title, rawNotes),
+                  text: rawNotes.slice(0, 28_000),
+                  charCount: Math.min(rawNotes.length, 28_000),
+                  wordCount: words,
+                  sectionCount: analysis.sectionCount,
+                  detectedTopics: analysis.detectedTopics,
+                  hasCode: analysis.hasCode,
+                  detectedQuestionCount: analysis.detectedQuestionCount,
+                  qualityLevel: analysis.qualityLevel,
+                  selected: true,
+                },
+              };
+            })(),
+          );
+        } else if (key.startsWith('mat:')) {
+          const [, lessonId, matId] = key.split(':');
+          const lesson = availableLessons.find((l) => l.id === lessonId);
+          const material = lesson?.lesson_materials?.find((m) => m.id === matId);
+          if (!lesson || !material) continue;
+          tasks.push(
+            (async () => {
+              try {
+                const cleanTitle = material.title.replace(/^\[PRIORITY\]\s*/i, '').trim() || 'Study Material';
+                const res = await fetch(material.file_url);
+                if (!res.ok) return null;
+                const blob = await res.blob();
+                const ext = (material.file_type || material.file_url.split('.').pop()?.split('?')[0] || 'pdf').toLowerCase();
+                const fileName = cleanTitle.toLowerCase().endsWith(`.${ext}`) ? cleanTitle : `${cleanTitle}.${ext}`;
+                const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+                const { kind, text } = await extractDocumentText(file, 28_000);
+                if (!text || text.trim().length < 15) return null;
+                const clean = text.trim();
+                const words = clean.split(/\s+/).filter(Boolean).length;
+                const analysis = analyzeExtractedDocument(clean);
+                return {
+                  lessonId: lesson.id,
+                  doc: {
+                    id: `study-${material.id}`,
+                    name: cleanTitle,
+                    kind,
+                    role: classifyDocumentRole(cleanTitle, clean),
+                    text: clean,
+                    charCount: clean.length,
+                    wordCount: words,
+                    sectionCount: analysis.sectionCount,
+                    detectedTopics: analysis.detectedTopics,
+                    hasCode: analysis.hasCode,
+                    detectedQuestionCount: analysis.detectedQuestionCount,
+                    qualityLevel: analysis.qualityLevel,
+                    selected: true,
+                  },
+                };
+              } catch {
+                return null;
+              }
+            })(),
+          );
+        }
+      }
+
+      const settled = (await Promise.all(tasks)).filter((x): x is { doc: ExtractedSourceDocument; lessonId: string } => Boolean(x));
+      if (settled.length === 0) {
+        setAiError('Could not extract readable text from the ticked study materials.');
+        return;
+      }
+      const byName = new Map(uploadedDocs.map((d) => [d.name.toLowerCase(), d]));
+      const nextPub = new Set(publishedDocIds);
+      for (const item of settled) {
+        byName.set(item.doc.name.toLowerCase(), item.doc);
+        nextPub.add(item.doc.id);
+        onReferenceLessonMaterial?.(item.lessonId);
+      }
+      const mergedDocs = Array.from(byName.values());
+      const { summaryLabel } = buildCombinedSourceMaterial(mergedDocs);
+      setUploadedDocs(mergedDocs);
+      setSourceName(summaryLabel);
+      setIsWeekDerivedSource(false);
+      setPublishedDocIds(nextPub);
+      setSelectedMaterialKeys(new Set());
+      setShowMaterialsLibrary(false);
+      setAiSuccessMsg(
+        `Pulled ${settled.length} study material${settled.length === 1 ? '' : 's'} at once & auto-linked for exam lockdown.`,
+      );
+      void runAiDocumentAnalysis(mergedDocs);
+    } finally {
+      setBulkPulling(false);
+    }
+  };
+
+  const handlePublishAllDocsToStudents = async () => {
+    const unshared = uploadedDocs.filter((d) => rawFilesRef.current.has(d.id) && !publishedDocIds.has(d.id));
+    if (unshared.length === 0) return;
+    setBulkPublishing(true);
+    try {
+      for (const doc of unshared) {
+        await handlePublishDocToStudents(doc);
+      }
+    } finally {
+      setBulkPublishing(false);
+    }
+  };
+
   const handleImportArticleUrl = async () => {
     const trimmed = articleUrl.trim();
     if (!trimmed) return;
@@ -1336,7 +1491,7 @@ export default function QuestionAuthoringStudio({
     );
   };
 
-  const handleImportSelectedPremade = () => {
+  const handleImportSelectedPremade = (targetMode: 'append' | 'replace' = 'append') => {
     const chosen = combinedBankQuestions.filter((q) => selectedBankIds.has(q.id));
     if (chosen.length === 0) return;
     onImportQuestions(
@@ -1353,10 +1508,14 @@ export default function QuestionAuthoringStudio({
         weekNumber: item.weekNumber,
         cognitiveLevel: item.difficulty,
       })),
-      'append',
+      targetMode,
     );
     setSelectedBankIds(new Set());
-    setAiSuccessMsg(`Added ${chosen.length} past question${chosen.length === 1 ? '' : 's'} to the paper.`);
+    setAiSuccessMsg(
+      targetMode === 'replace'
+        ? `Replaced paper with ${chosen.length} selected past question${chosen.length === 1 ? '' : 's'}.`
+        : `Added ${chosen.length} past question${chosen.length === 1 ? '' : 's'} to the paper.`,
+    );
   };
 
   if (disabled) return null;
@@ -1637,26 +1796,29 @@ export default function QuestionAuthoringStudio({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {availableLessons.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowMaterialsLibrary((v) => !v)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black transition-colors ${
-                      showMaterialsLibrary
-                        ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                        : 'border-border bg-card hover:bg-muted text-foreground'
-                    }`}
-                  >
-                    <AcademicCapIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>From Study Materials</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (availableLessons.length === 0) setMaterialsScope('all');
+                    setShowMaterialsLibrary((v) => !v);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black transition-colors ${
+                    showMaterialsLibrary
+                      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'border-border bg-card hover:bg-muted text-foreground'
+                  }`}
+                >
+                  <AcademicCapIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>From Study Materials</span>
+                  {availableLessons.length > 0 && (
                     <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-black text-muted-foreground">
                       {availableLessons.reduce(
                         (sum, l) => sum + ((l.lesson_materials ?? []).filter((m) => m.file_type !== 'slide-deck').length || 0) + (l.content && l.content.trim().length >= 20 ? 1 : 0),
                         0,
                       ) || availableLessons.length}
                     </span>
-                  </button>
-                )}
+                  )}
+                </button>
                 {uploadedDocs.length > 1 && selectedUploadedDocs.length < uploadedDocs.length && (
                   <button
                     type="button"
@@ -1703,78 +1865,195 @@ export default function QuestionAuthoringStudio({
               </div>
             </div>
 
-            {/* Inline Pull from Course Study Materials Drawer (Zero Endless Navigation) */}
-            {showMaterialsLibrary && availableLessons.length > 0 && (
+            {/* Inline Pull from Course Study Materials Drawer (Smart Search + Multi-Tick Bulk Migration) */}
+            {showMaterialsLibrary && (
               <div className="rounded-xl border border-emerald-500/30 bg-card p-3 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[11px] font-black text-foreground">
-                    Pull directly from existing Study Materials &amp; Lesson Notes (auto-locked during exam)
-                  </p>
-                  <input
-                    type="search"
-                    value={materialsSearch}
-                    onChange={(e) => setMaterialsSearch(e.target.value)}
-                    placeholder="Filter lessons or files…"
-                    className="h-8 w-full sm:w-52 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                  />
-                </div>
-                <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
-                  {availableLessons
-                    .filter((l) => {
-                      const q = materialsSearch.trim().toLowerCase();
-                      if (!q) return true;
-                      if (l.title.toLowerCase().includes(q)) return true;
-                      return (l.lesson_materials ?? []).some((m) => m.title.toLowerCase().includes(q));
-                    })
-                    .map((lesson) => {
-                      const mats = (lesson.lesson_materials ?? []).filter((m) => m.file_type !== 'slide-deck');
-                      const hasNotes = Boolean(lesson.content && lesson.content.replace(/<[^>]+>/g, '').trim().length >= 20);
-                      return (
-                        <div key={lesson.id} className="rounded-lg border border-border/80 bg-muted/20 px-2.5 py-2 space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-foreground truncate">
-                              {lesson.session_number ? `L${lesson.session_number}: ` : ''}{lesson.title}
-                            </span>
-                            {hasNotes && (
-                              <button
-                                type="button"
-                                disabled={pullingMaterialId === `lesson:${lesson.id}`}
-                                onClick={() => void handlePullStudyMaterial(lesson)}
-                                className="shrink-0 rounded-lg border border-primary/35 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 text-[10px] font-black text-primary transition-colors disabled:opacity-50"
-                              >
-                                {pullingMaterialId === `lesson:${lesson.id}` ? 'Pulling…' : '+ Pull Notes'}
-                              </button>
-                            )}
+                {(() => {
+                  const q = materialsSearch.trim().toLowerCase();
+                  const filteredLessons = availableLessons.filter((l) => {
+                    if (!q) return true;
+                    if (l.title.toLowerCase().includes(q)) return true;
+                    return (l.lesson_materials ?? []).some((m) => m.title.toLowerCase().includes(q));
+                  });
+                  const visibleKeys: string[] = [];
+                  filteredLessons.forEach((lesson) => {
+                    if (lesson.content && lesson.content.replace(/<[^>]+>/g, '').trim().length >= 20) {
+                      visibleKeys.push(`note:${lesson.id}`);
+                    }
+                    (lesson.lesson_materials ?? [])
+                      .filter((m) => m.file_type !== 'slide-deck')
+                      .forEach((m) => visibleKeys.push(`mat:${lesson.id}:${m.id}`));
+                  });
+                  const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selectedMaterialKeys.has(k));
+                  return (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5 text-[10px] font-black">
+                            <button
+                              type="button"
+                              onClick={() => setMaterialsScope('course')}
+                              className={`px-2 py-0.5 rounded-md transition-colors ${
+                                materialsScope === 'course' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              This Course
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMaterialsScope('all')}
+                              className={`px-2 py-0.5 rounded-md transition-colors ${
+                                materialsScope === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              All Lessons
+                            </button>
                           </div>
-                          {mats.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {mats.map((m) => {
-                                const cleanTitle = m.title.replace(/^\[PRIORITY\]\s*/i, '').trim() || 'Material';
-                                const isPriority = m.title.trim().startsWith('[PRIORITY]');
-                                const busy = pullingMaterialId === `mat:${m.id}`;
-                                return (
-                                  <button
-                                    key={m.id}
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => void handlePullStudyMaterial(lesson, m)}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-200 transition-colors disabled:opacity-50"
-                                  >
-                                    {isPriority && <span className="text-[9px] font-black uppercase">★</span>}
-                                    <span className="truncate max-w-[160px]">{cleanTitle}</span>
-                                    <span className="font-black text-emerald-700 dark:text-emerald-300">{busy ? '…' : '+ Pull'}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {!hasNotes && mats.length === 0 && (
-                            <p className="text-[10px] text-muted-foreground">No attached files yet — upload a file above and click “Share to Students”.</p>
+                          {visibleKeys.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedMaterialKeys((prev) => {
+                                  const next = new Set(prev);
+                                  if (allVisibleSelected) visibleKeys.forEach((k) => next.delete(k));
+                                  else visibleKeys.forEach((k) => next.add(k));
+                                  return next;
+                                });
+                              }}
+                              className="rounded-lg border border-border bg-background hover:bg-muted px-2 py-1 text-[10px] font-black text-foreground transition-colors"
+                            >
+                              {allVisibleSelected ? 'Untick Visible' : `Tick All (${visibleKeys.length})`}
+                            </button>
                           )}
                         </div>
-                      );
-                    })}
-                </div>
+                        <div className="flex items-center gap-1.5 flex-1 sm:flex-initial justify-end">
+                          <div className="relative flex-1 sm:w-52">
+                            <MagnifyingGlassIcon className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="search"
+                              value={materialsSearch}
+                              onChange={(e) => setMaterialsSearch(e.target.value)}
+                              aria-label="Search study materials and lessons"
+                              placeholder="Search lessons or files…"
+                              className="h-8 w-full rounded-lg border border-border bg-background pl-7 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                            />
+                          </div>
+                          {selectedMaterialKeys.size > 0 && (
+                            <button
+                              type="button"
+                              disabled={bulkPulling}
+                              onClick={() => void handlePullSelectedMaterials()}
+                              className="shrink-0 h-8 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 text-[11px] font-black text-white shadow-xs transition-colors disabled:opacity-50"
+                            >
+                              {bulkPulling ? 'Pulling…' : `Pull Selected (${selectedMaterialKeys.size})`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {loadingAllLessons ? (
+                        <p className="py-4 text-center text-xs text-muted-foreground">Loading lessons…</p>
+                      ) : filteredLessons.length === 0 ? (
+                        <p className="py-4 text-center text-xs text-muted-foreground">No matching study materials found.</p>
+                      ) : (
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                          {filteredLessons.map((lesson) => {
+                            const mats = (lesson.lesson_materials ?? []).filter((m) => m.file_type !== 'slide-deck');
+                            const hasNotes = Boolean(lesson.content && lesson.content.replace(/<[^>]+>/g, '').trim().length >= 20);
+                            const noteKey = `note:${lesson.id}`;
+                            const noteTicked = selectedMaterialKeys.has(noteKey);
+                            return (
+                              <div key={lesson.id} className="rounded-lg border border-border/80 bg-muted/20 px-2.5 py-2 space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold text-foreground truncate">
+                                    {lesson.session_number ? `L${lesson.session_number}: ` : ''}{lesson.title}
+                                  </span>
+                                  {hasNotes && (
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] font-bold text-foreground">
+                                        <input
+                                          type="checkbox"
+                                          checked={noteTicked}
+                                          onChange={() =>
+                                            setSelectedMaterialKeys((prev) => {
+                                              const next = new Set(prev);
+                                              if (next.has(noteKey)) next.delete(noteKey);
+                                              else next.add(noteKey);
+                                              return next;
+                                            })
+                                          }
+                                          className="h-3.5 w-3.5 rounded accent-emerald-600"
+                                        />
+                                        <span>Notes</span>
+                                      </label>
+                                      <button
+                                        type="button"
+                                        disabled={pullingMaterialId === `lesson:${lesson.id}`}
+                                        onClick={() => void handlePullStudyMaterial(lesson)}
+                                        className="rounded-md border border-primary/35 bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 text-[10px] font-black text-primary transition-colors disabled:opacity-50"
+                                      >
+                                        {pullingMaterialId === `lesson:${lesson.id}` ? '…' : '+ Pull'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                {mats.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {mats.map((m) => {
+                                      const cleanTitle = m.title.replace(/^\[PRIORITY\]\s*/i, '').trim() || 'Material';
+                                      const isPriority = m.title.trim().startsWith('[PRIORITY]');
+                                      const busy = pullingMaterialId === `mat:${m.id}`;
+                                      const matKey = `mat:${lesson.id}:${m.id}`;
+                                      const ticked = selectedMaterialKeys.has(matKey);
+                                      return (
+                                        <div
+                                          key={m.id}
+                                          className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                                            ticked
+                                              ? 'border-emerald-500 bg-emerald-500/20 text-emerald-900 dark:text-emerald-100'
+                                              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                                          }`}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={ticked}
+                                            aria-label={`Select ${cleanTitle}`}
+                                            onChange={() =>
+                                              setSelectedMaterialKeys((prev) => {
+                                                const next = new Set(prev);
+                                                if (next.has(matKey)) next.delete(matKey);
+                                                else next.add(matKey);
+                                                return next;
+                                              })
+                                            }
+                                            className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer"
+                                          />
+                                          {isPriority && <span className="text-[9px] font-black uppercase">★</span>}
+                                          <span className="truncate max-w-[150px]">{cleanTitle}</span>
+                                          <button
+                                            type="button"
+                                            disabled={busy}
+                                            onClick={() => void handlePullStudyMaterial(lesson, m)}
+                                            className="font-black text-emerald-700 dark:text-emerald-300 hover:underline disabled:opacity-50"
+                                          >
+                                            {busy ? '…' : 'Pull'}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {!hasNotes && mats.length === 0 && (
+                                  <p className="text-[10px] text-muted-foreground">No attached files yet — upload a file above and click “Share to Students”.</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -1878,24 +2157,40 @@ export default function QuestionAuthoringStudio({
                   })}
                 </div>
 
-                {/* Compact Target Lesson selector when local files can be shared to students */}
-                {availableLessons.length > 1 && uploadedDocs.some((d) => rawFilesRef.current.has(d.id) && !publishedDocIds.has(d.id)) && (
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                    <span className="font-bold">Share target lesson:</span>
-                    <select
-                      aria-label="Lesson to share uploaded files to"
-                      value={publishLessonId}
-                      onChange={(e) => setPublishLessonId(e.target.value)}
-                      className="h-7 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
-                    >
-                      {availableLessons.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.session_number ? `L${l.session_number}: ` : ''}{l.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {/* Compact Target Lesson selector & bulk Share All when local files can be shared to students */}
+                {availableLessons.length > 0 && (() => {
+                  const unsharedCount = uploadedDocs.filter((d) => rawFilesRef.current.has(d.id) && !publishedDocIds.has(d.id)).length;
+                  if (unsharedCount === 0) return null;
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold">Share target lesson:</span>
+                        <select
+                          aria-label="Lesson to share uploaded files to"
+                          value={publishLessonId}
+                          onChange={(e) => setPublishLessonId(e.target.value)}
+                          className="h-7 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+                        >
+                          {availableLessons.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.session_number ? `L${l.session_number}: ` : ''}{l.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {unsharedCount > 1 && (
+                        <button
+                          type="button"
+                          disabled={bulkPublishing}
+                          onClick={() => void handlePublishAllDocsToStudents()}
+                          className="rounded-lg bg-primary hover:bg-primary/90 px-2.5 py-1 text-[10px] font-black text-primary-foreground transition-colors disabled:opacity-50"
+                        >
+                          {bulkPublishing ? 'Sharing All…' : `Share All (${unsharedCount}) to Students`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Compact single toolbar row */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border/60 text-[11px]">
@@ -2518,27 +2813,61 @@ export default function QuestionAuthoringStudio({
             </select>
           </div>
 
-          {selectedBankIds.size > 0 && (
-            <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-2">
-              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
-                {selectedBankIds.size} question{selectedBankIds.size === 1 ? '' : 's'} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedBankIds(new Set())}
-                  className="text-xs font-bold text-muted-foreground hover:text-foreground"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImportSelectedPremade}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase"
-                >
-                  + Add Selected to Paper
-                </button>
+          {/* Quick Tick-All + Bulk Adopt / Replace Bar for Swift Migration */}
+          {filteredBankQuestions.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {(() => {
+                  const visibleIds = filteredBankQuestions.slice(0, 40).map((q) => q.id);
+                  const allVisibleTicked = visibleIds.length > 0 && visibleIds.every((id) => selectedBankIds.has(id));
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedBankIds((prev) => {
+                          const next = new Set(prev);
+                          if (allVisibleTicked) visibleIds.forEach((id) => next.delete(id));
+                          else visibleIds.forEach((id) => next.add(id));
+                          return next;
+                        });
+                      }}
+                      className="rounded-lg border border-border bg-card hover:bg-muted px-2.5 py-1 text-[11px] font-black text-foreground transition-colors"
+                    >
+                      {allVisibleTicked ? 'Untick Visible' : `Tick All Visible (${visibleIds.length})`}
+                    </button>
+                  );
+                })()}
+                <span className="text-xs font-bold text-muted-foreground">
+                  {selectedBankIds.size > 0
+                    ? `${selectedBankIds.size} ticked ready to migrate`
+                    : `${filteredBankQuestions.length} matching question${filteredBankQuestions.length === 1 ? '' : 's'}`}
+                </span>
               </div>
+              {selectedBankIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBankIds(new Set())}
+                    className="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleImportSelectedPremade('append')}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black transition-colors"
+                  >
+                    + Add Selected ({selectedBankIds.size})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleImportSelectedPremade('replace')}
+                    className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-black transition-colors"
+                  >
+                    Replace Paper ({selectedBankIds.size})
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
