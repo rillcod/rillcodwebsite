@@ -152,6 +152,14 @@ export default function NewExamPage() {
   const [activePresetId, setActivePresetId] = useState<ExaminerPreset['id'] | null>(null);
   const [presetSyncVersion, setPresetSyncVersion] = useState(0);
   const [showContextSelectors, setShowContextSelectors] = useState(false);
+  const [courseLessons, setCourseLessons] = useState<Array<{
+    id: string;
+    title: string;
+    session_number?: number | null;
+    lesson_materials?: Array<{ id: string; title: string; file_url: string }>;
+  }>>([]);
+  const [referencedLessonIds, setReferencedLessonIds] = useState<Set<string>>(new Set());
+  const [lockMaterialsDuringExam, setLockMaterialsDuringExam] = useState(true);
 
   const toLocalDateTimeInput = (date: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -372,6 +380,36 @@ export default function NewExamPage() {
       setForm(prev => (prev.title === suggested ? prev : { ...prev, title: suggested }));
     }
   }, [courses, programs, form.course_id, form.program_id, form.exam_type, className, activePresetId, hostKind, preTitle]);
+
+  // Load course lessons & study materials so the teacher can easily reference and lock them during the exam
+  useEffect(() => {
+    if (!form.course_id) {
+      setCourseLessons([]);
+      setReferencedLessonIds(new Set());
+      return;
+    }
+    const db = createClient();
+    let cancelled = false;
+    db.from('lessons')
+      .select('id, title, session_number, lesson_materials(id, title, file_url)')
+      .eq('course_id', form.course_id)
+      .order('session_number', { ascending: true })
+      .limit(40)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const list = (data ?? []) as Array<{
+          id: string;
+          title: string;
+          session_number?: number | null;
+          lesson_materials?: Array<{ id: string; title: string; file_url: string }>;
+        }>;
+        setCourseLessons(list);
+        if (preLessonId && list.some((l) => l.id === preLessonId)) {
+          setReferencedLessonIds(new Set([preLessonId]));
+        }
+      });
+    return () => { cancelled = true; };
+  }, [form.course_id, preLessonId]);
 
   const handleStudioMixChange = (mcq: number, theory: number) => {
     teacherEdits.current.questionMix = true;
@@ -818,6 +856,16 @@ export default function NewExamPage() {
                 })()
               : {}),
             ...(classId ? { target_class_id: classId, visibility: 'class' } : {}),
+            lock_materials_during_exam: assessmentScope === 'class_result' ? lockMaterialsDuringExam : false,
+            ...(referencedLessonIds.size > 0
+              ? {
+                  referenced_lesson_ids: Array.from(referencedLessonIds),
+                  referenced_material_urls: courseLessons
+                    .filter((l) => referencedLessonIds.has(l.id))
+                    .flatMap((l) => (l.lesson_materials ?? []).map((m) => m.file_url))
+                    .filter(Boolean),
+                }
+              : {}),
         },
         questions: validQuestions.map((q, i) => ({
           question_text: q.question_text.trim(),
@@ -1362,6 +1410,73 @@ export default function NewExamPage() {
                     </option>
                     {assignedSchools.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
                   </select>
+                </div>
+              </div>
+            )}
+
+            {/* Easy Teacher Reference & Anti-Cheat Exam Material Lock Picker */}
+            {form.course_id && courseLessons.length > 0 && (
+              <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wider text-foreground">
+                      Reference &amp; Lock Study Materials ({referencedLessonIds.size} selected)
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Pick lessons/notes covered by this exam. When locked, no student account or device can open these materials while the exam is live.
+                    </p>
+                  </div>
+                  {assessmentScope === 'class_result' && (
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={lockMaterialsDuringExam}
+                      onClick={() => setLockMaterialsDuringExam((v) => !v)}
+                      className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[11px] font-black transition-colors ${
+                        lockMaterialsDuringExam
+                          ? 'border-emerald-600 bg-emerald-700 text-white'
+                          : 'border-border bg-card text-muted-foreground'
+                      }`}
+                    >
+                      <span>{lockMaterialsDuringExam ? '🔒 Locked During Exam' : 'Unlocked'}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {courseLessons.map((lesson) => {
+                    const active = referencedLessonIds.has(lesson.id);
+                    const matCount = lesson.lesson_materials?.length ?? 0;
+                    return (
+                      <button
+                        key={lesson.id}
+                        type="button"
+                        onClick={() => {
+                          setReferencedLessonIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(lesson.id)) next.delete(lesson.id);
+                            else next.add(lesson.id);
+                            return next;
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all ${
+                          active
+                            ? 'border-emerald-600 bg-emerald-500/15 text-emerald-900 dark:text-emerald-200'
+                            : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-emerald-500/35'
+                        }`}
+                      >
+                        <span>{active ? '✓' : '+'}</span>
+                        <span className="truncate max-w-[200px]">
+                          {lesson.session_number ? `L${lesson.session_number}: ` : ''}{lesson.title}
+                        </span>
+                        {matCount > 0 && (
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-black text-foreground">
+                            {matCount} file{matCount === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

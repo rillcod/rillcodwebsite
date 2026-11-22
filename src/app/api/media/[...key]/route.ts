@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { r2SignedUrl } from '@/lib/r2/client';
+import { checkExamMaterialLock } from '@/lib/cbt/exam-material-lock';
 
 /**
  * Media proxy route — stable URLs for web and mobile apps.
@@ -68,6 +70,33 @@ export async function GET(
         const user = await resolveUser(req);
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Anti-cheating cross-account exam lockdown: block ANY student account from
+        // opening locked course/lesson study files while an official exam is live.
+        const admin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        );
+        const { data: profile } = await admin
+            .from('portal_users')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+        const lock = await checkExamMaterialLock(admin, {
+            userRole: String(profile?.role ?? 'student'),
+            mediaPath: r2Key,
+        });
+        if (lock.locked) {
+            return NextResponse.json(
+                {
+                    error: lock.reason || 'This study material is locked during an active examination.',
+                    locked: true,
+                    examTitle: lock.examTitle,
+                    unlocksAt: lock.unlocksAt,
+                },
+                { status: 423, headers: { 'Cache-Control': 'no-store' } },
+            );
         }
     }
 

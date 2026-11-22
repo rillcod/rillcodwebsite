@@ -4248,6 +4248,36 @@ export default function LessonDetailPage() {
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [viewerItem, setViewerItem] = useState<ResourceItem | null>(null);
+  const [examLock, setExamLock] = useState<{
+    locked: boolean;
+    examId?: string;
+    examTitle?: string;
+    unlocksAt?: string | null;
+    reason?: string;
+  } | null>(null);
+
+  // Server-enforced cross-account anti-cheat lock: blocks ANY student account from viewing
+  // this lesson or its materials while a live official exam covering it is active.
+  useEffect(() => {
+    if (authLoading || profileLoading || !profile || !id) return;
+    if (profile.role !== "student") {
+      setExamLock(null);
+      return;
+    }
+    let cancelled = false;
+    const qs = new URLSearchParams({ lesson_id: id });
+    if (lesson?.course_id) qs.set("course_id", String(lesson.course_id));
+    fetch(`/api/learning/exam-lock?${qs.toString()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.locked) setExamLock(data);
+        else if (!cancelled) setExamLock(null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, profileLoading, profile, id, lesson?.course_id]);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactions, setInteractions] = useState<Set<number>>(new Set());
   const [explainRequest, setExplainRequest] = useState<string | undefined>(
@@ -5014,6 +5044,49 @@ export default function LessonDetailPage() {
         <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
           Loading lesson...
         </p>
+      </div>
+    );
+
+  if (examLock?.locked && profile?.role === "student")
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 sm:p-8 mobile-page-root">
+        <div className="max-w-md w-full rounded-3xl border border-amber-500/35 bg-card p-6 sm:p-8 text-center shadow-xl space-y-5">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-700 dark:text-amber-300">
+            <LockClosedIcon className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest text-amber-900 dark:text-amber-200">
+              Examination Lockdown Active
+            </span>
+            <h2 className="text-xl font-black text-foreground">
+              Study Materials Temporarily Locked
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              {examLock.reason ||
+                `Study notes, slides, and materials for this course are locked across all student accounts while "${examLock.examTitle || "an examination"}" is live.`}
+            </p>
+            {examLock.unlocksAt && (
+              <p className="text-xs font-bold text-foreground pt-1">
+                Automatically unlocks: {new Date(examLock.unlocksAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <Link
+              href={examLock.examId ? `/dashboard/cbt/${examLock.examId}/take` : "/dashboard/cbt"}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors"
+            >
+              <AcademicCapIcon className="w-4 h-4" />
+              Open Examination
+            </Link>
+            <Link
+              href="/dashboard/learning"
+              className="flex-1 inline-flex items-center justify-center rounded-xl border border-border bg-background hover:bg-muted px-4 py-3 text-xs font-bold text-foreground transition-colors"
+            >
+              Back to Learning
+            </Link>
+          </div>
+        </div>
       </div>
     );
 
