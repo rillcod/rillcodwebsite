@@ -8,6 +8,7 @@ import {
 } from '@/lib/icons';
 import Link from 'next/link';
 import { DonutChart, SparkCard, CHART_COLORS } from '@/components/charts';
+import TeacherQuickMaterialsCard from '@/components/dashboard/TeacherQuickMaterialsCard';
 
 interface DashStats { label: string; value: string | number; icon: any; gradient: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
@@ -68,7 +69,8 @@ export default function AdminDashboard({ profile, stats, partnerSchoolStats = []
         </div>
       </div>
 
-
+      {/* Quick Push Exam Study Materials to Student Overview (Admin + Teacher parity) */}
+      <TeacherQuickMaterialsCard />
 
       {/* Partner Schools Track Overview */}
       <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">

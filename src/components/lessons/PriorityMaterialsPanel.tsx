@@ -296,7 +296,7 @@ export default function PriorityMaterialsPanel({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,image/jpeg,image/png,image/webp"
+              accept=".pdf,.pptx,.ppt,.docx,.doc,image/jpeg,image/png,image/webp"
               className="hidden"
               aria-label="Upload protected study material"
               onChange={(e) => {
