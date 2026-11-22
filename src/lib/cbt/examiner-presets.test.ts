@@ -4,6 +4,7 @@ import {
   auditExamReadiness,
   autoBalanceQuestionMarks,
   composeSmartExamTitle,
+  enforceExactQuestionMix,
   recommendExamDurationMinutes,
 } from './examiner-presets';
 
@@ -59,6 +60,23 @@ describe('examiner-presets', () => {
     ];
     // 20 * 1.5 + 3 * 6 = 48 -> rounded up to 50 min
     expect(recommendExamDurationMinutes(qs)).toBe(50);
+  });
+
+  it('enforces exact objective + theory counts and orders Section A before Section B', () => {
+    const raw = [
+      ...Array.from({ length: 8 }, (_, i) => ({ id: `t${i}`, question_type: 'essay' })),
+      ...Array.from({ length: 22 }, (_, i) => ({ id: `m${i}`, question_type: 'multiple_choice' })),
+    ];
+    const res = enforceExactQuestionMix(raw, 15, 5);
+    expect(res.mcqCount).toBe(15);
+    expect(res.theoryCount).toBe(5);
+    expect(res.questions).toHaveLength(20);
+    expect(res.trimmedCount).toBe(10);
+    // Objective first, then Theory
+    expect(res.questions[0].question_type).toBe('multiple_choice');
+    expect(res.questions[14].question_type).toBe('multiple_choice');
+    expect(res.questions[15].question_type).toBe('essay');
+    expect(res.questions[19].question_type).toBe('essay');
   });
 
   it('audits exam readiness and flags missing answer keys', () => {

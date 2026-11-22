@@ -73,6 +73,43 @@ export function isObjectiveType(questionType: string): boolean {
   return questionType === 'multiple_choice' || questionType === 'true_false';
 }
 
+/**
+ * Enforces the teacher's exact Section A (Objective) and Section B (Theory) counts.
+ * Prevents LLM overshoots or gap-fill top-ups from turning a 15+5 request into 30+ questions,
+ * and orders Objective questions first followed by Theory questions like an official paper.
+ */
+export function enforceExactQuestionMix<T extends { question_type: string }>(
+  questions: T[],
+  targetMcq: number,
+  targetTheory: number,
+): {
+  questions: T[];
+  mcqCount: number;
+  theoryCount: number;
+  trimmedCount: number;
+} {
+  const maxMcq = Math.max(0, Math.floor(targetMcq));
+  const maxTheory = Math.max(0, Math.floor(targetTheory));
+  const objectives: T[] = [];
+  const theories: T[] = [];
+
+  for (const q of questions) {
+    if (isObjectiveType(q.question_type)) {
+      if (objectives.length < maxMcq) objectives.push(q);
+    } else {
+      if (theories.length < maxTheory) theories.push(q);
+    }
+  }
+
+  const ordered = [...objectives, ...theories];
+  return {
+    questions: ordered,
+    mcqCount: objectives.length,
+    theoryCount: theories.length,
+    trimmedCount: Math.max(0, questions.length - ordered.length),
+  };
+}
+
 export function composeSmartExamTitle(params: {
   courseTitle?: string | null;
   programName?: string | null;

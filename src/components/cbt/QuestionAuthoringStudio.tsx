@@ -34,6 +34,7 @@ import {
   type CurriculumWeekItem,
   type PremadeQuestionItem,
 } from '@/lib/cbt/question-bank-catalog';
+import { enforceExactQuestionMix } from '@/lib/cbt/examiner-presets';
 
 export interface StudioGeneratedQuestion {
   question_text: string;
@@ -83,6 +84,8 @@ interface QuestionAuthoringStudioProps {
   initialSourceName?: string;
   defaultMcqCount?: number;
   defaultTheoryCount?: number;
+  /** Incrementing nonce from parent Examiner Blueprint presets to force-sync counts even after prior edits. */
+  presetSyncVersion?: number;
   minQuestions?: number;
   maxQuestions?: number;
   disabled?: boolean;
@@ -106,6 +109,7 @@ export default function QuestionAuthoringStudio({
   initialSourceName = '',
   defaultMcqCount = 10,
   defaultTheoryCount = 2,
+  presetSyncVersion = 0,
   minQuestions = 1,
   maxQuestions = 100,
   disabled = false,
@@ -180,6 +184,16 @@ export default function QuestionAuthoringStudio({
       setTheoryCount(String(defaultTheoryCount));
     }
   }, [defaultMcqCount, defaultTheoryCount, examType]);
+
+  // Explicit Examiner Blueprint preset click from parent always updates counts,
+  // even after the first generation or prior manual edits.
+  useEffect(() => {
+    if (presetSyncVersion > 0) {
+      userEditedCountsRef.current = false;
+      setMcqCount(String(defaultMcqCount));
+      setTheoryCount(String(defaultTheoryCount));
+    }
+  }, [presetSyncVersion, defaultMcqCount, defaultTheoryCount]);
 
   // Dynamic sync when parent changes Course / Class / Initial Topic — prevents stale topic bleed
   useEffect(() => {
@@ -763,6 +777,14 @@ export default function QuestionAuthoringStudio({
       return;
     }
 
+    const isRefiningExistingPaper = hasPaperQuestions && importBehavior === 'replace';
+    const refinementInstruction = isRefiningExistingPaper
+      ? `\n\n[CHIEF EXAMINER REFINEMENT PASS]\nYou are upgrading an existing ${mcq} Objective + ${theory} Theory draft. Produce a SIGNIFICANTLY HIGHER-QUALITY replacement set of EXACTLY ${mcq} Objective (multiple_choice) and ${theory} Theory (essay/short_answer) questions (${total} total). Improve clarity, scenario realism, distractor plausibility, curriculum depth, and step-by-step marking guides. Do NOT repeat weak stems from the previous draft.`
+      : '';
+    const requestSourceMaterial = effectiveSourceText
+      ? `${effectiveSourceText}${refinementInstruction}`
+      : refinementInstruction.trim() || undefined;
+
     setAiGenerating(true);
     setAiError(null);
     setAiSuccessMsg(null);
@@ -791,8 +813,11 @@ export default function QuestionAuthoringStudio({
           sourceName: effectiveSourceName || undefined,
           strictSourceOnly: useStrictFileOnly,
           sourceFileCount: combinedFromFiles.selectedCount,
-          existingQuestions: importBehavior === 'append' ? existingQuestionTexts.filter(Boolean).slice(-60) : undefined,
-          ...(effectiveSourceText ? { sourceMaterial: effectiveSourceText } : {}),
+          existingQuestions:
+            importBehavior === 'append' || isRefiningExistingPaper
+              ? existingQuestionTexts.filter(Boolean).slice(-60)
+              : undefined,
+          ...(requestSourceMaterial ? { sourceMaterial: requestSourceMaterial } : {}),
         }),
       });
       const result = await res.json().catch(() => ({}));
@@ -823,14 +848,18 @@ export default function QuestionAuthoringStudio({
         throw new Error('No valid questions with options/answers were returned. Please try again or refine your source.');
       }
 
-      // Automatic Gap-Fill Pass: if AI stopped short of the teacher's requested count (e.g. returned 6 instead of 15),
-      // automatically fetch the exact missing MCQ & Theory questions with zero duplicates.
-      let combinedGenerated = [...generatedList];
+      // Automatic Gap-Fill Pass: ONLY top up whichever section (Objective or Theory) came back short,
+      // then strictly cap to the exact requested Objective + Theory counts so we NEVER overshoot.
+      const firstDedupe = dedupeCbtQuestions(
+        generatedList,
+        importBehavior === 'append' ? existingQuestionTexts : [],
+      ).unique;
+      let combinedGenerated = [...firstDedupe];
       const gotMcq = combinedGenerated.filter((q) => q.question_type === 'multiple_choice' || q.question_type === 'true_false').length;
       const gotTheory = combinedGenerated.length - gotMcq;
       const missingMcq = Math.max(0, mcq - gotMcq);
       const missingTheory = Math.max(0, theory - gotTheory);
-      if (missingMcq + missingTheory >= 2 && combinedGenerated.length < total) {
+      if (missingMcq + missingTheory >= 1) {
         try {
           const topUpRes = await fetch('/api/ai/generate', {
             method: 'POST',
@@ -875,12 +904,13 @@ export default function QuestionAuthoringStudio({
         combinedGenerated,
         importBehavior === 'append' ? existingQuestionTexts : [],
       );
-      if (dedupedList.length === 0) {
+      const exactMix = enforceExactQuestionMix(dedupedList, mcq, theory);
+      if (exactMix.questions.length === 0) {
         setAiSuccessMsg('All generated questions were already on your paper — try switching to Replace or choosing a different subtopic.');
       } else {
-        onImportQuestions(dedupedList, importBehavior);
+        onImportQuestions(exactMix.questions, importBehavior);
         setAiSuccessMsg(
-          `Added ${dedupedList.length} unique AI question${dedupedList.length === 1 ? '' : 's'} with verified answers & marking guides${skippedCount > 0 ? ` (${skippedCount} duplicate${skippedCount === 1 ? '' : 's'} skipped)` : ''}.`,
+          `${isRefiningExistingPaper ? 'Refined & upgraded' : 'Generated'} ${exactMix.mcqCount} Objective + ${exactMix.theoryCount} Theory (${exactMix.questions.length} exact total) with verified answers & marking guides${skippedCount > 0 ? ` (${skippedCount} duplicate${skippedCount === 1 ? '' : 's'} skipped)` : ''}.`,
         );
       }
     } catch (err: any) {
@@ -1785,11 +1815,15 @@ export default function QuestionAuthoringStudio({
                 ) : (
                   <>
                     <SparklesIcon className="w-4 h-4" />
-                    {selectedUploadedDocs.length === 1
-                      ? `Generate ${Math.max(minQuestions, targetTotal)} Qs from File`
-                      : selectedUploadedDocs.length > 1
-                        ? `Generate ${Math.max(minQuestions, targetTotal)} Qs (${selectedUploadedDocs.length} Files)`
-                        : `Generate ${Math.max(minQuestions, targetTotal)} Questions`}
+                    {hasPaperQuestions && importBehavior === 'replace'
+                      ? `Regenerate & Refine (${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory)`
+                      : hasPaperQuestions && importBehavior === 'append'
+                        ? `Add +${Math.max(minQuestions, targetTotal)} Qs`
+                        : selectedUploadedDocs.length === 1
+                          ? `Generate ${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory`
+                          : selectedUploadedDocs.length > 1
+                            ? `Generate ${Math.max(minQuestions, targetTotal)} Qs (${selectedUploadedDocs.length} Files)`
+                            : `Generate ${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory`}
                   </>
                 )}
               </button>

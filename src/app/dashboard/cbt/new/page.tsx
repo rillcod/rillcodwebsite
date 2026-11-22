@@ -150,6 +150,7 @@ export default function NewExamPage() {
   const [paperOutOfEdited, setPaperOutOfEdited] = useState(false);
   const [showAdvancedSetup, setShowAdvancedSetup] = useState(false);
   const [activePresetId, setActivePresetId] = useState<ExaminerPreset['id'] | null>(null);
+  const [presetSyncVersion, setPresetSyncVersion] = useState(0);
   const [showContextSelectors, setShowContextSelectors] = useState(false);
 
   const toLocalDateTimeInput = (date: Date) => {
@@ -1108,7 +1109,7 @@ export default function NewExamPage() {
             <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-bold text-foreground">Class &amp; Result Routing</p>
+                  <p className="text-sm font-bold text-foreground">Where should this assessment be used?</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     Choose the class once — school, programme, and active course auto-fill immediately.
                   </p>
@@ -1124,7 +1125,7 @@ export default function NewExamPage() {
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      Official Class Result
+                      Class result
                     </button>
                     <button
                       type="button"
@@ -1135,7 +1136,7 @@ export default function NewExamPage() {
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      Practice Only
+                      Practice only
                     </button>
                   </div>
                 )}
