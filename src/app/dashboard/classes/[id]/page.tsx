@@ -346,38 +346,38 @@ export default function ClassDetailPage() {
         );
         const destinationPromise = isRosterWork
           ? fetchActionJson<{ data: any[]; error: string }>(
-              `/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`,
-              { cache: 'no-store' },
-              'Class transfer choices are taking longer than expected.',
-              30_000,
-            )
+            `/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`,
+            { cache: 'no-store' },
+            'Class transfer choices are taking longer than expected.',
+            30_000,
+          )
           : Promise.resolve(null);
         const visibilityPromise = isRosterWork && isStaff
           ? fetchActionJson<{ data: { class_mode: string; students: any[] }; error: string }>(
-              `/api/progression/path-visibility?class_id=${id}`,
-              { cache: 'no-store' },
-              'Learner visibility settings are taking longer than expected.',
-              30_000,
-            )
+            `/api/progression/path-visibility?class_id=${id}`,
+            { cache: 'no-store' },
+            'Learner visibility settings are taking longer than expected.',
+            30_000,
+          )
           : Promise.resolve(null);
         const assessmentPromise = activeOperation === 'assessment'
           ? fetchActionJson<{
-              data: {
-                programme_policy: SchoolProgrammePolicy;
-                experience: AssessmentExperience;
-                assignments: any[];
-                exams: any[];
-                submissions: any[];
-                cbt_sessions: any[];
-                summary: { open: number; marked: number; awaiting_review: number };
-              };
-              error: string;
-            }>(
-              `/api/classes/${id}/assessment-workspace`,
-              { cache: 'no-store' },
-              'The class assessment record is taking longer than expected. Please retry; no marks have been changed.',
-              30_000,
-            )
+            data: {
+              programme_policy: SchoolProgrammePolicy;
+              experience: AssessmentExperience;
+              assignments: any[];
+              exams: any[];
+              submissions: any[];
+              cbt_sessions: any[];
+              summary: { open: number; marked: number; awaiting_review: number };
+            };
+            error: string;
+          }>(
+            `/api/classes/${id}/assessment-workspace`,
+            { cache: 'no-store' },
+            'The class assessment record is taking longer than expected. Please retry; no marks have been changed.',
+            30_000,
+          )
           : Promise.resolve(null);
 
         const [studentResult, assessmentResult] = await Promise.all([
@@ -568,7 +568,7 @@ export default function ClassDetailPage() {
           setSchoolSuggestionsPool(json.students);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (!cancelled) setLoadingSchoolPool(false);
       });
@@ -1134,8 +1134,8 @@ export default function ClassDetailPage() {
     const ids = idsToEnroll ?? (selectedStudentIds.size > 0
       ? Array.from(selectedStudentIds)
       : availableStudents
-          .filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request)
-          .map((s: any) => s.id));
+        .filter((s: any) => pasteClaimEnabled || !s.requires_transfer_request)
+        .map((s: any) => s.id));
     if (ids.length === 0) return;
     setProcessingStudent('loading');
     try {
@@ -1553,25 +1553,25 @@ export default function ClassDetailPage() {
     if (!broadcastForm.text.trim()) return;
     setBroadcasting(true);
     try {
-        const res = await fetch(`/api/classes/${id}/broadcast`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...broadcastForm, template_variables: broadcastForm.template_variables.split(',').map(v => v.trim()).filter(Boolean) })
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to broadcast');
-        
-        // Show detailed success message with actual counts
-        const message = json.message || `WhatsApp broadcast sent to ${json.messages_sent || json.queued} students`;
-        alert(message);
-        
-        setShowBroadcastModal(false);
-        setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
-        setReachableStudents([]);
+      const res = await fetch(`/api/classes/${id}/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...broadcastForm, template_variables: broadcastForm.template_variables.split(',').map(v => v.trim()).filter(Boolean) })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to broadcast');
+
+      // Show detailed success message with actual counts
+      const message = json.message || `WhatsApp broadcast sent to ${json.messages_sent || json.queued} students`;
+      alert(message);
+
+      setShowBroadcastModal(false);
+      setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
+      setReachableStudents([]);
     } catch (err: any) {
-        alert(err.message);
+      alert(err.message);
     } finally {
-        setBroadcasting(false);
+      setBroadcasting(false);
     }
   };
 
@@ -2025,50 +2025,92 @@ export default function ClassDetailPage() {
     <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
       <div className={`space-y-4 sm:space-y-6 ${MOBILE_PAGE_BOTTOM}`}>
 
-        {/* ── Identity bar ───────────────────────────────────────────────────────
-            Who this class is, in one compact strip. It used to carry four metric
-            tiles and a curriculum panel that repeated what the work modes already
-            say, which pushed the actual work below the fold. Counts now live on the
-            mode that owns them; curriculum delivery lives inside Teaching. */}
-        <div className="rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm sm:px-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* A breadcrumb has to go where it is labelled. This was
-                    router.back(), so "Classes" returned to whatever was
-                    previously in history — the lesson you just came from, the
-                    report before it, or nothing at all on a deep link. */}
-                <Link href="/dashboard/classes" className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground">
-                  <ArrowLeftIcon className="h-3.5 w-3.5" /> Classes
+        {/* ── Class Identity & Workspace Header Card ───────────────────────────── */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+          {/* Tier 1: Breadcrumb, Status, Title, Metadata & Primary Utilities */}
+          <div className="px-4 py-4 sm:px-6 sm:py-5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <Link
+                  href="/dashboard/classes"
+                  className="inline-flex items-center gap-1 rounded-lg border border-border/80 bg-background px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                >
+                  <ArrowLeftIcon className="h-3.5 w-3.5" />
+                  Classes
                 </Link>
-                <span className="text-muted-foreground/50">/</span>
-                <span className="rounded-full bg-brand-red-accent px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">
+                <span className="rounded-full bg-brand-red-accent px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
                   {pathwayLabel}
                 </span>
-                <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
-                  cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-                  cls.status === 'scheduled' ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400' :
-                  'border-border bg-background text-muted-foreground'
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                  cls.status === 'active'
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                    : cls.status === 'scheduled'
+                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                      : 'border-border bg-background text-muted-foreground'
                 }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    cls.status === 'active' ? 'bg-emerald-500' : cls.status === 'scheduled' ? 'bg-amber-500' : 'bg-muted-foreground'
+                  }`} />
                   {cls.status}
                 </span>
               </div>
-              <h1 className="break-words text-xl font-black uppercase leading-tight tracking-tight text-foreground sm:text-2xl">{cls.name}</h1>
-              <p className="break-words text-[11px] font-medium text-muted-foreground sm:text-xs">
-                {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
-              </p>
+
+              {canView && isStaff && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href={`/dashboard/classes/${id}/edit`}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted"
+                  >
+                    <PencilIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    Setup
+                  </Link>
+                  <Link
+                    href={`/dashboard/attendance?class_id=${id}`}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-black text-primary-foreground shadow-sm shadow-primary/20 transition-opacity hover:opacity-95"
+                  >
+                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
+                    Attendance
+                  </Link>
+                </div>
+              )}
             </div>
 
-            {canView && (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="min-w-0">
+              <h1 className="break-words text-xl sm:text-2xl font-black tracking-tight text-foreground leading-snug">
+                {cls.name}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/90">
+                  <BookOpenIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+                  {cls.programs?.name ?? 'No programme'}
+                </span>
+                <span className="text-border" aria-hidden="true">•</span>
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  {termLabel}
+                </span>
+                <span className="text-border" aria-hidden="true">•</span>
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <UserGroupIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  {cls.portal_users?.full_name ?? 'Teacher not assigned'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tier 2: Segmented Workspace Modes + Academic Tools */}
+          {canView && (
+            <div className="border-t border-border/70 bg-muted/30 px-4 py-2.5 sm:px-6 flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
+              {/* Primary Workspace Switcher */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                 {isStaff && (
                   <button
                     type="button"
                     onClick={() => selectOperation('teaching')}
-                    className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
                       activeOperation === 'teaching'
-                        ? 'border-primary/40 bg-primary/10 text-primary'
-                        : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        ? 'bg-card text-primary border border-primary/40 shadow-sm'
+                        : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
                     }`}
                   >
                     <BookOpenIcon className="h-3.5 w-3.5" />
@@ -2079,10 +2121,10 @@ export default function ClassDetailPage() {
                   <button
                     type="button"
                     onClick={() => selectOperation('assessment')}
-                    className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
                       activeOperation === 'assessment'
-                        ? 'border-primary/40 bg-primary/10 text-primary'
-                        : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        ? 'bg-card text-primary border border-primary/40 shadow-sm'
+                        : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
                     }`}
                   >
                     <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
@@ -2100,16 +2142,25 @@ export default function ClassDetailPage() {
                     selectOperation('roster');
                     document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                   }}
-                  className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                  className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
                     activeOperation === 'roster'
-                      ? 'border-primary/40 bg-primary/10 text-primary'
-                      : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      ? 'bg-card text-primary border border-primary/40 shadow-sm'
+                      : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
                   }`}
                 >
                   <UserGroupIcon className="h-3.5 w-3.5" />
-                  Students ({currentTermStudents.length})
+                  Students
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                    activeOperation === 'roster' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {currentTermStudents.length}
+                  </span>
                 </button>
-                {isStaff && (
+              </div>
+
+              {/* Academic Quick Tools */}
+              {isStaff && (
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2 md:border-t-0 md:pt-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -2117,7 +2168,7 @@ export default function ClassDetailPage() {
                       openSessionConfirm();
                       setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
                     }}
-                    className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                    className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${
                       offBandCount > 0
                         ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
                         : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/20'
@@ -2131,38 +2182,26 @@ export default function ClassDetailPage() {
                       </span>
                     )}
                   </button>
-                )}
-                {isStaff && (
-                  <>
-                    <Link
-                      href={learnerReportHref('write', {
-                        classId: id,
-                        courseId: searchParams.get('course_id') || cls?.current_course_id,
-                      })}
-                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
-                    >
-                      <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                      Result Builder
-                      {reportIndicatorEnabled && needsReportCount > 0 && (
-                        <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                          {needsReportCount}
-                        </span>
-                      )}
-                    </Link>
-                    <Link href={`/dashboard/classes/${id}/edit`}
-                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground transition-colors hover:text-foreground">
-                      <PencilIcon className="h-3.5 w-3.5" /> Setup
-                    </Link>
-                    <Link href={`/dashboard/attendance?class_id=${id}`}
-                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm shadow-primary/25 transition-transform hover:scale-[1.02]">
-                      <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
-                      Attendance
-                    </Link>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+
+                  <Link
+                    href={learnerReportHref('write', {
+                      classId: id,
+                      courseId: searchParams.get('course_id') || cls?.current_course_id,
+                    })}
+                    className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 whitespace-nowrap transition-colors hover:bg-emerald-600/20"
+                  >
+                    <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                    Result Builder
+                    {reportIndicatorEnabled && needsReportCount > 0 && (
+                      <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                        {needsReportCount}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
@@ -2227,11 +2266,10 @@ export default function ClassDetailPage() {
                     key={card.id}
                     type="button"
                     onClick={() => selectOperation(card.id)}
-                    className={`rounded-2xl border p-3 text-left transition-all ${
-                      activeOperation === card.id
-                        ? 'border-primary/40 bg-primary/10 shadow-sm'
-                        : 'border-border bg-background hover:border-primary/20 hover:bg-muted'
-                    }`}
+                    className={`rounded-2xl border p-3 text-left transition-all ${activeOperation === card.id
+                      ? 'border-primary/40 bg-primary/10 shadow-sm'
+                      : 'border-border bg-background hover:border-primary/20 hover:bg-muted'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card">
@@ -2281,11 +2319,10 @@ export default function ClassDetailPage() {
                 </div>
               )}
               {activeOperation !== 'teaching' && operationLoadError && operationLoadState !== 'loading' && (
-                <div className={`mb-4 flex flex-col gap-3 rounded-xl border p-3 text-xs sm:flex-row sm:items-center sm:justify-between ${
-                  operationLoadState === 'error'
-                    ? 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300'
-                    : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                }`}>
+                <div className={`mb-4 flex flex-col gap-3 rounded-xl border p-3 text-xs sm:flex-row sm:items-center sm:justify-between ${operationLoadState === 'error'
+                  ? 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                  }`}>
                   <span className="font-semibold">{operationLoadError}</span>
                   <button
                     type="button"
@@ -2376,11 +2413,10 @@ export default function ClassDetailPage() {
                           <button
                             type="button"
                             onClick={() => (showSessionConfirm ? setShowSessionConfirm(false) : openSessionConfirm())}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${
-                              showSessionConfirm
-                                ? 'border-emerald-600 bg-emerald-700 text-white'
-                                : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
-                            }`}
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${showSessionConfirm
+                              ? 'border-emerald-600 bg-emerald-700 text-white'
+                              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                              }`}
                           >
                             <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{showSessionConfirm ? 'Close Confirm' : 'Confirm Grades'}</span>
@@ -2403,11 +2439,10 @@ export default function ClassDetailPage() {
                           <button
                             type="button"
                             onClick={() => (showCredSheet ? setShowCredSheet(false) : openCredSheet())}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${
-                              showCredSheet
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
-                            }`}
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${showCredSheet
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                              }`}
                           >
                             <PrinterIcon className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{showCredSheet ? 'Hide Login List' : 'Login & RC List'}</span>
@@ -2626,9 +2661,8 @@ export default function ClassDetailPage() {
                                 return (
                                   <div
                                     key={`sug-${s.id}`}
-                                    className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 transition-colors ${
-                                      isTicked ? 'bg-emerald-500/10' : 'hover:bg-muted/40'
-                                    }`}
+                                    className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 transition-colors ${isTicked ? 'bg-emerald-500/10' : 'hover:bg-muted/40'
+                                      }`}
                                   >
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                       {!locked && (
@@ -2952,9 +2986,8 @@ export default function ClassDetailPage() {
                               return (
                                 <div
                                   key={`confirm-${s.id}`}
-                                  className={`flex flex-wrap items-center gap-2.5 px-3 py-2 text-xs transition-colors ${
-                                    kept ? 'bg-card' : 'bg-rose-500/5 opacity-75'
-                                  }`}
+                                  className={`flex flex-wrap items-center gap-2.5 px-3 py-2 text-xs transition-colors ${kept ? 'bg-card' : 'bg-rose-500/5 opacity-75'
+                                    }`}
                                 >
                                   <input
                                     type="checkbox"
@@ -3027,11 +3060,10 @@ export default function ClassDetailPage() {
                             <button
                               type="button"
                               onClick={() => setQuickAddGrade('')}
-                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
-                                !quickAddGrade
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                              }`}
+                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${!quickAddGrade
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                }`}
                             >
                               Auto
                             </button>
@@ -3043,13 +3075,12 @@ export default function ClassDetailPage() {
                                   key={`pitch-${g}`}
                                   type="button"
                                   onClick={() => setQuickAddGrade(g)}
-                                  className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
-                                    active
-                                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                                      : inBand
-                                        ? 'border-primary/35 bg-primary/5 text-primary hover:bg-primary/15'
-                                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                                  }`}
+                                  className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${active
+                                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                    : inBand
+                                      ? 'border-primary/35 bg-primary/5 text-primary hover:bg-primary/15'
+                                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                    }`}
                                 >
                                   {g}
                                 </button>
@@ -3285,11 +3316,10 @@ export default function ClassDetailPage() {
                                 setRosterFilter(chip.id);
                                 if (chip.id === 'withdrawn' || chip.id === 'all') setShowWithdrawnList(true);
                               }}
-                              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors ${
-                                rosterFilter === chip.id
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                              }`}
+                              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors ${rosterFilter === chip.id
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                                }`}
                             >
                               {chip.label}
                             </button>
@@ -3310,13 +3340,12 @@ export default function ClassDetailPage() {
                       {adoptFeedback && (
                         <div
                           role="status"
-                          className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold ${
-                            adoptFeedback.type === 'success'
-                              ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
-                              : adoptFeedback.type === 'error'
-                                ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
-                                : 'border-primary/35 bg-primary/10 text-primary'
-                          }`}
+                          className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold ${adoptFeedback.type === 'success'
+                            ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                            : adoptFeedback.type === 'error'
+                              ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                              : 'border-primary/35 bg-primary/10 text-primary'
+                            }`}
                         >
                           <span>{adoptFeedback.text}</span>
                           <div className="flex items-center gap-2 shrink-0">
@@ -3461,9 +3490,8 @@ export default function ClassDetailPage() {
                                     return (
                                       <div
                                         key={`sm-${s.id}`}
-                                        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors ${
-                                          isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
-                                        }`}
+                                        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors ${isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
+                                          }`}
                                       >
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                           {!locked && (
@@ -3531,608 +3559,605 @@ export default function ClassDetailPage() {
                           </p>
                         </div>
                       ) : (
-                    <div className="space-y-2">
-                      {visibleCurrent.length > 0 && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2">
-                          {/* Selection is `canView`, not `isStaff` — partner schools could bulk-unenrol
+                        <div className="space-y-2">
+                          {visibleCurrent.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2">
+                              {/* Selection is `canView`, not `isStaff` — partner schools could bulk-unenrol
                               from the old Active learners panel and keep that here. */}
-                          {canView ? (
-                            <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-primary"
-                                checked={checkedEnrollIds.size > 0 && visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id))}
-                                ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && !visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id)); }}
-                                onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(visibleCurrent.map((s: any) => s.id)) : new Set())}
-                              />
-                              {checkedEnrollIds.size > 0 ? `${checkedEnrollIds.size} selected` : 'Select all'}
-                            </label>
-                          ) : <span />}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setExpandedStudentIds(prev =>
-                                prev.size >= visibleCurrent.length ? new Set() : new Set(visibleCurrent.map((s: any) => s.id))
-                              )}
-                              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-                            >
-                              {expandedStudentIds.size >= visibleCurrent.length ? 'Collapse all' : 'Expand all'}
-                            </button>
-                            {isStaff && checkedEnrollIds.size > 0 && destinationClasses.length > 0 && (
-                              <select
-                                aria-label="Move selected students to another class"
-                                value=""
-                                disabled={movingStudent === 'bulk'}
-                                onChange={(e) => void bulkMoveSelectedToClass(e.target.value)}
-                                className="rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary outline-none transition-colors hover:border-primary disabled:opacity-50"
-                              >
-                                <option value="">{movingStudent === 'bulk' ? 'Moving…' : `Move ${checkedEnrollIds.size} to class…`}</option>
-                                {destinationClasses.map((destination: any) => (
-                                  <option key={destination.id} value={destination.id}>
-                                    {destination.qa_grade_key ? `${destination.qa_grade_key} · ` : ''}{destination.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                            {isStaff && checkedEnrollIds.size > 0 && (
-                              <select
-                                aria-label="Set grade for selected students"
-                                value=""
-                                disabled={bulkSettingGrade}
-                                onChange={(e) => {
-                                  if (e.target.value) void bulkSetSelectedGrade(e.target.value);
-                                }}
-                                className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 outline-none transition-colors hover:border-emerald-500 disabled:opacity-50"
-                              >
-                                <option value="">{bulkSettingGrade ? 'Updating…' : `Set Grade (${checkedEnrollIds.size})…`}</option>
-                                {SINGLE_GRADES.map((g) => (
-                                  <option key={`bg-${g}`} value={g}>{g}</option>
-                                ))}
-                              </select>
-                            )}
-                            {isStaff && checkedEnrollIds.size > 0 && (
-                              <button
-                                type="button"
-                                disabled={resettingPasswords !== null}
-                                onClick={() => void resetStudentPasswords([...checkedEnrollIds])}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/35 bg-indigo-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700 transition-colors hover:bg-indigo-600 hover:text-white disabled:opacity-50 dark:text-indigo-300"
-                              >
-                                {resettingPasswords === 'bulk' ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : null}
-                                Reset Passwords ({checkedEnrollIds.size})
-                              </button>
-                            )}
-                            {canView && checkedEnrollIds.size > 0 && (
-                              <>
-                                <button
-                                  type="button"
-                                  disabled={bulkRemoving}
-                                  onClick={bulkUnenrol}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-700/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-600 hover:text-white disabled:opacity-50 dark:text-rose-400"
-                                >
-                                  {bulkRemoving ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <TrashIcon className="h-3.5 w-3.5" />}
-                                  Withdraw {checkedEnrollIds.size}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setCheckedEnrollIds(new Set())}
-                                  className="rounded-lg border border-border bg-card px-2 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground"
-                                >
-                                  Clear
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    <div className="grid gap-2 md:max-h-[min(70vh,40rem)] md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pr-1">
-                      {visibleCurrent.map((student: any) => {
-                        const offBand = isOffBand(student);
-                        if (editingStudentId === student.id) {
-                          const gradeOpts = Array.from(new Set([
-                            ...(editGrade && !(SINGLE_GRADES as readonly string[]).includes(editGrade) ? [editGrade] : []),
-                            ...SINGLE_GRADES,
-                          ]));
-                          return (
-                            <div key={student.id} className="space-y-2 rounded-xl border border-primary/40 bg-primary/5 p-3">
-                              <div className="flex flex-col gap-2">
-                                <input
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  placeholder="Full name"
-                                  className="min-w-0 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
-                                />
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                  <select
-                                    value={editGrade}
-                                    onChange={(e) => setEditGrade(e.target.value)}
-                                    title="Grade (separate from the class/section)"
-                                    className="min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
-                                  >
-                                    <option value="">No grade</option>
-                                    {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
-                                  </select>
-                                  <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
-                                    <option value={id || ''}>{cls.name} · current section</option>
-                                    {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
-                                  </select>
-                                </div>
-                              </div>
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="space-y-1">
-                                  <label className="inline-flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={editResetPassword}
-                                      onChange={(e) => setEditResetPassword(e.target.checked)}
-                                      className="h-4 w-4 accent-indigo-600"
-                                    />
-                                    Also generate new auto-password (Rillcod@…)
-                                  </label>
-                                  <p className="text-[10px] text-muted-foreground">Grade and section are independent. Save updates the portal, records &amp; login.</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 sm:flex">
-                                  <button type="button" onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground">Cancel</button>
-                                  <button type="button" onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        const signal = learnerSignal.get(student.id);
-                        const workDone = signal?.done ?? 0;
-                        const workTotal = signal?.total ?? 0;
-                        const workPct = workTotal > 0 ? Math.round((workDone / workTotal) * 100) : null;
-                        const average = signal?.average ?? null;
-                        const expanded = expandedStudentIds.has(student.id);
-                        const checked = checkedEnrollIds.has(student.id);
-                        return (
-                          <div key={student.id} className={`min-w-0 rounded-xl border transition-all ${checked ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/35'}`}>
-                            <div
-                              onClick={() => toggleStudentExpanded(student.id)}
-                              className="flex min-w-0 cursor-pointer items-start gap-2.5 p-3"
-                            >
-                              {canView && (
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {}}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCheckedEnrollIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (e.shiftKey && lastCheckedEnrollId) {
-                                        const ids = visibleCurrent.map((r: any) => r.id);
-                                        const a = ids.indexOf(lastCheckedEnrollId);
-                                        const b = ids.indexOf(student.id);
-                                        if (a >= 0 && b >= 0) {
-                                          const [lo, hi] = a <= b ? [a, b] : [b, a];
-                                          for (let i = lo; i <= hi; i++) next.add(ids[i]);
-                                          return next;
-                                        }
-                                      }
-                                      if (next.has(student.id)) next.delete(student.id);
-                                      else next.add(student.id);
-                                      return next;
-                                    });
-                                    setLastCheckedEnrollId(student.id);
-                                  }}
-                                  aria-label={`Select ${student.full_name}`}
-                                  title="Tick student (Shift+Click for range) to move class, set grade, reset password, or withdraw"
-                                  className="mt-3 h-4 w-4 flex-shrink-0 cursor-pointer accent-primary"
-                                />
-                              )}
-                              <div className="relative flex-shrink-0">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
-                                  {(student.full_name ?? '?')[0].toUpperCase()}
-                                </div>
-                                {reportIndicatorEnabled && (
-                                  <span
-                                    title={student.has_published_report ? 'Progress report published this term' : student.has_draft_report ? 'Report drafted, not published — needs attention' : 'No report this term — needs attention'}
-                                    className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-card ${student.has_published_report ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                                  />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="break-words text-sm font-bold text-foreground">{student.full_name}</span>
-                                  {isStaff ? (
-                                    <select
-                                      aria-label={`Quick grade for ${student.full_name}`}
-                                      value={student.grade || ''}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onChange={async (e) => {
-                                        const nextG = e.target.value;
-                                        if (!nextG) return;
-                                        await fetch(`/api/classes/${id}/enroll`, {
-                                          method: 'PATCH',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ updates: [{ studentId: student.id, grade: nextG }] }),
-                                        });
-                                        await fetchData();
-                                      }}
-                                      className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide outline-none cursor-pointer ${
-                                        offBand
-                                          ? 'border-primary/40 bg-primary/10 text-primary'
-                                          : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
-                                      }`}
-                                    >
-                                      <option value="">No grade</option>
-                                      {SINGLE_GRADES.map((g) => (
-                                        <option key={g} value={g}>{g}</option>
-                                      ))}
-                                    </select>
-                                  ) : student.grade ? (
-                                    <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{student.grade}</span>
-                                  ) : null}
-                                  {reportIndicatorEnabled && (() => {
-                                    const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
-                                    const sessionLabel = [student.report_term, student.report_period].filter(Boolean).join(' · ') || 'this term';
-                                    const title = student.has_published_report
-                                      ? `Progress report published for ${sessionLabel}`
-                                      : student.has_draft_report
-                                        ? `Report drafted but NOT published for ${sessionLabel} — needs attention`
-                                        : `No ${sessionLabel} progress report yet — needs attention`;
-                                    const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}`;
-                                    return isStaff ? (
-                                      <Link href={learnerReportHref('write', {
-                                        studentId: student.id,
-                                        classId: id,
-                                        term: student.report_term,
-                                        period: student.report_period,
-                                      })} title={`${title} — click to open Write`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
-                                        {label}
-                                      </Link>
-                                    ) : (
-                                      <span title={title} className={reportBadgeClass}>{label}</span>
-                                    );
-                                  })()}
-                                  {offBand && (
-                                    <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                                      Off-band
-                                    </span>
-                                  )}
-                                </div>
-                                {/* Work signal stays on the collapsed row — the whole point of the roster
-                                    is seeing who is behind without opening anything. */}
-                                {workTotal > 0 ? (
-                                  <div className="mt-1 flex items-center gap-2">
-                                    <span
-                                      className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-24"
-                                      role="progressbar"
-                                      aria-valuenow={workPct ?? 0}
-                                      aria-valuemin={0}
-                                      aria-valuemax={100}
-                                      aria-label={`Work completed by ${student.full_name}`}
-                                    >
-                                      <span
-                                        className={`block h-full rounded-full transition-all duration-500 ${
-                                          (workPct ?? 0) >= 80 ? 'bg-emerald-500' : (workPct ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500'
-                                        }`}
-                                        style={{ width: `${workPct ?? 0}%` }}
-                                      />
-                                    </span>
-                                    <span className="truncate text-[11px] text-muted-foreground">
-                                      {workDone}/{workTotal} done
-                                      {average !== null && <span className="ml-1.5 font-bold text-foreground">{average}% avg</span>}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <p className="mt-0.5 break-all text-xs text-muted-foreground">{student.email}</p>
-                                )}
-                              </div>
-                              <div className="mt-1 flex items-center gap-1.5 flex-shrink-0">
-                                {isStaff && (
-                                  <Link
-                                    href={learnerReportHref('write', {
-                                      studentId: student.id,
-                                      classId: id,
-                                      courseId: searchParams.get('course_id') || cls?.current_course_id,
-                                      term: student.report_term,
-                                      period: student.report_period,
-                                    })}
-                                    onClick={(e) => e.stopPropagation()}
-                                    title={`Open Result Builder for ${student.full_name}`}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
-                                  >
-                                    Result Builder
-                                  </Link>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); toggleStudentExpanded(student.id); }}
-                                  aria-expanded={expanded}
-                                  aria-label={expanded ? `Hide details for ${student.full_name}` : `Show details for ${student.full_name}`}
-                                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                >
-                                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                                </button>
-                              </div>
-                            </div>
-                            {expanded && (
-                              <div className="border-t border-border/60 px-3 pb-3 pt-3">
-                                <p className="break-all text-xs text-muted-foreground">{student.email || 'No email on file'}</p>
-                                <div className="mt-2 grid grid-cols-3 gap-2">
-                                  <div className="rounded-lg border border-border bg-background px-2 py-1.5">
-                                    <p className="text-sm font-black text-foreground">{workDone}<span className="text-[10px] text-muted-foreground">/{workTotal}</span></p>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Work done</p>
-                                  </div>
-                                  <div className="rounded-lg border border-border bg-background px-2 py-1.5">
-                                    <p className="text-sm font-black text-foreground">{average !== null ? `${average}%` : '—'}</p>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Average</p>
-                                  </div>
-                                  <div className="rounded-lg border border-border bg-background px-2 py-1.5">
-                                    <p className="text-sm font-black text-foreground">{Math.max(0, workTotal - workDone)}</p>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Outstanding</p>
-                                  </div>
-                                </div>
-                                {/* Task-by-task: which piece of class work is done, scored or missing.
-                                    Built from the submissions/sessions already in state — no extra reads. */}
-                                {workTotal > 0 && (
-                                  <div className="mt-2 space-y-1">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class work</p>
-                                    {items.assignments.map((a: any) => {
-                                      const sub = items.submissions.find((s: any) => s.assignment_id === a.id && (s.portal_user_id === student.id || s.user_id === student.id));
-                                      const score = sub?.grade ?? null;
-                                      return (
-                                        <div key={`a-${a.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5">
-                                          <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{a.title}</span>
-                                          <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wide ${!sub ? 'text-rose-600 dark:text-rose-400' : score === null ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                            {!sub ? 'Missing' : score === null ? 'Ungraded' : `${score}/${a.max_points ?? 100}`}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                    {items.cbt.map((c: any) => {
-                                      const sess = items.cbtSessions.find((s: any) => s.exam_id === c.id && s.user_id === student.id);
-                                      const score = sess?.score ?? null;
-                                      return (
-                                        <div key={`c-${c.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5">
-                                          <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{c.title}</span>
-                                          <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wide ${!sess ? 'text-rose-600 dark:text-rose-400' : score === null ? 'text-cyan-600 dark:text-cyan-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                            {!sess ? 'Not taken' : score === null ? 'Running' : `${score}/${c.total_questions ?? '?'}`}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {isStaff && expanded && (
-                              <div className="grid grid-cols-1 gap-2 border-t border-border/60 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
-                                <Link
-                                  href={learnerReportHref('write', {
-                                    studentId: student.id,
-                                    classId: id,
-                                    courseId: searchParams.get('course_id') || cls?.current_course_id,
-                                    term: student.report_term,
-                                    period: student.report_period,
-                                  })}
-                                  title={`Open Result Builder for ${student.full_name}`}
-                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
-                                >
-                                  <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                                  Result Builder
-                                </Link>
-                                <Link
-                                  href={learnerReportHref('publish', {
-                                    studentId: student.id,
-                                    classId: id,
-                                    courseId: searchParams.get('course_id') || cls?.current_course_id,
-                                  })}
-                                  title={`View published reports for ${student.full_name}`}
-                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
-                                >
-                                  Results
-                                </Link>
-                                <Link
-                                  href={`/dashboard/classes/${id}/cards?student=${student.id}`}
-                                  title={`Open ID / Access Card for ${student.full_name}`}
-                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
-                                >
-                                  ID Card
-                                </Link>
-                                <button
-                                  type="button"
-                                  onClick={() => beginEditIdentity(student)}
-                                  title="Edit name / grade"
-                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                                >
-                                  <PencilSquareIconOutline className="h-3.5 w-3.5" />
-                                  Edit
-                                </button>
-                                <select
-                                  aria-label={`Change grade or section for ${student.full_name}`}
-                                  value=""
-                                  disabled={movingStudent === student.id}
-                                  onChange={(event) => void moveStudentToClass(student, event.target.value)}
-                                  className="min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:col-span-1 lg:min-w-[10rem] lg:flex-1 lg:max-w-[16rem]"
-                                >
-                                  <option value="">{movingStudent === student.id ? 'Moving…' : 'Change grade / section'}</option>
-                                  {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.qa_grade_key || 'Grade'} · {destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
-                                </select>
-                                <Link
-                                  href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
-                                  title="Request a move to a class owned by another teacher"
-                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
-                                >
-                                  Transfer
-                                </Link>
-                                <select
-                                  aria-label={`Learning path visibility for ${student.full_name}`}
-                                  value={pathStudentModes[student.id] ?? 'inherit'}
-                                  onChange={(event) => void saveStudentPathMode(student.id, event.target.value as 'inherit' | 'full' | 'milestone')}
-                                  disabled={pathVisibilitySaving === student.id}
-                                  title="Optional exception to the class learning-path setting"
-                                  className="min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 lg:max-w-[13rem]"
-                                >
-                                  <option value="inherit">Path · use class setting</option>
-                                  <option value="full">Path · full details</option>
-                                  <option value="milestone">Path · milestones only</option>
-                                </select>
-                                <button
-                                  type="button"
-                                  onClick={() => void resetStudentPasswords([student.id])}
-                                  disabled={resettingPasswords !== null}
-                                  title="Generate a new Rillcod@... auto-password and sync to Credentials Vault"
-                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-indigo-700 dark:text-indigo-300 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
-                                >
-                                  {resettingPasswords === student.id ? 'Resetting…' : 'Auto Password'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => removeStudent(student.id)}
-                                  disabled={processingStudent === student.id}
-                                  title="Withdraw from this class (keeps class history)"
-                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
-                                >
-                                  {processingStudent === student.id ? '…' : 'Withdraw'}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Withdrawn / historical — folded away by default so it never competes
-                        with the active list, but keeps reinstate + hard-delete. */}
-                    {visibleInactive.length > 0 && (
-                      <div className="overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5">
-                        <button
-                          type="button"
-                          onClick={() => setShowWithdrawnList(open => !open)}
-                          aria-expanded={showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn'}
-                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
-                              Paused / historical · {visibleInactive.length}
-                            </p>
-                            <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
-                              Keep old results and can be reinstated into this term.
-                            </p>
-                          </div>
-                          <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-amber-600 transition-transform dark:text-amber-400 ${showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn' ? 'rotate-180' : ''}`} />
-                        </button>
-                        {(showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn') && (
-                          <div className="space-y-2 border-t border-amber-500/20 p-2.5 md:max-h-[min(50vh,26rem)] md:overflow-y-auto md:overscroll-contain">
-                            {isStaff && (
-                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-background/80 px-3 py-2">
-                                <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                              {canView ? (
+                                <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-black uppercase tracking-wide text-muted-foreground">
                                   <input
                                     type="checkbox"
-                                    className="h-4 w-4 accent-emerald-700"
-                                    checked={checkedWithdrawnIds.size > 0 && visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id))}
-                                    ref={el => { if (el) el.indeterminate = checkedWithdrawnIds.size > 0 && !visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id)); }}
-                                    onChange={e => {
-                                      if (e.target.checked) setCheckedWithdrawnIds(new Set(visibleInactive.map((s: any) => s.id)));
-                                      else setCheckedWithdrawnIds(new Set());
-                                    }}
+                                    className="h-4 w-4 accent-primary"
+                                    checked={checkedEnrollIds.size > 0 && visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id))}
+                                    ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && !visibleCurrent.every((s: any) => checkedEnrollIds.has(s.id)); }}
+                                    onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(visibleCurrent.map((s: any) => s.id)) : new Set())}
                                   />
-                                  {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : `Select all (${visibleInactive.length})`}
+                                  {checkedEnrollIds.size > 0 ? `${checkedEnrollIds.size} selected` : 'Select all'}
                                 </label>
-                                {checkedWithdrawnIds.size > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1.5">
+                              ) : <span />}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedStudentIds(prev =>
+                                    prev.size >= visibleCurrent.length ? new Set() : new Set(visibleCurrent.map((s: any) => s.id))
+                                  )}
+                                  className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                  {expandedStudentIds.size >= visibleCurrent.length ? 'Collapse all' : 'Expand all'}
+                                </button>
+                                {isStaff && checkedEnrollIds.size > 0 && destinationClasses.length > 0 && (
+                                  <select
+                                    aria-label="Move selected students to another class"
+                                    value=""
+                                    disabled={movingStudent === 'bulk'}
+                                    onChange={(e) => void bulkMoveSelectedToClass(e.target.value)}
+                                    className="rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-primary outline-none transition-colors hover:border-primary disabled:opacity-50"
+                                  >
+                                    <option value="">{movingStudent === 'bulk' ? 'Moving…' : `Move ${checkedEnrollIds.size} to class…`}</option>
+                                    {destinationClasses.map((destination: any) => (
+                                      <option key={destination.id} value={destination.id}>
+                                        {destination.qa_grade_key ? `${destination.qa_grade_key} · ` : ''}{destination.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                {isStaff && checkedEnrollIds.size > 0 && (
+                                  <select
+                                    aria-label="Set grade for selected students"
+                                    value=""
+                                    disabled={bulkSettingGrade}
+                                    onChange={(e) => {
+                                      if (e.target.value) void bulkSetSelectedGrade(e.target.value);
+                                    }}
+                                    className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 outline-none transition-colors hover:border-emerald-500 disabled:opacity-50"
+                                  >
+                                    <option value="">{bulkSettingGrade ? 'Updating…' : `Set Grade (${checkedEnrollIds.size})…`}</option>
+                                    {SINGLE_GRADES.map((g) => (
+                                      <option key={`bg-${g}`} value={g}>{g}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {isStaff && checkedEnrollIds.size > 0 && (
+                                  <button
+                                    type="button"
+                                    disabled={resettingPasswords !== null}
+                                    onClick={() => void resetStudentPasswords([...checkedEnrollIds])}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/35 bg-indigo-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-700 transition-colors hover:bg-indigo-600 hover:text-white disabled:opacity-50 dark:text-indigo-300"
+                                  >
+                                    {resettingPasswords === 'bulk' ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : null}
+                                    Reset Passwords ({checkedEnrollIds.size})
+                                  </button>
+                                )}
+                                {canView && checkedEnrollIds.size > 0 && (
+                                  <>
                                     <button
                                       type="button"
-                                      disabled={savingSessionConfirm}
-                                      onClick={async () => {
-                                        setSavingSessionConfirm(true);
-                                        try {
-                                          const res = await fetch(`/api/classes/${id}/enroll`, {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ reinstateStudentIds: [...checkedWithdrawnIds] }),
-                                          });
-                                          if (!res.ok) throw new Error('Could not reinstate selected students');
-                                          setCheckedWithdrawnIds(new Set());
-                                          await fetchData();
-                                        } catch (e: any) {
-                                          alert(e.message || 'Reinstate failed');
-                                        } finally {
-                                          setSavingSessionConfirm(false);
-                                        }
-                                      }}
-                                      className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-40"
+                                      disabled={bulkRemoving}
+                                      onClick={bulkUnenrol}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-700/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-600 hover:text-white disabled:opacity-50 dark:text-rose-400"
                                     >
-                                      {savingSessionConfirm ? 'Reinstating…' : `Reinstate (${checkedWithdrawnIds.size})`}
+                                      {bulkRemoving ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" /> : <TrashIcon className="h-3.5 w-3.5" />}
+                                      Withdraw {checkedEnrollIds.size}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => bulkHardDelete(false)}
-                                      disabled={hardDeleting}
-                                      className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-red-500/40 bg-red-600/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-red-700 dark:text-red-300 hover:bg-red-600/20 disabled:opacity-40"
+                                      onClick={() => setCheckedEnrollIds(new Set())}
+                                      className="rounded-lg border border-border bg-card px-2 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground"
                                     >
-                                      <TrashIcon className="h-3.5 w-3.5" />
-                                      {hardDeleting ? 'Wiping…' : 'Delete'}
+                                      Clear
                                     </button>
-                                  </div>
+                                  </>
                                 )}
                               </div>
-                            )}
-                            <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
-                              {visibleInactive.map((student: any) => (
-                                <div
-                                  key={`${student.id}-${student.roster_status ?? 'former'}`}
-                                  className={`flex flex-wrap items-center gap-2.5 px-3 py-2.5 transition-colors ${
-                                    checkedWithdrawnIds.has(student.id) ? 'bg-primary/5' : 'hover:bg-muted/30'
-                                  }`}
-                                >
-                                  {isStaff && (
-                                    <input
-                                      type="checkbox"
-                                      className="h-4 w-4 flex-shrink-0 accent-emerald-700"
-                                      checked={checkedWithdrawnIds.has(student.id)}
-                                      onChange={() => toggleWithdrawn(student.id)}
-                                      aria-label={`Select ${student.full_name}`}
-                                    />
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
-                                      {student.grade && (
-                                        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-muted-foreground">
-                                          {student.grade}
-                                        </span>
+                            </div>
+                          )}
+                          <div className="grid gap-2 md:max-h-[min(70vh,40rem)] md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pr-1">
+                            {visibleCurrent.map((student: any) => {
+                              const offBand = isOffBand(student);
+                              if (editingStudentId === student.id) {
+                                const gradeOpts = Array.from(new Set([
+                                  ...(editGrade && !(SINGLE_GRADES as readonly string[]).includes(editGrade) ? [editGrade] : []),
+                                  ...SINGLE_GRADES,
+                                ]));
+                                return (
+                                  <div key={student.id} className="space-y-2 rounded-xl border border-primary/40 bg-primary/5 p-3">
+                                    <div className="flex flex-col gap-2">
+                                      <input
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        placeholder="Full name"
+                                        className="min-w-0 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                                      />
+                                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <select
+                                          value={editGrade}
+                                          onChange={(e) => setEditGrade(e.target.value)}
+                                          title="Grade (separate from the class/section)"
+                                          className="min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                                        >
+                                          <option value="">No grade</option>
+                                          {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
+                                        </select>
+                                        <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
+                                          <option value={id || ''}>{cls.name} · current section</option>
+                                          {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
+                                        </select>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                      <div className="space-y-1">
+                                        <label className="inline-flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={editResetPassword}
+                                            onChange={(e) => setEditResetPassword(e.target.checked)}
+                                            className="h-4 w-4 accent-indigo-600"
+                                          />
+                                          Also generate new auto-password (Rillcod@…)
+                                        </label>
+                                        <p className="text-[10px] text-muted-foreground">Grade and section are independent. Save updates the portal, records &amp; login.</p>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2 sm:flex">
+                                        <button type="button" onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground">Cancel</button>
+                                        <button type="button" onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              const signal = learnerSignal.get(student.id);
+                              const workDone = signal?.done ?? 0;
+                              const workTotal = signal?.total ?? 0;
+                              const workPct = workTotal > 0 ? Math.round((workDone / workTotal) * 100) : null;
+                              const average = signal?.average ?? null;
+                              const expanded = expandedStudentIds.has(student.id);
+                              const checked = checkedEnrollIds.has(student.id);
+                              return (
+                                <div key={student.id} className={`min-w-0 rounded-xl border transition-all ${checked ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/35'}`}>
+                                  <div
+                                    onClick={() => toggleStudentExpanded(student.id)}
+                                    className="flex min-w-0 cursor-pointer items-start gap-2.5 p-3"
+                                  >
+                                    {canView && (
+                                      <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => { }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCheckedEnrollIds((prev) => {
+                                            const next = new Set(prev);
+                                            if (e.shiftKey && lastCheckedEnrollId) {
+                                              const ids = visibleCurrent.map((r: any) => r.id);
+                                              const a = ids.indexOf(lastCheckedEnrollId);
+                                              const b = ids.indexOf(student.id);
+                                              if (a >= 0 && b >= 0) {
+                                                const [lo, hi] = a <= b ? [a, b] : [b, a];
+                                                for (let i = lo; i <= hi; i++) next.add(ids[i]);
+                                                return next;
+                                              }
+                                            }
+                                            if (next.has(student.id)) next.delete(student.id);
+                                            else next.add(student.id);
+                                            return next;
+                                          });
+                                          setLastCheckedEnrollId(student.id);
+                                        }}
+                                        aria-label={`Select ${student.full_name}`}
+                                        title="Tick student (Shift+Click for range) to move class, set grade, reset password, or withdraw"
+                                        className="mt-3 h-4 w-4 flex-shrink-0 cursor-pointer accent-primary"
+                                      />
+                                    )}
+                                    <div className="relative flex-shrink-0">
+                                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                                        {(student.full_name ?? '?')[0].toUpperCase()}
+                                      </div>
+                                      {reportIndicatorEnabled && (
+                                        <span
+                                          title={student.has_published_report ? 'Progress report published this term' : student.has_draft_report ? 'Report drafted, not published — needs attention' : 'No report this term — needs attention'}
+                                          className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-card ${student.has_published_report ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                        />
                                       )}
                                     </div>
-                                    <p className="truncate text-[10px] font-semibold text-muted-foreground">
-                                      {(student.roster_status ?? 'withdrawn').toString().replace('_', ' ')}
-                                      {student.roster_ended_at ? ` · ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
-                                      {student.email ? ` · ${student.email}` : ''}
-                                    </p>
-                                  </div>
-                                  {isStaff && (
-                                    <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="break-words text-sm font-bold text-foreground">{student.full_name}</span>
+                                        {isStaff ? (
+                                          <select
+                                            aria-label={`Quick grade for ${student.full_name}`}
+                                            value={student.grade || ''}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={async (e) => {
+                                              const nextG = e.target.value;
+                                              if (!nextG) return;
+                                              await fetch(`/api/classes/${id}/enroll`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ updates: [{ studentId: student.id, grade: nextG }] }),
+                                              });
+                                              await fetchData();
+                                            }}
+                                            className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide outline-none cursor-pointer ${offBand
+                                              ? 'border-primary/40 bg-primary/10 text-primary'
+                                              : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                                              }`}
+                                          >
+                                            <option value="">No grade</option>
+                                            {SINGLE_GRADES.map((g) => (
+                                              <option key={g} value={g}>{g}</option>
+                                            ))}
+                                          </select>
+                                        ) : student.grade ? (
+                                          <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{student.grade}</span>
+                                        ) : null}
+                                        {reportIndicatorEnabled && (() => {
+                                          const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
+                                          const sessionLabel = [student.report_term, student.report_period].filter(Boolean).join(' · ') || 'this term';
+                                          const title = student.has_published_report
+                                            ? `Progress report published for ${sessionLabel}`
+                                            : student.has_draft_report
+                                              ? `Report drafted but NOT published for ${sessionLabel} — needs attention`
+                                              : `No ${sessionLabel} progress report yet — needs attention`;
+                                          const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}`;
+                                          return isStaff ? (
+                                            <Link href={learnerReportHref('write', {
+                                              studentId: student.id,
+                                              classId: id,
+                                              term: student.report_term,
+                                              period: student.report_period,
+                                            })} title={`${title} — click to open Write`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
+                                              {label}
+                                            </Link>
+                                          ) : (
+                                            <span title={title} className={reportBadgeClass}>{label}</span>
+                                          );
+                                        })()}
+                                        {offBand && (
+                                          <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                                            Off-band
+                                          </span>
+                                        )}
+                                      </div>
+                                      {/* Work signal stays on the collapsed row — the whole point of the roster
+                                    is seeing who is behind without opening anything. */}
+                                      {workTotal > 0 ? (
+                                        <div className="mt-1 flex items-center gap-2">
+                                          <span
+                                            className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-24"
+                                            role="progressbar"
+                                            aria-valuenow={workPct ?? 0}
+                                            aria-valuemin={0}
+                                            aria-valuemax={100}
+                                            aria-label={`Work completed by ${student.full_name}`}
+                                          >
+                                            <span
+                                              className={`block h-full rounded-full transition-all duration-500 ${(workPct ?? 0) >= 80 ? 'bg-emerald-500' : (workPct ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500'
+                                                }`}
+                                              style={{ width: `${workPct ?? 0}%` }}
+                                            />
+                                          </span>
+                                          <span className="truncate text-[11px] text-muted-foreground">
+                                            {workDone}/{workTotal} done
+                                            {average !== null && <span className="ml-1.5 font-bold text-foreground">{average}% avg</span>}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <p className="mt-0.5 break-all text-xs text-muted-foreground">{student.email}</p>
+                                      )}
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-1.5 flex-shrink-0">
+                                      {isStaff && (
+                                        <Link
+                                          href={learnerReportHref('write', {
+                                            studentId: student.id,
+                                            classId: id,
+                                            courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                            term: student.report_term,
+                                            period: student.report_period,
+                                          })}
+                                          onClick={(e) => e.stopPropagation()}
+                                          title={`Open Result Builder for ${student.full_name}`}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
+                                        >
+                                          Result Builder
+                                        </Link>
+                                      )}
                                       <button
                                         type="button"
-                                        onClick={() => void assignStudent(student.id, 'promote')}
-                                        disabled={processingStudent === student.id}
-                                        className="min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-50"
+                                        onClick={(e) => { e.stopPropagation(); toggleStudentExpanded(student.id); }}
+                                        aria-expanded={expanded}
+                                        aria-label={expanded ? `Hide details for ${student.full_name}` : `Show details for ${student.full_name}`}
+                                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                                       >
-                                        {processingStudent === student.id ? '…' : 'Reinstate'}
+                                        <ChevronDownIcon className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  {expanded && (
+                                    <div className="border-t border-border/60 px-3 pb-3 pt-3">
+                                      <p className="break-all text-xs text-muted-foreground">{student.email || 'No email on file'}</p>
+                                      <div className="mt-2 grid grid-cols-3 gap-2">
+                                        <div className="rounded-lg border border-border bg-background px-2 py-1.5">
+                                          <p className="text-sm font-black text-foreground">{workDone}<span className="text-[10px] text-muted-foreground">/{workTotal}</span></p>
+                                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Work done</p>
+                                        </div>
+                                        <div className="rounded-lg border border-border bg-background px-2 py-1.5">
+                                          <p className="text-sm font-black text-foreground">{average !== null ? `${average}%` : '—'}</p>
+                                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Average</p>
+                                        </div>
+                                        <div className="rounded-lg border border-border bg-background px-2 py-1.5">
+                                          <p className="text-sm font-black text-foreground">{Math.max(0, workTotal - workDone)}</p>
+                                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Outstanding</p>
+                                        </div>
+                                      </div>
+                                      {/* Task-by-task: which piece of class work is done, scored or missing.
+                                    Built from the submissions/sessions already in state — no extra reads. */}
+                                      {workTotal > 0 && (
+                                        <div className="mt-2 space-y-1">
+                                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class work</p>
+                                          {items.assignments.map((a: any) => {
+                                            const sub = items.submissions.find((s: any) => s.assignment_id === a.id && (s.portal_user_id === student.id || s.user_id === student.id));
+                                            const score = sub?.grade ?? null;
+                                            return (
+                                              <div key={`a-${a.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5">
+                                                <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{a.title}</span>
+                                                <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wide ${!sub ? 'text-rose-600 dark:text-rose-400' : score === null ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                                  {!sub ? 'Missing' : score === null ? 'Ungraded' : `${score}/${a.max_points ?? 100}`}
+                                                </span>
+                                              </div>
+                                            );
+                                          })}
+                                          {items.cbt.map((c: any) => {
+                                            const sess = items.cbtSessions.find((s: any) => s.exam_id === c.id && s.user_id === student.id);
+                                            const score = sess?.score ?? null;
+                                            return (
+                                              <div key={`c-${c.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-background px-2 py-1.5">
+                                                <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">{c.title}</span>
+                                                <span className={`flex-shrink-0 text-[10px] font-black uppercase tracking-wide ${!sess ? 'text-rose-600 dark:text-rose-400' : score === null ? 'text-cyan-600 dark:text-cyan-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                                  {!sess ? 'Not taken' : score === null ? 'Running' : `${score}/${c.total_questions ?? '?'}`}
+                                                </span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {isStaff && expanded && (
+                                    <div className="grid grid-cols-1 gap-2 border-t border-border/60 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+                                      <Link
+                                        href={learnerReportHref('write', {
+                                          studentId: student.id,
+                                          classId: id,
+                                          courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                          term: student.report_term,
+                                          period: student.report_period,
+                                        })}
+                                        title={`Open Result Builder for ${student.full_name}`}
+                                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                                      >
+                                        <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                                        Result Builder
+                                      </Link>
+                                      <Link
+                                        href={learnerReportHref('publish', {
+                                          studentId: student.id,
+                                          classId: id,
+                                          courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                        })}
+                                        title={`View published reports for ${student.full_name}`}
+                                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                      >
+                                        Results
+                                      </Link>
+                                      <Link
+                                        href={`/dashboard/classes/${id}/cards?student=${student.id}`}
+                                        title={`Open ID / Access Card for ${student.full_name}`}
+                                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                      >
+                                        ID Card
+                                      </Link>
+                                      <button
+                                        type="button"
+                                        onClick={() => beginEditIdentity(student)}
+                                        title="Edit name / grade"
+                                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                                      >
+                                        <PencilSquareIconOutline className="h-3.5 w-3.5" />
+                                        Edit
+                                      </button>
+                                      <select
+                                        aria-label={`Change grade or section for ${student.full_name}`}
+                                        value=""
+                                        disabled={movingStudent === student.id}
+                                        onChange={(event) => void moveStudentToClass(student, event.target.value)}
+                                        className="min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:col-span-1 lg:min-w-[10rem] lg:flex-1 lg:max-w-[16rem]"
+                                      >
+                                        <option value="">{movingStudent === student.id ? 'Moving…' : 'Change grade / section'}</option>
+                                        {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.qa_grade_key || 'Grade'} · {destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
+                                      </select>
+                                      <Link
+                                        href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
+                                        title="Request a move to a class owned by another teacher"
+                                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                      >
+                                        Transfer
+                                      </Link>
+                                      <select
+                                        aria-label={`Learning path visibility for ${student.full_name}`}
+                                        value={pathStudentModes[student.id] ?? 'inherit'}
+                                        onChange={(event) => void saveStudentPathMode(student.id, event.target.value as 'inherit' | 'full' | 'milestone')}
+                                        disabled={pathVisibilitySaving === student.id}
+                                        title="Optional exception to the class learning-path setting"
+                                        className="min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 lg:max-w-[13rem]"
+                                      >
+                                        <option value="inherit">Path · use class setting</option>
+                                        <option value="full">Path · full details</option>
+                                        <option value="milestone">Path · milestones only</option>
+                                      </select>
+                                      <button
+                                        type="button"
+                                        onClick={() => void resetStudentPasswords([student.id])}
+                                        disabled={resettingPasswords !== null}
+                                        title="Generate a new Rillcod@... auto-password and sync to Credentials Vault"
+                                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-indigo-700 dark:text-indigo-300 transition-colors hover:bg-indigo-500/20 disabled:opacity-50"
+                                      >
+                                        {resettingPasswords === student.id ? 'Resetting…' : 'Auto Password'}
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => bulkHardDelete(false, [student.id])}
-                                        disabled={hardDeleting}
-                                        aria-label={`Delete ${student.full_name} permanently`}
-                                        title="Permanently delete this student from the whole system"
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-600/10 text-red-700 dark:text-red-300 hover:bg-red-600/20 disabled:opacity-40"
+                                        onClick={() => removeStudent(student.id)}
+                                        disabled={processingStudent === student.id}
+                                        title="Withdraw from this class (keeps class history)"
+                                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-amber-600 dark:text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
                                       >
-                                        <TrashIcon className="h-4 w-4" />
+                                        {processingStudent === student.id ? '…' : 'Withdraw'}
                                       </button>
                                     </div>
                                   )}
                                 </div>
-                              ))}
-                            </div>
+                              );
+                            })}
                           </div>
-                        )}
-                      </div>
-                    )}
-                    </div>
+
+                          {/* Withdrawn / historical — folded away by default so it never competes
+                        with the active list, but keeps reinstate + hard-delete. */}
+                          {visibleInactive.length > 0 && (
+                            <div className="overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5">
+                              <button
+                                type="button"
+                                onClick={() => setShowWithdrawnList(open => !open)}
+                                aria-expanded={showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn'}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                                    Paused / historical · {visibleInactive.length}
+                                  </p>
+                                  <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
+                                    Keep old results and can be reinstated into this term.
+                                  </p>
+                                </div>
+                                <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-amber-600 transition-transform dark:text-amber-400 ${showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn' ? 'rotate-180' : ''}`} />
+                              </button>
+                              {(showWithdrawnList || Boolean(rosterQ) || rosterFilter === 'withdrawn') && (
+                                <div className="space-y-2 border-t border-amber-500/20 p-2.5 md:max-h-[min(50vh,26rem)] md:overflow-y-auto md:overscroll-contain">
+                                  {isStaff && (
+                                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-background/80 px-3 py-2">
+                                      <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                                        <input
+                                          type="checkbox"
+                                          className="h-4 w-4 accent-emerald-700"
+                                          checked={checkedWithdrawnIds.size > 0 && visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id))}
+                                          ref={el => { if (el) el.indeterminate = checkedWithdrawnIds.size > 0 && !visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id)); }}
+                                          onChange={e => {
+                                            if (e.target.checked) setCheckedWithdrawnIds(new Set(visibleInactive.map((s: any) => s.id)));
+                                            else setCheckedWithdrawnIds(new Set());
+                                          }}
+                                        />
+                                        {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : `Select all (${visibleInactive.length})`}
+                                      </label>
+                                      {checkedWithdrawnIds.size > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            disabled={savingSessionConfirm}
+                                            onClick={async () => {
+                                              setSavingSessionConfirm(true);
+                                              try {
+                                                const res = await fetch(`/api/classes/${id}/enroll`, {
+                                                  method: 'PATCH',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({ reinstateStudentIds: [...checkedWithdrawnIds] }),
+                                                });
+                                                if (!res.ok) throw new Error('Could not reinstate selected students');
+                                                setCheckedWithdrawnIds(new Set());
+                                                await fetchData();
+                                              } catch (e: any) {
+                                                alert(e.message || 'Reinstate failed');
+                                              } finally {
+                                                setSavingSessionConfirm(false);
+                                              }
+                                            }}
+                                            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-40"
+                                          >
+                                            {savingSessionConfirm ? 'Reinstating…' : `Reinstate (${checkedWithdrawnIds.size})`}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => bulkHardDelete(false)}
+                                            disabled={hardDeleting}
+                                            className="inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-red-500/40 bg-red-600/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-red-700 dark:text-red-300 hover:bg-red-600/20 disabled:opacity-40"
+                                          >
+                                            <TrashIcon className="h-3.5 w-3.5" />
+                                            {hardDeleting ? 'Wiping…' : 'Delete'}
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+                                    {visibleInactive.map((student: any) => (
+                                      <div
+                                        key={`${student.id}-${student.roster_status ?? 'former'}`}
+                                        className={`flex flex-wrap items-center gap-2.5 px-3 py-2.5 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'bg-primary/5' : 'hover:bg-muted/30'
+                                          }`}
+                                      >
+                                        {isStaff && (
+                                          <input
+                                            type="checkbox"
+                                            className="h-4 w-4 flex-shrink-0 accent-emerald-700"
+                                            checked={checkedWithdrawnIds.has(student.id)}
+                                            onChange={() => toggleWithdrawn(student.id)}
+                                            aria-label={`Select ${student.full_name}`}
+                                          />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
+                                            {student.grade && (
+                                              <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-muted-foreground">
+                                                {student.grade}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="truncate text-[10px] font-semibold text-muted-foreground">
+                                            {(student.roster_status ?? 'withdrawn').toString().replace('_', ' ')}
+                                            {student.roster_ended_at ? ` · ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
+                                            {student.email ? ` · ${student.email}` : ''}
+                                          </p>
+                                        </div>
+                                        {isStaff && (
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={() => void assignStudent(student.id, 'promote')}
+                                              disabled={processingStudent === student.id}
+                                              className="min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-800 disabled:opacity-50"
+                                            >
+                                              {processingStudent === student.id ? '…' : 'Reinstate'}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => bulkHardDelete(false, [student.id])}
+                                              disabled={hardDeleting}
+                                              aria-label={`Delete ${student.full_name} permanently`}
+                                              title="Permanently delete this student from the whole system"
+                                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-600/10 text-red-700 dark:text-red-300 hover:bg-red-600/20 disabled:opacity-40"
+                                            >
+                                              <TrashIcon className="h-4 w-4" />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -4217,11 +4242,10 @@ export default function ClassDetailPage() {
                             {assessmentPolicy?.usesHostEvaluation ? 'Practice CBT' : 'CBT Exam'}
                           </Link>
                           <Link
-                            href={`/dashboard/exams/new?class_id=${id}${
-                              searchParams.get('course_id') || cls?.current_course_id
-                                ? `&course_id=${searchParams.get('course_id') || cls?.current_course_id}`
-                                : ''
-                            }${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`}
+                            href={`/dashboard/exams/new?class_id=${id}${searchParams.get('course_id') || cls?.current_course_id
+                              ? `&course_id=${searchParams.get('course_id') || cls?.current_course_id}`
+                              : ''
+                              }${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`}
                             className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-primary/40 transition-colors"
                           >
                             <PlusIcon className="h-3.5 w-3.5 text-primary" />
@@ -4275,11 +4299,10 @@ export default function ClassDetailPage() {
                             classId: id,
                             courseId: searchParams.get('course_id') || cls?.current_course_id,
                           })}
-                          className={`inline-flex min-h-10 items-center justify-center rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
-                            assessmentPolicy?.usesHostEvaluation
-                              ? 'bg-primary text-primary-foreground shadow-sm hover:opacity-90'
-                              : 'border border-border bg-background text-foreground hover:border-primary/40'
-                          }`}
+                          className={`inline-flex min-h-10 items-center justify-center rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${assessmentPolicy?.usesHostEvaluation
+                            ? 'bg-primary text-primary-foreground shadow-sm hover:opacity-90'
+                            : 'border border-border bg-background text-foreground hover:border-primary/40'
+                            }`}
                         >
                           {assessmentCopy?.resultsAction ?? 'Auto-Fill Scores'}
                         </Link>
@@ -4350,638 +4373,636 @@ export default function ClassDetailPage() {
             above; Assessment owns assignments / exams / gradebook, and the class
             record is available from anywhere. */}
         {recordTabs.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
-        <div className="min-w-0 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+            <div className="min-w-0 space-y-4">
 
-            {/* Record strip — only the records that belong to the current mode. */}
-            <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border bg-muted/40 p-1.5 no-scrollbar">
-              {recordTabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                    activeTab === tab.id
+              {/* Record strip — only the records that belong to the current mode. */}
+              <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border bg-muted/40 p-1.5 no-scrollbar">
+                {recordTabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider transition-all duration-300 ${activeTab === tab.id
                       ? 'bg-primary text-primary-foreground shadow-md'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
-                  {tab.label}
-                  {typeof tab.count === 'number' && (
-                    <span className={activeTab === tab.id ? 'text-primary-foreground/70' : 'text-muted-foreground/70'}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+                      }`}
+                  >
+                    <tab.icon className="h-4 w-4 flex-shrink-0" />
+                    {tab.label}
+                    {typeof tab.count === 'number' && (
+                      <span className={activeTab === tab.id ? 'text-primary-foreground/70' : 'text-muted-foreground/70'}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
 
-            {activeTab === 'overview' && (
-              <div className="space-y-4">
-                {/* The "View Full Curriculum" card stood here and sent teachers out of
+              {activeTab === 'overview' && (
+                <div className="space-y-4">
+                  {/* The "View Full Curriculum" card stood here and sent teachers out of
                     their own workspace. Teaching mode already links the curriculum for
                     the course actually selected — this one only knew the programme. */}
-                {/* Only the facts the identity bar does not already carry. Teacher and
+                  {/* Only the facts the identity bar does not already carry. Teacher and
                     programme were repeated here on every view; they now appear once. */}
-                <div className="rounded-2xl border border-border bg-background p-4 sm:p-5">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class details</h3>
-                  </div>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-                    {[
-                      { term: 'Schedule', value: cls.schedule ?? 'Flexible' },
-                      {
-                        term: 'Class dates',
-                        value: `${cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}${cls.end_date ? ` — ${new Date(cls.end_date).toLocaleDateString()}` : ''}`,
-                      },
-                      { term: 'Capacity', value: `${currentTermStudents.length} of ${cls.max_students ?? '∞'}` },
-                    ].map(row => (
-                      <div key={row.term} className="min-w-0">
-                        <dt className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{row.term}</dt>
-                        <dd className="mt-0.5 break-words text-sm font-semibold text-foreground">{row.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {cls.description && (
-                    <p className="mt-4 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">{cls.description}</p>
-                  )}
-                </div>
-
-                {/* "Course Focus Settings" used to sit here with its own dropdown writing the
-                    same classes.current_course_id that Teaching writes — two controls, two
-                    framings, one column. Teaching owns the course now. */}
-              </div>
-            )}
-
-            {activeTab === 'sessions' && (
-              <div className="space-y-4">
-                <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                  <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recent Sessions</h3>
-                      {isStaff && (
-                        <button
-                          onClick={() => {
-                            setEditingSession({ id: 'new', class_id: id });
-                            setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
-                          }}
-                          className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-full text-primary text-[10px] font-bold transition-all"
-                        >
-                          <PlusIcon className="w-3 h-3" /> New Session
-                        </button>
-                      )}
+                  <div className="rounded-2xl border border-border bg-background p-4 sm:p-5">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Class details</h3>
                     </div>
-                    {/* Attendance is the header's primary action and the
-                        Communication mode button; a third link here made the
-                        same destination look like three different places. */}
-                  </div>
-                  {sessions.length === 0 ? (
-                    <div className="p-12 text-center flex flex-col items-center justify-center">
-                      <CalendarIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                      <p className="text-sm text-muted-foreground">No sessions recorded yet.</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {sessions.map(s => (
-                        <div key={s.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/50 transition-colors group">
-                          <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <CalendarIcon className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{s.topic ?? 'Untitled Session'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(s.session_date).toLocaleDateString()} · {s.start_time || '—'} – {s.end_time || '—'}
-                            </p>
-                          </div>
-                          {s.notes && <p className="text-xs text-muted-foreground italic max-w-[160px] truncate hidden sm:block">{s.notes}</p>}
-                          {isStaff && (
-                            <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleEditSession(s)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors" title="Edit">
-                                <PencilIcon className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete">
-                                <TrashIcon className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                      {[
+                        { term: 'Schedule', value: cls.schedule ?? 'Flexible' },
+                        {
+                          term: 'Class dates',
+                          value: `${cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}${cls.end_date ? ` — ${new Date(cls.end_date).toLocaleDateString()}` : ''}`,
+                        },
+                        { term: 'Capacity', value: `${currentTermStudents.length} of ${cls.max_students ?? '∞'}` },
+                      ].map(row => (
+                        <div key={row.term} className="min-w-0">
+                          <dt className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{row.term}</dt>
+                          <dd className="mt-0.5 break-words text-sm font-semibold text-foreground">{row.value}</dd>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-
-            {activeTab === 'assignments' && (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-muted/20 border-b border-border/60">
-                    <button
-                      type="button"
-                      onClick={() => setAssignmentsOpen(v => !v)}
-                      aria-expanded={assignmentsOpen}
-                      className="flex items-center gap-2 text-left min-w-0 flex-1"
-                    >
-                      <ClipboardDocumentListIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.workLabel ?? 'Assignments & Projects'}</h2>
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
-                        {items.assignments.length}
-                      </span>
-                      <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${assignmentsOpen ? 'rotate-180' : ''}`} />
-                    </button>
+                    </dl>
+                    {cls.description && (
+                      <p className="mt-4 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">{cls.description}</p>
+                    )}
                   </div>
-                  {assignmentsOpen && (
-                    <div className="p-3 sm:p-4">
-                      {items.assignments.length === 0 ? (
-                        <div className="bg-card shadow-sm border border-dashed border-border rounded-xl p-10 text-center flex flex-col items-center justify-center">
-                          <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                          <p className="text-sm text-muted-foreground">No tasks or projects have been set for this class.</p>
-                          {!isSchool && (
-                            <Link
-                              href={buildAssignmentNewHref({
-                                classId: id,
-                                courseId: searchParams.get('course_id') || cls?.current_course_id,
-                              })}
-                              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm"
-                            >
-                              <PlusIcon className="w-3.5 h-3.5" /> Create first assignment
-                            </Link>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 gap-2.5">
-                          {items.assignments.map(a => {
-                            const aSubs = items.submissions.filter(s => s.assignment_id === a.id);
-                            const gradedCnt = aSubs.filter(s => s.status === 'graded' || s.grade != null).length;
-                            const pendingCnt = aSubs.filter(s => ['submitted', 'pending_review', 'late'].includes(s.status) && s.grade == null).length;
-                            const itemHref = a.assignment_type === 'project' ? `/dashboard/projects/${a.id}` : `/dashboard/assignments/${a.id}`;
-                            return isSchool ? (
-                              <div key={a.id}
-                                className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-4 cursor-default">
-                                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
-                                  <p className="text-xs text-muted-foreground">
-                                    <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
-                                    {' · '}
-                                    Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
-                                    {a.max_points ? ` · ${a.max_points} pts` : ''}
-                                  </p>
-                                </div>
+
+                  {/* "Course Focus Settings" used to sit here with its own dropdown writing the
+                    same classes.current_course_id that Teaching writes — two controls, two
+                    framings, one column. Teaching owns the course now. */}
+                </div>
+              )}
+
+              {activeTab === 'sessions' && (
+                <div className="space-y-4">
+                  <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recent Sessions</h3>
+                        {isStaff && (
+                          <button
+                            onClick={() => {
+                              setEditingSession({ id: 'new', class_id: id });
+                              setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-full text-primary text-[10px] font-bold transition-all"
+                          >
+                            <PlusIcon className="w-3 h-3" /> New Session
+                          </button>
+                        )}
+                      </div>
+                      {/* Attendance is the header's primary action and the
+                        Communication mode button; a third link here made the
+                        same destination look like three different places. */}
+                    </div>
+                    {sessions.length === 0 ? (
+                      <div className="p-12 text-center flex flex-col items-center justify-center">
+                        <CalendarIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                        <p className="text-sm text-muted-foreground">No sessions recorded yet.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border">
+                        {sessions.map(s => (
+                          <div key={s.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/50 transition-colors group">
+                            <div className="w-9 h-9 bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <CalendarIcon className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{s.topic ?? 'Untitled Session'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(s.session_date).toLocaleDateString()} · {s.start_time || '—'} – {s.end_time || '—'}
+                              </p>
+                            </div>
+                            {s.notes && <p className="text-xs text-muted-foreground italic max-w-[160px] truncate hidden sm:block">{s.notes}</p>}
+                            {isStaff && (
+                              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleEditSession(s)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors" title="Edit">
+                                  <PencilIcon className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-xl text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete">
+                                  <TrashIcon className="w-3.5 h-3.5" />
+                                </button>
                               </div>
-                            ) : (
-                              <div key={a.id} className="bg-card shadow-sm border border-border rounded-xl p-3.5 hover:border-primary/40 transition-all flex flex-col sm:flex-row sm:items-center gap-3">
-                                <Link href={itemHref} className="flex items-center gap-3 flex-1 min-w-0 group">
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
+              {activeTab === 'assignments' && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-muted/20 border-b border-border/60">
+                      <button
+                        type="button"
+                        onClick={() => setAssignmentsOpen(v => !v)}
+                        aria-expanded={assignmentsOpen}
+                        className="flex items-center gap-2 text-left min-w-0 flex-1"
+                      >
+                        <ClipboardDocumentListIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                        <h2 className="text-sm font-black text-foreground">{assessmentCopy?.workLabel ?? 'Assignments & Projects'}</h2>
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-black text-primary">
+                          {items.assignments.length}
+                        </span>
+                        <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${assignmentsOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                    {assignmentsOpen && (
+                      <div className="p-3 sm:p-4">
+                        {items.assignments.length === 0 ? (
+                          <div className="bg-card shadow-sm border border-dashed border-border rounded-xl p-10 text-center flex flex-col items-center justify-center">
+                            <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                            <p className="text-sm text-muted-foreground">No tasks or projects have been set for this class.</p>
+                            {!isSchool && (
+                              <Link
+                                href={buildAssignmentNewHref({
+                                  classId: id,
+                                  courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                })}
+                                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white shadow-sm"
+                              >
+                                <PlusIcon className="w-3.5 h-3.5" /> Create first assignment
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-2.5">
+                            {items.assignments.map(a => {
+                              const aSubs = items.submissions.filter(s => s.assignment_id === a.id);
+                              const gradedCnt = aSubs.filter(s => s.status === 'graded' || s.grade != null).length;
+                              const pendingCnt = aSubs.filter(s => ['submitted', 'pending_review', 'late'].includes(s.status) && s.grade == null).length;
+                              const itemHref = a.assignment_type === 'project' ? `/dashboard/projects/${a.id}` : `/dashboard/assignments/${a.id}`;
+                              return isSchool ? (
+                                <div key={a.id}
+                                  className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center gap-4 cursor-default">
                                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{a.title}</h4>
+                                    <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
                                     <p className="text-xs text-muted-foreground">
                                       <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
                                       {' · '}
                                       Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
                                       {a.max_points ? ` · ${a.max_points} pts` : ''}
-                                      {aSubs.length > 0 && (
-                                        <span className="ml-2 font-bold text-emerald-600 dark:text-emerald-400">
-                                          · {gradedCnt}/{aSubs.length} graded
-                                        </span>
-                                      )}
                                     </p>
                                   </div>
-                                </Link>
-                                <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0 justify-end">
-                                  {pendingCnt > 0 && (
-                                    <Link
-                                      href={itemHref}
-                                      className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-[11px] font-black text-black hover:bg-amber-400 transition-colors"
-                                    >
-                                      Mark ({pendingCnt})
-                                    </Link>
-                                  )}
-                                  {pendingCnt === 0 && aSubs.length > 0 && (
-                                    <Link
-                                      href={itemHref}
-                                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25 transition-colors"
-                                    >
-                                      Submissions ({aSubs.length})
-                                    </Link>
-                                  )}
-                                  <Link
-                                    href={itemHref}
-                                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted"
-                                    title="Open or edit"
-                                  >
-                                    <PencilIcon className="w-3.5 h-3.5 text-primary" /> Open / Edit
+                                </div>
+                              ) : (
+                                <div key={a.id} className="bg-card shadow-sm border border-border rounded-xl p-3.5 hover:border-primary/40 transition-all flex flex-col sm:flex-row sm:items-center gap-3">
+                                  <Link href={itemHref} className="flex items-center gap-3 flex-1 min-w-0 group">
+                                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{a.title}</h4>
+                                      <p className="text-xs text-muted-foreground">
+                                        <span className="font-bold text-foreground/70">{a.assignment_type === 'project' ? 'Project' : 'Assignment'}</span>
+                                        {' · '}
+                                        Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
+                                        {a.max_points ? ` · ${a.max_points} pts` : ''}
+                                        {aSubs.length > 0 && (
+                                          <span className="ml-2 font-bold text-emerald-600 dark:text-emerald-400">
+                                            · {gradedCnt}/{aSubs.length} graded
+                                          </span>
+                                        )}
+                                      </p>
+                                    </div>
                                   </Link>
-                                  {isStaff && (
-                                    <button
-                                      type="button"
-                                      disabled={deletingAssessmentId === a.id}
-                                      onClick={async () => {
-                                        if (!confirm(`Delete "${a.title}"? This will remove all associated submissions.`)) return;
-                                        setDeletingAssessmentId(a.id);
-                                        try {
-                                          const res = await fetch(`/api/assignments/${a.id}`, { method: 'DELETE' });
-                                          if (!res.ok) {
-                                            const j = await res.json().catch(() => ({}));
-                                            throw new Error(j.error || 'Failed to delete');
-                                          }
-                                          await fetchData();
-                                        } catch (err: any) {
-                                          alert(err?.message || 'Delete failed');
-                                        } finally {
-                                          setDeletingAssessmentId(null);
-                                        }
-                                      }}
-                                      aria-label={`Delete ${a.title}`}
-                                      title="Delete"
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/20 bg-rose-100 dark:bg-rose-500/10 text-rose-900 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-[11px] font-bold disabled:opacity-40 transition-colors"
+                                  <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0 justify-end">
+                                    {pendingCnt > 0 && (
+                                      <Link
+                                        href={itemHref}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-[11px] font-black text-black hover:bg-amber-400 transition-colors"
+                                      >
+                                        Mark ({pendingCnt})
+                                      </Link>
+                                    )}
+                                    {pendingCnt === 0 && aSubs.length > 0 && (
+                                      <Link
+                                        href={itemHref}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                                      >
+                                        Submissions ({aSubs.length})
+                                      </Link>
+                                    )}
+                                    <Link
+                                      href={itemHref}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted"
+                                      title="Open or edit"
                                     >
-                                      <TrashIcon className="w-3.5 h-3.5" />
-                                      <span className="hidden sm:inline">Delete</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Collapsible CBT Assessments Section with Count Badge & Full CRUD */}
-                <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-muted/20 border-b border-border/60">
-                    <button
-                      type="button"
-                      onClick={() => setCbtOpen(v => !v)}
-                      aria-expanded={cbtOpen}
-                      className="flex items-center gap-2 text-left min-w-0 flex-1"
-                    >
-                      <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                      <h2 className="text-sm font-black text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT Assessments'}</h2>
-                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
-                        {items.cbt.length}
-                      </span>
-                      <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${cbtOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                  </div>
-                  {cbtOpen && (
-                    <div className="p-3 sm:p-4">
-                      {items.cbt.length === 0 ? (
-                        <div className="bg-card shadow-sm border border-dashed border-border rounded-xl p-10 text-center flex flex-col items-center justify-center">
-                          <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                          <p className="text-sm text-muted-foreground">
-                            {assessmentPolicy?.usesHostEvaluation
-                              ? 'No digital school paper or practice CBT has been set for this class.'
-                              : 'No CBT assessment has been set for this class.'}
-                          </p>
-                          {!isSchool && (
-                            <Link
-                              href={buildCbtNewHref({
-                                classId: id,
-                                courseId: searchParams.get('course_id') || cls?.current_course_id,
-                                programId: cls?.program_id,
-                                schoolId: cls?.school_id,
-                              })}
-                              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 px-4 py-2 text-xs font-black text-white shadow-sm"
-                            >
-                              <PlusIcon className="w-3.5 h-3.5" /> Create first CBT
-                            </Link>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {items.cbt.map(ex => {
-                            const exSessions = items.cbtSessions.filter((s: any) => s.exam_id === ex.id);
-                            const exPending = exSessions.filter((s: any) => s.status === 'submitted' || s.status === 'pending_grading').length;
-                            return isSchool ? (
-                            <div key={ex.id}
-                              className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                </div>
-                                <h4 className="text-sm font-semibold text-foreground truncate">{ex.title}</h4>
-                              </div>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                <span>{ex.duration_minutes} mins</span>
-                                <span>·</span>
-                                <span>{ex.total_questions} questions</span>
-                                {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
-                              </div>
-                            </div>
-                          ) : (
-                            <div key={ex.id} className="bg-card shadow-sm border border-border rounded-xl p-4 hover:border-amber-500/50 transition-all flex flex-col justify-between gap-3">
-                              <Link href={`/dashboard/cbt/${ex.id}`} className="group block">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                  </div>
-                                  <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                  <span>{ex.duration_minutes} mins</span>
-                                  <span>·</span>
-                                  <span>{ex.total_questions} Qs</span>
-                                  {exSessions.length > 0 && (
-                                    <>
-                                      <span>·</span>
-                                      <span className="font-semibold text-foreground">{exSessions.length} attempts</span>
-                                    </>
-                                  )}
-                                  <span className={`ml-auto font-bold ${ex.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                                    {ex.is_active ? 'Active' : 'Draft'}
-                                  </span>
-                                </div>
-                              </Link>
-                              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
-                                <Link href={`/dashboard/cbt/${ex.id}`}
-                                  className={`flex-1 text-center rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors ${
-                                    exPending > 0
-                                      ? 'bg-amber-500 text-black hover:bg-amber-400 font-black'
-                                      : 'bg-primary/10 hover:bg-primary/20 text-primary'
-                                  }`}>
-                                  {exPending > 0 ? `Mark (${exPending})` : 'Results'}
-                                </Link>
-                                <Link href={`/dashboard/cbt/${ex.id}/edit`}
-                                  className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
-                                  Edit
-                                </Link>
-                                <Link href={`/dashboard/cbt/${ex.id}?print=1`}
-                                  className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
-                                  Print
-                                </Link>
-                                {isStaff && (
-                                  <button
-                                    type="button"
-                                    disabled={deletingAssessmentId === ex.id}
-                                    onClick={async () => {
-                                      if (!confirm(`Delete CBT exam "${ex.title}"? All questions and student sessions will be deleted.`)) return;
-                                      setDeletingAssessmentId(ex.id);
-                                      try {
-                                        const res = await fetch(`/api/cbt/exams/${ex.id}`, { method: 'DELETE' });
-                                        if (!res.ok) {
-                                          const j = await res.json().catch(() => ({}));
-                                          throw new Error(j.error || 'Failed to delete CBT');
-                                        }
-                                        await fetchData();
-                                      } catch (err: any) {
-                                        alert(err?.message || 'Delete failed');
-                                      } finally {
-                                        setDeletingAssessmentId(null);
-                                      }
-                                    }}
-                                    aria-label={`Delete CBT exam ${ex.title}`}
-                                    title="Delete CBT exam"
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/20 bg-rose-100 dark:bg-rose-500/10 text-rose-900 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-[11px] font-bold disabled:opacity-40 transition-colors"
-                                  >
-                                    <TrashIcon className="w-3.5 h-3.5" />
-                                    <span>Delete</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'gradebook' && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
-                  <div className="flex items-center gap-3">
-                    <ChartBarIcon className="w-4 h-4 text-primary" />
-                    <div>
-                      <h3 className="text-sm font-bold text-foreground">
-                        {assessmentPolicy?.usesHostEvaluation ? 'Learning evidence gradebook' : 'Result evidence gradebook'}
-                      </h3>
-                      <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
-                        {assessmentPolicy?.usesHostEvaluation
-                          ? 'These marks show the Rillcod work taught. Official First Test, Second Test and Examination marks are entered in School results.'
-                          : 'Marked class work and CBT feed the Rillcod-managed result after review.'}
-                      </p>
-                    </div>
-                    {isStaff && (
-                      <button
-                        onClick={() => setManualEntry(!manualEntry)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${manualEntry ? 'bg-emerald-600 text-white' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
-                      >
-                        {manualEntry ? <CheckIconOutline className="w-3.5 h-3.5" /> : <PencilSquareIconOutline className="w-3.5 h-3.5" />}
-                        {manualEntry ? 'Finish entering marks' : 'Enter marks'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <Link href={`/dashboard/grades?class_id=${id}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
-                      Open full gradebook →
-                    </Link>
-                    <Link href={buildResultsHref({ classId: id, courseId: searchParams.get('course_id') || cls?.current_course_id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
-                      {assessmentCopy?.resultsAction ?? 'Open results'} →
-                    </Link>
-                  </div>
-                </div>
-                {matrixError && (
-                  <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
-                    <div>
-                      <p className="font-bold">Grade was not saved</p>
-                      <p className="mt-0.5 text-xs text-rose-700/80 dark:text-rose-300/80">{matrixError} The recorded grade remains unchanged.</p>
-                    </div>
-                    <button type="button" onClick={() => setMatrixError(null)} className="shrink-0 font-black" aria-label="Dismiss grade save error">×</button>
-                  </div>
-                )}
-                {items.assignments.length === 0 && items.cbt.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
-                    <ChartBarIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                    <p className="text-sm text-muted-foreground">No assignments to grade yet.</p>
-                  </div>
-                ) : (
-                  <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[600px]">
-                      <thead>
-                        <tr className="border-b border-border bg-muted/30">
-                          <th className="px-5 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-0 bg-card z-20">Student</th>
-                          {items.assignments.map(a => (
-                            <th key={a.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
-                              <div className="line-clamp-1 mb-0.5" title={a.title}>{a.title}</div>
-                              <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70">{a.max_points ?? '?'} pts</div>
-                            </th>
-                          ))}
-                          {items.cbt.map(c => (
-                            <th key={c.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
-                              <div className="line-clamp-1 mb-0.5" title={c.title}>{c.title}</div>
-                              <div className="text-[10px] text-primary/70">{c.total_questions} Qs</div>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {enrollments.map(enr => (
-                          <tr key={enr.id} className="hover:bg-muted/30 transition-colors group border-b border-border">
-                            <td className="px-5 py-3 sticky left-0 bg-card z-10 border-r border-border group-hover:bg-muted/30 transition-colors">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                                  {(enr.full_name ?? '?')[0].toUpperCase()}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{enr.email}</p>
-                                </div>
-                              </div>
-                            </td>
-                            {items.assignments.map(a => {
-                              const sub = items.submissions.find(s => s.assignment_id === a.id && (s.portal_user_id === enr.id || s.user_id === enr.id));
-                              const score = sub?.grade;
-                              const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
-                              const maxPts = a.max_points ?? 100;
-                              const waec = score !== null ? getWAECGrade(Math.round((score / maxPts) * 100)) : null;
-                              return (
-                                <td
-                                  key={a.id}
-                                  onClick={() => {
-                                    if (isStaff && !manualEntry) setManualEntry(true);
-                                  }}
-                                  title={isStaff && !manualEntry ? 'Click to enter marks' : undefined}
-                                  className={`px-4 py-4 text-center border-l border-border transition-all relative ${manualEntry ? 'bg-emerald-500/[0.05]' : isStaff ? 'bg-amber-500/[0.01] cursor-pointer hover:bg-emerald-500/[0.04]' : 'bg-amber-500/[0.01]'}`}
-                                >
-                                  {manualEntry ? (
-                                    <div className="flex flex-col items-center gap-1">
-                                      <input
-                                        aria-label={`Score for ${enr.full_name} on ${a.title}`}
-                                        type="number"
-                                        min={0}
-                                        max={maxPts}
-                                        defaultValue={score ?? ''}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            e.currentTarget.blur();
-                                          }
-                                        }}
-                                        onBlur={async (e) => {
-                                          const input = e.currentTarget;
-                                          const val = e.target.value;
-                                          if (val === '') {
-                                          } else {
-                                            const numVal = Number(val);
-                                            if (isNaN(numVal) || numVal < 0 || numVal > maxPts) {
-                                              alert(`Grade must be a valid number between 0 and ${maxPts}.`);
-                                              e.target.value = score !== null ? String(score) : '';
-                                              return;
-                                            }
-                                          }
-                                          const numVal = val === '' ? null : Number(val);
-                                          const key = `asm-${a.id}-${enr.id}`;
-                                          if (numVal === score) return;
-                                          if (!sub && numVal === null) return;
-
-                                          setMatrixSaving(p => ({ ...p, [key]: true }));
-                                          setMatrixError(null);
+                                      <PencilIcon className="w-3.5 h-3.5 text-primary" /> Open / Edit
+                                    </Link>
+                                    {isStaff && (
+                                      <button
+                                        type="button"
+                                        disabled={deletingAssessmentId === a.id}
+                                        onClick={async () => {
+                                          if (!confirm(`Delete "${a.title}"? This will remove all associated submissions.`)) return;
+                                          setDeletingAssessmentId(a.id);
                                           try {
-                                            if (sub) {
-                                              const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
-                                                method: 'PATCH',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                  grade: numVal,
-                                                  feedback: sub.feedback || null,
-                                                  expected_version: sub.version,
-                                                }),
-                                              });
-                                              if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
-                                            } else {
-                                              const res = await fetch(`/api/assignments/${a.id}/grade`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ student_id: enr.id, grade: numVal, status: 'graded' }),
-                                              });
-                                              if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
+                                            const res = await fetch(`/api/assignments/${a.id}`, { method: 'DELETE' });
+                                            if (!res.ok) {
+                                              const j = await res.json().catch(() => ({}));
+                                              throw new Error(j.error || 'Failed to delete');
                                             }
                                             await fetchData();
-                                          } catch (err) {
-                                            input.value = score != null ? String(score) : '';
-                                            setMatrixError(err instanceof Error ? err.message : 'The grade service could not save this change.');
+                                          } catch (err: any) {
+                                            alert(err?.message || 'Delete failed');
                                           } finally {
-                                            setMatrixSaving(p => ({ ...p, [key]: false }));
+                                            setDeletingAssessmentId(null);
                                           }
                                         }}
-                                        className="w-14 h-9 bg-card shadow-sm border border-border rounded-xl text-center text-xs font-black text-foreground focus:border-emerald-500 focus:bg-muted outline-none transition-all"
-                                      />
-                                      {waec && (
-                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
-                                      )}
-                                      {matrixSaving[`asm-${a.id}-${enr.id}`] && (
-                                        <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                                      )}
+                                        aria-label={`Delete ${a.title}`}
+                                        title="Delete"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/20 bg-rose-100 dark:bg-rose-500/10 text-rose-900 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-[11px] font-bold disabled:opacity-40 transition-colors"
+                                      >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Delete</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Collapsible CBT Assessments Section with Count Badge & Full CRUD */}
+                  <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-muted/20 border-b border-border/60">
+                      <button
+                        type="button"
+                        onClick={() => setCbtOpen(v => !v)}
+                        aria-expanded={cbtOpen}
+                        className="flex items-center gap-2 text-left min-w-0 flex-1"
+                      >
+                        <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <h2 className="text-sm font-black text-foreground">{assessmentCopy?.cbtLabel ?? 'CBT Assessments'}</h2>
+                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
+                          {items.cbt.length}
+                        </span>
+                        <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${cbtOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                    {cbtOpen && (
+                      <div className="p-3 sm:p-4">
+                        {items.cbt.length === 0 ? (
+                          <div className="bg-card shadow-sm border border-dashed border-border rounded-xl p-10 text-center flex flex-col items-center justify-center">
+                            <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                            <p className="text-sm text-muted-foreground">
+                              {assessmentPolicy?.usesHostEvaluation
+                                ? 'No digital school paper or practice CBT has been set for this class.'
+                                : 'No CBT assessment has been set for this class.'}
+                            </p>
+                            {!isSchool && (
+                              <Link
+                                href={buildCbtNewHref({
+                                  classId: id,
+                                  courseId: searchParams.get('course_id') || cls?.current_course_id,
+                                  programId: cls?.program_id,
+                                  schoolId: cls?.school_id,
+                                })}
+                                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 px-4 py-2 text-xs font-black text-white shadow-sm"
+                              >
+                                <PlusIcon className="w-3.5 h-3.5" /> Create first CBT
+                              </Link>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {items.cbt.map(ex => {
+                              const exSessions = items.cbtSessions.filter((s: any) => s.exam_id === ex.id);
+                              const exPending = exSessions.filter((s: any) => s.status === 'submitted' || s.status === 'pending_grading').length;
+                              return isSchool ? (
+                                <div key={ex.id}
+                                  className="bg-card shadow-sm border border-border rounded-xl p-4 cursor-default">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                      <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                     </div>
-                                  ) : sub ? (
-                                    score !== null ? (
-                                      <div className="space-y-1 flex flex-col items-center">
-                                        <span className={`text-sm font-black ${waec ? waec.color : 'text-muted-foreground'}`}>
-                                          {score}<span className="text-[9px] text-muted-foreground">/{maxPts}</span>
-                                        </span>
+                                    <h4 className="text-sm font-semibold text-foreground truncate">{ex.title}</h4>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                    <span>{ex.duration_minutes} mins</span>
+                                    <span>·</span>
+                                    <span>{ex.total_questions} questions</span>
+                                    {ex.is_active && <span className="ml-auto text-emerald-600 dark:text-emerald-400 font-bold">Active</span>}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div key={ex.id} className="bg-card shadow-sm border border-border rounded-xl p-4 hover:border-amber-500/50 transition-all flex flex-col justify-between gap-3">
+                                  <Link href={`/dashboard/cbt/${ex.id}`} className="group block">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <div className="w-9 h-9 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <AcademicCapIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                      </div>
+                                      <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                      <span>{ex.duration_minutes} mins</span>
+                                      <span>·</span>
+                                      <span>{ex.total_questions} Qs</span>
+                                      {exSessions.length > 0 && (
+                                        <>
+                                          <span>·</span>
+                                          <span className="font-semibold text-foreground">{exSessions.length} attempts</span>
+                                        </>
+                                      )}
+                                      <span className={`ml-auto font-bold ${ex.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                                        {ex.is_active ? 'Active' : 'Draft'}
+                                      </span>
+                                    </div>
+                                  </Link>
+                                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
+                                    <Link href={`/dashboard/cbt/${ex.id}`}
+                                      className={`flex-1 text-center rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors ${exPending > 0
+                                        ? 'bg-amber-500 text-black hover:bg-amber-400 font-black'
+                                        : 'bg-primary/10 hover:bg-primary/20 text-primary'
+                                        }`}>
+                                      {exPending > 0 ? `Mark (${exPending})` : 'Results'}
+                                    </Link>
+                                    <Link href={`/dashboard/cbt/${ex.id}/edit`}
+                                      className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
+                                      Edit
+                                    </Link>
+                                    <Link href={`/dashboard/cbt/${ex.id}?print=1`}
+                                      className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
+                                      Print
+                                    </Link>
+                                    {isStaff && (
+                                      <button
+                                        type="button"
+                                        disabled={deletingAssessmentId === ex.id}
+                                        onClick={async () => {
+                                          if (!confirm(`Delete CBT exam "${ex.title}"? All questions and student sessions will be deleted.`)) return;
+                                          setDeletingAssessmentId(ex.id);
+                                          try {
+                                            const res = await fetch(`/api/cbt/exams/${ex.id}`, { method: 'DELETE' });
+                                            if (!res.ok) {
+                                              const j = await res.json().catch(() => ({}));
+                                              throw new Error(j.error || 'Failed to delete CBT');
+                                            }
+                                            await fetchData();
+                                          } catch (err: any) {
+                                            alert(err?.message || 'Delete failed');
+                                          } finally {
+                                            setDeletingAssessmentId(null);
+                                          }
+                                        }}
+                                        aria-label={`Delete CBT exam ${ex.title}`}
+                                        title="Delete CBT exam"
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-300 dark:border-rose-500/20 bg-rose-100 dark:bg-rose-500/10 text-rose-900 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-500/20 text-[11px] font-bold disabled:opacity-40 transition-colors"
+                                      >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                        <span>Delete</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'gradebook' && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+                    <div className="flex items-center gap-3">
+                      <ChartBarIcon className="w-4 h-4 text-primary" />
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">
+                          {assessmentPolicy?.usesHostEvaluation ? 'Learning evidence gradebook' : 'Result evidence gradebook'}
+                        </h3>
+                        <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                          {assessmentPolicy?.usesHostEvaluation
+                            ? 'These marks show the Rillcod work taught. Official First Test, Second Test and Examination marks are entered in School results.'
+                            : 'Marked class work and CBT feed the Rillcod-managed result after review.'}
+                        </p>
+                      </div>
+                      {isStaff && (
+                        <button
+                          onClick={() => setManualEntry(!manualEntry)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${manualEntry ? 'bg-emerald-600 text-white' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
+                        >
+                          {manualEntry ? <CheckIconOutline className="w-3.5 h-3.5" /> : <PencilSquareIconOutline className="w-3.5 h-3.5" />}
+                          {manualEntry ? 'Finish entering marks' : 'Enter marks'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Link href={`/dashboard/grades?class_id=${id}`} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors whitespace-nowrap">
+                        Open full gradebook →
+                      </Link>
+                      <Link href={buildResultsHref({ classId: id, courseId: searchParams.get('course_id') || cls?.current_course_id })} className="text-xs font-bold text-primary hover:text-violet-700 dark:hover:text-violet-300 transition-colors whitespace-nowrap">
+                        {assessmentCopy?.resultsAction ?? 'Open results'} →
+                      </Link>
+                    </div>
+                  </div>
+                  {matrixError && (
+                    <div role="alert" className="flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
+                      <div>
+                        <p className="font-bold">Grade was not saved</p>
+                        <p className="mt-0.5 text-xs text-rose-700/80 dark:text-rose-300/80">{matrixError} The recorded grade remains unchanged.</p>
+                      </div>
+                      <button type="button" onClick={() => setMatrixError(null)} className="shrink-0 font-black" aria-label="Dismiss grade save error">×</button>
+                    </div>
+                  )}
+                  {items.assignments.length === 0 && items.cbt.length === 0 ? (
+                    <div className="bg-card shadow-sm border border-border rounded-xl p-12 text-center flex flex-col items-center justify-center">
+                      <ChartBarIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">No assignments to grade yet.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/30">
+                            <th className="px-5 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-0 bg-card z-20">Student</th>
+                            {items.assignments.map(a => (
+                              <th key={a.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
+                                <div className="line-clamp-1 mb-0.5" title={a.title}>{a.title}</div>
+                                <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70">{a.max_points ?? '?'} pts</div>
+                              </th>
+                            ))}
+                            {items.cbt.map(c => (
+                              <th key={c.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
+                                <div className="line-clamp-1 mb-0.5" title={c.title}>{c.title}</div>
+                                <div className="text-[10px] text-primary/70">{c.total_questions} Qs</div>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {enrollments.map(enr => (
+                            <tr key={enr.id} className="hover:bg-muted/30 transition-colors group border-b border-border">
+                              <td className="px-5 py-3 sticky left-0 bg-card z-10 border-r border-border group-hover:bg-muted/30 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                                    {(enr.full_name ?? '?')[0].toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{enr.email}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              {items.assignments.map(a => {
+                                const sub = items.submissions.find(s => s.assignment_id === a.id && (s.portal_user_id === enr.id || s.user_id === enr.id));
+                                const score = sub?.grade;
+                                const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
+                                const maxPts = a.max_points ?? 100;
+                                const waec = score !== null ? getWAECGrade(Math.round((score / maxPts) * 100)) : null;
+                                return (
+                                  <td
+                                    key={a.id}
+                                    onClick={() => {
+                                      if (isStaff && !manualEntry) setManualEntry(true);
+                                    }}
+                                    title={isStaff && !manualEntry ? 'Click to enter marks' : undefined}
+                                    className={`px-4 py-4 text-center border-l border-border transition-all relative ${manualEntry ? 'bg-emerald-500/[0.05]' : isStaff ? 'bg-amber-500/[0.01] cursor-pointer hover:bg-emerald-500/[0.04]' : 'bg-amber-500/[0.01]'}`}
+                                  >
+                                    {manualEntry ? (
+                                      <div className="flex flex-col items-center gap-1">
+                                        <input
+                                          aria-label={`Score for ${enr.full_name} on ${a.title}`}
+                                          type="number"
+                                          min={0}
+                                          max={maxPts}
+                                          defaultValue={score ?? ''}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.currentTarget.blur();
+                                            }
+                                          }}
+                                          onBlur={async (e) => {
+                                            const input = e.currentTarget;
+                                            const val = e.target.value;
+                                            if (val === '') {
+                                            } else {
+                                              const numVal = Number(val);
+                                              if (isNaN(numVal) || numVal < 0 || numVal > maxPts) {
+                                                alert(`Grade must be a valid number between 0 and ${maxPts}.`);
+                                                e.target.value = score !== null ? String(score) : '';
+                                                return;
+                                              }
+                                            }
+                                            const numVal = val === '' ? null : Number(val);
+                                            const key = `asm-${a.id}-${enr.id}`;
+                                            if (numVal === score) return;
+                                            if (!sub && numVal === null) return;
+
+                                            setMatrixSaving(p => ({ ...p, [key]: true }));
+                                            setMatrixError(null);
+                                            try {
+                                              if (sub) {
+                                                const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
+                                                  method: 'PATCH',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({
+                                                    grade: numVal,
+                                                    feedback: sub.feedback || null,
+                                                    expected_version: sub.version,
+                                                  }),
+                                                });
+                                                if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
+                                              } else {
+                                                const res = await fetch(`/api/assignments/${a.id}/grade`, {
+                                                  method: 'POST',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({ student_id: enr.id, grade: numVal, status: 'graded' }),
+                                                });
+                                                if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'The grade service could not save this change.'); }
+                                              }
+                                              await fetchData();
+                                            } catch (err) {
+                                              input.value = score != null ? String(score) : '';
+                                              setMatrixError(err instanceof Error ? err.message : 'The grade service could not save this change.');
+                                            } finally {
+                                              setMatrixSaving(p => ({ ...p, [key]: false }));
+                                            }
+                                          }}
+                                          className="w-14 h-9 bg-card shadow-sm border border-border rounded-xl text-center text-xs font-black text-foreground focus:border-emerald-500 focus:bg-muted outline-none transition-all"
+                                        />
                                         {waec && (
                                           <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
                                         )}
-                                        <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden">
-                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-primary' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-primary' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
-                                        </div>
+                                        {matrixSaving[`asm-${a.id}-${enr.id}`] && (
+                                          <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                                        )}
                                       </div>
-                                    ) : (
-                                      <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-xl border border-primary/10">Pending</span>
-                                    )
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">—</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                            {items.cbt.map(c => {
-                              const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.id);
-                              const score = sess?.score;
-                              const percentage = c.total_questions > 0 ? (score ?? 0) / c.total_questions : 0;
-                              return (
-                                <td key={c.id} className="px-6 py-6 text-center border-l border-border bg-primary/[0.01]">
-                                  {sess ? (
-                                    score !== null ? (
-                                      <div className="space-y-2">
-                                        <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : percentage >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                          {score}
-                                        </span>
-                                        <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden mx-auto">
-                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                    ) : sub ? (
+                                      score !== null ? (
+                                        <div className="space-y-1 flex flex-col items-center">
+                                          <span className={`text-sm font-black ${waec ? waec.color : 'text-muted-foreground'}`}>
+                                            {score}<span className="text-[9px] text-muted-foreground">/{maxPts}</span>
+                                          </span>
+                                          {waec && (
+                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
+                                          )}
+                                          <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden">
+                                            <div className={`h-full transition-all duration-1000 ${percentage >= 0.75 ? 'bg-emerald-500' : percentage >= 0.6 ? 'bg-primary' : percentage >= 0.5 ? 'bg-amber-500' : percentage >= 0.4 ? 'bg-primary' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                          </div>
                                         </div>
-                                      </div>
+                                      ) : (
+                                        <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-xl border border-primary/10">Pending</span>
+                                      )
                                     ) : (
-                                      <span className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-xl border border-cyan-500/10 animate-pulse">Running</span>
-                                    )
-                                  ) : (
-                                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">—</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
+                                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">—</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              {items.cbt.map(c => {
+                                const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.id);
+                                const score = sess?.score;
+                                const percentage = c.total_questions > 0 ? (score ?? 0) / c.total_questions : 0;
+                                return (
+                                  <td key={c.id} className="px-6 py-6 text-center border-l border-border bg-primary/[0.01]">
+                                    {sess ? (
+                                      score !== null ? (
+                                        <div className="space-y-2">
+                                          <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-600 dark:text-emerald-400' : percentage >= 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                            {score}
+                                          </span>
+                                          <div className="w-12 h-1 bg-card shadow-sm rounded-full overflow-hidden mx-auto">
+                                            <div className={`h-full transition-all duration-1000 ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[8px] font-black text-cyan-600/60 dark:text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-xl border border-cyan-500/10 animate-pulse">Running</span>
+                                      )
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">—</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
+            </div>
           </div>
-        </div>
         )}
       </div>
 
@@ -5115,11 +5136,10 @@ export default function ClassDetailPage() {
                             key={tab.id}
                             type="button"
                             onClick={() => { setModalPlacementFilter(tab.id); setShowMoreStudents(false); }}
-                            className={`shrink-0 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
-                              modalPlacementFilter === tab.id
-                                ? 'border-primary bg-primary/15 text-primary'
-                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                            }`}
+                            className={`shrink-0 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${modalPlacementFilter === tab.id
+                              ? 'border-primary bg-primary/15 text-primary'
+                              : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                              }`}
                           >
                             {tab.label}
                           </button>
@@ -5130,379 +5150,376 @@ export default function ClassDetailPage() {
 
                   {/* Single smooth scrollable area on iPhone & desktop — names are immediately visible */}
                   <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-3 pb-8 custom-scrollbar space-y-3">
-                  {/* Collapsible Team Promotion / Source Class / Target Grade Pitch (keeps iPhone screen clear for names) */}
-                  {availableStudents.length > 0 && (
-                    <details className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 overflow-hidden">
-                      <summary className="cursor-pointer select-none px-3 py-2.5 flex items-center justify-between gap-2 text-xs font-black text-emerald-900 dark:text-emerald-200">
-                        <span className="truncate">
-                          Filter by Class · Action ({modalGradeAction === 'promote' ? '⬆ +1' : modalGradeAction === 'demote' ? '⬇ -1' : '↔ Keep'}{modalTargetGrade ? ` → ${modalTargetGrade}` : ''})
-                        </span>
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">Options ▾</span>
-                      </summary>
-                      <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-emerald-500/20">
-                        {feederStudents.length > 0 && (
-                          <button
-                            type="button"
-                            disabled={!!processingStudent}
-                            onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id), 'promote')}
-                            className="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black disabled:opacity-50"
-                          >
-                            Promote All {feederGradeName} ({feederStudents.length})
-                          </button>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
-                              1. Source Class / Grade
-                            </label>
-                            <div className="flex flex-col gap-1.5">
-                              <select
-                                aria-label="Filter by source class in same school"
-                                value={modalClassFilter}
-                                onChange={(e) => {
-                                  const nextClsId = e.target.value;
-                                  setModalClassFilter(nextClsId);
-                                  setShowMoreStudents(false);
-                                  if (nextClsId) {
-                                    const matchingIds = availableStudents
-                                      .filter((s: any) => s.class_id === nextClsId && (pasteClaimEnabled || !s.requires_transfer_request))
-                                      .slice(0, seatsLeft)
-                                      .map((s: any) => s.id);
-                                    setSelectedStudentIds(new Set(matchingIds));
-                                  }
-                                }}
-                                className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
-                              >
-                                <option value="">All Classes in School ({availableStudents.length})</option>
-                                {modalSchoolClasses.map((sc) => (
-                                  <option key={sc.id} value={sc.id}>
-                                    {sc.name}{sc.qa_grade_key ? ` (${sc.qa_grade_key})` : ''} · {sc.student_count}
-                                  </option>
-                                ))}
-                              </select>
-                              {distinctGradesInModal.length > 0 && (
+                    {/* Collapsible Team Promotion / Source Class / Target Grade Pitch (keeps iPhone screen clear for names) */}
+                    {availableStudents.length > 0 && (
+                      <details className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 overflow-hidden">
+                        <summary className="cursor-pointer select-none px-3 py-2.5 flex items-center justify-between gap-2 text-xs font-black text-emerald-900 dark:text-emerald-200">
+                          <span className="truncate">
+                            Filter by Class · Action ({modalGradeAction === 'promote' ? '⬆ +1' : modalGradeAction === 'demote' ? '⬇ -1' : '↔ Keep'}{modalTargetGrade ? ` → ${modalTargetGrade}` : ''})
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">Options ▾</span>
+                        </summary>
+                        <div className="px-3 pb-3 pt-1 space-y-2.5 border-t border-emerald-500/20">
+                          {feederStudents.length > 0 && (
+                            <button
+                              type="button"
+                              disabled={!!processingStudent}
+                              onClick={() => void syncSelectedStudents(feederStudents.slice(0, seatsLeft).map((s: any) => s.id), 'promote')}
+                              className="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black disabled:opacity-50"
+                            >
+                              Promote All {feederGradeName} ({feederStudents.length})
+                            </button>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
+                                1. Source Class / Grade
+                              </label>
+                              <div className="flex flex-col gap-1.5">
                                 <select
-                                  aria-label="Filter by grade"
-                                  value={modalGradeFilter}
-                                  onChange={e => { setModalGradeFilter(e.target.value); setShowMoreStudents(false); }}
+                                  aria-label="Filter by source class in same school"
+                                  value={modalClassFilter}
+                                  onChange={(e) => {
+                                    const nextClsId = e.target.value;
+                                    setModalClassFilter(nextClsId);
+                                    setShowMoreStudents(false);
+                                    if (nextClsId) {
+                                      const matchingIds = availableStudents
+                                        .filter((s: any) => s.class_id === nextClsId && (pasteClaimEnabled || !s.requires_transfer_request))
+                                        .slice(0, seatsLeft)
+                                        .map((s: any) => s.id);
+                                      setSelectedStudentIds(new Set(matchingIds));
+                                    }
+                                  }}
                                   className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
                                 >
-                                  <option value="">All grades ({availableStudents.length})</option>
-                                  {distinctGradesInModal.map(g => (
-                                    <option key={g} value={g}>{g}</option>
+                                  <option value="">All Classes in School ({availableStudents.length})</option>
+                                  {modalSchoolClasses.map((sc) => (
+                                    <option key={sc.id} value={sc.id}>
+                                      {sc.name}{sc.qa_grade_key ? ` (${sc.qa_grade_key})` : ''} · {sc.student_count}
+                                    </option>
                                   ))}
                                 </select>
-                              )}
+                                {distinctGradesInModal.length > 0 && (
+                                  <select
+                                    aria-label="Filter by grade"
+                                    value={modalGradeFilter}
+                                    onChange={e => { setModalGradeFilter(e.target.value); setShowMoreStudents(false); }}
+                                    className="w-full px-3 py-2 rounded-lg border border-emerald-500/35 bg-background text-xs font-bold text-foreground"
+                                  >
+                                    <option value="">All grades ({availableStudents.length})</option>
+                                    {distinctGradesInModal.map(g => (
+                                      <option key={g} value={g}>{g}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          <div>
-                            <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
-                              2. Action &amp; Target Grade Pitch
-                            </label>
-                            <div className="flex flex-col gap-1.5">
-                              <div className="grid grid-cols-3 gap-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
-                                {([
-                                  { id: 'promote', label: '⬆ +1' },
-                                  { id: 'demote', label: '⬇ -1' },
-                                  { id: 'retain', label: '↔ Keep' },
-                                ] as const).map((act) => (
-                                  <button
-                                    key={act.id}
-                                    type="button"
-                                    onClick={() => setModalGradeAction(act.id)}
-                                    className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${
-                                      modalGradeAction === act.id
+                            <div>
+                              <label className="block text-[9px] font-black uppercase tracking-wider text-emerald-900/80 dark:text-emerald-200/80 mb-1">
+                                2. Action &amp; Target Grade Pitch
+                              </label>
+                              <div className="flex flex-col gap-1.5">
+                                <div className="grid grid-cols-3 gap-1 rounded-lg border border-emerald-500/35 bg-background p-0.5 text-[10px] font-black">
+                                  {([
+                                    { id: 'promote', label: '⬆ +1' },
+                                    { id: 'demote', label: '⬇ -1' },
+                                    { id: 'retain', label: '↔ Keep' },
+                                  ] as const).map((act) => (
+                                    <button
+                                      key={act.id}
+                                      type="button"
+                                      onClick={() => setModalGradeAction(act.id)}
+                                      className={`py-1.5 px-1.5 rounded-md truncate transition-colors ${modalGradeAction === act.id
                                         ? 'bg-emerald-700 text-white'
                                         : 'text-muted-foreground hover:text-foreground'
-                                    }`}
-                                  >
-                                    {act.label}
-                                  </button>
-                                ))}
+                                        }`}
+                                    >
+                                      {act.label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <select
+                                  aria-label="Target grade pitch"
+                                  value={modalTargetGrade}
+                                  onChange={(e) => setModalTargetGrade(e.target.value)}
+                                  className="w-full rounded-lg border border-emerald-500/35 bg-background px-2.5 py-2 text-xs font-bold text-foreground focus:outline-none focus:border-primary"
+                                >
+                                  <option value="">Auto (+1 Increment)</option>
+                                  {SINGLE_GRADES.map((g) => (
+                                    <option key={`modal-pitch-${g}`} value={g}>Pitch: {g}</option>
+                                  ))}
+                                </select>
                               </div>
-                              <select
-                                aria-label="Target grade pitch"
-                                value={modalTargetGrade}
-                                onChange={(e) => setModalTargetGrade(e.target.value)}
-                                className="w-full rounded-lg border border-emerald-500/35 bg-background px-2.5 py-2 text-xs font-bold text-foreground focus:outline-none focus:border-primary"
-                              >
-                                <option value="">Auto (+1 Increment)</option>
-                                {SINGLE_GRADES.map((g) => (
-                                  <option key={`modal-pitch-${g}`} value={g}>Pitch: {g}</option>
-                                ))}
-                              </select>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </details>
-                  )}
+                      </details>
+                    )}
 
-                  {/* Quick Select Toolbar */}
-                  {availableStudents.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (allFilteredEnrollableSelected) {
-                            setSelectedStudentIds(prev => {
-                              const next = new Set(prev);
-                              filteredDirectlyEnrollable.forEach((s: any) => next.delete(s.id));
-                              return next;
-                            });
-                          } else {
-                            setSelectedStudentIds(prev => {
-                              const next = new Set(prev);
-                              for (const s of filteredDirectlyEnrollable) {
-                                if (next.size >= seatsLeft) break;
-                                next.add(s.id);
-                              }
-                              return next;
-                            });
-                          }
-                        }}
-                        className="px-3 py-1.5 bg-background hover:bg-muted border border-border text-[11px] font-bold text-foreground rounded-xl transition-all"
-                      >
-                        {allFilteredEnrollableSelected
-                          ? `Deselect (${filteredDirectlyEnrollable.length})`
-                          : `Select All (${filteredDirectlyEnrollable.length})`}
-                      </button>
-                      {selectedStudentIds.size > 0 && (
+                    {/* Quick Select Toolbar */}
+                    {availableStudents.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setSelectedStudentIds(new Set())}
-                          className="px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground underline"
-                        >
-                          Clear ({selectedStudentIds.size})
-                        </button>
-                      )}
-                      {requestableTransfers.length > 0 && (
-                        <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="ml-auto px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-[11px] font-bold text-slate-900 rounded-xl transition-all">
-                          Request {requestableTransfers.length} transfers
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Student list */}
-                  <div className="space-y-3">
-                    {processingStudent === 'loading' ? (
-                      <div className="py-20 text-center">
-                        <ArrowPathIcon className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-                        <p className="text-xs text-muted-foreground">Loading students…</p>
-                      </div>
-                    ) : availableStudents.length === 0 ? (
-                      <div className="py-16 text-center space-y-3">
-                        <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground" />
-                        <p className="text-sm font-semibold text-muted-foreground">No eligible students found</p>
-                        <p className="text-xs text-muted-foreground">All students in your school are already enrolled here, or none are registered.</p>
-                        <button onClick={() => setEnrolMode('create')} className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
-                          Create a new class instead →
-                        </button>
-                      </div>
-                    ) : (() => {
-                      const filtered = filteredModalStudents;
-
-                      // Group: unassigned (no class_id) vs in another class
-                      const filtUnassigned = filtered.filter((s: any) => !s.class_id);
-                      const filtInOther = filtered.filter((s: any) => s.class_id);
-
-                      // Pagination: show first PAGE_SIZE, then offer "Show More"
-                      const PAGE_SIZE = 60;
-                      const visibleUnassigned = showMoreStudents ? filtUnassigned : filtUnassigned.slice(0, PAGE_SIZE);
-                      const visibleInOther = showMoreStudents ? filtInOther : filtInOther.slice(0, Math.max(0, PAGE_SIZE - filtUnassigned.length));
-                      const hasMore = filtUnassigned.length > visibleUnassigned.length || filtInOther.length > visibleInOther.length;
-
-                      const renderStudent = (student: any, color: 'orange' | 'amber') => {
-                        const requiresRequest = Boolean(student.requires_transfer_request) && !pasteClaimEnabled;
-                        const canDirectClaim = pasteClaimEnabled && Boolean(student.requires_transfer_request);
-                        const isChecked = !requiresRequest && selectedStudentIds.has(student.id);
-                        const isBlocked = !requiresRequest && !isChecked && selectedStudentIds.size >= seatsLeft;
-                        const gradeText = student.grade || student.section_class;
-                        return (
-                          <div
-                            key={student.id}
-                            onClick={() => {
-                              if (requiresRequest) return;
-                              if (isBlocked) {
-                                alert(`Cannot select more students. This class has reached its maximum enrollment capacity (${cls.max_students} students max).`);
-                                return;
-                              }
+                          onClick={() => {
+                            if (allFilteredEnrollableSelected) {
                               setSelectedStudentIds(prev => {
-                                const n = new Set(prev);
-                                if (n.has(student.id)) n.delete(student.id); else n.add(student.id);
-                                return n;
+                                const next = new Set(prev);
+                                filteredDirectlyEnrollable.forEach((s: any) => next.delete(s.id));
+                                return next;
                               });
-                            }}
-                            className={`flex flex-col sm:flex-row sm:items-center gap-2.5 p-3 border rounded-xl transition-all ${
-                              requiresRequest
+                            } else {
+                              setSelectedStudentIds(prev => {
+                                const next = new Set(prev);
+                                for (const s of filteredDirectlyEnrollable) {
+                                  if (next.size >= seatsLeft) break;
+                                  next.add(s.id);
+                                }
+                                return next;
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-background hover:bg-muted border border-border text-[11px] font-bold text-foreground rounded-xl transition-all"
+                        >
+                          {allFilteredEnrollableSelected
+                            ? `Deselect (${filteredDirectlyEnrollable.length})`
+                            : `Select All (${filteredDirectlyEnrollable.length})`}
+                        </button>
+                        {selectedStudentIds.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStudentIds(new Set())}
+                            className="px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground underline"
+                          >
+                            Clear ({selectedStudentIds.size})
+                          </button>
+                        )}
+                        {requestableTransfers.length > 0 && (
+                          <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="ml-auto px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-[11px] font-bold text-slate-900 rounded-xl transition-all">
+                            Request {requestableTransfers.length} transfers
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Student list */}
+                    <div className="space-y-3">
+                      {processingStudent === 'loading' ? (
+                        <div className="py-20 text-center">
+                          <ArrowPathIcon className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
+                          <p className="text-xs text-muted-foreground">Loading students…</p>
+                        </div>
+                      ) : availableStudents.length === 0 ? (
+                        <div className="py-16 text-center space-y-3">
+                          <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground" />
+                          <p className="text-sm font-semibold text-muted-foreground">No eligible students found</p>
+                          <p className="text-xs text-muted-foreground">All students in your school are already enrolled here, or none are registered.</p>
+                          <button onClick={() => setEnrolMode('create')} className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
+                            Create a new class instead →
+                          </button>
+                        </div>
+                      ) : (() => {
+                        const filtered = filteredModalStudents;
+
+                        // Group: unassigned (no class_id) vs in another class
+                        const filtUnassigned = filtered.filter((s: any) => !s.class_id);
+                        const filtInOther = filtered.filter((s: any) => s.class_id);
+
+                        // Pagination: show first PAGE_SIZE, then offer "Show More"
+                        const PAGE_SIZE = 60;
+                        const visibleUnassigned = showMoreStudents ? filtUnassigned : filtUnassigned.slice(0, PAGE_SIZE);
+                        const visibleInOther = showMoreStudents ? filtInOther : filtInOther.slice(0, Math.max(0, PAGE_SIZE - filtUnassigned.length));
+                        const hasMore = filtUnassigned.length > visibleUnassigned.length || filtInOther.length > visibleInOther.length;
+
+                        const renderStudent = (student: any, color: 'orange' | 'amber') => {
+                          const requiresRequest = Boolean(student.requires_transfer_request) && !pasteClaimEnabled;
+                          const canDirectClaim = pasteClaimEnabled && Boolean(student.requires_transfer_request);
+                          const isChecked = !requiresRequest && selectedStudentIds.has(student.id);
+                          const isBlocked = !requiresRequest && !isChecked && selectedStudentIds.size >= seatsLeft;
+                          const gradeText = student.grade || student.section_class;
+                          return (
+                            <div
+                              key={student.id}
+                              onClick={() => {
+                                if (requiresRequest) return;
+                                if (isBlocked) {
+                                  alert(`Cannot select more students. This class has reached its maximum enrollment capacity (${cls.max_students} students max).`);
+                                  return;
+                                }
+                                setSelectedStudentIds(prev => {
+                                  const n = new Set(prev);
+                                  if (n.has(student.id)) n.delete(student.id); else n.add(student.id);
+                                  return n;
+                                });
+                              }}
+                              className={`flex flex-col sm:flex-row sm:items-center gap-2.5 p-3 border rounded-xl transition-all ${requiresRequest
                                 ? 'bg-amber-500/[0.04] border-amber-500/25'
                                 : isBlocked
                                   ? 'opacity-40 cursor-not-allowed bg-rose-500/[0.02] border-rose-500/10'
                                   : isChecked
                                     ? color === 'orange' ? 'bg-primary/15 border-primary/40 cursor-pointer' : 'bg-amber-500/10 border-amber-500/40 cursor-pointer'
                                     : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-primary/20 cursor-pointer' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20 cursor-pointer'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3 min-w-0 flex-1">
-                              <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : requiresRequest ? 'border-amber-400/60 bg-amber-500/10' : 'border-border'}`}>
-                                {isChecked ? <CheckIconOutline className="w-3 h-3 text-primary-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-700 dark:text-amber-300" /> : null}
+                                }`}
+                            >
+                              <div className="flex items-start gap-3 min-w-0 flex-1">
+                                <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : requiresRequest ? 'border-amber-400/60 bg-amber-500/10' : 'border-border'}`}>
+                                  {isChecked ? <CheckIconOutline className="w-3 h-3 text-primary-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-700 dark:text-amber-300" /> : null}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-sm font-bold text-foreground break-words">{student.full_name}</p>
+                                    {gradeText && (
+                                      <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-foreground">
+                                        {gradeText}
+                                        {student.suggested_grade && student.suggested_grade !== gradeText
+                                          ? ` → ${student.suggested_grade}`
+                                          : ''}
+                                      </span>
+                                    )}
+                                    {!student.class_id && (
+                                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                        Unassigned
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                    <p className="text-xs text-muted-foreground break-all">{student.email}</p>
+                                    {canDirectClaim && (
+                                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                        Direct claim
+                                      </span>
+                                    )}
+                                  </div>
+                                  {student.class_id && (
+                                    <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-300 break-words">
+                                      <span className="font-bold">From:</span> {student.current_class_name || student.section_class || 'Another class'}
+                                      {student.current_teacher_name ? ` · ${student.current_teacher_name}` : ''}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <p className="text-sm font-bold text-foreground break-words">{student.full_name}</p>
-                                  {gradeText && (
-                                    <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-foreground">
-                                      {gradeText}
-                                      {student.suggested_grade && student.suggested_grade !== gradeText
-                                        ? ` → ${student.suggested_grade}`
-                                        : ''}
-                                    </span>
-                                  )}
-                                  {!student.class_id && (
-                                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
-                                      Unassigned
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                                  <p className="text-xs text-muted-foreground break-all">{student.email}</p>
-                                  {canDirectClaim && (
-                                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
-                                      Direct claim
-                                    </span>
-                                  )}
-                                </div>
-                                {student.class_id && (
-                                  <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-300 break-words">
-                                    <span className="font-bold">From:</span> {student.current_class_name || student.section_class || 'Another class'}
-                                    {student.current_teacher_name ? ` · ${student.current_teacher_name}` : ''}
-                                  </p>
+                              <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:pl-0 sm:shrink-0" onClick={(e) => e.stopPropagation()}>
+                                {isChecked && !requiresRequest && (
+                                  <div className="flex items-center gap-1">
+                                    {(['promote', 'demote', 'retain'] as const).map((act) => {
+                                      const effective = modalStudentActions[student.id] || modalGradeAction;
+                                      const active = effective === act;
+                                      return (
+                                        <button
+                                          key={act}
+                                          type="button"
+                                          onClick={() =>
+                                            setModalStudentActions((prev) => ({ ...prev, [student.id]: act }))
+                                          }
+                                          title={act === 'promote' ? 'Promote grade' : act === 'demote' ? 'Demote 1 grade' : 'Keep current grade'}
+                                          className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border transition-colors ${active
+                                            ? act === 'demote'
+                                              ? 'bg-amber-500 text-black border-amber-500'
+                                              : act === 'retain'
+                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                : 'bg-emerald-700 text-white border-emerald-700'
+                                            : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                                            }`}
+                                        >
+                                          {act === 'promote' ? '⬆ +1' : act === 'demote' ? '⬇ -1' : '↔ Keep'}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 )}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:pl-0 sm:shrink-0" onClick={(e) => e.stopPropagation()}>
-                            {isChecked && !requiresRequest && (
-                              <div className="flex items-center gap-1">
-                                {(['promote', 'demote', 'retain'] as const).map((act) => {
-                                  const effective = modalStudentActions[student.id] || modalGradeAction;
-                                  const active = effective === act;
-                                  return (
-                                    <button
-                                      key={act}
-                                      type="button"
-                                      onClick={() =>
-                                        setModalStudentActions((prev) => ({ ...prev, [student.id]: act }))
-                                      }
-                                      title={act === 'promote' ? 'Promote grade' : act === 'demote' ? 'Demote 1 grade' : 'Keep current grade'}
-                                      className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border transition-colors ${
-                                        active
-                                          ? act === 'demote'
-                                            ? 'bg-amber-500 text-black border-amber-500'
-                                            : act === 'retain'
-                                              ? 'bg-primary text-primary-foreground border-primary'
-                                              : 'bg-emerald-700 text-white border-emerald-700'
-                                          : 'bg-background text-muted-foreground border-border hover:text-foreground'
-                                      }`}
-                                    >
-                                      {act === 'promote' ? '⬆ +1' : act === 'demote' ? '⬇ -1' : '↔ Keep'}
+                                {!requiresRequest && !isBlocked && (
+                                  <button
+                                    type="button"
+                                    disabled={!!processingStudent}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void assignStudent(student.id, modalStudentActions[student.id] || modalGradeAction || 'promote');
+                                    }}
+                                    title={`Adopt ${student.full_name} into ${cls?.name ?? 'this class'} immediately`}
+                                    className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40 ml-auto sm:ml-0"
+                                  >
+                                    {processingStudent === student.id ? 'Adopting…' : 'Adopt'}
+                                  </button>
+                                )}
+                                {requiresRequest ? (
+                                  student.pending_transfer_request_id ? (
+                                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Request pending</span>
+                                  ) : (
+                                    <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-900 hover:bg-amber-400">
+                                      Request transfer
                                     </button>
-                                  );
-                                })}
+                                  )
+                                ) : isBlocked ? (
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">Full</span>
+                                ) : null}
                               </div>
-                            )}
-                            {!requiresRequest && !isBlocked && (
-                              <button
-                                type="button"
-                                disabled={!!processingStudent}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void assignStudent(student.id, modalStudentActions[student.id] || modalGradeAction || 'promote');
-                                }}
-                                title={`Adopt ${student.full_name} into ${cls?.name ?? 'this class'} immediately`}
-                                className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[11px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40 ml-auto sm:ml-0"
-                              >
-                                {processingStudent === student.id ? 'Adopting…' : 'Adopt'}
-                              </button>
-                            )}
-                            {requiresRequest ? (
-                              student.pending_transfer_request_id ? (
-                                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-700 dark:text-amber-300">Request pending</span>
-                              ) : (
-                                <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-900 hover:bg-amber-400">
-                                  Request transfer
-                                </button>
-                              )
-                            ) : isBlocked ? (
-                              <span className="text-[8px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">Full</span>
-                            ) : null}
                             </div>
+                          );
+                        };
+                        if (filtered.length === 0) return (
+                          <div className="py-12 text-center">
+                            <p className="text-sm text-muted-foreground">No students match the current filter</p>
                           </div>
                         );
-                      };
-                      if (filtered.length === 0) return (
-                        <div className="py-12 text-center">
-                          <p className="text-sm text-muted-foreground">No students match the current filter</p>
-                        </div>
-                      );
 
-                      const allUnassignedSelected = filtUnassigned.length > 0 && filtUnassigned.every((s: any) => selectedStudentIds.has(s.id));
+                        const allUnassignedSelected = filtUnassigned.length > 0 && filtUnassigned.every((s: any) => selectedStudentIds.has(s.id));
 
-                      return (
-                        <>
-                          {filtUnassigned.length > 0 && (
-                            <div>
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                                  Available · Unassigned ({filtUnassigned.length})
-                                  {filtUnassigned.length > visibleUnassigned.length && <span className="text-muted-foreground"> — showing {visibleUnassigned.length}</span>}
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedStudentIds(prev => {
-                                      const next = new Set(prev);
-                                      if (allUnassignedSelected) {
-                                        filtUnassigned.forEach((s: any) => next.delete(s.id));
-                                      } else {
-                                        for (const s of filtUnassigned) {
-                                          if (next.size >= seatsLeft) break;
-                                          next.add(s.id);
+                        return (
+                          <>
+                            {filtUnassigned.length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                    Available · Unassigned ({filtUnassigned.length})
+                                    {filtUnassigned.length > visibleUnassigned.length && <span className="text-muted-foreground"> — showing {visibleUnassigned.length}</span>}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedStudentIds(prev => {
+                                        const next = new Set(prev);
+                                        if (allUnassignedSelected) {
+                                          filtUnassigned.forEach((s: any) => next.delete(s.id));
+                                        } else {
+                                          for (const s of filtUnassigned) {
+                                            if (next.size >= seatsLeft) break;
+                                            next.add(s.id);
+                                          }
                                         }
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                  className="text-[10px] font-black text-primary hover:underline uppercase tracking-wider"
-                                >
-                                  {allUnassignedSelected ? 'Deselect unassigned' : `Select all ${filtUnassigned.length} unassigned`}
-                                </button>
+                                        return next;
+                                      });
+                                    }}
+                                    className="text-[10px] font-black text-primary hover:underline uppercase tracking-wider"
+                                  >
+                                    {allUnassignedSelected ? 'Deselect unassigned' : `Select all ${filtUnassigned.length} unassigned`}
+                                  </button>
+                                </div>
+                                <div className="space-y-1.5">{visibleUnassigned.map(s => renderStudent(s, 'orange'))}</div>
                               </div>
-                              <div className="space-y-1.5">{visibleUnassigned.map(s => renderStudent(s, 'orange'))}</div>
-                            </div>
-                          )}
-                          {filtInOther.length > 0 && (
-                            <div>
-                              <p className="text-[10px] font-black text-amber-600/60 dark:text-amber-400/60 uppercase tracking-widest mb-2">
-                                In another class — move or request ({filtInOther.length})
-                                {filtInOther.length > visibleInOther.length && <span className="text-amber-600/30 dark:text-amber-400/30"> — showing {visibleInOther.length}</span>}
-                              </p>
-                              <div className="space-y-1.5">{visibleInOther.map(s => renderStudent(s, 'amber'))}</div>
-                            </div>
-                          )}
-                          {hasMore && (
-                            <button
-                              onClick={() => setShowMoreStudents(true)}
-                              className="w-full py-3 text-xs font-bold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-xl border border-border transition-all"
-                            >
-                              Show all {filtered.length} students
-                            </button>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
+                            )}
+                            {filtInOther.length > 0 && (
+                              <div>
+                                <p className="text-[10px] font-black text-amber-600/60 dark:text-amber-400/60 uppercase tracking-widest mb-2">
+                                  In another class — move or request ({filtInOther.length})
+                                  {filtInOther.length > visibleInOther.length && <span className="text-amber-600/30 dark:text-amber-400/30"> — showing {visibleInOther.length}</span>}
+                                </p>
+                                <div className="space-y-1.5">{visibleInOther.map(s => renderStudent(s, 'amber'))}</div>
+                              </div>
+                            )}
+                            {hasMore && (
+                              <button
+                                onClick={() => setShowMoreStudents(true)}
+                                className="w-full py-3 text-xs font-bold text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted rounded-xl border border-border transition-all"
+                              >
+                                Show all {filtered.length} students
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
 
                   <div className="px-4 sm:px-6 py-3 border-t border-border bg-card flex-shrink-0 flex items-center justify-between gap-3">
@@ -5545,339 +5562,338 @@ export default function ClassDetailPage() {
                   { id: 'done', label: '3. Done' },
                 ] as const;
                 return (
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-3 custom-scrollbar sm:px-6">
-                    {/* Step rail */}
-                    <div className="grid grid-cols-3 gap-2">
-                      {steps.map((step) => {
-                        const active = pasteStep === step.id;
-                        const done =
-                          (step.id === 'paste' && (pasteStep === 'review' || pasteStep === 'done'))
-                          || (step.id === 'review' && pasteStep === 'done');
-                        return (
-                          <div
-                            key={step.id}
-                            className={`rounded-xl border px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-widest ${
-                              active
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-3 custom-scrollbar sm:px-6">
+                      {/* Step rail */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {steps.map((step) => {
+                          const active = pasteStep === step.id;
+                          const done =
+                            (step.id === 'paste' && (pasteStep === 'review' || pasteStep === 'done'))
+                            || (step.id === 'review' && pasteStep === 'done');
+                          return (
+                            <div
+                              key={step.id}
+                              className={`rounded-xl border px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-widest ${active
                                 ? 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-200'
                                 : done
                                   ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                                   : 'border-border bg-muted/20 text-muted-foreground'
-                            }`}
-                          >
-                            {step.label}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-4">
-                      <p className="text-sm font-black text-amber-800 dark:text-amber-100">Full ownership claim</p>
-                      <p className="mt-1.5 text-xs leading-relaxed text-amber-800/80 dark:text-amber-100/80">
-                        Wherever they are now — another teacher, withdrawn, inactive, or soft-paused —
-                        matched kids land in <strong className="text-amber-800 dark:text-amber-100">{cls?.name ?? 'this class'}</strong> as
-                        active roster members with ownership, reports authorship, and programme enrollment corrected.
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {['Bypass transfer wait', 'Reactivate withdrawn', 'Take ownership', 'Same school only'].map((chip) => (
-                          <span key={chip} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-200">
-                            {chip}
-                          </span>
-                        ))}
+                                }`}
+                            >
+                              {step.label}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
 
-                    {pasteError && (
-                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
-                        {pasteError}
-                      </div>
-                    )}
-
-                    {(pasteStep === 'paste' || pasteStep === 'review') && (
-                      <div>
-                        <div className="mb-1.5 flex items-end justify-between gap-2">
-                          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            Student names (one per line)
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => { setPasteNamesText(''); setPastePreview(null); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
-                            className="text-[10px] font-bold text-muted-foreground hover:text-foreground"
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <textarea
-                          value={pasteNamesText}
-                          onChange={(e) => {
-                            setPasteNamesText(e.target.value);
-                            setPastePreview(null);
-                            setPasteResult(null);
-                            setPasteStep('paste');
-                            setPasteError(null);
-                          }}
-                          rows={pasteStep === 'review' ? 5 : 11}
-                          placeholder={'Ada Okonkwo\nChinedu Eze\nFatima Abdullahi'}
-                          className="w-full resize-y rounded-2xl border border-border bg-background px-3.5 py-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-amber-500/50"
-                        />
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                          <span className="rounded-lg border border-border bg-card px-2 py-1 font-bold">{pasteLineCount} name{pasteLineCount !== 1 ? 's' : ''}</span>
-                          {cls?.max_students ? (
-                            <span className="rounded-lg border border-border bg-card px-2 py-1 font-bold">
-                              {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
+                      <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-4">
+                        <p className="text-sm font-black text-amber-800 dark:text-amber-100">Full ownership claim</p>
+                        <p className="mt-1.5 text-xs leading-relaxed text-amber-800/80 dark:text-amber-100/80">
+                          Wherever they are now — another teacher, withdrawn, inactive, or soft-paused —
+                          matched kids land in <strong className="text-amber-800 dark:text-amber-100">{cls?.name ?? 'this class'}</strong> as
+                          active roster members with ownership, reports authorship, and programme enrollment corrected.
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {['Bypass transfer wait', 'Reactivate withdrawn', 'Take ownership', 'Same school only'].map((chip) => (
+                            <span key={chip} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-200">
+                              {chip}
                             </span>
-                          ) : null}
-                          {pasteStep === 'review' && (
+                          ))}
+                        </div>
+                      </div>
+
+                      {pasteError && (
+                        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
+                          {pasteError}
+                        </div>
+                      )}
+
+                      {(pasteStep === 'paste' || pasteStep === 'review') && (
+                        <div>
+                          <div className="mb-1.5 flex items-end justify-between gap-2">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              Student names (one per line)
+                            </label>
                             <button
                               type="button"
-                              onClick={() => { setPasteStep('paste'); setPastePreview(null); }}
-                              className="font-black text-primary hover:underline"
+                              onClick={() => { setPasteNamesText(''); setPastePreview(null); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
+                              className="text-[10px] font-bold text-muted-foreground hover:text-foreground"
                             >
-                              Edit names
+                              Clear
                             </button>
-                          )}
+                          </div>
+                          <textarea
+                            value={pasteNamesText}
+                            onChange={(e) => {
+                              setPasteNamesText(e.target.value);
+                              setPastePreview(null);
+                              setPasteResult(null);
+                              setPasteStep('paste');
+                              setPasteError(null);
+                            }}
+                            rows={pasteStep === 'review' ? 5 : 11}
+                            placeholder={'Ada Okonkwo\nChinedu Eze\nFatima Abdullahi'}
+                            className="w-full resize-y rounded-2xl border border-border bg-background px-3.5 py-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-amber-500/50"
+                          />
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                            <span className="rounded-lg border border-border bg-card px-2 py-1 font-bold">{pasteLineCount} name{pasteLineCount !== 1 ? 's' : ''}</span>
+                            {cls?.max_students ? (
+                              <span className="rounded-lg border border-border bg-card px-2 py-1 font-bold">
+                                {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
+                              </span>
+                            ) : null}
+                            {pasteStep === 'review' && (
+                              <button
+                                type="button"
+                                onClick={() => { setPasteStep('paste'); setPastePreview(null); }}
+                                className="font-black text-primary hover:underline"
+                              >
+                                Edit names
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {pasteStep === 'review' && pastePreview && (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          {[
-                            { label: 'Claim now', value: claimable.length, tone: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/10' },
-                            { label: 'Already here', value: alreadyHere.length, tone: 'text-muted-foreground border-border bg-muted/30' },
-                            { label: 'Ambiguous', value: ambiguous.length, tone: 'text-amber-600 dark:text-amber-400 border-amber-500/25 bg-amber-500/10' },
-                            { label: 'Not found', value: unmatched.length, tone: 'text-rose-700 dark:text-rose-300 border-rose-500/25 bg-rose-500/10' },
-                          ].map((metric) => (
-                            <div key={metric.label} className={`rounded-xl border p-3 ${metric.tone}`}>
-                              <p className="text-xl font-black">{metric.value}</p>
-                              <p className="mt-1 text-[10px] font-black uppercase tracking-widest opacity-80">{metric.label}</p>
-                            </div>
-                          ))}
-                        </div>
+                      {pasteStep === 'review' && pastePreview && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {[
+                              { label: 'Claim now', value: claimable.length, tone: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/10' },
+                              { label: 'Already here', value: alreadyHere.length, tone: 'text-muted-foreground border-border bg-muted/30' },
+                              { label: 'Ambiguous', value: ambiguous.length, tone: 'text-amber-600 dark:text-amber-400 border-amber-500/25 bg-amber-500/10' },
+                              { label: 'Not found', value: unmatched.length, tone: 'text-rose-700 dark:text-rose-300 border-rose-500/25 bg-rose-500/10' },
+                            ].map((metric) => (
+                              <div key={metric.label} className={`rounded-xl border p-3 ${metric.tone}`}>
+                                <p className="text-xl font-black">{metric.value}</p>
+                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest opacity-80">{metric.label}</p>
+                              </div>
+                            ))}
+                          </div>
 
-                        {claimable.length > 0 && (
-                          <div className="overflow-hidden rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06]">
-                            <div className="border-b border-emerald-500/20 px-3 py-2.5">
-                              <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">Will claim with full ownership ({claimable.length})</p>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">Moved into this class · ownership transferred · roster set active</p>
-                            </div>
-                            <ul className="max-h-52 divide-y divide-border/60 overflow-y-auto">
-                              {claimable.map((row: any) => {
-                                const fromLabel = row.student?.current_class_name || (row.student?.class_id ? 'Another class' : 'Unassigned');
-                                const teacherLabel = row.student?.current_teacher_name;
-                                const reactivate = (row.student?.dest_roster_status && row.student.dest_roster_status !== 'active')
-                                  || row.student?.is_active === false;
-                                return (
-                                  <li key={`c-${row.input}`} className="flex items-start gap-3 px-3 py-2.5">
-                                    <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-[11px] font-black text-emerald-600 dark:text-emerald-400">
-                                      {(row.student?.full_name || row.input || '?')[0].toUpperCase()}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="break-words text-sm font-bold text-foreground">{row.student?.full_name || row.input}</p>
-                                      <p className="mt-0.5 break-all text-[11px] text-muted-foreground">{row.student?.email || 'No email on file'}</p>
-                                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                        <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                                          From: {fromLabel}
-                                        </span>
-                                        {teacherLabel ? (
-                                          <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                                            Owner: {teacherLabel}
-                                          </span>
-                                        ) : null}
-                                        {reactivate ? (
-                                          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-700 dark:text-amber-300">
-                                            Reactivate
-                                          </span>
-                                        ) : (
-                                          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400">
-                                            Take ownership
-                                          </span>
-                                        )}
+                          {claimable.length > 0 && (
+                            <div className="overflow-hidden rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06]">
+                              <div className="border-b border-emerald-500/20 px-3 py-2.5">
+                                <p className="text-xs font-black text-emerald-600 dark:text-emerald-400">Will claim with full ownership ({claimable.length})</p>
+                                <p className="mt-0.5 text-[10px] text-muted-foreground">Moved into this class · ownership transferred · roster set active</p>
+                              </div>
+                              <ul className="max-h-52 divide-y divide-border/60 overflow-y-auto">
+                                {claimable.map((row: any) => {
+                                  const fromLabel = row.student?.current_class_name || (row.student?.class_id ? 'Another class' : 'Unassigned');
+                                  const teacherLabel = row.student?.current_teacher_name;
+                                  const reactivate = (row.student?.dest_roster_status && row.student.dest_roster_status !== 'active')
+                                    || row.student?.is_active === false;
+                                  return (
+                                    <li key={`c-${row.input}`} className="flex items-start gap-3 px-3 py-2.5">
+                                      <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-[11px] font-black text-emerald-600 dark:text-emerald-400">
+                                        {(row.student?.full_name || row.input || '?')[0].toUpperCase()}
                                       </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="break-words text-sm font-bold text-foreground">{row.student?.full_name || row.input}</p>
+                                        <p className="mt-0.5 break-all text-[11px] text-muted-foreground">{row.student?.email || 'No email on file'}</p>
+                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                          <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                            From: {fromLabel}
+                                          </span>
+                                          {teacherLabel ? (
+                                            <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                              Owner: {teacherLabel}
+                                            </span>
+                                          ) : null}
+                                          {reactivate ? (
+                                            <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-700 dark:text-amber-300">
+                                              Reactivate
+                                            </span>
+                                          ) : (
+                                            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400">
+                                              Take ownership
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          )}
+
+                          {alreadyHere.length > 0 && (
+                            <div className="rounded-xl border border-border bg-muted/25 p-3">
+                              <p className="mb-1.5 text-xs font-black text-muted-foreground">Already active here ({alreadyHere.length})</p>
+                              <p className="break-words text-xs text-muted-foreground">{alreadyHere.map((r: any) => r.input).join(' · ')}</p>
+                            </div>
+                          )}
+
+                          {ambiguous.length > 0 && (
+                            <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+                              <p className="mb-2 text-xs font-black text-amber-600 dark:text-amber-400">Ambiguous — skipped ({ambiguous.length})</p>
+                              <p className="mb-2 text-[11px] text-muted-foreground">More than one student matched these names. Disambiguate with a unique spelling, then rematch.</p>
+                              <ul className="space-y-2 text-xs">
+                                {ambiguous.map((row: any) => (
+                                  <li key={`a-${row.input}`} className="break-words rounded-lg border border-amber-500/15 bg-background/60 px-2.5 py-2 space-y-1.5">
+                                    <span className="font-bold text-foreground block">{row.input}</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {(row.candidates ?? []).map((c: any) => (
+                                        <button
+                                          key={c.id}
+                                          type="button"
+                                          disabled={!!processingStudent}
+                                          onClick={() => void assignStudent(c.id)}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/20"
+                                        >
+                                          + Claim {c.full_name} {c.current_class_name ? `(${c.current_class_name})` : ''}
+                                        </button>
+                                      ))}
                                     </div>
                                   </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        )}
-
-                        {alreadyHere.length > 0 && (
-                          <div className="rounded-xl border border-border bg-muted/25 p-3">
-                            <p className="mb-1.5 text-xs font-black text-muted-foreground">Already active here ({alreadyHere.length})</p>
-                            <p className="break-words text-xs text-muted-foreground">{alreadyHere.map((r: any) => r.input).join(' · ')}</p>
-                          </div>
-                        )}
-
-                        {ambiguous.length > 0 && (
-                          <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-amber-600 dark:text-amber-400">Ambiguous — skipped ({ambiguous.length})</p>
-                            <p className="mb-2 text-[11px] text-muted-foreground">More than one student matched these names. Disambiguate with a unique spelling, then rematch.</p>
-                            <ul className="space-y-2 text-xs">
-                              {ambiguous.map((row: any) => (
-                                <li key={`a-${row.input}`} className="break-words rounded-lg border border-amber-500/15 bg-background/60 px-2.5 py-2 space-y-1.5">
-                                  <span className="font-bold text-foreground block">{row.input}</span>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {(row.candidates ?? []).map((c: any) => (
-                                      <button
-                                        key={c.id}
-                                        type="button"
-                                        disabled={!!processingStudent}
-                                        onClick={() => void assignStudent(c.id)}
-                                        className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary hover:bg-primary/20"
-                                      >
-                                        + Claim {c.full_name} {c.current_class_name ? `(${c.current_class_name})` : ''}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {unmatched.length > 0 && (
-                          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-rose-700 dark:text-rose-300">Not found at this school ({unmatched.length})</p>
-                            <p className="mb-2 break-words text-xs text-muted-foreground">{unmatched.map((r: any) => r.input).join(' · ')}</p>
-                            <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
-                              Register these as new students in Bulk Register →
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {pasteStep === 'done' && pasteResult && (
-                      <div className="space-y-4">
-                        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center sm:p-6">
-                          <CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-600 dark:text-emerald-400" />
-                          <p className="mt-3 text-lg font-black text-foreground">
-                            {resultSummary.claimed ?? claimed.length} student{(resultSummary.claimed ?? claimed.length) === 1 ? '' : 's'} claimed
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            They are now active in {cls?.name ?? 'this class'} with full ownership.
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          {[
-                            { label: 'Claimed', value: resultSummary.claimed ?? 0, tone: 'text-emerald-600 dark:text-emerald-400' },
-                            { label: 'Already here', value: resultSummary.alreadyHere ?? 0, tone: 'text-muted-foreground' },
-                            { label: 'Failed', value: resultSummary.failed ?? 0, tone: 'text-rose-700 dark:text-rose-300' },
-                            { label: 'Not found', value: resultSummary.unmatched ?? 0, tone: 'text-amber-600 dark:text-amber-400' },
-                          ].map((metric) => (
-                            <div key={metric.label} className="rounded-xl border border-border bg-background p-3">
-                              <p className={`text-xl font-black ${metric.tone}`}>{metric.value}</p>
-                              <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
+                                ))}
+                              </ul>
                             </div>
-                          ))}
-                        </div>
-                        {pasteResult.capacityStopped && (
-                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                            Stopped at class capacity — free seats or raise capacity, then claim the rest.
-                          </div>
-                        )}
-                        {claimed.length > 0 && (
-                          <div className="rounded-xl border border-border bg-background p-3">
-                            <p className="mb-2 text-xs font-black text-foreground">Successfully claimed</p>
-                            <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-muted-foreground">
-                              {claimed.map((row: any) => (
-                                <li key={row.studentId || row.input} className="break-words">
-                                  <span className="font-bold text-foreground">{row.fullName || row.input}</span>
-                                  {row.fromClassId ? ' · moved from another class' : ' · placed / reactivated'}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {failed.length > 0 && (
-                          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-rose-700 dark:text-rose-300">Failed</p>
-                            <ul className="max-h-28 space-y-1 overflow-y-auto text-xs text-rose-800/90 dark:text-rose-200/90">
-                              {failed.map((row: any, i: number) => (
-                                <li key={`fail-${i}`} className="break-words">
-                                  <span className="font-bold">{row.input || row.fullName || 'Student'}</span>
-                                  {row.error ? ` — ${row.error}` : ''}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {(pasteResult.unmatched?.length ?? 0) > 0 && (
-                          <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
-                            Register unmatched names in Bulk Register →
-                          </Link>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                          )}
 
-                  <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border bg-card/80 px-4 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (pasteStep === 'done') {
-                          resetPasteClaimState();
+                          {unmatched.length > 0 && (
+                            <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
+                              <p className="mb-2 text-xs font-black text-rose-700 dark:text-rose-300">Not found at this school ({unmatched.length})</p>
+                              <p className="mb-2 break-words text-xs text-muted-foreground">{unmatched.map((r: any) => r.input).join(' · ')}</p>
+                              <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
+                                Register these as new students in Bulk Register →
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {pasteStep === 'done' && pasteResult && (
+                        <div className="space-y-4">
+                          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center sm:p-6">
+                            <CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                            <p className="mt-3 text-lg font-black text-foreground">
+                              {resultSummary.claimed ?? claimed.length} student{(resultSummary.claimed ?? claimed.length) === 1 ? '' : 's'} claimed
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              They are now active in {cls?.name ?? 'this class'} with full ownership.
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {[
+                              { label: 'Claimed', value: resultSummary.claimed ?? 0, tone: 'text-emerald-600 dark:text-emerald-400' },
+                              { label: 'Already here', value: resultSummary.alreadyHere ?? 0, tone: 'text-muted-foreground' },
+                              { label: 'Failed', value: resultSummary.failed ?? 0, tone: 'text-rose-700 dark:text-rose-300' },
+                              { label: 'Not found', value: resultSummary.unmatched ?? 0, tone: 'text-amber-600 dark:text-amber-400' },
+                            ].map((metric) => (
+                              <div key={metric.label} className="rounded-xl border border-border bg-background p-3">
+                                <p className={`text-xl font-black ${metric.tone}`}>{metric.value}</p>
+                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {pasteResult.capacityStopped && (
+                            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                              Stopped at class capacity — free seats or raise capacity, then claim the rest.
+                            </div>
+                          )}
+                          {claimed.length > 0 && (
+                            <div className="rounded-xl border border-border bg-background p-3">
+                              <p className="mb-2 text-xs font-black text-foreground">Successfully claimed</p>
+                              <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+                                {claimed.map((row: any) => (
+                                  <li key={row.studentId || row.input} className="break-words">
+                                    <span className="font-bold text-foreground">{row.fullName || row.input}</span>
+                                    {row.fromClassId ? ' · moved from another class' : ' · placed / reactivated'}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {failed.length > 0 && (
+                            <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
+                              <p className="mb-2 text-xs font-black text-rose-700 dark:text-rose-300">Failed</p>
+                              <ul className="max-h-28 space-y-1 overflow-y-auto text-xs text-rose-800/90 dark:text-rose-200/90">
+                                {failed.map((row: any, i: number) => (
+                                  <li key={`fail-${i}`} className="break-words">
+                                    <span className="font-bold">{row.input || row.fullName || 'Student'}</span>
+                                    {row.error ? ` — ${row.error}` : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(pasteResult.unmatched?.length ?? 0) > 0 && (
+                            <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
+                              Register unmatched names in Bulk Register →
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border bg-card/80 px-4 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (pasteStep === 'done') {
+                            resetPasteClaimState();
+                            setShowStudentModal(false);
+                            setEnrolMode('current');
+                            return;
+                          }
                           setShowStudentModal(false);
                           setEnrolMode('current');
-                          return;
-                        }
-                        setShowStudentModal(false);
-                        setEnrolMode('current');
-                        resetPasteClaimState();
-                      }}
-                      className="min-h-11 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      {pasteStep === 'done' ? 'Close' : 'Cancel'}
-                    </button>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      {pasteStep === 'paste' && (
-                        <button
-                          type="button"
-                          onClick={() => void matchPastedNames()}
-                          disabled={pasteMatching || !pasteNamesText.trim()}
-                          className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground disabled:opacity-40"
-                        >
-                          {pasteMatching ? 'Matching…' : `Match ${pasteLineCount || ''} name${pasteLineCount === 1 ? '' : 's'}`.trim()}
-                        </button>
-                      )}
-                      {pasteStep === 'review' && (
-                        <>
+                          resetPasteClaimState();
+                        }}
+                        className="min-h-11 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        {pasteStep === 'done' ? 'Close' : 'Cancel'}
+                      </button>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        {pasteStep === 'paste' && (
                           <button
                             type="button"
                             onClick={() => void matchPastedNames()}
-                            disabled={pasteMatching || pasteClaiming || !pasteNamesText.trim()}
-                            className="min-h-11 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground disabled:opacity-40"
+                            disabled={pasteMatching || !pasteNamesText.trim()}
+                            className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground disabled:opacity-40"
                           >
-                            {pasteMatching ? 'Rematching…' : 'Rematch'}
+                            {pasteMatching ? 'Matching…' : `Match ${pasteLineCount || ''} name${pasteLineCount === 1 ? '' : 's'}`.trim()}
                           </button>
+                        )}
+                        {pasteStep === 'review' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void matchPastedNames()}
+                              disabled={pasteMatching || pasteClaiming || !pasteNamesText.trim()}
+                              className="min-h-11 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground disabled:opacity-40"
+                            >
+                              {pasteMatching ? 'Rematching…' : 'Rematch'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void claimPastedNames()}
+                              disabled={pasteClaiming || pasteMatching || claimable.length === 0 || isFull}
+                              className="min-h-11 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-slate-900 dark:text-slate-200 disabled:opacity-40"
+                            >
+                              {pasteClaiming
+                                ? 'Claiming ownership…'
+                                : isFull
+                                  ? 'Class full'
+                                  : `Claim ${claimable.length} with full ownership`}
+                            </button>
+                          </>
+                        )}
+                        {pasteStep === 'done' && (
                           <button
                             type="button"
-                            onClick={() => void claimPastedNames()}
-                            disabled={pasteClaiming || pasteMatching || claimable.length === 0 || isFull}
-                            className="min-h-11 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-slate-900 dark:text-slate-200 disabled:opacity-40"
+                            onClick={() => { resetPasteClaimState(); setPasteStep('paste'); }}
+                            className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground"
                           >
-                            {pasteClaiming
-                              ? 'Claiming ownership…'
-                              : isFull
-                                ? 'Class full'
-                                : `Claim ${claimable.length} with full ownership`}
+                            Claim more names
                           </button>
-                        </>
-                      )}
-                      {pasteStep === 'done' && (
-                        <button
-                          type="button"
-                          onClick={() => { resetPasteClaimState(); setPasteStep('paste'); }}
-                          className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground"
-                        >
-                          Claim more names
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
                 );
               })()}
 
@@ -6001,7 +6017,8 @@ export default function ClassDetailPage() {
             </div>
           </div>
         </div>
-      )}      <style dangerouslySetInnerHTML={{ __html: `
+      )}      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
           height: 8px;
@@ -6138,7 +6155,7 @@ export default function ClassDetailPage() {
             }
           }} />
           <div className="relative w-full max-w-lg bg-card border border-[#25D366]/25 rounded-2xl shadow-2xl shadow-[#25D366]/5 overflow-hidden scale-in-center">
-            
+
             {/* Header */}
             <div className="px-6 py-5 border-b border-[#25D366]/20 bg-[#25D366]/5">
               <h3 className="text-base font-black text-[#25D366] uppercase tracking-wider flex items-center gap-2">
@@ -6173,7 +6190,7 @@ export default function ClassDetailPage() {
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div>
                 <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Broadcast Message</label>
-                <textarea 
+                <textarea
                   value={broadcastForm.text}
                   onChange={(e) => setBroadcastForm({ ...broadcastForm, text: e.target.value })}
                   rows={5}
@@ -6181,7 +6198,7 @@ export default function ClassDetailPage() {
                   placeholder="Type class broadcast message here (e.g. Remember to complete Assignment 3 by tomorrow!)..."
                 />
               </div>
-              
+
               <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-3">
                 <label className="flex items-center justify-between gap-3 text-xs font-bold text-foreground">
                   <span><span className="block">Use approved Meta template</span><span className="text-[10px] font-normal text-muted-foreground">Recommended when the parent has not messaged within 24 hours.</span></span>
@@ -6220,7 +6237,7 @@ export default function ClassDetailPage() {
                   </div>
                 </div>
               )}
-              
+
               {!loadingReachable && enrollments.length > reachableStudents.length && (
                 <div className="border border-amber-500/10 rounded-2xl p-4 bg-amber-500/[0.01]">
                   <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3 flex items-center justify-between">
@@ -6243,12 +6260,12 @@ export default function ClassDetailPage() {
 
             {/* Footer Buttons */}
             <div className="px-6 py-4 border-t border-border bg-card flex gap-3">
-              <button 
+              <button
                 onClick={() => {
                   setShowBroadcastModal(false);
                   setReachableStudents([]);
                   setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
-                }} 
+                }}
                 disabled={broadcasting}
                 className="flex-1 py-3 bg-card hover:bg-muted text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-wider rounded-xl border border-border transition-all">
                 Cancel
