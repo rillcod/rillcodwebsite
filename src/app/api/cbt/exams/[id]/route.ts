@@ -29,7 +29,7 @@ const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed', 'pending_gr
 function sanitizeQuestionMetadataForStudent(metadata: any) {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
   const safe: Record<string, unknown> = {};
-  for (const key of ['section', 'logic_sentence', 'logic_blocks']) {
+  for (const key of ['section', 'logic_sentence', 'logic_blocks', 'image_url', 'illustration_url', 'image_description', 'figure_caption', 'diagram_svg', 'motion_cue']) {
     if (key in metadata) safe[key] = metadata[key];
   }
   return Object.keys(safe).length > 0 ? safe : null;

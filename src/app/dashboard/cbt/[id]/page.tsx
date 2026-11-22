@@ -71,6 +71,11 @@ export default function ExamDetailPage() {
   const [resettingSessionId, setResettingSessionId] = useState<string | null>(null);
   const [forcingSessionId, setForcingSessionId] = useState<string | null>(null);
   const [monitorNotice, setMonitorNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [regradeMode, setRegradeMode] = useState(false);
+  const [keyEdits, setKeyEdits] = useState<Record<string, string>>({});
+  const [regradeReason, setRegradeReason] = useState('');
+  const [regrading, setRegrading] = useState(false);
+  const [regradeNotice, setRegradeNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const userMapRef = useRef<Record<string, any>>({});
   const printMenuRef = useRef<HTMLDivElement>(null);
 
@@ -289,6 +294,58 @@ export default function ExamDetailPage() {
       });
     } finally {
       setForcingSessionId(null);
+    }
+  };
+
+  const handleSaveKeysAndRegrade = async () => {
+    if (!exam?.id) return;
+    setRegrading(true);
+    setRegradeNotice(null);
+    try {
+      const corrections = Object.entries(keyEdits)
+        .filter(([qid, nextAns]) => {
+          const orig = questions.find((q) => q.id === qid);
+          return Boolean(orig && nextAns.trim() && nextAns.trim() !== String(orig.correct_answer ?? '').trim());
+        })
+        .map(([question_id, correct_answer]) => ({ question_id, correct_answer: correct_answer.trim() }));
+
+      const res = await fetch(`/api/cbt/exams/${exam.id}/regrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          corrections,
+          reason: regradeReason.trim() || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not re-mark exam sessions.');
+
+      const payload = json?.data;
+      if (Array.isArray(payload?.questions)) {
+        setQuestions(payload.questions);
+      }
+      setKeyEdits({});
+      setRegradeReason('');
+      setRegradeMode(false);
+      await refreshLiveSessions(true);
+
+      const qCount = Number(payload?.updatedQuestionsCount ?? 0);
+      const checked = Number(payload?.sessionsChecked ?? 0);
+      const changed = Number(payload?.sessionsChanged ?? 0);
+      setRegradeNotice({
+        type: 'success',
+        text:
+          qCount > 0
+            ? `Updated ${qCount} answer key${qCount === 1 ? '' : 's'} and auto-remarked ${checked} submitted session${checked === 1 ? '' : 's'} (${changed} score${changed === 1 ? '' : 's'} updated) — no student had to retake the exam.`
+            : `Re-marked ${checked} submitted session${checked === 1 ? '' : 's'} against current keys (${changed} score${changed === 1 ? '' : 's'} updated).`,
+      });
+    } catch (err: any) {
+      setRegradeNotice({
+        type: 'error',
+        text: err?.message || 'Failed to save corrected keys and re-mark sessions.',
+      });
+    } finally {
+      setRegrading(false);
     }
   };
 
@@ -1608,35 +1665,171 @@ export default function ExamDetailPage() {
                 <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${questionsOpen ? 'rotate-180' : ''}`} />
               </button>
               {canManageExam && (
-                <Link
-                  href={`/dashboard/cbt/${exam.id}/edit`}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
-                >
-                  <PencilIcon className="w-3.5 h-3.5 text-primary" /> Manage Questions
-                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegradeMode((v) => !v);
+                      setQuestionsOpen(true);
+                      setRegradeNotice(null);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black transition-colors ${
+                      regradeMode
+                        ? 'border-emerald-700 bg-emerald-700 text-white'
+                        : 'border-emerald-500/35 bg-emerald-500/12 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                    }`}
+                  >
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                    {regradeMode ? 'Done Fixing Keys' : 'Fix Answer Key & Auto-Remark'}
+                  </button>
+                  <Link
+                    href={`/dashboard/cbt/${exam.id}/edit`}
+                    className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                  >
+                    <PencilIcon className="w-3.5 h-3.5 text-primary" /> Manage Questions
+                  </Link>
+                </div>
               )}
             </div>
+
+            {regradeNotice && (
+              <div className={`mx-4 sm:mx-5 mt-4 rounded-xl border px-3.5 py-2.5 text-xs font-bold flex items-center justify-between gap-2 ${
+                regradeNotice.type === 'success'
+                  ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                  : 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+              }`}>
+                <span>{regradeNotice.text}</span>
+                <button type="button" onClick={() => setRegradeNotice(null)} className="shrink-0 opacity-75 hover:opacity-100">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {regradeMode && canManageExam && (() => {
+              const pendingChanges = Object.entries(keyEdits).filter(([qid, val]) => {
+                const orig = questions.find((q) => q.id === qid);
+                return Boolean(orig && val.trim() && val.trim() !== String(orig.correct_answer ?? '').trim());
+              }).length;
+              return (
+                <div className="mx-4 sm:mx-5 mt-4 rounded-2xl border border-emerald-500/35 bg-emerald-500/8 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        Answer-Key Correction &amp; Automatic Re-Marking
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Click the true correct option on any question below, then click Save &amp; Auto-Remark. Every submitted student session is re-scored automatically — no student has to retake the exam.
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-card border border-border px-2.5 py-1 text-[11px] font-black text-foreground">
+                      {pendingChanges} key change{pendingChanges === 1 ? '' : 's'} pending
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="text"
+                      aria-label="Reason for answer key correction"
+                      value={regradeReason}
+                      onChange={(e) => setRegradeReason(e.target.value)}
+                      placeholder="Optional audit note (e.g. Fixed Q4 key from B to C)…"
+                      className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={regrading}
+                      onClick={() => void handleSaveKeysAndRegrade()}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm disabled:opacity-50"
+                    >
+                      {regrading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                      {regrading
+                        ? 'Re-marking…'
+                        : pendingChanges > 0
+                          ? `Save ${pendingChanges} Fix${pendingChanges === 1 ? '' : 'es'} & Auto-Remark`
+                          : 'Re-mark All Submitted Sessions'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {questionsOpen && (
             <div className="divide-y divide-border">
-              {questions.map((q: any, i: number) => (
-                <div key={q.id} className="px-5 py-4">
+              {questions.map((q: any, i: number) => {
+                const effectiveAnswer = keyEdits[q.id] ?? String(q.correct_answer ?? '');
+                const isEdited = keyEdits[q.id] !== undefined && keyEdits[q.id].trim() !== String(q.correct_answer ?? '').trim();
+                const optionList = Array.isArray(q.options) && q.options.length > 0
+                  ? q.options
+                  : q.question_type === 'true_false'
+                    ? ['True', 'False']
+                    : null;
+                return (
+                <div key={q.id} className={`px-5 py-4 ${isEdited ? 'bg-amber-500/[0.06]' : ''}`}>
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-bold text-muted-foreground w-6 flex-shrink-0 pt-0.5">{i + 1}.</span>
                     <div className="flex-1">
                       <CbtMarkdown text={q.question_text} className="text-sm text-foreground" />
-                      {q.options && Array.isArray(q.options) && (
-                        <div className="mt-2 space-y-1">
-                          {q.options.map((opt: string, oi: number) => (
-                            <p key={oi} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                              {String.fromCharCode(65 + oi)}. <CbtMarkdown text={opt} className="inline" />
-                            </p>
-                          ))}
+                      {optionList && (
+                        <div className="mt-2 space-y-1.5">
+                          {optionList.map((opt: string, oi: number) => {
+                            const isSelectedKey = opt === effectiveAnswer || cbtAnswerMatchesOption(opt, oi, effectiveAnswer);
+                            if (regradeMode && canManageExam) {
+                              return (
+                                <button
+                                  key={oi}
+                                  type="button"
+                                  onClick={() => setKeyEdits((prev) => ({ ...prev, [q.id]: opt }))}
+                                  className={`w-full text-left flex items-center gap-2 text-xs px-3 py-2 rounded-xl border transition-all ${
+                                    isSelectedKey
+                                      ? 'bg-emerald-500/15 border-emerald-600 text-emerald-900 dark:text-emerald-200 font-bold'
+                                      : 'bg-background border-border text-muted-foreground hover:border-emerald-500/40 hover:text-foreground'
+                                  }`}
+                                >
+                                  <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                    isSelectedKey ? 'bg-emerald-700 text-white' : 'bg-muted text-foreground'
+                                  }`}>
+                                    {isSelectedKey ? '✓' : String.fromCharCode(65 + oi)}
+                                  </span>
+                                  <span className="flex-1 min-w-0">
+                                    <CbtMarkdown text={opt} className="inline" />
+                                  </span>
+                                  {isSelectedKey && (
+                                    <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300 shrink-0">
+                                      Correct Key
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            }
+                            return (
+                              <p key={oi} className={`text-xs px-2 py-1 rounded ${isSelectedKey ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-muted-foreground'}`}>
+                                {String.fromCharCode(65 + oi)}. <CbtMarkdown text={opt} className="inline" />
+                              </p>
+                            );
+                          })}
                         </div>
                       )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      {regradeMode && canManageExam && !optionList && (
+                        <div className="mt-2">
+                          <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-1">
+                            Expected Answer / Rubric Key
+                          </label>
+                          <input
+                            type="text"
+                            value={effectiveAnswer}
+                            onChange={(e) => setKeyEdits((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                            className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span>{q.points} pts</span>
                         <span className="capitalize">{q.question_type?.replace('_', ' ')}</span>
-                        <span className="text-emerald-800 dark:text-emerald-400 font-semibold">Answer: {q.correct_answer}</span>
+                        <span className="text-emerald-800 dark:text-emerald-400 font-semibold">Answer: {effectiveAnswer}</span>
+                        {isEdited && (
+                          <span className="rounded-full bg-amber-500/15 border border-amber-500/35 px-2 py-0.5 text-[10px] font-black text-amber-900 dark:text-amber-200">
+                            Key Edited — Click Save &amp; Auto-Remark
+                          </span>
+                        )}
                       </div>
                     </div>
                     {canManageExam && sessions.length === 0 && (
@@ -1665,7 +1858,8 @@ export default function ExamDetailPage() {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             )}
           </div>

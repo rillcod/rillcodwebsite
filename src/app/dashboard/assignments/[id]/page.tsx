@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { compressStudentImage } from '@/lib/files/compress-student-image';
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon, ArrowDownTrayIcon,
@@ -1151,8 +1152,11 @@ export default function AssignmentDetailPage() {
         const uploaded: SubmissionAttachment[] = [];
         try {
             for (const file of incoming) {
-                // Compress images before upload — phone photos can be 10+ MB
-                const toUpload = await compressImage(file);
+                // Drastically reduce phone photos (~90%+ smaller WebP/JPEG at crisp 1280px) before upload
+                const toUpload = await compressStudentImage(file, {
+                    maxDimension: 1280,
+                    targetBytes: 180 * 1024,
+                });
                 const formData = new FormData();
                 formData.append('file', toUpload);
                 const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
@@ -1181,7 +1185,7 @@ export default function AssignmentDetailPage() {
         }
     };
 
-    /** Drop one attachment; the first remaining becomes the primary file_url. */
+    /** Drop one attachment; the first remaining becomes the primary file_url, and purge R2 storage. */
     const removeAttachment = (url: string) => {
         setAttachments((prev) => {
             const next = prev.filter((a) => a.url !== url);
@@ -1189,20 +1193,28 @@ export default function AssignmentDetailPage() {
             if (!next.length) setAttachedFile(null);
             return next;
         });
+        void fetch('/api/files/upload', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        }).catch(() => {});
     };
 
     const handleFileChange = async (file: File | null) => {
         await handleFilesChange(file ? [file] : null);
     };
 
-    // Multi-step submissions — add a work snapshot (compress + upload, then track url + caption).
+    // Multi-step submissions — add a work snapshot (drastically compress + upload, then track url + caption).
     const handleAddSnapshot = async (file: File | null) => {
         if (!file || !profile) return;
         if (file.size > 10 * 1024 * 1024) { setFileError('Snapshot too large (max 10 MB)'); return; }
         if (snapshots.length >= 20) { setFileError('Maximum 20 snapshots'); return; }
         setUploadingSnap(true); setFileError(null);
         try {
-            const toUpload = await compressImage(file);
+            const toUpload = await compressStudentImage(file, {
+                maxDimension: 1280,
+                targetBytes: 180 * 1024,
+            });
             const formData = new FormData();
             formData.append('file', toUpload);
             const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
@@ -1217,8 +1229,17 @@ export default function AssignmentDetailPage() {
     };
     const updateSnapCaption = (i: number, caption: string) =>
         setSnapshots(prev => prev.map((s, idx) => idx === i ? { ...s, caption } : s));
-    const removeSnapshot = (i: number) =>
+    const removeSnapshot = (i: number) => {
+        const target = snapshots[i];
         setSnapshots(prev => prev.filter((_, idx) => idx !== i));
+        if (target?.url) {
+            void fetch('/api/files/upload', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: target.url }),
+            }).catch(() => {});
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

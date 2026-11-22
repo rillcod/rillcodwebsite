@@ -21,6 +21,7 @@ import {
   serializeEssayAnswer,
   type EssayAttachment,
 } from '@/lib/cbt/essay-attachments';
+import { compressStudentImage } from '@/lib/files/compress-student-image';
 
 function CodingBlocksChallenge({
   question,
@@ -86,61 +87,6 @@ function CodingBlocksChallenge({
       </div>
     </div>
   );
-}
-
-async function compressImageForCbt(file: File): Promise<File> {
-  if (
-    typeof window === 'undefined' ||
-    !file.type.startsWith('image/') ||
-    file.type === 'image/gif' ||
-    file.type === 'image/svg+xml'
-  ) {
-    return file;
-  }
-
-  const MAX_DIM = 1600;
-  const SIZE_THRESHOLD = 1.2 * 1024 * 1024;
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error('Image decode failed'));
-      el.src = objectUrl;
-    });
-
-    const { naturalWidth: w, naturalHeight: h } = img;
-    if (file.size <= SIZE_THRESHOLD && w <= MAX_DIM && h <= MAX_DIM) {
-      return file;
-    }
-
-    const scale = Math.min(1, MAX_DIM / Math.max(w, h));
-    const targetW = Math.max(1, Math.round(w * scale));
-    const targetH = Math.max(1, Math.round(h * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return file;
-    ctx.drawImage(img, 0, 0, targetW, targetH);
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.82)
-    );
-    if (!blob || blob.size >= file.size) return file;
-
-    const baseName = (file.name || 'photo').replace(/\.[^.]+$/, '');
-    return new File([blob], `${baseName}.jpg`, {
-      type: 'image/jpeg',
-      lastModified: Date.now(),
-    });
-  } catch {
-    return file;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
 }
 
 export default function TakeExamPage() {
@@ -392,7 +338,10 @@ export default function TakeExamPage() {
 
     try {
       for (const rawFile of files.slice(0, remainingSlots)) {
-        const file = await compressImageForCbt(rawFile);
+        const file = await compressStudentImage(rawFile, {
+          maxDimension: 1280,
+          targetBytes: 180 * 1024,
+        });
         if (file.size > 10 * 1024 * 1024) {
           throw new Error(`"${rawFile.name}" is larger than 10 MB.`);
         }
@@ -440,6 +389,12 @@ export default function TakeExamPage() {
     answersRef.current = nextAnswers;
     setAnswers(nextAnswers);
     void persistAnswersNow(nextAnswers);
+    // Immediately purge removed image from Cloudflare R2 storage so storage stays lean
+    void fetch('/api/files/upload', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: urlToRemove }),
+    }).catch(() => {});
   }, [persistAnswersNow]);
 
   const toggleFlag = (questionId: string) => {

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
 import { filesService } from '@/services/files.service';
 import { AppError, ValidationError } from '@/lib/errors';
 import { buildUploadReceipt, validateAllowedUploadSignature } from '@/lib/files/upload-safety';
+import { extractStoragePathFromMediaUrl } from '@/lib/files/compress-student-image';
+import { r2Delete } from '@/lib/r2/client';
 
 async function postHandler(req: Request, ctx: ApiContext) {
     // Students can upload (e.g. assignment photo submissions); library uploads are role-gated at the content-library layer
@@ -75,4 +78,60 @@ async function postHandler(req: Request, ctx: ApiContext) {
     }, { status: 201 });
 }
 
+async function deleteHandler(req: Request, ctx: ApiContext) {
+    if (!ctx.user) {
+        throw new AppError('Not authorized to delete files', 403, true);
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
+    const rawPath = typeof body?.storagePath === 'string' ? body.storagePath.trim() : '';
+    const storagePath = rawPath || extractStoragePathFromMediaUrl(rawUrl) || '';
+
+    if (!storagePath || storagePath.includes('..')) {
+        throw new ValidationError('A valid file url or storagePath is required');
+    }
+
+    const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    const { data: rows } = await admin
+        .from('files')
+        .select('id, uploaded_by, storage_path')
+        .eq('storage_path', storagePath);
+
+    const isStaff = ['admin', 'teacher'].includes(String(ctx.user.role ?? '').toLowerCase());
+    const matchingRows = rows ?? [];
+    const ownedRows = matchingRows.filter((r: any) => r.uploaded_by === ctx.user!.id);
+
+    if (!isStaff && ownedRows.length === 0) {
+        throw new AppError('You can only delete files you uploaded', 403, true);
+    }
+
+    const idsToDelete = (isStaff ? matchingRows : ownedRows).map((r: any) => r.id);
+    if (idsToDelete.length > 0) {
+        await admin.from('files').delete().in('id', idsToDelete);
+    }
+
+    // Only purge R2 object if no other file row still references the same storage_path
+    const { count: remainingRefs } = await admin
+        .from('files')
+        .select('id', { count: 'exact', head: true })
+        .eq('storage_path', storagePath);
+
+    let purgedFromStorage = false;
+    if (!remainingRefs || remainingRefs === 0) {
+        await r2Delete(storagePath).catch(() => {});
+        purgedFromStorage = true;
+    }
+
+    return NextResponse.json({
+        success: true,
+        data: { storagePath, purgedFromStorage, deletedRecords: idsToDelete.length },
+    });
+}
+
 export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: false })(req, ctx);
+export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireAuth: true, requireTenant: false })(req, ctx);
