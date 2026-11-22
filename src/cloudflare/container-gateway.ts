@@ -61,6 +61,8 @@ const CONTAINER_ENV_KEYS = [
   "GEMINI_API_KEY_4",
   "GEMINI_API_KEY_5",
   "GEMINI_API_KEYS",
+  "GROQ_API_KEY",
+  "CEREBRAS_API_KEY",
   "HUGGINGFACE_API_KEY",
   // Workers AI is called over its REST API rather than a Worker binding,
   // because the Next app runs in the container and bindings live on the Worker.
