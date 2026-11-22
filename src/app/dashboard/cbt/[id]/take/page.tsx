@@ -10,6 +10,8 @@ import {
   ExclamationTriangleIcon, CloudArrowUpIcon,
 } from '@/lib/icons';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import ExamIllustrationCard from '@/components/cbt/ExamIllustrationCard';
+import ExamAntiScreenshotShield from '@/components/cbt/ExamAntiScreenshotShield';
 import { isObjectiveQuestion, normalizeCbtOptions } from '@/lib/cbt/print-utils';
 import {
   countEssayWords,
@@ -691,6 +693,27 @@ export default function TakeExamPage() {
     );
   }
 
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6 mobile-page-root">
+        <div className="max-w-md w-full rounded-3xl border border-border bg-card p-6 text-center shadow-lg space-y-4">
+          <ExclamationTriangleIcon className="w-10 h-10 text-amber-600 dark:text-amber-400 mx-auto" />
+          <h2 className="text-lg font-black text-foreground">No Questions Available Yet</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This examination ({exam?.title || 'CBT'}) currently has no published questions. Please inform your teacher.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/dashboard/cbt')}
+            className="w-full rounded-xl bg-emerald-700 hover:bg-emerald-800 py-2.5 text-xs font-black uppercase tracking-wider text-white transition-colors"
+          >
+            Return to CBT Center
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;
   const isQuestionAnswered = (question: any) => hasEssayResponse(answers[question?.id]);
@@ -706,12 +729,20 @@ export default function TakeExamPage() {
     .map((question, idx) => (flaggedIds.has(question.id) ? idx : -1))
     .filter((idx) => idx >= 0);
   const mcqOptions = q ? normalizeCbtOptions(q.options, q.question_type) : [];
-  const showMcq = q && isObjectiveQuestion(q) && mcqOptions.length > 0 && q.question_type !== 'true_false';
+  const showMcq = Boolean(q && isObjectiveQuestion(q) && mcqOptions.length >= 2 && q.question_type !== 'true_false');
+  const showTrueFalse = Boolean(q && q.question_type === 'true_false');
+  const showCodingBlocks = Boolean(q && q.question_type === 'coding_blocks');
+  const showWrittenAnswer = Boolean(q && !showMcq && !showTrueFalse && !showCodingBlocks);
   const currentEssayParsed = q ? parseEssayAnswer(answers[q.id]) : { text: '', attachments: [] };
   const isCurrentFlagged = Boolean(q && flaggedIds.has(q.id));
 
   return (
-    <div className="flex-1 min-h-0 h-full w-full bg-background text-foreground flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30 mobile-page-root">
+    <div className="cbt-protected-surface flex-1 min-h-0 h-full w-full bg-background text-foreground flex flex-col overflow-hidden font-sans selection:bg-emerald-500/30 mobile-page-root">
+      <ExamAntiScreenshotShield
+        active={!submitted && !loading && Boolean(exam)}
+        studentLabel={profile?.full_name || profile?.email || 'Student'}
+        examTitle={exam?.title}
+      />
       {/* Compact Pinned Exam Header */}
       <div className="shrink-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border">
         <div className="max-w-5xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-6">
@@ -847,6 +878,7 @@ export default function TakeExamPage() {
                   </p>
                 )}
               </div>
+              {q && <ExamIllustrationCard question={q} />}
             </div>
 
             <div className="grid grid-cols-1 gap-2.5 sm:gap-4">
@@ -899,7 +931,7 @@ export default function TakeExamPage() {
                 </div>
               )}
 
-              {(q?.question_type === 'fill_blank' || q?.question_type === 'essay') && (
+              {showWrittenAnswer && (
                 <div className="space-y-3">
                   <div className="relative group">
                     <div className="absolute inset-0 bg-emerald-500/5 blur-2xl rounded-[2rem] opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />

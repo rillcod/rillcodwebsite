@@ -13,6 +13,8 @@ import {
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { gradeCbtWithManualScores, isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
 import { parseEssayAnswer } from '@/lib/cbt/essay-attachments';
+import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import ExamIllustrationCard from '@/components/cbt/ExamIllustrationCard';
 
 export default function GradeSessionPage() {
     const params = useParams() as { id: string, sessionId: string };
@@ -219,11 +221,7 @@ export default function GradeSessionPage() {
         </div>
     );
 
-    const subjectiveQuestions = questions.filter(q => 
-        q.question_type === 'essay' || 
-        q.question_type === 'fill_blank' || 
-        q.question_type === 'coding_blocks'
-    );
+    const subjectiveQuestions = questions.filter(isManualCbtQuestion);
 
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
@@ -251,22 +249,22 @@ export default function GradeSessionPage() {
                         </div>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
                         <button
                             onClick={handleAiGrade}
                             disabled={aiGrading || saving}
-                            className="flex items-center justify-center gap-2 px-6 py-4 bg-primary/20 hover:bg-primary border border-primary/50 text-primary hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-xl transition-all disabled:opacity-50 group"
+                            className="flex items-center justify-center gap-2 px-5 py-3 bg-primary/12 hover:bg-primary hover:text-primary-foreground border border-primary/35 text-primary font-black uppercase text-xs tracking-wider rounded-xl transition-all disabled:opacity-50 group"
                         >
-                            {aiGrading ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
-                            {aiGrading ? 'Preparing draft...' : 'Generate AI draft'}
+                            {aiGrading ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
+                            {aiGrading ? 'Preparing draft…' : 'AI Grading Draft'}
                         </button>
                         <button
                             onClick={handleSaveGrade}
                             disabled={saving || aiGrading}
-                            className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-xl transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
+                            className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-900/25 group"
                         >
-                            {saving ? <div className="w-5 h-5 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}
-                            {saving ? 'Saving...' : 'Finalize Grade'}
+                            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />}
+                            {saving ? 'Saving…' : 'Finalize Grade'}
                         </button>
                     </div>
                 </div>
@@ -303,19 +301,21 @@ export default function GradeSessionPage() {
                        ? 'text-emerald-600 dark:text-emerald-400'
                        : 'text-rose-600 dark:text-rose-400';
                   return (
-                    <div className="rounded-2xl bg-white/[0.02] border border-white/10 p-6 flex flex-col sm:flex-row items-center gap-6">
-                      <ChartBarIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div className="rounded-2xl bg-card border border-border p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center gap-5">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/12 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                        <ChartBarIcon className="w-6 h-6 text-emerald-700 dark:text-emerald-400" />
+                      </div>
                       <div className="flex-1 w-full">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">Live Score Preview</p>
-                          <span className={`text-2xl font-black ${scoreTone}`}>{pct}%</span>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Live Score Preview</p>
+                          <span className={`text-2xl font-black tabular-nums ${scoreTone}`}>{pct}%</span>
                         </div>
-                        <div className="h-2 w-full bg-white/5 overflow-hidden">
-                          <div className={`h-full transition-all duration-500 ${!complete ? 'bg-amber-500' : passes ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pct,100)}%` }} />
+                        <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-500 ${!complete ? 'bg-amber-500' : passes ? 'bg-emerald-600' : 'bg-rose-600'}`} style={{ width: `${Math.min(pct,100)}%` }} />
                         </div>
-                        <div className="flex items-center justify-between mt-2 text-[9px] font-black uppercase tracking-widest">
+                        <div className="flex items-center justify-between mt-2 text-[10px] font-black uppercase tracking-wider">
                           <span className="text-muted-foreground">{total}/{totalP} pts · Pass: {exam?.passing_score ?? 70}%</span>
-                          <span className={scoreTone}>{!complete ? 'AWAITING MARKS' : passes ? 'WILL PASS' : 'WILL FAIL'}</span>
+                          <span className={scoreTone}>{!complete ? 'Awaiting Marks' : passes ? 'Will Pass' : 'Will Fail'}</span>
                         </div>
                       </div>
                     </div>
@@ -323,30 +323,33 @@ export default function GradeSessionPage() {
                 })()}
 
                 {/* Auto-graded questions summary */}
-                {questions.filter(q => q.question_type !== 'essay' && q.question_type !== 'fill_blank' && q.question_type !== 'coding_blocks').length > 0 && (
-                  <div className="bg-white/[0.02] border border-white/5 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
+                {questions.filter(q => !isManualCbtQuestion(q)).length > 0 && (
+                  <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-sm">
+                    <div className="px-5 py-3.5 border-b border-border bg-muted/25 flex items-center gap-2.5">
                       <AcademicCapIcon className="w-4 h-4 text-primary" />
-                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Auto-Graded Questions</p>
+                      <p className="text-[11px] font-black text-foreground uppercase tracking-widest">Auto-Graded Objective Questions</p>
                     </div>
-                    <div className="divide-y divide-white/5">
-                      {questions.filter(q => q.question_type !== 'essay' && q.question_type !== 'fill_blank' && q.question_type !== 'coding_blocks').map((q, i) => {
+                    <div className="divide-y divide-border">
+                      {questions.filter(q => !isManualCbtQuestion(q)).map((q) => {
                         const studentAns = (session.answers?.[q.id] ?? '').trim();
                         const correctAns = (q.correct_answer ?? '').trim();
                         const isRight = isCbtAnswerCorrect(q, session.answers?.[q.id]);
                         return (
-                          <div key={q.id} className="px-6 py-4 flex items-start gap-4">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isRight ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
-                              {isRight ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <XCircleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400" />}
+                          <div key={q.id} className="px-5 py-4 flex items-start gap-3.5">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isRight ? 'bg-emerald-500/15' : 'bg-rose-500/15'}`}>
+                              {isRight ? <CheckCircleIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" /> : <XCircleIcon className="w-4 h-4 text-rose-700 dark:text-rose-400" />}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-muted-foreground leading-snug">{q.question_text}</p>
-                              <div className="flex flex-wrap gap-4 mt-1.5 text-[10px] font-black uppercase tracking-widest">
-                                <span className="text-muted-foreground">Student: <span className={isRight ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{studentAns || '(no answer)'}</span></span>
-                                {!isRight && <span className="text-muted-foreground">Correct: <span className="text-emerald-600 dark:text-emerald-400">{correctAns}</span></span>}
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="text-sm font-semibold text-foreground leading-snug">
+                                <CbtMarkdown text={String(q.question_text ?? '')} className="text-foreground" />
+                              </div>
+                              <ExamIllustrationCard question={q} compact />
+                              <div className="flex flex-wrap gap-3 text-[11px] font-bold">
+                                <span className="text-muted-foreground">Student: <span className={isRight ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}>{studentAns || '(no answer)'}</span></span>
+                                {!isRight && <span className="text-muted-foreground">Correct: <span className="text-emerald-700 dark:text-emerald-400">{correctAns}</span></span>}
                               </div>
                             </div>
-                            <span className={`text-sm font-black shrink-0 ${isRight ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                            <span className={`text-sm font-black shrink-0 tabular-nums ${isRight ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                               {isRight ? `+${q.points}` : '0'}/{q.points}
                             </span>
                           </div>
@@ -356,82 +359,90 @@ export default function GradeSessionPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-10">
+                <div className="grid grid-cols-1 gap-6">
                     {subjectiveQuestions.map((q, i) => {
                         const scoreWeight = (manualScores[q.id] || 0) / (q.points || 1);
+                        const halfPts = Math.round((q.points || 1) / 2);
                         
                         return (
-                            <div key={q.id} className="relative group">
-                                {/* Decorative line */}
-                                <div className="absolute -left-4 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary to-primary/50 to-transparent group-hover:from-primary to-primary transition-all" />
-                                
-                                <div className="bg-white/[0.03] border border-border rounded-[2.5rem] overflow-hidden backdrop-blur-sm transition-all group-hover:bg-white/[0.05] group-hover:border-emerald-500/20">
-                                    <div className="p-8 border-b border-border bg-gradient-to-r from-primary to-primary/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                        <div className="flex items-start gap-6">
-                                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-600 dark:text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
-                                                {i + 1}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xl font-bold text-foreground mb-2 leading-tight">{q.question_text}</h3>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <span className="px-3 py-1 rounded-full bg-card shadow-sm border border-border text-[10px] uppercase font-black tracking-widest text-muted-foreground italic">
-                                                        {q.question_type.replace('_', ' ')}
-                                                    </span>
-                                                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] uppercase font-black tracking-widest text-emerald-600 dark:text-emerald-400 italic">
-                                                        {q.points} Max Points
-                                                    </span>
-                                                </div>
-                                            </div>
+                            <div key={q.id} className="rounded-2xl bg-card border border-border overflow-hidden shadow-sm hover:border-emerald-500/35 transition-all">
+                                <div className="p-5 sm:p-6 border-b border-border bg-muted/20 flex flex-col md:flex-row md:items-start justify-between gap-5">
+                                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                                        <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-base font-black text-emerald-800 dark:text-emerald-300 flex-shrink-0">
+                                            {i + 1}
                                         </div>
-                                        
-                                        <div className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-xl border border-border">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Awarded Points</label>
-                                            <div className="flex items-center gap-3">
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => setManualScores({ ...manualScores, [q.id]: Math.max(0, (manualScores[q.id] || 0) - 1) })}
-                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400"
-                                                >
-                                                    <XCircleIcon className="w-5 h-5" />
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max={q.points}
-                                                    value={manualScores[q.id] ?? ''}
-                                                    placeholder="—"
-                                                    onChange={(e) => {
-                                                        const val = Math.min(q.points, Math.max(0, Number(e.target.value)));
-                                                        setManualScores({ ...manualScores, [q.id]: val });
-                                                    }}
-                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl text-center text-2xl font-black text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
-                                                />
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => setManualScores({ ...manualScores, [q.id]: Math.min(q.points, (manualScores[q.id] || 0) + 1) })}
-                                                    className="w-10 h-10 rounded-xl bg-card shadow-sm border border-border flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
-                                                >
-                                                    <CheckCircleIcon className="w-5 h-5" />
-                                                </button>
+                                        <div className="min-w-0 flex-1 space-y-2">
+                                            <div className="text-base sm:text-lg font-bold text-foreground leading-snug">
+                                                <CbtMarkdown text={String(q.question_text ?? '')} className="text-foreground" />
                                             </div>
-                                            <div className="w-full bg-card shadow-sm h-1.5 rounded-full mt-1 overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-emerald-500 transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
-                                                    style={{ width: `${scoreWeight * 100}%` }} 
-                                                />
+                                            <ExamIllustrationCard question={q} compact />
+                                            <div className="flex flex-wrap gap-2">
+                                                <span className="px-2.5 py-0.5 rounded-full bg-card border border-border text-[10px] uppercase font-black tracking-wider text-muted-foreground">
+                                                    {q.question_type.replace('_', ' ')}
+                                                </span>
+                                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/12 border border-emerald-500/25 text-[10px] uppercase font-black tracking-wider text-emerald-800 dark:text-emerald-300">
+                                                    {q.points} Max Pts
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
+                                    
+                                    <div className="flex flex-col items-center gap-2.5 p-3.5 bg-background rounded-2xl border border-border shrink-0">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Awarded Marks</label>
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                type="button"
+                                                aria-label={`Decrease score for question ${i + 1}`}
+                                                onClick={() => setManualScores({ ...manualScores, [q.id]: Math.max(0, (manualScores[q.id] || 0) - 1) })}
+                                                className="w-9 h-9 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-rose-500/15 hover:border-rose-500/35 transition-all text-muted-foreground hover:text-rose-700 dark:hover:text-rose-400"
+                                            >
+                                                <XCircleIcon className="w-5 h-5" />
+                                            </button>
+                                            <input
+                                                type="number"
+                                                aria-label={`Awarded points for question ${i + 1}`}
+                                                min="0"
+                                                max={q.points}
+                                                value={manualScores[q.id] ?? ''}
+                                                placeholder="—"
+                                                onChange={(e) => {
+                                                    const val = Math.min(q.points, Math.max(0, Number(e.target.value)));
+                                                    setManualScores({ ...manualScores, [q.id]: val });
+                                                }}
+                                                className="w-20 px-3 py-2 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl text-center text-xl font-black text-emerald-800 dark:text-emerald-300 focus:outline-none focus:border-emerald-600 transition-all tabular-nums"
+                                            />
+                                            <button 
+                                                type="button"
+                                                aria-label={`Increase score for question ${i + 1}`}
+                                                onClick={() => setManualScores({ ...manualScores, [q.id]: Math.min(q.points, (manualScores[q.id] || 0) + 1) })}
+                                                className="w-9 h-9 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-emerald-500/15 hover:border-emerald-500/35 transition-all text-muted-foreground hover:text-emerald-700 dark:hover:text-emerald-400"
+                                            >
+                                                <CheckCircleIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-[10px]">
+                                            <button type="button" onClick={() => setManualScores({ ...manualScores, [q.id]: 0 })} className="px-2 py-0.5 rounded-md border border-border bg-card hover:bg-muted font-black text-muted-foreground hover:text-foreground">0</button>
+                                            <button type="button" onClick={() => setManualScores({ ...manualScores, [q.id]: halfPts })} className="px-2 py-0.5 rounded-md border border-border bg-card hover:bg-muted font-black text-muted-foreground hover:text-foreground">Half ({halfPts})</button>
+                                            <button type="button" onClick={() => setManualScores({ ...manualScores, [q.id]: q.points })} className="px-2 py-0.5 rounded-md border border-emerald-500/35 bg-emerald-500/12 hover:bg-emerald-500/20 font-black text-emerald-800 dark:text-emerald-300">Full ({q.points})</button>
+                                        </div>
+                                        <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-emerald-600 transition-all duration-300" 
+                                                style={{ width: `${Math.min(100, scoreWeight * 100)}%` }} 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
-                                    <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-                                                    <SparklesIcon className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                                                </div>
-                                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600/60 dark:text-cyan-400/60">Student's Response</p>
+                                <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center">
+                                                <SparklesIcon className="w-3.5 h-3.5 text-sky-700 dark:text-sky-400" />
                                             </div>
-                                            <div className="p-6 bg-white/[0.02] border border-border rounded-xl text-base leading-relaxed text-muted-foreground whitespace-pre-wrap font-medium shadow-inner italic">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-sky-800 dark:text-sky-300">Student&apos;s Response</p>
+                                        </div>
+                                        <div className="p-4 sm:p-5 bg-muted/25 border border-border rounded-xl text-sm sm:text-base leading-relaxed text-foreground whitespace-pre-wrap font-medium">
                                                 {q.question_type === 'coding_blocks' ? (
                                                     <div className="space-y-3">
                                                         <div className="flex flex-wrap items-center gap-2 leading-[2.5rem]">
@@ -520,11 +531,10 @@ export default function GradeSessionPage() {
                                         )}
                                     </div>
                                 </div>
-                            </div>
                         );
                     })}
 
-                    <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-border rounded-[2.5rem] p-8 space-y-6">
+                    <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
                                 <SparklesIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />

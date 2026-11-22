@@ -559,6 +559,22 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
         cognitive_level: cognitiveLevel,
         curriculum_tag: curriculumTag,
         ...(markingGuide ? { marking_guide: markingGuide } : {}),
+        ...(typeof (q.image_description ?? rawMeta.image_description) === "string" &&
+        String(q.image_description ?? rawMeta.image_description).trim()
+          ? { image_description: String(q.image_description ?? rawMeta.image_description).trim() }
+          : {}),
+        ...(typeof (q.figure_caption ?? rawMeta.figure_caption) === "string" &&
+        String(q.figure_caption ?? rawMeta.figure_caption).trim()
+          ? { figure_caption: String(q.figure_caption ?? rawMeta.figure_caption).trim() }
+          : {}),
+        ...(typeof (q.diagram_svg ?? rawMeta.diagram_svg) === "string" &&
+        String(q.diagram_svg ?? rawMeta.diagram_svg).trim()
+          ? { diagram_svg: String(q.diagram_svg ?? rawMeta.diagram_svg).trim() }
+          : {}),
+        ...(typeof (q.motion_cue ?? rawMeta.motion_cue) === "string" &&
+        String(q.motion_cue ?? rawMeta.motion_cue).trim()
+          ? { motion_cue: String(q.motion_cue ?? rawMeta.motion_cue).trim() }
+          : {}),
       },
     };
   });
@@ -696,6 +712,7 @@ export function buildPrompt(req: GenerateRequest): string {
 1. Carefully read and analyze EVERY slide, page, table, formula, and code example in the uploaded document(s) below from beginning to end (do NOT stop after the first few slides/pages).
 2. Generate EVERY question, option, correct answer, and point-by-point marking guide SOLELY from the provided document(s). Do NOT introduce outside concepts not covered in the document(s).
 3. Tag each question's metadata.curriculum_tag with the exact Slide/Page/Section heading it comes from.
+4. REAL-LIFE EXAM ILLUSTRATIONS: When a question tests a visual, spatial, flowchart, circuit, physics/motion, geometry, data chart, or hardware architecture concept, include metadata.figure_caption, metadata.image_description (clear accessible description of what the diagram shows), and an optional clean self-contained metadata.diagram_svg (<svg viewBox="0 0 400 200"> using currentColor/stroke accents and optional class="exam-pulse" on active motion/flow elements; NO scripts or external URLs).
 4. Aim for deep academic quality: mix conceptual understanding (35%), applied scenario / code tracing (40%), and analytical debugging / comparison / evaluation (25%).${
         isMultiFile
           ? `\n5. Multiple files (${req.sourceFileCount}) are combined below — distribute questions evenly across ALL uploaded files and synthesize related ideas across them.`
