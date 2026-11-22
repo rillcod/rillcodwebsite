@@ -343,7 +343,7 @@ Return ONLY the instruction text (2-4 clear sentences). Mention time allowed, ho
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-xs font-black uppercase tracking-widest text-foreground">
-                  2. Class, Course &amp; Title
+                  2. Where should this exam be used?
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Choose a class to auto-fill Programme, Course, and an official Exam Title.
@@ -359,7 +359,7 @@ Return ONLY the instruction text (2-4 clear sentences). Mention time allowed, ho
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  Official Result
+                  Class result
                 </button>
                 <button
                   type="button"
@@ -370,7 +370,7 @@ Return ONLY the instruction text (2-4 clear sentences). Mention time allowed, ho
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  Practice Only
+                  Practice only
                 </button>
               </div>
             </div>
