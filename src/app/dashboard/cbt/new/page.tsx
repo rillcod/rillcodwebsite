@@ -156,7 +156,8 @@ export default function NewExamPage() {
     id: string;
     title: string;
     session_number?: number | null;
-    lesson_materials?: Array<{ id: string; title: string; file_url: string }>;
+    content?: string | null;
+    lesson_materials?: Array<{ id: string; title: string; file_url: string; file_type?: string | null }>;
   }>>([]);
   const [referencedLessonIds, setReferencedLessonIds] = useState<Set<string>>(new Set());
   const [lockMaterialsDuringExam, setLockMaterialsDuringExam] = useState(true);
@@ -391,7 +392,7 @@ export default function NewExamPage() {
     const db = createClient();
     let cancelled = false;
     db.from('lessons')
-      .select('id, title, session_number, lesson_materials(id, title, file_url)')
+      .select('id, title, session_number, content, lesson_materials(id, title, file_url, file_type)')
       .eq('course_id', form.course_id)
       .order('session_number', { ascending: true })
       .limit(40)
@@ -401,7 +402,8 @@ export default function NewExamPage() {
           id: string;
           title: string;
           session_number?: number | null;
-          lesson_materials?: Array<{ id: string; title: string; file_url: string }>;
+          content?: string | null;
+          lesson_materials?: Array<{ id: string; title: string; file_url: string; file_type?: string | null }>;
         }>;
         setCourseLessons(list);
         if (preLessonId && list.some((l) => l.id === preLessonId)) {
@@ -1712,6 +1714,24 @@ export default function NewExamPage() {
             defaultMcqCount={parseInt(aiMcqCount, 10) || examSuggestion.mcqCount}
             defaultTheoryCount={parseInt(aiTheoryCount, 10) || examSuggestion.theoryCount}
             presetSyncVersion={presetSyncVersion}
+            courseLessons={courseLessons}
+            defaultTargetLessonId={preLessonId || courseLessons[0]?.id || null}
+            onReferenceLessonMaterial={(lessonId, newMaterial) => {
+              setReferencedLessonIds((prev) => {
+                const next = new Set(prev);
+                next.add(lessonId);
+                return next;
+              });
+              if (newMaterial) {
+                setCourseLessons((prev) =>
+                  prev.map((l) =>
+                    l.id === lessonId
+                      ? { ...l, lesson_materials: [newMaterial, ...(l.lesson_materials ?? [])] }
+                      : l,
+                  ),
+                );
+              }
+            }}
             minQuestions={examBoundary.min}
             maxQuestions={examBoundary.max}
           />

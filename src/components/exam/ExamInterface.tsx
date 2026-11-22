@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import ExamAntiScreenshotShield from '@/components/cbt/ExamAntiScreenshotShield';
 import {
   AlertTriangle,
   Bookmark,
@@ -17,6 +18,7 @@ import {
   ChevronRight,
   LayoutGrid,
   Save,
+  ShieldCheck,
   Timer,
   X,
 } from 'lucide-react';
@@ -240,6 +242,17 @@ export function ExamInterface({
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <span
+                className={`hidden sm:inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold ${
+                  tabSwitches > 0
+                    ? 'border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                }`}
+                title="Anti-screenshot & exam integrity shield active"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                {tabSwitches > 0 ? `Alerts: ${tabSwitches}` : 'Protected'}
+              </span>
               <div
                 className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 font-mono text-xs sm:text-sm font-black tabular-nums ${
                   timeLeft < 300
@@ -608,6 +621,19 @@ export function ExamInterface({
           </div>
         </div>
       )}
+      <ExamAntiScreenshotShield
+        active={!isSubmitting}
+        studentLabel={`Exam Attempt ${attemptId.slice(0, 8)}`}
+        examTitle={exam.title}
+        onViolation={(type) => {
+          setTabSwitches((count) => count + 1);
+          void fetch(`/api/exams/${exam.id}/track-cheat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attemptId, type }),
+          }).catch(() => undefined);
+        }}
+      />
     </div>
   );
 }

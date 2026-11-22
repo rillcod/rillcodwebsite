@@ -35,6 +35,21 @@ import {
   type PremadeQuestionItem,
 } from '@/lib/cbt/question-bank-catalog';
 import { enforceExactQuestionMix } from '@/lib/cbt/examiner-presets';
+import { createClient } from '@/lib/supabase/client';
+import { compressStudentImage } from '@/lib/files/compress-student-image';
+
+export interface StudioCourseLessonOption {
+  id: string;
+  title: string;
+  session_number?: number | null;
+  content?: string | null;
+  lesson_materials?: Array<{
+    id: string;
+    title: string;
+    file_url: string;
+    file_type?: string | null;
+  }>;
+}
 
 export interface StudioGeneratedQuestion {
   question_text: string;
@@ -86,6 +101,15 @@ interface QuestionAuthoringStudioProps {
   defaultTheoryCount?: number;
   /** Incrementing nonce from parent Examiner Blueprint presets to force-sync counts even after prior edits. */
   presetSyncVersion?: number;
+  /** Optional list of course lessons & their uploaded study materials for 1-click pull & publish. */
+  courseLessons?: StudioCourseLessonOption[];
+  /** Optional default lesson ID when publishing an uploaded file to student study materials. */
+  defaultTargetLessonId?: string | null;
+  /** Called when the teacher pulls or publishes a lesson material so the exam can auto-reference & lock it. */
+  onReferenceLessonMaterial?: (
+    lessonId: string,
+    newMaterial?: { id: string; title: string; file_url: string; file_type?: string | null },
+  ) => void;
   minQuestions?: number;
   maxQuestions?: number;
   disabled?: boolean;
@@ -110,6 +134,9 @@ export default function QuestionAuthoringStudio({
   defaultMcqCount = 10,
   defaultTheoryCount = 2,
   presetSyncVersion = 0,
+  courseLessons: propCourseLessons,
+  defaultTargetLessonId = null,
+  onReferenceLessonMaterial,
   minQuestions = 1,
   maxQuestions = 100,
   disabled = false,
@@ -141,12 +168,58 @@ export default function QuestionAuthoringStudio({
   const [extractMsg, setExtractMsg] = useState('');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [showDocPreview, setShowDocPreview] = useState(false);
+  const [showAiAnalysisDetails, setShowAiAnalysisDetails] = useState(false);
   const [aiDocAnalysis, setAiDocAnalysis] = useState<AiDocumentAnalysis | null>(null);
   const [analyzingDocs, setAnalyzingDocs] = useState(false);
   const [selectedFocusConcepts, setSelectedFocusConcepts] = useState<Set<string>>(new Set());
   const [articleUrl, setArticleUrl] = useState('');
   const [fetchingArticle, setFetchingArticle] = useState(false);
   const [lastAiBlueprint, setLastAiBlueprint] = useState<AssessmentBlueprint | null>(null);
+
+  // Study Materials Library (Pull existing lesson materials + 1-click publish uploaded files to students)
+  const [loadedCourseLessons, setLoadedCourseLessons] = useState<StudioCourseLessonOption[]>([]);
+  const [showMaterialsLibrary, setShowMaterialsLibrary] = useState(false);
+  const [materialsSearch, setMaterialsSearch] = useState('');
+  const [pullingMaterialId, setPullingMaterialId] = useState<string | null>(null);
+  const [publishingDocId, setPublishingDocId] = useState<string | null>(null);
+  const [publishedDocIds, setPublishedDocIds] = useState<Set<string>>(new Set());
+  const [publishLessonId, setPublishLessonId] = useState<string>(defaultTargetLessonId || '');
+  const rawFilesRef = useRef<Map<string, File>>(new Map());
+
+  const availableLessons = useMemo(
+    () => (propCourseLessons && propCourseLessons.length > 0 ? propCourseLessons : loadedCourseLessons),
+    [propCourseLessons, loadedCourseLessons],
+  );
+
+  // Keep default target lesson synced for 1-click "Share to Students"
+  useEffect(() => {
+    if (defaultTargetLessonId) {
+      setPublishLessonId(defaultTargetLessonId);
+    } else if (!publishLessonId && availableLessons.length > 0) {
+      setPublishLessonId(availableLessons[0].id);
+    }
+  }, [defaultTargetLessonId, availableLessons, publishLessonId]);
+
+  // Self-load course lessons & study materials when parent didn't pass them (e.g., CBT edit / Written exams)
+  useEffect(() => {
+    if (propCourseLessons && propCourseLessons.length > 0) return;
+    if (!courseId) {
+      setLoadedCourseLessons([]);
+      return;
+    }
+    let cancelled = false;
+    const db = createClient();
+    db.from('lessons')
+      .select('id, title, session_number, content, lesson_materials(id, title, file_url, file_type)')
+      .eq('course_id', courseId)
+      .order('session_number', { ascending: true })
+      .limit(40)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setLoadedCourseLessons((data ?? []) as StudioCourseLessonOption[]);
+      });
+    return () => { cancelled = true; };
+  }, [courseId, propCourseLessons]);
 
   // Track manual edits to prevent stale bleed while still updating dynamically on context switches
   const userEditedTopicRef = useRef(false);
@@ -440,15 +513,8 @@ export default function QuestionAuthoringStudio({
         if (!userEditedTopicRef.current && analysis.subject && analysis.subject !== 'General Studies') {
           setAiTopic(analysis.subject);
         }
-        if (!userEditedCountsRef.current && analysis.recommendedMix) {
-          const recMcq = Math.min(maxQuestions, Math.max(0, analysis.recommendedMix.mcq));
-          const recTheory = Math.min(maxQuestions, Math.max(0, analysis.recommendedMix.theory));
-          if (recMcq + recTheory > 0) {
-            setMcqCount(String(recMcq));
-            setTheoryCount(String(recTheory));
-            onQuestionMixChange?.(recMcq, recTheory);
-          }
-        }
+        // Never silently overwrite the teacher's selected Objective/Theory counts;
+        // surface analysis.recommendedMix as an explicit 1-click "Apply Mix" pill instead.
       }
     } catch {
       // Non-blocking: local extraction & analysis still works seamlessly
@@ -481,8 +547,10 @@ export default function QuestionAuthoringStudio({
             const words = clean.split(/\s+/).filter(Boolean).length;
             const role = classifyDocumentRole(file.name, clean);
             const analysis = analyzeExtractedDocument(clean);
+            const docId = `${Date.now()}-${idx}-${file.name}`;
+            rawFilesRef.current.set(docId, file);
             const docItem: ExtractedSourceDocument = {
-              id: `${Date.now()}-${idx}-${file.name}`,
+              id: docId,
               name: file.name,
               kind,
               role,
@@ -544,6 +612,163 @@ export default function QuestionAuthoringStudio({
     } finally {
       setExtractingFile(false);
       setExtractMsg('');
+    }
+  };
+
+  const handlePullStudyMaterial = async (
+    lesson: StudioCourseLessonOption,
+    material?: { id: string; title: string; file_url: string; file_type?: string | null },
+  ) => {
+    const busyKey = material ? `mat:${material.id}` : `lesson:${lesson.id}`;
+    setPullingMaterialId(busyKey);
+    setAiError(null);
+    setAiSuccessMsg(null);
+    try {
+      let docItem: ExtractedSourceDocument;
+      if (material) {
+        const cleanTitle = material.title.replace(/^\[PRIORITY\]\s*/i, '').trim() || 'Study Material';
+        const res = await fetch(material.file_url);
+        if (!res.ok) throw new Error(`Could not load "${cleanTitle}" (${res.status}).`);
+        const blob = await res.blob();
+        const ext = (material.file_type || material.file_url.split('.').pop()?.split('?')[0] || 'pdf').toLowerCase();
+        const fileName = cleanTitle.toLowerCase().endsWith(`.${ext}`) ? cleanTitle : `${cleanTitle}.${ext}`;
+        const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+        const { kind, text } = await extractDocumentText(file, 28_000);
+        if (!text || text.trim().length < 15) {
+          throw new Error(`No readable text could be extracted from "${cleanTitle}".`);
+        }
+        const clean = text.trim();
+        const words = clean.split(/\s+/).filter(Boolean).length;
+        const analysis = analyzeExtractedDocument(clean);
+        docItem = {
+          id: `study-${material.id}`,
+          name: cleanTitle,
+          kind,
+          role: classifyDocumentRole(cleanTitle, clean),
+          text: clean,
+          charCount: clean.length,
+          wordCount: words,
+          sectionCount: analysis.sectionCount,
+          detectedTopics: analysis.detectedTopics,
+          hasCode: analysis.hasCode,
+          detectedQuestionCount: analysis.detectedQuestionCount,
+          qualityLevel: analysis.qualityLevel,
+          selected: true,
+        };
+      } else {
+        const rawNotes = String(lesson.content || '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (rawNotes.length < 20) {
+          throw new Error(`Lesson "${lesson.title}" has no written notes yet.`);
+        }
+        const words = rawNotes.split(/\s+/).filter(Boolean).length;
+        const analysis = analyzeExtractedDocument(rawNotes);
+        docItem = {
+          id: `lesson-note-${lesson.id}`,
+          name: `Lesson: ${lesson.title}`,
+          kind: 'txt',
+          role: classifyDocumentRole(lesson.title, rawNotes),
+          text: rawNotes.slice(0, 28_000),
+          charCount: Math.min(rawNotes.length, 28_000),
+          wordCount: words,
+          sectionCount: analysis.sectionCount,
+          detectedTopics: analysis.detectedTopics,
+          hasCode: analysis.hasCode,
+          detectedQuestionCount: analysis.detectedQuestionCount,
+          qualityLevel: analysis.qualityLevel,
+          selected: true,
+        };
+      }
+
+      const byName = new Map(uploadedDocs.map((d) => [d.name.toLowerCase(), d]));
+      byName.set(docItem.name.toLowerCase(), docItem);
+      const mergedDocs = Array.from(byName.values());
+      const { summaryLabel } = buildCombinedSourceMaterial(mergedDocs);
+      setUploadedDocs(mergedDocs);
+      setSourceName(summaryLabel);
+      setIsWeekDerivedSource(false);
+      setPublishedDocIds((prev) => new Set(prev).add(docItem.id));
+      onReferenceLessonMaterial?.(lesson.id);
+      if (!userEditedTopicRef.current && !aiTopic.trim()) {
+        setAiTopic(lesson.title);
+      }
+      setAiSuccessMsg(`Pulled "${docItem.name}" (${docItem.wordCount.toLocaleString()} words) & auto-linked for exam lockdown.`);
+      void runAiDocumentAnalysis(mergedDocs);
+    } catch (err: any) {
+      setAiError(err?.message || 'Could not pull that study material.');
+    } finally {
+      setPullingMaterialId(null);
+    }
+  };
+
+  const handlePublishDocToStudents = async (doc: ExtractedSourceDocument) => {
+    const rawFile = rawFilesRef.current.get(doc.id);
+    const targetLessonId = publishLessonId || availableLessons[0]?.id;
+    if (!rawFile) {
+      setAiError('This item is already text-only or already stored in Study Materials.');
+      return;
+    }
+    if (!targetLessonId) {
+      setAiError('Select a course with at least one lesson first so students know where to read this material.');
+      return;
+    }
+    setPublishingDocId(doc.id);
+    setAiError(null);
+    setAiSuccessMsg(null);
+    try {
+      const uploadable = await compressStudentImage(rawFile, {
+        maxDimension: 1440,
+        targetBytes: 240 * 1024,
+      });
+      const fd = new FormData();
+      fd.append('file', uploadable);
+      const upRes = await fetch('/api/files/upload', { method: 'POST', body: fd });
+      const upJson = await upRes.json().catch(() => ({}));
+      if (!upRes.ok) throw new Error(upJson?.error || `Upload failed for "${doc.name}"`);
+      const fileUrl = upJson?.data?.public_url || upJson?.data?.url || upJson?.data?.receipt?.url;
+      if (!fileUrl) throw new Error('No file URL returned from storage.');
+
+      const cleanTitle = doc.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || doc.name;
+      const ext = (doc.name.split('.').pop() || 'file').toLowerCase();
+      const matRes = await fetch(`/api/lessons/${targetLessonId}/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `[PRIORITY] ${cleanTitle}`,
+          file_url: fileUrl,
+          file_type: ext,
+        }),
+      });
+      const matJson = await matRes.json().catch(() => ({}));
+      if (!matRes.ok || !matJson?.data) {
+        throw new Error(matJson?.error || 'Could not publish material to lesson.');
+      }
+      setPublishedDocIds((prev) => new Set(prev).add(doc.id));
+      const createdMaterial = {
+        id: matJson.data.id,
+        title: matJson.data.title,
+        file_url: matJson.data.file_url,
+        file_type: matJson.data.file_type ?? ext,
+      };
+      // Update local self-loaded lessons if used
+      setLoadedCourseLessons((prev) =>
+        prev.map((l) =>
+          l.id === targetLessonId
+            ? { ...l, lesson_materials: [createdMaterial, ...(l.lesson_materials ?? [])] }
+            : l,
+        ),
+      );
+      onReferenceLessonMaterial?.(targetLessonId, createdMaterial);
+      const lessonTitle = availableLessons.find((l) => l.id === targetLessonId)?.title || 'the lesson';
+      setAiSuccessMsg(
+        `Shared "${cleanTitle}" to students as a Priority Material in "${lessonTitle}" — readable before the exam and automatically locked during the exam.`,
+      );
+    } catch (err: any) {
+      setAiError(err?.message || 'Could not publish to Student Study Materials.');
+    } finally {
+      setPublishingDocId(null);
     }
   };
 
@@ -1411,7 +1636,27 @@ export default function QuestionAuthoringStudio({
                   Upload PDF, PPTX, DOCX, TXT, or photos/screenshots — or paste any web article URL below.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {availableLessons.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMaterialsLibrary((v) => !v)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black transition-colors ${
+                      showMaterialsLibrary
+                        ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                        : 'border-border bg-card hover:bg-muted text-foreground'
+                    }`}
+                  >
+                    <AcademicCapIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>From Study Materials</span>
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-black text-muted-foreground">
+                      {availableLessons.reduce(
+                        (sum, l) => sum + ((l.lesson_materials ?? []).filter((m) => m.file_type !== 'slide-deck').length || 0) + (l.content && l.content.trim().length >= 20 ? 1 : 0),
+                        0,
+                      ) || availableLessons.length}
+                    </span>
+                  </button>
+                )}
                 {uploadedDocs.length > 1 && selectedUploadedDocs.length < uploadedDocs.length && (
                   <button
                     type="button"
@@ -1424,7 +1669,14 @@ export default function QuestionAuthoringStudio({
                 {uploadedDocs.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => { setUploadedDocs([]); setSourceName(''); setAiDocAnalysis(null); setSelectedFocusConcepts(new Set()); }}
+                    onClick={() => {
+                      setUploadedDocs([]);
+                      setSourceName('');
+                      setAiDocAnalysis(null);
+                      setSelectedFocusConcepts(new Set());
+                      setShowAiAnalysisDetails(false);
+                      rawFilesRef.current.clear();
+                    }}
                     className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
                   >
                     Clear All
@@ -1450,6 +1702,81 @@ export default function QuestionAuthoringStudio({
                 </label>
               </div>
             </div>
+
+            {/* Inline Pull from Course Study Materials Drawer (Zero Endless Navigation) */}
+            {showMaterialsLibrary && availableLessons.length > 0 && (
+              <div className="rounded-xl border border-emerald-500/30 bg-card p-3 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] font-black text-foreground">
+                    Pull directly from existing Study Materials &amp; Lesson Notes (auto-locked during exam)
+                  </p>
+                  <input
+                    type="search"
+                    value={materialsSearch}
+                    onChange={(e) => setMaterialsSearch(e.target.value)}
+                    placeholder="Filter lessons or files…"
+                    className="h-8 w-full sm:w-52 rounded-lg border border-border bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+                  {availableLessons
+                    .filter((l) => {
+                      const q = materialsSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      if (l.title.toLowerCase().includes(q)) return true;
+                      return (l.lesson_materials ?? []).some((m) => m.title.toLowerCase().includes(q));
+                    })
+                    .map((lesson) => {
+                      const mats = (lesson.lesson_materials ?? []).filter((m) => m.file_type !== 'slide-deck');
+                      const hasNotes = Boolean(lesson.content && lesson.content.replace(/<[^>]+>/g, '').trim().length >= 20);
+                      return (
+                        <div key={lesson.id} className="rounded-lg border border-border/80 bg-muted/20 px-2.5 py-2 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-foreground truncate">
+                              {lesson.session_number ? `L${lesson.session_number}: ` : ''}{lesson.title}
+                            </span>
+                            {hasNotes && (
+                              <button
+                                type="button"
+                                disabled={pullingMaterialId === `lesson:${lesson.id}`}
+                                onClick={() => void handlePullStudyMaterial(lesson)}
+                                className="shrink-0 rounded-lg border border-primary/35 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 text-[10px] font-black text-primary transition-colors disabled:opacity-50"
+                              >
+                                {pullingMaterialId === `lesson:${lesson.id}` ? 'Pulling…' : '+ Pull Notes'}
+                              </button>
+                            )}
+                          </div>
+                          {mats.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {mats.map((m) => {
+                                const cleanTitle = m.title.replace(/^\[PRIORITY\]\s*/i, '').trim() || 'Material';
+                                const isPriority = m.title.trim().startsWith('[PRIORITY]');
+                                const busy = pullingMaterialId === `mat:${m.id}`;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void handlePullStudyMaterial(lesson, m)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-200 transition-colors disabled:opacity-50"
+                                  >
+                                    {isPriority && <span className="text-[9px] font-black uppercase">★</span>}
+                                    <span className="truncate max-w-[160px]">{cleanTitle}</span>
+                                    <span className="font-black text-emerald-700 dark:text-emerald-300">{busy ? '…' : '+ Pull'}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {!hasNotes && mats.length === 0 && (
+                            <p className="text-[10px] text-muted-foreground">No attached files yet — upload a file above and click “Share to Students”.</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* Paste Article URL Importer */}
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
@@ -1479,98 +1806,131 @@ export default function QuestionAuthoringStudio({
 
             {uploadedDocs.length > 0 && (
               <div className="space-y-2 pt-1">
-                <div className="flex flex-wrap gap-2">
-                  {uploadedDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs transition-all ${
-                        doc.selected
-                          ? 'border-emerald-500/40 bg-emerald-500/10 text-foreground'
-                          : 'border-border bg-card text-muted-foreground opacity-70'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={doc.selected}
-                        onChange={() => toggleUploadedDoc(doc.id)}
-                        aria-label={`Include ${doc.name}`}
-                        className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer"
-                      />
-                      <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-primary">
-                        {doc.kind}
-                      </span>
-                      <span className={`rounded px-1.5 py-0.5 text-[9px] font-black uppercase ${
-                        doc.role === 'answer_key'
-                          ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200'
-                          : doc.role === 'question_paper'
-                            ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200'
-                            : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {doc.role === 'answer_key' ? 'Answer Key' : doc.role === 'question_paper' ? 'Questions' : 'Notes'}
-                      </span>
-                      <span className="font-bold truncate max-w-[150px]" title={doc.name}>
-                        {doc.name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        ({doc.wordCount.toLocaleString()}w)
-                      </span>
-                      {uploadedDocs.length > 1 && (
+                {/* Compact scrollable file chips so multiple attachments never stretch or break the layout */}
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                  {uploadedDocs.map((doc) => {
+                    const hasRawFile = rawFilesRef.current.has(doc.id);
+                    const isPublished = publishedDocIds.has(doc.id);
+                    const isPublishing = publishingDocId === doc.id;
+                    return (
+                      <div
+                        key={doc.id}
+                        className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-all ${
+                          doc.selected
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-foreground'
+                            : 'border-border bg-card text-muted-foreground opacity-70'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={doc.selected}
+                          onChange={() => toggleUploadedDoc(doc.id)}
+                          aria-label={`Include ${doc.name}`}
+                          className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer shrink-0"
+                        />
+                        <span className="rounded bg-primary/15 px-1 py-0.5 text-[9px] font-black uppercase text-primary shrink-0">
+                          {doc.kind}
+                        </span>
+                        <span className="font-bold truncate max-w-[140px] sm:max-w-[190px]" title={doc.name}>
+                          {doc.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {doc.wordCount.toLocaleString()}w
+                        </span>
+                        {hasRawFile && availableLessons.length > 0 && (
+                          <button
+                            type="button"
+                            disabled={isPublishing || isPublished}
+                            onClick={() => void handlePublishDocToStudents(doc)}
+                            title="Publish to Students as a pinned Priority Study Material (view-only & auto-locked during exam)"
+                            className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-black transition-colors ${
+                              isPublished
+                                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            }`}
+                          >
+                            {isPublishing ? 'Sharing…' : isPublished ? '✓ Shared' : 'Share to Students'}
+                          </button>
+                        )}
+                        {uploadedDocs.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => selectOnlyUploadedDoc(doc.id)}
+                            title="Use only this file"
+                            className="shrink-0 rounded px-1 py-0.5 text-[9px] font-black uppercase bg-background border border-border hover:border-primary/50 text-foreground"
+                          >
+                            Only
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => selectOnlyUploadedDoc(doc.id)}
-                          title="Use only this file"
-                          className="rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-background border border-border hover:border-primary/50 text-foreground"
+                          onClick={() => {
+                            rawFilesRef.current.delete(doc.id);
+                            removeUploadedDoc(doc.id);
+                          }}
+                          aria-label={`Remove ${doc.name}`}
+                          className="shrink-0 text-rose-600 dark:text-rose-400 hover:opacity-80"
                         >
-                          Only
+                          <XMarkIcon className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeUploadedDoc(doc.id)}
-                        aria-label={`Remove ${doc.name}`}
-                        className="text-rose-600 dark:text-rose-400 hover:opacity-80"
-                      >
-                        <XMarkIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-border/60 text-xs">
-                  <div className="flex flex-wrap items-center gap-2">
+                {/* Compact Target Lesson selector when local files can be shared to students */}
+                {availableLessons.length > 1 && uploadedDocs.some((d) => rawFilesRef.current.has(d.id) && !publishedDocIds.has(d.id)) && (
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-bold">Share target lesson:</span>
+                    <select
+                      aria-label="Lesson to share uploaded files to"
+                      value={publishLessonId}
+                      onChange={(e) => setPublishLessonId(e.target.value)}
+                      className="h-7 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+                    >
+                      {availableLessons.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.session_number ? `L${l.session_number}: ` : ''}{l.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Compact single toolbar row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border/60 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-bold text-emerald-700 dark:text-emerald-300">
                       {selectedUploadedDocs.length === 0
-                        ? 'No files checked — check at least one file above'
-                        : selectedUploadedDocs.length === 1
-                          ? `1 file · ${selectedUploadedDocs[0].sectionCount} section${selectedUploadedDocs[0].sectionCount === 1 ? '' : 's'} · ${selectedUploadedDocs[0].wordCount.toLocaleString()} words`
-                          : `${selectedUploadedDocs.length} combined files · ${selectedUploadedDocs.reduce((s, d) => s + d.sectionCount, 0)} sections · ${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words`}
+                        ? 'Check at least one file'
+                        : `${selectedUploadedDocs.length} file${selectedUploadedDocs.length === 1 ? '' : 's'} · ${selectedUploadedDocs.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words`}
                     </span>
                     {selectedUploadedDocs.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowDocPreview((v) => !v)}
+                          className="rounded-lg border border-border bg-card hover:bg-muted px-2 py-0.5 text-[10px] font-bold text-foreground transition-colors"
+                        >
+                          {showDocPreview ? 'Hide Text' : 'Inspect Text'}
+                        </button>
                         <button
                           type="button"
                           disabled={analyzingDocs}
                           onClick={() => void runAiDocumentAnalysis(selectedUploadedDocs)}
-                          className="min-h-9 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 px-3 text-xs font-black text-primary transition-colors disabled:opacity-50"
+                          className="rounded-lg border border-primary/30 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 text-[10px] font-black text-primary transition-colors disabled:opacity-50"
                         >
-                          {analyzingDocs ? '✨ AI Analyzing…' : aiDocAnalysis ? '✨ Re-Analyze' : '✨ Deep AI Analysis'}
+                          {analyzingDocs ? 'Analyzing…' : '✨ Re-Analyze'}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowDocPreview((v) => !v)}
-                          className="min-h-9 rounded-xl border border-border bg-card hover:bg-muted px-3 text-xs font-bold text-foreground transition-colors"
-                        >
-                          {showDocPreview ? 'Hide Text' : 'Inspect Text'}
-                        </button>
-                      </div>
+                      </>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 sm:inline-flex items-center rounded-xl border border-border bg-card p-1">
+                  <div className="inline-flex items-center rounded-lg border border-border bg-card p-0.5">
                     <button
                       type="button"
                       onClick={() => setStrictFileOnly(true)}
-                      className={`min-h-8 px-3 py-1 rounded-lg text-[11px] font-black transition-colors ${
-                        strictFileOnly ? 'bg-emerald-700 text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-colors ${
+                        strictFileOnly ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       Solely from file(s)
@@ -1578,8 +1938,8 @@ export default function QuestionAuthoringStudio({
                     <button
                       type="button"
                       onClick={() => setStrictFileOnly(false)}
-                      className={`min-h-8 px-3 py-1 rounded-lg text-[11px] font-black transition-colors ${
-                        !strictFileOnly ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-colors ${
+                        !strictFileOnly ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       Blend with topic
@@ -1587,97 +1947,108 @@ export default function QuestionAuthoringStudio({
                   </div>
                 </div>
 
-                {/* ✨ AI Attachment Intelligence Card (Summary, Quality, Clickable Focus Concepts, Recommended Mix) */}
+                {/* ✨ Compact Collapsible AI Attachment Intelligence Strip (never bloats layout!) */}
                 {selectedUploadedDocs.length > 0 && (analyzingDocs || aiDocAnalysis) && (
-                  <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 space-y-2.5 text-[11px]">
+                  <div className="rounded-xl border border-primary/25 bg-primary/[0.04] px-3 py-2 space-y-2 text-[11px]">
                     {analyzingDocs ? (
                       <div className="flex items-center gap-2 text-primary font-bold">
                         <ArrowPathIcon className="h-3.5 w-3.5 animate-spin shrink-0" />
-                        <span>AI is deeply analyzing your attachment(s) — extracting summary, concepts, objectives &amp; best question mix…</span>
+                        <span>Analyzing attachment(s)…</span>
                       </div>
                     ) : aiDocAnalysis ? (
                       <>
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                              <SparklesIcon className="h-3 w-3" /> AI Attachment Analysis
+                          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            <span className="inline-flex items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-primary shrink-0">
+                              <SparklesIcon className="h-3 w-3" /> AI Ready
                             </span>
-                            <span className="font-black text-foreground">{aiDocAnalysis.subject}</span>
-                            {aiDocAnalysis.gradeLevel && (
-                              <span className="rounded-md border border-border bg-card px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                                {aiDocAnalysis.gradeLevel}
-                              </span>
-                            )}
-                            <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-black ${
+                            <span className="font-black text-foreground truncate max-w-[180px]">{aiDocAnalysis.subject}</span>
+                            <span className={`rounded border px-1.5 py-0.5 text-[9px] font-black shrink-0 ${
                               aiDocAnalysis.qualityLevel === 'high'
                                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                                 : aiDocAnalysis.qualityLevel === 'medium'
                                   ? 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
                                   : 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
                             }`}>
-                              {aiDocAnalysis.qualityLevel === 'high' ? '✓ Crisp Extraction' : aiDocAnalysis.qualityLevel === 'medium' ? '⚠ Fair Extraction' : '⚠ Low Text / Scan'}
+                              {aiDocAnalysis.qualityLevel === 'high' ? '✓ Crisp' : aiDocAnalysis.qualityLevel === 'medium' ? '⚠ Fair' : '⚠ Low Text'}
                             </span>
+                            {aiDocAnalysis.keyConcepts.length > 0 && (
+                              <span className="text-[10px] text-muted-foreground">
+                                · {selectedFocusConcepts.size}/{aiDocAnalysis.keyConcepts.length} concepts
+                              </span>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              userEditedCountsRef.current = true;
-                              setMcqCount(String(aiDocAnalysis.recommendedMix.mcq));
-                              setTheoryCount(String(aiDocAnalysis.recommendedMix.theory));
-                              setAiSuccessMsg(`Applied AI recommended mix: ${aiDocAnalysis.recommendedMix.mcq} MCQ + ${aiDocAnalysis.recommendedMix.theory} Theory (${aiDocAnalysis.recommendedMix.difficulty}).`);
-                            }}
-                            className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1 text-[10px] font-black text-white transition-colors"
-                          >
-                            Apply Mix ({aiDocAnalysis.recommendedMix.mcq} MCQ + {aiDocAnalysis.recommendedMix.theory} Theory)
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setShowAiAnalysisDetails((v) => !v)}
+                              className="rounded-lg border border-border bg-card hover:bg-muted px-2 py-0.5 text-[10px] font-bold text-foreground transition-colors"
+                            >
+                              {showAiAnalysisDetails ? 'Hide Details' : 'Details'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                userEditedCountsRef.current = true;
+                                setMcqCount(String(aiDocAnalysis.recommendedMix.mcq));
+                                setTheoryCount(String(aiDocAnalysis.recommendedMix.theory));
+                                onQuestionMixChange?.(aiDocAnalysis.recommendedMix.mcq, aiDocAnalysis.recommendedMix.theory);
+                                setAiSuccessMsg(`Applied AI recommended mix: ${aiDocAnalysis.recommendedMix.mcq} MCQ + ${aiDocAnalysis.recommendedMix.theory} Theory (${aiDocAnalysis.recommendedMix.difficulty}).`);
+                              }}
+                              className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-2 py-0.5 text-[10px] font-black text-white transition-colors"
+                            >
+                              Apply AI Mix ({aiDocAnalysis.recommendedMix.mcq}+{aiDocAnalysis.recommendedMix.theory})
+                            </button>
+                          </div>
                         </div>
 
-                        <p className="text-xs leading-relaxed text-foreground/90">{aiDocAnalysis.summary}</p>
-
-                        {aiDocAnalysis.qualityNote && (
-                          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium text-amber-900 dark:text-amber-200">
-                            ⚠ {aiDocAnalysis.qualityNote}
-                          </p>
-                        )}
-
-                        {aiDocAnalysis.keyConcepts.length > 0 && (
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                              Focus Concepts (click to include/exclude in questions):
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {aiDocAnalysis.keyConcepts.map((concept) => {
-                                const active = selectedFocusConcepts.has(concept);
-                                return (
-                                  <button
-                                    key={concept}
-                                    type="button"
-                                    onClick={() =>
-                                      setSelectedFocusConcepts((prev) => {
-                                        const next = new Set(prev);
-                                        if (next.has(concept)) next.delete(concept);
-                                        else next.add(concept);
-                                        return next;
-                                      })
-                                    }
-                                    className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold transition-colors ${
-                                      active
-                                        ? 'border-primary bg-primary/15 text-primary'
-                                        : 'border-border bg-card text-muted-foreground line-through opacity-60 hover:opacity-100'
-                                    }`}
-                                  >
-                                    {active ? '✓ ' : ''}{concept}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {aiDocAnalysis.learningObjectives.length > 0 && (
-                          <div className="pt-1 border-t border-border/50 text-[11px] text-muted-foreground">
-                            <span className="font-black text-foreground">Objectives: </span>
-                            {aiDocAnalysis.learningObjectives.join(' · ')}
+                        {showAiAnalysisDetails && (
+                          <div className="space-y-2 pt-1.5 border-t border-border/50">
+                            <p className="text-xs leading-relaxed text-foreground/90">{aiDocAnalysis.summary}</p>
+                            {aiDocAnalysis.qualityNote && (
+                              <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-900 dark:text-amber-200">
+                                ⚠ {aiDocAnalysis.qualityNote}
+                              </p>
+                            )}
+                            {aiDocAnalysis.keyConcepts.length > 0 && (
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                                  Focus Concepts (click to include/exclude):
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {aiDocAnalysis.keyConcepts.map((concept) => {
+                                    const active = selectedFocusConcepts.has(concept);
+                                    return (
+                                      <button
+                                        key={concept}
+                                        type="button"
+                                        onClick={() =>
+                                          setSelectedFocusConcepts((prev) => {
+                                            const next = new Set(prev);
+                                            if (next.has(concept)) next.delete(concept);
+                                            else next.add(concept);
+                                            return next;
+                                          })
+                                        }
+                                        className={`rounded-md border px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                                          active
+                                            ? 'border-primary bg-primary/15 text-primary'
+                                            : 'border-border bg-card text-muted-foreground line-through opacity-60 hover:opacity-100'
+                                        }`}
+                                      >
+                                        {active ? '✓ ' : ''}{concept}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {aiDocAnalysis.learningObjectives.length > 0 && (
+                              <div className="pt-1 border-t border-border/50 text-[11px] text-muted-foreground">
+                                <span className="font-black text-foreground">Objectives: </span>
+                                {aiDocAnalysis.learningObjectives.join(' · ')}
+                              </div>
+                            )}
                           </div>
                         )}
                       </>
@@ -1795,47 +2166,76 @@ export default function QuestionAuthoringStudio({
               </div>
             </div>
 
-            <div className="sm:col-span-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleAiGenerate}
-                disabled={aiGenerating || aiSolvingPremade}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all disabled:opacity-50"
+            <div className="sm:col-span-4 space-y-1.5">
+              {/* Prominent, always-visible Replace Entire Paper vs Add to Paper selector */}
+              <div
+                role="group"
+                aria-label="Paper update mode"
+                className="grid grid-cols-2 rounded-xl border border-border bg-muted/40 p-0.5 text-[11px] font-black"
               >
-                {aiGenerating || aiSolvingPremade ? (
-                  <>
-                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    {detectedPremadeFromSource.length > 0 ? 'Solving Answers & Guide…' : 'Generating…'}
-                  </>
-                ) : detectedPremadeFromSource.length > 0 ? (
-                  <>
-                    <SparklesIcon className="w-4 h-4" />
-                    Solve &amp; Import {detectedPremadeFromSource.length} Qs
-                  </>
-                ) : (
-                  <>
-                    <SparklesIcon className="w-4 h-4" />
-                    {hasPaperQuestions && importBehavior === 'replace'
-                      ? `Regenerate & Refine (${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory)`
-                      : hasPaperQuestions && importBehavior === 'append'
-                        ? `Add +${Math.max(minQuestions, targetTotal)} Qs`
-                        : selectedUploadedDocs.length === 1
-                          ? `Generate ${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory`
-                          : selectedUploadedDocs.length > 1
-                            ? `Generate ${Math.max(minQuestions, targetTotal)} Qs (${selectedUploadedDocs.length} Files)`
-                            : `Generate ${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory`}
-                  </>
-                )}
-              </button>
-              {(aiGenerating || aiSolvingPremade) && (
                 <button
                   type="button"
-                  onClick={cancelAiGeneration}
-                  className="shrink-0 px-3 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs font-black hover:bg-rose-500/20 transition-colors"
+                  aria-pressed={importBehavior === 'replace'}
+                  onClick={() => setImportBehavior('replace')}
+                  className={`py-1 px-2 rounded-lg transition-colors ${
+                    importBehavior === 'replace'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
                 >
-                  Cancel
+                  Replace Entire Paper
                 </button>
-              )}
+                <button
+                  type="button"
+                  aria-pressed={importBehavior === 'append'}
+                  onClick={() => setImportBehavior('append')}
+                  className={`py-1 px-2 rounded-lg transition-colors ${
+                    importBehavior === 'append'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Add to Paper
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating || aiSolvingPremade}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all disabled:opacity-50"
+                >
+                  {aiGenerating || aiSolvingPremade ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      {detectedPremadeFromSource.length > 0 ? 'Solving Answers & Guide…' : 'Generating…'}
+                    </>
+                  ) : detectedPremadeFromSource.length > 0 ? (
+                    <>
+                      <SparklesIcon className="w-4 h-4" />
+                      Solve &amp; {importBehavior === 'replace' ? 'Replace' : 'Add'} {detectedPremadeFromSource.length} Qs
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="w-4 h-4" />
+                      {importBehavior === 'append'
+                        ? `Add +${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory`
+                        : hasPaperQuestions
+                          ? `Replace Paper (${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory)`
+                          : `Generate ${parseInt(mcqCount, 10) || 0} Obj + ${parseInt(theoryCount, 10) || 0} Theory`}
+                    </>
+                  )}
+                </button>
+                {(aiGenerating || aiSolvingPremade) && (
+                  <button
+                    type="button"
+                    onClick={cancelAiGeneration}
+                    className="shrink-0 px-3 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs font-black hover:bg-rose-500/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
