@@ -37,6 +37,7 @@ import {
 import { enforceExactQuestionMix } from '@/lib/cbt/examiner-presets';
 import { createClient } from '@/lib/supabase/client';
 import { compressStudentImage } from '@/lib/files/compress-student-image';
+import { toast } from 'sonner';
 
 export interface StudioCourseLessonOption {
   id: string;
@@ -110,6 +111,8 @@ interface QuestionAuthoringStudioProps {
     lessonId: string,
     newMaterial?: { id: string; title: string; file_url: string; file_type?: string | null },
   ) => void;
+  /** Called when the teacher unshares/deletes a lesson material from the studio so parent state stays synced. */
+  onRemoveLessonMaterial?: (lessonId: string, materialId: string) => void;
   minQuestions?: number;
   maxQuestions?: number;
   disabled?: boolean;
@@ -137,6 +140,7 @@ export default function QuestionAuthoringStudio({
   courseLessons: propCourseLessons,
   defaultTargetLessonId = null,
   onReferenceLessonMaterial,
+  onRemoveLessonMaterial,
   minQuestions = 1,
   maxQuestions = 100,
   disabled = false,
@@ -189,6 +193,9 @@ export default function QuestionAuthoringStudio({
   const [publishingDocId, setPublishingDocId] = useState<string | null>(null);
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [publishedDocIds, setPublishedDocIds] = useState<Set<string>>(new Set());
+  const [publishedMaterialByDocId, setPublishedMaterialByDocId] = useState<Record<string, { lessonId: string; materialId: string; title: string }>>({});
+  const [unsharingKey, setUnsharingKey] = useState<string | null>(null);
+  const [shareNotice, setShareNotice] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [publishLessonId, setPublishLessonId] = useState<string>(defaultTargetLessonId || '');
   const [autoPublishToStudents, setAutoPublishToStudents] = useState(false);
   const rawFilesRef = useRef<Map<string, File>>(new Map());
@@ -740,20 +747,102 @@ export default function QuestionAuthoringStudio({
     }
   };
 
+  const normalizeMaterialKey = (raw: string) =>
+    raw
+      .replace(/^\[PRIORITY\]\s*/i, '')
+      .replace(/\.[^.]+$/, '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+  const handleUnshareStudyMaterial = async (lessonId: string, materialId: string, title: string, docId?: string) => {
+    const busyKey = docId || `mat:${materialId}`;
+    setUnsharingKey(busyKey);
+    setShareNotice(null);
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/materials/${materialId}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not delete this study material.');
+      setLoadedCourseLessons((prev) =>
+        prev.map((l) =>
+          l.id === lessonId
+            ? { ...l, lesson_materials: (l.lesson_materials ?? []).filter((m) => m.id !== materialId) }
+            : l,
+        ),
+      );
+      setAllLessonsCache((prev) =>
+        prev.map((l) =>
+          l.id === lessonId
+            ? { ...l, lesson_materials: (l.lesson_materials ?? []).filter((m) => m.id !== materialId) }
+            : l,
+        ),
+      );
+      onRemoveLessonMaterial?.(lessonId, materialId);
+      if (docId) {
+        setPublishedDocIds((prev) => {
+          const next = new Set(prev);
+          next.delete(docId);
+          return next;
+        });
+        setPublishedMaterialByDocId((prev) => {
+          const next = { ...prev };
+          delete next[docId];
+          return next;
+        });
+      }
+      const msg = `Unshared & deleted "${title}" from Student Study Materials.`;
+      setShareNotice({ type: 'info', text: msg });
+      toast.success(msg);
+    } catch (err: any) {
+      const msg = err?.message || 'Could not unshare study material.';
+      setShareNotice({ type: 'error', text: msg });
+      toast.error(msg);
+    } finally {
+      setUnsharingKey(null);
+    }
+  };
+
   const handlePublishDocToStudents = async (doc: ExtractedSourceDocument) => {
     const rawFile = rawFilesRef.current.get(doc.id);
     const targetLessonId = publishLessonId || availableLessons[0]?.id;
     if (!rawFile) {
-      setAiError('This item is already text-only or already stored in Study Materials.');
+      const msg = 'This item is already text-only or already stored in Study Materials.';
+      setShareNotice({ type: 'info', text: msg });
+      toast.info(msg);
       return;
     }
     if (!targetLessonId) {
-      setAiError('Select a course with at least one lesson first so students know where to read this material.');
+      const msg = 'Select a course with at least one lesson first so students know where to read this material.';
+      setShareNotice({ type: 'error', text: msg });
+      toast.error(msg);
       return;
     }
+
+    const cleanTitle = doc.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || doc.name;
+    const targetLesson = availableLessons.find((l) => l.id === targetLessonId);
+    const lessonTitle = targetLesson?.title || 'the lesson';
+
+    // Duplicate prevention: check if this material title already exists on the target lesson
+    const existingDuplicate = (targetLesson?.lesson_materials ?? []).find(
+      (m) => normalizeMaterialKey(m.title) === normalizeMaterialKey(cleanTitle),
+    );
+    if (existingDuplicate) {
+      setPublishedDocIds((prev) => new Set(prev).add(doc.id));
+      setPublishedMaterialByDocId((prev) => ({
+        ...prev,
+        [doc.id]: { lessonId: targetLessonId, materialId: existingDuplicate.id, title: cleanTitle },
+      }));
+      onReferenceLessonMaterial?.(targetLessonId);
+      const msg = `"${cleanTitle}" is already shared in "${lessonTitle}" — linked without duplicating! Click Unshare to remove it.`;
+      setShareNotice({ type: 'info', text: msg });
+      toast.info(msg);
+      return;
+    }
+
     setPublishingDocId(doc.id);
     setAiError(null);
-    setAiSuccessMsg(null);
+    setShareNotice(null);
     try {
       const uploadable = await compressStudentImage(rawFile, {
         maxDimension: 1440,
@@ -767,7 +856,6 @@ export default function QuestionAuthoringStudio({
       const fileUrl = upJson?.data?.public_url || upJson?.data?.url || upJson?.data?.receipt?.url;
       if (!fileUrl) throw new Error('No file URL returned from storage.');
 
-      const cleanTitle = doc.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || doc.name;
       const ext = (doc.name.split('.').pop() || 'file').toLowerCase();
       const matRes = await fetch(`/api/lessons/${targetLessonId}/materials`, {
         method: 'POST',
@@ -783,13 +871,16 @@ export default function QuestionAuthoringStudio({
         throw new Error(matJson?.error || 'Could not publish material to lesson.');
       }
       setPublishedDocIds((prev) => new Set(prev).add(doc.id));
+      setPublishedMaterialByDocId((prev) => ({
+        ...prev,
+        [doc.id]: { lessonId: targetLessonId, materialId: matJson.data.id, title: cleanTitle },
+      }));
       const createdMaterial = {
         id: matJson.data.id,
         title: matJson.data.title,
         file_url: matJson.data.file_url,
         file_type: matJson.data.file_type ?? ext,
       };
-      // Update local self-loaded lessons if used
       setLoadedCourseLessons((prev) =>
         prev.map((l) =>
           l.id === targetLessonId
@@ -797,13 +888,21 @@ export default function QuestionAuthoringStudio({
             : l,
         ),
       );
-      onReferenceLessonMaterial?.(targetLessonId, createdMaterial);
-      const lessonTitle = availableLessons.find((l) => l.id === targetLessonId)?.title || 'the lesson';
-      setAiSuccessMsg(
-        `Shared "${cleanTitle}" to students as a Priority Material in "${lessonTitle}" — readable before the exam and automatically locked during the exam.`,
+      setAllLessonsCache((prev) =>
+        prev.map((l) =>
+          l.id === targetLessonId
+            ? { ...l, lesson_materials: [createdMaterial, ...(l.lesson_materials ?? [])] }
+            : l,
+        ),
       );
+      onReferenceLessonMaterial?.(targetLessonId, createdMaterial);
+      const msg = `Shared "${cleanTitle}" to students in "${lessonTitle}" as a Priority Material (auto-locked during exam).`;
+      setShareNotice({ type: 'success', text: msg });
+      toast.success(msg);
     } catch (err: any) {
-      setAiError(err?.message || 'Could not publish to Student Study Materials.');
+      const msg = err?.message || 'Could not publish to Student Study Materials.';
+      setShareNotice({ type: 'error', text: msg });
+      toast.error(msg);
     } finally {
       setPublishingDocId(null);
     }
@@ -1847,7 +1946,30 @@ export default function QuestionAuthoringStudio({
                     Select All
                   </button>
                 )}
-                {uploadedDocs.length > 0 && (
+                {shareNotice && (
+              <div
+                role="status"
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold ${
+                  shareNotice.type === 'success'
+                    ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                    : shareNotice.type === 'error'
+                      ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                      : 'border-primary/35 bg-primary/10 text-primary'
+                }`}
+              >
+                <span>{shareNotice.text}</span>
+                <button
+                  type="button"
+                  onClick={() => setShareNotice(null)}
+                  aria-label="Dismiss share notice"
+                  className="shrink-0 opacity-75 hover:opacity-100"
+                >
+                  <XMarkIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {uploadedDocs.length > 0 && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2057,6 +2179,16 @@ export default function QuestionAuthoringStudio({
                                           >
                                             {busy ? '…' : 'Pull'}
                                           </button>
+                                          <button
+                                            type="button"
+                                            disabled={unsharingKey === `mat:${m.id}`}
+                                            onClick={() => void handleUnshareStudyMaterial(lesson.id, m.id, cleanTitle)}
+                                            aria-label={`Delete ${cleanTitle} from study materials`}
+                                            title="Unshare & delete from Student Study Materials"
+                                            className="text-rose-600 dark:text-rose-400 hover:opacity-80 disabled:opacity-40"
+                                          >
+                                            ×
+                                          </button>
                                         </div>
                                       );
                                     })}
@@ -2102,6 +2234,29 @@ export default function QuestionAuthoringStudio({
               </button>
             </div>
 
+            {shareNotice && (
+              <div
+                role="status"
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold ${
+                  shareNotice.type === 'success'
+                    ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                    : shareNotice.type === 'error'
+                      ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                      : 'border-primary/35 bg-primary/10 text-primary'
+                }`}
+              >
+                <span>{shareNotice.text}</span>
+                <button
+                  type="button"
+                  onClick={() => setShareNotice(null)}
+                  aria-label="Dismiss share notice"
+                  className="shrink-0 opacity-75 hover:opacity-100"
+                >
+                  <XMarkIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {uploadedDocs.length > 0 && (
               <div className="space-y-2 pt-1">
                 {/* Compact scrollable file chips so multiple attachments never stretch or break the layout */}
@@ -2136,19 +2291,39 @@ export default function QuestionAuthoringStudio({
                           {doc.wordCount.toLocaleString()}w
                         </span>
                         {hasRawFile && availableLessons.length > 0 && (
-                          <button
-                            type="button"
-                            disabled={isPublishing || isPublished}
-                            onClick={() => void handlePublishDocToStudents(doc)}
-                            title="Publish to Students as a pinned Priority Study Material (view-only & auto-locked during exam)"
-                            className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-black transition-colors ${
-                              isPublished
-                                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            }`}
-                          >
-                            {isPublishing ? 'Sharing…' : isPublished ? '✓ Shared' : 'Share to Students'}
-                          </button>
+                          isPublished && publishedMaterialByDocId[doc.id] ? (
+                            <span className="inline-flex items-center gap-1 shrink-0">
+                              <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 dark:text-emerald-300">
+                                ✓ Shared
+                              </span>
+                              <button
+                                type="button"
+                                disabled={unsharingKey === doc.id}
+                                onClick={() => {
+                                  const ref = publishedMaterialByDocId[doc.id];
+                                  if (ref) void handleUnshareStudyMaterial(ref.lessonId, ref.materialId, ref.title, doc.id);
+                                }}
+                                title="Unshare & delete from Student Study Materials"
+                                className="rounded border border-rose-500/35 bg-rose-500/10 hover:bg-rose-500/20 px-1.5 py-0.5 text-[9px] font-black text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-50"
+                              >
+                                {unsharingKey === doc.id ? 'Removing…' : 'Unshare'}
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isPublishing || isPublished}
+                              onClick={() => void handlePublishDocToStudents(doc)}
+                              title="Publish to Students as a pinned Priority Study Material (view-only & auto-locked during exam)"
+                              className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-black transition-colors ${
+                                isPublished
+                                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                              }`}
+                            >
+                              {isPublishing ? 'Sharing…' : isPublished ? '✓ Shared' : 'Share to Students'}
+                            </button>
+                          )
                         )}
                         {uploadedDocs.length > 1 && (
                           <button

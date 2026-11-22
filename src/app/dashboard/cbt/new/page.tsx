@@ -1732,6 +1732,15 @@ export default function NewExamPage() {
                 );
               }
             }}
+            onRemoveLessonMaterial={(lessonId, materialId) => {
+              setCourseLessons((prev) =>
+                prev.map((l) =>
+                  l.id === lessonId
+                    ? { ...l, lesson_materials: (l.lesson_materials ?? []).filter((m) => m.id !== materialId) }
+                    : l,
+                ),
+              );
+            }}
             minQuestions={examBoundary.min}
             maxQuestions={examBoundary.max}
           />
