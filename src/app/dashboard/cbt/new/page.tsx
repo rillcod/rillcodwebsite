@@ -868,12 +868,22 @@ export default function NewExamPage() {
     </div>
   );
 
+  const setupDone = Boolean(
+    form.title.trim() &&
+    form.program_id &&
+    (assessmentScope === 'practice' || Boolean(classId))
+  );
+  const filledSelectedCount = questions.filter(
+    (q, i) => q.question_text.trim() && selectedQuestions.has(i)
+  ).length;
+  const liveAudit = auditExamReadiness(questions, selectedQuestions);
+
   return (
-    <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
-      <div className={`${isMinimal ? 'w-full' : 'max-w-4xl mx-auto'} space-y-6`}>
+    <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'px-3 py-4 sm:p-6 lg:p-8 pb-24'}`}>
+      <div className={`${isMinimal ? 'w-full' : 'max-w-5xl mx-auto'} space-y-5 sm:space-y-6`}>
         {!isMinimal && (
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+            <Link href={backHref} className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeftIcon className="w-4 h-4" /> {backLabel}
             </Link>
             {draftRestored && (
@@ -890,56 +900,139 @@ export default function NewExamPage() {
             )}
           </div>
         )}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <AcademicCapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{hostKind ? 'School paper' : isMinimal ? 'Add Context' : 'New Exam'}</span>
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">{hostKind ? `Prepare ${hostPaperLabel(hostKind)}` : 'Create assessment'}</h1>
-            {!isMinimal && (
-              <p className="text-muted-foreground text-sm mt-1">
-                {hostKind
-                  ? 'Generate this paper from what the class has already been taught. Then return to the datasheet to print it and enter hall marks.'
-                  : 'Build, review, and publish one class-ready assessment.'}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {questions.some(q => q.question_text.trim()) && (
-              <div className="flex items-center gap-1">
-                {/* Question type filter for print */}
-                <div className="flex border border-primary/30 rounded-xl overflow-hidden">
-                  {(['all', 'mcq', 'theory'] as const).map(f => (
-                    <button key={f} type="button" onClick={() => setPrintFilter(f)}
-                      className={`px-2.5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${printFilter === f ? 'bg-primary/30 text-primary' : 'bg-primary/10 text-primary/50 hover:bg-primary/20 hover:text-primary'}`}>
-                      {f === 'all' ? 'All' : f === 'mcq' ? 'Obj' : 'Theory'}
-                    </button>
-                  ))}
+
+        {/* Executive Hero Header */}
+        <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-card/95 backdrop-blur-xl p-5 sm:p-6 shadow-md">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-900/25 shrink-0">
+                <AcademicCapIcon className="w-6 h-6 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-widest">
+                    {hostKind ? 'Official School Paper' : isMinimal ? 'Add Context' : 'Chief Examiner Studio'}
+                  </span>
+                  {className && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-muted border border-border text-[10px] font-bold text-foreground truncate max-w-[200px]">
+                      {className}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight mt-1 truncate">
+                  {hostKind ? `Prepare ${hostPaperLabel(hostKind)}` : 'Create Assessment'}
+                </h1>
+                {!isMinimal && (
+                  <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 leading-relaxed">
+                    {hostKind
+                      ? 'Generate from taught weeks, balance marks, then return to the datasheet to print and record hall marks.'
+                      : 'Pick a blueprint, generate or import verified questions, and publish in under a minute.'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {questions.some(q => q.question_text.trim()) && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex border border-primary/30 rounded-xl overflow-hidden bg-background/60">
+                    {(['all', 'mcq', 'theory'] as const).map(f => (
+                      <button key={f} type="button" onClick={() => setPrintFilter(f)}
+                        className={`px-2.5 py-2 text-[10px] font-black uppercase tracking-wider transition-colors ${printFilter === f ? 'bg-primary text-primary-foreground' : 'text-primary/70 hover:bg-primary/15 hover:text-primary'}`}>
+                        {f === 'all' ? 'All' : f === 'mcq' ? 'Obj' : 'Theory'}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     type="button"
                     onClick={() => handlePrintExam('student')}
-                    className="flex items-center gap-2 px-4 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-black text-[10px] uppercase tracking-[0.18em] rounded-xl transition-all"
+                    className="px-3 py-2 bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary font-black text-[10px] uppercase tracking-wider rounded-xl transition-all"
                   >
                     Student Copy
                   </button>
                   <button
                     type="button"
                     onClick={() => handlePrintExam('staff')}
-                    className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-[0.18em] rounded-xl transition-all"
+                    className="px-3 py-2 bg-emerald-500/12 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all"
                   >
                     Teacher Copy
                   </button>
                 </div>
-              </div>
-            )}
-            <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
-              {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Saving…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (isMinimal ? 'CREATE' : (form.is_active ? 'PUBLISH ASSESSMENT' : 'SAVE DRAFT'))}
-            </button>
+              )}
+              <button onClick={handleSubmit} disabled={saving} className="flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-900/25 transition-all disabled:opacity-50">
+                {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                {saving ? 'Saving…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (isMinimal ? 'Create' : (form.is_active ? 'Publish' : 'Save Draft'))}
+              </button>
+            </div>
           </div>
+
+          {/* 3-Step Interactive Progress Strip */}
+          {!isMinimal && (
+            <div className="relative z-10 mt-5 pt-4 border-t border-border/70 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => document.getElementById('step-setup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${
+                  setupDone
+                    ? 'border-emerald-500/35 bg-emerald-500/8'
+                    : 'border-border bg-muted/25 hover:border-emerald-500/30'
+                }`}
+              >
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${
+                  setupDone ? 'bg-emerald-700 text-white' : 'bg-muted text-muted-foreground border border-border'
+                }`}>
+                  {setupDone ? <CheckIcon className="w-3.5 h-3.5" /> : '1'}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-foreground truncate">Examiner Setup</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {setupDone ? `${form.duration_minutes}m · ${form.passing_score}% pass` : 'Pick blueprint & class'}
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => document.getElementById('step-studio')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/25 hover:border-primary/40 px-3 py-2 text-left transition-all"
+              >
+                <span className="w-6 h-6 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center justify-center text-[11px] font-black shrink-0">
+                  2
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-foreground truncate">AI Question Studio</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Target: {aiMcqCount || 0} Obj + {aiTheoryCount || 0} Theory
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => document.getElementById('step-questions')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${
+                  liveAudit.isReady
+                    ? 'border-emerald-500/35 bg-emerald-500/8'
+                    : 'border-border bg-muted/25 hover:border-emerald-500/30'
+                }`}
+              >
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${
+                  liveAudit.isReady ? 'bg-emerald-700 text-white' : 'bg-muted text-muted-foreground border border-border'
+                }`}>
+                  {liveAudit.isReady ? <CheckIcon className="w-3.5 h-3.5" /> : '3'}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-foreground truncate">Paper Questions</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {filledSelectedCount > 0
+                      ? `${filledSelectedCount} ready · ${questionPoints || 0} marks`
+                      : 'Generate or add questions'}
+                  </p>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -949,23 +1042,9 @@ export default function NewExamPage() {
           </div>
         )}
 
-        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
-          <div className="flex items-start gap-3">
-            <SparklesIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <div>
-              <p className="text-xs font-bold text-foreground">{hostKind ? `${hostPaperLabel(hostKind)} from taught weeks` : 'Smart draft prepared'}</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                {hostKind
-                  ? `Questions should come only from weeks this class has already been taught.${className ? ` Linked to ${className}.` : ''} After you save, the datasheet is where you print the paper and enter hall marks.`
-                  : `${examSuggestion.label}: ${aiMcqCount || 0} objective + ${aiTheoryCount || 0} written questions, ${form.duration_minutes} minutes, ${form.passing_score}% pass mark.${className ? ` Linked to ${className}.` : ''} Official report contribution follows the active academic grading scheme.`}
-              </p>
-            </div>
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Exam Details */}
-          <div className="bg-card shadow-sm border border-border rounded-2xl p-5 sm:p-6 space-y-5">
+          <div id="step-setup" className="scroll-mt-6 bg-card shadow-sm border border-border rounded-2xl p-4 sm:p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
@@ -1442,6 +1521,7 @@ export default function NewExamPage() {
           </div>
 
           {/* 2. Streamlined AI Question Assistant — right above Questions so context is already set */}
+          <div id="step-studio" className="scroll-mt-6">
           <QuestionAuthoringStudio
             mode="cbt"
             courseId={form.course_id || null}
@@ -1472,9 +1552,10 @@ export default function NewExamPage() {
             minQuestions={examBoundary.min}
             maxQuestions={examBoundary.max}
           />
+          </div>
 
           {/* Questions */}
-          <div className="space-y-4">
+          <div id="step-questions" className="scroll-mt-6 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
@@ -1598,20 +1679,21 @@ export default function NewExamPage() {
             {questions.map((q, qi) => {
               const isSelected = selectedQuestions.has(qi);
               return (
-              <div key={qi} id={`new-q-${qi}`} className={`border rounded-xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card shadow-sm border-border hover:bg-white/[0.07]'}`}>
-                <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
+              <div key={qi} id={`new-q-${qi}`} className={`border rounded-2xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/[0.04] border-emerald-500/25 shadow-sm' : 'bg-card shadow-sm border-border hover:border-border/80'}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-3 bg-muted/20 border-b border-border">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     {/* Selection checkbox */}
                     <button
                       type="button"
+                      aria-label={isSelected ? `Exclude question ${qi + 1}` : `Include question ${qi + 1}`}
                       onClick={() => {
                         const next = new Set(selectedQuestions);
                         if (next.has(qi)) next.delete(qi); else next.add(qi);
                         setSelectedQuestions(next);
                       }}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-emerald-500 border-emerald-400' : 'border-border hover:border-emerald-500/50'}`}
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-emerald-700 border-emerald-700 text-white' : 'border-border hover:border-emerald-500/50'}`}
                     >
-                      {isSelected && <CheckIcon className="w-3 h-3 text-foreground" />}
+                      {isSelected && <CheckIcon className="w-3 h-3 text-white" />}
                     </button>
                     <span className="text-xs font-black text-muted-foreground w-6 tracking-tighter italic">#{qi + 1}</span>
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1772,7 +1854,7 @@ export default function NewExamPage() {
                         key={opt}
                         type="button"
                         onClick={() => updateQuestion(qi, { correct_answer: opt })}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-500 border-emerald-400 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-700 border-emerald-700 text-white shadow-sm' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                       >
                         {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
                         {opt}
@@ -1859,20 +1941,23 @@ export default function NewExamPage() {
           )}
 
           {/* Sticky Swift Publish & Assign Bar */}
-          <div className="sticky bottom-3 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-lg">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="sticky bottom-3 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-2xl border border-border/90 bg-card/95 backdrop-blur-xl px-4 py-3 shadow-xl">
+            <div className="flex items-center justify-between sm:justify-start gap-3 min-w-0">
               <Link href={backHref}
-                className="px-4 py-2 bg-muted/60 hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-colors">
+                className="px-3.5 py-2 bg-muted/60 hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-colors shrink-0">
                 {backLabel}
               </Link>
-              <div className="hidden sm:block text-xs text-muted-foreground truncate">
-                <span className="font-black text-foreground">{questions.filter((q, i) => q.question_text.trim() && selectedQuestions.has(i)).length}</span> selected
-                {questionPoints ? <> · <span className="font-bold text-foreground">{questionPoints} pts</span></> : null}
-                {form.start_date ? <> · <span className="text-emerald-700 dark:text-emerald-300 font-bold">Scheduled</span></> : null}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${liveAudit.isReady && setupDone ? 'bg-emerald-600' : 'bg-amber-500'}`} />
+                <span className="font-black text-foreground">{filledSelectedCount}</span> Qs
+                <span>·</span>
+                <span className="font-bold text-foreground">{questionPoints || 0} marks</span>
+                <span className="hidden sm:inline">· {form.duration_minutes}m</span>
+                {form.start_date && <span className="hidden md:inline text-emerald-700 dark:text-emerald-300 font-bold">· Scheduled</span>}
               </div>
             </div>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-md">
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-md">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Publishing…' : hostKind ? `Save ${hostPaperLabel(hostKind)}` : (form.is_active ? 'Publish & Assign Exam' : 'Save Draft')}
             </button>
