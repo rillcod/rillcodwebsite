@@ -67,6 +67,7 @@ export default function ExamsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [courseFilter, setCourseFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft'>('all');
   const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
 
   const isAdmin = profile?.role === 'admin';
@@ -127,143 +128,201 @@ export default function ExamsPage() {
     return <div className="flex items-center justify-center min-h-[60vh] mobile-page-root"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   }
 
-  const filtered = exams.filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.courses?.title?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = exams.filter((e) => {
+    const matchesSearch =
+      !search ||
+      e.title.toLowerCase().includes(search.toLowerCase()) ||
+      e.courses?.title?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' ? e.is_active : !e.is_active);
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto mobile-page-root">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto mobile-page-root">
       {/* Assessment & Exam Hub Tab Bar */}
-      <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-xl p-1 w-full sm:w-fit">
+      <div className="flex flex-wrap items-center gap-1 bg-card border border-border rounded-2xl p-1 w-full sm:w-fit shadow-sm">
         <Link href="/dashboard/assignments"
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs sm:text-sm font-bold transition-all">
           <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
         </Link>
         <Link href="/dashboard/projects"
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs sm:text-sm font-bold transition-all">
           <RocketLaunchIcon className="w-4 h-4" /> Projects
         </Link>
         <Link href="/dashboard/cbt"
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all">
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs sm:text-sm font-bold transition-all">
           <CommandLineIcon className="w-4 h-4" /> CBT Exams
         </Link>
-        <span className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-white text-xs sm:text-sm font-black">
+        <span className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-black shadow-xs">
           <DocumentCheckIcon className="w-4 h-4" /> Written Exams
         </span>
         {canManage && (
           <>
             <Link href="/dashboard/grades"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-primary hover:bg-primary/10 text-xs sm:text-sm font-black transition-all">
               <AcademicCapIcon className="w-4 h-4" /> Mark Work &amp; Gradebook
             </Link>
             <Link href="/dashboard/reports/builder"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 text-xs sm:text-sm font-black transition-all">
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/10 text-xs sm:text-sm font-black transition-all">
               <ChartBarIcon className="w-4 h-4" /> Result Builder
             </Link>
           </>
         )}
       </div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-card-foreground flex items-center gap-2">
-            <AcademicCapIcon className="w-7 h-7 text-primary" />
-            Written Exams
-          </h1>
-          <p className="text-card-foreground/50 text-sm mt-0.5">
-            {isStudent ? 'Complete assigned written papers and return to unfinished attempts.' : 'Manage traditional exams — essays, matching, short answer'}
-          </p>
+
+      {/* Executive Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-md">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-900/20 shrink-0">
+              <AcademicCapIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+            </div>
+            <div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">
+                Essays · Theory · Structured Papers
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight mt-1">
+                Written Exams
+              </h1>
+              <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
+                {isStudent
+                  ? 'Complete assigned written papers and return to unfinished attempts.'
+                  : 'Create, print, and grade structured written exams with AI rubrics.'}
+              </p>
+            </div>
+          </div>
+          {canManage && (
+            <Link href="/dashboard/exams/new"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md">
+              <PlusIcon className="w-4 h-4" /> New Written Exam
+            </Link>
+          )}
         </div>
-        {canManage && (
-          <Link href="/dashboard/exams/new"
-            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
-            <PlusIcon className="w-4 h-4" /> New Exam
-          </Link>
-        )}
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Exams', value: exams.length, icon: DocumentTextIcon, color: 'text-primary' },
-          { label: 'Active', value: exams.filter(e => e.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Avg Duration', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + (e.duration_minutes || 0), 0) / exams.length)}m` : '—', icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Active', value: exams.filter(e => e.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-700 dark:text-emerald-400' },
+          { label: 'Avg Duration', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + (e.duration_minutes || 0), 0) / exams.length)}m` : '—', icon: ClockIcon, color: 'text-amber-700 dark:text-amber-400' },
           { label: 'Avg Pass Score', value: exams.length ? `${Math.round(exams.reduce((s, e) => s + e.passing_score, 0) / exams.length)}%` : '—', icon: ChartBarIcon, color: 'text-primary' },
         ].map(s => (
-          <div key={s.label} className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
+          <div key={s.label} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-1.5">
               <s.icon className={`w-5 h-5 ${s.color}`} />
-              <span className="text-2xl font-black text-card-foreground">{s.value}</span>
+              <span className="text-2xl font-black text-foreground tabular-nums">{s.value}</span>
             </div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{s.label}</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Disambiguation notice */}
-      <div className="flex items-start gap-3 bg-primary/[0.07] border border-primary/20 rounded-xl p-4">
+      <div className="flex items-start gap-3 bg-primary/8 border border-primary/25 rounded-2xl p-4">
         <InformationCircleIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <p className="font-bold text-blue-700 dark:text-blue-300">Written Exams vs CBT Exams</p>
-          <p className="text-blue-700/70 dark:text-blue-300/70 mt-0.5">
-            <strong>Written Exams</strong> are staff-managed and used for manual grading workflows.
-            {' '}<Link href="/dashboard/cbt" className="underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-200">CBT Exams</Link> are auto-graded computer-based tests with coding blocks, best for quick assessment.
+        <div className="text-xs sm:text-sm">
+          <p className="font-black text-foreground">Written Exams vs CBT Exams</p>
+          <p className="text-muted-foreground mt-0.5">
+            <strong className="text-foreground">Written Exams</strong> are staff-managed for essays, structured theory, and printable papers.
+            {' '}<Link href="/dashboard/cbt" className="font-bold text-primary underline underline-offset-2 hover:opacity-80">CBT Exams</Link> are auto-graded computer-based tests with instant scoring and live proctoring.
           </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input aria-label="Search exams" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams…"
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50" />
+      {/* Status Pills + Search & Course Filter */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div className="inline-flex items-center gap-1 rounded-2xl border border-border bg-card p-1 w-full sm:w-fit shadow-sm">
+          {([
+            { id: 'all', label: 'All', count: exams.length },
+            { id: 'active', label: 'Active', count: exams.filter((e) => e.is_active).length },
+            { id: 'draft', label: 'Drafts', count: exams.filter((e) => !e.is_active).length },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setStatusFilter(tab.id)}
+              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                statusFilter === tab.id
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              }`}
+            >
+              {tab.label}
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                statusFilter === tab.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
-        <select aria-label="Filter written exams by course" value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}
-          className="px-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50">
-          <option value="">All Courses</option>
-          {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-        </select>
-        <button aria-label="Refresh exams" onClick={load} className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted border border-border rounded-xl text-sm font-bold text-foreground transition-all">
-          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+
+        <div className="flex flex-col sm:flex-row flex-1 gap-2.5">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input aria-label="Search exams" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exams or courses…"
+              className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm" />
+          </div>
+          <select aria-label="Filter written exams by course" value={courseFilter} onChange={e => { setCourseFilter(e.target.value); }}
+            className="px-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary shadow-sm">
+            <option value="">All Courses</option>
+            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+          <button aria-label="Refresh exams" onClick={load} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-card hover:bg-muted border border-border rounded-xl text-sm font-bold text-foreground transition-all shadow-sm">
+            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Exam List */}
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <AcademicCapIcon className="w-16 h-16 text-muted-foreground/30" />
-          <p className="text-muted-foreground font-semibold">No exams found</p>
-          {canManage && <Link href="/dashboard/exams/new" className="text-primary text-sm font-bold hover:underline">Create first exam</Link>}
+        <div className="flex flex-col items-center justify-center py-20 px-4 rounded-3xl border border-dashed border-border bg-card gap-3 shadow-sm text-center">
+          <AcademicCapIcon className="w-14 h-14 text-muted-foreground/50" />
+          <p className="text-foreground font-black text-lg">No written exams found</p>
+          <p className="text-muted-foreground text-sm max-w-sm">
+            {canManage ? 'Create your first written exam to start building essays, theory questions, and printable papers.' : 'No written exams are currently assigned to you.'}
+          </p>
+          {canManage && (
+            <Link href="/dashboard/exams/new" className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors">
+              <PlusIcon className="w-4 h-4" /> Create First Exam
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map(exam => (
-            <div key={exam.id} className="bg-card border border-border rounded-2xl p-5 hover:border-primary/30 transition-all group">
+            <div key={exam.id} className="relative overflow-hidden bg-card border border-border rounded-2xl p-5 pl-6 hover:border-primary/35 hover:shadow-md transition-all group shadow-sm">
+              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${exam.is_active ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-muted-foreground/30'}`} />
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
                     <StatusBadge active={exam.is_active} />
                     {canManage && <ResultUseBadge exam={exam} />}
                     {exam.courses && (
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full truncate max-w-[120px]">{exam.courses.title}</span>
+                      <span className="text-xs font-bold text-foreground bg-muted px-2.5 py-0.5 rounded-full truncate max-w-[160px]">{exam.courses.title}</span>
                     )}
                   </div>
-                  <h3 className="font-black text-card-foreground text-base truncate">{exam.title}</h3>
-                  {exam.description && <p className="text-muted-foreground text-sm mt-1 line-clamp-2">{exam.description}</p>}
+                  <h3 className="font-black text-foreground text-base leading-snug">{exam.title}</h3>
+                  {exam.description && <p className="text-muted-foreground text-xs sm:text-sm mt-1 line-clamp-2">{exam.description}</p>}
                 </div>
               </div>
 
               {/* Metadata grid */}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {[
-                  { label: 'Duration', value: exam.duration_minutes ? `${exam.duration_minutes}m` : '—', icon: ClockIcon },
-                  { label: 'Pass Score', value: `${exam.passing_score}%`, icon: ChartBarIcon },
-                  { label: 'Max Attempts', value: String(exam.max_attempts), icon: ArrowPathIcon },
+                  { label: 'Duration', value: exam.duration_minutes ? `${exam.duration_minutes}m` : '—' },
+                  { label: 'Pass Score', value: `${exam.passing_score}%` },
+                  { label: 'Max Attempts', value: String(exam.max_attempts) },
                 ].map(m => (
-                  <div key={m.label} className="bg-muted/40 border border-border/60 rounded-xl p-2 text-center">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{m.label}</p>
-                    <p className="font-black text-card-foreground text-sm">{m.value}</p>
+                  <div key={m.label} className="bg-muted/35 border border-border/70 rounded-xl p-2.5 text-center">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{m.label}</p>
+                    <p className="font-black text-foreground text-sm mt-0.5 tabular-nums">{m.value}</p>
                   </div>
                 ))}
               </div>
@@ -271,26 +330,26 @@ export default function ExamsPage() {
               {/* Actions */}
               <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
                 {canManage && <Link href={`/dashboard/exams/${exam.id}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary/15 hover:bg-primary/25 text-primary text-xs font-bold rounded-xl transition-all">
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary/12 hover:bg-primary/20 border border-primary/25 text-primary text-xs font-black rounded-xl transition-all">
                   <EyeIcon className="w-3.5 h-3.5" />
                   Manage
                 </Link>}
                 {canManage && exam.class_id && (
                   <>
                     <Link href={`/dashboard/classes/${exam.class_id}?operation=assessment`}
-                      className="px-2.5 py-2 border border-border bg-background hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all">
+                      className="px-3 py-2.5 border border-border bg-background hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all">
                       Class
                     </Link>
                     <Link href={`/dashboard/reports/builder?class_id=${exam.class_id}${exam.course_id ? `&course_id=${exam.course_id}` : ''}`}
-                      className="px-2.5 py-2 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-xl transition-all">
+                      className="px-3 py-2.5 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-xl transition-all">
                       Result Builder
                     </Link>
                   </>
                 )}
                 {isStudent && exam.is_active && (
                   <Link href={`/dashboard/exams/${exam.id}/take`}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl transition-all">
-                    <DocumentCheckIcon className="w-3.5 h-3.5" /> Start or resume
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black rounded-xl shadow-sm transition-all">
+                    <DocumentCheckIcon className="w-4 h-4" /> Start or Resume
                   </Link>
                 )}
                 {canManage && (
