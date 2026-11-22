@@ -12,8 +12,10 @@ import {
     ChevronUpIcon, ChevronDownIcon, SparklesIcon, CheckCircleIcon,
 } from '@/lib/icons';
 import QuestionAuthoringStudio, { type StudioGeneratedQuestion } from '@/components/cbt/QuestionAuthoringStudio';
+import { SmartCourseSelect } from '@/components/courses/SmartCourseSelect';
 import { cbtAnswerMatchesOption } from '@/lib/cbt/grading';
 import { dedupeCbtQuestions, resolveMcqAnswerToOption, stripOptionPrefix } from '@/lib/cbt/question-bank-catalog';
+import { autoBalanceQuestionMarks, recommendExamDurationMinutes } from '@/lib/cbt/examiner-presets';
 
 function resolveNormalizedOptionAnswer(options: string[], rawAnswer: string): string {
     const cleanOpts = options.map((o) => o.trim()).filter(Boolean);
@@ -641,17 +643,22 @@ export default function EditExamPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                    Course {form.program_id ? <span className="text-muted-foreground">(optional for programme-wide assessments)</span> : <span className="text-muted-foreground">(select programme first)</span>}
-                                </label>
-                                <select value={form.course_id}
-                                    onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-                                    disabled={!form.program_id || definitionLocked}
-                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
-                                    <option value="">{form.program_id ? 'Select a course…' : '— pick a programme first —'}</option>
-                                    {courses.filter(c => c.program_id === form.program_id)
-                                        .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                                </select>
+                                <SmartCourseSelect
+                                    label="Course / Subject"
+                                    labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
+                                    classId={form.class_id || originalClassId || null}
+                                    programId={form.program_id}
+                                    schoolId={examSchoolId || null}
+                                    value={form.course_id}
+                                    disabled={definitionLocked}
+                                    onChange={(courseId, course) => {
+                                        setForm(f => ({
+                                            ...f,
+                                            course_id: courseId,
+                                            program_id: course?.programId || f.program_id,
+                                        }));
+                                    }}
+                                />
                             </div>
                         </div>
 
@@ -754,6 +761,48 @@ export default function EditExamPage() {
                                 </button>
                             </div>
                         </div>
+                        {visibleQuestions.length > 0 && !definitionLocked && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-[11px]">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="font-bold text-muted-foreground">Auto-balance marks:</span>
+                                    {[20, 40, 60, 100].map((target) => {
+                                        const currentTotal = visibleQuestions.reduce((s, q) => s + (q.points || 0), 0);
+                                        return (
+                                            <button
+                                                key={target}
+                                                type="button"
+                                                disabled={target < visibleQuestions.length}
+                                                onClick={() => {
+                                                    setQuestions(prev => {
+                                                        const active = prev.filter(q => !q._deleted);
+                                                        const balanced = autoBalanceQuestionMarks(active, target);
+                                                        let cursor = 0;
+                                                        return prev.map(q => (q._deleted ? q : balanced[cursor++]));
+                                                    });
+                                                }}
+                                                className={`px-2.5 py-1 rounded-lg border font-black transition-colors disabled:opacity-35 ${
+                                                    currentTotal === target
+                                                        ? 'bg-emerald-700 text-white border-emerald-700'
+                                                        : 'bg-muted/40 hover:bg-muted border-border text-foreground'
+                                                }`}
+                                            >
+                                                {target}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const rec = recommendExamDurationMinutes(visibleQuestions);
+                                        setForm(f => ({ ...f, duration_minutes: String(rec) }));
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/25 font-bold text-primary transition-colors"
+                                >
+                                    Est. Duration: {recommendExamDurationMinutes(visibleQuestions)}m (Apply)
+                                </button>
+                            </div>
+                        )}
                         {visibleQuestions.length > 0 && (() => {
                             const issues = visibleQuestions.map((q, idx) => {
                                 if (!q.question_text.trim()) return { idx, reason: 'missing text' };

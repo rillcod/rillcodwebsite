@@ -28,6 +28,13 @@ import {
   buildCbtEntrySuggestion,
   type CbtExamType,
 } from '@/lib/cbt/predictive-entry';
+import {
+  EXAMINER_PRESETS,
+  auditExamReadiness,
+  autoBalanceQuestionMarks,
+  composeSmartExamTitle,
+  type ExaminerPreset,
+} from '@/lib/cbt/examiner-presets';
 
 interface Question {
   question_text: string;
@@ -142,6 +149,8 @@ export default function NewExamPage() {
   const [paperOutOf, setPaperOutOf] = useState('');
   const [paperOutOfEdited, setPaperOutOfEdited] = useState(false);
   const [showAdvancedSetup, setShowAdvancedSetup] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<ExaminerPreset['id'] | null>(null);
+  const [showContextSelectors, setShowContextSelectors] = useState(false);
 
   const toLocalDateTimeInput = (date: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -249,6 +258,7 @@ export default function NewExamPage() {
   }, []);
 
   const handleExamTypeChange = (examType: CbtExamType) => {
+    setActivePresetId(null);
     const suggestion = buildCbtEntrySuggestion(examType);
     setForm(previous => ({
       ...previous,
@@ -268,6 +278,58 @@ export default function NewExamPage() {
       setAiTheoryCount(suggestion.theoryCount.toString());
     }
   };
+
+  const applyExaminerPreset = (preset: ExaminerPreset) => {
+    setActivePresetId(preset.id);
+    teacherEdits.current.duration = false;
+    teacherEdits.current.passingScore = false;
+    teacherEdits.current.questionMix = false;
+    setAiMcqCount(String(preset.mcqCount));
+    setAiTheoryCount(String(preset.theoryCount));
+    setForm(previous => ({
+      ...previous,
+      exam_type: preset.examType,
+      duration_minutes: String(preset.durationMinutes),
+      passing_score: String(preset.passingScore),
+      access_window_minutes: String(Math.max(preset.durationMinutes + 15, preset.durationMinutes)),
+    }));
+  };
+
+  const handleBalanceMarks = (targetTotal: number) => {
+    setQuestions(current => {
+      const selectedOnly = current.filter((_, idx) => selectedQuestions.has(idx));
+      if (selectedOnly.length === 0 || targetTotal < selectedOnly.length) return current;
+      const balancedSelected = autoBalanceQuestionMarks(selectedOnly, targetTotal);
+      let cursor = 0;
+      return current.map((q, idx) => (selectedQuestions.has(idx) ? balancedSelected[cursor++] : q));
+    });
+    if (hostKind) {
+      setPaperOutOf(String(targetTotal));
+      setPaperOutOfEdited(true);
+    }
+  };
+
+  // Auto-compose an official exam title whenever class, course, programme, or preset changes
+  // (never overwrites if the teacher already typed their own title).
+  useEffect(() => {
+    if (teacherEdits.current.title || preTitle) return;
+    const selectedCourseTitle = courses.find((c: any) => c.id === form.course_id)?.title || null;
+    const selectedProgramName = programs.find((p: any) => p.id === form.program_id)?.name || null;
+    const presetLabel = activePresetId
+      ? EXAMINER_PRESETS.find((p) => p.id === activePresetId)?.label ?? null
+      : null;
+    const suggested = composeSmartExamTitle({
+      courseTitle: selectedCourseTitle,
+      programName: selectedProgramName,
+      className: className || null,
+      examType: form.exam_type,
+      presetLabel,
+      hostKindLabel: hostKind ? hostPaperLabel(hostKind) : null,
+    });
+    if (suggested) {
+      setForm(prev => (prev.title === suggested ? prev : { ...prev, title: suggested }));
+    }
+  }, [courses, programs, form.course_id, form.program_id, form.exam_type, className, activePresetId, hostKind, preTitle]);
 
   const handleStudioMixChange = (mcq: number, theory: number) => {
     teacherEdits.current.questionMix = true;
@@ -903,36 +965,103 @@ export default function NewExamPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Exam Details */}
-          <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">1. Class &amp; Exam Setup</h2>
-
-            <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
+          <div className="bg-card shadow-sm border border-border rounded-2xl p-5 sm:p-6 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-bold text-foreground">Where should this assessment be used?</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Choose once. The system will keep practice attempts separate from official class results.
+                <h2 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                  <SparklesIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  1. Examiner Setup
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Pick a blueprint &amp; class — programme, school, title, timing, and question mix configure automatically.
                 </p>
               </div>
-              <div className={`grid grid-cols-1 gap-3 ${hostKind ? '' : 'sm:grid-cols-2'}`}>
-                <button
-                  type="button"
-                  onClick={() => setAssessmentScope('class_result')}
-                  className={`rounded-xl border p-4 text-left transition-colors ${assessmentScope === 'class_result' ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-border bg-card hover:border-emerald-500/30'}`}
-                >
-                  <p className="text-sm font-bold text-foreground">Class result</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Counts in Auto-fill under the active school grading weights.</p>
-                </button>
+              {activePresetId && (
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                  Blueprint Active
+                </span>
+              )}
+            </div>
+
+            {/* 1-Click Chief Examiner Blueprint Presets */}
+            {!hostKind && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+                  Quick Examiner Blueprints (1-Click Setup)
+                </p>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {EXAMINER_PRESETS.map((preset) => {
+                    const isSelected = activePresetId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyExaminerPreset(preset)}
+                        className={`rounded-xl border p-3 text-left transition-all ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-500/12 shadow-sm ring-1 ring-emerald-500/30'
+                            : 'border-border bg-muted/20 hover:border-emerald-500/40 hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-black text-foreground">{preset.shortLabel}</span>
+                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md ${
+                            isSelected
+                              ? 'bg-emerald-700 text-white'
+                              : 'bg-card border border-border text-muted-foreground'
+                          }`}>
+                            {preset.targetMarks}m
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                          {preset.badge}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground line-clamp-2 leading-snug">
+                          {preset.summary}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Class &amp; Result Routing</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Choose the class once — school, programme, and active course auto-fill immediately.
+                  </p>
+                </div>
                 {!hostKind && (
-                  <button
-                    type="button"
-                    onClick={() => setAssessmentScope('practice')}
-                    className={`rounded-xl border p-4 text-left transition-colors ${assessmentScope === 'practice' ? 'border-sky-500/60 bg-sky-500/10' : 'border-border bg-card hover:border-sky-500/30'}`}
-                  >
-                    <p className="text-sm font-bold text-foreground">Practice only</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Available for learning and feedback, but never changes a report.</p>
-                  </button>
+                  <div className="inline-flex rounded-xl border border-border bg-card p-1 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setAssessmentScope('class_result')}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${
+                        assessmentScope === 'class_result'
+                          ? 'bg-emerald-700 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Official Class Result
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssessmentScope('practice')}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${
+                        assessmentScope === 'practice'
+                          ? 'bg-sky-700 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Practice Only
+                    </button>
+                  </div>
                 )}
               </div>
+
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                   {assessmentScope === 'class_result' ? 'Result class' : 'Limit practice to a class'}
@@ -963,6 +1092,7 @@ export default function NewExamPage() {
                   </div>
                 )}
                 <select
+                  aria-label="Result class"
                   value={classId || ''}
                   onChange={event => selectAssessmentClass(event.target.value)}
                   disabled={!!preClassId || !!preLessonPlanId || !!preHostAssessment}
@@ -979,58 +1109,40 @@ export default function NewExamPage() {
                       </option>
                     ))}
                 </select>
-                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                  {classId
-                    ? assessmentScope === 'class_result'
-                      ? `${className || 'This class'} is linked to the evidence and result pipeline.`
-                      : `${className || 'This class'} can take the practice, but its attempts stay outside official results.`
-                    : assessmentScope === 'class_result'
-                      ? 'A class is required so marks cannot be routed to the wrong report.'
-                      : 'Class is optional for practice assessments.'}
-                </p>
+
+                {/* Auto-Resolved Programme & School Summary Strip — replaces clunky disabled selects */}
+                {classId && form.program_id && (form.school_id || profile?.role === 'admin') && !showContextSelectors && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-3.5 py-2.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-black text-emerald-800 dark:text-emerald-300 uppercase text-[10px] tracking-wider">
+                        Auto-linked:
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md bg-card border border-border font-bold text-foreground">
+                        Programme: {programs.find(p => p.id === form.program_id)?.name || 'Selected'}
+                      </span>
+                      {selectedSchoolName && (
+                        <span className="px-2 py-0.5 rounded-md bg-card border border-border font-bold text-foreground">
+                          School: {selectedSchoolName}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowContextSelectors(true)}
+                      className="text-[11px] font-black text-emerald-700 dark:text-emerald-300 hover:underline"
+                    >
+                      Change Programme / School
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Exam Title <span className="text-rose-600 dark:text-rose-400">*</span>
-              </label>
-              <input type="text" required value={form.title}
-                onChange={e => {
-                  teacherEdits.current.title = true;
-                  setForm(f => ({ ...f, title: e.target.value }));
-                }}
-                placeholder="e.g. Python Programming Midterm"
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
-            </div>
-
+            {/* Course + Exam Title side-by-side for speed */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Programme {classId ? <span className="text-muted-foreground">(from class)</span> : <span className="text-rose-600 dark:text-rose-400">*</span>}
-                </label>
-                <select required value={form.program_id}
-                  onChange={e => {
-                    const pid = e.target.value;
-                    const currentCourse = courses.find(x => x.id === form.course_id);
-                    setForm(f => ({
-                      ...f,
-                      program_id: pid,
-                      course_id: currentCourse?.program_id === pid ? f.course_id : '',
-                    }));
-                  }}
-                  disabled={!!classId}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60">
-                  <option value="">Select programme…</option>
-                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                {/* Scoped by the school's adopted editions, and by the class when the exam
-                    is being made for one — not the whole catalogue. */}
                 <SmartCourseSelect
-                  label="Course"
+                  label="Course / Subject"
                   labelClass="block text-xs font-semibold text-muted-foreground uppercase tracking-widest"
                   classId={classId}
                   programId={form.program_id}
@@ -1046,38 +1158,87 @@ export default function NewExamPage() {
                   }}
                 />
               </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                    Exam Title <span className="text-rose-600 dark:text-rose-400">*</span>
+                  </label>
+                  {!teacherEdits.current.title && form.title && (
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                      Auto-titled
+                    </span>
+                  )}
+                </div>
+                <input type="text" required value={form.title}
+                  onChange={e => {
+                    teacherEdits.current.title = true;
+                    setForm(f => ({ ...f, title: e.target.value }));
+                  }}
+                  placeholder="Auto-fills from class & course, or type your own…"
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Visible To School {profile?.role === 'teacher' ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(optional for admin)</span>}
-              </label>
-              <select
-                value={form.school_id}
-                onChange={e => {
-                  const schoolId = e.target.value;
-                  setForm(f => {
-                    const currentCourse = courses.find(c => c.id === f.course_id);
-                    const keepCourse = !currentCourse?.school_id || !schoolId || currentCourse.school_id === schoolId;
-                    return { ...f, school_id: schoolId, course_id: keepCourse ? f.course_id : '' };
-                  });
-                }}
-                disabled={!!classId}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <option value="">
-                  {profile?.role === 'admin' ? 'Platform-wide / no school gate' : 'Select one of your assigned schools…'}
-                </option>
-                {assignedSchools.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
-              </select>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                {classId
-                  ? `Locked to the class school${selectedSchoolName ? `: ${selectedSchoolName}` : ''}.`
-                  : form.school_id
-                    ? `Only students and staff scoped to ${selectedSchoolName || 'this school'} will see this exam.`
-                    : 'Teachers must choose one assigned school so the exam is not exposed outside the intended school.'}
-              </p>
-            </div>
+            {/* Programme & School selectors — NEVER trapped disabled when empty! */}
+            {(!classId || !form.program_id || (!form.school_id && profile?.role === 'teacher') || showContextSelectors) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-border bg-muted/15 p-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                      Programme <span className="text-rose-600 dark:text-rose-400">*</span>
+                    </label>
+                    {classId && !form.program_id && (
+                      <span className="text-[10px] font-black text-amber-700 dark:text-amber-300">
+                        Not set on class — pick one
+                      </span>
+                    )}
+                  </div>
+                  <select required value={form.program_id}
+                    aria-label="Programme"
+                    onChange={e => {
+                      const pid = e.target.value;
+                      const currentCourse = courses.find(x => x.id === form.course_id);
+                      setForm(f => ({
+                        ...f,
+                        program_id: pid,
+                        course_id: currentCourse?.program_id === pid ? f.course_id : '',
+                      }));
+                    }}
+                    className={`w-full px-4 py-3 bg-card shadow-sm border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer ${
+                      !form.program_id ? 'border-amber-500/60' : 'border-border'
+                    }`}>
+                    <option value="">Select programme…</option>
+                    {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                    Visible To School {profile?.role === 'teacher' ? <span className="text-rose-600 dark:text-rose-400">*</span> : <span className="text-muted-foreground">(optional for admin)</span>}
+                  </label>
+                  <select
+                    aria-label="Visible To School"
+                    value={form.school_id}
+                    onChange={e => {
+                      const schoolId = e.target.value;
+                      setForm(f => {
+                        const currentCourse = courses.find(c => c.id === f.course_id);
+                        const keepCourse = !currentCourse?.school_id || !schoolId || currentCourse.school_id === schoolId;
+                        return { ...f, school_id: schoolId, course_id: keepCourse ? f.course_id : '' };
+                      });
+                    }}
+                    disabled={!!classId && !!form.school_id}
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {profile?.role === 'admin' ? 'Platform-wide / no school gate' : 'Select one of your assigned schools…'}
+                    </option>
+                    {assignedSchools.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Exam Type — critical for score routing */}
             <div className={`grid grid-cols-2 gap-3 ${hostKind ? 'hidden' : ''}`}>
@@ -1356,10 +1517,88 @@ export default function NewExamPage() {
               </div>
             </div>
 
+            {/* Chief Examiner Readiness & 1-Click Mark Balancer Bar */}
+            {questions.some((q) => q.question_text.trim()) && (() => {
+              const audit = auditExamReadiness(questions, selectedQuestions);
+              return (
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-black uppercase tracking-wider text-foreground">
+                        Examiner Check:
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/12 border border-emerald-500/25 font-bold text-emerald-800 dark:text-emerald-300">
+                        {audit.objectiveCount} Objective
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-amber-500/12 border border-amber-500/25 font-bold text-amber-800 dark:text-amber-300">
+                        {audit.theoryCount} Theory
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-muted border border-border font-bold text-foreground">
+                        {audit.totalMarks} Marks
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          teacherEdits.current.duration = true;
+                          setForm((f) => ({ ...f, duration_minutes: String(audit.recommendedMinutes) }));
+                        }}
+                        title="Apply Chief Examiner recommended sitting duration"
+                        className="px-2 py-0.5 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/25 font-bold text-primary transition-colors"
+                      >
+                        Est. {audit.recommendedMinutes}m (Apply)
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="font-bold text-muted-foreground">Auto-balance marks:</span>
+                      {[20, 40, 60, 100].map((target) => (
+                        <button
+                          key={target}
+                          type="button"
+                          disabled={audit.totalQuestions === 0 || target < audit.totalQuestions}
+                          onClick={() => handleBalanceMarks(target)}
+                          className={`px-2.5 py-1 rounded-lg border font-black transition-colors disabled:opacity-35 ${
+                            audit.totalMarks === target
+                              ? 'bg-emerald-700 text-white border-emerald-700'
+                              : 'bg-muted/40 hover:bg-muted border-border text-foreground'
+                          }`}
+                        >
+                          {target}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {audit.isReady ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                      <CheckCircleIcon className="h-4 w-4 shrink-0" />
+                      All {audit.totalQuestions} selected questions verified with valid answer keys — ready to publish!
+                    </div>
+                  ) : audit.issues.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs">
+                      <span className="font-black text-amber-900 dark:text-amber-200">
+                        {audit.issues.length} question{audit.issues.length === 1 ? '' : 's'} need attention:
+                      </span>
+                      {audit.issues.slice(0, 8).map((item) => (
+                        <button
+                          key={`new-issue-${item.index}`}
+                          type="button"
+                          onClick={() => document.getElementById(`new-q-${item.index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                          className="rounded-lg border border-amber-500/40 bg-card px-2 py-0.5 text-[11px] font-black text-amber-900 dark:text-amber-200 hover:bg-amber-500/20"
+                        >
+                          Q{item.index + 1} ({item.reason})
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })()}
+
             {questions.map((q, qi) => {
               const isSelected = selectedQuestions.has(qi);
               return (
-              <div key={qi} className={`border rounded-xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card shadow-sm border-border hover:bg-white/[0.07]'}`}>
+              <div key={qi} id={`new-q-${qi}`} className={`border rounded-xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-card shadow-sm border-border hover:bg-white/[0.07]'}`}>
                 <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     {/* Selection checkbox */}
