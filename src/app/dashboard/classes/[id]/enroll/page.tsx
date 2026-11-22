@@ -139,6 +139,8 @@ export default function ClassEnrollWorkspacePage() {
   const [targetGradePitch, setTargetGradePitch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<Set<string>>(new Set());
+  const [lastAdoptBanner, setLastAdoptBanner] = useState<{ text: string; ids: string[] } | null>(null);
+  const [undoingAdopt, setUndoingAdopt] = useState(false);
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [perStudentAction, setPerStudentAction] = useState<Record<string, GradeAction>>({});
   const [showAllRows, setShowAllRows] = useState(false);
@@ -718,13 +720,37 @@ export default function ClassEnrollWorkspacePage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || 'Could not enrol selected students');
-      toast.success(`Adopted ${json.enrolled ?? ids.length} student${(json.enrolled ?? ids.length) === 1 ? '' : 's'} into ${cls?.name || 'class'}`);
+      const enrolledIds: string[] = Array.isArray(json.enrolledIds) && json.enrolledIds.length > 0 ? json.enrolledIds : ids;
+      const msg = `Adopted ${json.enrolled ?? enrolledIds.length} student${(json.enrolled ?? enrolledIds.length) === 1 ? '' : 's'} into ${cls?.name || 'class'}.`;
+      toast.success(msg);
+      setLastAdoptBanner({ text: msg, ids: enrolledIds });
       setSelectedIds(new Set());
       await loadAll();
     } catch (e: any) {
       toast.error(e?.message || 'Batch enrollment failed');
     } finally {
       setBusy(null);
+    }
+  };
+
+  const undoLastAdopt = async () => {
+    if (!lastAdoptBanner?.ids?.length) return;
+    setUndoingAdopt(true);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: lastAdoptBanner.ids }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not undo enrollment');
+      toast.success(`Removed ${lastAdoptBanner.ids.length} student${lastAdoptBanner.ids.length === 1 ? '' : 's'} from ${cls?.name || 'class'}.`);
+      setLastAdoptBanner(null);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not undo enrollment');
+    } finally {
+      setUndoingAdopt(false);
     }
   };
 
@@ -906,6 +932,32 @@ export default function ClassEnrollWorkspacePage() {
         </div>
       ) : tab === 'pick' ? (
         <div className="space-y-4">
+          {lastAdoptBanner && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-900 dark:text-emerald-200"
+            >
+              <span>✓ {lastAdoptBanner.text}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={undoingAdopt}
+                  onClick={() => void undoLastAdopt()}
+                  className="rounded-lg border border-rose-500/35 bg-rose-500/10 hover:bg-rose-500/20 px-2.5 py-1 text-[10px] font-black uppercase text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-50"
+                >
+                  {undoingAdopt ? 'Removing…' : `Undo / Remove (${lastAdoptBanner.ids.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLastAdoptBanner(null)}
+                  aria-label="Dismiss adoption banner"
+                  className="opacity-70 hover:opacity-100"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
           {/* Always-visible Inline Quick-Add / Auto-Adopt Bar + Live System Suggestions + AI */}
           <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3.5 space-y-2.5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">

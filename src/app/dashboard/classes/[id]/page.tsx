@@ -206,6 +206,8 @@ export default function ClassDetailPage() {
   const [schoolAdoptTargetGrade, setSchoolAdoptTargetGrade] = useState<string>(''); // '' = auto, '__retain__' = keep current, or exact grade
   const [schoolAdoptDestClassId, setSchoolAdoptDestClassId] = useState<string>(''); // '' = this class
   const [bulkAdoptingSchool, setBulkAdoptingSchool] = useState(false);
+  const [adoptFeedback, setAdoptFeedback] = useState<{ type: 'success' | 'info' | 'error'; text: string; undoIds?: string[]; destId?: string } | null>(null);
+  const [undoingAdopt, setUndoingAdopt] = useState(false);
   const [lastCheckedEnrollId, setLastCheckedEnrollId] = useState<string | null>(null);
   const [rosterSort, setRosterSort] = useState<'attention' | 'name_asc' | 'name_desc' | 'grade'>('attention');
   const [bulkSettingGrade, setBulkSettingGrade] = useState(false);
@@ -1318,12 +1320,27 @@ export default function ClassDetailPage() {
     }
   };
 
-  // Swift single-request bulk adoption from school / sister-school search matches (zero N+1 calls)
+  // Swift single-request bulk adoption from school / sister-school search matches (zero N+1 calls, deduped, with instant Undo)
   const bulkAdoptFromSchool = async (studentIds: string[], targetGradeOverride?: string, targetClassIdOverride?: string) => {
     const destId = targetClassIdOverride || schoolAdoptDestClassId || id;
     if (!destId || studentIds.length === 0) return;
+
+    // Duplicate prevention: skip students already active on this roster when adopting into this class
+    const existingIds = destId === id ? new Set(currentTermStudents.map((s: any) => s.id)) : new Set<string>();
+    const uniqueIds = Array.from(new Set(studentIds)).filter((sid) => !existingIds.has(sid));
+    const skippedCount = Array.from(new Set(studentIds)).length - uniqueIds.length;
+    if (uniqueIds.length === 0) {
+      setAdoptFeedback({
+        type: 'info',
+        text: `Already on ${cls?.name || 'this class'} roster — skipped duplicate enrollment.`,
+      });
+      setCheckedSchoolAdoptIds(new Set());
+      return;
+    }
+
     setBulkAdoptingSchool(true);
     setError(null);
+    setAdoptFeedback(null);
     try {
       const effectiveGrade = targetGradeOverride !== undefined ? targetGradeOverride : schoolAdoptTargetGrade;
       const gradeAction = effectiveGrade === '__retain__' ? 'retain' : 'promote';
@@ -1332,25 +1349,60 @@ export default function ClassDetailPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentIds,
+          studentIds: uniqueIds,
           grade_action: gradeAction,
           ...(explicitTarget ? { target_grade: explicitTarget } : {}),
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || 'Could not adopt selected students');
-      const adoptedSet = new Set<string>(Array.isArray(json.enrolledIds) ? json.enrolledIds : studentIds);
+      const adoptedIds: string[] = Array.isArray(json.enrolledIds) && json.enrolledIds.length > 0 ? json.enrolledIds : uniqueIds;
+      const adoptedSet = new Set<string>(adoptedIds);
       setSchoolSuggestionsPool((prev) => prev.filter((s: any) => !adoptedSet.has(s.id)));
       setCheckedSchoolAdoptIds((prev) => {
         const next = new Set(prev);
         adoptedSet.forEach((sid) => next.delete(sid));
         return next;
       });
+      const destName = destId === id
+        ? (cls?.name || 'this class')
+        : (destinationClasses.find((d: any) => d.id === destId)?.name || 'destination class');
+      setAdoptFeedback({
+        type: 'success',
+        text: `Adopted ${adoptedIds.length} student${adoptedIds.length === 1 ? '' : 's'} into ${destName}${skippedCount > 0 ? ` (${skippedCount} already enrolled, skipped)` : ''}.`,
+        undoIds: adoptedIds,
+        destId,
+      });
       await fetchData();
     } catch (e: any) {
-      setError(e?.message || 'Could not adopt selected students');
+      const msg = e?.message || 'Could not adopt selected students';
+      setError(msg);
+      setAdoptFeedback({ type: 'error', text: msg });
     } finally {
       setBulkAdoptingSchool(false);
+    }
+  };
+
+  const handleUndoLastAdopt = async () => {
+    if (!adoptFeedback?.undoIds?.length || !adoptFeedback.destId) return;
+    setUndoingAdopt(true);
+    try {
+      const res = await fetch(`/api/classes/${adoptFeedback.destId}/enroll`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: adoptFeedback.undoIds }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not undo enrollment');
+      setAdoptFeedback({
+        type: 'info',
+        text: `Removed ${adoptFeedback.undoIds.length} student${adoptFeedback.undoIds.length === 1 ? '' : 's'} from enrollment.`,
+      });
+      await fetchData();
+    } catch (e: any) {
+      setAdoptFeedback({ type: 'error', text: e?.message || 'Could not undo enrollment' });
+    } finally {
+      setUndoingAdopt(false);
     }
   };
   const removeStudent = async (studentId: string) => {
@@ -2380,10 +2432,10 @@ export default function ClassDetailPage() {
                             {showRosterActions && (
                               <>
                                 <div
-                                  className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-none"
+                                  className="fixed inset-0 z-[190] bg-black/55 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-none"
                                   onClick={() => setShowRosterActions(false)}
                                 />
-                                <div className="fixed inset-x-3 bottom-3 z-[120] max-h-[75vh] overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-2xl space-y-1 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-64 sm:max-h-[70vh] sm:rounded-xl sm:p-1.5 sm:space-y-0.5">
+                                <div className="fixed inset-x-3 bottom-[calc(var(--app-bottom-nav-height,64px)+0.75rem)] z-[200] max-h-[72dvh] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-2 shadow-2xl space-y-1 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-64 sm:max-h-[70vh] sm:rounded-xl sm:p-1.5 sm:space-y-0.5">
                                   <div className="flex items-center justify-between border-b border-border px-3 py-2 sm:hidden">
                                     <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Class Roster Actions</span>
                                     <button
@@ -3254,6 +3306,42 @@ export default function ClassDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {/* Instant Feedback Banner with 1-Click Undo / Remove */}
+                      {adoptFeedback && (
+                        <div
+                          role="status"
+                          className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold ${
+                            adoptFeedback.type === 'success'
+                              ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                              : adoptFeedback.type === 'error'
+                                ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                                : 'border-primary/35 bg-primary/10 text-primary'
+                          }`}
+                        >
+                          <span>{adoptFeedback.text}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {adoptFeedback.undoIds && adoptFeedback.undoIds.length > 0 && (
+                              <button
+                                type="button"
+                                disabled={undoingAdopt}
+                                onClick={() => void handleUndoLastAdopt()}
+                                className="rounded-lg border border-rose-500/35 bg-rose-500/10 hover:bg-rose-500/20 px-2.5 py-1 text-[10px] font-black uppercase text-rose-700 dark:text-rose-300 transition-colors disabled:opacity-50"
+                              >
+                                {undoingAdopt ? 'Removing…' : `Undo / Remove (${adoptFeedback.undoIds.length})`}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setAdoptFeedback(null)}
+                              aria-label="Dismiss enrollment notice"
+                              className="px-1 text-base leading-none opacity-70 hover:opacity-100"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Persistent Multi-Search Selection Basket + School & Sister-School Adopt Panel */}
                       {isStaff && (checkedSchoolAdoptIds.size > 0 || schoolSearchMatches.length > 0) && (() => {
                         const adoptableMatches = schoolSearchMatches.filter((s: any) => !s.requires_transfer_request);
