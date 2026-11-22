@@ -24,10 +24,15 @@ export default function ParentContactGate() {
   const [rcCodeDisplay, setRcCodeDisplay] = useState('');
   const [recordGaps, setRecordGaps] = useState<{ needsGender?: boolean; needsAge?: boolean }>({});
 
-  const isOnExamTake = Boolean(pathname && /\/take(\/|$)/.test(pathname));
+  const isOnReportCardRoute = Boolean(
+    pathname && /^\/dashboard\/(results|reports|grades|certificates)(\/|$)/.test(pathname),
+  );
 
   useEffect(() => {
-    if (authLoading || !profile || profile.role !== 'student' || isOnExamTake) return;
+    if (authLoading || !profile || profile.role !== 'student' || !isOnReportCardRoute) {
+      setOpen(false);
+      return;
+    }
     if (typeof window !== 'undefined' && window.sessionStorage.getItem(`${SESSION_DONE_KEY}:${profile.id}`) === '1') {
       return;
     }
@@ -54,7 +59,7 @@ export default function ParentContactGate() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, profile, isOnExamTake]);
+  }, [authLoading, profile, isOnReportCardRoute]);
 
   const dismissForSession = useCallback(() => {
     if (typeof window !== 'undefined' && profile?.id) {
@@ -74,7 +79,7 @@ export default function ParentContactGate() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, dismissForSession]);
 
-  if (!open || !rcCode || isOnExamTake) return null;
+  if (!open || !rcCode || !isOnReportCardRoute) return null;
 
   return (
     <div
