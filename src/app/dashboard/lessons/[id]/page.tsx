@@ -78,6 +78,7 @@ import {
 } from "@/lib/learning/lesson-plan-scope";
 import NeuralVoiceReader from "@/components/ai/NeuralVoiceReader";
 import StudyAssistant from "@/components/ai/StudyAssistant";
+import PriorityMaterialsPanel from "@/components/lessons/PriorityMaterialsPanel";
 import { parseLessonHook, type LessonHookData } from "@/lib/lessons/lesson-hook";
 
 type ResourceItem = {
@@ -5475,6 +5476,21 @@ export default function LessonDetailPage() {
             <div className="min-h-[50vh]">
               {activeTab === "content" && (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-16 sm:space-y-24">
+                  <PriorityMaterialsPanel
+                    lessonId={id}
+                    materials={materials}
+                    canManage={profile?.role === "admin" || profile?.role === "teacher"}
+                    onMaterialsChange={(next) => setMaterials(next)}
+                    onViewMaterial={(item) =>
+                      setViewerItem({
+                        id: item.id,
+                        title: item.title,
+                        file_url: item.file_url,
+                        file_type: item.file_type ?? undefined,
+                        content_type: item.content_type ?? undefined,
+                      })
+                    }
+                  />
                   {/* The slide deck used to sit here, above the hook, as a
                       banner that opened a fullscreen viewer. A recap belongs
                       after the material it recaps, so it now renders inline as

@@ -66,6 +66,7 @@ export async function GET(
     // Determine if this is a public folder that bypasses the auth check
     const isPublicPath = r2Key.startsWith('summer-school-receipts/');
 
+    let userRole = 'student';
     if (!isPublicPath) {
         const user = await resolveUser(req);
         if (!user) {
@@ -83,8 +84,20 @@ export async function GET(
             .select('role')
             .eq('id', user.id)
             .maybeSingle();
+        userRole = String(profile?.role ?? 'student').toLowerCase();
+
+        // Proprietary resource protection: students may view study materials inline
+        // inside Rillcod Academy, but may NEVER force-download or share raw files.
+        const isStaff = ['admin', 'teacher', 'school'].includes(userRole);
+        if (!isStaff && req.nextUrl.searchParams.has('download')) {
+            return NextResponse.json(
+                { error: 'Downloading study materials is restricted to teachers and admins. Please view inside Rillcod Academy.' },
+                { status: 403, headers: { 'Cache-Control': 'no-store' } },
+            );
+        }
+
         const lock = await checkExamMaterialLock(admin, {
-            userRole: String(profile?.role ?? 'student'),
+            userRole,
             mediaPath: r2Key,
         });
         if (lock.locked) {
@@ -101,22 +114,22 @@ export async function GET(
     }
 
     const { searchParams } = req.nextUrl;
-    const isDownload = searchParams.has('download');
+    const isStaffViewer = ['admin', 'teacher', 'school'].includes(userRole);
+    const isDownload = isStaffViewer && searchParams.has('download');
     const filename = searchParams.get('filename') ?? r2Key.split('/').pop() ?? 'file';
 
     let signedUrl: string;
     try {
-        signedUrl = await r2SignedUrl(r2Key, 3600, isDownload ? filename : undefined);
+        // Short-lived 5-minute signed URL for students (prevents link sharing), 1-hour for staff
+        signedUrl = await r2SignedUrl(r2Key, isStaffViewer ? 3600 : 300, isDownload ? filename : undefined);
     } catch {
         return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // 302 redirect — R2 serves the file directly, no origin bandwidth used.
-    // Cache-Control tells mobile clients they can reuse this URL for 55 minutes.
     return NextResponse.redirect(signedUrl, {
         status: 302,
         headers: {
-            'Cache-Control': 'private, max-age=3300',
+            'Cache-Control': isStaffViewer ? 'private, max-age=3300' : 'private, no-store',
         },
     });
 }
