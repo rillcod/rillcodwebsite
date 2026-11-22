@@ -203,6 +203,8 @@ export default function ClassDetailPage() {
   // Bulk-action checkboxes + sort for enrolled students list
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
   const [checkedSchoolAdoptIds, setCheckedSchoolAdoptIds] = useState<Set<string>>(new Set());
+  const [schoolAdoptTargetGrade, setSchoolAdoptTargetGrade] = useState<string>(''); // '' = auto, '__retain__' = keep current, or exact grade
+  const [schoolAdoptDestClassId, setSchoolAdoptDestClassId] = useState<string>(''); // '' = this class
   const [bulkAdoptingSchool, setBulkAdoptingSchool] = useState(false);
   const [lastCheckedEnrollId, setLastCheckedEnrollId] = useState<string | null>(null);
   const [rosterSort, setRosterSort] = useState<'attention' | 'name_asc' | 'name_desc' | 'grade'>('attention');
@@ -1317,18 +1319,22 @@ export default function ClassDetailPage() {
   };
 
   // Swift single-request bulk adoption from school / sister-school search matches (zero N+1 calls)
-  const bulkAdoptFromSchool = async (studentIds: string[], targetGrade?: string) => {
-    if (!id || studentIds.length === 0) return;
+  const bulkAdoptFromSchool = async (studentIds: string[], targetGradeOverride?: string, targetClassIdOverride?: string) => {
+    const destId = targetClassIdOverride || schoolAdoptDestClassId || id;
+    if (!destId || studentIds.length === 0) return;
     setBulkAdoptingSchool(true);
     setError(null);
     try {
-      const res = await fetch(`/api/classes/${id}/enroll`, {
+      const effectiveGrade = targetGradeOverride !== undefined ? targetGradeOverride : schoolAdoptTargetGrade;
+      const gradeAction = effectiveGrade === '__retain__' ? 'retain' : 'promote';
+      const explicitTarget = effectiveGrade && effectiveGrade !== '__retain__' ? effectiveGrade : undefined;
+      const res = await fetch(`/api/classes/${destId}/enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentIds,
-          grade_action: 'promote',
-          ...(targetGrade ? { target_grade: targetGrade } : {}),
+          grade_action: gradeAction,
+          ...(explicitTarget ? { target_grade: explicitTarget } : {}),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -3248,114 +3254,184 @@ export default function ClassDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {/* Swift Multi-Tick School & Sister-School Adopt Panel (visible whenever search matches outside this class) */}
-                      {isStaff && schoolSearchMatches.length > 0 && (() => {
+                      {/* Persistent Multi-Search Selection Basket + School & Sister-School Adopt Panel */}
+                      {isStaff && (checkedSchoolAdoptIds.size > 0 || schoolSearchMatches.length > 0) && (() => {
                         const adoptableMatches = schoolSearchMatches.filter((s: any) => !s.requires_transfer_request);
-                        const tickedCount = adoptableMatches.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).length;
-                        const allTicked = adoptableMatches.length > 0 && tickedCount === adoptableMatches.length;
+                        const allMatchesTicked = adoptableMatches.length > 0 && adoptableMatches.every((s: any) => checkedSchoolAdoptIds.has(s.id));
+                        const basketStudents = schoolSuggestionsPool.filter((s: any) => checkedSchoolAdoptIds.has(s.id));
                         return (
-                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/5 p-3 text-left space-y-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
-                                  Found {schoolSearchMatches.length} in School / Sister Schools — Adopt into {cls?.name}
-                                </p>
-                                {adoptableMatches.length > 1 && (
+                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/5 p-3 text-left space-y-2.5">
+                            {/* Persistent Basket Header: survives clearing search so you can search & tick multiple names in a row */}
+                            {checkedSchoolAdoptIds.size > 0 && (
+                              <div className="rounded-xl border border-emerald-500/40 bg-card p-2.5 space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-200">
+                                    ✓ {checkedSchoolAdoptIds.size} Student{checkedSchoolAdoptIds.size === 1 ? '' : 's'} Ready to Adopt (persists across searches)
+                                  </span>
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setCheckedSchoolAdoptIds((prev) => {
-                                        const next = new Set(prev);
-                                        if (allTicked) adoptableMatches.forEach((s: any) => next.delete(s.id));
-                                        else adoptableMatches.forEach((s: any) => next.add(s.id));
-                                        return next;
-                                      });
-                                    }}
-                                    className="rounded-md border border-emerald-500/40 bg-card px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/15"
+                                    onClick={() => setCheckedSchoolAdoptIds(new Set())}
+                                    className="text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
                                   >
-                                    {allTicked ? 'Untick All' : `Tick All (${adoptableMatches.length})`}
+                                    Clear Selection
                                   </button>
-                                )}
-                              </div>
-                              {tickedCount > 0 && (
-                                <button
-                                  type="button"
-                                  disabled={bulkAdoptingSchool}
-                                  onClick={async () => {
-                                    const ids = adoptableMatches.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).map((s: any) => s.id);
-                                    await bulkAdoptFromSchool(ids);
-                                    setRosterSearch('');
-                                  }}
-                                  className="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-xs disabled:opacity-40"
-                                >
-                                  {bulkAdoptingSchool ? 'Adopting…' : `+ Adopt Selected (${tickedCount})`}
-                                </button>
-                              )}
-                            </div>
-                            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-                              {schoolSearchMatches.map((s: any) => {
-                                const locked = Boolean(s.requires_transfer_request);
-                                const isTicked = !locked && checkedSchoolAdoptIds.has(s.id);
-                                return (
-                                  <div
-                                    key={`sm-${s.id}`}
-                                    className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors ${
-                                      isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      {!locked && (
-                                        <input
-                                          type="checkbox"
-                                          checked={isTicked}
-                                          aria-label={`Select ${s.full_name} to adopt`}
-                                          onChange={() =>
-                                            setCheckedSchoolAdoptIds((prev) => {
-                                              const next = new Set(prev);
-                                              if (next.has(s.id)) next.delete(s.id);
-                                              else next.add(s.id);
-                                              return next;
-                                            })
-                                          }
-                                          className="h-4 w-4 shrink-0 rounded accent-emerald-600 cursor-pointer"
-                                        />
-                                      )}
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                          <p className="font-bold text-foreground truncate">{s.full_name}</p>
-                                          {s.sister_school_name && (
-                                            <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">
-                                              {s.sister_school_name}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground truncate">
-                                          {s.grade ? `${s.grade}${s.suggested_grade && s.suggested_grade !== s.grade ? ` → ${s.suggested_grade}` : ''} · ` : ''}
-                                          {s.current_class_name || 'Unassigned'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    {locked ? (
-                                      <span className="shrink-0 rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
-                                        Other Teacher
-                                      </span>
-                                    ) : (
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                                  {basketStudents.map((b: any) => (
+                                    <span
+                                      key={`basket-${b.id}`}
+                                      className="inline-flex items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-foreground"
+                                    >
+                                      <span>{b.full_name}</span>
                                       <button
                                         type="button"
-                                        disabled={!!processingStudent || bulkAdoptingSchool}
-                                        onClick={async () => {
-                                          await assignStudent(s.id, 'promote');
-                                          setRosterSearch('');
-                                        }}
-                                        className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                        aria-label={`Remove ${b.full_name} from selection`}
+                                        onClick={() =>
+                                          setCheckedSchoolAdoptIds((prev) => {
+                                            const next = new Set(prev);
+                                            next.delete(b.id);
+                                            return next;
+                                          })
+                                        }
+                                        className="text-rose-600 dark:text-rose-400 hover:opacity-80"
                                       >
-                                        {processingStudent === s.id ? 'Adopting…' : 'Adopt Here'}
+                                        ×
                                       </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60">
+                                  {destinationClasses.length > 0 && (
+                                    <select
+                                      aria-label="Target class for adoption"
+                                      value={schoolAdoptDestClassId}
+                                      onChange={(e) => setSchoolAdoptDestClassId(e.target.value)}
+                                      className="h-8 rounded-lg border border-border bg-background px-2 text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+                                    >
+                                      <option value="">Class: {cls?.name || 'This Class'} (Default)</option>
+                                      {destinationClasses.map((d: any) => (
+                                        <option key={`adopt-dest-${d.id}`} value={d.id}>
+                                          Class: {d.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                  <select
+                                    aria-label="Target grade for adoption"
+                                    value={schoolAdoptTargetGrade}
+                                    onChange={(e) => setSchoolAdoptTargetGrade(e.target.value)}
+                                    className="h-8 rounded-lg border border-primary/35 bg-primary/5 px-2 text-[11px] font-bold text-primary focus:border-primary focus:outline-none"
+                                  >
+                                    <option value="">Grade: Auto ({defaultEntryGradeForClass() || 'Class / +1'})</option>
+                                    <option value="__retain__">Grade: Keep Current Grade</option>
+                                    {SINGLE_GRADES.map((g) => (
+                                      <option key={`adopt-g-${g}`} value={g}>Set Grade: {g}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    disabled={bulkAdoptingSchool}
+                                    onClick={async () => {
+                                      await bulkAdoptFromSchool([...checkedSchoolAdoptIds]);
+                                      setRosterSearch('');
+                                    }}
+                                    className="ml-auto h-8 shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 text-[11px] font-black uppercase text-white shadow-xs disabled:opacity-40"
+                                  >
+                                    {bulkAdoptingSchool ? 'Adopting…' : `+ Adopt All (${checkedSchoolAdoptIds.size})`}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {schoolSearchMatches.length > 0 && (
+                              <>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
+                                    Found {schoolSearchMatches.length} in School / Sister Schools — Tick to add to basket
+                                  </p>
+                                  {adoptableMatches.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCheckedSchoolAdoptIds((prev) => {
+                                          const next = new Set(prev);
+                                          if (allMatchesTicked) adoptableMatches.forEach((s: any) => next.delete(s.id));
+                                          else adoptableMatches.forEach((s: any) => next.add(s.id));
+                                          return next;
+                                        });
+                                      }}
+                                      className="rounded-md border border-emerald-500/40 bg-card px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/15"
+                                    >
+                                      {allMatchesTicked ? 'Untick Shown' : `Tick Shown (${adoptableMatches.length})`}
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                                  {schoolSearchMatches.map((s: any) => {
+                                    const locked = Boolean(s.requires_transfer_request);
+                                    const isTicked = !locked && checkedSchoolAdoptIds.has(s.id);
+                                    return (
+                                      <div
+                                        key={`sm-${s.id}`}
+                                        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors ${
+                                          isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          {!locked && (
+                                            <input
+                                              type="checkbox"
+                                              checked={isTicked}
+                                              aria-label={`Select ${s.full_name} to adopt`}
+                                              onChange={() =>
+                                                setCheckedSchoolAdoptIds((prev) => {
+                                                  const next = new Set(prev);
+                                                  if (next.has(s.id)) next.delete(s.id);
+                                                  else next.add(s.id);
+                                                  return next;
+                                                })
+                                              }
+                                              className="h-4 w-4 shrink-0 rounded accent-emerald-600 cursor-pointer"
+                                            />
+                                          )}
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                              <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                              {s.sister_school_name && (
+                                                <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">
+                                                  {s.sister_school_name}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground truncate">
+                                              {s.grade ? `${s.grade}${s.suggested_grade && s.suggested_grade !== s.grade ? ` → ${s.suggested_grade}` : ''} · ` : ''}
+                                              {s.current_class_name || 'Unassigned'}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        {locked ? (
+                                          <span className="shrink-0 rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                            Other Teacher
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            disabled={!!processingStudent || bulkAdoptingSchool}
+                                            onClick={async () => {
+                                              await bulkAdoptFromSchool([s.id]);
+                                              setRosterSearch('');
+                                            }}
+                                            className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                          >
+                                            {processingStudent === s.id ? 'Adopting…' : 'Adopt Here'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       })()}

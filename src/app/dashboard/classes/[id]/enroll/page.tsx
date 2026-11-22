@@ -974,6 +974,86 @@ export default function ClassEnrollWorkspacePage() {
               </button>
             </div>
 
+            {/* Persistent Multi-Search Selection Basket (remembers ticked students even after you clear search!) */}
+            {selectedSuggestionIds.size > 0 && (() => {
+              const basket = available.filter((s) => selectedSuggestionIds.has(s.id));
+              return (
+                <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/[0.07] p-3 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-200">
+                      ✓ {selectedSuggestionIds.size} Student{selectedSuggestionIds.size === 1 ? '' : 's'} Selected Across Searches
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSuggestionIds(new Set())}
+                      className="text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                    {basket.map((s) => (
+                      <span
+                        key={`sug-basket-${s.id}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-emerald-500/35 bg-card px-2 py-0.5 text-[10px] font-bold text-foreground"
+                      >
+                        <span>{s.full_name}</span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${s.full_name}`}
+                          onClick={() =>
+                            setSelectedSuggestionIds((prev) => {
+                              const next = new Set(prev);
+                              next.delete(s.id);
+                              return next;
+                            })
+                          }
+                          className="text-rose-600 dark:text-rose-400 hover:opacity-80"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-emerald-500/20">
+                    <select
+                      aria-label="Target grade for selected students"
+                      value={targetGradePitch}
+                      onChange={(e) => setTargetGradePitch(e.target.value)}
+                      className="h-8 rounded-lg border border-primary/35 bg-card px-2.5 text-[11px] font-bold text-primary focus:border-primary focus:outline-none"
+                    >
+                      <option value="">Grade: Auto ({defaultEntryGrade || 'Class / +1'})</option>
+                      {SINGLE_GRADES.map((g) => (
+                        <option key={`sug-g-${g}`} value={g}>Set Grade: {g}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Grade action when adopting selected students"
+                      value={gradeAction}
+                      onChange={(e) => setGradeAction(e.target.value as GradeAction)}
+                      className="h-8 rounded-lg border border-border bg-card px-2.5 text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+                    >
+                      <option value="promote">Action: Promote / Fit Class</option>
+                      <option value="retain">Action: Keep Current Grade</option>
+                      <option value="demote">Action: Step Down</option>
+                    </select>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={async () => {
+                        await adoptSelected([...selectedSuggestionIds], gradeAction);
+                        setSelectedSuggestionIds(new Set());
+                        setQuickInput('');
+                      }}
+                      className="ml-auto h-8 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 text-[11px] font-black text-white shadow-xs disabled:opacity-40"
+                    >
+                      {busy ? 'Adopting…' : `+ Adopt All (${selectedSuggestionIds.size}) into ${cls?.name || 'Class'}`}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Unlimited Inline Live System Suggestions (every matching record in the school + multi-tick bulk adopt) */}
             {inlineSystemSuggestions.length > 0 && (() => {
               const adoptableSuggestions = inlineSystemSuggestions.filter((s) => !s.inThisClass && !s.locked);
