@@ -195,9 +195,14 @@ function LoginContent() {
     setError(null);
 
     try {
+      const cleanEmail = email.replace(/[\s\u00A0]+/g, '').toLowerCase();
+      const cleanPassword = password.trim();
+      if (!cleanEmail || !cleanPassword) {
+        throw new Error('Please enter both your email/username and password.');
+      }
       const { data: authData, error: authError } =
         await withTimeoutOrThrow(
-          supabase.auth.signInWithPassword({ email, password }),
+          supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword }),
           'Sign in is taking longer than expected. Check your connection and try again.',
           15_000,
         );

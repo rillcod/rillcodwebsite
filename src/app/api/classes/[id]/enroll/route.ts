@@ -261,10 +261,10 @@ export async function GET(
   const { id: classId } = await context.params;
   const admin = adminClient();
 
-  // Fetch the class to determine its school, grade, and term
+  // Fetch the class to determine its school, grade, capacity, and term (single query)
   const { data: cls } = await admin
     .from('classes')
-    .select('name, school_id, teacher_id, term_id, qa_grade_key, qa_grade_band, academic_offerings(enrollment_type)')
+    .select('id, name, school_id, teacher_id, term_id, max_students, qa_grade_key, qa_grade_band, schools(name), academic_offerings(enrollment_type)')
     .eq('id', classId)
     .single();
 
@@ -329,13 +329,15 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const ownerIds = [...new Set((allData ?? []).map((row: any) => row.classes?.teacher_id ?? row.primary_teacher_id).filter(Boolean))];
-  const { data: owners } = ownerIds.length
-    ? await admin.from('portal_users').select('id, full_name, email').in('id', ownerIds)
-    : { data: [] as any[] };
+  const [{ data: owners }, { data: pendingRows }] = await Promise.all([
+    ownerIds.length
+      ? admin.from('portal_users').select('id, full_name, email').in('id', ownerIds)
+      : Promise.resolve({ data: [] as any[] }),
+    caller.role === 'teacher'
+      ? admin.from('student_transfer_requests').select('id, student_id, status').eq('requested_by', caller.id).eq('to_class_id', classId).eq('status', 'pending')
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
   const ownerMap = new Map((owners ?? []).map((owner: any) => [owner.id, owner]));
-  const { data: pendingRows } = caller.role === 'teacher'
-    ? await admin.from('student_transfer_requests').select('id, student_id, status').eq('requested_by', caller.id).eq('to_class_id', classId).eq('status', 'pending')
-    : { data: [] as any[] };
   const pendingByStudent = new Map((pendingRows ?? []).map((row: any) => [row.student_id, row.id]));
 
   // Exclude students already IN this class; unassigned students sort first.
@@ -431,8 +433,34 @@ export async function GET(
   }
   const schoolClasses = Array.from(classBuckets.values()).sort((a, b) => a.name.localeCompare(b.name));
 
+  // Include current class roster from the same single DB pull so the enroll workspace loads in 1 call (zero extra round-trips)
+  const roster = (allData ?? [])
+    .filter((u: any) => u.class_id === classId && u.is_active !== false)
+    .map((u: any) => ({
+      id: u.id,
+      full_name: u.full_name,
+      email: u.email ?? null,
+      grade: canonicalGrade(u.grade || u.section_class) || u.grade || u.section_class || null,
+      is_current_term_active: true,
+    }))
+    .sort((a: any, b: any) => String(a.full_name || '').localeCompare(String(b.full_name || '')));
+
   return NextResponse.json(
     {
+      class_info: cls
+        ? {
+            id: (cls as any).id ?? classId,
+            name: cls.name,
+            school_id: cls.school_id,
+            max_students: (cls as any).max_students ?? null,
+            qa_grade_key: cls.qa_grade_key ?? null,
+            qa_grade_band: cls.qa_grade_band ?? null,
+            school_name: Array.isArray((cls as any).schools)
+              ? (cls as any).schools[0]?.name ?? clsSchoolNameForGet
+              : (cls as any).schools?.name ?? clsSchoolNameForGet,
+          }
+        : null,
+      roster,
       students,
       class_grade: classGrade,
       feeder_grade: feederGrade,

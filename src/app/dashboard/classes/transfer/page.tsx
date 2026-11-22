@@ -117,10 +117,19 @@ export default function ClassTransferPage() {
   const filteredStudents = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return students;
-    return students.filter(s =>
-      (s.full_name ?? '').toLowerCase().includes(q) ||
-      (s.email ?? '').toLowerCase().includes(q),
-    );
+    const multiTerms = q.includes(',') || q.includes(';') || q.includes('\n')
+      ? q.split(/[\n,;]+/).map((t) => t.trim()).filter((t) => t.length >= 2)
+      : [];
+    return students.filter((s) => {
+      const hay = [s.full_name, s.email, s.grade, s.section_class, s.grade_level]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (multiTerms.length > 0) {
+        return multiTerms.some((term) => hay.includes(term));
+      }
+      return hay.includes(q);
+    });
   }, [students, search]);
 
   const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every(s => selected.has(s.id));

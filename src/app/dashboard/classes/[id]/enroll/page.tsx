@@ -22,7 +22,7 @@ import { bandCoversGrade, canonicalGrade, parseBandLabel, SINGLE_GRADES } from '
 import { extractDocumentText } from '@/lib/files/extract-document-text';
 
 type TabKey = 'pick' | 'quick' | 'confirm';
-type PlacementFilter = 'all' | 'feeder' | 'unassigned' | 'other';
+type PlacementFilter = 'all' | 'feeder' | 'unassigned' | 'sister' | 'other';
 type SortKey = 'name' | 'unassigned' | 'grade' | 'class';
 type GradeAction = 'promote' | 'demote' | 'retain';
 
@@ -138,6 +138,7 @@ export default function ClassEnrollWorkspacePage() {
   const [gradeAction, setGradeAction] = useState<GradeAction>('promote');
   const [targetGradePitch, setTargetGradePitch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [perStudentAction, setPerStudentAction] = useState<Record<string, GradeAction>>({});
   const [showAllRows, setShowAllRows] = useState(false);
@@ -188,22 +189,32 @@ export default function ClassEnrollWorkspacePage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [clsRes, stuRes, availRes] = await Promise.all([
-        fetch(`/api/classes/${id}`, { cache: 'no-store' }),
-        fetch(`/api/classes/${id}/students`, { cache: 'no-store' }),
-        fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' }),
-      ]);
-      const [clsJson, stuJson, availJson] = await Promise.all([
-        clsRes.json().catch(() => ({})),
-        stuRes.json().catch(() => ({})),
-        availRes.json().catch(() => ({})),
-      ]);
-      if (!clsRes.ok) throw new Error(clsJson?.error || 'Class not found');
-      const klass = clsJson.data;
+      // Single-pull DB call: fetches class_info, current roster, eligible school + sister-school students, and school_classes in ONE round-trip
+      const availRes = await fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' });
+      const availJson = await availRes.json().catch(() => ({}));
+      if (!availRes.ok) throw new Error(availJson?.error || 'Could not load class enrollment data');
+
+      let klass = availJson.class_info ?? null;
+      let activeRoster: RosterStudent[] = Array.isArray(availJson.roster) ? availJson.roster : [];
+
+      // Graceful fallback only if an older backend response lacks class_info
+      if (!klass) {
+        const [clsRes, stuRes] = await Promise.all([
+          fetch(`/api/classes/${id}`, { cache: 'no-store' }),
+          fetch(`/api/classes/${id}/students`, { cache: 'no-store' }),
+        ]);
+        const [clsJson, stuJson] = await Promise.all([
+          clsRes.json().catch(() => ({})),
+          stuRes.json().catch(() => ({})),
+        ]);
+        if (!clsRes.ok) throw new Error(clsJson?.error || 'Class not found');
+        klass = clsJson.data;
+        activeRoster = (stuJson.students ?? [])
+          .filter((s: any) => s.is_current_term_active !== false)
+          .sort((a: RosterStudent, b: RosterStudent) => (a.full_name || '').localeCompare(b.full_name || ''));
+      }
+
       setCls(klass);
-      const activeRoster: RosterStudent[] = (stuJson.students ?? [])
-        .filter((s: any) => s.is_current_term_active !== false)
-        .sort((a: RosterStudent, b: RosterStudent) => (a.full_name || '').localeCompare(b.full_name || ''));
       setRoster(activeRoster);
       setAvailable(Array.isArray(availJson.students) ? availJson.students : []);
       setSchoolClasses(Array.isArray(availJson.school_classes) ? availJson.school_classes : []);
@@ -231,6 +242,7 @@ export default function ClassEnrollWorkspacePage() {
   // Derived stats
   const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - roster.length) : Infinity;
   const feederStudents = useMemo(() => available.filter((s) => s.is_feeder_promotion), [available]);
+  const sisterStudents = useMemo(() => available.filter((s) => Boolean(s.sister_school_name)), [available]);
   const unassignedCount = useMemo(() => available.filter((s) => !s.class_id).length, [available]);
   const otherCount = useMemo(() => available.filter((s) => Boolean(s.class_id)).length, [available]);
   const distinctGrades = useMemo(
@@ -246,11 +258,12 @@ export default function ClassEnrollWorkspacePage() {
     const list = available.filter((s) => {
       if (placement === 'feeder' && !s.is_feeder_promotion) return false;
       if (placement === 'unassigned' && s.class_id) return false;
+      if (placement === 'sister' && !s.sister_school_name) return false;
       if (placement === 'other' && !s.class_id) return false;
       if (sourceClassId && s.class_id !== sourceClassId) return false;
       if (gradeFilter && (s.grade || s.section_class || '') !== gradeFilter) return false;
       if (!q) return true;
-      const haystack = [s.full_name, s.email, s.grade, s.section_class, s.current_class_name]
+      const haystack = [s.full_name, s.email, s.grade, s.section_class, s.current_class_name, s.sister_school_name]
         .map((v) => String(v || '').toLowerCase())
         .join(' ');
       if (multiTerms.length > 0) {
@@ -962,75 +975,160 @@ export default function ClassEnrollWorkspacePage() {
               </button>
             </div>
 
-            {/* Unlimited Inline Live System Suggestions (every matching record in the school) */}
-            {inlineSystemSuggestions.length > 0 && (
-              <div className="rounded-xl border border-emerald-500/30 bg-card shadow-sm overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20">
-                  <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-200">
-                    System Suggestions for “{activeTypedFragment}” — {inlineSystemSuggestions.length} record{inlineSystemSuggestions.length === 1 ? '' : 's'} found
-                  </span>
-                  <span className="text-[10px] font-semibold text-muted-foreground">
-                    Click Adopt Now or Pick into list
-                  </span>
-                </div>
-                <div className="max-h-60 overflow-y-auto divide-y divide-border/60">
-                  {inlineSystemSuggestions.map((s) => (
-                    <div key={`sug-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-muted/40 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-foreground truncate">{s.full_name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {s.grade ? `${s.grade} · ` : ''}
-                          {s.inThisClass
-                            ? 'Already in this class'
-                            : s.current_class_name
-                              ? `From: ${s.current_class_name}`
-                              : 'Unassigned'}
-                          {s.email ? ` · ${s.email}` : ''}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {s.inThisClass ? (
-                          <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">
-                            On Roster
-                          </span>
-                        ) : s.locked ? (
-                          <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
-                            Other Teacher
-                          </span>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => pickInlineSuggestion(s)}
-                              className="rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20"
-                            >
-                              ✓ Pick
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!!busy}
-                              onClick={async () => {
-                                await adoptOne(s.id, 'promote', quickGrade || undefined);
-                                setQuickInput('');
-                              }}
-                              className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-emerald-800 disabled:opacity-40"
-                            >
-                              {busy === s.id ? 'Adopting…' : '+ Adopt'}
-                            </button>
-                          </>
-                        )}
-                      </div>
+            {/* Unlimited Inline Live System Suggestions (every matching record in the school + multi-tick bulk adopt) */}
+            {inlineSystemSuggestions.length > 0 && (() => {
+              const adoptableSuggestions = inlineSystemSuggestions.filter((s) => !s.inThisClass && !s.locked);
+              const selectedSugCount = adoptableSuggestions.filter((s) => selectedSuggestionIds.has(s.id)).length;
+              const allSugSelected = adoptableSuggestions.length > 0 && selectedSugCount === adoptableSuggestions.length;
+              return (
+                <div className="rounded-xl border border-emerald-500/30 bg-card shadow-sm overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-200">
+                        System Suggestions for “{activeTypedFragment}” — {inlineSystemSuggestions.length} found
+                      </span>
+                      {adoptableSuggestions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSuggestionIds((prev) => {
+                              const next = new Set(prev);
+                              if (allSugSelected) adoptableSuggestions.forEach((s) => next.delete(s.id));
+                              else adoptableSuggestions.forEach((s) => next.add(s.id));
+                              return next;
+                            });
+                          }}
+                          className="rounded-md border border-emerald-500/40 bg-card px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/15"
+                        >
+                          {allSugSelected ? 'Untick All' : `Tick All (${adoptableSuggestions.length})`}
+                        </button>
+                      )}
                     </div>
-                  ))}
+                    <div className="flex items-center gap-1.5">
+                      {selectedSugCount > 0 ? (
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={async () => {
+                            const ids = adoptableSuggestions.filter((s) => selectedSuggestionIds.has(s.id)).map((s) => s.id);
+                            if (ids.length === 0) return;
+                            await adoptSelected(ids, 'promote');
+                            setSelectedSuggestionIds(new Set());
+                            setQuickInput('');
+                          }}
+                          className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1 text-[11px] font-black text-white shadow-xs disabled:opacity-40"
+                        >
+                          {busy ? 'Adopting…' : `+ Adopt Selected (${selectedSugCount})`}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-muted-foreground">
+                          Tick multiple to adopt at once, or click + Adopt
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto divide-y divide-border/60">
+                    {inlineSystemSuggestions.map((s) => {
+                      const canAdopt = !s.inThisClass && !s.locked;
+                      const isTicked = canAdopt && selectedSuggestionIds.has(s.id);
+                      return (
+                        <div
+                          key={`sug-${s.id}`}
+                          className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs transition-colors ${
+                            isTicked ? 'bg-emerald-500/10' : 'hover:bg-muted/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            {canAdopt && (
+                              <input
+                                type="checkbox"
+                                checked={isTicked}
+                                aria-label={`Select ${s.full_name} to adopt`}
+                                onChange={() =>
+                                  setSelectedSuggestionIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(s.id)) next.delete(s.id);
+                                    else next.add(s.id);
+                                    return next;
+                                  })
+                                }
+                                className="h-4 w-4 shrink-0 rounded accent-emerald-600 cursor-pointer"
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {s.grade ? `${s.grade} · ` : ''}
+                                {s.inThisClass
+                                  ? 'Already in this class'
+                                  : s.current_class_name
+                                    ? `From: ${s.current_class_name}`
+                                    : 'Unassigned'}
+                                {s.email ? ` · ${s.email}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {s.inThisClass ? (
+                              <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">
+                                On Roster
+                              </span>
+                            ) : s.locked ? (
+                              <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                Other Teacher
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => pickInlineSuggestion(s)}
+                                  className="rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20"
+                                >
+                                  ✓ Pick
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!!busy}
+                                  onClick={async () => {
+                                    await adoptOne(s.id, 'promote', quickGrade || undefined);
+                                    setQuickInput('');
+                                  }}
+                                  className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-emerald-800 disabled:opacity-40"
+                                >
+                                  {busy === s.id ? 'Adopting…' : '+ Adopt'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-            {liveQuickRows.length > 0 && (
+              );
+            })()}
+            {liveQuickRows.length > 0 && (() => {
+              const readyRows = liveQuickRows.filter((r) => r.status === 'adopt' || r.status === 'create_new');
+              const allReadyTicked = readyRows.length > 0 && readyRows.every((r) => r.ticked);
+              return (
               <div className="rounded-xl border border-border bg-card p-2.5 space-y-1.5 text-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-border/60">
-                  <span className="text-[11px] font-black text-foreground">
-                    Live Match Preview ({liveQuickRows.filter((r) => r.status === 'adopt').length} Adopt · {liveQuickRows.filter((r) => r.status === 'create_new').length} New{liveQuickRows.filter((r) => r.status === 'ambiguous').length > 0 ? ` · ${liveQuickRows.filter((r) => r.status === 'ambiguous').length} Pick` : ''})
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-black text-foreground">
+                      Live Match Preview ({liveQuickRows.filter((r) => r.status === 'adopt').length} Adopt · {liveQuickRows.filter((r) => r.status === 'create_new').length} New{liveQuickRows.filter((r) => r.status === 'ambiguous').length > 0 ? ` · ${liveQuickRows.filter((r) => r.status === 'ambiguous').length} Pick` : ''})
+                    </span>
+                    {readyRows.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickUntickedKeys(allReadyTicked ? new Set(readyRows.map((r) => r.key)) : new Set());
+                        }}
+                        className="rounded-md border border-border bg-background hover:bg-muted px-2 py-0.5 text-[10px] font-black text-foreground"
+                      >
+                        {allReadyTicked ? 'Untick All' : `Tick All Ready (${readyRows.length})`}
+                      </button>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setTab('quick')}
@@ -1039,11 +1137,12 @@ export default function ClassEnrollWorkspacePage() {
                     Open Full Verification Table →
                   </button>
                 </div>
-                {liveQuickRows.slice(0, 5).map((row) => {
+                <div className="max-h-60 overflow-y-auto divide-y divide-border/50 pr-1">
+                {liveQuickRows.slice(0, 12).map((row) => {
                   const chosen = row.chosenId ? row.candidates.find((c) => c.id === row.chosenId) : null;
                   return (
-                    <div key={`inline-prev-${row.key}`} className="flex flex-wrap items-center justify-between gap-2 py-1">
-                      <label className="inline-flex items-center gap-2 min-w-0">
+                    <div key={`inline-prev-${row.key}`} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                      <label className="inline-flex items-center gap-2 min-w-0 cursor-pointer">
                         <input
                           type="checkbox"
                           aria-label={`Include ${row.cleanName}`}
@@ -1109,11 +1208,13 @@ export default function ClassEnrollWorkspacePage() {
                     </div>
                   );
                 })}
-                {liveQuickRows.length > 5 && (
-                  <p className="text-[10px] text-muted-foreground">+{liveQuickRows.length - 5} more names ready…</p>
+                </div>
+                {liveQuickRows.length > 12 && (
+                  <p className="text-[10px] text-muted-foreground">+{liveQuickRows.length - 12} more names ready…</p>
                 )}
               </div>
-            )}
+              );
+            })()}
             {quickNotice && (
               <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
                 <span className="font-bold text-emerald-900 dark:text-emerald-200">{quickNotice.summary}</span>
@@ -1167,6 +1268,7 @@ export default function ClassEnrollWorkspacePage() {
               {([
                 { id: 'all' as PlacementFilter, label: `All (${available.length})` },
                 ...(feederStudents.length > 0 ? [{ id: 'feeder' as PlacementFilter, label: `Prior Grade (${feederStudents.length})` }] : []),
+                ...(sisterStudents.length > 0 ? [{ id: 'sister' as PlacementFilter, label: `Sister Schools (${sisterStudents.length})` }] : []),
                 { id: 'unassigned' as PlacementFilter, label: `Unassigned (${unassignedCount})` },
                 { id: 'other' as PlacementFilter, label: `Other Classes (${otherCount})` },
               ]).map((chip) => (
@@ -1259,22 +1361,32 @@ export default function ClassEnrollWorkspacePage() {
           {/* Toolbar */}
           {filtered.length > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={toggleAllFiltered}
                   className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
                 >
-                  {allFilteredSelected ? `Deselect All (${enrollableFiltered.length})` : `Select All Shown (${enrollableFiltered.length})`}
+                  {allFilteredSelected ? `Deselect All (${enrollableFiltered.length})` : `Tick All Matching (${enrollableFiltered.length})`}
                 </button>
                 {selectedIds.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedIds(new Set())}
-                    className="text-xs font-bold text-muted-foreground underline hover:text-foreground"
-                  >
-                    Clear ({selectedIds.size})
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => void adoptSelected([...selectedIds], gradeAction)}
+                      className="rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-black text-white shadow-sm disabled:opacity-50"
+                    >
+                      {busy === 'bulk' ? 'Migrating…' : `+ Adopt Selected (${selectedIds.size})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds(new Set())}
+                      className="text-xs font-bold text-muted-foreground underline hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  </>
                 )}
               </div>
               <span className="text-xs font-semibold text-muted-foreground">

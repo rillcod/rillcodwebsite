@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { logAudit } from '@/lib/audit/log';
+import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,18 +38,19 @@ export async function POST(req: NextRequest) {
     }
 
     const { userId, newPassword } = await req.json();
+    const cleanPassword = String(newPassword ?? '').trim();
 
-    if (!userId || !newPassword) {
+    if (!userId || !cleanPassword) {
       return NextResponse.json({ error: 'userId and newPassword are required' }, { status: 400 });
     }
-    if (String(newPassword).length < 8) {
+    if (cleanPassword.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
 
-    // Fetch the target user's profile for boundary checks
+    // Fetch the target user's profile for boundary checks & credential archive sync
     const { data: targetUser } = await admin
       .from('portal_users')
-      .select('role, school_id')
+      .select('role, school_id, school_name, email, full_name, section_class')
       .eq('id', userId)
       .maybeSingle();
 
@@ -86,8 +88,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
+    const cleanTargetEmail = String((targetUser as any).email ?? '').trim().toLowerCase();
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      password: cleanPassword,
+      email_confirm: true,
+      ban_duration: 'none',
+      ...(cleanTargetEmail ? { email: cleanTargetEmail } : {}),
+    });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Ensure the portal profile is active and the printed credentials vault matches the exact new password
+    if (targetUser.role === 'student') {
+      await admin
+        .from('portal_users')
+        .update({ is_active: true, ...(cleanTargetEmail ? { email: cleanTargetEmail } : {}) })
+        .eq('id', userId);
+      if (cleanTargetEmail) {
+        await archivePortalCredential(admin as any, {
+          schoolId: targetUser.school_id ?? null,
+          schoolName: (targetUser as any).school_name ?? null,
+          fullName: (targetUser as any).full_name || 'Student',
+          email: cleanTargetEmail,
+          password: cleanPassword,
+          className: (targetUser as any).section_class ?? null,
+          batchLabel: 'Password Reset',
+        });
+      }
+    }
     await logAudit(admin as any, {
       action: 'reset_user_password',
       actorId: caller.id,

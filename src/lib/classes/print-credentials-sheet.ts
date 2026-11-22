@@ -65,14 +65,18 @@ function buildCredentialsHtml(input: {
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     body { font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: #111827; margin: 0; font-size: 11px; }
-    .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1A3A8F; padding-bottom: 8px; margin-bottom: 10px; }
-    .hdr h1 { margin: 0; font-size: 16px; color: #1A3A8F; letter-spacing: -0.01em; }
-    .hdr p { margin: 2px 0 0; color: #4b5563; font-size: 10px; }
-    .guide { display: grid; grid-template-columns: ${includeRc ? '1fr 1fr' : '1fr'}; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
+    .hdr { background: #1A3A8F; color: #fff; border-top: 4px solid #10b981; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .hdr-brand { font-size: 8.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #a7f3d0; margin-bottom: 3px; }
+    .hdr h1 { margin: 0; font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em; line-height: 1.25; }
+    .hdr-sub { margin: 4px 0 0; color: #dbeafe; font-size: 10.5px; font-weight: 600; }
+    .hdr-meta { text-align: right; flex-shrink: 0; border-left: 1px solid rgba(255,255,255,0.22); padding-left: 14px; }
+    .hdr-count { font-size: 12px; font-weight: 800; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.04em; }
+    .hdr-date { margin-top: 3px; font-size: 9.5px; color: #e2e8f0; }
+    .guide { display: grid; grid-template-columns: ${includeRc ? '1fr 1fr' : '1fr'}; gap: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3.5px solid #1A3A8F; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
     .guide strong { color: #1A3A8F; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: #1A3A8F; color: #fff; text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-    td { border-bottom: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
+    th { background: #f1f5f9; color: #1A3A8F; border-top: 1.5px solid #1A3A8F; border-bottom: 1.5px solid #cbd5e1; text-align: left; padding: 7px 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { border-bottom: 1px solid #e5e7eb; padding: 6.5px 8px; vertical-align: middle; }
     tr:nth-child(even) td { background: #f9fafb; }
     .num { width: 26px; text-align: center; color: #6b7280; font-weight: 700; }
     .name { font-weight: 700; color: #111827; font-size: 11.5px; }
@@ -80,17 +84,21 @@ function buildCredentialsHtml(input: {
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; }
     .pw { font-weight: 700; color: #047857; }
     .rc { font-weight: 800; color: #1A3A8F; }
-    .foot { margin-top: 10px; font-size: 9.5px; color: #6b7280; display: flex; justify-content: space-between; }
-    @media print { .no-print { display: none; } }
+    .foot { margin-top: 12px; padding-top: 6px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+    @media print { .no-print { display: none; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
   <div class="hdr">
     <div>
+      <div class="hdr-brand">Rillcod Academy · Official Student Credentials</div>
       <h1>${esc(heading)}</h1>
-      <p><strong>${esc(input.className)}</strong>${input.schoolName ? ` · ${esc(input.schoolName)}` : ''} · ${input.students.length} student${input.students.length === 1 ? '' : 's'}</p>
+      <div class="hdr-sub">${esc(input.className)}${input.schoolName ? ` &nbsp;·&nbsp; ${esc(input.schoolName)}` : ''}</div>
     </div>
-    <p>Printed ${esc(today)}</p>
+    <div class="hdr-meta">
+      <div class="hdr-count">${input.students.length} Student${input.students.length === 1 ? '' : 's'}</div>
+      <div class="hdr-date">Issued: ${esc(today)}</div>
+    </div>
   </div>
   <div class="guide">
     <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and enter your Username (Email) &amp; Password below.</div>
@@ -189,64 +197,135 @@ export async function downloadClassCredentialsPdf(input: {
     year: 'numeric',
   });
 
-  const colNum = margin;
-  const colName = margin + 9;
-  const colEmail = includeRc ? margin + 62 : margin + 74;
-  const colPass = includeRc ? margin + 124 : margin + 144;
+  const colNum = margin + 2;
+  const colName = margin + 10;
+  const colEmail = includeRc ? margin + 66 : margin + 76;
+  const colPass = includeRc ? margin + 125 : margin + 144;
   const colRc = margin + 157;
 
   const heading = includeRc
-    ? 'Student Username, Password & Result RC List'
-    : 'Student Portal Login List (Username & Password)';
+    ? 'Student Login & Result RC List'
+    : 'Student Portal Login List';
+
+  const rowH = 8.5;
+  const firstRowY = 58.5;
+  const maxRowY = pageH - 16;
+  const rowsPerPage = Math.max(1, Math.floor((maxRowY - firstRowY) / rowH) + 1);
+  const totalPages = Math.max(1, Math.ceil(input.students.length / rowsPerPage));
+
+  const fitText = (text: string, maxWidthMm: number): string => {
+    const clean = String(text ?? '').trim() || '—';
+    if (doc.getTextWidth(clean) <= maxWidthMm) return clean;
+    let out = clean;
+    while (out.length > 3 && doc.getTextWidth(`${out}…`) > maxWidthMm) {
+      out = out.slice(0, -1);
+    }
+    return `${out}…`;
+  };
 
   const drawHeader = (pageNum: number) => {
+    // Executive Navy Header Card with Emerald Top Accent Stripe
     doc.setFillColor(26, 58, 143);
-    doc.rect(margin, 10, contentW, 13, 'F');
-    doc.setTextColor(255, 255, 255);
+    doc.roundedRect(margin, 10, contentW, 23, 2.5, 2.5, 'F');
+    doc.setFillColor(16, 185, 129);
+    doc.rect(margin, 10, contentW, 1.8, 'F');
+
+    // Left Block: Brand Eyebrow + Document Title + Class & School Metadata
+    const leftMaxW = contentW - 52;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(heading, margin + 4, 16.5);
+    doc.setFontSize(7.5);
+    doc.setTextColor(167, 243, 208);
+    doc.text('RILLCOD ACADEMY  ·  OFFICIAL STUDENT CREDENTIALS', margin + 5, 16.5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(fitText(heading, leftMaxW), margin + 5, 22.8);
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
-    const sub = `${input.className}${input.schoolName ? ` · ${input.schoolName}` : ''} · ${input.students.length} students`;
-    doc.text(sub.slice(0, 95), margin + 4, 21);
-    doc.text(`Printed ${today} · Page ${pageNum}`, pageW - margin - 4, 16.5, { align: 'right' });
+    doc.setTextColor(219, 234, 254);
+    const sub = `${input.className}${input.schoolName ? `  ·  ${input.schoolName}` : ''}`;
+    doc.text(fitText(sub, leftMaxW), margin + 5, 28.6);
 
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.rect(margin, 25, contentW, 8, 'FD');
-    doc.setTextColor(30, 41, 59);
+    // Subtle Vertical Divider before Right Metadata Column
+    const dividerX = pageW - margin - 44;
+    doc.setDrawColor(96, 130, 205);
+    doc.setLineWidth(0.3);
+    doc.line(dividerX, 14.5, dividerX, 29.8);
+
+    // Right Block: Student Count, Issued Date, Page X of Y (100% collision-free)
+    const rightX = pageW - margin - 4.5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(167, 243, 208);
+    doc.text(`${input.students.length} STUDENT${input.students.length === 1 ? '' : 'S'}`, rightX, 17, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    const guideText = includeRc
-      ? `Portal Login: ${originHost}/login   |   Result Check: ${originHost}/result-check`
-      : `Student Portal Login: Visit ${originHost}/login and sign in with your Username (Email) & Password below.`;
-    doc.text(guideText, margin + 3, 30);
+    doc.setTextColor(226, 232, 240);
+    doc.text(`Issued: ${today}`, rightX, 22.8, { align: 'right' });
 
-    doc.setFillColor(241, 245, 249);
-    doc.rect(margin, 35, contentW, 7, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(26, 58, 143);
-    doc.text('#', colNum + 2, 39.7);
-    doc.text('STUDENT & GRADE', colName, 39.7);
-    doc.text('USERNAME (EMAIL)', colEmail, 39.7);
-    doc.text('PASSWORD', colPass, 39.7);
-    if (includeRc) doc.text('RESULT RC', colRc, 39.7);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Page ${pageNum} of ${totalPages}`, rightX, 28.6, { align: 'right' });
+
+    // Portal Instructions Strip with Left Navy Accent Bar
+    doc.setFillColor(248, 250, 252);
     doc.setDrawColor(203, 213, 225);
-    doc.line(margin, 42, pageW - margin, 42);
+    doc.setLineWidth(0.25);
+    doc.roundedRect(margin, 35.5, contentW, 8.5, 1.5, 1.5, 'FD');
+    doc.setFillColor(26, 58, 143);
+    doc.rect(margin, 35.5, 1.8, 8.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.8);
+    doc.setTextColor(30, 41, 59);
+    const guideText = includeRc
+      ? `Student Portal: ${originHost}/login     |     Result Check: ${originHost}/result-check`
+      : `Student Portal Login: Visit ${originHost}/login and sign in with your Username (Email) & Password below.`;
+    doc.text(fitText(guideText, contentW - 8), margin + 4.5, 40.8);
+
+    // Table Header Bar
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, 46.5, contentW, 7.5, 'F');
+    doc.setDrawColor(26, 58, 143);
+    doc.setLineWidth(0.45);
+    doc.line(margin, 46.5, pageW - margin, 46.5);
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 54, pageW - margin, 54);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.8);
+    doc.setTextColor(26, 58, 143);
+    doc.text('#', colNum, 51.3);
+    doc.text('STUDENT & GRADE', colName, 51.3);
+    doc.text('USERNAME (EMAIL)', colEmail, 51.3);
+    doc.text('PASSWORD', colPass, 51.3);
+    if (includeRc) doc.text('RESULT RC', colRc, 51.3);
+
+    // Clean Footer Hairline
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.25);
+    doc.line(margin, pageH - 11, pageW - margin, pageH - 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Confidential — Official Rillcod Academy Student Login Credentials', margin, pageH - 7);
+    doc.text(`${originHost}  ·  Page ${pageNum} of ${totalPages}`, pageW - margin, pageH - 7, { align: 'right' });
   };
 
   let pageNum = 1;
   drawHeader(pageNum);
-  let y = 47;
-  const rowH = 8.5;
+  let y = firstRowY;
 
   input.students.forEach((s, idx) => {
-    if (y + rowH > pageH - 14) {
+    if (y > maxRowY) {
       doc.addPage();
       pageNum += 1;
       drawHeader(pageNum);
-      y = 47;
+      y = firstRowY;
     }
 
     if (idx % 2 === 1) {
@@ -257,29 +336,35 @@ export async function downloadClassCredentialsPdf(input: {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.2);
     doc.setTextColor(100, 116, 139);
-    doc.text(String(idx + 1), colNum + 2, y);
+    doc.text(String(idx + 1), colNum, y);
 
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.3);
     doc.setTextColor(17, 24, 39);
     const nameLine = s.grade ? `${s.full_name} (${s.grade})` : s.full_name;
-    doc.text(nameLine.slice(0, includeRc ? 30 : 38), colName, y);
+    doc.text(fitText(nameLine, colEmail - colName - 3), colName, y);
 
     doc.setFont('courier', 'normal');
+    doc.setFontSize(8);
     doc.setTextColor(30, 41, 59);
-    doc.text((s.email || '—').slice(0, includeRc ? 34 : 38), colEmail, y);
+    doc.text(fitText(s.email || '—', colPass - colEmail - 3), colEmail, y);
 
     doc.setFont('courier', 'bold');
+    doc.setFontSize(8.2);
     doc.setTextColor(4, 120, 87);
-    doc.text((s.temp_password || '—').slice(0, 18), colPass, y);
+    const passMaxW = includeRc ? colRc - colPass - 3 : pageW - margin - colPass - 2;
+    doc.text(fitText(s.temp_password || '—', passMaxW), colPass, y);
 
     if (includeRc) {
       const rcDisplay = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
       doc.setFont('courier', 'bold');
+      doc.setFontSize(8.2);
       doc.setTextColor(26, 58, 143);
-      doc.text(rcDisplay, colRc, y);
+      doc.text(fitText(rcDisplay, pageW - margin - colRc - 1), colRc, y);
     }
 
     doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.2);
     doc.line(margin, y + 3.5, pageW - margin, y + 3.5);
     y += rowH;
   });

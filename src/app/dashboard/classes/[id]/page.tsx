@@ -202,6 +202,8 @@ export default function ClassDetailPage() {
 
   // Bulk-action checkboxes + sort for enrolled students list
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
+  const [checkedSchoolAdoptIds, setCheckedSchoolAdoptIds] = useState<Set<string>>(new Set());
+  const [bulkAdoptingSchool, setBulkAdoptingSchool] = useState(false);
   const [lastCheckedEnrollId, setLastCheckedEnrollId] = useState<string | null>(null);
   const [rosterSort, setRosterSort] = useState<'attention' | 'name_asc' | 'name_desc' | 'grade'>('attention');
   const [bulkSettingGrade, setBulkSettingGrade] = useState(false);
@@ -1313,6 +1315,38 @@ export default function ClassDetailPage() {
       setBulkSettingGrade(false);
     }
   };
+
+  // Swift single-request bulk adoption from school / sister-school search matches (zero N+1 calls)
+  const bulkAdoptFromSchool = async (studentIds: string[], targetGrade?: string) => {
+    if (!id || studentIds.length === 0) return;
+    setBulkAdoptingSchool(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentIds,
+          grade_action: 'promote',
+          ...(targetGrade ? { target_grade: targetGrade } : {}),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Could not adopt selected students');
+      const adoptedSet = new Set<string>(Array.isArray(json.enrolledIds) ? json.enrolledIds : studentIds);
+      setSchoolSuggestionsPool((prev) => prev.filter((s: any) => !adoptedSet.has(s.id)));
+      setCheckedSchoolAdoptIds((prev) => {
+        const next = new Set(prev);
+        adoptedSet.forEach((sid) => next.delete(sid));
+        return next;
+      });
+      await fetchData();
+    } catch (e: any) {
+      setError(e?.message || 'Could not adopt selected students');
+    } finally {
+      setBulkAdoptingSchool(false);
+    }
+  };
   const removeStudent = async (studentId: string) => {
     if (!confirm(
       'Withdraw this learner from the active class roster?\n\n'
@@ -1819,12 +1853,18 @@ export default function ClassDetailPage() {
     : inactiveTermStudents.filter(matchesRosterText);
   const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 0;
 
-  // Smart cross-school search matches (for adopting returning/old students directly from search or Quick-Add)
+  // Smart cross-school & sister-school search matches (multi-term comma/semicolon + sister school aware)
   const schoolSearchMatches = (() => {
     if (rosterQ.length < 2 || schoolSuggestionsPool.length === 0) return [];
     return schoolSuggestionsPool
-      .filter((s: any) => tokenMatches([s.full_name, s.email, s.grade, s.current_class_name].filter(Boolean).join(' '), rosterQ))
-      .slice(0, 6);
+      .filter((s: any) => {
+        const blob = [s.full_name, s.email, s.grade, s.current_class_name, s.sister_school_name].filter(Boolean).join(' ');
+        if (rosterMultiTerms.length > 0) {
+          return rosterMultiTerms.some((term) => tokenMatches(blob, term));
+        }
+        return tokenMatches(blob, rosterQ);
+      })
+      .slice(0, 25);
   })();
 
   const quickAddQuery = quickAddInput.trim();
@@ -2464,77 +2504,149 @@ export default function ClassDetailPage() {
                             {savingSessionConfirm ? 'Adding…' : '+ Add / Adopt'}
                           </button>
                         </div>
-                        {/* Live smart suggestions from this school as teacher types */}
-                        {quickAddSingleLine && quickAddQuery.length >= 2 && (quickAlreadyInClass.length > 0 || smartQuickSuggestions.length > 0 || !loadingSchoolPool) && (
-                          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border text-xs">
-                            {quickAlreadyInClass.map((s: any) => (
-                              <div key={`in-${s.id}`} className="flex items-center justify-between gap-2 bg-emerald-500/5 px-3 py-2">
-                                <div className="min-w-0">
-                                  <p className="font-bold text-foreground truncate">{s.full_name}</p>
-                                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
-                                    Already in this class ✓ · Grade: {s.grade || 'Not set'}
-                                  </p>
+                        {/* Live smart suggestions from this school & sister schools (multi-tick bulk adopt in 1 call) */}
+                        {quickAddSingleLine && quickAddQuery.length >= 2 && (quickAlreadyInClass.length > 0 || smartQuickSuggestions.length > 0 || !loadingSchoolPool) && (() => {
+                          const adoptableQuick = smartQuickSuggestions.filter((s: any) => !s.requires_transfer_request);
+                          const quickTickedCount = adoptableQuick.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).length;
+                          const allQuickTicked = adoptableQuick.length > 0 && quickTickedCount === adoptableQuick.length;
+                          return (
+                            <div className="rounded-xl border border-emerald-500/30 bg-card shadow-sm overflow-hidden divide-y divide-border text-xs">
+                              {adoptableQuick.length > 1 && (
+                                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-500/10 px-3 py-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-200">
+                                      {adoptableQuick.length} School Matches
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCheckedSchoolAdoptIds((prev) => {
+                                          const next = new Set(prev);
+                                          if (allQuickTicked) adoptableQuick.forEach((s: any) => next.delete(s.id));
+                                          else adoptableQuick.forEach((s: any) => next.add(s.id));
+                                          return next;
+                                        });
+                                      }}
+                                      className="rounded-md border border-emerald-500/40 bg-card px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/15"
+                                    >
+                                      {allQuickTicked ? 'Untick All' : `Tick All (${adoptableQuick.length})`}
+                                    </button>
+                                  </div>
+                                  {quickTickedCount > 0 && (
+                                    <button
+                                      type="button"
+                                      disabled={bulkAdoptingSchool}
+                                      onClick={async () => {
+                                        const ids = adoptableQuick.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).map((s: any) => s.id);
+                                        await bulkAdoptFromSchool(ids, quickAddGrade || undefined);
+                                        setQuickAddInput('');
+                                      }}
+                                      className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1 text-[10px] font-black uppercase text-white shadow-xs disabled:opacity-40"
+                                    >
+                                      {bulkAdoptingSchool ? 'Adopting…' : `+ Adopt Selected (${quickTickedCount})`}
+                                    </button>
+                                  )}
                                 </div>
-                                <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
-                                  Active
-                                </span>
-                              </div>
-                            ))}
-                            {smartQuickSuggestions.map((s: any) => {
-                              const targetG = quickAddGrade || s.suggested_grade || defaultEntryGradeForClass();
-                              return (
-                                <div key={`sug-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 hover:bg-muted/40 transition-colors">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span className="font-bold text-foreground truncate">{s.full_name}</span>
-                                      {s.grade && (
-                                        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-foreground">
-                                          {s.grade}{targetG && targetG !== s.grade ? ` → ${targetG}` : ''}
-                                        </span>
-                                      )}
-                                      {s.is_feeder_promotion && (
-                                        <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
-                                          Returning Feeder
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground truncate">
-                                      {s.current_class_name
-                                        ? `From: ${s.current_class_name}${s.current_teacher_name ? ` · ${s.current_teacher_name}` : ''}`
-                                        : 'Unassigned / Old record in this school'}
+                              )}
+                              {quickAlreadyInClass.map((s: any) => (
+                                <div key={`in-${s.id}`} className="flex items-center justify-between gap-2 bg-emerald-500/5 px-3 py-2">
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                    <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
+                                      Already in this class ✓ · Grade: {s.grade || 'Not set'}
                                     </p>
                                   </div>
-                                  <button
-                                    type="button"
-                                    disabled={!!processingStudent}
-                                    onClick={async () => {
-                                      await assignStudent(s.id, 'promote', quickAddGrade || undefined);
-                                      setQuickAddInput('');
-                                    }}
-                                    className="shrink-0 min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
-                                  >
-                                    {processingStudent === s.id ? 'Adopting…' : `Adopt${targetG ? ` → ${targetG}` : ''}`}
-                                  </button>
+                                  <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                    Active
+                                  </span>
                                 </div>
-                              );
-                            })}
-                            {quickAlreadyInClass.length === 0 && (
-                              <button
-                                type="button"
-                                disabled={savingSessionConfirm}
-                                onClick={() => void submitSessionConfirm(true)}
-                                className="flex w-full items-center justify-between gap-2 bg-primary/[0.04] px-3 py-2 text-left hover:bg-primary/10 transition-colors"
-                              >
-                                <span className="font-bold text-primary truncate">
-                                  + Register “{quickAddQuery}” as new student ({quickAddGrade || defaultEntryGradeForClass() || 'auto grade'})
-                                </span>
-                                <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
-                                  Auto login + ID card
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                        )}
+                              ))}
+                              {smartQuickSuggestions.map((s: any) => {
+                                const targetG = quickAddGrade || s.suggested_grade || defaultEntryGradeForClass();
+                                const locked = Boolean(s.requires_transfer_request);
+                                const isTicked = !locked && checkedSchoolAdoptIds.has(s.id);
+                                return (
+                                  <div
+                                    key={`sug-${s.id}`}
+                                    className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 transition-colors ${
+                                      isTicked ? 'bg-emerald-500/10' : 'hover:bg-muted/40'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {!locked && (
+                                        <input
+                                          type="checkbox"
+                                          checked={isTicked}
+                                          aria-label={`Select ${s.full_name} to adopt`}
+                                          onChange={() =>
+                                            setCheckedSchoolAdoptIds((prev) => {
+                                              const next = new Set(prev);
+                                              if (next.has(s.id)) next.delete(s.id);
+                                              else next.add(s.id);
+                                              return next;
+                                            })
+                                          }
+                                          className="h-4 w-4 shrink-0 rounded accent-emerald-600 cursor-pointer"
+                                        />
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <span className="font-bold text-foreground truncate">{s.full_name}</span>
+                                          {s.grade && (
+                                            <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-foreground">
+                                              {s.grade}{targetG && targetG !== s.grade ? ` → ${targetG}` : ''}
+                                            </span>
+                                          )}
+                                          {s.sister_school_name && (
+                                            <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">
+                                              {s.sister_school_name}
+                                            </span>
+                                          )}
+                                          {s.is_feeder_promotion && (
+                                            <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                              Returning Feeder
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground truncate">
+                                          {s.current_class_name
+                                            ? `From: ${s.current_class_name}${s.current_teacher_name ? ` · ${s.current_teacher_name}` : ''}`
+                                            : 'Unassigned / Old record in this school'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      disabled={!!processingStudent || bulkAdoptingSchool}
+                                      onClick={async () => {
+                                        await assignStudent(s.id, 'promote', quickAddGrade || undefined);
+                                        setQuickAddInput('');
+                                      }}
+                                      className="shrink-0 min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                    >
+                                      {processingStudent === s.id ? 'Adopting…' : `Adopt${targetG ? ` → ${targetG}` : ''}`}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                              {quickAlreadyInClass.length === 0 && (
+                                <button
+                                  type="button"
+                                  disabled={savingSessionConfirm}
+                                  onClick={() => void submitSessionConfirm(true)}
+                                  className="flex w-full items-center justify-between gap-2 bg-primary/[0.04] px-3 py-2 text-left hover:bg-primary/10 transition-colors"
+                                >
+                                  <span className="font-bold text-primary truncate">
+                                    + Register “{quickAddQuery}” as new student ({quickAddGrade || defaultEntryGradeForClass() || 'auto grade'})
+                                  </span>
+                                  <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
+                                    Auto login + ID card
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {sessionConfirmNotice && (
                           <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs space-y-1">
                             <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
@@ -3134,44 +3246,127 @@ export default function ClassDetailPage() {
                       <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-semibold text-muted-foreground">No students in this class yet.</p>
                     </div>
-                  ) : visibleCurrent.length === 0 && visibleInactive.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border p-5 text-center space-y-3">
-                      <p className="text-sm font-semibold text-muted-foreground">
-                        No students in this class match “{rosterSearch || rosterFilter}”.
-                      </p>
-                      {isStaff && schoolSearchMatches.length > 0 && (
-                        <div className="mx-auto max-w-lg rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-left space-y-2">
-                          <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
-                            Found {schoolSearchMatches.length} matching student{schoolSearchMatches.length === 1 ? '' : 's'} in this school — adopt into {cls?.name}:
-                          </p>
-                          <div className="space-y-1.5">
-                            {schoolSearchMatches.map((s: any) => (
-                              <div key={`sm-${s.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-2.5 py-2 text-xs">
-                                <div className="min-w-0">
-                                  <p className="font-bold text-foreground truncate">{s.full_name}</p>
-                                  <p className="text-[10px] text-muted-foreground truncate">
-                                    {s.grade ? `${s.grade}${s.suggested_grade && s.suggested_grade !== s.grade ? ` → ${s.suggested_grade}` : ''} · ` : ''}
-                                    {s.current_class_name || 'Unassigned'}
-                                  </p>
-                                </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Swift Multi-Tick School & Sister-School Adopt Panel (visible whenever search matches outside this class) */}
+                      {isStaff && schoolSearchMatches.length > 0 && (() => {
+                        const adoptableMatches = schoolSearchMatches.filter((s: any) => !s.requires_transfer_request);
+                        const tickedCount = adoptableMatches.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).length;
+                        const allTicked = adoptableMatches.length > 0 && tickedCount === adoptableMatches.length;
+                        return (
+                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/5 p-3 text-left space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
+                                  Found {schoolSearchMatches.length} in School / Sister Schools — Adopt into {cls?.name}
+                                </p>
+                                {adoptableMatches.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCheckedSchoolAdoptIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (allTicked) adoptableMatches.forEach((s: any) => next.delete(s.id));
+                                        else adoptableMatches.forEach((s: any) => next.add(s.id));
+                                        return next;
+                                      });
+                                    }}
+                                    className="rounded-md border border-emerald-500/40 bg-card px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/15"
+                                  >
+                                    {allTicked ? 'Untick All' : `Tick All (${adoptableMatches.length})`}
+                                  </button>
+                                )}
+                              </div>
+                              {tickedCount > 0 && (
                                 <button
                                   type="button"
-                                  disabled={!!processingStudent}
+                                  disabled={bulkAdoptingSchool}
                                   onClick={async () => {
-                                    await assignStudent(s.id, 'promote');
+                                    const ids = adoptableMatches.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).map((s: any) => s.id);
+                                    await bulkAdoptFromSchool(ids);
                                     setRosterSearch('');
                                   }}
-                                  className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                  className="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-xs disabled:opacity-40"
                                 >
-                                  {processingStudent === s.id ? 'Adopting…' : 'Adopt Here'}
+                                  {bulkAdoptingSchool ? 'Adopting…' : `+ Adopt Selected (${tickedCount})`}
                                 </button>
-                              </div>
-                            ))}
+                              )}
+                            </div>
+                            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                              {schoolSearchMatches.map((s: any) => {
+                                const locked = Boolean(s.requires_transfer_request);
+                                const isTicked = !locked && checkedSchoolAdoptIds.has(s.id);
+                                return (
+                                  <div
+                                    key={`sm-${s.id}`}
+                                    className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors ${
+                                      isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {!locked && (
+                                        <input
+                                          type="checkbox"
+                                          checked={isTicked}
+                                          aria-label={`Select ${s.full_name} to adopt`}
+                                          onChange={() =>
+                                            setCheckedSchoolAdoptIds((prev) => {
+                                              const next = new Set(prev);
+                                              if (next.has(s.id)) next.delete(s.id);
+                                              else next.add(s.id);
+                                              return next;
+                                            })
+                                          }
+                                          className="h-4 w-4 shrink-0 rounded accent-emerald-600 cursor-pointer"
+                                        />
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                          {s.sister_school_name && (
+                                            <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">
+                                              {s.sister_school_name}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground truncate">
+                                          {s.grade ? `${s.grade}${s.suggested_grade && s.suggested_grade !== s.grade ? ` → ${s.suggested_grade}` : ''} · ` : ''}
+                                          {s.current_class_name || 'Unassigned'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {locked ? (
+                                      <span className="shrink-0 rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                        Other Teacher
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        disabled={!!processingStudent || bulkAdoptingSchool}
+                                        onClick={async () => {
+                                          await assignStudent(s.id, 'promote');
+                                          setRosterSearch('');
+                                        }}
+                                        className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                      >
+                                        {processingStudent === s.id ? 'Adopting…' : 'Adopt Here'}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
+                        );
+                      })()}
+
+                      {visibleCurrent.length === 0 && visibleInactive.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border p-5 text-center">
+                          <p className="text-sm font-semibold text-muted-foreground">
+                            No students currently on this roster match “{rosterSearch || rosterFilter}”.
+                          </p>
                         </div>
-                      )}
-                    </div>
-                  ) : (
+                      ) : (
                     <div className="space-y-2">
                       {visibleCurrent.length > 0 && (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2">
@@ -3212,6 +3407,22 @@ export default function ClassDetailPage() {
                                   <option key={destination.id} value={destination.id}>
                                     {destination.qa_grade_key ? `${destination.qa_grade_key} · ` : ''}{destination.name}
                                   </option>
+                                ))}
+                              </select>
+                            )}
+                            {isStaff && checkedEnrollIds.size > 0 && (
+                              <select
+                                aria-label="Set grade for selected students"
+                                value=""
+                                disabled={bulkSettingGrade}
+                                onChange={(e) => {
+                                  if (e.target.value) void bulkSetSelectedGrade(e.target.value);
+                                }}
+                                className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 outline-none transition-colors hover:border-emerald-500 disabled:opacity-50"
+                              >
+                                <option value="">{bulkSettingGrade ? 'Updating…' : `Set Grade (${checkedEnrollIds.size})…`}</option>
+                                {SINGLE_GRADES.map((g) => (
+                                  <option key={`bg-${g}`} value={g}>{g}</option>
                                 ))}
                               </select>
                             )}
@@ -3757,6 +3968,8 @@ export default function ClassDetailPage() {
                         )}
                       </div>
                     )}
+                    </div>
+                      )}
                     </div>
                   )}
 

@@ -451,18 +451,38 @@ export async function POST(
       const newPassword = (syncAllAuthPasswords && !hasLegacyEmail && existingArchivedPw.length >= 6)
         ? existingArchivedPw
         : generateTempPassword();
+      let authErrMsg: string | null = null;
       const { error: authUpdateErr } = await admin.auth.admin.updateUserById(stu.id, {
-        ...(hasLegacyEmail ? { email: newEmail } : {}),
+        ...(newEmail ? { email: newEmail } : {}),
         password: newPassword,
         email_confirm: true,
+        ban_duration: 'none',
       });
       if (authUpdateErr) {
-        errors.push({ id: stu.id, full_name: fullName, error: authUpdateErr.message });
+        // Auto-heal orphaned portal_users rows whose auth.users record is missing
+        if (/not found/i.test(authUpdateErr.message || '') && newEmail) {
+          const { error: recreateErr } = await admin.auth.admin.createUser({
+            id: stu.id,
+            email: newEmail,
+            password: newPassword,
+            email_confirm: true,
+            user_metadata: { full_name: fullName, role: 'student' },
+          });
+          if (recreateErr) authErrMsg = recreateErr.message;
+        } else {
+          authErrMsg = authUpdateErr.message;
+        }
+      }
+      if (authErrMsg) {
+        errors.push({ id: stu.id, full_name: fullName, error: authErrMsg });
         continue;
       }
 
+      await admin
+        .from('portal_users')
+        .update({ is_active: true, ...(newEmail ? { email: newEmail } : {}) })
+        .eq('id', stu.id);
       if (hasLegacyEmail) {
-        await admin.from('portal_users').update({ email: newEmail }).eq('id', stu.id);
         await admin.from('students').update({ student_email: newEmail }).eq('user_id', stu.id);
       }
 

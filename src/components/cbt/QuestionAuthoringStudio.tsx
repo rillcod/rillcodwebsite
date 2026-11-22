@@ -190,6 +190,7 @@ export default function QuestionAuthoringStudio({
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [publishedDocIds, setPublishedDocIds] = useState<Set<string>>(new Set());
   const [publishLessonId, setPublishLessonId] = useState<string>(defaultTargetLessonId || '');
+  const [autoPublishToStudents, setAutoPublishToStudents] = useState(false);
   const rawFilesRef = useRef<Map<string, File>>(new Map());
 
   const courseScopedLessons = useMemo(
@@ -631,6 +632,13 @@ export default function QuestionAuthoringStudio({
             : `Extracted ${added.length} files (${added.reduce((s, d) => s + d.wordCount, 0).toLocaleString()} words) — running fast AI analysis…`,
         );
         void runAiDocumentAnalysis(mergedDocs);
+        if (autoPublishToStudents && (publishLessonId || availableLessons[0]?.id)) {
+          void (async () => {
+            for (const docItem of added) {
+              await handlePublishDocToStudents(docItem);
+            }
+          })();
+        }
       }
 
       if (failedNames.length > 0) {
@@ -1794,6 +1802,17 @@ export default function QuestionAuthoringStudio({
                 <p className="text-[11px] text-muted-foreground">
                   Upload PDF, PPTX, DOCX, TXT, or photos/screenshots — or paste any web article URL below.
                 </p>
+                {availableLessons.length > 0 && (
+                  <label className="mt-1 inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                    <input
+                      type="checkbox"
+                      checked={autoPublishToStudents}
+                      onChange={(e) => setAutoPublishToStudents(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded accent-emerald-600 cursor-pointer"
+                    />
+                    <span>Also save uploaded file(s) as Priority Study Material for this exam (auto-locked during exam)</span>
+                  </label>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
