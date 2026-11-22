@@ -3,6 +3,7 @@ import DashboardAccessGuard from '@/components/layout/DashboardAccessGuard';
 import DashboardShell from '@/components/layout/DashboardShell';
 import CommandPalette from '@/components/layout/CommandPalette';
 import PasswordChangeGuard from '@/components/layout/PasswordChangeGuard';
+import ParentContactGate from '@/components/layout/ParentContactGate';
 import RoleSimBanner from '@/components/layout/RoleSimBanner';
 import DashboardErrorBoundary from '@/components/dashboard/DashboardErrorBoundary';
 import SystemStatusBanners from '@/components/dashboard/SystemStatusBanners';
@@ -28,6 +29,9 @@ export default function DashboardLayout({
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       {/* Force-password-change guard — renders a blocking modal for bulk-registered students */}
       <PasswordChangeGuard />
+
+      {/* Mirrored RC Parent Contact Gate — ensures every student has verified parent contact */}
+      <ParentContactGate />
 
       {/* System maintenance overlay + force-refresh banner (Req 11) */}
       <SystemStatusBanners />

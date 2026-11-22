@@ -60,9 +60,12 @@ export default function ExamDetailPage() {
   const [printDuration, setPrintDuration] = useState<string>('');       // '' = use exam default
   const [printPassMark, setPrintPassMark] = useState<string>('');       // '' = use exam default
   const [liveMonitor, setLiveMonitor] = useState(true);
-  const [monitorFilter, setMonitorFilter] = useState<'all' | 'live' | 'submitted' | 'not_started'>('all');
+  const [monitorFilter, setMonitorFilter] = useState<'all' | 'live' | 'submitted' | 'flagged' | 'not_started'>('all');
   const [monitorSearch, setMonitorSearch] = useState('');
   const [monitorSort, setMonitorSort] = useState<'live' | 'progress' | 'score_desc' | 'score_asc' | 'name'>('live');
+  const [selectedMonitorIds, setSelectedMonitorIds] = useState<Set<string>>(new Set());
+  const [bulkForcingLive, setBulkForcingLive] = useState(false);
+  const [inspectedSessionId, setInspectedSessionId] = useState<string | null>(null);
   const [refreshingSessions, setRefreshingSessions] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -294,6 +297,55 @@ export default function ExamDetailPage() {
       });
     } finally {
       setForcingSessionId(null);
+    }
+  };
+
+  const handleBulkForceSubmit = async (targets: any[], label: string) => {
+    const liveTargets = targets.filter((s: any) => s?.id && s.status === 'in_progress');
+    if (liveTargets.length === 0) return;
+    if (!confirm(`Finalize and grade ${liveTargets.length} live sitting${liveTargets.length === 1 ? '' : 's'} (${label}) right now using their saved answers?`)) return;
+    setBulkForcingLive(true);
+    setMonitorNotice(null);
+    try {
+      const results = await Promise.all(
+        liveTargets.map(async (target) => {
+          try {
+            const res = await fetch(`/api/cbt/sessions/${target.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'force_submit' }),
+            });
+            const json = await res.json().catch(() => ({}));
+            return res.ok && json?.data ? { ok: true as const, id: target.id, data: json.data } : { ok: false as const, id: target.id };
+          } catch {
+            return { ok: false as const, id: target.id };
+          }
+        }),
+      );
+      const updatedMap = new Map(results.filter((r) => r.ok).map((r) => [r.id, r.data]));
+      if (updatedMap.size > 0) {
+        setSessions((prev) =>
+          prev.map((item) =>
+            updatedMap.has(item.id)
+              ? { ...item, ...updatedMap.get(item.id), portal_users: item.portal_users }
+              : item,
+          ),
+        );
+        setSelectedMonitorIds((prev) => {
+          const next = new Set(prev);
+          updatedMap.forEach((_, sid) => next.delete(sid));
+          return next;
+        });
+      }
+      const failedCount = liveTargets.length - updatedMap.size;
+      setMonitorNotice({
+        type: failedCount === 0 ? 'success' : 'error',
+        text: failedCount === 0
+          ? `Finalized ${updatedMap.size} live exam sitting${updatedMap.size === 1 ? '' : 's'} successfully.`
+          : `Finalized ${updatedMap.size} sitting${updatedMap.size === 1 ? '' : 's'}; ${failedCount} could not be finalized.`,
+      });
+    } finally {
+      setBulkForcingLive(false);
     }
   };
 
@@ -1182,10 +1234,23 @@ export default function ExamDetailPage() {
             ? Math.round((submittedSessions.filter((s: any) => s.status === 'passed').length / submittedSessions.length) * 100)
             : null;
 
+          const getViolationCount = (s: any): number => {
+            if (typeof s?.tab_switches === 'number' && s.tab_switches > 0) return s.tab_switches;
+            if (typeof s?.metadata?.violations_count === 'number' && s.metadata.violations_count > 0) return s.metadata.violations_count;
+            if (Array.isArray(s?.metadata?.violations)) return s.metadata.violations.length;
+            return 0;
+          };
+
           const endingSoonCount = liveSessions.filter((s: any) => {
             const rem = remainingSecondsFor(s.start_time);
             return rem !== null && rem <= 300;
           }).length;
+          const overtimeLiveSessions = liveSessions.filter((s: any) => {
+            const rem = remainingSecondsFor(s.start_time);
+            return rem !== null && rem <= 0;
+          });
+          const flaggedSessions = sessions.filter((s: any) => getViolationCount(s) > 0);
+          const pendingGradingCount = submittedSessions.filter((s: any) => s.status === 'pending_grading').length;
           const idleLiveCount = liveSessions.filter((s: any) => {
             const lastMs = s.updated_at ? new Date(s.updated_at).getTime() : (s.start_time ? new Date(s.start_time).getTime() : 0);
             return lastMs > 0 && nowTick - lastMs > 3 * 60_000;
@@ -1201,9 +1266,11 @@ export default function ExamDetailPage() {
             ? liveSessions
             : monitorFilter === 'submitted'
               ? submittedSessions
-              : monitorFilter === 'not_started'
-                ? []
-                : [...liveSessions, ...submittedSessions]
+              : monitorFilter === 'flagged'
+                ? flaggedSessions
+                : monitorFilter === 'not_started'
+                  ? []
+                  : [...liveSessions, ...submittedSessions]
           ).filter((s: any) => matchesSearch(s.portal_users?.full_name, s.portal_users?.email));
 
           const visibleSessions = [...baseSessions].sort((a: any, b: any) => {
@@ -1335,34 +1402,83 @@ export default function ExamDetailPage() {
 
                 {resultsOpen && (
                   <div className="space-y-3">
-                    {/* Class Completion & Live Telemetry Strip */}
+                    {/* 4-Card Live Proctor Command Strip */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Live Now</p>
+                        <p className="mt-0.5 text-xl font-black text-foreground tabular-nums">{liveSessions.length}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {overtimeLiveSessions.length > 0
+                            ? `${overtimeLiveSessions.length} overtime`
+                            : endingSoonCount > 0
+                              ? `${endingSoonCount} ending <5m`
+                              : idleLiveCount > 0
+                                ? `${idleLiveCount} idle >3m`
+                                : 'Active sittings'}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/25 px-3 py-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Submitted</p>
+                        <p className="mt-0.5 text-xl font-black text-foreground tabular-nums">
+                          {submittedSessions.length}<span className="text-xs font-bold text-muted-foreground">/{totalExpected}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {completionPct}% complete{pendingGradingCount > 0 ? ` · ${pendingGradingCount} to grade` : ''}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-muted/25 px-3 py-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                          {windowClosed ? 'Absent' : 'Not Started'}
+                        </p>
+                        <p className="mt-0.5 text-xl font-black text-foreground tabular-nums">{notStartedRoster.length}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {roster.length > 0 ? `${roster.length} on class roster` : 'Open exam'}
+                        </p>
+                      </div>
+                      <div className={`rounded-xl border px-3 py-2.5 ${flaggedSessions.length > 0 ? 'border-rose-500/35 bg-rose-500/[0.06]' : 'border-border bg-muted/25'}`}>
+                        <p className={`text-[10px] font-black uppercase tracking-wider ${flaggedSessions.length > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-muted-foreground'}`}>
+                          {flaggedSessions.length > 0 ? 'Integrity Alerts' : 'Class Avg'}
+                        </p>
+                        <p className="mt-0.5 text-xl font-black text-foreground tabular-nums">
+                          {flaggedSessions.length > 0 ? flaggedSessions.length : avgScore !== null ? `${avgScore}%` : '—'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {avgScore !== null ? `Avg ${avgScore}%${passRate !== null ? ` · ${passRate}% pass` : ''}` : 'No grades yet'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Class Completion Progress Bar + Bulk Proctor Actions */}
                     <div className="rounded-xl border border-border bg-muted/25 p-3 space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <span className="font-black text-foreground">
-                            Completion: {submittedSessions.length}/{totalExpected} ({completionPct}%)
-                          </span>
-                          {avgScore !== null && (
-                            <span className="font-bold text-muted-foreground">
-                              Avg: <strong className="text-foreground">{avgScore}%</strong>
-                            </span>
-                          )}
-                          {passRate !== null && (
-                            <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                              Pass Rate: {passRate}%
-                            </span>
-                          )}
-                        </div>
+                        <span className="font-black text-foreground">
+                          Completion: {submittedSessions.length}/{totalExpected} ({completionPct}%)
+                        </span>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {endingSoonCount > 0 && (
-                            <span className="rounded-full border border-rose-500/35 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:text-rose-300">
-                              {endingSoonCount} Ending &lt;5m
-                            </span>
+                          {overtimeLiveSessions.length > 0 && (
+                            <button
+                              type="button"
+                              disabled={bulkForcingLive}
+                              onClick={() => void handleBulkForceSubmit(overtimeLiveSessions, 'overtime')}
+                              className="rounded-lg bg-rose-700 hover:bg-rose-800 px-2.5 py-1 text-[10px] font-black uppercase text-white transition-colors disabled:opacity-50"
+                            >
+                              {bulkForcingLive ? 'Finalizing…' : `Finalize Overtime (${overtimeLiveSessions.length})`}
+                            </button>
                           )}
-                          {idleLiveCount > 0 && (
-                            <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
-                              {idleLiveCount} Idle &gt;3m
-                            </span>
+                          {selectedMonitorIds.size > 0 && (
+                            <button
+                              type="button"
+                              disabled={bulkForcingLive}
+                              onClick={() =>
+                                void handleBulkForceSubmit(
+                                  liveSessions.filter((s: any) => selectedMonitorIds.has(s.id)),
+                                  'selected',
+                                )
+                              }
+                              className="rounded-lg bg-amber-800 hover:bg-amber-900 px-2.5 py-1 text-[10px] font-black uppercase text-white transition-colors disabled:opacity-50"
+                            >
+                              {bulkForcingLive ? 'Finalizing…' : `Force Submit Selected (${selectedMonitorIds.size})`}
+                            </button>
                           )}
                         </div>
                       </div>
@@ -1381,6 +1497,7 @@ export default function ExamDetailPage() {
                           { key: 'all', label: `All (${sessions.length + notStartedRoster.length})` },
                           { key: 'live', label: `Live Now (${liveSessions.length})` },
                           { key: 'submitted', label: `Submitted (${submittedSessions.length})` },
+                          ...(flaggedSessions.length > 0 ? [{ key: 'flagged' as const, label: `⚠ Flagged (${flaggedSessions.length})` }] : []),
                           ...(roster.length > 0 ? [{ key: 'not_started' as const, label: `${windowClosed ? 'Absent' : 'Not Started'} (${notStartedRoster.length})` }] : []),
                         ] as const).map((tab) => (
                           <button
@@ -1448,13 +1565,44 @@ export default function ExamDetailPage() {
                       ? Math.floor((nowTick - lastActivityMs) / 60_000)
                       : 0;
 
+                    const violationCount = getViolationCount(s);
+                    const isTicked = isLive && selectedMonitorIds.has(s.id);
+                    const isInspected = inspectedSessionId === s.id;
+
                     return (
-                      <div key={s.id} className="px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div key={s.id} className={`px-4 sm:px-5 py-3.5 space-y-2.5 ${isTicked ? 'bg-amber-500/[0.06]' : ''}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          {isLive && (
+                            <input
+                              type="checkbox"
+                              checked={isTicked}
+                              aria-label={`Select ${s.portal_users?.full_name ?? 'Student'} for bulk finalize`}
+                              onChange={() =>
+                                setSelectedMonitorIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(s.id)) next.delete(s.id);
+                                  else next.add(s.id);
+                                  return next;
+                                })
+                              }
+                              className="mt-1 h-4 w-4 shrink-0 rounded accent-amber-600 cursor-pointer"
+                            />
+                          )}
                         <div className="min-w-0 flex-1 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold text-foreground text-sm truncate">
                               {s.portal_users?.full_name ?? 'Student'}
                             </p>
+                            {violationCount > 0 && (
+                              <span
+                                title="Recorded tab-switch or anti-screenshot integrity alerts"
+                                className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-[10px] font-black uppercase text-rose-700 dark:text-rose-300"
+                              >
+                                <ExclamationTriangleIcon className="h-3 w-3" />
+                                {violationCount} Alert{violationCount === 1 ? '' : 's'}
+                              </span>
+                            )}
                             {isLive ? (
                               <>
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
@@ -1519,8 +1667,22 @@ export default function ExamDetailPage() {
                             </div>
                           )}
                         </div>
+                        </div>
 
                         <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {isLive && totalQ > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setInspectedSessionId((prev) => (prev === s.id ? null : s.id))}
+                              className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-2 text-xs font-bold transition-colors ${
+                                isInspected
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border bg-background hover:bg-muted text-foreground'
+                              }`}
+                            >
+                              {isInspected ? 'Hide Grid' : 'Inspect'}
+                            </button>
+                          )}
                           {isLive ? (
                             <button
                               type="button"
@@ -1556,6 +1718,33 @@ export default function ExamDetailPage() {
                             Reset
                           </button>
                         </div>
+                      </div>
+                      {isLive && isInspected && totalQ > 0 && (
+                        <div className="rounded-xl border border-border bg-muted/25 p-3 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                            Live Question Progress ({answeredCnt}/{totalQ} answered)
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {questions.map((q: any, qIdx: number) => {
+                              const rawVal = s.answers && typeof s.answers === 'object' ? (s.answers as Record<string, any>)[q.id] : null;
+                              const answered = String(rawVal ?? '').trim().length > 0;
+                              return (
+                                <span
+                                  key={`${s.id}-q-${q.id}`}
+                                  title={`Q${qIdx + 1}: ${answered ? 'Answered' : 'Not yet answered'}`}
+                                  className={`inline-flex h-6 min-w-7 items-center justify-center rounded-md border px-1.5 text-[10px] font-black ${
+                                    answered
+                                      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                      : 'border-border bg-card text-muted-foreground'
+                                  }`}
+                                >
+                                  Q{qIdx + 1}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       </div>
                     );
                   })}
