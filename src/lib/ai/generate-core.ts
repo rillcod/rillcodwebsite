@@ -2607,15 +2607,23 @@ async function generateAIContentInner(
     "curriculum",
     "programme-curriculum",
   ].includes(type);
-  const totalBudgetMs = isLongTask ? 85_000 : 50_000;
+  const isExamTask = type === "cbt" || type === "assignment";
+  const totalBudgetMs = isLongTask ? 85_000 : isExamTask ? 68_000 : 50_000;
   const startedAt = Date.now();
   const remainingBudgetMs = () => Math.max(0, totalBudgetMs - (Date.now() - startedAt));
-  const withBudgetTimeout = <T,>(promise: Promise<T>, maxMs: number): Promise<T | null> => {
+  const withBudgetTimeout = <T,>(
+    run: (signal: AbortSignal) => Promise<T>,
+    maxMs: number,
+  ): Promise<T | null> => {
     const ms = Math.min(maxMs, remainingBudgetMs());
     if (ms < 1_500) return Promise.resolve(null);
+    const controller = new AbortController();
     return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(null), ms);
-      promise
+      const timer = setTimeout(() => {
+        controller.abort();
+        resolve(null);
+      }, ms);
+      run(controller.signal)
         .then((val) => {
           clearTimeout(timer);
           resolve(val);
@@ -2627,29 +2635,32 @@ async function generateAIContentInner(
     });
   };
 
-  // Use low reasoning for CBT/grading so Gemini responds fluidly instead of stalling in long thinking loops
-  const geminiReasoning = ["cbt", "cbt-grading"].includes(type)
-    ? "low"
+  // Disable thinking tokens on CBT/grading/report-feedback so Gemini 2.5 Flash
+  // writes structured JSON immediately (~4-8s) instead of spending 15-25s in
+  // hidden thinking loops and timing out. Stage-2 verifyAndRefineExamData
+  // independently verifies every exam answer afterwards.
+  const geminiReasoning = ["cbt", "cbt-grading", "report-feedback"].includes(type)
+    ? "none"
     : ["code-generation", "curriculum", "programme-curriculum"].includes(type)
     ? "medium"
-    : type === "report-feedback"
-    ? "none"
     : "low";
 
   // ── Gemini Direct API fast path ────────────────────────────────────────────
   // Try the free direct Gemini API before spending OpenRouter credits.
   const geminiResult = await withBudgetTimeout(
-    geminiGenerateText(
-      plan.systemPrompt,
-      plan.prompt,
-      {
-        json: plan.useJsonFormat,
-        reasoning: geminiReasoning,
-        maxOutputTokens: plan.maxTokens,
-        temperature: plan.temperature,
-      }
-    ),
-    isLongTask ? 38_000 : 22_000,
+    (signal) =>
+      geminiGenerateText(
+        plan.systemPrompt,
+        plan.prompt,
+        {
+          json: plan.useJsonFormat,
+          reasoning: geminiReasoning,
+          maxOutputTokens: plan.maxTokens,
+          temperature: plan.temperature,
+          signal,
+        }
+      ),
+    isLongTask ? 38_000 : isExamTask ? 28_000 : 22_000,
   );
 
   if (geminiResult?.text) {
@@ -2706,11 +2717,13 @@ async function generateAIContentInner(
   // ── Groq Free Tier ultra-fast path (300–700 tok/s, zero cost if GROQ_API_KEY set) ──
   if (hasGroqKey() && remainingBudgetMs() >= 6_000) {
     const groqResult = await withBudgetTimeout(
-      groqGenerateText(plan.systemPrompt, compactPrompt, {
-        json: plan.useJsonFormat,
-        maxTokens: Math.min(plan.maxTokens, 6144),
-        temperature: plan.temperature,
-      }),
+      (signal) =>
+        groqGenerateText(plan.systemPrompt, compactPrompt, {
+          json: plan.useJsonFormat,
+          maxTokens: Math.min(plan.maxTokens, 6144),
+          temperature: plan.temperature,
+          signal,
+        }),
       isLongTask ? 22_000 : 14_000,
     );
 
@@ -2776,11 +2789,13 @@ async function generateAIContentInner(
   // ── Cerebras Free Tier (~2,000 tok/s, zero cost if CEREBRAS_API_KEY set) ───
   if (hasCerebrasKey() && remainingBudgetMs() >= 6_000) {
     const cbResult = await withBudgetTimeout(
-      cerebrasGenerateText(plan.systemPrompt, compactPrompt, {
-        json: plan.useJsonFormat,
-        maxTokens: Math.min(plan.maxTokens, 6144),
-        temperature: plan.temperature,
-      }),
+      (signal) =>
+        cerebrasGenerateText(plan.systemPrompt, compactPrompt, {
+          json: plan.useJsonFormat,
+          maxTokens: Math.min(plan.maxTokens, 6144),
+          temperature: plan.temperature,
+          signal,
+        }),
       isLongTask ? 20_000 : 12_000,
     );
 
@@ -2845,12 +2860,14 @@ async function generateAIContentInner(
   // ── Cloudflare Workers AI free tier (10,000 Neurons/day) ───────────────────
   if (hasCloudflareAi() && remainingBudgetMs() >= 8_000) {
     const cfResult = await withBudgetTimeout(
-      cloudflareGenerateText(plan.systemPrompt, compactPrompt, {
-        json: plan.useJsonFormat,
-        maxTokens: Math.min(plan.maxTokens, 4096),
-        temperature: plan.temperature,
-      }),
-      16_000,
+      (signal) =>
+        cloudflareGenerateText(plan.systemPrompt, compactPrompt, {
+          json: plan.useJsonFormat,
+          maxTokens: Math.min(plan.maxTokens, 4096),
+          temperature: plan.temperature,
+          signal,
+        }),
+      isExamTask ? 32_000 : 18_000,
     );
 
     if (cfResult?.text && cfResult.text.length >= MIN_CONTENT_CHARS) {
@@ -2944,6 +2961,7 @@ async function generateAIContentInner(
       let completion: Awaited<ReturnType<typeof openRouterComplete>> | null =
         null;
       let requestFailed = false;
+      let requestErrorMsg = "";
       try {
         completion = await openRouterComplete({
           apiKey: openRouterKey,
@@ -2955,8 +2973,12 @@ async function generateAIContentInner(
           json: plan.useJsonFormat,
           signal: controller.signal,
         });
-      } catch {
+      } catch (reqErr: any) {
         requestFailed = true;
+        requestErrorMsg =
+          reqErr?.name === "AbortError"
+            ? `timed out after ${Math.round(timeoutMs / 1000)}s`
+            : String(reqErr?.message || "request failed");
       }
 
       clearTimeout(timeoutId);
@@ -3040,8 +3062,12 @@ async function generateAIContentInner(
         }
       } else {
         recordModelFailure(modelId, 503);
-        console.warn(`Model ${modelId} failed — trying the next one`);
-        lastError = `Model ${modelId} did not return a usable response`;
+        console.warn(
+          `Model ${modelId} failed (${requestErrorMsg || "empty response"}) — trying the next one`
+        );
+        lastError = requestErrorMsg
+          ? `${modelId}: ${requestErrorMsg}`
+          : `Model ${modelId} did not return a usable response`;
       }
     } catch (err: any) {
       recordModelFailure(modelId, 500);

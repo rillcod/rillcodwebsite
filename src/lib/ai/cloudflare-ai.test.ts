@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   CF_IMAGE_MODEL,
+  CF_TEXT_MODELS,
   CF_WHISPER_MODEL,
   cloudflareGenerateImage,
+  cloudflareGenerateText,
   cloudflareTranscribe,
   hasCloudflareAi,
 } from './cloudflare-ai';
@@ -116,6 +118,52 @@ describe('transcription', () => {
       }),
     );
     expect(await cloudflareTranscribe(new ArrayBuffer(8))).toBeNull();
+  });
+});
+
+describe('text generation', () => {
+  beforeEach(configure);
+
+  it('reads OpenAI-style result.choices[0].message.content returned by modern Workers AI models', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          result: {
+            choices: [{ index: 0, message: { role: 'assistant', content: '{"questions":[]}' } }],
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    const res = await cloudflareGenerateText('sys', 'user', { json: true });
+    expect(res).toEqual({ text: '{"questions":[]}', model: CF_TEXT_MODELS[0] });
+  });
+
+  it('reads legacy result.response format as well', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ result: { response: 'hello from cf' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const res = await cloudflareGenerateText('sys', 'user');
+    expect(res?.text).toBe('hello from cf');
+  });
+
+  it('omits response_format on json mode to avoid Workers AI constrained-grammar stalls', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          result: { choices: [{ message: { content: '{"ok":true}' } }] },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    const res = await cloudflareGenerateText('sys', 'user', { json: true });
+    expect(res?.text).toBe('{"ok":true}');
+    const body = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body ?? '{}'));
+    expect(body.response_format).toBeUndefined();
+    expect(body.messages[0].content).toContain('ONLY valid JSON');
   });
 });
 

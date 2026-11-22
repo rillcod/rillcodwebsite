@@ -242,18 +242,26 @@ export async function cloudflareGenerateText(
   for (const model of rotatedModels) {
     if (options.signal?.aborted) return null;
     try {
+      // Omit `response_format: { type: 'json_object' }` on Cloudflare Workers AI:
+      // constrained JSON grammar decoding stalls Llama-3.3-70B for 20-30s+ on
+      // multi-question payloads, whereas plain prompting returns clean JSON in ~6-10s.
+      const systemContent = options.json
+        ? `${system}\n\nRespond with ONLY valid JSON (no prose before or after).`
+        : system;
+
+      const payload: Record<string, unknown> = {
+        messages: [
+          { role: 'system', content: systemContent },
+          { role: 'user', content: user },
+        ],
+        max_tokens: Math.min(options.maxTokens ?? 4096, 8192),
+        temperature: options.temperature ?? 0.3,
+      };
+
       const response = await fetch(endpoint(model), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-          max_tokens: Math.min(options.maxTokens ?? 4096, 8192),
-          temperature: options.temperature ?? 0.3,
-          ...(options.json ? { response_format: { type: 'json_object' } } : {}),
-        }),
+        body: JSON.stringify(payload),
         signal: options.signal,
       });
 
@@ -265,7 +273,12 @@ export async function cloudflareGenerateText(
       }
 
       const data = await response.json().catch(() => null);
-      const raw = data?.result?.response;
+      // Cloudflare Workers AI returns either the legacy `{ result: { response } }`
+      // or the OpenAI-compatible `{ result: { choices: [{ message: { content } }] } }`.
+      const raw =
+        data?.result?.response ??
+        data?.result?.choices?.[0]?.message?.content ??
+        data?.choices?.[0]?.message?.content;
       const text = typeof raw === 'string'
         ? raw.trim()
         : (raw && typeof raw === 'object' ? JSON.stringify(raw) : '');

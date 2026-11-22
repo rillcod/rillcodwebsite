@@ -127,11 +127,10 @@ export interface TextModelSpec {
  * long-stable floor.
  */
 export const TEXT_MODEL_SPECS: TextModelSpec[] = [
-    { id: 'gemini-3.6-flash', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
-    { id: 'gemini-3.5-flash', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
-    { id: 'gemini-3.5-flash-lite', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'optional' },
     { id: 'gemini-2.5-flash', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
+    { id: 'gemini-2.5-flash-lite', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'optional' },
     { id: 'gemini-2.0-flash', contextTokens: 1_048_576, maxOutput: 8_192, thinking: 'none' },
+    { id: 'gemini-3-flash-preview', contextTokens: 1_048_576, maxOutput: 65_536, thinking: 'dynamic' },
 ];
 
 /** Back-compat: plain id list, same order as the ladder. */
@@ -153,9 +152,12 @@ const LADDER_TTL_MS = 60 * 60 * 1000;
 
 let cachedLadder: { at: number; specs: TextModelSpec[] } | null = null;
 
-/** Not general writers: media, embeddings, robotics, agents, research pipelines. */
+/** Not general writers: media, embeddings, robotics, agents, research pipelines, or internal element codenames. */
 const NOT_A_TEXT_MODEL =
-    /(embedding|aqa|imagen|veo|lyria|banana|image|tts|audio|robotics|computer-use|deep-research|omni|gemma)/i;
+    /(embedding|aqa|imagen|veo|lyria|banana|image|tts|audio|robotics|computer-use|deep-research|omni|gemma|argon|carbon|hydrogen|neon|helium|lithium|boron|nitrogen|oxygen|fluorine)/i;
+
+/** Standard general-purpose Gemini text release pattern (must explicitly be flash or pro). */
+const STANDARD_GEMINI_TEXT_ID = /^gemini-(?:\d+(?:\.\d+)?-)?(?:flash|pro)/i;
 
 /** Rough recency from the family number in the id: 3.6 beats 3.5 beats 2.5. */
 function versionRank(id: string): number {
@@ -165,16 +167,20 @@ function versionRank(id: string): number {
 }
 
 /**
- * Free-tier reality beats raw capability. Pro answers better but returns 429 on
- * this tier, and a model that always refuses costs a wasted round trip on every
- * single generation. Flash leads; anything unproven sits behind the stable
- * models rather than in front of them.
+ * Free-tier reality beats raw capability. Pro and unreleased 3.x/4.x models
+ * frequently return 429/404 on free-tier keys, wasting the entire timeout
+ * budget before ever reaching the proven GA workhorses. Lead with proven GA
+ * Gemini 2.5/2.0 Flash first, then lite, then newer/preview models, then Pro.
  */
 function tierRank(id: string): number {
-    if (/pro/i.test(id)) return 0;
-    if (/preview|exp/i.test(id)) return 1;
-    if (/lite/i.test(id)) return 2;
-    return 3; // plain flash
+    const lower = id.toLowerCase();
+    if (lower === 'gemini-2.5-flash') return 6;
+    if (lower === 'gemini-2.5-flash-lite') return 5;
+    if (lower === 'gemini-2.0-flash') return 4;
+    if (/pro/i.test(lower)) return 0;
+    if (/preview|exp|latest/i.test(lower)) return 1;
+    if (/lite/i.test(lower)) return 2;
+    return 3; // other plain flash
 }
 
 export async function liveTextModelSpecs(signal?: AbortSignal): Promise<TextModelSpec[]> {
@@ -193,7 +199,7 @@ export async function liveTextModelSpecs(signal?: AbortSignal): Promise<TextMode
             .filter((model: any) =>
                 (model?.supportedGenerationMethods ?? []).includes('generateContent'))
             .map((model: any) => String(model?.name ?? '').replace(/^models\//, ''))
-            .filter((id: string) => /^gemini-/i.test(id) && !NOT_A_TEXT_MODEL.test(id))
+            .filter((id: string) => STANDARD_GEMINI_TEXT_ID.test(id) && !NOT_A_TEXT_MODEL.test(id))
             .map((id: string) => {
                 const model = (body.models as any[]).find(
                     (m: any) => String(m?.name).replace(/^models\//, '') === id);
