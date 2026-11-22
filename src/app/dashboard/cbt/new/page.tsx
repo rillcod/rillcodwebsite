@@ -280,8 +280,35 @@ export default function NewExamPage() {
     }
   };
 
+  const applyPreSelectionToPaper = (
+    list: Question[],
+    targetMcq: number,
+    targetTheory: number,
+  ): Set<number> => {
+    const nextSelected = new Set<number>();
+    let objPicked = 0;
+    let theoryPicked = 0;
+    list.forEach((q, idx) => {
+      if (!q.question_text.trim()) return;
+      const isObj = q.question_type === 'multiple_choice' || q.question_type === 'true_false';
+      if (isObj) {
+        if (objPicked < targetMcq) {
+          nextSelected.add(idx);
+          objPicked += 1;
+        }
+      } else {
+        if (theoryPicked < targetTheory) {
+          nextSelected.add(idx);
+          theoryPicked += 1;
+        }
+      }
+    });
+    return nextSelected;
+  };
+
   const applyExaminerPreset = (preset: ExaminerPreset) => {
     setActivePresetId(preset.id);
+    setPresetSyncVersion((v) => v + 1);
     teacherEdits.current.duration = false;
     teacherEdits.current.passingScore = false;
     teacherEdits.current.questionMix = false;
@@ -294,6 +321,20 @@ export default function NewExamPage() {
       passing_score: String(preset.passingScore),
       access_window_minutes: String(Math.max(preset.durationMinutes + 15, preset.durationMinutes)),
     }));
+    // If questions have already been generated, apply the preset's pre-selection & mark balance immediately!
+    if (questions.some((q) => q.question_text.trim())) {
+      const nextSelected = applyPreSelectionToPaper(questions, preset.mcqCount, preset.theoryCount);
+      if (nextSelected.size > 0) {
+        setSelectedQuestions(nextSelected);
+        setQuestions((current) => {
+          const picked = current.filter((_, idx) => nextSelected.has(idx));
+          if (picked.length === 0 || preset.targetMarks < picked.length) return current;
+          const balanced = autoBalanceQuestionMarks(picked, preset.targetMarks);
+          let cursor = 0;
+          return current.map((q, idx) => (nextSelected.has(idx) ? balanced[cursor++] : q));
+        });
+      }
+    }
   };
 
   const handleBalanceMarks = (targetTotal: number) => {
@@ -349,6 +390,11 @@ export default function NewExamPage() {
         ? { access_window_minutes: suggestion.accessWindowMinutes.toString() }
         : {}),
     }));
+    // Apply updated pre-selection to already-generated questions without deleting any cards
+    if (questions.some((q) => q.question_text.trim())) {
+      const nextSelected = applyPreSelectionToPaper(questions, mcq, theory);
+      if (nextSelected.size > 0) setSelectedQuestions(nextSelected);
+    }
   };
 
   // Per-question 1-click AI solver/completer for teachers editing a single card
@@ -1550,6 +1596,7 @@ export default function NewExamPage() {
             initialSourceName={sourceName}
             defaultMcqCount={parseInt(aiMcqCount, 10) || examSuggestion.mcqCount}
             defaultTheoryCount={parseInt(aiTheoryCount, 10) || examSuggestion.theoryCount}
+            presetSyncVersion={presetSyncVersion}
             minQuestions={examBoundary.min}
             maxQuestions={examBoundary.max}
           />
