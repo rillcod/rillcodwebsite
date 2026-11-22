@@ -652,6 +652,41 @@ export function finalizeGeneratedData(
   return parsed;
 }
 
+/**
+ * Evenly condenses long extracted documents (PDFs, PPTX slides, Word docs, articles)
+ * to fit safely within every free AI provider's TPM/context window while sampling
+ * across EVERY section/page/slide from start to finish (never just the first page).
+ */
+export function condenseSourceForModel(raw: string, maxChars: number): string {
+  const clean = String(raw || "").trim();
+  if (!clean || clean.length <= maxChars) return clean;
+
+  // Split on explicit [Page N], [Slide N], or === FILE boundaries when present
+  const sectionParts = clean
+    .split(/(?=(?:^|\n)(?:\[(?:Page|Slide)\s+\d+\]|={3,}\s*(?:FILE|DOCUMENT|ATTACHMENT)))/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (sectionParts.length >= 2) {
+    const perSectionBudget = Math.max(260, Math.floor((maxChars - sectionParts.length * 4) / sectionParts.length));
+    const sampled = sectionParts.map((part) => {
+      if (part.length <= perSectionBudget) return part;
+      const sliced = part.slice(0, perSectionBudget);
+      const lastBreak = Math.max(sliced.lastIndexOf("\n"), sliced.lastIndexOf(". "));
+      return (lastBreak > perSectionBudget * 0.6 ? sliced.slice(0, lastBreak + 1) : sliced).trim();
+    });
+    return sampled.join("\n\n").slice(0, maxChars).trim();
+  }
+
+  // Fallback for continuous articles/prose: keep beginning, middle, and conclusion evenly
+  const third = Math.floor(maxChars / 3);
+  const midStart = Math.max(third, Math.floor((clean.length - third) / 2));
+  const head = clean.slice(0, third).trim();
+  const mid = clean.slice(midStart, midStart + third).trim();
+  const tail = clean.slice(clean.length - third).trim();
+  return `${head}\n\n[...]\n\n${mid}\n\n[...]\n\n${tail}`.slice(0, maxChars).trim();
+}
+
 export function buildPrompt(req: GenerateRequest): string {
   // Shared grounding block — when a teacher attaches 1 or more documents (PPTX/PDF/DOCX/TXT),
   // generation performs deep structural analysis across every slide/page/section (up to 28,000 chars).
@@ -673,10 +708,7 @@ Analyze EVERY slide, page, table, and code example in the teacher's document(s) 
           : ""
       }`;
   const sourceBlock = req.sourceMaterial?.trim()
-    ? `\n${sourceHeader}\n"""\n${req.sourceMaterial.slice(
-        0,
-        28000
-      )}\n"""`
+    ? `\n${sourceHeader}\n"""\n${condenseSourceForModel(req.sourceMaterial, 14_000)}\n"""`
     : "";
 
   switch (req.type) {
@@ -2386,7 +2418,7 @@ async function verifyAndRefineExamData(
   }));
 
   const sourceSnippet = req.sourceMaterial?.trim()
-    ? `\nREFERENCE SOURCE MATERIAL (verify factual accuracy against this):\n"""\n${req.sourceMaterial.trim().slice(0, 8000)}\n"""\n`
+    ? `\nREFERENCE SOURCE MATERIAL (verify factual accuracy against this):\n"""\n${condenseSourceForModel(req.sourceMaterial, 3_200)}\n"""\n`
     : "";
 
   const verifierSystem = [
@@ -2518,6 +2550,15 @@ async function generateAIContentInner(
   body = normalizedBody;
 
   const plan = await resolveGenerationPlan(normalizedBody);
+  // Lean TPM-safe prompt for free LPU/edge tiers (Groq 6k–12k TPM, Cerebras, Cloudflare 8k context)
+  // so long PDFs/articles never fail with 413/429 or truncate mid-JSON.
+  const compactPrompt =
+    normalizedBody.sourceMaterial && normalizedBody.sourceMaterial.length > 7_500
+      ? buildPrompt({
+          ...normalizedBody,
+          sourceMaterial: condenseSourceForModel(normalizedBody.sourceMaterial, 7_500),
+        })
+      : plan.prompt;
   let lastError: string | null = null;
 
   // Bounded end-to-end budget so generation NEVER stalls past proxy/Cloudflare timeouts
@@ -2626,9 +2667,9 @@ async function generateAIContentInner(
   // ── Groq Free Tier ultra-fast path (300–700 tok/s, zero cost if GROQ_API_KEY set) ──
   if (hasGroqKey() && remainingBudgetMs() >= 6_000) {
     const groqResult = await withBudgetTimeout(
-      groqGenerateText(plan.systemPrompt, plan.prompt, {
+      groqGenerateText(plan.systemPrompt, compactPrompt, {
         json: plan.useJsonFormat,
-        maxTokens: Math.min(plan.maxTokens, 8192),
+        maxTokens: Math.min(plan.maxTokens, 6144),
         temperature: plan.temperature,
       }),
       isLongTask ? 22_000 : 14_000,
@@ -2696,9 +2737,9 @@ async function generateAIContentInner(
   // ── Cerebras Free Tier (~2,000 tok/s, zero cost if CEREBRAS_API_KEY set) ───
   if (hasCerebrasKey() && remainingBudgetMs() >= 6_000) {
     const cbResult = await withBudgetTimeout(
-      cerebrasGenerateText(plan.systemPrompt, plan.prompt, {
+      cerebrasGenerateText(plan.systemPrompt, compactPrompt, {
         json: plan.useJsonFormat,
-        maxTokens: Math.min(plan.maxTokens, 8192),
+        maxTokens: Math.min(plan.maxTokens, 6144),
         temperature: plan.temperature,
       }),
       isLongTask ? 20_000 : 12_000,
@@ -2765,9 +2806,9 @@ async function generateAIContentInner(
   // ── Cloudflare Workers AI free tier (10,000 Neurons/day) ───────────────────
   if (hasCloudflareAi() && remainingBudgetMs() >= 8_000) {
     const cfResult = await withBudgetTimeout(
-      cloudflareGenerateText(plan.systemPrompt, plan.prompt, {
+      cloudflareGenerateText(plan.systemPrompt, compactPrompt, {
         json: plan.useJsonFormat,
-        maxTokens: Math.min(plan.maxTokens, 8192),
+        maxTokens: Math.min(plan.maxTokens, 4096),
         temperature: plan.temperature,
       }),
       16_000,

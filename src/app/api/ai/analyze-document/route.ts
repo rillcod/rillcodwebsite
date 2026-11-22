@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTextFreeFirst } from '@/lib/ai/text-free-first';
+import { condenseSourceForModel } from '@/lib/ai/generate-core';
 
 export interface AiDocumentAnalysis {
   summary: string;
@@ -45,7 +46,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const combinedText = String(body?.combinedText || '').trim().slice(0, 22_000);
+    const rawCombined = String(body?.combinedText || '').trim();
+    const combinedText = condenseSourceForModel(rawCombined, 8_500);
     if (combinedText.length < 30) {
       return NextResponse.json(
         { error: 'Not enough readable text in the uploaded attachment(s) to analyze.' },
