@@ -166,23 +166,23 @@ export default function CBTPage() {
             {/* Right: stats + create button (staff only) */}
             {isStaff && (
               <div className="flex flex-col items-end gap-3 flex-shrink-0 w-full sm:w-auto">
-                <div className="flex gap-px border border-border w-full sm:w-auto overflow-x-auto">
+                <div className="grid grid-cols-2 sm:flex border border-border rounded-2xl overflow-hidden bg-background/80 w-full sm:w-auto">
                   {[
                     { label: 'Total Exams', value: exams.length, color: 'text-primary' },
                     { label: 'Active', value: exams.filter(e => e.is_active).length, color: 'text-emerald-600 dark:text-emerald-400' },
                     { label: 'Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), color: 'text-primary' },
                     { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, color: 'text-amber-600 dark:text-amber-400' },
                   ].map((stat, idx) => (
-                    <div key={stat.label} className={`bg-background px-5 py-3 text-center min-w-[72px] ${idx > 0 ? 'border-l border-border' : ''}`}>
-                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{stat.label}</p>
-                      <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
+                    <div key={stat.label} className={`px-4 sm:px-5 py-3 text-center min-w-[78px] ${idx > 0 ? 'sm:border-l border-border' : ''} ${idx >= 2 ? 'border-t sm:border-t-0 border-border' : ''} ${idx % 2 === 1 ? 'border-l sm:border-l border-border' : ''}`}>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground mb-0.5">{stat.label}</p>
+                      <p className={`text-xl sm:text-2xl font-black ${stat.color}`}>{stat.value}</p>
                     </div>
                   ))}
                 </div>
                 {canManageExams && (
                   <Link
                     href="/dashboard/cbt/new"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 transition-colors"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 shadow-md transition-colors"
                   >
                     <PlusIcon className="w-4 h-4" /> Create Exam
                   </Link>
@@ -208,60 +208,63 @@ export default function CBTPage() {
             onClick: () => setTypeFilter(tab.key),
           }))}
         />
-        <div className="hidden md:flex gap-px border border-border bg-card w-fit overflow-x-auto">
-          {([
-            { key: 'all', label: 'All', count: exams.length },
-            { key: 'examination', label: 'Examination', count: exams.filter(e => getExamType(e) === 'examination').length },
-            { key: 'evaluation', label: 'Evaluation', count: exams.filter(e => getExamType(e) === 'evaluation').length },
-          ] as const).map((tab, idx) => (
-            <button
-              key={tab.key}
-              onClick={() => setTypeFilter(tab.key)}
-              className={`flex items-center justify-center gap-2 px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors flex-1 sm:flex-none ${idx > 0 ? 'border-l border-border' : ''} ${
-                typeFilter === tab.key
-                  ? 'bg-primary text-white'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-              }`}
-            >
-              {tab.label}
-              <span className={`text-[9px] px-1.5 py-0.5 font-black ${typeFilter === tab.key ? 'bg-white/20' : 'bg-muted'}`}>
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="hidden md:inline-flex items-center gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm">
+            {([
+              { key: 'all', label: 'All', count: exams.length },
+              { key: 'examination', label: 'Examination', count: exams.filter(e => getExamType(e) === 'examination').length },
+              { key: 'evaluation', label: 'Evaluation', count: exams.filter(e => getExamType(e) === 'evaluation').length },
+            ] as const).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setTypeFilter(tab.key)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                  typeFilter === tab.key
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+                }`}
+              >
+                {tab.label}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${typeFilter === tab.key ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground'}`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
 
-        {/* ── SEARCH BAR ── */}
-        <div className="relative max-w-md">
-          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input aria-label="Search exams or programmes"
-            type="text"
-            placeholder="Search exams or programmes…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
-          />
+          {/* ── SEARCH BAR ── */}
+          <div className="relative w-full sm:max-w-md">
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input aria-label="Search exams or programmes"
+              type="text"
+              placeholder="Search exams or programmes…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full rounded-xl pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-colors shadow-sm"
+            />
+          </div>
         </div>
 
         {/* ── EXAM LIST ── */}
         {filtered.length === 0 ? (
-          <div className="text-center py-24 bg-card border border-border">
-            <AcademicCapIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg font-black italic uppercase tracking-tighter text-muted-foreground">No Exams Found</p>
+          <div className="text-center py-20 px-4 rounded-3xl bg-card border border-dashed border-border shadow-sm">
+            <AcademicCapIcon className="w-14 h-14 mx-auto text-muted-foreground/70 mb-4" />
+            <p className="text-lg font-black uppercase tracking-tight text-foreground">No Exams Found</p>
             <p className="text-sm text-muted-foreground mt-1">
               {isStaff ? 'Get started by creating your first exam.' : 'No exams have been scheduled yet.'}
             </p>
             {canManageExams && (
               <Link
                 href="/dashboard/cbt/new"
-                className="inline-flex items-center gap-2 mt-6 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                className="inline-flex items-center gap-2 mt-6 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider px-5 py-2.5 shadow-sm transition-colors"
               >
                 <PlusIcon className="w-4 h-4" /> Create First Exam
               </Link>
             )}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filtered.map((exam: any) => {
               const examSessions = exam.cbt_sessions ?? [];
               const passed = examSessions.filter((s: any) => s.status === 'passed').length;
@@ -275,39 +278,39 @@ export default function CBTPage() {
               return (
                 <div
                   key={exam.id}
-                  className="group relative rounded-2xl bg-card border border-border hover:border-primary/25 transition-all overflow-hidden shadow-sm"
+                  className="group relative rounded-2xl bg-card border border-border hover:border-primary/35 transition-all overflow-hidden shadow-sm hover:shadow-md"
                 >
                   {/* Left accent bar */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${exam.is_active ? 'bg-primary' : 'bg-muted'}`} />
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${exam.is_active ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-muted-foreground/30'}`} />
 
-                  <div className="p-4 pl-5 sm:pl-7 sm:pr-6 sm:py-5">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                  <div className="p-4 pl-5 sm:pl-6 sm:pr-6 sm:py-5">
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 sm:gap-4">
                       {/* Left content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-black text-foreground text-base">{exam.title}</h3>
-                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
-                            {exam.is_active ? 'Active' : 'Inactive'}
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
+                          <h3 className="font-black text-foreground text-base leading-snug">{exam.title}</h3>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                            {exam.is_active ? 'Active' : 'Draft'}
                           </span>
-                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-sky-500/15 text-sky-800 dark:text-sky-300 border-sky-500/30' : 'bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-500/30'}`}>
                             {getExamType(exam) === 'evaluation' ? 'Evaluation' : 'Examination'}
                           </span>
                           {isStaff && exam.metadata?.result_eligible === false && (
-                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border border-sky-500/30 bg-sky-500/10 text-sky-800 dark:text-sky-300">
                               Practice only
                             </span>
                           )}
                           {isStaff && exam.metadata?.result_eligible !== false && !exam.class_id && (
                             <Link
                               href={`/dashboard/cbt/${exam.id}/edit`}
-                              className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                              className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border border-amber-500/40 bg-amber-500/15 text-amber-900 hover:bg-amber-500/25 dark:text-amber-200 transition-colors"
                               title="Choose whether this belongs to class results or practice"
                             >
                               Resolve result use
                             </Link>
                           )}
                           {isStaff && exam.metadata?.result_eligible !== false && exam.class_id && (
-                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
                               Class result
                             </span>
                           )}
@@ -380,7 +383,7 @@ export default function CBTPage() {
                           <>
                             <Link
                               href={`/dashboard/cbt/${exam.id}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors"
+                              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 hover:bg-primary/20 border border-primary/25 transition-colors"
                               title="Open exam questions and student sessions"
                             >
                               <EyeIcon className="w-4 h-4" />
@@ -390,14 +393,14 @@ export default function CBTPage() {
                               <>
                                 <Link
                                   href={`/dashboard/classes/${exam.class_id}?operation=assessment`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border transition-colors"
+                                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-foreground bg-muted/50 hover:bg-muted border border-border transition-colors"
                                   title="Open linked class workspace"
                                 >
                                   <span>Class</span>
                                 </Link>
                                 <Link
                                   href={`/dashboard/reports/builder?class_id=${exam.class_id}${exam.course_id ? `&course_id=${exam.course_id}` : ''}${exam.school_id ? `&school_id=${exam.school_id}` : ''}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors"
+                                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors"
                                   title="Open Result Builder for this class"
                                 >
                                   <span>Result Builder</span>
@@ -406,7 +409,7 @@ export default function CBTPage() {
                             )}
                             <Link
                               href={`/dashboard/cbt/${exam.id}?print=1`}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-foreground bg-muted/60 hover:bg-muted border border-border transition-colors"
+                              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-foreground bg-muted/50 hover:bg-muted border border-border transition-colors"
                               title="Print Student Paper or Teacher Answer Key"
                             >
                               <PrinterIcon className="w-4 h-4 text-primary" />
@@ -416,7 +419,7 @@ export default function CBTPage() {
                               <>
                                 <Link
                                   href={`/dashboard/cbt/${exam.id}/edit`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
+                                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors"
                                   title="Edit exam settings and questions"
                                 >
                                   <PencilIcon className="w-4 h-4" />
@@ -426,7 +429,7 @@ export default function CBTPage() {
                                   onClick={() => handleDelete(exam.id, exam.title)}
                                   disabled={deleting === exam.id}
                                   aria-label={`Delete exam ${exam.title}`}
-                                  className="p-2 text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors disabled:opacity-40"
+                                  className="rounded-xl p-2 text-rose-700 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 transition-colors disabled:opacity-40"
                                   title="Delete"
                                 >
                                   <TrashIcon className="w-4 h-4" />
@@ -475,9 +478,9 @@ export default function CBTPage() {
                             {studentSession.score}% / {exam.passing_score}% to pass
                           </span>
                         </div>
-                        <div className="w-full h-1.5 bg-muted">
+                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
                           <div
-                            className={`h-1.5 transition-all ${studentSession.score >= (exam.passing_score ?? 70) ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                            className={`h-full rounded-full transition-all ${studentSession.score >= (exam.passing_score ?? 70) ? 'bg-emerald-600' : 'bg-rose-600'}`}
                             style={{ width: `${Math.min(studentSession.score, 100)}%` }}
                           />
                         </div>

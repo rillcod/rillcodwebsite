@@ -851,9 +851,9 @@ export default function EditExamPage() {
                         )}
 
                         {visibleQuestions.map((q, qi) => (
-                            <div key={q.id ?? `new-${qi}`} id={`edit-q-${qi}`} className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                            <div key={q.id ?? `new-${qi}`} id={`edit-q-${qi}`} className="bg-card shadow-sm border border-border rounded-2xl overflow-hidden">
                                 {/* Question header */}
-                                <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
+                                <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-3 bg-muted/25 border-b border-border">
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-xs font-black text-muted-foreground w-6 tracking-tighter italic mr-1">#{qi + 1}</span>
