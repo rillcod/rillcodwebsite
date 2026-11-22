@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('portal_users')
-      .select('id, role, school_id')
+      .select('id, role, school_id, class_id')
       .eq('id', user.id)
       .single();
 
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
         room: s.room,
         school_name: s.timetables?.schools?.name
       }));
-    } else if (role === 'school' && profile.school_id) {
+    } else if ((role === 'school' || role === 'student') && profile.school_id) {
       // The timetable for the term we are actually in.
       //
       // This asked for the school's one active timetable with maybeSingle() and
@@ -100,9 +100,15 @@ export async function GET(req: NextRequest) {
           .eq('day_of_week', today)
           .eq('timetable_id', tt.id)
           .order('start_time')
-          .limit(3);
+          .limit(20);
 
-        slots = (data || []).map((s: any) => ({
+        const allToday = data || [];
+        const classSpecific = role === 'student' && (profile as any).class_id
+          ? allToday.filter((s: any) => !s.class_id || s.class_id === (profile as any).class_id)
+          : allToday;
+        const picked = (classSpecific.length > 0 ? classSpecific : allToday).slice(0, 5);
+
+        slots = picked.map((s: any) => ({
           id: s.id,
           start_time: s.start_time,
           end_time: s.end_time,

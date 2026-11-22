@@ -191,7 +191,7 @@ function SlotCell({
   const isExam = /exam|test|quiz/i.test(slot.subject);
 
   const cardCls = isCurrent
-    ? 'bg-primary border-primary shadow-[0_0_20px_rgba(139,92,246,0.3)] ring-2 ring-primary/50'
+    ? 'bg-primary/15 border-primary shadow-[0_0_20px_rgba(139,92,246,0.2)] ring-2 ring-primary/40'
     : isPractical
       ? 'bg-cyan-500/10 border-cyan-500/20'
       : isExam
@@ -289,6 +289,7 @@ export default function TimetablePage() {
     section: '',
     program_id: '',
   });
+  const [studentClassOnly, setStudentClassOnly] = useState(true);
 
   const [showTTForm, setShowTTForm] = useState(false);
   const [editingTT, setEditingTT] = useState<Timetable | null>(null);
@@ -747,18 +748,32 @@ export default function TimetablePage() {
     if (!course) return null;
     return course.programs?.name ?? (course.program_id ? programNameById.get(course.program_id) : null) ?? null;
   };
-  const visibleTimetables = timetables.filter(tt => {
-    if (scope.school_id && tt.school_id !== scope.school_id) return false;
-    if (scope.academic_year && tt.academic_year !== scope.academic_year) return false;
-    if (scope.term && tt.term !== scope.term) return false;
-    if (scope.section && tt.section !== scope.section) return false;
-    return true;
-  });
-  const active = visibleTimetables.find(t => t.id === activeTimetable) ?? visibleTimetables[0] ?? null;
+  const visibleTimetables = isStudent
+    ? timetables
+    : timetables.filter(tt => {
+        if (scope.school_id && tt.school_id !== scope.school_id) return false;
+        if (scope.academic_year && tt.academic_year !== scope.academic_year) return false;
+        if (scope.term && tt.term !== scope.term) return false;
+        if (scope.section && tt.section !== scope.section) return false;
+        return true;
+      });
+  // For students, prefer the live-term active timetable and gracefully fall back to the newest active timetable
+  const active = isStudent
+    ? (visibleTimetables.find(t => t.is_active && t.academic_year === LIVE_SESSION.periodLabel && t.term === LIVE_SESSION.termLabel)
+      ?? visibleTimetables.find(t => t.is_active)
+      ?? visibleTimetables[0]
+      ?? null)
+    : (visibleTimetables.find(t => t.id === activeTimetable) ?? visibleTimetables[0] ?? null);
+  const studentHasClassTaggedSlots = isStudent && Boolean(profile?.class_id) && slots.some(s => s.class_id === profile?.class_id);
   const visibleSlots = slots.filter(slot => {
-    if (!scope.program_id) return true;
-    const course = slot.course_id ? courseById.get(slot.course_id) : null;
-    return course?.program_id === scope.program_id;
+    if (isStudent && studentClassOnly && studentHasClassTaggedSlots && profile?.class_id) {
+      if (slot.class_id && slot.class_id !== profile.class_id) return false;
+    }
+    if (!isStudent && scope.program_id) {
+      const course = slot.course_id ? courseById.get(slot.course_id) : null;
+      return course?.program_id === scope.program_id;
+    }
+    return true;
   });
   const slotsByDay: Record<string, Slot[]> = {};
   DAYS.forEach(d => {
@@ -883,7 +898,50 @@ export default function TimetablePage() {
           </div>
         </div>
 
-        {!isTeacher && (
+        {/* Student-friendly clean class toggle & Today summary (never shows Admin Timetable Scope error/controls) */}
+        {isStudent && active && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-xs font-black text-foreground truncate">
+                {active.title}
+                {active.term || active.academic_year ? (
+                  <span className="ml-2 text-[11px] font-semibold text-muted-foreground">
+                    · {[active.term, active.academic_year].filter(Boolean).join(' ')}
+                  </span>
+                ) : null}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {todaySlots.length > 0
+                  ? `${todaySlots.length} class${todaySlots.length === 1 ? '' : 'es'} scheduled for today (${TODAY}).`
+                  : `No classes scheduled for ${TODAY} — browse the full week below.`}
+              </p>
+            </div>
+            {studentHasClassTaggedSlots && (
+              <div className="inline-flex rounded-xl border border-border bg-muted/40 p-0.5 text-[11px] font-black">
+                <button
+                  type="button"
+                  onClick={() => setStudentClassOnly(true)}
+                  className={`px-3 py-1 rounded-lg transition-colors ${
+                    studentClassOnly ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  My Class
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStudentClassOnly(false)}
+                  className={`px-3 py-1 rounded-lg transition-colors ${
+                    !studentClassOnly ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Full School
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isTeacher && !isStudent && (
           <div className="bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-4 sm:p-6 shadow-xl space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -892,9 +950,28 @@ export default function TimetablePage() {
                   Set the academic year, term, program/course focus, and school before editing or printing.
                 </p>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                {visibleTimetables.length} timetable{visibleTimetables.length !== 1 ? 's' : ''} in view
-              </span>
+              <div className="flex items-center gap-2">
+                {visibleTimetables.length === 0 && timetables.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setScope((s) => ({
+                        ...s,
+                        academic_year: '',
+                        term: '',
+                        section: '',
+                        program_id: '',
+                      }))
+                    }
+                    className="rounded-lg border border-primary/35 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 text-[10px] font-black uppercase text-primary transition-colors"
+                  >
+                    Show All ({timetables.length})
+                  </button>
+                )}
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {visibleTimetables.length} timetable{visibleTimetables.length !== 1 ? 's' : ''} in view
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
               <select
