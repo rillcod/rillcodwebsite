@@ -27,7 +27,7 @@ export async function GET() {
     }
 
     const admin = adminClient();
-    const [{ data: portal }, { data: studentRow }, { data: linkedParents }] = await Promise.all([
+    const [{ data: portal }, { data: studentRow }] = await Promise.all([
       admin
         .from('portal_users')
         .select('id, role, full_name, gender, date_of_birth, metadata')
@@ -38,16 +38,19 @@ export async function GET() {
         .select('id, parent_name, parent_phone, gender, date_of_birth')
         .eq('user_id', user.id)
         .maybeSingle(),
-      admin
-        .from('parent_students')
-        .select('id')
-        .eq('student_id', user.id)
-        .limit(1),
     ]);
 
     if (!portal || portal.role !== 'student') {
       return NextResponse.json({ needsParentContact: false });
     }
+
+    const { data: linkedParents } = studentRow?.id
+      ? await admin
+          .from('parent_student_links')
+          .select('id')
+          .eq('student_id', studentRow.id)
+          .limit(1)
+      : { data: [] as Array<{ id: string }> };
 
     const meta = (portal.metadata && typeof portal.metadata === 'object' ? portal.metadata : {}) as Record<string, any>;
     const existingName = String(studentRow?.parent_name || meta.parent_name || '').trim();
