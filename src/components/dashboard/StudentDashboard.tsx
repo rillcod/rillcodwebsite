@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   BookOpenIcon, RocketLaunchIcon,
   SparklesIcon, CheckBadgeIcon,
-  ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon, ClockIcon,
+  ClipboardDocumentListIcon, AcademicCapIcon, ChartBarIcon, ClockIcon, LockClosedIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
 import { learnerSubmissionState } from '@/lib/assignments/learner-state';
@@ -52,11 +52,22 @@ export default function StudentDashboard() {
       session_status: string | null;
       session_score: number | null;
     }>;
+    priorityMaterials: Array<{
+      id: string;
+      title: string;
+      isProtected: boolean;
+      fileType: string | null;
+      lessonId: string;
+      lessonTitle: string;
+      examTitle: string | null;
+    }>;
+    examLock: { locked: boolean; examTitle?: string };
     lmsSettings: Record<string, string>;
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
     nextLesson: null, thisWeekNumber: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
     isEnrolled: false, upcomingDue: [], overdueDue: [], recentGrades: [], cbtExams: [],
+    priorityMaterials: [], examLock: { locked: false },
     lmsSettings: {} as Record<string, string>,
   });
   const [loading, setLoading] = useState(true);
@@ -100,7 +111,7 @@ export default function StudentDashboard() {
         // applies the same enrollment/program/class visibility as the assignments page) —
         // NOT a raw client query, which would leak other programmes' assignments and was
         // also hiding past-due work via a `.gte('due_date', now)` filter.
-        const [assignmentsRes, recentGradesRes, activityRes, cbtExamsRes, cbtSessionsRes] = await Promise.allSettled([
+        const [assignmentsRes, recentGradesRes, activityRes, cbtExamsRes, cbtSessionsRes, priorityMaterialsRes] = await Promise.allSettled([
           fetchActionJson<any>('/api/assignments', { cache: 'no-store', signal: controller.signal }, 'Your assignments are taking longer than expected.', 20_000)
             .then(({ response, data }) => { if (!response.ok || !Array.isArray(data.data)) throw new Error('Assignments unavailable'); return data; }),
           db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points, term_id)')
@@ -110,6 +121,7 @@ export default function StudentDashboard() {
             .eq('portal_user_id', studentId).order('submitted_at', { ascending: false }).limit(10),
           fetch('/api/cbt/exams', { cache: 'no-store', signal: controller.signal }).then((r) => (r.ok ? r.json() : { data: [] })),
           fetch('/api/cbt/sessions', { cache: 'no-store', signal: controller.signal }).then((r) => (r.ok ? r.json() : { data: [] })),
+          fetch('/api/learning/priority-materials', { cache: 'no-store', signal: controller.signal }).then((r) => (r.ok ? r.json() : { materials: [], examLock: { locked: false } })),
         ]);
         if (!active) return;
         if (assignmentsRes.status === 'rejected') throw new Error('Assignments unavailable');
@@ -199,8 +211,14 @@ export default function StudentDashboard() {
           nextLesson = nextLessonInClassOrder(pack.thisWeekLessons, doneSet);
         }
 
+        const priorityMatPayload = priorityMaterialsRes.status === 'fulfilled'
+          ? priorityMaterialsRes.value
+          : { materials: [], examLock: { locked: false } };
+
         updateData(prev => ({
           ...prev,
+          priorityMaterials: Array.isArray(priorityMatPayload?.materials) ? priorityMatPayload.materials : [],
+          examLock: priorityMatPayload?.examLock?.locked ? priorityMatPayload.examLock : { locked: false },
           upcomingDue,
           pendingAssignments: pending.length,
           overdueDue,
@@ -380,6 +398,92 @@ export default function StudentDashboard() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {/* ── PRIORITY EXAM STUDY MATERIALS (Same top-level preference as Exams) ── */}
+      {data.priorityMaterials.length > 0 && (
+        <section
+          aria-label="Priority exam study materials"
+          className="rounded-3xl border border-emerald-500/30 bg-card p-5 sm:p-6 shadow-sm space-y-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white shadow-sm">
+                <BookOpenIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-foreground flex flex-wrap items-center gap-2">
+                  Priority Exam Study Materials
+                  <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-black text-white">
+                    {data.priorityMaterials.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {data.examLock.locked
+                    ? `Locked during active exam (${data.examLock.examTitle || 'Exam in progress'}) — unlocks automatically when the exam ends.`
+                    : 'Pushed by your teacher to help you prepare — view inline before your exam begins.'}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/learning"
+              className="text-xs font-black text-primary hover:underline shrink-0"
+            >
+              Learning Hub →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {data.priorityMaterials.map((mat) => (
+              <div
+                key={mat.id}
+                className={`flex flex-col justify-between gap-3 rounded-2xl border p-4 transition-all ${
+                  data.examLock.locked
+                    ? 'border-amber-500/35 bg-amber-500/5 opacity-85'
+                    : 'border-emerald-500/30 bg-emerald-500/[0.04] hover:border-emerald-500/60'
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                      Priority Prep
+                    </span>
+                    {mat.isProtected && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">
+                        <ShieldCheckIcon className="h-3 w-3" /> Protected Screen
+                      </span>
+                    )}
+                    {mat.examTitle && (
+                      <span className="truncate max-w-[180px] rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                        For: {mat.examTitle}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-black text-foreground leading-snug line-clamp-2">
+                    {mat.title}
+                  </h3>
+                  <p className="text-[11px] font-semibold text-muted-foreground truncate">
+                    Lesson: {mat.lessonTitle}
+                  </p>
+                </div>
+
+                {data.examLock.locked ? (
+                  <div className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs font-black text-amber-800 dark:text-amber-200">
+                    <LockClosedIcon className="h-3.5 w-3.5" />
+                    Locked During Live Exam
+                  </div>
+                ) : (
+                  <Link
+                    href={`/dashboard/lessons/${mat.lessonId}`}
+                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-sm transition-colors"
+                  >
+                    Open Study Material →
+                  </Link>
+                )}
+              </div>
+            ))}
           </div>
         </section>
       )}

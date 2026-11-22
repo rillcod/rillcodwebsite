@@ -7,6 +7,7 @@ import {
   CogIcon,
 } from '@/lib/icons';
 import Link from 'next/link';
+import TeacherQuickMaterialsCard from '@/components/dashboard/TeacherQuickMaterialsCard';
 
 interface DashStats { label: string; value: string | number; icon: any; gradient: string; href?: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
@@ -44,6 +45,9 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
           </Link>
         ))}
       </div>
+
+      {/* Quick Push Exam Study Materials to Student Overview */}
+      <TeacherQuickMaterialsCard />
 
       {/* Stats Grid */}
       <div>

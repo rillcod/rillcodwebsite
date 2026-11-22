@@ -78,7 +78,11 @@ import {
 } from "@/lib/learning/lesson-plan-scope";
 import NeuralVoiceReader from "@/components/ai/NeuralVoiceReader";
 import StudyAssistant from "@/components/ai/StudyAssistant";
-import PriorityMaterialsPanel from "@/components/lessons/PriorityMaterialsPanel";
+import PriorityMaterialsPanel, {
+  isProtectedMaterial,
+  cleanMaterialTitle,
+} from "@/components/lessons/PriorityMaterialsPanel";
+import ExamAntiScreenshotShield from "@/components/cbt/ExamAntiScreenshotShield";
 import { parseLessonHook, type LessonHookData } from "@/lib/lessons/lesson-hook";
 
 type ResourceItem = {
@@ -6580,7 +6584,16 @@ export default function LessonDetailPage() {
 
       <AnimatePresence>
         {viewerItem && (
-          <InAppViewer item={viewerItem} onClose={() => setViewerItem(null)} />
+          <>
+            <InAppViewer item={viewerItem} onClose={() => setViewerItem(null)} />
+            {profile?.role === "student" && isProtectedMaterial(viewerItem.title) && (
+              <ExamAntiScreenshotShield
+                active
+                studentLabel={profile.full_name || profile.email || "Student"}
+                examTitle={cleanMaterialTitle(viewerItem.title)}
+              />
+            )}
+          </>
         )}
       </AnimatePresence>
 

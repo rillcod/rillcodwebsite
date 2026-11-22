@@ -17,14 +17,25 @@ import {
 import { compressStudentImage } from '@/lib/files/compress-student-image';
 
 const PRIORITY_PREFIX = '[PRIORITY] ';
+const PROTECTED_PREFIX = '[PROTECTED] ';
 
 export function isPriorityMaterial(title: string | null | undefined): boolean {
-  return String(title ?? '').trim().startsWith(PRIORITY_PREFIX);
+  return /\[PRIORITY\]/i.test(String(title ?? ''));
+}
+
+export function isProtectedMaterial(title: string | null | undefined): boolean {
+  return /\[PROTECTED\]/i.test(String(title ?? ''));
 }
 
 export function cleanMaterialTitle(title: string | null | undefined): string {
-  const raw = String(title ?? '').trim();
-  return raw.startsWith(PRIORITY_PREFIX) ? raw.slice(PRIORITY_PREFIX.length).trim() : raw;
+  return String(title ?? '')
+    .replace(/\[PRIORITY\]\s*/gi, '')
+    .replace(/\[PROTECTED\]\s*/gi, '')
+    .trim();
+}
+
+export function formatMaterialStoredTitle(clean: string, priority: boolean, screenProtected: boolean): string {
+  return `${priority ? PRIORITY_PREFIX : ''}${screenProtected ? PROTECTED_PREFIX : ''}${clean.trim()}`;
 }
 
 export interface PriorityMaterialItem {
@@ -52,6 +63,7 @@ export default function PriorityMaterialsPanel({
 }: PriorityMaterialsPanelProps) {
   const [uploading, setUploading] = useState(false);
   const [markAsPriority, setMarkAsPriority] = useState(true);
+  const [protectScreen, setProtectScreen] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -90,7 +102,7 @@ export default function PriorityMaterialsPanel({
         if (!fileUrl) throw new Error(`No URL returned for "${rawFile.name}"`);
 
         const cleanName = rawFile.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || rawFile.name;
-        const storedTitle = markAsPriority ? `${PRIORITY_PREFIX}${cleanName}` : cleanName;
+        const storedTitle = formatMaterialStoredTitle(cleanName, markAsPriority, protectScreen);
         const ext = (rawFile.name.split('.').pop() || 'file').toLowerCase();
 
         const matRes = await fetch(`/api/lessons/${lessonId}/materials`, {
@@ -125,9 +137,11 @@ export default function PriorityMaterialsPanel({
   const handleTogglePriority = async (item: PriorityMaterialItem) => {
     setBusyId(item.id);
     setNotice(null);
-    const nextTitle = isPriorityMaterial(item.title)
-      ? cleanMaterialTitle(item.title)
-      : `${PRIORITY_PREFIX}${cleanMaterialTitle(item.title)}`;
+    const nextTitle = formatMaterialStoredTitle(
+      cleanMaterialTitle(item.title),
+      !isPriorityMaterial(item.title),
+      isProtectedMaterial(item.title),
+    );
     try {
       const res = await fetch(`/api/lessons/${lessonId}/materials/${item.id}`, {
         method: 'PATCH',
@@ -138,6 +152,36 @@ export default function PriorityMaterialsPanel({
       onMaterialsChange(materials.map((m) => (m.id === item.id ? { ...m, title: nextTitle } : m)));
     } catch (err: any) {
       setNotice({ type: 'error', text: err?.message || 'Could not update material.' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleToggleScreenProtect = async (item: PriorityMaterialItem) => {
+    setBusyId(item.id);
+    setNotice(null);
+    const nextProtected = !isProtectedMaterial(item.title);
+    const nextTitle = formatMaterialStoredTitle(
+      cleanMaterialTitle(item.title),
+      isPriorityMaterial(item.title),
+      nextProtected,
+    );
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}/materials/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: nextTitle }),
+      });
+      if (!res.ok) throw new Error('Could not update screen protection');
+      onMaterialsChange(materials.map((m) => (m.id === item.id ? { ...m, title: nextTitle } : m)));
+      setNotice({
+        type: 'success',
+        text: nextProtected
+          ? `Enabled anti-screenshot screen shield on "${cleanMaterialTitle(item.title)}".`
+          : `Disabled screen shield on "${cleanMaterialTitle(item.title)}".`,
+      });
+    } catch (err: any) {
+      setNotice({ type: 'error', text: err?.message || 'Could not update screen protection.' });
     } finally {
       setBusyId(null);
     }
@@ -234,7 +278,19 @@ export default function PriorityMaterialsPanel({
                 onChange={(e) => setMarkAsPriority(e.target.checked)}
                 className="rounded accent-emerald-700"
               />
-              Priority
+              Push to Overview
+            </label>
+            <label
+              title="Apply the same anti-screenshot watermark & blur shield used on live exams when students view this material"
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-foreground cursor-pointer select-none px-2.5 py-1.5 rounded-xl border border-border bg-background"
+            >
+              <input
+                type="checkbox"
+                checked={protectScreen}
+                onChange={(e) => setProtectScreen(e.target.checked)}
+                className="rounded accent-primary"
+              />
+              Protect Screen
             </label>
             <input
               ref={fileInputRef}
@@ -284,6 +340,7 @@ export default function PriorityMaterialsPanel({
         <div className="divide-y divide-border">
           {visibleMaterials.map((item) => {
             const isPri = isPriorityMaterial(item.title);
+            const isProt = isProtectedMaterial(item.title);
             const displayTitle = cleanMaterialTitle(item.title);
             const isEditing = editingId === item.id;
             const isBusy = busyId === item.id;
@@ -340,7 +397,12 @@ export default function PriorityMaterialsPanel({
                       <div className="flex flex-wrap items-center gap-1.5">
                         {isPri && (
                           <span className="px-1.5 py-0.5 rounded-md bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider">
-                            Priority
+                            Overview Priority
+                          </span>
+                        )}
+                        {isProt && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border border-primary/35 bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+                            <LockClosedIcon className="w-2.5 h-2.5" /> Screen Shield
                           </span>
                         )}
                         <p className="text-xs sm:text-sm font-bold text-foreground truncate">{displayTitle}</p>
@@ -355,12 +417,7 @@ export default function PriorityMaterialsPanel({
                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() =>
-                      onViewMaterial({
-                        ...item,
-                        title: displayTitle,
-                      })
-                    }
+                    onClick={() => onViewMaterial(item)}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-primary/12 hover:bg-primary/20 border border-primary/25 px-3 py-1.5 text-xs font-black text-primary transition-colors"
                   >
                     <EyeIcon className="w-3.5 h-3.5" /> View
@@ -378,7 +435,20 @@ export default function PriorityMaterialsPanel({
                             : 'border-border bg-background text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        {isPri ? 'Unpin' : 'Pin Priority'}
+                        {isPri ? 'Unpin Overview' : 'Push Overview'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void handleToggleScreenProtect(item)}
+                        title="Toggle exam-grade anti-screenshot screen protection when students view this material"
+                        className={`rounded-xl border px-2.5 py-1.5 text-[10px] font-black uppercase transition-colors ${
+                          isProt
+                            ? 'border-primary/35 bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {isProt ? 'Shield ON' : 'Shield OFF'}
                       </button>
                       <button
                         type="button"
