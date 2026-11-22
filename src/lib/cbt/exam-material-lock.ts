@@ -126,6 +126,28 @@ export async function checkExamMaterialLock(
   const liveExams = (activeExams ?? []) as ActiveExamLockRecord[];
   if (liveExams.length === 0) return { locked: false };
 
+  // Global check (e.g. AI Study Assistant or Learning Hub banner): if no specific
+  // lesson/course/media was passed, check if ANY official exam with locking enabled is live.
+  if (!params.lessonId && !params.courseId && !params.mediaPath) {
+    const anyLive = liveExams.find((exam) => {
+      if (!isExamCurrentlyLive(exam)) return false;
+      const meta = exam.metadata && typeof exam.metadata === 'object' ? exam.metadata : {};
+      if (meta.assessment_scope === 'practice' || meta.result_eligible === false) return false;
+      if (meta.lock_materials_during_exam === false) return false;
+      return true;
+    });
+    if (anyLive) {
+      return {
+        locked: true,
+        examId: anyLive.id,
+        examTitle: anyLive.title || 'Active Examination',
+        unlocksAt: anyLive.end_date ?? null,
+        reason: `Study materials and AI Study Assistant are locked across all student accounts while "${anyLive.title || 'an examination'}" is live.`,
+      };
+    }
+    return { locked: false };
+  }
+
   // Also resolve courseId from lessonId if only lessonId was provided
   let resolvedCourseId = params.courseId ?? null;
   if (!resolvedCourseId && params.lessonId) {

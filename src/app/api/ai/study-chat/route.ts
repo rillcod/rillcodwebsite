@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { modelQueueFor } from "@/lib/ai/model-policy";
 import OpenAI from 'openai';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { geminiGenerateText, hasGeminiKey } from '@/lib/gemini/client';
 import { cloudflareGenerateText, hasCloudflareAi } from '@/lib/ai/cloudflare-ai';
+import { checkExamMaterialLock } from '@/lib/cbt/exam-material-lock';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -57,6 +59,34 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+    }
+
+    // Anti-cheat exam lockdown: pause AI Study Assistant for ALL student accounts
+    // while an official exam is live (teachers and admins are never paused).
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+      );
+      const { data: callerProfile } = await admin
+        .from('portal_users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+      const lock = await checkExamMaterialLock(admin, {
+        userRole: String(callerProfile?.role ?? 'student'),
+      });
+      if (lock.locked) {
+        return NextResponse.json(
+          {
+            error: lock.reason || 'AI Study Assistant is paused while an official examination is live.',
+            locked: true,
+            examTitle: lock.examTitle,
+            unlocksAt: lock.unlocksAt,
+          },
+          { status: 423 },
+        );
+      }
     }
 
     const body: StudyChatRequest = await req.json();

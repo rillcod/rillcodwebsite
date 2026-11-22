@@ -16,7 +16,7 @@ import {
   RocketLaunchIcon, BookOpenIcon, CheckBadgeIcon,
   ArrowRightIcon, PlayIcon, ClipboardDocumentListIcon,
   PresentationChartLineIcon, BoltIcon, AcademicCapIcon,
-  ChartBarIcon, FireIcon, TrophyIcon,
+  ChartBarIcon, FireIcon, TrophyIcon, LockClosedIcon,
 } from '@/lib/icons';
 import MyProgressPanel from '@/components/engagement/MyProgressPanel';
 
@@ -56,6 +56,25 @@ export default function StudentLearningPage() {
   const [pendingAssignments, setPendingAssignments] = useState(0);
   const [dueFlashcards, setDueFlashcards] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeExamLock, setActiveExamLock] = useState<{
+    locked: boolean;
+    examId?: string;
+    examTitle?: string;
+    unlocksAt?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (authLoading || profileLoading || !profile || profile.role !== 'student') return;
+    let cancelled = false;
+    fetch('/api/learning/exam-lock', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.locked) setActiveExamLock(data);
+        else if (!cancelled) setActiveExamLock(null);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [authLoading, profileLoading, profile]);
   
   const [greetingSeed] = useState(() => Math.random());
   const tier = getLearnerTier(profile?.grade_level, profile?.enrollment_type);
@@ -267,6 +286,37 @@ export default function StudentLearningPage() {
               className="text-xs font-bold text-destructive border border-destructive/40 px-3 py-1.5 hover:bg-destructive/10 transition-colors shrink-0">
               Retry
             </button>
+          </div>
+        )}
+
+        {/* Live Examination Lockdown Banner */}
+        {activeExamLock?.locked && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-800 dark:text-amber-300 shrink-0">
+                <LockClosedIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                  Official Examination In Progress
+                </p>
+                <p className="text-sm font-bold text-foreground mt-0.5">
+                  Study notes, priority materials, and the AI Study Assistant are temporarily locked while &ldquo;{activeExamLock.examTitle || 'your exam'}&rdquo; is live.
+                </p>
+                {activeExamLock.unlocksAt && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Automatically unlocks: {new Date(activeExamLock.unlocksAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Link
+              href={activeExamLock.examId ? `/dashboard/cbt/${activeExamLock.examId}/take` : '/dashboard/cbt'}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm shrink-0 transition-colors"
+            >
+              <AcademicCapIcon className="w-4 h-4" />
+              Open Live Exam
+            </Link>
           </div>
         )}
 

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
   PhotoIcon, CameraIcon, DocumentTextIcon, XMarkIcon,
-  ExclamationTriangleIcon, CloudArrowUpIcon,
+  ExclamationTriangleIcon, CloudArrowUpIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import ExamIllustrationCard from '@/components/cbt/ExamIllustrationCard';
@@ -111,6 +111,7 @@ export default function TakeExamPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showMobileGrid, setShowMobileGrid] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [integrityAlerts, setIntegrityAlerts] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const canvasScrollRef = useRef<HTMLDivElement | null>(null);
@@ -697,6 +698,7 @@ export default function TakeExamPage() {
         active={!submitted && !loading && Boolean(exam)}
         studentLabel={profile?.full_name || profile?.email || 'Student'}
         examTitle={exam?.title}
+        onViolation={(_reason, totalCount) => setIntegrityAlerts(totalCount)}
       />
       {/* Compact Pinned Exam Header */}
       <div className="shrink-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border">
@@ -718,6 +720,17 @@ export default function TakeExamPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span
+              title={integrityAlerts > 0 ? `${integrityAlerts} screen-protection alert(s) logged` : 'Anti-screenshot & screen-focus protection active'}
+              className={`hidden sm:inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider ${
+                integrityAlerts > 0
+                  ? 'border-amber-500/40 bg-amber-500/12 text-amber-800 dark:text-amber-200'
+                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+              }`}
+            >
+              <ShieldCheckIcon className="h-3.5 w-3.5" />
+              {integrityAlerts > 0 ? `Alerts: ${integrityAlerts}` : 'Protected'}
+            </span>
             {saveState !== 'idle' && (
               <span
                 className={`hidden lg:inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${
