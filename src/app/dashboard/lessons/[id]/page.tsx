@@ -4274,7 +4274,9 @@ export default function LessonDetailPage() {
         if (!cancelled && data?.locked) setExamLock(data);
         else if (!cancelled) setExamLock(null);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setExamLock(null);
+      });
     return () => {
       cancelled = true;
     };
