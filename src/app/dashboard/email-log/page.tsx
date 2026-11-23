@@ -171,6 +171,33 @@ export default function EmailLogPage() {
   const [role, setRole] = useState('');                      // recipient's role
   const [selectedRow, setSelectedRow] = useState<Row | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryEmailOverride, setRetryEmailOverride] = useState('');
+  const [retryFeedback, setRetryFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleRetryDelivery = async (row: Row) => {
+    setRetrying(true);
+    setRetryFeedback(null);
+    try {
+      const res = await fetch('/api/admin/email-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'retry_delivery',
+          delivery_id: row.id,
+          override_recipient: retryEmailOverride.trim() || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not retry delivery.');
+      setRetryFeedback({ type: 'success', text: json.message || 'Retried delivery!' });
+      setRetryEmailOverride('');
+    } catch (err: any) {
+      setRetryFeedback({ type: 'error', text: err?.message || 'Retry failed.' });
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const copyToClipboard = useCallback((text: string, key: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -866,14 +893,57 @@ export default function EmailLogPage() {
               </div>
 
               {/* Recovery & Action Strip */}
-              <div className="space-y-2 pt-2">
-                <h4 className={LABEL}>Resolution & Quick Actions</h4>
+              <div className="space-y-3 pt-2">
+                <h4 className={LABEL}>Resolution &amp; Quick Recovery</h4>
+
+                {/* 1-Click Retry / Resend Delivery with Optional Corrected Email */}
+                {(selectedRow.channel === 'email' || !selectedRow.channel) && (
+                  <div className="rounded-xl border border-border bg-muted/30 p-3.5 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="email"
+                        aria-label="Corrected recipient email (optional)"
+                        value={retryEmailOverride}
+                        onChange={(e) => setRetryEmailOverride(e.target.value)}
+                        placeholder={`Correct address (leave blank for ${selectedRow.recipient || 'original'})`}
+                        className="flex-1 min-h-10 rounded-lg border border-border bg-background px-3 text-xs font-mono text-foreground placeholder:text-muted-foreground"
+                      />
+                      <button
+                        type="button"
+                        disabled={retrying}
+                        onClick={() => void handleRetryDelivery(selectedRow)}
+                        className="shrink-0 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm"
+                      >
+                        <PaperAirplaneIcon className="w-3.5 h-3.5" />
+                        {retrying ? 'Retrying…' : 'Retry / Resend'}
+                      </button>
+                    </div>
+                    {retryFeedback && (
+                      <p className={`text-xs font-bold ${
+                        retryFeedback.type === 'success'
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}>
+                        {retryFeedback.text}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard/crm?search=${encodeURIComponent(selectedRow.recipient || selectedRow.recipient_name || '')}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs shadow-sm transition-colors"
+                  >
+                    <span>Follow Up in CRM</span>
+                    <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                  </Link>
+
                   <Link
                     href={`/dashboard/students/resend-credentials?search=${encodeURIComponent(selectedRow.recipient || selectedRow.recipient_name || '')}`}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-colors"
                   >
-                    <span>Inspect & Resend in Student Credentials</span>
+                    <span>Inspect &amp; Resend in Student Credentials</span>
                     <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                   </Link>
 

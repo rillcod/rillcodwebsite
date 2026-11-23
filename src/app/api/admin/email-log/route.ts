@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { isInAppEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildRillcodTransactionalEmailHtml, escapeHtml, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
+import { notificationsService } from '@/services/notifications.service';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -228,4 +229,89 @@ export async function GET(req: NextRequest) {
   };
 
   return NextResponse.json({ rows, summary, ledger_ready: operatorDataReady }, { headers: { 'Cache-Control': 'no-store' } });
+}
+
+/**
+ * POST /api/admin/email-log
+ * { action: 'retry_delivery', delivery_id: string, override_recipient?: string }
+ * Re-dispatches a failed/bounced/stuck email cleanly through the canonical
+ * notificationsService, optionally using a corrected recipient address.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: caller } = await supabase
+      .from('portal_users')
+      .select('id, role, full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (caller?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const body = await req.json().catch(() => ({}));
+    if (body?.action !== 'retry_delivery') {
+      return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
+    }
+    const deliveryId = String(body?.delivery_id || '').trim();
+    if (!deliveryId) return NextResponse.json({ error: 'delivery_id is required' }, { status: 400 });
+
+    const db = adminClient();
+    const { data: row, error: fetchErr } = await db
+      .from('communication_delivery_log')
+      .select('id, channel, recipient, template_key, metadata')
+      .eq('id', deliveryId)
+      .maybeSingle();
+
+    if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+    if (!row) return NextResponse.json({ error: 'Delivery record not found' }, { status: 404 });
+
+    const targetEmail = String(body?.override_recipient || row.recipient || '').trim();
+    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+      return NextResponse.json({ error: 'A valid recipient email address is required to retry.' }, { status: 400 });
+    }
+    if (isInAppEmail(targetEmail)) {
+      return NextResponse.json(
+        { error: 'Internal @rillcod.com portal IDs cannot receive external email. Enter a real mailbox address.' },
+        { status: 422 },
+      );
+    }
+
+    const meta = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Record<string, any>;
+    const subject = String(meta.subject || 'Rillcod Technologies — Communication Follow-Up').trim();
+    const rawBody = String(meta.body || meta.message || '').trim();
+    const html =
+      typeof meta.html === 'string' && meta.html.trim().length > 20
+        ? meta.html
+        : buildRillcodTransactionalEmailHtml({
+            eyebrow: 'Rillcod Technologies · Delivery Retry',
+            title: subject,
+            bodyHtml: rawBody
+              ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#1f2937;">${escapeHtml(rawBody).replace(/\n/g, '<br/>')}</p>`
+              : `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#1f2937;">We are re-sending our recent message regarding <strong>${escapeHtml(subject)}</strong> from Rillcod Technologies. Please reply if you need any assistance.</p>`,
+            footerNote: `Retried by ${caller.full_name || 'Rillcod Admin'} · www.rillcod.com`,
+          });
+
+    const sent = await notificationsService.sendEmail(caller.id, {
+      to: targetEmail,
+      subject,
+      html,
+    });
+
+    if (!sent) {
+      return NextResponse.json(
+        { error: `Retry could not be delivered to ${targetEmail} (suppressed or undeliverable).` },
+        { status: 422 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      recipient: targetEmail,
+      message: `Retried delivery cleanly to ${targetEmail}.`,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Retry failed' }, { status: 500 });
+  }
 }
