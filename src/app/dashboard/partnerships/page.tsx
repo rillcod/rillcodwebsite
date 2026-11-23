@@ -185,6 +185,22 @@ export default function PartnershipsPage() {
     else setLoadingSchools(false);
   }, [canView, loadSchools]);
 
+  // Honor ?school=<name> deep links (e.g. from CRM Deal Desk button)
+  const deepLinkedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkedRef.current || schools.length === 0 || typeof window === "undefined") return;
+    const target = new URLSearchParams(window.location.search).get("school")?.trim().toLowerCase();
+    if (!target) return;
+    deepLinkedRef.current = true;
+    const match = schools.find((s) => s.name.toLowerCase() === target || s.name.toLowerCase().includes(target));
+    if (match) {
+      setPageView("school");
+      selectSchool(match.id);
+    } else {
+      setSearch(target);
+    }
+  }, [schools]);
+
   /** Terms history and issued documents for the school in hand. */
   const loadSchoolDetail = useCallback(async (schoolId: string) => {
     if (!schoolId || activeSchoolId.current !== schoolId) return;
@@ -793,7 +809,7 @@ export default function PartnershipsPage() {
                         </a>
                       )}
                       <Link
-                        href="/dashboard/crm"
+                        href={`/dashboard/crm?search=${encodeURIComponent(selected.name)}`}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-bold"
                       >
                         Open in CRM →

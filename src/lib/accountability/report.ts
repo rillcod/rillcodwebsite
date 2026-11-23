@@ -89,27 +89,37 @@ async function loadLogoDataUrl(): Promise<string | null> {
 
 /**
  * Compute consistent, non-inflated accountability percentages shared by UI and PDF.
+ * Derives directly from the scoped `people` slice so Current Session / Archive / School
+ * filters never bleed stale totals from another scope.
  */
-export function computeAccountabilityMetrics(coverage: Coverage | null, people: Person[]) {
+export function computeAccountabilityMetrics(coverage: Coverage | null, people: Person[], useScopedPeopleOnly = false) {
   const flags = flagCounts(people);
   const students = people.filter((p) => normalizeRole(p.role) === 'student');
-  const totalStudents = coverage?.totals.students ?? students.length;
+
+  const scopedPlaced = students.filter((p) => Boolean(p.class_from_roster)).length;
+  const scopedUnplaced = Math.max(0, students.length - scopedPlaced);
+  const scopedPublished = students.reduce((sum, p) => sum + (Number(p.reports_published) || 0), 0);
+  const scopedDrafts = students.reduce((sum, p) => sum + (Number(p.reports_draft) || 0), 0);
+  const scopedReports = students.reduce((sum, p) => sum + (Number(p.reports_total) || 0), 0);
+  const scopedEmail = students.filter((p) => Boolean(p.has_parent_email)).length;
+  const scopedPhone = students.filter((p) => Boolean(p.has_parent_contact)).length;
+
+  const totalStudents = useScopedPeopleOnly ? students.length : (coverage?.totals.students ?? students.length);
   const studentDenom = Math.max(totalStudents, 1);
 
-  const placed = coverage?.totals.students_on_roster ?? 0;
-  const unplaced = coverage?.totals.students_not_placed ?? flags.no_class ?? 0;
+  const placed = useScopedPeopleOnly ? scopedPlaced : (coverage?.totals.students_on_roster ?? scopedPlaced);
+  const unplaced = useScopedPeopleOnly ? scopedUnplaced : (coverage?.totals.students_not_placed ?? flags.no_class ?? scopedUnplaced);
   const placedPct = totalStudents > 0 ? Math.min(100, Math.round((placed / studentDenom) * 100)) : 0;
 
-  const reports = coverage?.totals.reports ?? 0;
-  const published = coverage?.totals.published ?? 0;
-  const drafts = coverage?.totals.draft ?? 0;
-  // Denominator is expected students on roster (or reports written if higher) so 2/2 reports out of 200 students never reads 100%.
+  const reports = useScopedPeopleOnly ? scopedReports : (coverage?.totals.reports ?? scopedReports);
+  const published = useScopedPeopleOnly ? scopedPublished : (coverage?.totals.published ?? scopedPublished);
+  const drafts = useScopedPeopleOnly ? scopedDrafts : (coverage?.totals.draft ?? scopedDrafts);
   const reportDenom = Math.max(placed, reports, 1);
   const publishedPct = placed > 0 || reports > 0 ? Math.min(100, Math.round((published / reportDenom) * 100)) : 0;
   const draftPct = placed > 0 || reports > 0 ? Math.min(100 - publishedPct, Math.round((drafts / reportDenom) * 100)) : 0;
 
-  const parentEmail = coverage?.totals.parent_email_matched ?? Math.max(0, students.length - (flags.no_parent_email || 0));
-  const parentPhone = coverage?.totals.parent_phone_matched ?? Math.max(0, students.length - (flags.no_parent_phone || 0));
+  const parentEmail = useScopedPeopleOnly ? scopedEmail : (coverage?.totals.parent_email_matched ?? scopedEmail);
+  const parentPhone = useScopedPeopleOnly ? scopedPhone : (coverage?.totals.parent_phone_matched ?? scopedPhone);
   const emailPct = totalStudents > 0 ? Math.min(100, Math.round((parentEmail / studentDenom) * 100)) : 0;
   const phonePct = totalStudents > 0 ? Math.min(100, Math.round((parentPhone / studentDenom) * 100)) : 0;
 

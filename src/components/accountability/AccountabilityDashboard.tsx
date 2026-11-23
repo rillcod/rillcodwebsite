@@ -244,9 +244,14 @@ export default function AccountabilityDashboard({
   const allPaginatedSelected = paginatedPeople.length > 0 && paginatedPeople.every((p) => selectedIds.has(p.id));
 
   const analytics = useMemo(() => {
-    const m = computeAccountabilityMetrics(c, people);
-    const parentFullyMatched = c?.totals.parent_fully_matched ?? 0;
-    const parentUnmatched = c?.totals.parent_unmatched ?? 0;
+    const m = computeAccountabilityMetrics(c, people, sessionScope !== 'all');
+    const scopedStudents = people.filter(isStudent);
+    const parentFullyMatched = sessionScope !== 'all'
+      ? scopedStudents.filter((p) => Boolean(p.has_parent_email) && Boolean(p.has_parent_contact)).length
+      : (c?.totals.parent_fully_matched ?? 0);
+    const parentUnmatched = sessionScope !== 'all'
+      ? scopedStudents.filter((p) => !p.has_parent_email && !p.has_parent_contact).length
+      : (c?.totals.parent_unmatched ?? 0);
     const parentFullyMatchedPct = m.totalStudents > 0
       ? Math.round((parentFullyMatched / Math.max(m.totalStudents, 1)) * 100)
       : 0;
@@ -908,7 +913,7 @@ export default function AccountabilityDashboard({
                           View Accounts ({s.students_total}) →
                         </button>
                         <Link
-                          href="/dashboard/classes"
+                          href={`/dashboard/classes?school=${encodeURIComponent(s.name)}`}
                           className="text-xs font-bold text-muted-foreground hover:text-foreground"
                         >
                           Classes →

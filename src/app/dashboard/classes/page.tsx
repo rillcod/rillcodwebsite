@@ -32,6 +32,13 @@ export default function ClassesPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTerm, setFilterTerm] = useState('all');
   const [filterSchool, setFilterSchool] = useState('all');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const schoolParam = params.get('school');
+    if (schoolParam) setFilterSchool(schoolParam);
+  }, []);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -112,7 +119,9 @@ export default function ClassesPage() {
     return matchName && matchStatus && matchTerm && matchSchool;
   });
 
-  const totalStudents = classes.reduce((sum, c) => sum + (c.current_students ?? 0), 0);
+  // Compute student count from the active filtered view so old-term + new-term classes
+  // never double-count the same students when a term or school filter is applied.
+  const totalStudents = filtered.reduce((sum, c) => sum + (c.current_students ?? 0), 0);
   const activeCount = classes.filter(c => c.status === 'active').length;
   const scheduledCount = classes.filter(c => c.status === 'scheduled').length;
   const completedCount = classes.filter(c => c.status === 'completed').length;

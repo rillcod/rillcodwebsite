@@ -34,6 +34,8 @@ type PipelineDoc = {
   school_id: string;
   school_name: string;
   school_city: string | null;
+  school_phone?: string | null;
+  school_contact?: string | null;
   created_at: string;
   sent_at: string | null;
   signed_at: string | null;
@@ -62,14 +64,28 @@ type Outcomes = {
   medianDaysToSign: number | null;
 };
 
-type Lens = "attention" | "open" | "signed" | "all";
+type Lens = "attention" | "hot" | "cold" | "open" | "signed" | "all";
 
 const LENSES: ReadonlyArray<{ id: Lens; label: string }> = [
-  { id: "attention", label: "Needs you" },
-  { id: "open", label: "Waiting on them" },
+  { id: "attention", label: "Needs You" },
+  { id: "hot", label: "Hot Leads" },
+  { id: "cold", label: "Going Cold" },
+  { id: "open", label: "Waiting" },
   { id: "signed", label: "Signed" },
-  { id: "all", label: "All of them" },
+  { id: "all", label: "All" },
 ];
+
+function isHotDeal(d: PipelineDoc): boolean {
+  return d.status === "sent" && !d.expired && (d.open_count ?? 0) >= 2;
+}
+
+function isColdDeal(d: PipelineDoc): boolean {
+  if (d.status !== "sent" || d.expired) return false;
+  if ((d.open_count ?? 0) > 0) return false;
+  const refTime = new Date(d.sent_at ?? d.created_at).getTime();
+  if (Number.isNaN(refTime)) return false;
+  return Date.now() - refTime >= 4 * 24 * 60 * 60 * 1000;
+}
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -138,6 +154,7 @@ export function PartnershipPipeline({
   const [docs, setDocs] = useState<PipelineDoc[]>([]);
   const [outcomes, setOutcomes] = useState<Outcomes | null>(null);
   const [lens, setLens] = useState<Lens>("attention");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -176,21 +193,27 @@ export function PartnershipPipeline({
   }, [load]);
 
   const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
     const byLens = docs.filter((d) => {
-      if (lens === "attention") return d.needs_attention;
-      if (lens === "open") return d.status === "draft" || d.status === "sent";
-      if (lens === "signed") return d.status === "signed";
+      if (lens === "attention" && !d.needs_attention) return false;
+      if (lens === "hot" && !isHotDeal(d)) return false;
+      if (lens === "cold" && !isColdDeal(d)) return false;
+      if (lens === "open" && d.status !== "draft" && d.status !== "sent") return false;
+      if (lens === "signed" && d.status !== "signed") return false;
+      if (q && !`${d.school_name} ${d.school_city ?? ""} ${d.reference ?? ""} ${d.attention_reason}`.toLowerCase().includes(q)) {
+        return false;
+      }
       return true;
     });
-    // Anything wanting a person comes first; within that, whatever moved least
-    // recently, because that is what is actually going cold.
     return [...byLens].sort((a, b) => {
       if (a.needs_attention !== b.needs_attention) return a.needs_attention ? -1 : 1;
       return (a.sent_at ?? a.created_at) < (b.sent_at ?? b.created_at) ? -1 : 1;
     });
-  }, [docs, lens]);
+  }, [docs, lens, search]);
 
   const attentionCount = docs.filter((d) => d.needs_attention).length;
+  const hotCount = docs.filter(isHotDeal).length;
+  const coldCount = docs.filter(isColdDeal).length;
 
   return (
     <div className="bg-card border border-border rounded-2xl p-4 sm:p-6 space-y-5">
@@ -261,25 +284,69 @@ export function PartnershipPipeline({
         </div>
       )}
 
-      <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/50 border border-border overflow-x-auto">
-        {LENSES.map((l) => {
-          const active = lens === l.id;
-          const n = l.id === "attention" ? attentionCount : null;
-          return (
-            <button
-              key={l.id}
-              onClick={() => setLens(l.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all min-h-[34px] ${
-                active
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {l.label}
-              {n ? <span className="opacity-75"> ({n})</span> : null}
-            </button>
-          );
-        })}
+      {/* Conversion Funnel Intelligence Bar */}
+      {outcomes && outcomes.issued > 0 && (
+        <div className="rounded-2xl border border-border bg-muted/25 p-3.5 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+            <span className="font-black uppercase tracking-wider text-muted-foreground">Conversion Funnel</span>
+            <div className="flex flex-wrap items-center gap-3 font-bold">
+              {hotCount > 0 && (
+                <button type="button" onClick={() => setLens("hot")} className="text-emerald-700 dark:text-emerald-400 hover:underline">
+                  {hotCount} hot deal{hotCount === 1 ? "" : "s"} (2+ opens)
+                </button>
+              )}
+              {coldCount > 0 && (
+                <button type="button" onClick={() => setLens("cold")} className="text-amber-700 dark:text-amber-400 hover:underline">
+                  {coldCount} going cold (4d+ unopened)
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {[
+              { label: "Issued", value: outcomes.issued, pct: 100 },
+              { label: "Sent", value: outcomes.sent, pct: Math.round((outcomes.sent / Math.max(outcomes.issued, 1)) * 100) },
+              { label: "Opened", value: outcomes.opened, pct: Math.round((outcomes.opened / Math.max(outcomes.sent, 1)) * 100) },
+              { label: "Signed", value: outcomes.signed, pct: outcomes.signedRate ?? 0 },
+            ].map((stage) => (
+              <div key={stage.label} className="rounded-xl bg-card border border-border px-2 py-2">
+                <div className="text-base font-black tabular-nums text-foreground">{stage.value}</div>
+                <div className="text-[10px] font-bold text-muted-foreground">{stage.label} · {stage.pct}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/50 border border-border overflow-x-auto flex-1">
+          {LENSES.map((l) => {
+            const active = lens === l.id;
+            const n = l.id === "attention" ? attentionCount : l.id === "hot" ? hotCount : l.id === "cold" ? coldCount : null;
+            return (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => setLens(l.id)}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all min-h-[34px] ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {l.label}
+                {n ? <span className="opacity-80"> ({n})</span> : null}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search school or reference…"
+          aria-label="Search partnership pipeline"
+          className="w-full sm:w-56 rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
+        />
       </div>
 
       {loading ? (
@@ -352,6 +419,23 @@ export function PartnershipPipeline({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0">
+                  {doc.school_phone && doc.status !== "signed" && (
+                    <a
+                      href={(() => {
+                        const digits = String(doc.school_phone).replace(/\D/g, "");
+                        const target = digits.length >= 10 ? (digits.startsWith("0") ? `234${digits.slice(1)}` : digits) : "";
+                        const sharePath = publicDocumentSharePath(doc.share_token, doc.status);
+                        const shareUrl = sharePath && typeof window !== "undefined" ? `${window.location.origin}${sharePath}` : "";
+                        const msg = `Hello ${doc.school_contact || doc.school_name}, following up from Rillcod Technologies on your ${doc.kind === "mou" ? "MoU" : "partnership proposal"}${doc.reference ? ` (${doc.reference})` : ""}${shareUrl ? `:\n${shareUrl}` : ""}. Happy to answer any questions!`;
+                        return target ? `https://wa.me/${target}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                      })()}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 text-[11px] font-bold transition-colors min-h-[34px] inline-flex items-center"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
                   <button
                     onClick={() =>
                       onOpenSchool(doc.school_id, {

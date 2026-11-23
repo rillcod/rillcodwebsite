@@ -189,6 +189,12 @@ export default function CRMPage() {
   const [contacts, setContacts]           = useState<CRMContact[]>([]);
   const [loading, setLoading]             = useState(true);
   const [search, setSearch]               = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search).get('search');
+    if (q) setSearch(q);
+  }, []);
   const [roleFilter, setRoleFilter]       = useState('all');
   const [stageFilter, setStageFilter]     = useState<PipelineStage | 'all'>('all');
   const [selected, setSelected]           = useState<CRMContact | null>(null);
@@ -1139,7 +1145,7 @@ export default function CRMPage() {
                     </button>
                     {selected.role === 'school' && (
                       <Link
-                        href="/dashboard/partnerships"
+                        href={`/dashboard/partnerships?school=${encodeURIComponent(selected.school_name || selected.full_name)}`}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
                       >
                         <Building2 size={12} /> Deal Desk

@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
   // School names in one query rather than one per row.
   const schoolIds = [...new Set(rows.map((r) => r.school_id).filter(Boolean))];
   const { data: schools } = schoolIds.length
-    ? await db.from('schools').select('id, name, city, state, student_count').in('id', schoolIds)
+    ? await db.from('schools').select('id, name, city, state, student_count, phone, contact_person').in('id', schoolIds)
     : { data: [] as Array<Record<string, unknown>> };
   const byId = new Map((schools ?? []).map((s: any) => [String(s.id), s]));
 
@@ -99,6 +99,8 @@ export async function GET(req: NextRequest) {
       school_id: row.school_id,
       school_name: school ? String(school.name) : 'Unknown school',
       school_city: school?.city ?? null,
+      school_phone: school?.phone ?? null,
+      school_contact: school?.contact_person ?? null,
       school_student_count: school?.student_count ?? null,
       created_at: row.created_at,
       sent_at: row.sent_at,
