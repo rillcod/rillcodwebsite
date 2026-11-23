@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  AcademicCapIcon, ArrowPathIcon, CheckCircleIcon, ChevronDownIcon,
+  AcademicCapIcon, ArrowDownTrayIcon, ArrowPathIcon, BellIcon, CheckCircleIcon, ChevronDownIcon,
   ChevronRightIcon, ClipboardDocumentListIcon, ExclamationTriangleIcon,
   UserGroupIcon, UserIcon,
 } from '@/lib/icons';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import { RoleBadge } from '@/components/accountability/RoleBadge';
 import { CHART_COLORS, DonutChart, HorizontalBarChart } from '@/components/charts';
 
@@ -71,6 +73,12 @@ export type TeacherWorkloadCard = {
   classes_withholding_content?: number;
   content_prepared_pct?: number;
   content_released_pct?: number;
+  last_active_at?: string | null;
+  days_since_active?: number | null;
+  attendance_days_14d?: number;
+  cbt_exams_count?: number;
+  study_materials_count?: number;
+  performance_score?: number;
   status: 'complete' | 'drafts' | 'incomplete' | 'no_students' | 'no_classes';
   courses: string[];
   classes: ClassDetail[];
@@ -169,13 +177,31 @@ function TeacherCard({
   teacher,
   expanded,
   onToggle,
+  onNudge,
+  nudging,
 }: {
   teacher: TeacherWorkloadCard;
   expanded: boolean;
   onToggle: () => void;
+  onNudge: (teacher: TeacherWorkloadCard) => void;
+  nudging: boolean;
 }) {
   const meta = STATUS_META[teacher.status];
   const [openClass, setOpenClass] = useState<string | null>(null);
+  const perfScore = teacher.performance_score ?? 0;
+  const daysIdle = teacher.days_since_active;
+  const idleTone = daysIdle == null
+    ? 'text-muted-foreground'
+    : daysIdle >= 7
+      ? 'text-rose-600 dark:text-rose-400 font-bold'
+      : daysIdle >= 3
+        ? 'text-amber-600 dark:text-amber-400 font-semibold'
+        : 'text-emerald-600 dark:text-emerald-400 font-semibold';
+  const lastActiveLabel = daysIdle == null
+    ? 'No login recorded'
+    : daysIdle === 0
+      ? 'Active today'
+      : `${daysIdle}d ago`;
 
   return (
     <article className={`${CARD} overflow-hidden transition-shadow hover:shadow-md`}>
@@ -210,12 +236,50 @@ function TeacherCard({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black tabular-nums ${
+              perfScore >= 80
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                : perfScore >= 50
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                  : 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+            }`}>
+              Score {perfScore}%
+            </span>
             <StatusPill status={teacher.status} />
             {expanded
               ? <ChevronDownIcon className="w-5 h-5 text-muted-foreground" />
               : <ChevronRightIcon className="w-5 h-5 text-muted-foreground" />}
           </div>
+        </div>
+
+        {/* Live Teacher Activity Pulse Strip */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2 text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>Last active: <span className={idleTone}>{lastActiveLabel}</span></span>
+            <span>Attendance (14d): <strong className="text-foreground">{teacher.attendance_days_14d ?? 0} day{(teacher.attendance_days_14d ?? 0) === 1 ? '' : 's'}</strong></span>
+            <span>Active Exams: <strong className="text-foreground">{teacher.cbt_exams_count ?? 0}</strong></span>
+            <span>Materials: <strong className="text-foreground">{teacher.study_materials_count ?? 0}</strong></span>
+          </div>
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!nudging) onNudge(teacher);
+            }}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') && !nudging) {
+                e.preventDefault();
+                e.stopPropagation();
+                onNudge(teacher);
+              }
+            }}
+            className="inline-flex items-center gap-1 rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 cursor-pointer"
+          >
+            <BellIcon className="w-3 h-3" />
+            {nudging ? 'Sending…' : 'Nudge Teacher'}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
@@ -400,12 +464,18 @@ function TeacherCard({
                           </tbody>
                         </table>
                       )}
-                      <div className="px-3 py-2 border-t border-border flex justify-end">
+                      <div className="px-3 py-2 border-t border-border flex flex-wrap items-center justify-end gap-3">
                         <Link
-                          href={`/dashboard/classes`}
-                          className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                          href={`/dashboard/attendance?class_id=${klass.class_id}`}
+                          className="text-[11px] font-bold text-muted-foreground hover:text-foreground"
                         >
-                          Open classes →
+                          Attendance →
+                        </Link>
+                        <Link
+                          href={`/dashboard/classes/${klass.class_id}`}
+                          className="text-[11px] font-bold text-primary hover:underline"
+                        >
+                          Open Class →
                         </Link>
                       </div>
                     </div>
@@ -424,9 +494,71 @@ export default function TeacherAccountabilityPanel() {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | TeacherWorkloadCard['status']>('all');
+  const [filter, setFilter] = useState<'all' | 'idle_7d' | 'top_performers' | TeacherWorkloadCard['status']>('all');
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [nudgingId, setNudgingId] = useState<string | null>(null);
+
+  const handleNudgeTeacher = async (teacher: TeacherWorkloadCard) => {
+    setNudgingId(teacher.teacher_id);
+    try {
+      const db = createClient();
+      const missingParts: string[] = [];
+      if (teacher.missing > 0) missingParts.push(`${teacher.missing} missing student report${teacher.missing === 1 ? '' : 's'}`);
+      if (teacher.drafts > 0) missingParts.push(`${teacher.drafts} unpublished draft${teacher.drafts === 1 ? '' : 's'}`);
+      if ((teacher.attendance_days_14d ?? 0) === 0 && teacher.class_count > 0) missingParts.push('attendance not marked in 14 days');
+      if ((teacher.classes_without_content ?? 0) > 0) missingParts.push(`${teacher.classes_without_content} class(es) without prepared lessons`);
+      const summaryText = missingParts.length > 0
+        ? `Admin reminder: Please attend to ${missingParts.join(', ')}.`
+        : 'Admin check-in: Great work keeping your classes, attendance, and reports up to date!';
+      const { error: nErr } = await db.from('notifications').insert({
+        user_id: teacher.teacher_id,
+        title: 'Teacher Activity & Accountability Reminder',
+        message: summaryText,
+        type: missingParts.length > 0 ? 'warning' : 'info',
+        source_type: 'accountability',
+        action_url: '/dashboard/classes',
+      });
+      if (nErr) throw new Error(nErr.message);
+      toast.success(`Reminder sent to ${teacher.full_name || 'teacher'}.`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not send reminder');
+    } finally {
+      setNudgingId(null);
+    }
+  };
+
+  const exportTeacherScorecardCsv = () => {
+    const rows = data?.teachers ?? [];
+    if (rows.length === 0) return;
+    const esc = (v: unknown) => {
+      let s = v == null ? '' : String(v);
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = [
+      'Teacher', 'Email', 'School', 'Performance Score (%)', 'Status',
+      'Classes', 'True Students', 'Reports Published', 'Drafts', 'Missing',
+      'Content Released (%)', 'Attendance Days (14d)', 'Active Exams', 'Study Materials', 'Days Since Active',
+    ];
+    const lines = [
+      headers.join(','),
+      ...rows.map((t) => [
+        esc(t.full_name), esc(t.email), esc(t.school_name), esc(t.performance_score ?? 0),
+        esc(STATUS_META[t.status]?.label ?? t.status), esc(t.class_count), esc(t.true_students),
+        esc(t.published), esc(t.drafts), esc(t.missing), esc(t.content_released_pct ?? 0),
+        esc(t.attendance_days_14d ?? 0), esc(t.cbt_exams_count ?? 0), esc(t.study_materials_count ?? 0),
+        esc(t.days_since_active ?? 'Never'),
+      ].join(',')),
+    ];
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rillcod-teacher-scorecard-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -450,7 +582,13 @@ export default function TeacherAccountabilityPanel() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (data?.teachers ?? []).filter((t) => {
-      if (filter !== 'all' && t.status !== filter) return false;
+      if (filter === 'idle_7d') {
+        if (t.days_since_active == null || t.days_since_active < 7) return false;
+      } else if (filter === 'top_performers') {
+        if ((t.performance_score ?? 0) < 80) return false;
+      } else if (filter !== 'all' && t.status !== filter) {
+        return false;
+      }
       if (q && !(`${t.full_name ?? ''} ${t.email ?? ''} ${t.school_name ?? ''} ${t.courses.join(' ')}`)
         .toLowerCase().includes(q)) return false;
       return true;
@@ -540,15 +678,26 @@ export default function TeacherAccountabilityPanel() {
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="inline-flex self-start items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-60"
-          >
-            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh workload
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start">
+            <button
+              type="button"
+              onClick={exportTeacherScorecardCsv}
+              disabled={!data?.teachers?.length}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:opacity-95 disabled:opacity-50"
+            >
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              Scorecard CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-60"
+            >
+              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -612,15 +761,32 @@ export default function TeacherAccountabilityPanel() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">
-          Showing <strong className="text-foreground">{filtered.length}</strong> teacher{filtered.length === 1 ? '' : 's'}
-          {filter !== 'all' ? ` · ${STATUS_META[filter].label}` : ''}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-muted-foreground">
+            Showing <strong className="text-foreground">{filtered.length}</strong> teacher{filtered.length === 1 ? '' : 's'}
+            {filter === 'idle_7d' ? ' · Inactive 7d+' : filter === 'top_performers' ? ' · Top Performers (80%+)' : filter !== 'all' ? ` · ${STATUS_META[filter].label}` : ''}
+          </p>
+          <button
+            type="button"
+            onClick={() => setFilter(filter === 'top_performers' ? 'all' : 'top_performers')}
+            className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase border ${filter === 'top_performers' ? 'bg-emerald-700 text-white border-emerald-700' : 'border-border bg-card text-foreground'}`}
+          >
+            Top Performers ({(data?.teachers ?? []).filter((t) => (t.performance_score ?? 0) >= 80).length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter(filter === 'idle_7d' ? 'all' : 'idle_7d')}
+            className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase border ${filter === 'idle_7d' ? 'bg-rose-700 text-white border-rose-700' : 'border-border bg-card text-foreground'}`}
+          >
+            Inactive 7d+ ({(data?.teachers ?? []).filter((t) => (t.days_since_active ?? 0) >= 7).length})
+          </button>
+        </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search teacher, email, school, course…"
-          className="w-full sm:w-72 bg-card border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-500"
+          aria-label="Search teachers"
+          className="w-full sm:w-72 bg-card border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-primary"
         />
       </div>
 
@@ -632,6 +798,8 @@ export default function TeacherAccountabilityPanel() {
             teacher={t}
             expanded={expanded.has(t.teacher_id)}
             onToggle={() => toggle(t.teacher_id)}
+            onNudge={(teacher) => void handleNudgeTeacher(teacher)}
+            nudging={nudgingId === t.teacher_id}
           />
         ))}
         {filtered.length === 0 && (

@@ -2,13 +2,15 @@ import type { Backlog, Coverage, Person } from './types';
 import { FLAG_LABEL, normalizeRole, roleMeta } from './types';
 
 function escapeCsv(v: string | number | boolean | null | undefined) {
-  const s = v == null ? '' : String(v);
+  let s = v == null ? '' : String(v);
+  // Prevent CSV spreadsheet formula injection
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return s.includes(',') || s.includes('"') || s.includes('\n')
     ? `"${s.replace(/"/g, '""')}"`
     : s;
 }
 
-export function downloadPeopleCsv(rows: Person[], filename = 'accountability-census.csv') {
+export function downloadPeopleCsv(rows: Person[], filename = 'rillcod-accountability-census.csv') {
   const headers = [
     'Name', 'Email', 'Role', 'Role label', 'Active', 'Enrolment type',
     'School', 'Class (roster)', 'Class (profile)', 'Roster status',
@@ -68,173 +70,253 @@ function flagCounts(people: Person[]) {
   return m;
 }
 
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/images/logo.png', { cache: 'force-cache' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Build a concrete multi-section PDF accountability report (jsPDF + autotable).
+ * Compute consistent, non-inflated accountability percentages shared by UI and PDF.
+ */
+export function computeAccountabilityMetrics(coverage: Coverage | null, people: Person[]) {
+  const flags = flagCounts(people);
+  const students = people.filter((p) => normalizeRole(p.role) === 'student');
+  const totalStudents = coverage?.totals.students ?? students.length;
+  const studentDenom = Math.max(totalStudents, 1);
+
+  const placed = coverage?.totals.students_on_roster ?? 0;
+  const unplaced = coverage?.totals.students_not_placed ?? flags.no_class ?? 0;
+  const placedPct = totalStudents > 0 ? Math.min(100, Math.round((placed / studentDenom) * 100)) : 0;
+
+  const reports = coverage?.totals.reports ?? 0;
+  const published = coverage?.totals.published ?? 0;
+  const drafts = coverage?.totals.draft ?? 0;
+  // Denominator is expected students on roster (or reports written if higher) so 2/2 reports out of 200 students never reads 100%.
+  const reportDenom = Math.max(placed, reports, 1);
+  const publishedPct = placed > 0 || reports > 0 ? Math.min(100, Math.round((published / reportDenom) * 100)) : 0;
+  const draftPct = placed > 0 || reports > 0 ? Math.min(100 - publishedPct, Math.round((drafts / reportDenom) * 100)) : 0;
+
+  const parentEmail = coverage?.totals.parent_email_matched ?? Math.max(0, students.length - (flags.no_parent_email || 0));
+  const parentPhone = coverage?.totals.parent_phone_matched ?? Math.max(0, students.length - (flags.no_parent_phone || 0));
+  const emailPct = totalStudents > 0 ? Math.min(100, Math.round((parentEmail / studentDenom) * 100)) : 0;
+  const phonePct = totalStudents > 0 ? Math.min(100, Math.round((parentPhone / studentDenom) * 100)) : 0;
+
+  const health = Math.min(
+    100,
+    Math.max(0, Math.round(placedPct * 0.3 + publishedPct * 0.3 + emailPct * 0.2 + phonePct * 0.2)),
+  );
+
+  return {
+    totalStudents,
+    placed,
+    unplaced,
+    placedPct,
+    reports,
+    published,
+    drafts,
+    publishedPct,
+    draftPct,
+    parentEmail,
+    parentPhone,
+    emailPct,
+    phonePct,
+    health,
+    flags,
+  };
+}
+
+/**
+ * Build an executive multi-section Rillcod Technologies Accountability PDF (jsPDF + autotable)
+ * styled with the official Rillcod Technologies letterhead, logo mark, and obsidian/orange palette.
  */
 export async function generateAccountabilityPdf(input: AccountabilityReportInput) {
-  const [{ jsPDF }, autoTableMod] = await Promise.all([
+  const [{ jsPDF }, autoTableMod, logoDataUrl] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
+    loadLogoDataUrl(),
   ]);
   const autoTable = autoTableMod.default;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 14;
-  let y = 16;
+  const contentW = pageW - margin * 2;
 
   const c = input.coverage;
   const termLabel = c?.term_context
     ? `${c.term_context.academic_year} · ${c.term_context.term_label}`
     : 'Active term';
   const roles = roleCounts(input.people);
-  const flags = flagCounts(input.people);
   const students = input.people.filter((p) => normalizeRole(p.role) === 'student');
   const teachers = input.people.filter((p) => normalizeRole(p.role) === 'teacher');
   const parents = input.people.filter((p) => normalizeRole(p.role) === 'parent');
+  const m = computeAccountabilityMetrics(c, input.people);
 
-  const totalStudents = c?.totals.students || students.length || 1;
-  const placed = c?.totals.students_on_roster || 0;
-  const published = c?.totals.published || 0;
-  const drafts = c?.totals.draft || 0;
-  const reports = c?.totals.reports || 0;
-  const parentEmail = c?.totals.parent_email_matched ?? Math.max(0, students.length - (flags.no_parent_email || 0));
-  const parentPhone = c?.totals.parent_phone_matched ?? Math.max(0, students.length - (flags.no_parent_phone || 0));
-  const placedPct = Math.round((placed / totalStudents) * 100);
-  const publishedPct = reports > 0 ? Math.round((published / reports) * 100) : 0;
-  const emailPct = Math.round((parentEmail / totalStudents) * 100);
-  const phonePct = Math.round((parentPhone / totalStudents) * 100);
-  const health = Math.min(100, Math.max(0, Math.round(
-    placedPct * 0.3 + publishedPct * 0.3 + emailPct * 0.2 + phonePct * 0.2,
-  )));
+  const today = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 
-  const addFooter = () => {
-    const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i += 1) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text(
-        `Rillcod Technologies · Accountability Census Report · Page ${i} of ${pages}`,
-        margin,
-        doc.internal.pageSize.getHeight() - 8,
-      );
+  // Official Rillcod Technologies Letterhead on Page 1
+  doc.setFillColor(17, 24, 39);
+  doc.roundedRect(margin, 10, contentW, 27, 2.5, 2.5, 'F');
+  doc.setFillColor(249, 115, 22);
+  doc.rect(margin, 10, contentW, 1.8, 'F');
+  doc.setFillColor(220, 38, 38);
+  doc.rect(margin, 35.8, contentW, 1.2, 'F');
+
+  const textX = logoDataUrl ? margin + 20 : margin + 5;
+  if (logoDataUrl) {
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin + 4, 15, 13, 13, 2, 2, 'F');
+    try {
+      doc.addImage(logoDataUrl, 'PNG', margin + 5.2, 16.2, 10.6, 10.6);
+    } catch {
+      // Ignore logo decode error
     }
-  };
+  }
 
-  // Cover
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(20);
-  doc.text('Accountability Census Report', margin, y);
-  y += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.setTextColor(60);
-  doc.text('Concrete platform census — roles, coverage, teachers, and gaps', margin, y);
-  y += 8;
-  doc.setFontSize(10);
-  doc.text(`Term scope: ${termLabel}`, margin, y);
-  y += 5;
-  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, margin, y);
-  y += 5;
-  if (input.generatedBy) {
-    doc.text(`Prepared by: ${input.generatedBy}`, margin, y);
-    y += 5;
-  }
-  if (c?.generated_at) {
-    doc.text(`Data snapshot: ${new Date(c.generated_at).toLocaleString('en-GB')}`, margin, y);
-    y += 8;
-  } else {
-    y += 3;
-  }
+  doc.setFontSize(8.5);
+  doc.setTextColor(251, 146, 60);
+  doc.text('RILLCOD. TECHNOLOGIES  ·  EXECUTIVE AUDIT', textX, 17.5);
 
-  doc.setFillColor(health >= 85 ? 16 : health >= 70 ? 245 : 244, health >= 85 ? 185 : health >= 70 ? 158 : 63, health >= 85 ? 129 : health >= 70 ? 11 : 94);
-  doc.roundedRect(margin, y, pageW - margin * 2, 18, 2, 2, 'F');
-  doc.setTextColor(255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text(`Operational health score: ${health}%`, margin + 4, y + 11);
-  y += 26;
+  doc.setTextColor(255, 255, 255);
+  doc.text('Accountability & Platform Census Report', textX, 24.5);
 
-  doc.setTextColor(20);
-  doc.setFontSize(12);
-  doc.text('1. Who is on the platform', margin, y);
-  y += 2;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(209, 213, 219);
+  doc.text(`${termLabel}  ·  Issued ${today}${input.generatedBy ? `  ·  By ${input.generatedBy}` : ''}`, textX, 30.8);
 
+  // Executive KPI Strip (4 boxes)
+  let y = 42;
+  const kpiW = (contentW - 9) / 4;
+  const kpis = [
+    {
+      label: 'HEALTH SCORE',
+      value: `${m.health}%`,
+      rgb: m.health >= 85 ? [16, 185, 129] : m.health >= 70 ? [245, 158, 11] : [220, 38, 38],
+    },
+    {
+      label: 'STUDENTS PLACED',
+      value: `${m.placedPct}%`,
+      rgb: [17, 24, 39],
+    },
+    {
+      label: 'REPORTS PUBLISHED',
+      value: `${m.publishedPct}%`,
+      rgb: [17, 24, 39],
+    },
+    {
+      label: 'PARENT EMAILS',
+      value: `${m.emailPct}%`,
+      rgb: [17, 24, 39],
+    },
+  ];
+  kpis.forEach((k, idx) => {
+    const x = margin + idx * (kpiW + 3);
+    doc.setFillColor(249, 250, 251);
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, kpiW, 17, 2, 2, 'FD');
+    doc.setFillColor(k.rgb[0], k.rgb[1], k.rgb[2]);
+    doc.rect(x, y, kpiW, 1.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(107, 114, 128);
+    doc.text(k.label, x + 3, y + 6.5);
+    doc.setFontSize(13.5);
+    doc.setTextColor(k.rgb[0], k.rgb[1], k.rgb[2]);
+    doc.text(k.value, x + 3, y + 13.5);
+  });
+  y += 23;
+
+  const sectionHeading = (title: string) => {
+    if (y > 245) {
+      doc.addPage();
+      y = 18;
+    }
+    doc.setFillColor(249, 115, 22);
+    doc.rect(margin, y - 3.8, 2, 4.8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(17, 24, 39);
+    doc.text(title, margin + 4.5, y);
+    y += 3;
+  };
+
+  const brandHeadStyles = { fillColor: [17, 24, 39] as [number, number, number], textColor: 255 };
+  const accentHeadStyles = { fillColor: [194, 65, 12] as [number, number, number], textColor: 255 };
+
+  sectionHeading('1. Platform Accounts by Role');
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['Role', 'Count', 'What this role means']],
+    head: [['Role', 'Count', 'Definition']],
     body: Object.entries(roles)
       .sort((a, b) => b[1] - a[1])
       .map(([role, n]) => [roleMeta(role).label, String(n), roleMeta(role).description]),
     styles: { fontSize: 8, cellPadding: 2.2 },
-    headStyles: { fillColor: [26, 58, 143], textColor: 255 },
+    headStyles: brandHeadStyles,
+    alternateRowStyles: { fillColor: [249, 250, 251] },
   });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  y = (doc as any).lastAutoTable.finalY + 9;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(20);
-  doc.text('2. Headline metrics (active term)', margin, y);
-  y += 2;
-
+  sectionHeading('2. Headline Term Metrics');
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
     head: [['Metric', 'Value']],
     body: [
-      ['All accounts', String(input.people.length)],
-      ['Students', String(students.length)],
-      ['Teachers', String(teachers.length)],
-      ['Parents', String(parents.length)],
-      ['Students on roster', `${placed} (${placedPct}%)`],
-      ['Reports written', String(reports)],
-      ['Reports published', `${published} (${publishedPct}%)`],
-      ['Unpublished drafts', String(drafts)],
-      ['Parent email linked', `${parentEmail} (${emailPct}%)`],
-      ['Parent phone linked', `${parentPhone} (${phonePct}%)`],
-      ['Withdrawn / ended students', String(c?.totals.withdrawn_students ?? flags.withdrawn ?? 0)],
+      ['Total platform accounts', String(input.people.length)],
+      ['Students / Teachers / Parents', `${students.length} / ${teachers.length} / ${parents.length}`],
+      ['Students placed on active class roster', `${m.placed} of ${m.totalStudents} (${m.placedPct}%)`],
+      ['Students not yet placed in a class', String(m.unplaced)],
+      ['Progress reports published (vs placed)', `${m.published} (${m.publishedPct}%)`],
+      ['Unpublished report drafts', String(m.drafts)],
+      ['Parent email linked', `${m.parentEmail} (${m.emailPct}%)`],
+      ['Parent phone linked', `${m.parentPhone} (${m.phonePct}%)`],
+      ['Withdrawn / ended students', String(c?.totals.withdrawn_students ?? m.flags.withdrawn ?? 0)],
     ],
-    styles: { fontSize: 9, cellPadding: 2.2 },
-    headStyles: { fillColor: [26, 58, 143], textColor: 255 },
+    styles: { fontSize: 8.5, cellPadding: 2.2 },
+    headStyles: brandHeadStyles,
+    alternateRowStyles: { fillColor: [249, 250, 251] },
   });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  y = (doc as any).lastAutoTable.finalY + 9;
 
-  if (y > 240) {
-    doc.addPage();
-    y = 16;
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('3. Gaps & flags (active term)', margin, y);
-  y += 2;
-
-  const flagRows = Object.entries(flags)
+  sectionHeading('3. Actionable Gaps & Flags');
+  const flagRows = Object.entries(m.flags)
     .sort((a, b) => b[1] - a[1])
     .map(([f, n]) => [FLAG_LABEL[f] ?? f, String(n)]);
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['Gap / Flag', 'Accounts affected']],
-    body: flagRows.length ? flagRows : [['No flags', '0']],
+    head: [['Issue / Gap', 'Accounts Affected']],
+    body: flagRows.length ? flagRows : [['No active gaps detected', '0']],
     styles: { fontSize: 8, cellPadding: 2.2 },
-    headStyles: { fillColor: [180, 83, 9], textColor: 255 },
+    headStyles: accentHeadStyles,
+    alternateRowStyles: { fillColor: [255, 247, 237] },
   });
-  y = (doc as any).lastAutoTable.finalY + 10;
+  y = (doc as any).lastAutoTable.finalY + 9;
 
-  // Teachers
   if (c?.by_teacher && c.by_teacher.length > 0) {
-    if (y > 220) {
-      doc.addPage();
-      y = 16;
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(20);
-    doc.text('4. Teacher report performance (active term)', margin, y);
-    y += 2;
+    sectionHeading('4. Teacher Report Performance');
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
@@ -248,22 +330,14 @@ export async function generateAccountabilityPdf(input: AccountabilityReportInput
         `${t.completion_pct}%`,
       ]),
       styles: { fontSize: 7.5, cellPadding: 1.8 },
-      headStyles: { fillColor: [109, 40, 217], textColor: 255 },
+      headStyles: brandHeadStyles,
+      alternateRowStyles: { fillColor: [249, 250, 251] },
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 9;
   }
 
-  // Classes
   if (c?.by_class && c.by_class.length > 0) {
-    if (y > 220) {
-      doc.addPage();
-      y = 16;
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(20);
-    doc.text('5. Class coverage (active term)', margin, y);
-    y += 2;
+    sectionHeading('5. Class Coverage');
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
@@ -280,30 +354,22 @@ export async function generateAccountabilityPdf(input: AccountabilityReportInput
         ];
       }),
       styles: { fontSize: 7.5, cellPadding: 1.8 },
-      headStyles: { fillColor: [26, 58, 143], textColor: 255 },
+      headStyles: brandHeadStyles,
+      alternateRowStyles: { fillColor: [249, 250, 251] },
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 9;
   }
 
-  // Backlog
   if (input.backlog && input.backlog.hidden_by_term_filter.drafts > 0) {
-    if (y > 230) {
-      doc.addPage();
-      y = 16;
-    }
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(20);
-    doc.text('6. Cross-term unpublished backlog', margin, y);
-    y += 6;
+    sectionHeading('6. Cross-Term Unpublished Backlog');
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(60);
+    doc.setFontSize(8.5);
+    doc.setTextColor(75, 85, 99);
     const lines = doc.splitTextToSize(
-      `Active-term view hides older drafts. Across all terms there are ${input.backlog.all_terms.drafts} unpublished reports; ${input.backlog.hidden_by_term_filter.drafts} of those sit outside the active term.`,
-      pageW - margin * 2,
+      `Across all terms there are ${input.backlog.all_terms.drafts} unpublished drafts; ${input.backlog.hidden_by_term_filter.drafts} sit outside the active term filter.`,
+      contentW,
     );
-    doc.text(lines, margin, y);
+    doc.text(lines, margin, y + 2);
     y += lines.length * 4 + 4;
 
     if (input.backlog.overdue_by_teacher.length > 0) {
@@ -319,24 +385,20 @@ export async function generateAccountabilityPdf(input: AccountabilityReportInput
           o.oldest_days == null ? '—' : String(o.oldest_days),
         ]),
         styles: { fontSize: 7.5, cellPadding: 1.8 },
-        headStyles: { fillColor: [190, 18, 60], textColor: 255 },
+        headStyles: accentHeadStyles,
       });
-      y = (doc as any).lastAutoTable.finalY + 10;
+      y = (doc as any).lastAutoTable.finalY + 9;
     }
   }
 
-  // Teacher directory (every teacher listed as teacher)
+  // Teacher directory
   doc.addPage();
-  y = 16;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(20);
-  doc.text('7. Teacher directory (every teacher account)', margin, y);
-  y += 2;
+  y = 18;
+  sectionHeading(`7. Teacher Directory (${teachers.length} accounts)`);
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['Name', 'Email', 'School', 'Active', 'Reports published', 'Drafts']],
+    head: [['Name', 'Email', 'School', 'Active', 'Published', 'Drafts']],
     body: teachers.length
       ? teachers
           .slice()
@@ -351,39 +413,55 @@ export async function generateAccountabilityPdf(input: AccountabilityReportInput
           ])
       : [['No teacher accounts found', '', '', '', '', '']],
     styles: { fontSize: 7.5, cellPadding: 1.8 },
-    headStyles: { fillColor: [109, 40, 217], textColor: 255 },
+    headStyles: brandHeadStyles,
+    alternateRowStyles: { fillColor: [249, 250, 251] },
   });
 
-  // Students with critical gaps
-  doc.addPage();
-  y = 16;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(20);
-  doc.text('8. Students with critical gaps', margin, y);
-  y += 2;
+  // Students with critical gaps (explicitly note total count if capped for PDF size)
   const critical = students.filter((s) =>
     (s.flags ?? []).some((f) =>
       ['no_class', 'no_parent_email', 'no_parent_phone', 'no_report', 'class_mismatch', 'draft_pending'].includes(f),
     ),
   );
+  const PDF_CAP = 120;
+  doc.addPage();
+  y = 18;
+  sectionHeading(
+    critical.length > PDF_CAP
+      ? `8. Students with Actionable Gaps (showing ${PDF_CAP} of ${critical.length} — export CSV for full list)`
+      : `8. Students with Actionable Gaps (${critical.length})`,
+  );
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [['Student', 'School', 'Roster class', 'Gaps']],
+    head: [['Student', 'School', 'Roster Class', 'Gaps']],
     body: critical.length
-      ? critical.slice(0, 80).map((s) => [
+      ? critical.slice(0, PDF_CAP).map((s) => [
           s.full_name || '(no name)',
           s.school_name || '—',
-          s.class_from_roster || 'not placed',
+          s.class_from_roster || 'Not placed',
           (s.flags ?? []).map((f) => FLAG_LABEL[f] ?? f).join('; '),
         ])
       : [['No critical student gaps', '', '', '']],
     styles: { fontSize: 7, cellPadding: 1.6 },
-    headStyles: { fillColor: [14, 165, 233], textColor: 255 },
+    headStyles: accentHeadStyles,
+    alternateRowStyles: { fillColor: [255, 247, 237] },
   });
 
-  addFooter();
+  // Consistent Rillcod Technologies Footer across all pages
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i += 1) {
+    doc.setPage(i);
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.25);
+    doc.line(margin, pageH - 11, pageW - margin, pageH - 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(107, 114, 128);
+    doc.text('Rillcod Technologies  ·  Official Accountability & Census Report', margin, pageH - 7);
+    doc.text(`Page ${i} of ${pages}`, pageW - margin, pageH - 7, { align: 'right' });
+  }
+
   const stamp = new Date().toISOString().slice(0, 10);
-  doc.save(`accountability-report-${stamp}.pdf`);
+  doc.save(`rillcod-accountability-report-${stamp}.pdf`);
 }

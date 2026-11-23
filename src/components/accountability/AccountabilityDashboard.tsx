@@ -5,36 +5,36 @@ import Link from 'next/link';
 import {
   AcademicCapIcon, ArrowDownTrayIcon, ArrowPathIcon, BuildingOfficeIcon,
   ChartBarIcon, CheckCircleIcon, ClipboardDocumentListIcon, CogIcon,
-  EnvelopeIcon, ExclamationTriangleIcon, InformationCircleIcon, LinkIcon,
+  EnvelopeIcon, ExclamationTriangleIcon, LinkIcon,
   PaperAirplaneIcon, PhoneIcon, ShieldCheckIcon, UserGroupIcon, UserIcon,
-  UserPlusIcon,
 } from '@/lib/icons';
 import {
   CHART_COLORS, DonutChart, StackedBarChart, VerticalBarChart,
 } from '@/components/charts';
-import { RoleBadge, RoleLegend } from '@/components/accountability/RoleBadge';
+import { RoleBadge } from '@/components/accountability/RoleBadge';
 import ParentReachOutModal, { ReachOutPersonTarget } from '@/components/accountability/ParentReachOutModal';
+import QuickClassPlacementModal from '@/components/accountability/QuickClassPlacementModal';
 import TeacherAccountabilityPanel from '@/components/accountability/TeacherAccountabilityPanel';
 import { AtRiskList } from '@/components/analytics/AtRiskList';
 import {
   AccountabilityTab, Backlog, ClassRow, Coverage, FLAG_LABEL, Person,
   fmtDate, isStudent, isTeacher, normalizeRole, roleMeta,
 } from '@/lib/accountability/types';
-import { downloadPeopleCsv, generateAccountabilityPdf } from '@/lib/accountability/report';
+import { computeAccountabilityMetrics, downloadPeopleCsv, generateAccountabilityPdf } from '@/lib/accountability/report';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
 import MobileScrollStrip from '@/components/mobile/MobileScrollStrip';
 import { MOBILE_PAGE_BOTTOM, MOBILE_TOUCH_BTN } from '@/components/mobile/mobile-styles';
 
-const CARD = 'bg-card shadow-sm border border-border rounded-xl';
+const CARD = 'bg-card shadow-sm border border-border rounded-2xl';
 const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground';
 
 const TABS: { id: AccountabilityTab; label: string; hint: string }[] = [
-  { id: 'overview', label: 'Overview', hint: 'Health & what needs fixing' },
-  { id: 'people', label: 'Everyone', hint: 'All accounts by type' },
-  { id: 'teachers', label: 'Teachers', hint: 'Classes & report progress' },
-  { id: 'reports', label: 'Reports & classes', hint: 'How each class is doing' },
-  { id: 'comms', label: 'Messages', hint: 'Emails sent to parents' },
-  { id: 'report', label: 'Download', hint: 'PDF or spreadsheet' },
+  { id: 'overview', label: 'Overview', hint: 'Health & action queue' },
+  { id: 'people', label: 'Directory', hint: 'All accounts & flags' },
+  { id: 'teachers', label: 'Teachers', hint: 'Classes & reports' },
+  { id: 'reports', label: 'Classes & Reports', hint: 'Coverage by class' },
+  { id: 'comms', label: 'Parent Reach', hint: 'Contacts & emails' },
+  { id: 'report', label: 'Export', hint: 'PDF & CSV reports' },
 ];
 
 function Tile({
@@ -53,7 +53,7 @@ function Tile({
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`${CARD} p-4 sm:p-5 text-left transition-all w-full ${onClick ? 'hover:border-indigo-500/50 cursor-pointer' : 'cursor-default'} ${active ? 'border-indigo-500 ring-1 ring-indigo-500/40' : ''}`}
+      className={`${CARD} p-4 sm:p-5 text-left transition-all w-full ${onClick ? 'hover:border-primary/50 cursor-pointer' : 'cursor-default'} ${active ? 'border-primary ring-1 ring-primary/40' : ''}`}
     >
       <div className={`text-2xl sm:text-3xl font-black tracking-tighter tabular-nums ${toneCls}`}>{value}</div>
       <div className={`${LABEL} mt-1.5`}>{label}</div>
@@ -130,6 +130,7 @@ export default function AccountabilityDashboard({
   const [tab, setTab] = useState<AccountabilityTab>('overview');
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
   const [reachOutPerson, setReachOutPerson] = useState<Person | null>(null);
+  const [placementTargets, setPlacementTargets] = useState<Person[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flag, setFlag] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export default function AccountabilityDashboard({
   const students = useMemo(() => people.filter(isStudent), [people]);
   const teachers = useMemo(() => people.filter(isTeacher), [people]);
   const parents = useMemo(() => people.filter((p) => normalizeRole(p.role) === 'parent'), [people]);
+  const gapPeople = useMemo(() => people.filter((p) => (p.flags ?? []).length > 0), [people]);
 
   const schools = useMemo(
     () => Array.from(new Set(people.map((p) => p.school_name).filter(Boolean) as string[])).sort(),
@@ -205,72 +207,45 @@ export default function AccountabilityDashboard({
 
   const allPaginatedSelected = paginatedPeople.length > 0 && paginatedPeople.every((p) => selectedIds.has(p.id));
 
-  const studentCount = students.length || 1;
-
   const analytics = useMemo(() => {
-    const totalStudents = c?.totals.students || studentCount || 1;
-    const placedOnRoster = c?.totals.students_on_roster || 0;
-    const unplaced = c?.totals.students_not_placed || flagCounts.no_class || 0;
-    const placedPct = Math.round((placedOnRoster / Math.max(totalStudents, 1)) * 100);
-    const totalReports = c?.totals.reports || 1;
-    const publishedReports = c?.totals.published || 0;
-    const draftReports = c?.totals.draft || 0;
-    const publishedPct = Math.round((publishedReports / totalReports) * 100);
-    const draftPct = Math.round((draftReports / totalReports) * 100);
-    const parentEmailMatched = c?.totals.parent_email_matched ?? Math.max(0, studentCount - (flagCounts.no_parent_email || 0));
-    const parentPhoneMatched = c?.totals.parent_phone_matched ?? Math.max(0, studentCount - (flagCounts.no_parent_phone || 0));
+    const m = computeAccountabilityMetrics(c, people);
     const parentFullyMatched = c?.totals.parent_fully_matched ?? 0;
     const parentUnmatched = c?.totals.parent_unmatched ?? 0;
-    const parentEmailReachPct = Math.round((parentEmailMatched / Math.max(totalStudents, 1)) * 100);
-    const parentPhoneReachPct = Math.round((parentPhoneMatched / Math.max(totalStudents, 1)) * 100);
-    const parentFullyMatchedPct = Math.round((parentFullyMatched / Math.max(totalStudents, 1)) * 100);
+    const parentFullyMatchedPct = m.totalStudents > 0
+      ? Math.round((parentFullyMatched / Math.max(m.totalStudents, 1)) * 100)
+      : 0;
     const withdrawnCount = c?.totals.withdrawn_students || flagCounts.withdrawn || 0;
     const mismatchCount = flagCounts.class_mismatch || 0;
-    // Current = active student accounts that are not withdrawn
-    const currentActive = students.filter(
-      (p) => p.is_active && !(p.flags ?? []).includes('withdrawn'),
-    ).length;
-    const inactiveStudents = students.filter((p) => !p.is_active).length;
-    // Displaced = not on any active-term roster (same as unplaced / no_class)
-    const displacedCount = unplaced;
     const classCount = c?.by_class?.length || 0;
     const classesWithMissing = (c?.by_class ?? []).filter((row) => {
       const missing = row.missing ?? Math.max(0, row.students - (row.published + row.draft));
       return missing > 0;
     }).length;
-    const healthScore = Math.min(100, Math.max(0, Math.round(
-      placedPct * 0.3 + publishedPct * 0.3 + parentEmailReachPct * 0.2 + parentPhoneReachPct * 0.2,
-    )));
     return {
-      placedPct, placedOnRoster, unplaced, totalStudents,
-      publishedReports, draftReports, publishedPct, draftPct,
-      parentEmailMatched, parentPhoneMatched, parentFullyMatched, parentUnmatched,
-      parentEmailReachPct, parentPhoneReachPct, parentFullyMatchedPct,
+      placedPct: m.placedPct,
+      placedOnRoster: m.placed,
+      unplaced: m.unplaced,
+      totalStudents: m.totalStudents,
+      publishedReports: m.published,
+      draftReports: m.drafts,
+      publishedPct: m.publishedPct,
+      draftPct: m.draftPct,
+      parentEmailMatched: m.parentEmail,
+      parentPhoneMatched: m.parentPhone,
+      parentFullyMatched,
+      parentUnmatched,
+      parentEmailReachPct: m.emailPct,
+      parentPhoneReachPct: m.phonePct,
+      parentFullyMatchedPct,
       noParentEmailCount: flagCounts.no_parent_email || 0,
       noParentPhoneCount: flagCounts.no_parent_phone || 0,
       withdrawnCount,
       mismatchCount,
-      currentActive,
-      inactiveStudents,
-      displacedCount,
       classCount,
       classesWithMissing,
-      healthScore,
+      healthScore: m.health,
     };
-  }, [c, studentCount, flagCounts, students]);
-
-  const statusDonut = useMemo(() => {
-    const current = analytics.currentActive;
-    const withdrawn = analytics.withdrawnCount;
-    const displaced = analytics.displacedCount;
-    const otherInactive = Math.max(0, analytics.inactiveStudents - Math.min(analytics.inactiveStudents, withdrawn));
-    return [
-      { label: 'In school now', value: current, color: CHART_COLORS.emerald },
-      { label: 'Left / ended', value: withdrawn, color: CHART_COLORS.rose },
-      { label: 'Account off', value: otherInactive, color: '#71717a' },
-      { label: 'Not in a class', value: displaced, color: CHART_COLORS.amber },
-    ].filter((s) => s.value > 0);
-  }, [analytics]);
+  }, [c, people, flagCounts]);
 
   const roleDonut = useMemo(() => {
     const palette: Record<string, string> = {
@@ -361,7 +336,7 @@ export default function AccountabilityDashboard({
         backlog,
         generatedBy,
       });
-      setReportMsg('PDF report downloaded.');
+      setReportMsg('Official Rillcod Technologies PDF report downloaded.');
     } catch (e) {
       setReportMsg(`Error: ${e instanceof Error ? e.message : 'Could not generate PDF'}`);
     } finally {
@@ -369,21 +344,89 @@ export default function AccountabilityDashboard({
     }
   };
 
+  const actionQueueItems = useMemo(() => {
+    return [
+      {
+        key: 'no_class',
+        count: exceptionTotals?.displaced ?? analytics.unplaced,
+        title: 'Students not placed in an active class',
+        desc: 'Place them into a class so they can access lessons, CBT exams, and progress reports.',
+        cta: 'Review List',
+        onClick: () => focusFlag('no_class'),
+        tone: 'rose' as const,
+      },
+      {
+        key: 'class_mismatch',
+        count: analytics.mismatchCount,
+        title: 'Account class does not match term roster',
+        desc: `Automatic class repair is ${autoClassRepairEnabled ? 'enabled' : 'manual'}. Sync now to align profiles.`,
+        cta: syncingClasses ? 'Syncing…' : 'Fix Wrong Classes',
+        onClick: () => onSyncClasses(),
+        tone: 'amber' as const,
+      },
+      {
+        key: 'draft_pending',
+        count: analytics.draftReports,
+        title: 'Progress reports stuck in draft',
+        desc: 'Written by teachers but not yet published to parents and students.',
+        cta: 'View Drafts',
+        onClick: () => focusFlag('draft_pending'),
+        tone: 'amber' as const,
+      },
+      {
+        key: 'no_parent_email',
+        count: analytics.noParentEmailCount,
+        title: 'Students missing parent email',
+        desc: 'Parents will not receive report alerts until an email address is linked.',
+        cta: 'View Students',
+        onClick: () => focusFlag('no_parent_email'),
+        tone: 'amber' as const,
+      },
+      {
+        key: 'no_parent_phone',
+        count: analytics.noParentPhoneCount,
+        title: 'Students missing parent phone',
+        desc: 'Add guardian phone numbers for WhatsApp and SMS reachability.',
+        cta: 'View Students',
+        onClick: () => focusFlag('no_parent_phone'),
+        tone: 'amber' as const,
+      },
+      {
+        key: 'cleanup',
+        count: (exceptionTotals?.placeholder_noise ?? 0) + (exceptionTotals?.hollow_shell ?? 0),
+        title: 'Test / junk or empty shell accounts',
+        desc: 'Safe to archive or clean up inside Academic Office Exceptions.',
+        cta: 'Open Cleanup',
+        href: ACADEMIC_EXCEPTIONS_HREF,
+        tone: 'rose' as const,
+      },
+    ].filter((item) => item.count > 0);
+  }, [exceptionTotals, analytics, autoClassRepairEnabled, syncingClasses, onSyncClasses]);
+
   return (
     <div className={`mx-auto max-w-[1400px] space-y-4 p-4 sm:space-y-6 sm:p-6 lg:p-8 ${MOBILE_PAGE_BOTTOM}`}>
       <MobilePageHero
-        badge="Admin · Platform census"
-        title="Who's on the platform"
-        description="Every student, teacher, parent, and staff account — plus what's missing so you can fix it."
+        badge="Rillcod Technologies · Accountability"
+        title="Platform Accountability"
+        description="Executive health score, actionable lapses, teacher coverage, and official audit exports."
         icon={ShieldCheckIcon}
         actions={
           <>
             <button
               type="button"
               onClick={() => openReachOut()}
-              className={`${MOBILE_TOUCH_BTN} bg-indigo-600 text-white hover:bg-indigo-700`}
+              className={`${MOBILE_TOUCH_BTN} bg-primary text-primary-foreground hover:opacity-95`}
             >
-              <PaperAirplaneIcon className="h-4 w-4" /> Message parents
+              <PaperAirplaneIcon className="h-4 w-4" /> Message Parents
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleGeneratePdf()}
+              disabled={reportBusy || people.length === 0}
+              className={`${MOBILE_TOUCH_BTN} border border-border bg-card hover:bg-accent disabled:opacity-50`}
+            >
+              <ArrowDownTrayIcon className="h-4 w-4 text-primary" />
+              {reportBusy ? 'Building PDF…' : 'Export PDF'}
             </button>
             <select
               value={pollInterval}
@@ -402,53 +445,48 @@ export default function AccountabilityDashboard({
               disabled={loading || refreshing}
               className={`${MOBILE_TOUCH_BTN} border border-border bg-card hover:bg-accent disabled:opacity-60`}
             >
-              <ArrowPathIcon className={`h-4 w-4 ${loading || refreshing ? "animate-spin" : ""}`} />
+              <ArrowPathIcon className={`h-4 w-4 ${loading || refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </button>
           </>
         }
       >
-        {pollInterval > 0 && (
-          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-[10px] font-black text-rose-600 dark:text-rose-400">
-            <span className="h-1.5 w-1.5 animate-ping rounded-full bg-rose-500" />
-            Updating every {pollInterval / 1000}s
-          </span>
-        )}
-        {c?.term_context && (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-            This term: {c.term_context.academic_year} · {c.term_context.term_label}
-          </div>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {c?.term_context && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+              Active Term: {c.term_context.academic_year} · {c.term_context.term_label}
+            </span>
+          )}
+          {pollInterval > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+              <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
+              Live ({pollInterval / 1000}s)
+            </span>
+          )}
+        </div>
       </MobilePageHero>
 
       {error && (
-        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
+        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300">{error}</p>
       )}
       {dataQualityWarnings.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200" role="alert">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200" role="alert">
           <p className="flex items-center gap-2 font-black"><ExclamationTriangleIcon className="h-4 w-4" /> Data quality needs attention</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs sm:text-sm">
-            {dataQualityWarnings.map(warning => <li key={warning}>{warning}</li>)}
+          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-xs">
+            {dataQualityWarnings.map((warning) => <li key={warning}>{warning}</li>)}
           </ul>
         </div>
       )}
       {syncFeedback && (
-        <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
-          <CheckCircleIcon className="w-4 h-4" /> {syncFeedback}
+        <p className={`rounded-xl border px-4 py-3 text-sm font-bold flex items-center gap-2 ${syncFeedback.startsWith('Error') ? 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'}`}>
+          <CheckCircleIcon className="w-4 h-4 shrink-0" /> {syncFeedback}
         </p>
       )}
-      {census?.live_total != null && (
-        <p
-          className={`rounded-xl border px-4 py-3 text-xs font-bold ${
-            census.live_total === people.length
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-              : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
-          }`}
-        >
-          {census.live_total === people.length
-            ? `Numbers look right — ${people.length.toLocaleString()} accounts on the platform.`
-            : `This page shows ${people.length.toLocaleString()} accounts, but the live list has ${census.live_total.toLocaleString()}. Hit Refresh to catch up.`}
-        </p>
+      {census?.live_total != null && census.live_total !== people.length && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center justify-between gap-2">
+          <span>Snapshot has {people.length.toLocaleString()} accounts, while live database has {census.live_total.toLocaleString()}.</span>
+          <button type="button" onClick={() => onRefresh(true)} className="underline font-black shrink-0">Refresh now</button>
+        </div>
       )}
 
       {/* Tabs — mobile strip + desktop bar */}
@@ -463,16 +501,16 @@ export default function AccountabilityDashboard({
           onClick: () => setTab(t.id),
         }))}
       />
-      <div className="hidden overflow-x-auto px-1 md:block">
+      <div className="hidden overflow-x-auto md:block">
         <div className="flex min-w-max gap-1 rounded-2xl border border-border bg-muted/30 p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`rounded-xl px-3.5 py-2 text-left transition-all ${tab === t.id ? 'bg-card shadow-sm border border-border' : 'hover:bg-card/60'}`}
+              className={`rounded-xl px-4 py-2 text-left transition-all ${tab === t.id ? 'bg-card shadow-sm border border-primary/40' : 'border border-transparent hover:bg-card/60'}`}
             >
-              <div className={`text-xs font-black ${tab === t.id ? 'text-foreground' : 'text-muted-foreground'}`}>{t.label}</div>
+              <div className={`text-xs font-black ${tab === t.id ? 'text-primary' : 'text-foreground'}`}>{t.label}</div>
               <div className="text-[10px] text-muted-foreground">{t.hint}</div>
             </button>
           ))}
@@ -481,106 +519,153 @@ export default function AccountabilityDashboard({
 
       {loading && people.length === 0 ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-12 justify-center">
-          <ArrowPathIcon className="w-5 h-5 animate-spin" /> Loading everyone…
+          <ArrowPathIcon className="w-5 h-5 animate-spin text-primary" /> Loading accountability snapshot…
         </div>
       ) : (
         <div className={`space-y-6 transition-opacity ${refreshing ? 'opacity-50 pointer-events-none' : ''}`}>
 
-          {/* ── OVERVIEW ─────────────────────────────────────────── */}
+          {/* ── OVERVIEW (Streamlined Executive View) ─────────────────── */}
           {tab === 'overview' && (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className={`${CARD} p-5 sm:p-6 lg:col-span-4 flex flex-col justify-between`}>
                   <div>
-                    <span className={LABEL}>Overall health</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={LABEL}>Operational Health</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                        analytics.healthScore >= 85
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                          : analytics.healthScore >= 70
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                            : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                      }`}>
+                        {analytics.healthScore >= 85 ? 'Healthy' : analytics.healthScore >= 70 ? 'Needs Attention' : 'Action Required'}
+                      </span>
+                    </div>
                     <div className="flex items-baseline gap-2 mt-2">
                       <span className={`text-5xl font-black tracking-tighter tabular-nums ${analytics.healthScore >= 85 ? 'text-emerald-600 dark:text-emerald-400' : analytics.healthScore >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {analytics.healthScore}%
                       </span>
+                      <span className="text-xs font-bold text-muted-foreground">/ 100</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Based on: students in a class, reports sent out, and whether we can email or call parents.
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                      Weighted across class placement (30%), reports published vs placed students (30%), and parent contact reachability (40%).
                     </p>
                   </div>
-                  <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden mt-5">
+                  <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden mt-4">
                     <div
                       style={{ width: `${analytics.healthScore}%` }}
-                      className={`h-full ${analytics.healthScore >= 85 ? 'bg-emerald-500' : analytics.healthScore >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                      className={`h-full transition-all ${analytics.healthScore >= 85 ? 'bg-emerald-500' : analytics.healthScore >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
                     />
                   </div>
                 </div>
 
-                <div className={`${CARD} p-5 sm:p-6 lg:col-span-8 space-y-4`}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                        <ShieldCheckIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        Fix things fast
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Open a problem list, fix wrong classes, or message parents.
-                      </p>
-                      {analytics.mismatchCount > 0 && (
-                        <p className="mt-1 text-[11px] font-bold text-muted-foreground">
-                          Automatic class repair is {autoClassRepairEnabled ? 'on' : 'off'} in Platform Settings.
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedIds.size > 0 ? (
-                        <button type="button" onClick={() => setReachOutModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-3 py-2 text-xs font-black uppercase tracking-wider">
-                          <UserGroupIcon className="w-4 h-4" /> Message {selectedIds.size} selected
-                        </button>
-                      ) : (
-                        <button type="button" onClick={() => openReachOut()} className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-2 text-xs font-black uppercase tracking-wider">
-                          <PaperAirplaneIcon className="w-3.5 h-3.5" /> Message parents
-                        </button>
-                      )}
-                      {analytics.mismatchCount > 0 && (
-                        <button type="button" onClick={onSyncClasses} disabled={syncingClasses} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white px-3 py-2 text-xs font-black uppercase tracking-wider disabled:opacity-50">
-                          <CogIcon className={`w-3.5 h-3.5 ${syncingClasses ? 'animate-spin' : ''}`} />
-                          {syncingClasses ? 'Fixing classes…' : `Fix ${analytics.mismatchCount} wrong classes`}
-                        </button>
-                      )}
-                      <button type="button" onClick={() => setTab('report')} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent">
-                        <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download report
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                    {[
-                      { f: 'no_class', label: `Not in a class (${analytics.unplaced})`, tone: 'rose' },
-                      { f: 'no_parent_email', label: `No parent email (${analytics.noParentEmailCount})`, tone: 'amber' },
-                      { f: 'no_parent_phone', label: `No parent phone (${analytics.noParentPhoneCount})`, tone: 'amber' },
-                      { f: 'draft_pending', label: `Reports not sent yet (${analytics.draftReports})`, tone: 'amber' },
-                      ...(analytics.mismatchCount > 0
-                        ? [{ f: 'class_mismatch', label: `Wrong class (${analytics.mismatchCount})`, tone: 'amber' }]
-                        : []),
-                    ].map((x) => (
-                      <button
-                        key={x.f}
-                        type="button"
-                        onClick={() => focusFlag(x.f)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${flag === x.f ? 'bg-foreground text-background border-foreground' : 'bg-card border-border hover:border-indigo-500/40'}`}
-                      >
-                        {x.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="lg:col-span-8 grid grid-cols-2 gap-3">
+                  <Tile
+                    value={`${analytics.placedPct}%`}
+                    label="Students Placed"
+                    tone={analytics.placedPct >= 90 ? 'good' : analytics.placedPct >= 70 ? 'warn' : 'bad'}
+                    sub={`${analytics.placedOnRoster} in a class · ${analytics.unplaced} unplaced`}
+                    onClick={() => focusFlag(analytics.unplaced > 0 ? 'no_class' : null)}
+                  />
+                  <Tile
+                    value={`${analytics.publishedPct}%`}
+                    label="Reports Published"
+                    tone={analytics.publishedPct >= 85 ? 'good' : analytics.publishedPct >= 50 ? 'warn' : 'bad'}
+                    sub={`${analytics.publishedReports} sent · ${analytics.draftReports} draft${analytics.draftReports === 1 ? '' : 's'}`}
+                    onClick={() => setTab('reports')}
+                  />
+                  <Tile
+                    value={`${analytics.parentEmailReachPct}%`}
+                    label="Parent Contacts"
+                    tone={analytics.parentEmailReachPct >= 80 ? 'good' : analytics.parentEmailReachPct >= 50 ? 'warn' : 'bad'}
+                    sub={`${analytics.parentEmailMatched} email · ${analytics.parentPhoneMatched} phone`}
+                    onClick={() => setTab('comms')}
+                  />
+                  <Tile
+                    value={people.length.toLocaleString()}
+                    label="Total Accounts"
+                    sub={`${students.length} students · ${teachers.length} teachers · ${parents.length} parents`}
+                    onClick={() => { clearFilters(); setTab('people'); }}
+                  />
                 </div>
               </div>
 
-              <Section title="Who’s here" icon={<UserIcon className="w-3.5 h-3.5" />}>
-                <RoleLegend />
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-2">
-                  <div className={`${CARD} p-4 sm:p-5 lg:col-span-4`}>
-                    <DonutChart
-                      data={roleDonut}
-                      height={220}
-                      centerValue={people.length}
-                      centerLabel="Accounts"
-                    />
-                    <div className="mt-2 space-y-1.5">
+              <Section
+                title={`Action Queue (${actionQueueItems.length} active)`}
+                icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-primary" />}
+                action={
+                  <Link
+                    href={ACADEMIC_EXCEPTIONS_HREF}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:border-primary/50"
+                  >
+                    Academic Office Cleanup →
+                  </Link>
+                }
+              >
+                {actionQueueItems.length === 0 ? (
+                  <div className={`${CARD} p-5 flex items-center gap-3 border-emerald-500/30 bg-emerald-500/5`}>
+                    <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                      All clear — zero urgent accountability lapses for this term.
+                    </p>
+                  </div>
+                ) : (
+                  <div className={`${CARD} divide-y divide-border overflow-hidden`}>
+                    {actionQueueItems.map((item) => (
+                      <div key={item.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <span className={`inline-flex min-w-10 justify-center rounded-lg px-2 py-1 text-xs font-black tabular-nums shrink-0 ${
+                            item.tone === 'rose'
+                              ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                              : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                          }`}>
+                            {item.count}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-foreground">{item.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                          </div>
+                        </div>
+                        {item.href ? (
+                          <Link
+                            href={item.href}
+                            className="inline-flex items-center justify-center rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground hover:border-primary/50 shrink-0"
+                          >
+                            {item.cta} →
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={item.onClick}
+                            className="inline-flex items-center justify-center rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground hover:border-primary/50 shrink-0"
+                          >
+                            {item.cta} →
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className={`${CARD} p-5 space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className={`${LABEL} flex items-center gap-1.5`}>
+                      <UserIcon className="w-3.5 h-3.5" /> Accounts by Role
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => { clearFilters(); setTab('people'); }}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Open Directory →
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    <DonutChart data={roleDonut} height={190} centerValue={people.length} centerLabel="Accounts" />
+                    <div className="space-y-1.5">
                       {roleDonut.map((s) => (
                         <button
                           key={s.label}
@@ -589,10 +674,10 @@ export default function AccountabilityDashboard({
                             const entry = Object.entries(roleCounts).find(([r]) => roleMeta(r).label === s.label);
                             focusRole(entry ? entry[0] : null);
                           }}
-                          className="flex w-full items-center justify-between text-xs hover:bg-accent/50 rounded-lg px-2 py-1.5"
+                          className="flex w-full items-center justify-between text-xs hover:bg-muted/60 rounded-lg px-2.5 py-1.5 transition-colors"
                         >
                           <span className="flex items-center gap-2 font-bold text-foreground">
-                            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
+                            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
                             {s.label}
                           </span>
                           <span className="tabular-nums font-black text-muted-foreground">{s.value}</span>
@@ -600,178 +685,70 @@ export default function AccountabilityDashboard({
                       ))}
                     </div>
                   </div>
-                  <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <Tile value={people.length} label="Everyone" active={!role && !flag} onClick={clearFilters} sub="All accounts" />
-                    <Tile value={students.length} label="Students" tone="default" active={role === 'student'} onClick={() => focusRole(role === 'student' ? null : 'student')} sub="Learners" />
-                    <Tile value={teachers.length} label="Teachers" tone="default" active={role === 'teacher'} onClick={() => focusRole(role === 'teacher' ? null : 'teacher')} sub="Teaching staff" />
-                    <Tile value={parents.length} label="Parents" active={role === 'parent'} onClick={() => focusRole(role === 'parent' ? null : 'parent')} sub="Guardians" />
-                    <Tile value={roleCounts.admin || 0} label="Admins" active={role === 'admin'} onClick={() => focusRole(role === 'admin' ? null : 'admin')} />
-                    <Tile value={roleCounts.school || 0} label="School logins" active={role === 'school'} onClick={() => focusRole(role === 'school' ? null : 'school')} />
-                  </div>
                 </div>
-              </Section>
 
-              <Section title="Students — are they in the right place?" icon={<UserGroupIcon className="w-3.5 h-3.5" />}>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Click a tile to see the people behind the number. “Wrong class” means their account and this term’s class list don’t match.
-                </p>
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <div className={`${CARD} p-4 sm:p-5 lg:col-span-4`}>
-                    {statusDonut.length > 0 ? (
-                      <DonutChart
-                        data={statusDonut}
-                        height={200}
-                        centerValue={students.length}
-                        centerLabel="Students"
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground py-10 text-center">No student data yet.</p>
-                    )}
-                  </div>
-                  <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <Tile
-                      value={analytics.currentActive}
-                      label="In school now"
-                      tone="good"
-                      sub="Active, still enrolled"
-                      onClick={() => { setRole('student'); setFlag(null); setTab('people'); }}
-                    />
-                    <Tile
-                      value={analytics.withdrawnCount}
-                      label="Left / ended"
-                      tone="bad"
-                      active={flag === 'withdrawn'}
-                      onClick={() => focusFlag(flag === 'withdrawn' ? null : 'withdrawn')}
-                      sub="No longer enrolled"
-                    />
-                    <Tile
-                      value={exceptionTotals?.displaced ?? analytics.displacedCount}
-                      label="Not in a class"
-                      tone="warn"
-                      onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
-                      sub="Open Academic Office to place them →"
-                    />
-                    <Tile
-                      value={exceptionTotals?.placeholder_noise ?? 0}
-                      label="Test / junk accounts"
-                      tone="bad"
-                      onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
-                      sub="Safe to clean up in Academic Office"
-                    />
-                    <Tile
-                      value={exceptionTotals?.hollow_shell ?? 0}
-                      label="Empty old accounts"
-                      tone="bad"
-                      onClick={() => { window.location.href = ACADEMIC_EXCEPTIONS_HREF; }}
-                      sub="Unused shells — clean-up queue"
-                    />
-                    <Tile
-                      value={analytics.mismatchCount}
-                      label="Wrong class"
-                      tone="warn"
-                      active={flag === 'class_mismatch'}
-                      onClick={() => focusFlag(flag === 'class_mismatch' ? null : 'class_mismatch')}
-                      sub="Account class ≠ this term’s class list"
-                    />
-                    <Tile
-                      value={analytics.classCount}
-                      label="Classes tracked"
-                      sub={`${analytics.classesWithMissing} still missing reports`}
+                <div className={`${CARD} p-5 space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className={`${LABEL} flex items-center gap-1.5`}>
+                      <ChartBarIcon className="w-3.5 h-3.5" /> Term Coverage Breakdown
+                    </h3>
+                    <button
+                      type="button"
                       onClick={() => setTab('reports')}
-                    />
-                    <Tile
-                      value={analytics.placedOnRoster}
-                      label="In a class"
-                      tone="good"
-                      sub={`${analytics.placedPct}% of students`}
-                      onClick={() => { setRole('student'); setFlag(null); setTab('people'); }}
-                    />
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Class Details →
+                    </button>
                   </div>
-                </div>
-              </Section>
+                  <div className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-bold text-foreground">Students Placed in Classes</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400">{analytics.placedPct}%</span>
+                      </div>
+                      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                        <div style={{ width: `${analytics.placedPct}%` }} className="bg-emerald-500 h-full" />
+                        <div style={{ width: `${Math.max(0, 100 - analytics.placedPct)}%` }} className="bg-rose-500/70 h-full" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {analytics.placedOnRoster} placed · {analytics.unplaced} unplaced · {analytics.withdrawnCount} withdrawn
+                      </p>
+                    </div>
 
-              <Section title="How this term is going" icon={<ChartBarIcon className="w-3.5 h-3.5" />}>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  <div className={`${CARD} p-5 space-y-3`}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider">Reports sent</span>
-                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.publishedPct}%</span>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-bold text-foreground">Progress Reports Published (vs Placed)</span>
+                        <span className="font-black text-primary">{analytics.publishedPct}%</span>
+                      </div>
+                      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                        <div style={{ width: `${analytics.publishedPct}%` }} className="bg-emerald-500 h-full" />
+                        <div style={{ width: `${analytics.draftPct}%` }} className="bg-amber-500 h-full" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {analytics.publishedReports} published · {analytics.draftReports} draft · {analytics.classesWithMissing} of {analytics.classCount} classes missing reports
+                      </p>
                     </div>
-                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
-                      <div style={{ width: `${analytics.publishedPct}%` }} className="bg-emerald-500 h-full" />
-                      <div style={{ width: `${analytics.draftPct}%` }} className="bg-amber-500 h-full" />
-                    </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{analytics.publishedReports} sent</span>
-                      <span className="text-amber-600 dark:text-amber-400 font-bold">{analytics.draftReports} not sent yet</span>
-                    </div>
-                  </div>
-                  <div className={`${CARD} p-5 space-y-3`}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider">In a class</span>
-                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{analytics.placedPct}%</span>
-                    </div>
-                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
-                      <div style={{ width: `${analytics.placedPct}%` }} className="bg-emerald-500 h-full" />
-                      <div style={{ width: `${100 - analytics.placedPct}%` }} className="bg-rose-500/80 h-full" />
-                    </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{analytics.placedOnRoster} placed</span>
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{analytics.unplaced} not placed</span>
-                    </div>
-                  </div>
-                  <div className={`${CARD} p-5 space-y-3`}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider">Parent email on file</span>
-                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentEmailReachPct}%</span>
-                    </div>
-                    <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
-                      <div style={{ width: `${analytics.parentEmailReachPct}%` }} className="bg-indigo-500 h-full" />
-                      <div style={{ width: `${100 - analytics.parentEmailReachPct}%` }} className="bg-amber-500 h-full" />
-                    </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{analytics.parentEmailMatched} linked</span>
-                      <Link href="/dashboard/parents" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1">
-                        <UserPlusIcon className="w-3 h-3" /> Manage
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </Section>
 
-              <Section title="What’s still missing this term" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5" />}>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {Object.entries(flagCounts).sort((a, b) => b[1] - a[1]).map(([f, n]) => (
-                    <Tile
-                      key={f}
-                      value={n}
-                      label={FLAG_LABEL[f] ?? f}
-                      tone={n >= studentCount * 0.1 ? 'bad' : 'warn'}
-                      active={flag === f}
-                      onClick={() => focusFlag(flag === f ? null : f)}
-                    />
-                  ))}
-                  {Object.keys(flagCounts).length === 0 && (
-                    <div className={`${CARD} p-5 text-sm text-emerald-600 dark:text-emerald-400 font-bold col-span-full`}>Nothing missing — looking good.</div>
-                  )}
-                </div>
-              </Section>
-
-              <div className={`${CARD} p-4 sm:p-5 bg-indigo-500/5 border-indigo-500/20 flex items-start gap-3`}>
-                <InformationCircleIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
-                  <h3 className="font-bold text-foreground">How to read this page</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Each person is shown as student, teacher, parent, or staff — teachers never get mixed into the student list.
-                    Class, parent contact, and report problems only apply to students.
-                    Report numbers are for <strong>this term</strong>; older unfinished work is under Reports or the Download tab.
-                  </p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-bold text-foreground">Parent Email Reachability</span>
+                        <span className="font-black text-primary">{analytics.parentEmailReachPct}%</span>
+                      </div>
+                      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                        <div style={{ width: `${analytics.parentEmailReachPct}%` }} className="bg-primary h-full" />
+                        <div style={{ width: `${Math.max(0, 100 - analytics.parentEmailReachPct)}%` }} className="bg-amber-500/70 h-full" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {analytics.parentEmailMatched} email linked · {analytics.parentPhoneMatched} phone linked
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
           )}
 
-          {/* ── PEOPLE ───────────────────────────────────────────── */}
+          {/* ── DIRECTORY (PEOPLE) ────────────────────────────────────── */}
           {tab === 'people' && (
             <Section
               title={`${filtered.length} account${filtered.length === 1 ? '' : 's'}${role ? ` · ${roleMeta(role).label}` : ''}${flag ? ` · ${FLAG_LABEL[flag] ?? flag}` : ''}`}
@@ -781,145 +758,289 @@ export default function AccountabilityDashboard({
                   <input
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                    placeholder="Search name, email, school, role…"
-                    className="w-full sm:w-56 bg-card border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                    placeholder="Search name, email, school…"
+                    aria-label="Search accounts"
+                    className="w-full sm:w-52 bg-card border border-border rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-primary"
                   />
-                  <select value={role || ''} onChange={(e) => { setRole(e.target.value || null); setPage(1); }} className="bg-card border border-border rounded-xl px-3 py-2 text-sm">
+                  <select
+                    aria-label="Filter by role"
+                    value={role || ''}
+                    onChange={(e) => { setRole(e.target.value || null); setPage(1); }}
+                    className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold"
+                  >
                     <option value="">All roles</option>
                     {Object.keys(roleCounts).sort().map((r) => (
                       <option key={r} value={r}>{roleMeta(r).label} ({roleCounts[r]})</option>
                     ))}
                   </select>
-                  <select value={school} onChange={(e) => { setSchool(e.target.value); setPage(1); }} className="bg-card border border-border rounded-xl px-3 py-2 text-sm max-w-[12rem]">
+                  <select
+                    aria-label="Filter by issue"
+                    value={flag || ''}
+                    onChange={(e) => { setFlag(e.target.value || null); setPage(1); }}
+                    className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold max-w-[13rem]"
+                  >
+                    <option value="">All issues</option>
+                    {Object.entries(flagCounts).sort((a, b) => b[1] - a[1]).map(([f, n]) => (
+                      <option key={f} value={f}>{FLAG_LABEL[f] ?? f} ({n})</option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Filter by school"
+                    value={school}
+                    onChange={(e) => { setSchool(e.target.value); setPage(1); }}
+                    className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold max-w-[12rem]"
+                  >
                     <option value="">All schools</option>
                     {schools.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <select value={peopleSort} onChange={(e) => setPeopleSort(e.target.value as typeof peopleSort)} className="bg-card border border-border rounded-xl px-3 py-2 text-sm">
+                  <select
+                    aria-label="Sort accounts"
+                    value={peopleSort}
+                    onChange={(e) => setPeopleSort(e.target.value as typeof peopleSort)}
+                    className="bg-card border border-border rounded-xl px-3 py-2 text-xs font-bold"
+                  >
                     <option value="role">Sort: Role</option>
                     <option value="name">Sort: Name</option>
                     <option value="school">Sort: School</option>
                   </select>
                   {(flag || role || school || search) && (
-                    <button type="button" onClick={clearFilters} className="rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground hover:bg-accent">Clear</button>
+                    <button type="button" onClick={clearFilters} className="rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider text-muted-foreground hover:bg-accent">
+                      Clear
+                    </button>
                   )}
-                  <button type="button" onClick={() => downloadPeopleCsv(filtered)} disabled={!filtered.length} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-40">
+                  <button
+                    type="button"
+                    onClick={() => downloadPeopleCsv(filtered)}
+                    disabled={!filtered.length}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-40"
+                  >
                     <ArrowDownTrayIcon className="w-3.5 h-3.5" /> CSV
                   </button>
                 </div>
               }
             >
               {selectedIds.size > 0 && (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs">
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedIds.size} selected</span>
-                  <button type="button" onClick={() => setReachOutModalOpen(true)} className="font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 hover:underline">Batch reach-out</button>
-                  <button type="button" onClick={() => setSelectedIds(new Set())} className="text-muted-foreground hover:underline">Clear selection</button>
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-2.5 text-xs">
+                  <span className="font-black text-primary">{selectedIds.size} selected</span>
+                  <button type="button" onClick={() => setReachOutModalOpen(true)} className="font-black uppercase tracking-wider text-primary hover:underline">
+                    Message Selected Parents
+                  </button>
+                  {people.some((p) => selectedIds.has(p.id) && isStudent(p)) && (
+                    <button
+                      type="button"
+                      onClick={() => setPlacementTargets(people.filter((p) => selectedIds.has(p.id) && isStudent(p)))}
+                      className="inline-flex items-center gap-1 rounded-lg bg-primary text-primary-foreground px-2.5 py-1 font-black uppercase tracking-wider"
+                    >
+                      <AcademicCapIcon className="w-3.5 h-3.5" />
+                      Place Selected in Class
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setSelectedIds(new Set())} className="text-muted-foreground hover:underline ml-auto">
+                    Clear selection
+                  </button>
                 </div>
               )}
 
-              <div className={`${CARD} overflow-x-auto`}>
-                <table className="w-full text-sm min-w-[860px]">
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th className="px-3 py-3 w-10 text-center">
-                        <input type="checkbox" checked={allPaginatedSelected} onChange={toggleSelectAll} className="rounded border-border text-indigo-600 dark:text-indigo-400" />
-                      </th>
-                      {['Person', 'Role', 'School / class', 'Reports', 'What’s wrong', 'Actions'].map((h) => (
-                        <th key={h} className={`${LABEL} px-3 py-3 whitespace-nowrap`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {paginatedPeople.map((p) => {
-                      const student = isStudent(p);
-                      const teacher = isTeacher(p);
-                      return (
-                        <tr key={p.id} className={`hover:bg-accent/40 ${selectedIds.has(p.id) ? 'bg-indigo-500/5' : ''}`}>
-                          <td className="px-3 py-2.5 text-center">
-                            <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded border-border text-indigo-600 dark:text-indigo-400" />
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <div className="font-bold text-foreground">{p.full_name || '(no name)'}</div>
-                            <div className="text-xs text-muted-foreground">{p.email || '—'}</div>
-                            {p.enrollment_type && student && (
-                              <div className="text-[10px] text-muted-foreground mt-0.5">Enrolment: {p.enrollment_type}</div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <RoleBadge role={p.role} size="sm" />
-                            {!p.is_active && <div className="text-[10px] text-rose-600 dark:text-rose-400 font-bold mt-1">INACTIVE</div>}
-                          </td>
-                          <td className="px-3 py-2.5 text-muted-foreground">
-                            <div>{p.school_name || '—'}</div>
-                            {student ? (
-                              <div className="text-xs mt-0.5">
-                                {p.class_from_roster || <span className="text-rose-600 dark:text-rose-400 font-bold">not in a class</span>}
-                                {p.class_on_profile && p.class_from_roster && p.class_on_profile !== p.class_from_roster && (
-                                  <div className="text-amber-600 dark:text-amber-400">Account still says: {p.class_on_profile}</div>
+              <div className={`${CARD} overflow-hidden`}>
+                {/* Mobile Card List (zero horizontal scroll) */}
+                <div className="divide-y divide-border md:hidden">
+                  {paginatedPeople.map((p) => {
+                    const student = isStudent(p);
+                    const teacher = isTeacher(p);
+                    return (
+                      <div key={p.id} className={`p-4 space-y-2.5 ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(p.id)}
+                              onChange={() => toggleSelect(p.id)}
+                              aria-label={`Select ${p.full_name || 'account'}`}
+                              className="mt-1 rounded border-border accent-primary"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-foreground truncate">{p.full_name || '(no name)'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{p.email || '—'}</p>
+                            </div>
+                          </div>
+                          <RoleBadge role={p.role} size="sm" />
+                        </div>
+
+                        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                          <span>School: <strong className="text-foreground">{p.school_name || '—'}</strong></span>
+                          {student && (
+                            <span>Class: <strong className={p.class_from_roster ? 'text-foreground' : 'text-rose-600 dark:text-rose-400'}>{p.class_from_roster || 'Not placed'}</strong></span>
+                          )}
+                        </div>
+
+                        {(p.flags ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {(p.flags ?? []).map((f) => (
+                              <span key={f} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${f === 'withdrawn' || f === 'no_class' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'bg-muted text-muted-foreground'}`}>
+                                {FLAG_LABEL[f] ?? f.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {student && (
+                            <button type="button" onClick={() => openReachOut(p)} className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary">
+                              <PaperAirplaneIcon className="w-3.5 h-3.5" /> Message Parent
+                            </button>
+                          )}
+                          {student && (p.flags ?? []).includes('no_class') && (
+                            <button
+                              type="button"
+                              onClick={() => setPlacementTargets([p])}
+                              className="inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary"
+                            >
+                              <AcademicCapIcon className="w-3.5 h-3.5" /> Place in Class
+                            </button>
+                          )}
+                          {student && (p.flags ?? []).includes('class_mismatch') && (
+                            <button type="button" onClick={onSyncClasses} disabled={syncingClasses} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-bold text-foreground">
+                              <CogIcon className="w-3 h-3" /> Fix Class
+                            </button>
+                          )}
+                          {teacher && (
+                            <button type="button" onClick={() => setTab('teachers')} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-bold text-foreground">
+                              Teacher Report →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm min-w-[820px]">
+                    <thead>
+                      <tr className="border-b border-border text-left bg-muted/25">
+                        <th className="px-3 py-3 w-10 text-center">
+                          <input
+                            type="checkbox"
+                            checked={allPaginatedSelected}
+                            onChange={toggleSelectAll}
+                            aria-label="Select all visible accounts"
+                            className="rounded border-border accent-primary"
+                          />
+                        </th>
+                        {['Account', 'Role', 'School / Class', 'Reports', 'Gaps / Flags', 'Actions'].map((h) => (
+                          <th key={h} className={`${LABEL} px-3 py-3 whitespace-nowrap`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {paginatedPeople.map((p) => {
+                        const student = isStudent(p);
+                        const teacher = isTeacher(p);
+                        return (
+                          <tr key={p.id} className={`hover:bg-muted/30 ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}>
+                            <td className="px-3 py-2.5 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(p.id)}
+                                onChange={() => toggleSelect(p.id)}
+                                aria-label={`Select ${p.full_name || 'account'}`}
+                                className="rounded border-border accent-primary"
+                              />
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="font-bold text-foreground">{p.full_name || '(no name)'}</div>
+                              <div className="text-xs text-muted-foreground">{p.email || '—'}</div>
+                              {p.enrollment_type && student && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5 capitalize">{p.enrollment_type.replace(/_/g, ' ')}</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <RoleBadge role={p.role} size="sm" />
+                              {!p.is_active && <div className="text-[10px] text-rose-600 dark:text-rose-400 font-bold mt-1">INACTIVE</div>}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">
+                              <div className="text-foreground font-medium">{p.school_name || '—'}</div>
+                              {student ? (
+                                <div className="text-xs mt-0.5">
+                                  {p.class_from_roster || <span className="text-rose-600 dark:text-rose-400 font-bold">Not in a class</span>}
+                                  {p.class_on_profile && p.class_from_roster && p.class_on_profile !== p.class_from_roster && (
+                                    <div className="text-amber-600 dark:text-amber-400">Account says: {p.class_on_profile}</div>
+                                  )}
+                                </div>
+                              ) : teacher ? (
+                                <div className="text-xs mt-0.5 text-primary font-semibold">Teaching staff</div>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {p.reports_total === 0 ? '—' : (
+                                <>
+                                  {p.reports_published} sent
+                                  {p.reports_draft > 0 && <span className="text-amber-600 dark:text-amber-400"> · {p.reports_draft} draft</span>}
+                                </>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex flex-wrap gap-1 max-w-[16rem]">
+                                {(p.flags ?? []).length === 0 && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">All good</span>}
+                                {(p.flags ?? []).map((f) => (
+                                  <span key={f} title={FLAG_LABEL[f]} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${f === 'withdrawn' || f === 'no_class' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'bg-muted text-muted-foreground'}`}>
+                                    {FLAG_LABEL[f] ?? f.replace(/_/g, ' ')}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              <div className="flex flex-wrap gap-2">
+                                {student && (
+                                  <button type="button" onClick={() => openReachOut(p)} className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+                                    <PaperAirplaneIcon className="w-3.5 h-3.5" /> Message Parent
+                                  </button>
+                                )}
+                                {student && ((p.flags ?? []).includes('no_parent_email') || (p.flags ?? []).includes('no_parent_phone')) && (
+                                  <Link href="/dashboard/parents" className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400 hover:underline">
+                                    <LinkIcon className="w-3 h-3" /> Link Parent
+                                  </Link>
+                                )}
+                                {student && (p.flags ?? []).includes('no_class') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPlacementTargets([p])}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                                  >
+                                    <AcademicCapIcon className="w-3.5 h-3.5" /> Place in Class
+                                  </button>
+                                )}
+                                {student && (p.flags ?? []).includes('class_mismatch') && (
+                                  <button type="button" onClick={onSyncClasses} disabled={syncingClasses} className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline disabled:opacity-50">
+                                    <CogIcon className="w-3 h-3" /> Fix Class
+                                  </button>
+                                )}
+                                {teacher && (
+                                  <button type="button" onClick={() => setTab('teachers')} className="text-xs font-bold text-primary hover:underline">
+                                    View Teachers
+                                  </button>
                                 )}
                               </div>
-                            ) : teacher ? (
-                              <div className="text-xs mt-0.5 text-violet-600 dark:text-violet-400 font-semibold">Teaching staff</div>
-                            ) : null}
-                          </td>
-                          <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {p.reports_total === 0 ? '—' : (
-                              <>
-                                {p.reports_published} sent
-                                {p.reports_draft > 0 && <span className="text-amber-600 dark:text-amber-400"> · {p.reports_draft} not sent</span>}
-                              </>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <div className="flex flex-wrap gap-1 max-w-[16rem]">
-                              {(p.flags ?? []).length === 0 && <span className="text-xs text-muted-foreground">All good</span>}
-                              {(p.flags ?? []).map((f) => (
-                                <span key={f} title={FLAG_LABEL[f]} className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${f === 'withdrawn' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-muted text-muted-foreground'}`}>
-                                  {FLAG_LABEL[f] ?? f.replace(/_/g, ' ')}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap">
-                            <div className="flex flex-wrap gap-2">
-                              {student && (
-                                <button type="button" onClick={() => openReachOut(p)} className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                                  <PaperAirplaneIcon className="w-3.5 h-3.5" /> Message parent
-                                </button>
-                              )}
-                              {student && ((p.flags ?? []).includes('no_parent_email') || (p.flags ?? []).includes('no_parent_phone')) && (
-                                <Link href="/dashboard/parents" className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
-                                  <LinkIcon className="w-3 h-3" /> Add parent details
-                                </Link>
-                              )}
-                              {student && (p.flags ?? []).includes('no_class') && (
-                                <Link href="/dashboard/classes" className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
-                                  <LinkIcon className="w-3 h-3" /> Put in a class
-                                </Link>
-                              )}
-                              {student && (p.flags ?? []).includes('class_mismatch') && (
-                                <button type="button" onClick={onSyncClasses} disabled={syncingClasses} className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline disabled:opacity-50">
-                                  <CogIcon className="w-3 h-3" /> Fix wrong class
-                                </button>
-                              )}
-                              {teacher && (
-                                <button type="button" onClick={() => setTab('teachers')} className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
-                                  View teachers
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-border">
                   <div className="text-xs text-muted-foreground">
                     Showing <strong className="text-foreground">{totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1}</strong>–
                     <strong className="text-foreground">{Math.min(currentPage * pageSize, totalItems)}</strong> of{' '}
                     <strong className="text-foreground">{totalItems}</strong>
-                    <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="ml-2 bg-card border border-border rounded-md px-2 py-1 text-xs">
+                    <select
+                      aria-label="Rows per page"
+                      value={pageSize}
+                      onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                      className="ml-2 bg-card border border-border rounded-md px-2 py-1 text-xs"
+                    >
                       <option value={25}>25</option>
                       <option value={50}>50</option>
                       <option value={100}>100</option>
@@ -934,7 +1055,7 @@ export default function AccountabilityDashboard({
                   </div>
                 </div>
                 {filtered.length === 0 && (
-                  <p className="px-4 py-8 text-center text-sm text-muted-foreground">Nobody matches that filter.</p>
+                  <p className="px-4 py-8 text-center text-sm text-muted-foreground">No accounts match this filter.</p>
                 )}
               </div>
             </Section>
@@ -943,7 +1064,7 @@ export default function AccountabilityDashboard({
           {/* ── TEACHERS ─────────────────────────────────────────── */}
           {tab === 'teachers' && <TeacherAccountabilityPanel />}
 
-          {/* ── REPORTS ──────────────────────────────────────────── */}
+          {/* ── CLASSES & REPORTS ─────────────────────────────────── */}
           {tab === 'reports' && (
             <>
               <Section title="Reports (active term)" icon={<ClipboardDocumentListIcon className="w-3.5 h-3.5" />}>
@@ -952,8 +1073,8 @@ export default function AccountabilityDashboard({
                   <Tile value={c?.totals.published ?? 0} label="Published" tone="good" />
                   <Tile value={c?.totals.draft ?? 0} label="Unpublished draft" tone="warn" onClick={() => focusFlag('draft_pending')} />
                   <Tile value={c?.gaps.reports_missing_course ?? 0} label="Missing course link" tone="warn" />
-                  <Tile value={c?.totals.students_with_report ?? 0} label="Students with a report" />
-                  <Tile value={c?.totals.students_on_roster ?? 0} label="Students in a class" />
+                  <Tile value={c?.totals.students_with_report ?? 0} label="Students with report" />
+                  <Tile value={c?.totals.students_on_roster ?? 0} label="Students in classes" />
                 </div>
               </Section>
 
@@ -974,12 +1095,12 @@ export default function AccountabilityDashboard({
               )}
 
               {c && c.classes_without_reports.length > 0 && (
-                <Section title="Classes with pupils but zero reports" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
+                <Section title="Classes with students but zero reports" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
                   <div className={`${CARD} divide-y divide-border`}>
                     {c.classes_without_reports.map((x) => (
                       <div key={x.class} className="flex items-center justify-between px-4 py-3 gap-3">
                         <span className="text-sm font-bold text-foreground">{x.class}</span>
-                        <span className="text-sm font-black text-rose-600 dark:text-rose-400">{x.students} pupils · 0 reports</span>
+                        <span className="text-sm font-black text-rose-600 dark:text-rose-400">{x.students} students · 0 reports</span>
                       </div>
                     ))}
                   </div>
@@ -989,9 +1110,9 @@ export default function AccountabilityDashboard({
               {c && c.by_class.length > 0 && (
                 <Section title="Coverage by class" icon={<AcademicCapIcon className="w-3.5 h-3.5" />}>
                   <div className={`${CARD} overflow-x-auto`}>
-                    <table className="w-full text-sm min-w-[720px]">
+                    <table className="w-full text-sm min-w-[680px]">
                       <thead>
-                        <tr className="border-b border-border text-left">
+                        <tr className="border-b border-border text-left bg-muted/25">
                           {['Class', 'Students', 'Reports', 'Published', 'Drafts', 'Missing', 'Progress'].map((h) => (
                             <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
                           ))}
@@ -999,10 +1120,10 @@ export default function AccountabilityDashboard({
                       </thead>
                       <tbody className="divide-y divide-border">
                         {c.by_class.map((row: ClassRow, idx) => {
-                          const pct = row.students > 0 ? Math.round((row.published / row.students) * 100) : 0;
+                          const pct = row.students > 0 ? Math.min(100, Math.round((row.published / row.students) * 100)) : 0;
                           const missing = row.missing ?? Math.max(0, row.students - (row.published + row.draft));
                           return (
-                            <tr key={`${row.class}-${idx}`} className="hover:bg-accent/40">
+                            <tr key={`${row.class}-${idx}`} className="hover:bg-muted/30">
                               <td className="px-3 py-2.5 font-bold">{row.class}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{row.students}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{row.reports}</td>
@@ -1011,12 +1132,12 @@ export default function AccountabilityDashboard({
                               <td className="px-3 py-2.5">
                                 {missing > 0
                                   ? <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">{missing} missing</span>
-                                  : <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">0 missing</span>}
+                                  : <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Complete</span>}
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-2 justify-end">
                                   <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                                    <div style={{ width: `${Math.min(100, pct)}%` }} className={`h-full ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-indigo-500' : 'bg-amber-500'}`} />
+                                    <div style={{ width: `${pct}%` }} className={`h-full ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-primary' : 'bg-amber-500'}`} />
                                   </div>
                                   <span className="text-xs font-bold w-9 text-right">{pct}%</span>
                                 </div>
@@ -1031,22 +1152,16 @@ export default function AccountabilityDashboard({
               )}
 
               {backlog && backlog.hidden_by_term_filter.drafts > 0 && (
-                <Section title="Overdue backlog — hidden by active-term filter" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
+                <Section title="Cross-term unpublished backlog" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
                   <div className={`${CARD} p-4 text-sm text-muted-foreground`}>
-                    Across all terms there are <strong className="text-foreground">{backlog.all_terms.drafts}</strong> unpublished reports —
-                    so <strong className="text-rose-600 dark:text-rose-400">{backlog.hidden_by_term_filter.drafts}</strong> drafts sit outside this term view.
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Tile value={backlog.all_terms.reports} label="Reports · all terms" />
-                    <Tile value={backlog.current_term.reports} label="Reports · active term" />
-                    <Tile value={backlog.all_terms.drafts} label="Unpublished · all terms" tone="warn" />
-                    <Tile value={backlog.hidden_by_term_filter.drafts} label="Unpublished · hidden here" tone="bad" />
+                    Across all terms there are <strong className="text-foreground">{backlog.all_terms.drafts}</strong> unpublished reports —{' '}
+                    <strong className="text-rose-600 dark:text-rose-400">{backlog.hidden_by_term_filter.drafts}</strong> sit outside the active term.
                   </div>
                   {backlog.overdue_by_teacher.length > 0 && (
                     <div className={`${CARD} overflow-x-auto`}>
-                      <table className="w-full text-sm min-w-[640px]">
+                      <table className="w-full text-sm min-w-[600px]">
                         <thead>
-                          <tr className="border-b border-border text-left">
+                          <tr className="border-b border-border text-left bg-muted/25">
                             {['Teacher', 'Course', 'Term', 'Unpublished', 'Oldest'].map((h) => (
                               <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
                             ))}
@@ -1054,7 +1169,7 @@ export default function AccountabilityDashboard({
                         </thead>
                         <tbody className="divide-y divide-border">
                           {backlog.overdue_by_teacher.map((o, i) => (
-                            <tr key={i} className="hover:bg-accent/40">
+                            <tr key={i} className="hover:bg-muted/30">
                               <td className="px-3 py-2.5 font-bold">{o.teacher}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{o.course || '—'}</td>
                               <td className="px-3 py-2.5 text-muted-foreground">{o.term}</td>
@@ -1072,38 +1187,28 @@ export default function AccountabilityDashboard({
               <Section title="Students at risk" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5" />}>
                 <AtRiskList schoolId={undefined} />
               </Section>
-
-              {c && c.possible_duplicate_classes.length > 0 && (
-                <Section title="Classes that look duplicated">
-                  <div className={`${CARD} divide-y divide-border`}>
-                    {c.possible_duplicate_classes.map((d, i) => (
-                      <div key={i} className="px-4 py-3 text-sm">{d.names.map((n) => `"${n}"`).join('  vs  ')}</div>
-                    ))}
-                  </div>
-                </Section>
-              )}
             </>
           )}
 
-          {/* ── COMMS ────────────────────────────────────────────── */}
+          {/* ── PARENT REACH (COMMS) ──────────────────────────────── */}
           {tab === 'comms' && (
             <>
-              <Section title="Parent-student contact reachability" icon={<EnvelopeIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}>
+              <Section title="Parent-student contact reachability" icon={<EnvelopeIcon className="w-3.5 h-3.5 text-primary" />}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className={`${CARD} p-5 space-y-1`}>
-                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" /> Parent email</span><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentEmailReachPct}%</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" /> Parent email</span><span className="text-xs font-black text-primary">{analytics.parentEmailReachPct}%</span></div>
                     <div className="text-3xl font-black">{analytics.parentEmailMatched}</div>
                     <p className="text-[11px] text-muted-foreground">Students with parent email on file</p>
                   </div>
                   <div className={`${CARD} p-5 space-y-1`}>
-                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" /> Parent phone</span><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{analytics.parentPhoneReachPct}%</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" /> Parent phone</span><span className="text-xs font-black text-primary">{analytics.parentPhoneReachPct}%</span></div>
                     <div className="text-3xl font-black">{analytics.parentPhoneMatched}</div>
                     <p className="text-[11px] text-muted-foreground">Students with parent phone on file</p>
                   </div>
                   <div className={`${CARD} p-5 space-y-1`}>
                     <div className="flex justify-between"><span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" /> Fully matched</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{analytics.parentFullyMatchedPct}%</span></div>
                     <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{analytics.parentFullyMatched}</div>
-                    <p className="text-[11px] text-muted-foreground">Both email & phone attached</p>
+                    <p className="text-[11px] text-muted-foreground">Both email &amp; phone attached</p>
                   </div>
                   <div className={`${CARD} p-5 space-y-1`}>
                     <div className="flex justify-between"><span className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><ExclamationTriangleIcon className="w-3.5 h-3.5" /> Unmatched</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{analytics.parentUnmatched}</span></div>
@@ -1114,7 +1219,7 @@ export default function AccountabilityDashboard({
               </Section>
 
               {c?.by_provider && c.by_provider.length > 0 && (
-                <Section title="Email providers (Resend / SendPulse)" icon={<PaperAirplaneIcon className="w-3.5 h-3.5" />}>
+                <Section title="Email providers" icon={<PaperAirplaneIcon className="w-3.5 h-3.5" />}>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {c.by_provider.map((prov, idx) => {
                       const pct = prov.total_dispatched > 0 ? Math.round((prov.delivered / prov.total_dispatched) * 100) : 0;
@@ -1140,9 +1245,9 @@ export default function AccountabilityDashboard({
               {c?.by_email_type && c.by_email_type.length > 0 && (
                 <Section title="Dispatches by category" icon={<EnvelopeIcon className="w-3.5 h-3.5" />}>
                   <div className={`${CARD} overflow-x-auto`}>
-                    <table className="w-full text-sm min-w-[720px]">
+                    <table className="w-full text-sm min-w-[680px]">
                       <thead>
-                        <tr className="border-b border-border text-left">
+                        <tr className="border-b border-border text-left bg-muted/25">
                           {['Category', 'Provider', 'Dispatched', 'Delivered', 'Failed', 'Pending', 'Rate'].map((h) => (
                             <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
                           ))}
@@ -1152,7 +1257,7 @@ export default function AccountabilityDashboard({
                         {c.by_email_type.map((em, idx) => {
                           const pct = em.total_dispatched > 0 ? Math.round((em.delivered / em.total_dispatched) * 100) : 0;
                           return (
-                            <tr key={idx} className="hover:bg-accent/40">
+                            <tr key={idx} className="hover:bg-muted/30">
                               <td className="px-3 py-2.5 font-bold capitalize">{em.email_type.replace(/_/g, ' ')}</td>
                               <td className="px-3 py-2.5 capitalize text-muted-foreground">{em.provider || '—'}</td>
                               <td className="px-3 py-2.5">{em.total_dispatched}</td>
@@ -1173,78 +1278,69 @@ export default function AccountabilityDashboard({
                   </div>
                 </Section>
               )}
-
-              {(!c?.by_provider?.length && !c?.by_email_type?.length) && (
-                <div className={`${CARD} p-8 text-center text-sm text-muted-foreground`}>
-                  No email delivery stats in this snapshot yet. Send via Template Machine or wait for trigger emails to populate the log.
-                </div>
-              )}
             </>
           )}
 
-          {/* ── FULL REPORT ──────────────────────────────────────── */}
+          {/* ── EXPORT / OFFICIAL REPORTS ─────────────────────────── */}
           {tab === 'report' && (
-            <Section title="Concrete accountability report" icon={<ArrowDownTrayIcon className="w-3.5 h-3.5" />}>
+            <Section title="Official Rillcod Technologies Exports" icon={<ArrowDownTrayIcon className="w-3.5 h-3.5 text-primary" />}>
               <div className={`${CARD} p-5 sm:p-6 space-y-5`}>
                 <div>
-                  <h3 className="text-lg font-black text-foreground">Download a full written summary</h3>
+                  <h3 className="text-lg font-black text-foreground">Executive Accountability PDF &amp; CSV</h3>
                   <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                    Generates a multi-section PDF: role breakdown, headline metrics, gaps, teacher performance,
-                    class coverage, cross-term backlog, complete teacher directory, and students with critical gaps.
+                    Generates an official Rillcod Technologies branded multi-section audit PDF with logo letterhead, accurate term KPIs,
+                    teacher performance, class coverage, and actionable gap tables — or clean Excel-safe CSV spreadsheets.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <Tile value={people.length} label="Accounts included" />
-                  <Tile value={teachers.length} label="Teachers listed" />
-                  <Tile value={students.length} label="Students listed" />
-                  <Tile value={`${analytics.healthScore}%`} label="Health score" tone={analytics.healthScore >= 85 ? 'good' : analytics.healthScore >= 70 ? 'warn' : 'bad'} />
+                  <Tile value={people.length} label="Total Accounts" />
+                  <Tile value={teachers.length} label="Teachers" />
+                  <Tile value={gapPeople.length} label="Accounts with Gaps" tone={gapPeople.length > 0 ? 'warn' : 'good'} />
+                  <Tile value={`${analytics.healthScore}%`} label="Health Score" tone={analytics.healthScore >= 85 ? 'good' : analytics.healthScore >= 70 ? 'warn' : 'bad'} />
                 </div>
-
-                <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4">
-                  <li>Who is on the platform (every role, with definitions)</li>
-                  <li>Headline metrics for the active term</li>
-                  <li>Gaps &amp; flags</li>
-                  <li>Teacher report performance</li>
-                  <li>Class coverage table</li>
-                  <li>Cross-term unpublished backlog (when present)</li>
-                  <li>Full teacher directory (teachers as teachers)</li>
-                  <li>Students with critical gaps</li>
-                </ol>
 
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={handleGeneratePdf}
                     disabled={reportBusy || people.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:opacity-95 disabled:opacity-50"
                   >
                     <ArrowDownTrayIcon className={`w-4 h-4 ${reportBusy ? 'animate-pulse' : ''}`} />
-                    {reportBusy ? 'Building PDF…' : 'Generate PDF report'}
+                    {reportBusy ? 'Building PDF…' : 'Download Official PDF Report'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => downloadPeopleCsv(people, 'accountability-full-census.csv')}
+                    onClick={() => downloadPeopleCsv(gapPeople, 'rillcod-accountability-gaps.csv')}
+                    disabled={gapPeople.length === 0}
+                    className="inline-flex items-center gap-2 rounded-xl border border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                  >
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Export Gaps Only ({gapPeople.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadPeopleCsv(people, 'rillcod-accountability-all.csv')}
                     disabled={people.length === 0}
                     className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
                   >
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Export everyone (CSV)
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Export All (CSV)
                   </button>
                   <button
                     type="button"
-                    onClick={() => downloadPeopleCsv(teachers, 'accountability-teachers.csv')}
+                    onClick={() => downloadPeopleCsv(teachers, 'rillcod-accountability-teachers.csv')}
                     disabled={teachers.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
                   >
-                    Export teachers CSV
+                    Teachers CSV
                   </button>
                   <button
                     type="button"
-                    onClick={() => downloadPeopleCsv(students, 'accountability-students.csv')}
+                    onClick={() => downloadPeopleCsv(students, 'rillcod-accountability-students.csv')}
                     disabled={students.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
                   >
-                    Export students CSV
+                    Students CSV
                   </button>
                 </div>
 
@@ -1253,60 +1349,28 @@ export default function AccountabilityDashboard({
                 )}
               </div>
 
-              {/* Printable on-screen summary */}
-              <div className={`${CARD} p-5 sm:p-6 space-y-4 print:shadow-none`} id="accountability-print-summary">
-                <h3 className="font-black text-foreground">On-screen executive summary</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-2">
-                    <p className={LABEL}>Who’s here</p>
-                    {Object.entries(roleCounts).sort((a, b) => b[1] - a[1]).map(([r, n]) => (
-                      <div key={r} className="flex items-center justify-between gap-2 border-b border-border/60 py-1.5">
-                        <RoleBadge role={r} size="sm" />
-                        <span className="font-black tabular-nums">{n}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <p className={LABEL}>This term at a glance</p>
-                    {[
-                      ['Health score', `${analytics.healthScore}%`],
-                      ['Students in a class', `${analytics.placedOnRoster} (${analytics.placedPct}%)`],
-                      ['Reports published', `${analytics.publishedReports} (${analytics.publishedPct}%)`],
-                      ['Parent email linked', `${analytics.parentEmailMatched} (${analytics.parentEmailReachPct}%)`],
-                      ['Parent phone linked', `${analytics.parentPhoneMatched} (${analytics.parentPhoneReachPct}%)`],
-                      ['Unplaced students', String(analytics.unplaced)],
-                      ['Draft reports', String(analytics.draftReports)],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex justify-between border-b border-border/60 py-1.5">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span className="font-black tabular-nums">{v}</span>
-                      </div>
-                    ))}
-                  </div>
+              {classChartData.length > 0 && (
+                <div className={`${CARD} p-5 sm:p-6 space-y-3`}>
+                  <p className={LABEL}>Class Publication Snapshot</p>
+                  <VerticalBarChart
+                    data={classChartData}
+                    xKey="class"
+                    height={240}
+                    bars={[
+                      { key: 'published', label: 'Published', color: CHART_COLORS.emerald },
+                      { key: 'draft', label: 'Draft', color: CHART_COLORS.amber },
+                    ]}
+                  />
                 </div>
-                {classChartData.length > 0 && (
-                  <div>
-                    <p className={`${LABEL} mb-2`}>Class publication (top classes)</p>
-                    <VerticalBarChart
-                      data={classChartData}
-                      xKey="class"
-                      height={240}
-                      bars={[
-                        { key: 'published', label: 'Published', color: CHART_COLORS.emerald },
-                        { key: 'draft', label: 'Draft', color: CHART_COLORS.amber },
-                      ]}
-                    />
-                  </div>
-                )}
-              </div>
+              )}
             </Section>
           )}
 
           {c && (
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <p className="text-xs text-muted-foreground">Snapshot taken {fmtDate(c.generated_at)}</p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Cache live
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live Snapshot
               </span>
             </div>
           )}
@@ -1320,6 +1384,17 @@ export default function AccountabilityDashboard({
         recipients={selectedPeopleTargets}
         onSuccess={() => {
           setSelectedIds(new Set());
+          onRefresh(true);
+        }}
+      />
+
+      <QuickClassPlacementModal
+        isOpen={placementTargets.length > 0}
+        onClose={() => setPlacementTargets([])}
+        students={placementTargets}
+        onPlaced={() => {
+          setSelectedIds(new Set());
+          setPlacementTargets([]);
           onRefresh(true);
         }}
       />

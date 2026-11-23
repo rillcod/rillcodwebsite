@@ -94,6 +94,13 @@ export type TeacherWorkloadCard = {
   /** Mean of the five-asset preparation score across the teacher's classes. */
   content_prepared_pct: number;
   content_released_pct: number;
+  /** Live teacher activity telemetry for executive monitoring. */
+  last_active_at: string | null;
+  days_since_active: number | null;
+  attendance_days_14d: number;
+  cbt_exams_count: number;
+  study_materials_count: number;
+  performance_score: number;
   status: 'complete' | 'drafts' | 'incomplete' | 'no_students' | 'no_classes';
   courses: string[];
   classes: TeacherClassDetail[];
@@ -125,7 +132,7 @@ export async function GET() {
 
   const { data: teachers, error: teacherErr } = await fetchAllSupabaseRows((from, to) => db
     .from('portal_users')
-    .select('id, full_name, email, is_active, school_name, school_id')
+    .select('id, full_name, email, is_active, school_name, school_id, last_login, updated_at')
     .eq('role', 'teacher')
     .eq('is_deleted', false)
     .order('full_name')
@@ -175,21 +182,55 @@ export async function GET() {
     return entry;
   };
 
+  const attendanceDatesByTeacher = new Map<string, Set<string>>();
+  const cbtExamsByClass = new Map<string, number>();
+  const materialsByClass = new Map<string, number>();
+
+  const fourteenDaysAgoIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  if (teacherIds.length > 0) {
+    for (let i = 0; i < teacherIds.length; i += 100) {
+      const tChunk = teacherIds.slice(i, i + 100);
+      const { data: attRows } = await db
+        .from('attendance')
+        .select('recorded_by, created_at')
+        .in('recorded_by', tChunk)
+        .gte('created_at', fourteenDaysAgoIso)
+        .limit(2000);
+      for (const row of attRows ?? []) {
+        if (!row.recorded_by || !row.created_at) continue;
+        let set = attendanceDatesByTeacher.get(row.recorded_by);
+        if (!set) {
+          set = new Set<string>();
+          attendanceDatesByTeacher.set(row.recorded_by, set);
+        }
+        set.add(row.created_at.slice(0, 10));
+      }
+    }
+  }
+
   if (classIds.length > 0) {
     for (let i = 0; i < classIds.length; i += 100) {
       const chunk = classIds.slice(i, i + 100);
-      const [lessons, slides, flashcards, assignments] = await Promise.all([
+      const [lessons, slides, flashcards, assignments, examsRes] = await Promise.all([
         fetchAllSupabaseRows((from, to) => db.from('lessons').select('class_id, status, curriculum_week_number, metadata').in('class_id', chunk).range(from, to)),
         fetchAllSupabaseRows((from, to) => db.from('lesson_materials').select('class_id, curriculum_week_number').in('class_id', chunk).range(from, to)),
         fetchAllSupabaseRows((from, to) => db.from('flashcard_decks').select('class_id, is_public, curriculum_week_number').in('class_id', chunk).range(from, to)),
         fetchAllSupabaseRows((from, to) => db.from('assignments').select('class_id, assignment_type, is_active, curriculum_week_number, metadata').in('class_id', chunk).range(from, to)),
+        db.from('cbt_exams').select('class_id, is_active').in('class_id', chunk).eq('is_active', true).limit(1000),
       ]);
       const contentError = lessons.error || slides.error || flashcards.error || assignments.error;
       if (contentError) return NextResponse.json({ error: `Load teacher content evidence: ${contentError.message}` }, { status: 500 });
       for (const row of lessons.data ?? []) bucket(row.class_id)?.lessons.push(row as never);
-      for (const row of slides.data ?? []) bucket(row.class_id)?.slides.push(row as never);
+      for (const row of slides.data ?? []) {
+        bucket(row.class_id)?.slides.push(row as never);
+        if (row.class_id) materialsByClass.set(row.class_id, (materialsByClass.get(row.class_id) ?? 0) + 1);
+      }
       for (const row of flashcards.data ?? []) bucket(row.class_id)?.flashcards.push(row as never);
       for (const row of assignments.data ?? []) bucket(row.class_id)?.assignments.push(row as never);
+      for (const row of examsRes.data ?? []) {
+        if (!row.class_id) continue;
+        cbtExamsByClass.set(row.class_id, (cbtExamsByClass.get(row.class_id) ?? 0) + 1);
+      }
     }
   }
 
@@ -463,6 +504,33 @@ export async function GET() {
     else if (missing === 0 && drafts > 0) status = 'drafts';
     else status = 'incomplete';
 
+    const content_prepared_pct = classDetails.length
+      ? Math.round(classDetails.reduce((s, c) => s + c.content.prepared_pct, 0) / classDetails.length)
+      : 0;
+    const content_released_pct = classDetails.length
+      ? Math.round(classDetails.reduce((s, c) => s + c.content.released_pct, 0) / classDetails.length)
+      : 0;
+
+    const attendance_days_14d = attendanceDatesByTeacher.get(teacher.id)?.size ?? 0;
+    let cbt_exams_count = 0;
+    let study_materials_count = 0;
+    for (const k of classDetails) {
+      cbt_exams_count += cbtExamsByClass.get(k.class_id) ?? 0;
+      study_materials_count += materialsByClass.get(k.class_id) ?? 0;
+    }
+    const last_active_at = (teacher as any).last_login || (teacher as any).updated_at || null;
+    const days_since_active = last_active_at
+      ? Math.max(0, Math.floor((Date.now() - new Date(last_active_at).getTime()) / (24 * 60 * 60 * 1000)))
+      : null;
+
+    // Activity score (0-100): attendance in last 14d (50%) + exams/materials activity (50%)
+    const attendanceScore = Math.min(100, attendance_days_14d * 25);
+    const engagementScore = Math.min(100, cbt_exams_count * 35 + study_materials_count * 15);
+    const activityScore = Math.round(attendanceScore * 0.5 + engagementScore * 0.5);
+    const performance_score = classDetails.length === 0
+      ? 0
+      : Math.min(100, Math.round(published_pct * 0.4 + content_released_pct * 0.3 + activityScore * 0.3));
+
     return {
       teacher_id: teacher.id,
       full_name: teacher.full_name,
@@ -483,12 +551,14 @@ export async function GET() {
       has_true_students,
       classes_without_content: classDetails.filter((c) => c.content.prepared === 0).length,
       classes_withholding_content: classDetails.filter((c) => c.content.prepared_but_invisible).length,
-      content_prepared_pct: classDetails.length
-        ? Math.round(classDetails.reduce((s, c) => s + c.content.prepared_pct, 0) / classDetails.length)
-        : 0,
-      content_released_pct: classDetails.length
-        ? Math.round(classDetails.reduce((s, c) => s + c.content.released_pct, 0) / classDetails.length)
-        : 0,
+      content_prepared_pct,
+      content_released_pct,
+      last_active_at,
+      days_since_active,
+      attendance_days_14d,
+      cbt_exams_count,
+      study_materials_count,
+      performance_score,
       status,
       courses,
       classes: classDetails,
