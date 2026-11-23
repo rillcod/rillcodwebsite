@@ -51,7 +51,7 @@ interface ClassIntakeAndSessionPanelProps {
   students: IntakeStudentRow[];
   formerStudents?: IntakeStudentRow[];
   destinationClasses: DestinationClassOption[];
-  initialTab?: 'intake' | 'hygiene';
+  initialTab?: 'intake' | 'hygiene' | 'adopt';
   onClose: () => void;
   onRefresh: () => void | Promise<void>;
 }
@@ -281,7 +281,7 @@ export function ClassIntakeAndSessionPanel({
   const isMultiGradeSection = sectionGrades.length > 1;
   const defaultGrade = sectionGrades[0] || canonicalGrade(classGradeKey || className) || SINGLE_GRADES[0];
 
-  const [tab, setTab] = useState<'intake' | 'hygiene'>(initialTab);
+  const [tab, setTab] = useState<'intake' | 'hygiene' | 'adopt'>(initialTab);
   // Multi-grade sections (e.g. Basic 1-3, JSS 1-3) default to student/teacher grade selection;
   // single-grade classes (e.g. Basic 1) default to Grade Locked.
   const [lockGrade, setLockGrade] = useState<boolean>(!isMultiGradeSection && Boolean(sectionGrades.length === 1 || canonicalGrade(classGradeKey || className)));
@@ -1827,38 +1827,56 @@ export function ClassIntakeAndSessionPanel({
           </button>
         </div>
 
-        {/* Row 2: Clean full-width mobile segmented tabs */}
+        {/* Row 2: 3-Step Guided Workflow Tabs (1. Clean Slate -> 2. Adopt Returning -> 3. Intake & Pass-Around) */}
         {!passAroundMode && (
           <div className="max-w-5xl mx-auto px-3 sm:px-5 pb-2.5">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 border border-border">
-              <button
-                type="button"
-                onClick={() => setTab('intake')}
-                className={`min-h-9 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
-                  tab === 'intake'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Intake &amp; WhatsApp
-              </button>
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1 border border-border">
               <button
                 type="button"
                 onClick={() => setTab('hygiene')}
-                className={`min-h-9 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all inline-flex items-center justify-center gap-1.5 ${
+                className={`min-h-9 px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all inline-flex items-center justify-center gap-1 ${
                   tab === 'hygiene'
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Old vs New Session
+                <span className="truncate">1. Clean Slate</span>
                 {carryoverStudents.length > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                  <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-black ${
                     tab === 'hygiene' ? 'bg-white/20 text-white' : 'bg-amber-500 text-black'
                   }`}>
                     {carryoverStudents.length}
                   </span>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('adopt')}
+                className={`min-h-9 px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all inline-flex items-center justify-center gap-1 ${
+                  tab === 'adopt'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="truncate">2. Adopt</span>
+                {suggestedIncomingStudents.length > 0 && (
+                  <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                    tab === 'adopt' ? 'bg-white/20 text-white' : 'bg-emerald-700 text-white'
+                  }`}>
+                    {suggestedIncomingStudents.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab('intake')}
+                className={`min-h-9 px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all inline-flex items-center justify-center gap-1 ${
+                  tab === 'intake'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="truncate">3. Intake</span>
               </button>
             </div>
           </div>
@@ -3053,6 +3071,12 @@ export function ClassIntakeAndSessionPanel({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 2: DEDICATED ADOPT RETURNING STUDENTS & SAFE ARCHIVE */}
+      {tab === 'adopt' && (
+        <div className="p-4 sm:p-5 space-y-4">
           {/* 1-Click Migrate / Adopt Students from Previous Classes or Archive into THIS Class */}
           <div className="rounded-xl border border-primary/35 bg-primary/[0.03] overflow-hidden">
             <div className="bg-primary/10 px-3.5 py-2.5 border-b border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
