@@ -24,58 +24,59 @@ export function SchoolReportWorkflowRail({
   };
 
   return (
-    <nav aria-label="Report workflow" className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Guided workflow</p>
-      <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <nav aria-label="Report workflow" className="rounded-2xl border border-border bg-card px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2">
+      <ol className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         {EDITOR_WORKFLOW_STEPS.map((step) => {
           const isActive = step.key === activeStep;
           const href = stepLinks[step.key];
-          const content = (
-            <>
+          const pill = (
+            <span className="inline-flex items-center gap-1.5">
               <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black ${
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : published && step.key === 'publish'
-                      ? 'bg-emerald-600 text-white'
+                      ? 'bg-emerald-700 text-white'
                       : 'bg-muted text-muted-foreground'
                 }`}
               >
                 {step.id}
               </span>
-              <span>
-                <span className="block text-sm font-black text-foreground">{step.label}</span>
-                <span className="mt-0.5 block text-[11px] text-muted-foreground">{step.description}</span>
-              </span>
-            </>
+              <span className="text-xs font-black whitespace-nowrap">{step.label}</span>
+            </span>
           );
 
           return (
-            <li key={step.key}>
+            <li key={step.key} className="shrink-0">
               {href ? (
                 <Link
                   href={href}
                   aria-current={isActive ? 'step' : undefined}
-                  className={`flex items-start gap-3 rounded-xl border p-3 transition ${
-                    isActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+                  title={step.description}
+                  className={`inline-flex items-center rounded-xl border px-3 py-1.5 transition-colors ${
+                    isActive
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40'
                   }`}
                 >
-                  {content}
+                  {pill}
                 </Link>
               ) : (
-                <div className="flex items-start gap-3 rounded-xl border border-border p-3">{content}</div>
+                <div className="inline-flex items-center rounded-xl border border-border px-3 py-1.5 text-muted-foreground">
+                  {pill}
+                </div>
               )}
             </li>
           );
         })}
       </ol>
-      {published ? (
-        <p className="mt-3 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">Published — unlock to restart the edit cycle.</p>
-      ) : (
-        <p className="mt-3 text-[11px] text-muted-foreground">
-          Step 8: publish from the builder toolbar when the completeness checklist passes.
-        </p>
-      )}
+      <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+        {published ? (
+          <span className="text-emerald-700 dark:text-emerald-400">Published ✓</span>
+        ) : (
+          'Draft — review & publish from toolbar'
+        )}
+      </span>
     </nav>
   );
 }

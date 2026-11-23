@@ -144,7 +144,9 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
         .select('teacher_id')
         .eq('id', targetClassId)
         .maybeSingle();
-      if (klass?.teacher_id === caller.id) return true;
+      if (klass?.teacher_id === caller.id || !exam.school_id) {
+        return klass?.teacher_id === caller.id;
+      }
     }
     if (!exam.school_id) return false;
     if (caller.school_id === exam.school_id) return true;

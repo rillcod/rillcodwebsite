@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   SchoolReportBuilderCanvas,
@@ -67,48 +68,90 @@ export function SchoolReportWorkspace({
   onRestoreLocalDraft?: () => void;
   backHref?: string;
 }) {
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
+  const handleCopyPrincipalSummary = async () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com';
+    const r = report as any;
+    const schoolTitle = r.school_name || r.schools?.name || report.title || 'Partner School';
+    const term = [r.term_label || r.report_term, r.academic_year || r.report_period].filter(Boolean).join(' · ');
+    const snap = (r.snapshot && typeof r.snapshot === 'object' ? r.snapshot : {}) as Record<string, any>;
+    const enrolled = snap.total_students ?? snap.enrolled_students ?? snap.active_students ?? null;
+    const avgScore = snap.average_score ?? snap.avg_score ?? null;
+    const lines = [
+      `*Rillcod Technologies — Term Performance Report*`,
+      `School: *${schoolTitle}*${term ? ` (${term})` : ''}`,
+      enrolled != null ? `Active Learners Assessed: *${enrolled}*` : null,
+      avgScore != null ? `Average Performance: *${Math.round(Number(avgScore))}%*` : null,
+      `Status: *${report.status === 'published' ? 'Published' : 'Ready for Review'}*`,
+      `View / Download PDF: ${origin}/dashboard/school-reports/${report.id}/preview`,
+    ].filter(Boolean);
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 2200);
+    } catch {
+      /* ignore clipboard error */
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={backHref} className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all">
-          Back to reports
-        </Link>
-        <div className="flex flex-wrap gap-2">
+    <div className="space-y-4">
+      {/* Unified, compact top command bar (eliminates redundant links & 3 giant safeguard cards) */}
+      <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={backHref}
+            className="inline-flex min-h-9 items-center rounded-xl border border-border bg-muted/50 hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-all"
+          >
+            ← Back to reports
+          </Link>
+          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border ${
+            report.status === 'published'
+              ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+              : 'border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+          }`}>
+            {report.status}
+          </span>
+          <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            {saveStatus.autosaving
+              ? 'Saving…'
+              : saveStatus.isDirty
+              ? 'Unsaved edits'
+              : saveStatus.lastSavedAt
+              ? `Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : 'Manual records protected · Curriculum connected'}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleCopyPrincipalSummary()}
+            className="inline-flex min-h-9 items-center rounded-xl border border-emerald-600/35 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 text-xs font-black transition-all"
+          >
+            {copiedSummary ? 'Copied WhatsApp Summary ✓' : 'Copy Principal WhatsApp'}
+          </button>
           <Link
             href={`/dashboard/school-reports/${report.id}/analytics`}
-            className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all"
+            className="inline-flex min-h-9 items-center rounded-xl border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-bold transition-all"
           >
             Insights
           </Link>
           <Link
-            href={`/dashboard/school-reports/${report.id}/preview`}
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
+            href={`/dashboard/school-reports/${report.id}/history`}
+            className="inline-flex min-h-9 items-center rounded-xl border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-bold transition-all"
           >
-            Client PDF & print
+            Activity &amp; revisions
           </Link>
           <Link
-            href={`/dashboard/school-reports/${report.id}/history`}
-            className="rounded-xl border border-border bg-card hover:bg-muted text-foreground px-4 py-2 text-sm font-bold shadow-sm transition-all"
+            href={`/dashboard/school-reports/${report.id}/preview`}
+            className="inline-flex min-h-9 items-center rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
           >
-            Activity & revisions
+            Client PDF &amp; print
           </Link>
         </div>
       </div>
-
-      <section aria-label="Report safeguards" className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-card to-card p-4 shadow-2xs">
-          <p className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Manual records protected</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Teacher results and attendance rolls are read as evidence and are never rewritten here.</p>
-        </div>
-        <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-2xs">
-          <p className="text-xs font-black uppercase tracking-wide text-primary">Curriculum connected</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">The report reads official delivery scope without changing curriculum direction.</p>
-        </div>
-        <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-muted/30 via-card to-card p-4 shadow-2xs">
-          <p className="text-xs font-black uppercase tracking-wide text-foreground">Client output</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the live book, then open the polished PDF before publishing or sharing.</p>
-        </div>
-      </section>
 
       <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
         <SchoolReportBuilderCanvas
