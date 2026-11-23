@@ -113,6 +113,40 @@ export function classifyStudentSessionStatus(
 }
 
 /**
+ * Unified lightweight client/server check: returns true when a student record
+ * belongs to the current academic session (confirmed, rolled over, created
+ * since session start, or already tagged confirmed_current).
+ */
+export function isStudentInCurrentSession(
+  student: {
+    created_at?: string | null;
+    metadata?: Record<string, any> | null;
+    session_status?: string | null;
+  } | null | undefined,
+  boundary: SessionBoundary = getSessionBoundary(),
+): boolean {
+  if (!student) return false;
+  if (student.session_status === 'confirmed_current') return true;
+  if (student.session_status === 'carryover_unconfirmed' || student.session_status === 'withdrawn') {
+    return false;
+  }
+  const meta =
+    student.metadata && typeof student.metadata === 'object'
+      ? (student.metadata as Record<string, any>)
+      : {};
+  if (
+    String(meta.confirmed_session ?? '').trim() === boundary.periodLabel ||
+    String(meta.rollover_session ?? '').trim() === boundary.periodLabel ||
+    (Array.isArray(meta.session_history) &&
+      meta.session_history.some((h: any) => String(h?.session ?? '').trim() === boundary.periodLabel))
+  ) {
+    return true;
+  }
+  const createdMs = student.created_at ? Date.parse(student.created_at) : NaN;
+  return Number.isFinite(createdMs) && createdMs >= boundary.sessionStartMs;
+}
+
+/**
  * Partitions any student list into clean, non-overlapping buckets for UI,
  * report denominators, and headcount metrics.
  */

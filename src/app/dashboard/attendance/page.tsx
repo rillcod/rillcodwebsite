@@ -270,7 +270,9 @@ function AttendanceContent() {
         const studsJson = await studsHttpRes.json();
         if (!studsHttpRes.ok) throw new Error(studsJson.error || 'Students could not be loaded.');
         if (attRes.error) throw attRes.error;
-        const studs: any[] = studsJson.students ?? [];
+        const allStuds: any[] = studsJson.students ?? [];
+        const confirmedStuds = allStuds.filter((s: any) => s.session_status !== 'carryover_unconfirmed');
+        const studs: any[] = confirmedStuds.length > 0 ? confirmedStuds : allStuds;
         setStudents(studs);
 
         const attMap: Record<string, { status: string; notes: string }> = {};
@@ -304,7 +306,11 @@ function AttendanceContent() {
         if (!r.ok) throw new Error(json.error || 'Students could not be loaded.');
         return json;
       })
-      .then(json => setStudents(json.students ?? []))
+      .then(json => {
+        const allStuds: any[] = json.students ?? [];
+        const confirmedStuds = allStuds.filter((s: any) => s.session_status !== 'carryover_unconfirmed');
+        setStudents(confirmedStuds.length > 0 ? confirmedStuds : allStuds);
+      })
       .catch((error) => {
         setStudents([]);
         setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Students could not be loaded.' });

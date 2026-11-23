@@ -21,6 +21,7 @@ import { fetchCardConfig, buildSingleCardHtml, openPrintWindow, holderCode, type
 import { buildStudentRosterRows, buildRosterPdfGroups, downloadStudentRosterPdf } from '@/lib/cards/exportRoster';
 import { brandContact } from '@/config/brand';
 import { isSpecialEnrollment } from '@/lib/registration/enrollment-types';
+import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
 
 // ─── Status badge ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -375,6 +376,8 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [currentSessionOnly, setCurrentSessionOnly] = useState(true);
+  const sessionBoundary = getSessionBoundary();
   const [filter, setFilter] = useState('all');
   const [acting, setActing] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -1208,6 +1211,9 @@ export default function StudentsPage() {
 
   const filtered = combined.filter(s => {
     const q = search.toLowerCase();
+    if (currentSessionOnly && q.length < 2 && !isStudentInCurrentSession(s as any, sessionBoundary)) {
+      return false;
+    }
     const ms = (s.full_name ?? '').toLowerCase().includes(q) ||
       (s.parent_email ?? '').toLowerCase().includes(q) ||
       (s.student_email ?? '').toLowerCase().includes(q) ||
@@ -1960,6 +1966,17 @@ export default function StudentsPage() {
                   value={search} onChange={e => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors" />
               </div>
+              <button
+                type="button"
+                onClick={() => setCurrentSessionOnly(v => !v)}
+                className={`px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider whitespace-nowrap transition-colors ${
+                  currentSessionOnly
+                    ? 'border-emerald-600/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {currentSessionOnly ? `Session ${sessionBoundary.periodLabel}` : 'All Sessions'}
+              </button>
               <select title="Filter by student type" value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
                 className="px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
                 <option value="all">All Students</option>
