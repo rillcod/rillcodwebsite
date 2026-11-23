@@ -16,7 +16,7 @@ import {
   UserGroupIcon,
   XMarkIcon,
 } from '@/lib/icons';
-import { SINGLE_GRADES, canonicalGrade } from '@/lib/classes/naming';
+import { SINGLE_GRADES, canonicalGrade, parseBandLabel } from '@/lib/classes/naming';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { openClassIntakeLetterheadPdf } from '@/lib/classes/print-intake-sheet';
 
@@ -44,6 +44,7 @@ interface ClassIntakeAndSessionPanelProps {
   classId: string;
   className: string;
   classGradeKey?: string | null;
+  classGradeBand?: string | null;
   currentSession: string;
   students: IntakeStudentRow[];
   formerStudents?: IntakeStudentRow[];
@@ -51,6 +52,26 @@ interface ClassIntakeAndSessionPanelProps {
   initialTab?: 'intake' | 'hygiene';
   onClose: () => void;
   onRefresh: () => void | Promise<void>;
+}
+
+function gradesForSectionBand(
+  classGradeBand?: string | null,
+  classGradeKey?: string | null,
+  className?: string | null,
+): string[] {
+  const band =
+    parseBandLabel(classGradeBand) ??
+    parseBandLabel(classGradeKey) ??
+    parseBandLabel(className?.includes('·') ? className.split('·').pop()?.trim() : className);
+  if (!band) return [];
+  const grades: string[] = [];
+  for (let n = band.low; n <= band.high; n += 1) {
+    const label = `${band.lvl} ${n}`;
+    if ((SINGLE_GRADES as readonly string[]).includes(label)) {
+      grades.push(label);
+    }
+  }
+  return grades;
 }
 
 export interface DirectoryCandidate {
@@ -164,6 +185,7 @@ export function ClassIntakeAndSessionPanel({
   classId,
   className,
   classGradeKey,
+  classGradeBand,
   currentSession,
   students,
   formerStudents = [],
@@ -172,13 +194,20 @@ export function ClassIntakeAndSessionPanel({
   onClose,
   onRefresh,
 }: ClassIntakeAndSessionPanelProps) {
-  const defaultGrade = canonicalGrade(classGradeKey || className) || SINGLE_GRADES[0];
+  const sectionGrades = useMemo(
+    () => gradesForSectionBand(classGradeBand, classGradeKey, className),
+    [classGradeBand, classGradeKey, className],
+  );
+  const isMultiGradeSection = sectionGrades.length > 1;
+  const defaultGrade = sectionGrades[0] || canonicalGrade(classGradeKey || className) || SINGLE_GRADES[0];
 
   const [tab, setTab] = useState<'intake' | 'hygiene'>(initialTab);
-  // Teacher/Admin Grade Lock vs Student Grade Dropdown + Required WhatsApp Phone Toggle
-  const [lockGrade, setLockGrade] = useState<boolean>(Boolean(canonicalGrade(classGradeKey || className)));
+  // Multi-grade sections (e.g. Basic 1-3, JSS 1-3) default to student/teacher grade selection;
+  // single-grade classes (e.g. Basic 1) default to Grade Locked.
+  const [lockGrade, setLockGrade] = useState<boolean>(!isMultiGradeSection && Boolean(sectionGrades.length === 1 || canonicalGrade(classGradeKey || className)));
   const [selectedGrade, setSelectedGrade] = useState<string>(defaultGrade);
   const [requirePhone, setRequirePhone] = useState<boolean>(false);
+  const [gradeFilter, setGradeFilter] = useState<string>('all');
   // Kid-friendly Pass-Around Mode (full-screen zero-distraction classroom kiosk!)
   const [passAroundMode, setPassAroundMode] = useState(false);
   const [passAroundAddedCount, setPassAroundAddedCount] = useState(0);
@@ -336,9 +365,26 @@ export function ClassIntakeAndSessionPanel({
   );
   const isEntryClass = /\b(basic\s*1|primary\s*1|jss\s*1|ss\s*1)\b/i.test(`${classGradeKey || ''} ${className}`);
 
+  const distinctSectionGrades = useMemo(() => {
+    const set = new Set<string>(sectionGrades);
+    for (const s of students) {
+      const g = canonicalGrade(s.grade) || String(s.grade || '').trim();
+      if (g) set.add(g);
+    }
+    return Array.from(set).sort(
+      (a, b) =>
+        (SINGLE_GRADES as readonly string[]).indexOf(a) - (SINGLE_GRADES as readonly string[]).indexOf(b) ||
+        a.localeCompare(b),
+    );
+  }, [sectionGrades, students]);
+
   const filteredStudents = useMemo(() => {
     const q = sheetSearch.trim().toLowerCase();
     const list = students.filter((s) => {
+      if (gradeFilter !== 'all') {
+        const sg = canonicalGrade(s.grade) || String(s.grade || '').trim();
+        if (sg !== gradeFilter) return false;
+      }
       if (q) {
         const hay = `${s.full_name} ${s.grade || ''} ${s.parent_phone || ''} ${s.parent_name || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -362,7 +408,7 @@ export function ClassIntakeAndSessionPanel({
       }
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [students, sheetSearch, sheetFilter, sheetSort]);
+  }, [students, sheetSearch, sheetFilter, sheetSort, gradeFilter]);
 
   const copyGroupWelcomeMessage = async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com';
@@ -906,18 +952,38 @@ export function ClassIntakeAndSessionPanel({
                     <div className="space-y-4 pt-1 border-t border-border/60">
                       {/* Grade selector ONLY if teacher did not lock the grade */}
                       {!lockGrade && (
-                        <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
-                            Your Class / Grade
+                        <div className="space-y-2">
+                          <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground">
+                            Tap Your Grade / Class *
                           </label>
+                          {sectionGrades.length > 1 && (
+                            <div className="grid grid-cols-3 gap-2">
+                              {sectionGrades.map((g) => (
+                                <button
+                                  key={g}
+                                  type="button"
+                                  onClick={() => setSelectedGrade(g)}
+                                  className={`min-h-12 rounded-2xl border-2 text-sm sm:text-base font-black transition-all ${
+                                    selectedGrade === g
+                                      ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                                      : 'border-border bg-background text-foreground hover:border-primary/50'
+                                  }`}
+                                >
+                                  {g}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <select
                             aria-label="Your grade"
                             value={selectedGrade}
                             onChange={(e) => setSelectedGrade(e.target.value)}
-                            className="w-full h-14 rounded-2xl border-2 border-border bg-background px-4 text-lg font-bold text-foreground"
+                            className={`w-full rounded-2xl border-2 border-border bg-background px-4 font-bold text-foreground ${
+                              sectionGrades.length > 1 ? 'h-11 text-xs text-muted-foreground' : 'h-14 text-lg'
+                            }`}
                           >
                             {SINGLE_GRADES.map((g) => (
-                              <option key={g} value={g}>{g}</option>
+                              <option key={g} value={g}>{sectionGrades.length > 1 ? `Other grade: ${g}` : g}</option>
                             ))}
                           </select>
                         </div>
@@ -1537,6 +1603,43 @@ export function ClassIntakeAndSessionPanel({
                     <option value="session">Sort: Old Session First</option>
                   </select>
                 </div>
+                {/* Multi-Grade Section Filter Chips (e.g. Basic 1 | Basic 2 | Basic 3) */}
+                {distinctSectionGrades.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground shrink-0 pr-1">
+                      Grades:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setGradeFilter('all')}
+                      className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                        gradeFilter === 'all'
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      All Grades ({students.length})
+                    </button>
+                    {distinctSectionGrades.map((g) => {
+                      const count = students.filter((s) => (canonicalGrade(s.grade) || String(s.grade || '').trim()) === g).length;
+                      return (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setGradeFilter(g)}
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                            gradeFilter === g
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {g} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                   {([
                     { id: 'all', label: `All Active (${students.length})` },

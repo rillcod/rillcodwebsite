@@ -2960,6 +2960,7 @@ export default function ClassDetailPage() {
                         classId={id}
                         className={cls?.name || 'Class'}
                         classGradeKey={cls?.qa_grade_key}
+                        classGradeBand={cls?.qa_grade_band}
                         currentSession={currentSessionLabel}
                         students={currentTermStudents}
                         formerStudents={inactiveTermStudents}
