@@ -77,7 +77,7 @@ export async function GET(
   // Fetch exam metadata first for access checks
   const { data: examMeta, error: metaErr } = await admin
     .from('cbt_exams')
-    .select('id, is_active, start_date, end_date, program_id, course_id, school_id, created_by, metadata')
+    .select('id, is_active, start_date, end_date, class_id, term_id, program_id, course_id, school_id, created_by, metadata')
     .eq('id', id)
     .maybeSingle();
 

@@ -370,6 +370,16 @@ export async function reinstateStudentToClass(
         || isSpecializedProgramRecord(null, (prevCls as any).name);
       if (!crossingSpecializedBoundary) {
         await upsertRoster(admin, prevCls as any, studentId, 'withdrawn', actor.id);
+        // Complete old programme enrollment when transitioning across regular programmes
+        // (e.g. Young Innovators → Teen Developers) so prior-programme exams/assignments never bleed.
+        if (prevCls.program_id && cls.program_id && prevCls.program_id !== cls.program_id) {
+          await admin
+            .from('enrollments')
+            .update({ status: 'completed', updated_at: new Date().toISOString() })
+            .eq('user_id', studentId)
+            .eq('program_id', prevCls.program_id)
+            .in('status', ['active', 'enrolled', 'approved']);
+        }
       }
     }
   }

@@ -185,8 +185,9 @@ export async function GET(
     );
 
     // Recovery: if this teacher has already entered progress reports for this
-    // class, keep those students visible on the roster even if their class_id
-    // drifted. This preserves the intentional teacher-owned class boundary.
+    // class IN THE CURRENT SESSION, keep unassigned students visible even if their
+    // class_id drifted — never resurrect students who were withdrawn, deactivated,
+    // or already promoted/moved to another class!
     if (caller.role === 'teacher') {
       const knownStudentIds = new Set(students.map((s: any) => s.id));
       let reportQuery = admin
@@ -194,12 +195,12 @@ export async function GET(
         .select('student_id')
         .eq('teacher_id', caller.id)
         .eq('section_class', cls.name)
+        .eq('report_period', academicPeriod.periodLabel)
         .not('student_id', 'is', null);
       if (cls.school_id) reportQuery = reportQuery.eq('school_id', cls.school_id);
       const { data: reportRows } = await reportQuery;
       const reportStudentIds = (reportRows ?? [])
         .map((r: any) => r.student_id)
-        // Never let report-recovery resurrect a student who was withdrawn from this class.
         .filter((sid: any) => sid && !knownStudentIds.has(sid) && !withdrawnFromThisClass.has(sid));
 
       if (reportStudentIds.length > 0) {
@@ -208,6 +209,9 @@ export async function GET(
           .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
           .in('id', reportStudentIds)
           .eq('role', 'student')
+          .is('class_id', null)
+          .neq('is_active', false)
+          .neq('is_deleted', true)
           .order('full_name');
         students.push(...(reportLinkedStudents ?? []));
       }
