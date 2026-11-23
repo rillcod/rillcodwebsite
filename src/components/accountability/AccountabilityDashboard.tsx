@@ -374,6 +374,8 @@ export default function AccountabilityDashboard({
       await generateAccountabilityPdf({
         coverage: c,
         people,
+        schoolsSummary,
+        sessionScope,
         backlog,
         generatedBy,
       });
