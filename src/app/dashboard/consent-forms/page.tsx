@@ -11,6 +11,7 @@ import { HdQrCode } from '@/components/qr/HdQrCode';
 import { brandContact } from '@/config/brand';
 import { enrollmentTypeLabel } from '@/lib/registration/enrollment-types';
 import { formatAcademicSession, liveAcademicSession } from '@/lib/reports/academic-period';
+import { getSessionBoundary } from '@/lib/academic/session-scope';
 import {
   ClipboardDocumentCheckIcon, PlusIcon, XMarkIcon, CheckCircleIcon,
   ArrowDownTrayIcon, CalendarIcon, TrashIcon, UserGroupIcon,
@@ -976,6 +977,8 @@ export default function ConsentFormsPage() {
       ? requestedView
       : 'all',
   );
+  const [currentSessionOnly, setCurrentSessionOnly] = useState(true);
+  const sessionBoundary = getSessionBoundary();
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -1400,6 +1403,16 @@ export default function ConsentFormsPage() {
   const normalizedSearch = search.trim().toLowerCase();
   const visibleForms = forms
     .filter(form => {
+      if (currentSessionOnly && !normalizedSearch) {
+        const createdMs = form.created_at ? Date.parse(form.created_at) : NaN;
+        const mentionsCurrentSession =
+          `${form.title || ''} ${form.body || ''}`.includes(sessionBoundary.periodLabel);
+        const isCurrentSession =
+          (Number.isFinite(createdMs) && createdMs >= sessionBoundary.sessionStartMs) ||
+          mentionsCurrentSession ||
+          (form.pending_review_count ?? 0) > 0;
+        if (!isCurrentSession) return false;
+      }
       const isOverdue = !!form.due_date && new Date(form.due_date).getTime() < Date.now();
       const matchesFilter =
         viewFilter === 'all' ||
@@ -2064,6 +2077,18 @@ export default function ConsentFormsPage() {
             </div>
             <div className="-mx-1 overflow-x-auto px-1 pb-1" role="group" aria-label="Filter consent forms">
               <div className="flex min-w-max gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentSessionOnly(v => !v)}
+                  aria-pressed={currentSessionOnly}
+                  className={`min-h-11 rounded-xl border px-3 text-xs font-black transition-colors ${
+                    currentSessionOnly
+                      ? 'border-emerald-600/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+                      : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {currentSessionOnly ? `Session ${sessionBoundary.periodLabel}` : 'All Sessions'}
+                </button>
                 {([
                   ['all', 'All', forms.length],
                   ['needs_review', 'Needs review', needsReviewCount],

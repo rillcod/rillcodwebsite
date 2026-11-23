@@ -23,6 +23,7 @@ import {
   academicYearOptions,
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
+import { getSessionBoundary } from '@/lib/academic/session-scope';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { generatePredictiveComments, getStrengthBankSuggestions, getGrowthBankSuggestions } from '@/lib/reports/comment-warehouse';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
@@ -698,6 +699,8 @@ function ReportBuilderInner() {
     const [hydratedProfileId, setHydratedProfileId] = useState<string | null>(null);
     const [storageWarning, setStorageWarning] = useState<string | null>(null);
     const [showHiddenStudents, setShowHiddenStudents] = useState(false);
+    const [currentSessionOnly, setCurrentSessionOnly] = useState(true);
+    const sessionBoundary = useMemo(() => getSessionBoundary(), []);
     const [wipingStudentId, setWipingStudentId] = useState<string | null>(null);
 
     // ── Flow: session setup → continuous grade workspace (no wizard steps) ──
@@ -1476,6 +1479,22 @@ function ReportBuilderInner() {
         // Override mode or active search: show all loaded students and match
         // the same name, email or grade fields advertised by the search box.
         if (overrideFilters || search.length >= 2) return matchesSearch;
+
+        // Current Session Only guard (default ON): hide unconfirmed prior-session students
+        // unless they were created/confirmed/rolled over for this session or already have a report.
+        if (currentSessionOnly) {
+            const meta = (s as any).metadata && typeof (s as any).metadata === 'object' ? (s as any).metadata : {};
+            const createdMs = (s as any).created_at ? Date.parse((s as any).created_at) : NaN;
+            const inCurrentSession =
+                String(meta.confirmed_session || '') === sessionBoundary.periodLabel ||
+                String(meta.rollover_session || '') === sessionBoundary.periodLabel ||
+                (Array.isArray(meta.session_history) &&
+                    meta.session_history.some((h: any) => String(h?.session || '') === sessionBoundary.periodLabel)) ||
+                (Number.isFinite(createdMs) && createdMs >= sessionBoundary.sessionStartMs) ||
+                reportedIds.has(s.id) ||
+                draftedIds.has(s.id);
+            if (!inCurrentSession) return false;
+        }
 
         // School filter: use school_id match OR school_name match (handles legacy records)
         const matchesSchool = !sessionConfig.school_name
@@ -3999,6 +4018,13 @@ function ReportBuilderInner() {
                                 </h2>
                                 <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground shadow-sm">{filteredStudents.length} shown / {students.length} loaded</span>
                                 <div className="flex flex-wrap gap-2 sm:ml-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentSessionOnly(v => !v)}
+                                    className={`min-h-11 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors ${currentSessionOnly ? 'border-emerald-600/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                                >
+                                    {currentSessionOnly ? `Current Session (${sessionBoundary.periodLabel})` : 'All Sessions'}
+                                </button>
                                 {canWipeStudents && (
                                     <button
                                         type="button"

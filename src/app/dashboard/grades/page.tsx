@@ -802,7 +802,7 @@ export default function GradesPage() {
                     if (!sessionTermId && liveRow?.id) setSessionTermId(liveRow.id);
                 }
 
-                const includeUntagged = !selectedId || selectedId === liveRow?.id;
+                const includeUntagged = !selectedId;
                 const [subData, progData, courseData, classesRes] = await withTimeoutOrThrow(Promise.all([
                     isStaff
                         ? fetchSubmissionsForGrading({

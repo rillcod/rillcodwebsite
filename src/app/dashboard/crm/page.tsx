@@ -24,6 +24,7 @@ import { CrmListToolbar } from '@/components/crm/CrmListToolbar';
 import { CrmMergePanel } from '@/components/crm/CrmMergePanel';
 import { useOfficeOptional } from '@/components/office/OfficeContext';
 import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
+import { getSessionBoundary } from '@/lib/academic/session-scope';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -251,16 +252,34 @@ export default function CRMPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailNotice, setEmailNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [broadcastMode, setBroadcastMode] = useState(false);
+  const [crmSessionOnly, setCrmSessionOnly] = useState(true);
+  const crmSessionBoundary = useMemo(() => getSessionBoundary(), []);
+
+  const scopedContacts = useMemo(() => {
+    if (!crmSessionOnly) return contacts;
+    return contacts.filter((c) => {
+      // Keep school partners, leads, teachers, and admins visible across sessions;
+      // filter old unconfirmed students out of Current Session CRM view.
+      if (c.role !== 'student') return true;
+      const meta = c.metadata && typeof c.metadata === 'object' ? c.metadata : {};
+      const createdMs = c.created_at ? Date.parse(c.created_at) : NaN;
+      return (
+        String(meta.confirmed_session || '') === crmSessionBoundary.periodLabel ||
+        String(meta.rollover_session || '') === crmSessionBoundary.periodLabel ||
+        (Number.isFinite(createdMs) && createdMs >= crmSessionBoundary.sessionStartMs)
+      );
+    });
+  }, [contacts, crmSessionOnly, crmSessionBoundary]);
 
   const realEmailContacts = useMemo(
     () =>
-      contacts.filter((c) => {
+      scopedContacts.filter((c) => {
         const em = String(c.email || '').trim().toLowerCase();
         if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return false;
         if (em.endsWith('@rillcod.com') && em !== 'support@rillcod.com') return false;
         return true;
       }),
-    [contacts],
+    [scopedContacts],
   );
 
   const openEmailComposer = (
@@ -917,7 +936,7 @@ export default function CRMPage() {
   // ─── Grouped list (server applies stage filter) ───────────────────────────
   const groupedContacts = useMemo(() => {
     const map = new Map<string, CRMContact[]>();
-    for (const c of contacts) {
+    for (const c of scopedContacts) {
       const key = c.school_name?.trim() || '(No School)';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(c);
@@ -937,7 +956,7 @@ export default function CRMPage() {
       if (b === '(No School)') return -1;
       return a.localeCompare(b);
     });
-  }, [contacts]);
+  }, [scopedContacts]);
 
   const sm = crmStageMeta(selected?.pipeline_stage);
 
@@ -1073,6 +1092,17 @@ export default function CRMPage() {
 
         {/* 1-Tap Marketing & Outreach Triage Presets */}
         <div className="px-3 sm:px-4 pb-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setCrmSessionOnly((v) => !v)}
+            className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-black border transition-colors ${
+              crmSessionOnly
+                ? 'border-emerald-600/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+                : 'bg-background border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {crmSessionOnly ? `Session ${crmSessionBoundary.periodLabel}` : 'All Sessions'}
+          </button>
           {[
             { label: 'All Contacts', active: roleFilter === 'all' && stageFilter === 'all', onClick: () => { setRoleFilter('all'); setStageFilter('all'); } },
             { label: 'Prospects', active: stageFilter === 'prospect', onClick: () => { setRoleFilter('all'); setStageFilter('prospect'); } },
