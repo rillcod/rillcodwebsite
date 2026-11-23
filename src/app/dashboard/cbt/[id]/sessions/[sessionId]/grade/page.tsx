@@ -33,6 +33,9 @@ export default function GradeSessionPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showObjectives, setShowObjectives] = useState(false);
+    const [nextPendingId, setNextPendingId] = useState<string | null>(null);
+    const [pendingCount, setPendingCount] = useState<number>(0);
     const [aiDraft, setAiDraft] = useState<{ scores: Record<string, number>; feedback: string }>({
         scores: {},
         feedback: '',
@@ -47,7 +50,7 @@ export default function GradeSessionPage() {
 
         async function fetchData() {
             try {
-                const [sessionJson, examJson, usersJson] = await Promise.all([
+                const [sessionJson, examJson, usersJson, allSessionsJson] = await Promise.all([
                     fetch(`/api/cbt/sessions/${params.sessionId}`, { cache: 'no-store' }).then(async r => {
                         const payload = await r.json();
                         if (!r.ok) throw new Error(payload.error || 'Session not found');
@@ -59,7 +62,13 @@ export default function GradeSessionPage() {
                         return payload;
                     }),
                     fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
+                    fetch(`/api/cbt/sessions?exam_id=${params.id}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
                 ]);
+
+                const otherPending = (Array.isArray(allSessionsJson?.data) ? allSessionsJson.data : [])
+                    .filter((s: any) => s.id !== params.sessionId && (s.status === 'pending_grading' || s.needs_grading));
+                setNextPendingId(otherPending[0]?.id ?? null);
+                setPendingCount(otherPending.length);
 
                 // Enrich session with student info from API (bypasses RLS on portal_users)
                 const umap: Record<string, any> = {};
@@ -151,7 +160,7 @@ export default function GradeSessionPage() {
         setAiDraft({ scores: {}, feedback: '' });
     };
 
-    const handleSaveGrade = async () => {
+    const handleSaveGrade = async (goToNextPending = false) => {
         setSaving(true);
         setError(null);
         try {
@@ -197,7 +206,11 @@ export default function GradeSessionPage() {
               }
             }
 
-            router.push(`/dashboard/cbt/${params.id}`);
+            if (goToNextPending && nextPendingId) {
+                router.push(`/dashboard/cbt/${params.id}/sessions/${nextPendingId}/grade`);
+            } else {
+                router.push(`/dashboard/cbt/${params.id}`);
+            }
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -259,7 +272,7 @@ export default function GradeSessionPage() {
                             {aiGrading ? 'Preparing draft…' : 'AI Grading Draft'}
                         </button>
                         <button
-                            onClick={handleSaveGrade}
+                            onClick={() => void handleSaveGrade(false)}
                             disabled={saving || aiGrading}
                             className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-900/25 group"
                         >
@@ -322,15 +335,34 @@ export default function GradeSessionPage() {
                   );
                 })()}
 
-                {/* Auto-graded questions summary */}
-                {questions.filter(q => !isManualCbtQuestion(q)).length > 0 && (
+                {/* Collapsible Auto-Graded Objective Questions (collapsed by default so written responses are front & center) */}
+                {(() => {
+                  const objQuestions = questions.filter(q => !isManualCbtQuestion(q));
+                  if (objQuestions.length === 0) return null;
+                  const objCorrect = objQuestions.filter(q => isCbtAnswerCorrect(q, session.answers?.[q.id])).length;
+                  const objEarned = objQuestions.reduce((acc, q) => acc + (isCbtAnswerCorrect(q, session.answers?.[q.id]) ? Number(q.points ?? 0) : 0), 0);
+                  const objTotal = objQuestions.reduce((acc, q) => acc + Number(q.points ?? 0), 0);
+                  return (
                   <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-sm">
-                    <div className="px-5 py-3.5 border-b border-border bg-muted/25 flex items-center gap-2.5">
-                      <AcademicCapIcon className="w-4 h-4 text-primary" />
-                      <p className="text-[11px] font-black text-foreground uppercase tracking-widest">Auto-Graded Objective Questions</p>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {questions.filter(q => !isManualCbtQuestion(q)).map((q) => {
+                    <button
+                      type="button"
+                      onClick={() => setShowObjectives((v) => !v)}
+                      aria-expanded={showObjectives}
+                      className="w-full px-5 py-3.5 bg-muted/25 hover:bg-muted/40 flex items-center justify-between gap-2.5 text-left transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <AcademicCapIcon className="w-4 h-4 text-primary shrink-0" />
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest truncate">
+                          Auto-Graded Objectives · {objCorrect}/{objQuestions.length} Correct (+{objEarned}/{objTotal} pts)
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[11px] font-black text-primary">
+                        {showObjectives ? 'Hide ▲' : 'Review ▼'}
+                      </span>
+                    </button>
+                    {showObjectives && (
+                    <div className="divide-y divide-border border-t border-border">
+                      {objQuestions.map((q) => {
                         const studentAns = (session.answers?.[q.id] ?? '').trim();
                         const correctAns = (q.correct_answer ?? '').trim();
                         const isRight = isCbtAnswerCorrect(q, session.answers?.[q.id]);
@@ -356,8 +388,10 @@ export default function GradeSessionPage() {
                         );
                       })}
                     </div>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
 
                 <div className="grid grid-cols-1 gap-6">
                     {subjectiveQuestions.map((q, i) => {
@@ -544,12 +578,35 @@ export default function GradeSessionPage() {
                                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Personalized Student Mentorship</p>
                             </div>
                         </div>
+                        {/* 1-Tap Quick Feedback Chips for fast teacher mentorship */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {[
+                                'Excellent work! Keep it up.',
+                                'Good understanding of the topic.',
+                                'Show clearer step-by-step working.',
+                                'Review key concepts and try practicing more.',
+                                'Neat and well-explained responses.',
+                            ].map((preset) => (
+                                <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() =>
+                                        setGradingNotes((prev) =>
+                                            prev.trim() ? `${prev.trim()} ${preset}` : preset,
+                                        )
+                                    }
+                                    className="rounded-full border border-border bg-muted/50 hover:bg-primary/10 hover:border-primary/40 px-3 py-1 text-[11px] font-bold text-foreground transition-colors"
+                                >
+                                    + {preset}
+                                </button>
+                            ))}
+                        </div>
                         <textarea
                             value={gradingNotes}
                             onChange={(e) => setGradingNotes(e.target.value)}
                             placeholder="Provide constructive feedback for the student's growth..."
-                            rows={5}
-                            className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-[2rem] text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
+                            rows={4}
+                            className="w-full px-5 py-4 bg-background border border-border rounded-2xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-all resize-none"
                         />
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <label className="block">
@@ -584,6 +641,60 @@ export default function GradeSessionPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Sticky Bottom Live Score & Fast Save Bar (zero scroll-back!) */}
+            {(() => {
+                const live = gradeCbtWithManualScores(exam, questions, session.answers ?? {}, manualScores);
+                const scoredWritten = subjectiveQuestions.filter(
+                    (q) => manualScores[q.id] !== undefined && manualScores[q.id] !== null,
+                ).length;
+                return (
+                    <div className="sticky bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-md shadow-lg">
+                        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <span className={`text-xl font-black tabular-nums ${
+                                    live.needsGrading
+                                        ? 'text-amber-600 dark:text-amber-400'
+                                        : live.status === 'passed'
+                                        ? 'text-emerald-700 dark:text-emerald-400'
+                                        : 'text-rose-600 dark:text-rose-400'
+                                }`}>
+                                    {live.score}%
+                                </span>
+                                <div className="text-[11px] leading-tight">
+                                    <p className="font-black text-foreground">
+                                        {live.earnedPoints}/{live.totalPoints} pts
+                                    </p>
+                                    <p className="text-muted-foreground font-semibold">
+                                        {scoredWritten}/{subjectiveQuestions.length} written scored
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => void handleSaveGrade(false)}
+                                    disabled={saving || aiGrading}
+                                    className="min-h-10 px-4 py-2 rounded-xl border border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-45 text-emerald-800 dark:text-emerald-300 text-xs font-black uppercase tracking-wider"
+                                >
+                                    {saving ? 'Saving…' : 'Finalize'}
+                                </button>
+                                {nextPendingId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleSaveGrade(true)}
+                                        disabled={saving || aiGrading}
+                                        className="min-h-10 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-45 text-white text-xs font-black uppercase tracking-wider shadow-sm"
+                                    >
+                                        {saving ? 'Saving…' : `Save & Next (${pendingCount}) →`}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
