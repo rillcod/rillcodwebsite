@@ -82,18 +82,21 @@ function CopyLinkRow({ label, url, accent = 'text-foreground' }: { label: string
 export default function ParentClaim({
   code,
   recordGaps,
+  initialPhone = '',
   autoOpen = true,
   onLinked,
 }: {
   code: string;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
+  /** Optional phone captured during class intake — pre-fills so parent can confirm/verify. */
+  initialPhone?: string;
   /** When true (default), open the details form immediately — no extra “Set up” tap. */
   autoOpen?: boolean;
   onLinked?: (result: ParentClaimLinkedResult) => void;
 }) {
   const [step, setStep] = useState<Step>(autoOpen ? 'form' : 'cta');
   const [form, setForm] = useState({
-    fullName: '', email: '', phone: '', relationship: 'Guardian',
+    fullName: '', email: '', phone: initialPhone, relationship: 'Guardian',
     childGender: '' as '' | 'male' | 'female', childAge: '', childDob: '', whatsappOptIn: true,
   });
   const [claimId, setClaimId] = useState('');

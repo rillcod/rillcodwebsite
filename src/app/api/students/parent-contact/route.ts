@@ -70,6 +70,8 @@ export async function GET() {
         studentName: portal.full_name || 'Student',
         rcCode: rawCode,
         rcCodeDisplay: formatAccessCardCodeDisplay(rawCode),
+        prefillPhone: existingPhone || '',
+        prefillName: existingName || '',
         recordGaps: {
           needsGender: !hasGender,
           needsAge: !hasDob,

@@ -22,6 +22,7 @@ export default function ParentContactGate() {
   const [studentName, setStudentName] = useState('');
   const [rcCode, setRcCode] = useState('');
   const [rcCodeDisplay, setRcCodeDisplay] = useState('');
+  const [prefillPhone, setPrefillPhone] = useState('');
   const [recordGaps, setRecordGaps] = useState<{ needsGender?: boolean; needsAge?: boolean }>({});
 
   const isOnReportCardRoute = Boolean(
@@ -46,6 +47,7 @@ export default function ParentContactGate() {
           setStudentName(data.studentName || profile.full_name || 'Student');
           setRcCode(data.rcCode);
           setRcCodeDisplay(data.rcCodeDisplay || data.rcCode);
+          setPrefillPhone(String(data.prefillPhone || ''));
           setRecordGaps(data.recordGaps || {});
           setOpen(true);
         } else if (typeof window !== 'undefined') {
@@ -128,6 +130,7 @@ export default function ParentContactGate() {
           <ParentClaim
             code={rcCode}
             recordGaps={recordGaps}
+            initialPhone={prefillPhone}
             autoOpen
             onLinked={dismissForSession}
           />

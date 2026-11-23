@@ -84,7 +84,7 @@ export async function GET(
     const sectionQuery = cls.school_id && cls.name
       ? admin
           .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
+          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
           .eq('school_id', cls.school_id)
           .eq('section_class', cls.name)
           .is('class_id', null)
@@ -95,7 +95,7 @@ export async function GET(
     const [directResult, rosterResult, sectionResult] = await Promise.all([
       admin
         .from('portal_users')
-        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
+        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
         .eq('class_id', classId)
         .eq('role', 'student')
         .order('full_name'),
@@ -194,7 +194,7 @@ export async function GET(
       if (reportStudentIds.length > 0) {
         const { data: reportLinkedStudents } = await admin
           .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
+          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
           .in('id', reportStudentIds)
           .eq('role', 'student')
           .order('full_name');
@@ -251,13 +251,78 @@ export async function GET(
     ].filter(Boolean);
     const [[reportIndicatorEnabled, pasteClaimEnabled], canonicalTermResult, liveCountResult] =
       await Promise.all([rosterSettingsPromise, canonicalTermPromise, liveCountPromise]);
+
+    // ── Enrich with Parent Contact / Verification status & Session Cohort hygiene ──
+    const canonicalTermId = (canonicalTermResult.data as { id?: string } | null)?.id ?? null;
+    const currentSessionLabel = academicPeriod.periodLabel;
+    const sessionStartYearMatch = /^(\d{4})/.exec(currentSessionLabel);
+    const sessionCutoffMs = sessionStartYearMatch
+      ? Date.UTC(Number(sessionStartYearMatch[1]), 7, 1) // Aug 1 of session start year
+      : Date.now() - 120 * 24 * 60 * 60 * 1000;
+
+    if (!light && allRosterIds.length > 0) {
+      const { data: studentRows } = await admin
+        .from('students')
+        .select('id, user_id, parent_name, parent_phone, parent_email')
+        .in('user_id', allRosterIds);
+      const studentRowByUserId = new Map<string, any>();
+      const studentTableIds: string[] = [];
+      for (const row of studentRows ?? []) {
+        if ((row as any).user_id) {
+          studentRowByUserId.set((row as any).user_id, row);
+          if ((row as any).id) studentTableIds.push((row as any).id);
+        }
+      }
+      const verifiedStudentTableIds = new Set<string>();
+      if (studentTableIds.length > 0) {
+        const { data: parentLinks } = await admin
+          .from('parent_student_links')
+          .select('student_id, verified_by_parent_at')
+          .in('student_id', studentTableIds);
+        for (const link of parentLinks ?? []) {
+          if ((link as any).student_id) {
+            verifiedStudentTableIds.add((link as any).student_id);
+          }
+        }
+      }
+
+      const enrichContactAndSession = (s: any) => {
+        const meta = (s.metadata && typeof s.metadata === 'object' ? s.metadata : {}) as Record<string, any>;
+        const st = studentRowByUserId.get(s.id);
+        const parentPhone = String(st?.parent_phone || meta.parent_phone || '').trim() || null;
+        const parentName = String(st?.parent_name || meta.parent_name || '').trim() || null;
+        const parentVerified = Boolean(st?.id && verifiedStudentTableIds.has(st.id));
+        const confirmedSession = String(meta.confirmed_session || '').trim() || null;
+        const roster = rosterByStudent.get(s.id);
+        const createdMs = s.created_at ? Date.parse(s.created_at) : 0;
+        const rosterStartMs = roster?.started_at ? Date.parse(roster.started_at) : 0;
+        const isCurrentTermRoster = Boolean(canonicalTermId && roster?.term_id === canonicalTermId && roster?.status === 'active');
+        const isConfirmedThisSession =
+          confirmedSession === currentSessionLabel ||
+          isCurrentTermRoster ||
+          createdMs >= sessionCutoffMs ||
+          rosterStartMs >= sessionCutoffMs;
+        return {
+          ...s,
+          parent_phone: parentPhone,
+          parent_name: parentName,
+          parent_verified: parentVerified,
+          parent_phone_source: String(meta.parent_phone_source || '').trim() || null,
+          confirmed_session: confirmedSession,
+          session_status: isConfirmedThisSession ? 'confirmed_current' : 'carryover_unconfirmed',
+        };
+      };
+      students = students.map(enrichContactAndSession);
+      formerStudents = formerStudents.map(enrichContactAndSession);
+    }
+
     // ?with_reports=1 (class ID-card / RC roster screen) always needs report status,
     // even when the roster indicator setting is switched off.
     const forceReports = new URL(_request.url).searchParams.get('with_reports') === '1';
     if (reportIndicatorEnabled || forceReports) {
       const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds, {
         ...academicPeriod,
-        termId: (canonicalTermResult.data as { id?: string } | null)?.id ?? null,
+        termId: canonicalTermId,
       });
       const withReport = (s: any) => ({
         ...s,
@@ -317,6 +382,8 @@ export async function GET(
         },
         max_students: cls.max_students,
         total: actualCount,
+        current_session: academicPeriod.periodLabel,
+        current_term: academicPeriod.termLabel,
         report_indicator_enabled: reportIndicatorEnabled,
         paste_claim_enabled: pasteClaimEnabled,
       },

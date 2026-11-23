@@ -39,6 +39,7 @@ import { assessmentExperience, type AssessmentExperience } from '@/lib/academic/
 import { resolveSchoolProgrammePolicy, type SchoolProgrammePolicy } from '@/lib/academic/school-programme-standing';
 
 import { ClassPromotionPanel } from '@/components/classes/ClassPromotionPanel';
+import { ClassIntakeAndSessionPanel } from '@/components/classes/ClassIntakeAndSessionPanel';
 import { ClassTeachingWorkspace } from '@/components/classes/ClassTeachingWorkspace';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import { printBlankClassMarkSheet } from '@/lib/reports/office-printables';
@@ -153,8 +154,11 @@ export default function ClassDetailPage() {
   const [modalTargetGrade, setModalTargetGrade] = useState('');
   const [modalStudentActions, setModalStudentActions] = useState<Record<string, 'promote' | 'demote' | 'retain'>>({});
   const [modalSchoolClasses, setModalSchoolClasses] = useState<Array<{ id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>>([]);
-  // Session Roster Confirmation + Inline Quick-Add
+  // Session Roster Confirmation + Inline Quick-Add + Digital Intake & Session Hygiene
   const [showSessionConfirm, setShowSessionConfirm] = useState(false);
+  const [showIntakePanel, setShowIntakePanel] = useState(false);
+  const [intakePanelTab, setIntakePanelTab] = useState<'intake' | 'hygiene'>('intake');
+  const [currentSessionLabel, setCurrentSessionLabel] = useState<string>('2026/2027');
   const [showCredSheet, setShowCredSheet] = useState(false);
   const [credSheetRows, setCredSheetRows] = useState<CredentialSheetStudent[]>([]);
   const [credSheetLoading, setCredSheetLoading] = useState(false);
@@ -335,6 +339,7 @@ export default function ClassDetailPage() {
         const studentPromise = fetchActionJson<{
           students: any[];
           former_students: any[];
+          current_session?: string;
           report_indicator_enabled: boolean;
           paste_claim_enabled: boolean;
           error: string;
@@ -390,6 +395,7 @@ export default function ClassDetailPage() {
         }
         setEnrollments(studentsRes.students ?? []);
         setFormerEnrollments(studentsRes.former_students ?? []);
+        if (studentsRes.current_session) setCurrentSessionLabel(studentsRes.current_session);
         setStudentRecordsLoaded(true);
         setReportIndicatorEnabled(studentsRes.report_indicator_enabled !== false);
         setPasteClaimEnabled(studentsRes.paste_claim_enabled === true);
@@ -2041,16 +2047,14 @@ export default function ClassDetailPage() {
                 <span className="rounded-full bg-brand-red-accent px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
                   {pathwayLabel}
                 </span>
-                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                  cls.status === 'active'
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                    : cls.status === 'scheduled'
-                      ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                      : 'border-border bg-background text-muted-foreground'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${
-                    cls.status === 'active' ? 'bg-emerald-500' : cls.status === 'scheduled' ? 'bg-amber-500' : 'bg-muted-foreground'
-                  }`} />
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${cls.status === 'active'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : cls.status === 'scheduled'
+                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                    : 'border-border bg-background text-muted-foreground'
+                  }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${cls.status === 'active' ? 'bg-emerald-500' : cls.status === 'scheduled' ? 'bg-amber-500' : 'bg-muted-foreground'
+                    }`} />
                   {cls.status}
                 </span>
               </div>
@@ -2107,11 +2111,10 @@ export default function ClassDetailPage() {
                   <button
                     type="button"
                     onClick={() => selectOperation('teaching')}
-                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
-                      activeOperation === 'teaching'
-                        ? 'bg-card text-primary border border-primary/40 shadow-sm'
-                        : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
-                    }`}
+                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${activeOperation === 'teaching'
+                      ? 'bg-card text-primary border border-primary/40 shadow-sm'
+                      : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
+                      }`}
                   >
                     <BookOpenIcon className="h-3.5 w-3.5" />
                     Teach
@@ -2121,11 +2124,10 @@ export default function ClassDetailPage() {
                   <button
                     type="button"
                     onClick={() => selectOperation('assessment')}
-                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
-                      activeOperation === 'assessment'
-                        ? 'bg-card text-primary border border-primary/40 shadow-sm'
-                        : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
-                    }`}
+                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${activeOperation === 'assessment'
+                      ? 'bg-card text-primary border border-primary/40 shadow-sm'
+                      : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
+                      }`}
                   >
                     <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
                     Assessment
@@ -2142,17 +2144,15 @@ export default function ClassDetailPage() {
                     selectOperation('roster');
                     document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                   }}
-                  className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${
-                    activeOperation === 'roster'
-                      ? 'bg-card text-primary border border-primary/40 shadow-sm'
-                      : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
-                  }`}
+                  className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${activeOperation === 'roster'
+                    ? 'bg-card text-primary border border-primary/40 shadow-sm'
+                    : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
+                    }`}
                 >
                   <UserGroupIcon className="h-3.5 w-3.5" />
                   Students
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                    activeOperation === 'roster' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
-                  }`}>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${activeOperation === 'roster' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                    }`}>
                     {currentTermStudents.length}
                   </span>
                 </button>
@@ -2168,11 +2168,10 @@ export default function ClassDetailPage() {
                       openSessionConfirm();
                       setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
                     }}
-                    className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${
-                      offBandCount > 0
-                        ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
-                        : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/20'
-                    }`}
+                    className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${offBandCount > 0
+                      ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                      : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/20'
+                      }`}
                   >
                     <CheckCircleIcon className="h-3.5 w-3.5" />
                     Confirm Grades
@@ -2403,6 +2402,27 @@ export default function ClassDetailPage() {
                       )}
                       {isStaff && (
                         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIntakePanelTab('intake');
+                              setShowIntakePanel((v) => !v);
+                              setRosterOpen(true);
+                            }}
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors shadow-sm ${
+                              showIntakePanel
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-emerald-600/40 bg-emerald-700 text-white hover:bg-emerald-800'
+                            }`}
+                          >
+                            <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{showIntakePanel ? 'Hide Intake Sheet' : 'Intake & WhatsApp'}</span>
+                            {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length > 0 && (
+                              <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
+                                {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length}
+                              </span>
+                            )}
+                          </button>
                           <Link
                             href={`/dashboard/classes/${id}/enroll`}
                             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
@@ -2908,6 +2928,46 @@ export default function ClassDetailPage() {
                           </div>
                         )}
                       </div>
+                    )}
+
+                    {rosterOpen && isStaff && !showIntakePanel && currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length > 0 && (
+                      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <ExclamationTriangleIcon className="w-5 h-5 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
+                          <div className="text-xs text-amber-950 dark:text-amber-200">
+                            <p className="font-black">
+                              {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length} prior-session student{currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length === 1 ? '' : 's'} mixed into {cls?.name || 'this class'}
+                            </p>
+                            <p className="opacity-90 mt-0.5">
+                              Separate last session&apos;s set from {currentSessionLabel} — promote them to their next class, archive cleanly (keeps all results), or confirm returning students.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIntakePanelTab('hygiene');
+                            setShowIntakePanel(true);
+                          }}
+                          className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-amber-800 hover:bg-amber-900 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-white shadow-sm"
+                        >
+                          Clean Up Old vs New
+                        </button>
+                      </div>
+                    )}
+
+                    {rosterOpen && showIntakePanel && isStaff && (
+                      <ClassIntakeAndSessionPanel
+                        classId={id}
+                        className={cls?.name || 'Class'}
+                        classGradeKey={cls?.qa_grade_key}
+                        currentSession={currentSessionLabel}
+                        students={currentTermStudents}
+                        destinationClasses={destinationClasses}
+                        initialTab={intakePanelTab}
+                        onClose={() => setShowIntakePanel(false)}
+                        onRefresh={fetchData}
+                      />
                     )}
 
                     {rosterOpen && showSessionConfirm && isStaff && (
