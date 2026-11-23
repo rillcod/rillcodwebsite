@@ -152,7 +152,9 @@ export default function AccountabilityDashboard({
       to_class_id: string | null;
       to_class_name: string | null;
       to_grade: string | null;
-      action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'mark_inactive';
+      is_terminal?: boolean;
+      is_sister_school_move?: boolean;
+      action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'withdraw_terminal' | 'mark_inactive';
       student_count: number;
       enabled: boolean;
     }>;
@@ -1821,7 +1823,9 @@ export default function AccountabilityDashboard({
                 const moving = active.filter((r) => r.action === 'promote').reduce((s, r) => s + r.student_count, 0);
                 const inBand = active.filter((r) => r.action === 'upgrade_in_place').reduce((s, r) => s + r.student_count, 0);
                 const graduating = active.filter((r) => r.action === 'archive_graduated').reduce((s, r) => s + r.student_count, 0);
-                const inactive = active.filter((r) => r.action === 'mark_inactive').reduce((s, r) => s + r.student_count, 0);
+                const inactive = active
+                  .filter((r) => r.action === 'mark_inactive' || r.action === 'withdraw_terminal')
+                  .reduce((s, r) => s + r.student_count, 0);
                 return (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="rounded-xl border border-primary/25 bg-primary/5 p-2.5 text-center">
@@ -1899,9 +1903,11 @@ export default function AccountabilityDashboard({
                     const selectVal =
                       row.action === 'archive_graduated'
                         ? '__graduate__'
-                        : row.action === 'mark_inactive'
-                          ? '__inactive__'
-                          : row.to_class_id || '__inactive__';
+                        : row.action === 'withdraw_terminal'
+                          ? '__withdraw__'
+                          : row.action === 'mark_inactive'
+                            ? '__inactive__'
+                            : row.to_class_id || '__inactive__';
                     return (
                       <div
                         key={row.row_key}
@@ -1929,10 +1935,22 @@ export default function AccountabilityDashboard({
                             className="mt-1 rounded border-border accent-primary"
                           />
                           <div className="min-w-0">
-                            <p className="text-xs font-black text-foreground truncate">
-                              {row.from_class_name} · <span className="text-primary">{row.from_grade}</span>
-                              {row.to_grade ? ` → ${row.to_grade}` : ''}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="text-xs font-black text-foreground truncate">
+                                {row.from_class_name} · <span className="text-primary">{row.from_grade}</span>
+                                {row.to_grade ? ` → ${row.to_grade}` : ''}
+                              </p>
+                              {row.is_terminal && (
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-800 dark:text-amber-300">
+                                  Terminal
+                                </span>
+                              )}
+                              {row.is_sister_school_move && (
+                                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-800 dark:text-emerald-300">
+                                  Sister School
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-muted-foreground">
                               {row.student_count} active student{row.student_count === 1 ? '' : 's'}
                             </p>
@@ -1954,6 +1972,9 @@ export default function AccountabilityDashboard({
                                   if (val === '__graduate__') {
                                     return { ...r, action: 'archive_graduated', to_class_id: null, to_class_name: 'Graduated Archive' };
                                   }
+                                  if (val === '__withdraw__') {
+                                    return { ...r, action: 'withdraw_terminal', to_class_id: null, to_class_name: 'Withdraw / Remove from Class' };
+                                  }
                                   if (val === '__inactive__') {
                                     return { ...r, action: 'mark_inactive', to_class_id: null, to_class_name: 'Mark Inactive' };
                                   }
@@ -1971,6 +1992,7 @@ export default function AccountabilityDashboard({
                           }}
                           className="min-h-9 sm:w-64 rounded-xl border border-border bg-background px-2.5 text-xs font-bold text-foreground disabled:opacity-50"
                         >
+                          <option value="__withdraw__">Withdraw / Remove (Terminal)</option>
                           <option value="__inactive__">Mark Inactive (no next-tier class)</option>
                           <option value="__graduate__">Graduated Archive</option>
                           {rolloverModal.availableClasses.map((cls) => (

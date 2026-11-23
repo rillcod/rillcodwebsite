@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSpecializedProgramRecord, reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
+import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
 import { getSessionBoundary } from '@/lib/academic/session-scope';
 import { logAudit } from '@/lib/audit/log';
 
@@ -72,7 +73,9 @@ type PlanRow = {
   to_class_id: string | null;
   to_class_name: string | null;
   to_grade: string | null;
-  action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'mark_inactive';
+  is_terminal?: boolean;
+  is_sister_school_move?: boolean;
+  action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'withdraw_terminal' | 'mark_inactive';
   student_count: number;
   student_ids: string[];
 };
@@ -211,6 +214,44 @@ export async function POST(
       return candidates[0].cls;
     };
 
+    // Discover sister schools (e.g. "Quincy Academy" <-> "Quincy Secondary School")
+    // so terminal primary grades (Basic 5 / Basic 6) can transition directly into a sister school's JSS 1 class!
+    const { data: allSchools } = await admin.from('schools').select('id, name').neq('id', schoolId);
+    const sisterSchools = ((allSchools ?? []) as Array<{ id: string; name: string }>).filter((other) =>
+      areSisterSchools(school.name, other.name),
+    );
+    const sisterSchoolNameMap = new Map(sisterSchools.map((s) => [s.id, s.name]));
+    const sisterParsedClasses: Array<ParsedClass & { school_name: string }> = [];
+
+    if (sisterSchools.length > 0) {
+      const { data: sClasses } = await admin
+        .from('classes')
+        .select('id, name, program_id, term_id, school_id, teacher_id, status')
+        .in('school_id', sisterSchools.map((s) => s.id))
+        .order('name');
+      for (const sc of (sClasses ?? []) as any[]) {
+        if (['archived', 'inactive', 'completed'].includes(String(sc.status || '').toLowerCase())) continue;
+        if (isSpecializedProgramRecord(null, sc.name)) continue;
+        const parsed = parseClassGrades(sc.name);
+        if (parsed.grades.length > 0) {
+          sisterParsedClasses.push({
+            cls: sc,
+            ...parsed,
+            school_name: sisterSchoolNameMap.get(sc.school_id) || 'Sister School',
+          });
+        }
+      }
+    }
+
+    const schoolHasBasic6 = parsedClasses.some((p) => p.grades.includes('Basic 6'));
+
+    const findSisterJss1Class = (): (ParsedClass & { school_name: string }) | null => {
+      const candidates = sisterParsedClasses.filter((p) => p.grades.includes('JSS 1'));
+      if (candidates.length === 0) return null;
+      candidates.sort((a, b) => (a.isBand ? 1 : 0) - (b.isBand ? 1 : 0));
+      return candidates[0];
+    };
+
     const currentSession = getSessionBoundary().periodLabel;
     const sourceClasses = scopedClassId
       ? parsedClasses.filter((p) => p.cls.id === scopedClassId)
@@ -264,18 +305,36 @@ export async function POST(
         let action: PlanRow['action'];
         let targetClass: any = null;
         let nextGrade: CanonicalGrade | null = null;
+        let isTerminal = false;
+        let isSisterMove = false;
+        let sisterLabel: string | null = null;
 
         if (ladderIndex === GRADE_LADDER.length - 1) {
+          // SS 3 — terminal secondary class
+          isTerminal = true;
           action = 'archive_graduated';
         } else {
-          nextGrade = GRADE_LADDER[ladderIndex + 1];
+          // Primary terminal check: Basic 5 in a school without Basic 6, or Basic 6
+          const isPrimaryTerminal =
+            currentGrade === 'Basic 6' || (currentGrade === 'Basic 5' && !schoolHasBasic6);
+          nextGrade = isPrimaryTerminal ? 'JSS 1' : GRADE_LADDER[ladderIndex + 1];
           targetClass = findTargetClass(nextGrade, pc.cls);
-          if (!targetClass) {
-            action = 'mark_inactive';
-          } else if (targetClass.id === pc.cls.id) {
-            action = 'upgrade_in_place';
+
+          if (targetClass) {
+            action = targetClass.id === pc.cls.id ? 'upgrade_in_place' : 'promote';
+          } else if (isPrimaryTerminal && isSisterSchoolTransitionGrade(currentGrade)) {
+            isTerminal = true;
+            const sisterDest = findSisterJss1Class();
+            if (sisterDest) {
+              targetClass = sisterDest.cls;
+              isSisterMove = true;
+              sisterLabel = `Sister School: ${sisterDest.school_name} · ${sisterDest.cls.name}`;
+              action = 'promote';
+            } else {
+              action = 'withdraw_terminal';
+            }
           } else {
-            action = 'promote';
+            action = 'mark_inactive';
           }
         }
 
@@ -294,10 +353,14 @@ export async function POST(
             to_class_name:
               action === 'archive_graduated'
                 ? 'Graduated Archive'
-                : action === 'mark_inactive'
-                  ? `Inactive (no ${nextGrade} class)`
-                  : targetClass?.name ?? null,
+                : action === 'withdraw_terminal'
+                  ? `Withdraw / Remove (terminal ${currentGrade})`
+                  : action === 'mark_inactive'
+                    ? `Inactive (no ${nextGrade} class)`
+                    : sisterLabel ?? targetClass?.name ?? null,
             to_grade: action === 'archive_graduated' ? 'Graduated' : nextGrade,
+            is_terminal: isTerminal,
+            is_sister_school_move: isSisterMove,
             action,
             student_count: 1,
             student_ids: [st.id],
@@ -310,7 +373,16 @@ export async function POST(
     // Top-down execution order (SS 3 first, Basic 1 last) so promotions never collide!
     const sortedPlan = Array.from(planBuckets.values()).sort((a, b) => b.ladderIndex - a.ladderIndex);
     const totalStudentsAffected = sortedPlan.reduce((sum, p) => sum + p.student_count, 0);
-    const availableClasses = activeClasses.map((c: any) => ({ id: c.id, name: c.name }));
+    const availableClasses = [
+      ...activeClasses.map((c: any) => ({ id: c.id, name: c.name, is_sister: false })),
+      ...sisterParsedClasses
+        .filter((sc) => sc.grades.includes('JSS 1'))
+        .map((sc) => ({
+          id: sc.cls.id,
+          name: `Sister School: ${sc.school_name} · ${sc.cls.name}`,
+          is_sister: true,
+        })),
+    ];
 
     if (dryRun) {
       return NextResponse.json({
@@ -332,7 +404,7 @@ export async function POST(
     for (const ov of rawOverrides) {
       if (ov?.row_key) overrideMap.set(String(ov.row_key), ov);
     }
-    const validClassIds = new Set(activeClasses.map((c: any) => c.id));
+    const validClassIds = new Set(availableClasses.map((c) => c.id));
     const requireTeacherConfirmation = body?.require_teacher_confirmation !== false;
 
     const effectivePlan = sortedPlan
@@ -347,7 +419,11 @@ export async function POST(
           if (nextToClassId === step.from_class_id) {
             return { ...step, action: 'upgrade_in_place' as const, to_class_id: step.from_class_id };
           }
-        } else if (nextAction === 'archive_graduated' || nextAction === 'mark_inactive') {
+        } else if (
+          nextAction === 'archive_graduated' ||
+          nextAction === 'withdraw_terminal' ||
+          nextAction === 'mark_inactive'
+        ) {
           nextToClassId = null;
         }
         return { ...step, action: nextAction, to_class_id: nextToClassId };
@@ -408,8 +484,13 @@ export async function POST(
       touchedClassIds.add(step.from_class_id);
       if (step.to_class_id) touchedClassIds.add(step.to_class_id);
 
-      if (step.action === 'archive_graduated' || step.action === 'mark_inactive') {
+      if (
+        step.action === 'archive_graduated' ||
+        step.action === 'withdraw_terminal' ||
+        step.action === 'mark_inactive'
+      ) {
         const isGrad = step.action === 'archive_graduated';
+        const isWithdraw = step.action === 'withdraw_terminal';
         await (admin as any)
           .from('class_term_rosters')
           .update({ status: 'withdrawn', ended_at: nowIso, updated_by: caller.id })
@@ -421,7 +502,11 @@ export async function POST(
           .update({
             class_id: null,
             is_active: false,
-            section_class: isGrad ? `Graduated (${currentSession})` : `Inactive — Awaiting ${step.to_grade} (${currentSession})`,
+            section_class: isGrad
+              ? `Graduated (${currentSession})`
+              : isWithdraw
+                ? `Withdrawn — Completed ${step.from_grade} (${currentSession})`
+                : `Inactive — Awaiting ${step.to_grade} (${currentSession})`,
             updated_at: nowIso,
           })
           .in('id', step.student_ids);
@@ -436,8 +521,18 @@ export async function POST(
           .in('user_id', step.student_ids);
 
         if (clearErr) failed += step.student_ids.length;
-        else if (isGrad) archived += step.student_ids.length;
-        else inactivated += step.student_ids.length;
+        else {
+          if (isGrad) archived += step.student_ids.length;
+          else inactivated += step.student_ids.length;
+          await appendSessionHistory(
+            step.student_ids,
+            isGrad ? 'rollover_graduated' : isWithdraw ? 'rollover_withdrawn' : 'rollover_inactive',
+            step.from_grade,
+            step.to_grade,
+            null,
+            isGrad ? 'Graduated Archive' : isWithdraw ? 'Withdrawn (Terminal)' : 'Inactive',
+          );
+        }
         continue;
       }
 
