@@ -185,7 +185,34 @@ export function ClassIntakeAndSessionPanel({
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
   const [kioskCelebration, setKioskCelebration] = useState<string | null>(null);
   const [acknowledgeCandidate, setAcknowledgeCandidate] = useState<DirectoryCandidate | null>(null);
+  const [confirmingExit, setConfirmingExit] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const kioskInputRef = useRef<HTMLInputElement>(null);
+
+  const acceptAllSmartMatches = () => {
+    let matchedCount = 0;
+    setPendingQueue((prev) =>
+      prev.map((row) => {
+        if (row.matched_student_id) return row;
+        const suggestion = findSmartCandidateMatches(row.full_name, directory, 1)[0];
+        if (!suggestion) return row;
+        matchedCount += 1;
+        return {
+          ...row,
+          full_name: suggestion.full_name,
+          parent_name: row.parent_name || suggestion.parent_name || undefined,
+          parent_phone: row.parent_phone || suggestion.parent_phone || '',
+          matched_student_id: suggestion.id,
+          matched_label: suggestion.grade || suggestion.section_class || 'Existing',
+          matched_verified: suggestion.parent_verified,
+          consent_signed: suggestion.consent_signed,
+        };
+      }),
+    );
+    if (matchedCount > 0) {
+      toast.success(`Auto-linked ${matchedCount} existing student record${matchedCount === 1 ? '' : 's'}!`);
+    }
+  };
 
   const queueCandidateDirect = (cand: DirectoryCandidate) => {
     const alreadyQueued = pendingQueue.some(
@@ -686,12 +713,25 @@ export function ClassIntakeAndSessionPanel({
             <button
               type="button"
               onClick={() => {
+                if (passAroundAddedCount > 0 && !confirmingExit) {
+                  setConfirmingExit(true);
+                  setTimeout(() => setConfirmingExit(false), 3500);
+                  return;
+                }
+                setConfirmingExit(false);
                 setPassAroundMode(false);
                 setKioskCelebration(null);
+                setAcknowledgeCandidate(null);
               }}
-              className="shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3.5 py-2 rounded-xl border border-border bg-muted hover:bg-muted/80 text-xs font-black text-foreground"
+              className={`shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3.5 py-2 rounded-xl border text-xs font-black transition-colors ${
+                confirmingExit
+                  ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
+                  : 'border-border bg-muted hover:bg-muted/80 text-foreground'
+              }`}
             >
-              Teacher Finish ({pendingQueue.length})
+              {confirmingExit
+                ? `Tap Again to Finish (${pendingQueue.length})`
+                : `Teacher Finish (${pendingQueue.length})`}
             </button>
           </div>
 
@@ -782,15 +822,17 @@ export function ClassIntakeAndSessionPanel({
                   onSubmit={handleIntakeSubmit}
                   className="rounded-3xl border-2 border-primary/30 bg-card p-6 sm:p-8 shadow-2xl space-y-5"
                 >
-                  <div className="text-center space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-primary">
-                      {lockGrade ? selectedGrade : className} · Quick Check-In
-                    </p>
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-primary">
+                      <span>1. Type Name</span>
+                      <span className="opacity-40">→</span>
+                      <span>{fullName.trim().length >= 2 ? '2. Tap Name or Done' : '2. Confirm'}</span>
+                    </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-foreground">
-                      Type Your Full Name
+                      What is your full name?
                     </h2>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      If your name pops up below, just tap it!
+                      Type slowly — if your name appears below, tap it!
                     </p>
                   </div>
 
@@ -859,54 +901,59 @@ export function ClassIntakeAndSessionPanel({
                     )}
                   </div>
 
-                  {/* Grade selector ONLY if teacher did not lock the grade */}
-                  {!lockGrade && (
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
-                        Your Class / Grade
-                      </label>
-                      <select
-                        aria-label="Your grade"
-                        value={selectedGrade}
-                        onChange={(e) => setSelectedGrade(e.target.value)}
-                        className="w-full h-14 rounded-2xl border-2 border-border bg-background px-4 text-lg font-bold text-foreground"
+                  {/* Progressive Reveal: only show Grade / Phone / Submit once child starts typing */}
+                  {fullName.trim().length >= 2 && (
+                    <div className="space-y-4 pt-1 border-t border-border/60">
+                      {/* Grade selector ONLY if teacher did not lock the grade */}
+                      {!lockGrade && (
+                        <div>
+                          <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
+                            Your Class / Grade
+                          </label>
+                          <select
+                            aria-label="Your grade"
+                            value={selectedGrade}
+                            onChange={(e) => setSelectedGrade(e.target.value)}
+                            className="w-full h-14 rounded-2xl border-2 border-border bg-background px-4 text-lg font-bold text-foreground"
+                          >
+                            {SINGLE_GRADES.map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Parent WhatsApp Phone Input (Required or Optional per Teacher toggle) */}
+                      <div>
+                        <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
+                          Parent WhatsApp Number{' '}
+                          {requirePhone ? (
+                            <span className="text-rose-600 dark:text-rose-400">* Required</span>
+                          ) : (
+                            <span className="font-semibold normal-case">(Optional — skip if you don&apos;t know it)</span>
+                          )}
+                        </label>
+                        <input
+                          type="tel"
+                          required={requirePhone}
+                          aria-label={requirePhone ? 'Parent WhatsApp number (required)' : 'Parent WhatsApp number (optional)'}
+                          value={parentPhone}
+                          onChange={(e) => setParentPhone(e.target.value)}
+                          placeholder={requirePhone ? '0801 234 5678 (required)' : '0801 234 5678 (or leave blank)'}
+                          className="w-full h-14 rounded-2xl border-2 border-border bg-background px-5 text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                        />
+                      </div>
+
+                      {/* Giant Submit Button */}
+                      <button
+                        type="submit"
+                        disabled={fullName.trim().length < 2}
+                        className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-lg sm:text-xl font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
                       >
-                        {SINGLE_GRADES.map((g) => (
-                          <option key={g} value={g}>{g}</option>
-                        ))}
-                      </select>
+                        Done — Next Classmate →
+                      </button>
                     </div>
                   )}
-
-                  {/* Parent WhatsApp Phone Input (Required or Optional per Teacher toggle) */}
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Parent WhatsApp Number{' '}
-                      {requirePhone ? (
-                        <span className="text-rose-600 dark:text-rose-400">* Required</span>
-                      ) : (
-                        <span className="font-semibold normal-case">(Optional — skip if you don&apos;t know it)</span>
-                      )}
-                    </label>
-                    <input
-                      type="tel"
-                      required={requirePhone}
-                      aria-label={requirePhone ? 'Parent WhatsApp number (required)' : 'Parent WhatsApp number (optional)'}
-                      value={parentPhone}
-                      onChange={(e) => setParentPhone(e.target.value)}
-                      placeholder={requirePhone ? '0801 234 5678 (required)' : '0801 234 5678 (optional)'}
-                      className="w-full h-14 rounded-2xl border-2 border-border bg-background px-5 text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
-                    />
-                  </div>
-
-                  {/* Giant Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={fullName.trim().length < 2}
-                    className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-lg sm:text-xl font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
-                  >
-                    Done — Next Classmate →
-                  </button>
                 </form>
               )}
             </div>
@@ -1206,7 +1253,16 @@ export function ClassIntakeAndSessionPanel({
                     Collected with zero lag. Review names, grades, smart existing-student matches &amp; optional phones below, then save all in 1 click.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {pendingQueue.some((r) => !r.matched_student_id && findSmartCandidateMatches(r.full_name, directory, 1).length > 0) && (
+                    <button
+                      type="button"
+                      onClick={acceptAllSmartMatches}
+                      className="min-h-10 px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-black uppercase tracking-wider shadow-sm"
+                    >
+                      Auto-Link All Matches
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -1390,30 +1446,7 @@ export function ClassIntakeAndSessionPanel({
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-white shadow-sm"
                   >
                     <PhoneIcon className="w-3.5 h-3.5" />
-                    WhatsApp Contacts (.vcf)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={copyWhatsAppNumbers}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-muted px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-foreground"
-                  >
-                    <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                    Copy Numbers
-                  </button>
-                  <button
-                    type="button"
-                    onClick={copyGroupWelcomeMessage}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300"
-                  >
-                    Copy Group Welcome
-                  </button>
-                  <button
-                    type="button"
-                    onClick={exportIntakeCsv}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-muted px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-foreground"
-                  >
-                    <CloudArrowDownIcon className="w-3.5 h-3.5" />
-                    Attendance / Admin CSV
+                    WhatsApp (.vcf)
                   </button>
                   <button
                     type="button"
@@ -1430,8 +1463,56 @@ export function ClassIntakeAndSessionPanel({
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary-foreground shadow-sm"
                   >
                     <PrinterIcon className="w-3.5 h-3.5" />
-                    Letterhead PDF / Print
+                    Letterhead PDF
                   </button>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowExportMenu((v) => !v)}
+                      aria-expanded={showExportMenu}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-muted px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-foreground"
+                    >
+                      <CloudArrowDownIcon className="w-3.5 h-3.5" />
+                      More Exports ▾
+                    </button>
+                    {showExportMenu && (
+                      <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 z-30 w-56 rounded-xl border border-border bg-card shadow-xl py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowExportMenu(false);
+                            exportIntakeCsv();
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-bold text-foreground hover:bg-muted flex items-center gap-2"
+                        >
+                          <CloudArrowDownIcon className="w-4 h-4 text-primary" />
+                          Attendance / Admin CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowExportMenu(false);
+                            void copyWhatsAppNumbers();
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-bold text-foreground hover:bg-muted flex items-center gap-2"
+                        >
+                          <ClipboardDocumentListIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                          Copy WhatsApp Numbers
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowExportMenu(false);
+                            void copyGroupWelcomeMessage();
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-bold text-foreground hover:bg-muted flex items-center gap-2"
+                        >
+                          <PhoneIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                          Copy Group Welcome Post
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Search, Organize & Filter Controls */}
