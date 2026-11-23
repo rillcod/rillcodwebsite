@@ -31,22 +31,43 @@ export function ScaledIframePreview({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const update = () => setScale(el.clientWidth / baseWidth);
+    const update = () => {
+      if (el.clientWidth > 0) {
+        setScale(Math.min(1, el.clientWidth / baseWidth));
+      }
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, [baseWidth]);
 
+  const openFullPreview = () => {
+    const win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) return;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  };
+
   return (
     <div className="space-y-2">
-      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-        {label}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
+          {label}
+        </p>
+        <button
+          type="button"
+          onClick={openFullPreview}
+          className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+        >
+          Full preview ↗
+        </button>
+      </div>
       <div
         ref={containerRef}
-        className="w-full overflow-hidden rounded-sm bg-card shadow-inner ring-1 ring-black/5"
-        style={{ height: height * scale }}
+        className="w-full overflow-hidden rounded-lg bg-white shadow-inner ring-1 ring-black/10"
+        style={{ height: Math.max(220, height * scale) }}
       >
         <div
           style={{
@@ -58,7 +79,7 @@ export function ScaledIframePreview({
           <iframe
             srcDoc={html}
             title={label}
-            style={{ width: baseWidth, height, border: 'none', display: 'block' }}
+            style={{ width: baseWidth, height, border: 'none', display: 'block', background: '#ffffff' }}
             onLoad={(e) => {
               try {
                 const h = (e.target as HTMLIFrameElement).contentDocument?.body?.scrollHeight;

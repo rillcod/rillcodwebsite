@@ -182,6 +182,7 @@ export function SchoolInvoiceBuilderPanel({
   const [contextError, setContextError] = useState('');
   const [contextRevision, setContextRevision] = useState(0);
   const [priorSchoolCredit, setPriorSchoolCredit] = useState<number>(0);
+  const [mobilePane, setMobilePane] = useState<'form' | 'preview'>('form');
 
   const hydrateFromInvoicePayload = useCallback((inv: any) => {
     if (!inv) return;
@@ -821,8 +822,45 @@ export function SchoolInvoiceBuilderPanel({
         )}
       </div>
 
+      {/* Mobile-only Form / Live Preview switcher */}
+      <div className="lg:hidden sticky top-0 z-20 px-4 py-2.5 bg-card/95 backdrop-blur-md border-b border-primary/20">
+        <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-muted border border-border">
+          <button
+            type="button"
+            onClick={() => setMobilePane('form')}
+            className={`min-h-9 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${
+              mobilePane === 'form'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Edit Details
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobilePane('preview')}
+            className={`min-h-9 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1.5 ${
+              mobilePane === 'preview'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Live Preview
+            {computed.balance > 0 && (
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono ${
+                mobilePane === 'preview'
+                  ? 'bg-white/20 text-primary-foreground'
+                  : 'bg-background text-foreground'
+              }`}>
+                ₦{computed.balance.toLocaleString()}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row">
-        <div className="flex-1 min-w-0 p-4 sm:p-6 space-y-5">
+        <div className={`flex-1 min-w-0 p-4 sm:p-6 space-y-5 ${mobilePane === 'preview' ? 'hidden lg:block' : 'block'}`}>
           {/* School + pricing mode */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
@@ -1326,21 +1364,32 @@ export function SchoolInvoiceBuilderPanel({
         </div>
 
         {/* Live preview */}
-        <div className="w-full lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6 space-y-3">
+        <div className={`w-full lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6 space-y-3 ${mobilePane === 'form' ? 'hidden lg:block' : 'block'}`}>
           <ScaledIframePreview html={previewHtml} label="Live Invoice Preview" />
-          <button
-            type="button"
-            onClick={() => handleSave()}
-            disabled={!canProceed || saving}
-            className="w-full inline-flex items-center justify-center gap-2 min-h-11 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-black text-[10px] uppercase tracking-widest rounded-md shadow"
-          >
-            {saving ? (
-              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-            ) : (
-              <ShieldCheckIcon className="w-4 h-4" />
-            )}
-            {editingInvoiceId ? 'Update invoice' : 'Create invoice'}
-          </button>
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={!canProceed || saving}
+              className="w-full inline-flex items-center justify-center gap-2 min-h-11 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-black text-[10px] uppercase tracking-widest rounded-md shadow"
+            >
+              {saving ? (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+              ) : (
+                <ShieldCheckIcon className="w-4 h-4" />
+              )}
+              {editingInvoiceId ? 'Update invoice' : 'Create invoice'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={!canProceed || saving}
+              className="lg:hidden w-full inline-flex items-center justify-center gap-2 min-h-11 px-5 py-2.5 bg-card border border-border hover:bg-muted disabled:opacity-40 text-foreground font-black text-[10px] uppercase tracking-widest rounded-md"
+            >
+              <DocumentTextIcon className="w-4 h-4" />
+              Save &amp; print
+            </button>
+          </div>
           <p className="text-[11px] text-center text-muted-foreground">
             Review the preview, then save — term billing links automatically.
           </p>
