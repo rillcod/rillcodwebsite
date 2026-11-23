@@ -44,6 +44,7 @@ interface ClassIntakeAndSessionPanelProps {
   classGradeKey?: string | null;
   currentSession: string;
   students: IntakeStudentRow[];
+  formerStudents?: IntakeStudentRow[];
   destinationClasses: DestinationClassOption[];
   initialTab?: 'intake' | 'hygiene';
   onClose: () => void;
@@ -83,6 +84,7 @@ export function ClassIntakeAndSessionPanel({
   classGradeKey,
   currentSession,
   students,
+  formerStudents = [],
   destinationClasses,
   initialTab = 'intake',
   onClose,
@@ -98,6 +100,12 @@ export function ClassIntakeAndSessionPanel({
   const [passAroundMode, setPassAroundMode] = useState(false);
   const [passAroundAddedCount, setPassAroundAddedCount] = useState(0);
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
+
+  // Organize / filter / sort controls for Tab 1 live sheet
+  const [sheetSearch, setSheetSearch] = useState('');
+  const [sheetFilter, setSheetFilter] = useState<'all' | 'missing_phone' | 'pending_verify' | 'verified' | 'old_session'>('all');
+  const [sheetSort, setSheetSort] = useState<'name' | 'grade' | 'phone' | 'session'>('name');
+  const [reinstatingId, setReinstatingId] = useState<string | null>(null);
 
   // Quick intake form
   const [fullName, setFullName] = useState('');
@@ -136,6 +144,88 @@ export function ClassIntakeAndSessionPanel({
     [students],
   );
   const isEntryClass = /\b(basic\s*1|primary\s*1|jss\s*1|ss\s*1)\b/i.test(`${classGradeKey || ''} ${className}`);
+
+  const filteredStudents = useMemo(() => {
+    const q = sheetSearch.trim().toLowerCase();
+    const list = students.filter((s) => {
+      if (q) {
+        const hay = `${s.full_name} ${s.grade || ''} ${s.parent_phone || ''} ${s.parent_name || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      const hasPhone = Boolean(formatWhatsAppDigits(s.parent_phone));
+      if (sheetFilter === 'missing_phone') return !hasPhone;
+      if (sheetFilter === 'pending_verify') return hasPhone && !s.parent_verified;
+      if (sheetFilter === 'verified') return Boolean(s.parent_verified);
+      if (sheetFilter === 'old_session') return s.session_status === 'carryover_unconfirmed';
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (sheetSort === 'grade') return (a.grade || '').localeCompare(b.grade || '') || a.full_name.localeCompare(b.full_name);
+      if (sheetSort === 'phone') {
+        const score = (s: IntakeStudentRow) => (s.parent_verified ? 0 : formatWhatsAppDigits(s.parent_phone) ? 1 : 2);
+        return score(a) - score(b) || a.full_name.localeCompare(b.full_name);
+      }
+      if (sheetSort === 'session') {
+        const score = (s: IntakeStudentRow) => (s.session_status === 'carryover_unconfirmed' ? 0 : 1);
+        return score(a) - score(b) || a.full_name.localeCompare(b.full_name);
+      }
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [students, sheetSearch, sheetFilter, sheetSort]);
+
+  const copyGroupWelcomeMessage = async () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com';
+    const msg =
+      `Welcome to the ${className} (${currentSession}) Rillcod Academy Parents WhatsApp Group! 🎓\n\n` +
+      `To verify your contact and check your child's progress reports & results anytime:\n` +
+      `1. Visit ${origin}/result-check\n` +
+      `2. Enter your child's RC Number (printed on their class card/sheet)\n` +
+      `3. Confirm your phone number & complete your parent details once.\n\n` +
+      `Thank you for partnering with Rillcod Technologies!`;
+    try {
+      await navigator.clipboard.writeText(msg);
+      toast.success('Copied WhatsApp group welcome & verification message!');
+    } catch {
+      toast.error('Could not copy message.');
+    }
+  };
+
+  const buildParentWhatsAppHref = (student: IntakeStudentRow): string | null => {
+    const digits = formatWhatsAppDigits(student.parent_phone);
+    if (!digits) return null;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com';
+    const rc = formatAccessCardCodeDisplay(accessCardCodeForStudent(student.id));
+    const text =
+      `Hello! This is Rillcod Academy (${className}, ${currentSession}). ` +
+      `We registered ${student.full_name} in ${student.grade || className}. ` +
+      `To verify your parent contact and view results anytime, please visit ${origin}/result-check ` +
+      `using RC Number: ${rc}. Thank you!`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+  };
+
+  const handleReinstateStudent = async (student: IntakeStudentRow) => {
+    if (!confirm(`Bring ${student.full_name} back into ${className} for ${currentSession}?`)) return;
+    setReinstatingId(student.id);
+    try {
+      const res = await fetch(`/api/classes/${classId}/intake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cohort_hygiene',
+          operation: 'reinstate_withdrawn',
+          student_ids: [student.id],
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not reinstate student.');
+      toast.success(json.message || `${student.full_name} reinstated!`);
+      await onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || 'Reinstate failed.');
+    } finally {
+      setReinstatingId(null);
+    }
+  };
 
   const handleIntakeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -547,21 +637,25 @@ export function ClassIntakeAndSessionPanel({
           {/* Teacher / Admin Live List + WhatsApp Export (hidden in Pass-Around Mode!) */}
           {!passAroundMode && (
             <div className="space-y-3">
-              {/* Stats + WhatsApp / Admin Export Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
-                <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-                  <span className="text-foreground">
-                    <strong>{students.length}</strong> in class
-                  </span>
-                  <span className="text-emerald-700 dark:text-emerald-400">
-                    <strong>{withPhoneCount}</strong> WhatsApp-ready
-                  </span>
-                  <span className="text-primary">
-                    <strong>{verifiedCount}</strong> parent verified
-                  </span>
-                  <span className="text-muted-foreground">
-                    <strong>{Math.max(0, students.length - withPhoneCount)}</strong> no phone yet
-                  </span>
+              {/* Accurate Headcount + WhatsApp / Admin Export Bar */}
+              <div className="space-y-2.5 rounded-xl border border-border bg-muted/30 p-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="rounded-lg bg-card border border-border px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Active Count</p>
+                    <p className="text-lg font-black text-foreground">{students.length}</p>
+                  </div>
+                  <div className="rounded-lg bg-card border border-emerald-500/30 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">WhatsApp Ready</p>
+                    <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">{withPhoneCount} <span className="text-[11px] font-bold text-muted-foreground">({verifiedCount} verified)</span></p>
+                  </div>
+                  <div className="rounded-lg bg-card border border-amber-500/30 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">Old Session</p>
+                    <p className="text-lg font-black text-amber-800 dark:text-amber-300">{carryoverStudents.length}</p>
+                  </div>
+                  <div className="rounded-lg bg-card border border-border px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Withdrawn (Safe)</p>
+                    <p className="text-lg font-black text-muted-foreground">{formerStudents.length}</p>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -583,6 +677,13 @@ export function ClassIntakeAndSessionPanel({
                   </button>
                   <button
                     type="button"
+                    onClick={copyGroupWelcomeMessage}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300"
+                  >
+                    Copy Group Welcome
+                  </button>
+                  <button
+                    type="button"
                     onClick={exportIntakeCsv}
                     className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-muted px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-foreground"
                   >
@@ -590,18 +691,66 @@ export function ClassIntakeAndSessionPanel({
                     Attendance / Admin CSV
                   </button>
                 </div>
+
+                {/* Search, Organize & Filter Controls */}
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <input
+                    type="search"
+                    aria-label="Search class intake list"
+                    value={sheetSearch}
+                    onChange={(e) => setSheetSearch(e.target.value)}
+                    placeholder="Search student name or parent phone…"
+                    className="flex-1 min-h-9 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
+                  />
+                  <select
+                    aria-label="Sort class intake list"
+                    value={sheetSort}
+                    onChange={(e) => setSheetSort(e.target.value as any)}
+                    className="min-h-9 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
+                  >
+                    <option value="name">Sort: Name A–Z</option>
+                    <option value="grade">Sort: Grade</option>
+                    <option value="phone">Sort: Phone Status</option>
+                    <option value="session">Sort: Old Session First</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  {([
+                    { id: 'all', label: `All Active (${students.length})` },
+                    { id: 'missing_phone', label: `Missing Phone (${Math.max(0, students.length - withPhoneCount)})` },
+                    { id: 'pending_verify', label: `Pending Verify (${Math.max(0, withPhoneCount - verifiedCount)})` },
+                    { id: 'verified', label: `Verified (${verifiedCount})` },
+                    ...(carryoverStudents.length > 0 ? [{ id: 'old_session', label: `Old Session (${carryoverStudents.length})` }] : []),
+                  ] as Array<{ id: typeof sheetFilter; label: string }>).map((pill) => (
+                    <button
+                      key={pill.id}
+                      type="button"
+                      onClick={() => setSheetFilter(pill.id)}
+                      className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                        sheetFilter === pill.id
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Live Digital Intake List */}
-              {students.length === 0 ? (
+              {filteredStudents.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-                  No students in {className} yet. Start adding names above — they automatically populate the live class list and WhatsApp contact sheet.
+                  {students.length === 0
+                    ? `No students in ${className} yet. Start adding names above — they automatically populate the live class list and WhatsApp contact sheet.`
+                    : 'No students match your current filter.'}
                 </div>
               ) : (
                 <div className="max-h-96 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-                  {students.map((s, idx) => {
+                  {filteredStudents.map((s, idx) => {
                     const isEditing = editingPhoneId === s.id;
                     const hasPhone = Boolean(formatWhatsAppDigits(s.parent_phone));
+                    const waHref = buildParentWhatsAppHref(s);
                     return (
                       <div
                         key={s.id}
@@ -669,6 +818,18 @@ export function ClassIntakeAndSessionPanel({
                                 <PhoneIcon className="w-3 h-3 text-muted-foreground" />
                                 {s.parent_phone || 'Add phone'}
                               </button>
+
+                              {waHref && (
+                                <a
+                                  href={waHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Send WhatsApp message to parent of ${s.full_name}`}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white"
+                                >
+                                  WhatsApp
+                                </a>
+                              )}
 
                               {s.parent_verified ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-300">
@@ -895,6 +1056,42 @@ export function ClassIntakeAndSessionPanel({
               </div>
             </div>
           </div>
+          {/* Withdrawn / Safe Archive (Excluded from active counts & reports, 1-click Reinstate if they return) */}
+          {formerStudents.length > 0 && (
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="bg-muted/50 px-3.5 py-2 border-b border-border flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                  Withdrawn / Safe Archive ({formerStudents.length}) — Excluded from Active Counts &amp; Reports
+                </span>
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  Records &amp; past results preserved · 1-click restore if they return
+                </span>
+              </div>
+              <div className="max-h-56 overflow-y-auto divide-y divide-border bg-card">
+                {formerStudents.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-2 px-3.5 py-2 hover:bg-muted/20"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-muted-foreground truncate">{s.full_name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {s.grade || '—'} · {s.parent_phone || 'No phone'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={reinstatingId === s.id}
+                      onClick={() => void handleReinstateStudent(s)}
+                      className="shrink-0 inline-flex items-center rounded-lg border border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 disabled:opacity-40"
+                    >
+                      {reinstatingId === s.id ? 'Restoring…' : 'Reinstate'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

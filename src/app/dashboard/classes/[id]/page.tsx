@@ -339,7 +339,6 @@ export default function ClassDetailPage() {
         const studentPromise = fetchActionJson<{
           students: any[];
           former_students: any[];
-          current_session?: string;
           report_indicator_enabled: boolean;
           paste_claim_enabled: boolean;
           error: string;
@@ -2409,11 +2408,10 @@ export default function ClassDetailPage() {
                               setShowIntakePanel((v) => !v);
                               setRosterOpen(true);
                             }}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors shadow-sm ${
-                              showIntakePanel
-                                ? 'border-emerald-700 bg-emerald-700 text-white'
-                                : 'border-emerald-600/40 bg-emerald-700 text-white hover:bg-emerald-800'
-                            }`}
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors shadow-sm ${showIntakePanel
+                              ? 'border-emerald-700 bg-emerald-700 text-white'
+                              : 'border-emerald-600/40 bg-emerald-700 text-white hover:bg-emerald-800'
+                              }`}
                           >
                             <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{showIntakePanel ? 'Hide Intake Sheet' : 'Intake & WhatsApp'}</span>
@@ -2963,6 +2961,7 @@ export default function ClassDetailPage() {
                         classGradeKey={cls?.qa_grade_key}
                         currentSession={currentSessionLabel}
                         students={currentTermStudents}
+                        formerStudents={inactiveTermStudents}
                         destinationClasses={destinationClasses}
                         initialTab={intakePanelTab}
                         onClose={() => setShowIntakePanel(false)}

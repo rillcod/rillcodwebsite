@@ -46,6 +46,19 @@ function buildLoginEmailFromName(fullName: string): string {
   return `${slug}${rand}@rillcod.com`;
 }
 
+async function syncClassActiveCount(admin: ReturnType<typeof adminClient>, classId: string) {
+  const { count } = await admin
+    .from('portal_users')
+    .select('id', { count: 'exact', head: true })
+    .eq('class_id', classId)
+    .eq('role', 'student')
+    .neq('is_active', false)
+    .neq('is_deleted', true);
+  if (typeof count === 'number') {
+    await admin.from('classes').update({ current_students: count }).eq('id', classId);
+  }
+}
+
 async function authorizeStaffForClass(classId: string) {
   const admin = adminClient();
   const serverSupabase = await createServerClient();
@@ -227,6 +240,7 @@ export async function POST(
 
       const portalUpdate: Record<string, any> = {
         full_name: cleanedName,
+        is_active: true,
         metadata: nextMeta,
         updated_at: nowIso,
       };
@@ -245,6 +259,7 @@ export async function POST(
           full_name: cleanedName,
           name: cleanedName,
           current_class: cls.name,
+          is_active: true,
         };
         if (resolvedGrade) {
           studentPatch.grade = resolvedGrade;
@@ -266,11 +281,14 @@ export async function POST(
           grade: resolvedGrade,
           grade_level: resolvedGrade,
           parent_phone: parentPhone || null,
+          is_active: true,
           status: 'approved',
           payment_plan: 'school_partner',
           created_by: caller.id,
         } as any);
       }
+
+      await syncClassActiveCount(admin, classId);
 
       // Auto-issue RC card non-blockingly so student is immediately result-ready
       void ensureStudentCardIssued(admin as any, {
@@ -375,8 +393,10 @@ export async function POST(
             .from('portal_users')
             .update({
               class_id: null,
+              is_active: false,
               metadata: {
                 ...meta,
+                enrollment_status: 'withdrawn',
                 archived_from_class_id: classId,
                 archived_from_class_name: cls.name,
                 archived_at: nowIso,
@@ -386,6 +406,11 @@ export async function POST(
               updated_at: nowIso,
             })
             .eq('id', st.id);
+
+          await admin
+            .from('students')
+            .update({ is_active: false })
+            .eq('user_id', st.id);
 
           let lookup = (admin as any)
             .from('class_term_rosters')
@@ -415,11 +440,54 @@ export async function POST(
               });
           }
         }
+        await syncClassActiveCount(admin, classId);
         return NextResponse.json({
           ok: true,
           operation,
           affected: validStudents.length,
-          message: `Archived ${validStudents.length} prior-session student${validStudents.length === 1 ? '' : 's'} from ${cls.name}. Past results remain intact.`,
+          message: `Archived ${validStudents.length} withdrawn/prior-session student${validStudents.length === 1 ? '' : 's'} from ${cls.name}. Active counts & reports now reflect only remaining students; archived records can be reinstated anytime.`,
+        });
+      }
+
+      if (operation === 'reinstate_withdrawn') {
+        let restored = 0;
+        for (const st of validStudents) {
+          const meta = (st.metadata && typeof st.metadata === 'object' ? st.metadata : {}) as Record<string, any>;
+          await admin
+            .from('portal_users')
+            .update({
+              is_active: true,
+              metadata: {
+                ...meta,
+                enrollment_status: 'active',
+                confirmed_session: currentSession,
+                reinstated_at: nowIso,
+                reinstated_by: caller.id,
+              },
+              updated_at: nowIso,
+            })
+            .eq('id', st.id);
+
+          await admin
+            .from('students')
+            .update({ is_active: true, current_class: cls.name })
+            .eq('user_id', st.id);
+
+          const res = await reinstateStudentToClass(admin, {
+            studentId: st.id,
+            classId,
+            actor: { id: caller.id, role: caller.role },
+            grade: st.grade || canonicalGrade(cls.qa_grade_key || cls.name) || undefined,
+            forceCrossTeacher: caller.role === 'admin',
+          });
+          if (res.ok) restored += 1;
+        }
+        await syncClassActiveCount(admin, classId);
+        return NextResponse.json({
+          ok: restored > 0,
+          operation,
+          affected: restored,
+          message: `Reinstated ${restored} returning student${restored === 1 ? '' : 's'} back into ${cls.name} for ${currentSession}.`,
         });
       }
 
@@ -471,6 +539,11 @@ export async function POST(
             .eq('id', st.id);
           moved += 1;
         }
+
+        await Promise.all([
+          syncClassActiveCount(admin, classId),
+          syncClassActiveCount(admin, destClassId),
+        ]);
 
         return NextResponse.json({
           ok: moved > 0,

@@ -89,6 +89,8 @@ export async function GET(
           .eq('section_class', cls.name)
           .is('class_id', null)
           .eq('role', 'student')
+          .neq('is_active', false)
+          .neq('is_deleted', true)
           .order('full_name')
       : Promise.resolve({ data: [], error: null });
 
@@ -98,6 +100,8 @@ export async function GET(
         .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
         .eq('class_id', classId)
         .eq('role', 'student')
+        .neq('is_active', false)
+        .neq('is_deleted', true)
         .order('full_name'),
       rosterQuery,
       sectionQuery,
@@ -170,7 +174,9 @@ export async function GET(
         .from('portal_users')
         .select('id', { count: 'exact', head: true })
         .eq('class_id', classId)
-        .eq('role', 'student'),
+        .eq('role', 'student')
+        .neq('is_active', false)
+        .neq('is_deleted', true),
     );
 
     // Recovery: if this teacher has already entered progress reports for this
