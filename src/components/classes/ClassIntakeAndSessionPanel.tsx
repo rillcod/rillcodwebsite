@@ -582,13 +582,17 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
-  // Support mobile swipe-back & browser Back button cleanly:
+  // Support mobile swipe-back & browser Back button cleanly (never block with window.confirm inside popstate!):
   // Push history state ONCE on mount (using refs for latest state so updates never trigger history.back!).
   const closedByPopstateRef = useRef(false);
   const passAroundRef = useRef(passAroundMode);
+  const showKioskStateRef = useRef(showKioskState);
+  const acknowledgeRef = useRef(Boolean(acknowledgeCandidate));
   const pendingCountRef = useRef(pendingQueue.length);
   const onCloseRef = useRef(onClose);
   passAroundRef.current = passAroundMode;
+  showKioskStateRef.current = showKioskState;
+  acknowledgeRef.current = Boolean(acknowledgeCandidate);
   pendingCountRef.current = pendingQueue.length;
   onCloseRef.current = onClose;
 
@@ -597,22 +601,26 @@ export function ClassIntakeAndSessionPanel({
     window.history.pushState({ rillcodIntakeModal: true }, '');
     const onPopState = () => {
       if (passAroundRef.current) {
-        if (!confirm('Stop Student Pass-Around Mode and return to Teacher View?')) {
+        if (showKioskStateRef.current) {
+          setShowKioskState(false);
           window.history.pushState({ rillcodIntakeModal: true }, '');
           return;
         }
+        if (acknowledgeRef.current) {
+          setAcknowledgeCandidate(null);
+          setEditingAckPhone(false);
+          setAckPhoneOverride('');
+          window.history.pushState({ rillcodIntakeModal: true }, '');
+          return;
+        }
+        // Cleanly exit Pass-Around back to Teacher View (all queued entries stay preserved in localStorage!)
         setPassAroundMode(false);
+        setShowKioskState(false);
         setAcknowledgeCandidate(null);
         setKioskCelebration(null);
         setKioskNewLogin(null);
         window.history.pushState({ rillcodIntakeModal: true }, '');
         return;
-      }
-      if (pendingCountRef.current > 0) {
-        if (!confirm(`You have ${pendingCountRef.current} unverified entries in the queue. Close anyway?`)) {
-          window.history.pushState({ rillcodIntakeModal: true }, '');
-          return;
-        }
       }
       closedByPopstateRef.current = true;
       onCloseRef.current();
@@ -1201,11 +1209,93 @@ export function ClassIntakeAndSessionPanel({
                     </div>
                   </div>
 
+                  {/* Quick Teacher Controls right inside Kiosk State */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setLockGrade((v) => !v)}
+                      className={`inline-flex items-center gap-1 min-h-8 px-2.5 py-1 rounded-lg border text-[11px] font-black transition-colors ${
+                        lockGrade
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-muted/50 text-foreground'
+                      }`}
+                    >
+                      {lockGrade ? <LockClosedIcon className="w-3 h-3" /> : <LockOpenIcon className="w-3 h-3" />}
+                      {lockGrade ? `Grade: ${selectedGrade}` : 'Student Picks Grade'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRequirePhone((v) => !v)}
+                      className={`inline-flex items-center gap-1 min-h-8 px-2.5 py-1 rounded-lg border text-[11px] font-black transition-colors ${
+                        requirePhone
+                          ? 'border-amber-600 bg-amber-500/15 text-amber-900 dark:text-amber-200'
+                          : 'border-border bg-muted/50 text-muted-foreground'
+                      }`}
+                    >
+                      <PhoneIcon className="w-3 h-3" />
+                      {requirePhone ? 'Phone Required' : 'Phone Flexible'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInstantAccountMode((v) => !v)}
+                      className={`inline-flex items-center gap-1 min-h-8 px-2.5 py-1 rounded-lg border text-[11px] font-black transition-colors ${
+                        instantAccountMode
+                          ? 'border-emerald-600 bg-emerald-500/15 text-emerald-900 dark:text-emerald-200'
+                          : 'border-border bg-muted/50 text-muted-foreground'
+                      }`}
+                    >
+                      <ShieldCheckIcon className="w-3 h-3" />
+                      {instantAccountMode ? 'Instant Logins' : 'Queue First'}
+                    </button>
+                  </div>
+
+                  {issuedLogins.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        New Student Logins Created ({issuedLogins.length})
+                      </p>
+                      <div className="max-h-36 overflow-y-auto rounded-xl border border-emerald-500/30 divide-y divide-border">
+                        {issuedLogins.map((c) => (
+                          <div key={c.student_id} className="px-3 py-2 flex items-center justify-between gap-2 bg-emerald-500/[0.04]">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-foreground truncate">{c.full_name}</p>
+                              <p className="text-[10px] font-mono text-muted-foreground truncate">
+                                {c.email}{c.password ? ` · ${c.password}` : ''} · {c.rc_code}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void copyTextQuick(
+                                  `${c.full_name}\nUsername: ${c.email}\nPassword: ${c.password || ''}\nRC Code: ${c.rc_code}`,
+                                  c.full_name,
+                                )
+                              }
+                              className="shrink-0 px-2 py-1 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {pendingQueue.length > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                        Checked In So Far (Pending Review)
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                          Checked In So Far (Pending Review)
+                        </p>
+                        <button
+                          type="button"
+                          disabled={committingBatch}
+                          onClick={() => void handleCommitVerifiedQueue()}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-50"
+                        >
+                          {committingBatch ? 'Saving…' : `Save All Now (${pendingQueue.length})`}
+                        </button>
+                      </div>
                       <div className="max-h-56 overflow-y-auto rounded-xl border border-border divide-y divide-border">
                         {pendingQueue.map((item, idx) => (
                           <div key={item.localId} className="px-3 py-2 flex items-center justify-between gap-2 bg-background/60">
@@ -1509,23 +1599,39 @@ export function ClassIntakeAndSessionPanel({
                     </p>
                   </div>
 
-                  {/* Mobile-Friendly Name Input */}
+                  {/* Mobile-Friendly Name Input with 1-Tap Clear */}
                   <div className="space-y-2">
-                    <input
-                      ref={kioskInputRef}
-                      type="text"
-                      required
-                      autoFocus
-                      autoComplete="off"
-                      aria-label="Your full name"
-                      value={fullName}
-                      onChange={(e) => {
-                        setFullName(e.target.value);
-                        setSelectedCandidate(null);
-                      }}
-                      placeholder="e.g. Chinedu Okafor"
-                      className="w-full h-13 sm:h-16 rounded-2xl border-2 border-primary/40 bg-background px-4 sm:px-5 text-lg sm:text-2xl font-black text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
-                    />
+                    <div className="relative">
+                      <input
+                        ref={kioskInputRef}
+                        type="text"
+                        required
+                        autoFocus
+                        autoComplete="off"
+                        aria-label="Your full name"
+                        value={fullName}
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          setSelectedCandidate(null);
+                        }}
+                        placeholder="e.g. Chinedu Okafor"
+                        className="w-full h-[52px] sm:h-16 rounded-2xl border-2 border-primary/40 bg-background pl-4 pr-11 sm:px-5 text-lg sm:text-2xl font-black text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                      />
+                      {fullName.length > 0 && (
+                        <button
+                          type="button"
+                          aria-label="Clear typed name"
+                          onClick={() => {
+                            setFullName('');
+                            setSelectedCandidate(null);
+                            kioskInputRef.current?.focus();
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
 
                     {/* Direct Tap-to-Check-In Suggestion Cards */}
                     {liveSuggestions.length > 0 && !selectedCandidate && (
