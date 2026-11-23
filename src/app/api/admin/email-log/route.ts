@@ -233,9 +233,10 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/admin/email-log
- * { action: 'retry_delivery', delivery_id: string, override_recipient?: string }
- * Re-dispatches a failed/bounced/stuck email cleanly through the canonical
- * notificationsService, optionally using a corrected recipient address.
+ * 1. { action: 'retry_delivery', delivery_id: string, override_recipient?: string }
+ * 2. { action: 'retry_failed_bulk', delivery_ids: string[] } (max 25, auto-skips internal @rillcod.com IDs)
+ * Re-dispatches failed/bounced/stuck emails cleanly through the canonical
+ * notificationsService.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -251,13 +252,82 @@ export async function POST(req: NextRequest) {
     if (caller?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await req.json().catch(() => ({}));
-    if (body?.action !== 'retry_delivery') {
+    const action = String(body?.action || '');
+    const db = adminClient();
+
+    const buildRetryPayload = (row: { recipient?: string | null; metadata?: any }, targetEmail: string) => {
+      const meta = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Record<string, any>;
+      const subject = String(meta.subject || 'Rillcod Technologies — Communication Follow-Up').trim();
+      const rawBody = String(meta.body || meta.message || '').trim();
+      const html =
+        typeof meta.html === 'string' && meta.html.trim().length > 20
+          ? meta.html
+          : buildRillcodTransactionalEmailHtml({
+              eyebrow: 'Rillcod Technologies · Delivery Retry',
+              title: subject,
+              bodyHtml: rawBody
+                ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#1f2937;">${escapeHtml(rawBody).replace(/\n/g, '<br/>')}</p>`
+                : `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#1f2937;">We are re-sending our recent message regarding <strong>${escapeHtml(subject)}</strong> from Rillcod Technologies. Please reply if you need any assistance.</p>`,
+              footerNote: `Retried by ${caller.full_name || 'Rillcod Admin'} · www.rillcod.com`,
+            });
+      return { to: targetEmail, subject, html };
+    };
+
+    if (action === 'retry_failed_bulk') {
+      const rawIds = Array.isArray(body?.delivery_ids) ? body.delivery_ids : [];
+      const ids: string[] = Array.from(
+        new Set<string>(
+          rawIds
+            .map((id: unknown) => String(id || '').trim())
+            .filter((v: string): v is string => Boolean(v)),
+        ),
+      ).slice(0, 25);
+      if (ids.length === 0) {
+        return NextResponse.json({ error: 'Provide at least one delivery_id to retry.' }, { status: 400 });
+      }
+
+      const { data: targetRows, error: bulkErr } = await db
+        .from('communication_delivery_log')
+        .select('id, channel, recipient, template_key, metadata')
+        .in('id', ids);
+
+      if (bulkErr) return NextResponse.json({ error: bulkErr.message }, { status: 500 });
+
+      let retried = 0;
+      let skippedInternal = 0;
+      let failed = 0;
+
+      for (const row of targetRows ?? []) {
+        const targetEmail = String(row.recipient || '').trim();
+        if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail) || isInAppEmail(targetEmail)) {
+          skippedInternal += 1;
+          continue;
+        }
+        try {
+          const payload = buildRetryPayload(row, targetEmail);
+          const ok = await notificationsService.sendEmail(caller.id, payload);
+          if (ok) retried += 1;
+          else failed += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+
+      return NextResponse.json({
+        ok: true,
+        retried,
+        skipped_internal: skippedInternal,
+        failed,
+        message: `Retried ${retried} real email${retried === 1 ? '' : 's'}${skippedInternal ? ` (${skippedInternal} internal skipped)` : ''}${failed ? ` · ${failed} still undeliverable` : ''}.`,
+      });
+    }
+
+    if (action !== 'retry_delivery') {
       return NextResponse.json({ error: 'Unsupported action' }, { status: 400 });
     }
     const deliveryId = String(body?.delivery_id || '').trim();
     if (!deliveryId) return NextResponse.json({ error: 'delivery_id is required' }, { status: 400 });
 
-    const db = adminClient();
     const { data: row, error: fetchErr } = await db
       .from('communication_delivery_log')
       .select('id, channel, recipient, template_key, metadata')
@@ -278,26 +348,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const meta = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Record<string, any>;
-    const subject = String(meta.subject || 'Rillcod Technologies — Communication Follow-Up').trim();
-    const rawBody = String(meta.body || meta.message || '').trim();
-    const html =
-      typeof meta.html === 'string' && meta.html.trim().length > 20
-        ? meta.html
-        : buildRillcodTransactionalEmailHtml({
-            eyebrow: 'Rillcod Technologies · Delivery Retry',
-            title: subject,
-            bodyHtml: rawBody
-              ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#1f2937;">${escapeHtml(rawBody).replace(/\n/g, '<br/>')}</p>`
-              : `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#1f2937;">We are re-sending our recent message regarding <strong>${escapeHtml(subject)}</strong> from Rillcod Technologies. Please reply if you need any assistance.</p>`,
-            footerNote: `Retried by ${caller.full_name || 'Rillcod Admin'} · www.rillcod.com`,
-          });
-
-    const sent = await notificationsService.sendEmail(caller.id, {
-      to: targetEmail,
-      subject,
-      html,
-    });
+    const sent = await notificationsService.sendEmail(caller.id, buildRetryPayload(row, targetEmail));
 
     if (!sent) {
       return NextResponse.json(

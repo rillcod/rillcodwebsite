@@ -134,6 +134,65 @@ export default function AccountabilityDashboard({
   const [sessionScope, setSessionScope] = useState<'current' | 'archive' | 'all'>('current');
   const [schoolSearch, setSchoolSearch] = useState('');
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
+  const [rolloverSchoolId, setRolloverSchoolId] = useState<string | null>(null);
+  const [rolloverBanner, setRolloverBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSchoolRollover = async (schoolId: string, schoolName: string) => {
+    setRolloverSchoolId(schoolId);
+    setRolloverBanner(null);
+    try {
+      const previewRes = await fetch(`/api/admin/schools/${schoolId}/rollover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: true }),
+      });
+      const preview = await previewRes.json().catch(() => ({}));
+      if (!previewRes.ok) throw new Error(preview.error || 'Could not preview school rollover.');
+
+      const actionable = (preview.plan ?? []).filter(
+        (p: any) => p.student_count > 0 && p.action !== 'no_target_class',
+      );
+      if (actionable.length === 0) {
+        setRolloverBanner({
+          type: 'error',
+          text: `No single-grade classes with active students ready to roll over in ${schoolName}. Multi-grade sections can be promoted inside Class Intake.`,
+        });
+        return;
+      }
+
+      const lines = actionable.map((p: any) =>
+        p.action === 'archive_graduated'
+          ? `• ${p.from_class_name} (${p.student_count}) → Graduated Archive`
+          : `• ${p.from_class_name} (${p.student_count}) → ${p.to_class_name} (${p.to_grade})`,
+      );
+      const skippedCount = (preview.skipped_classes ?? []).length;
+      const confirmed = confirm(
+        `Session Rollover Preview — ${schoolName} (${preview.total_students_affected} student${preview.total_students_affected === 1 ? '' : 's'}):\n\n` +
+          `${lines.join('\n')}` +
+          (skippedCount > 0 ? `\n\n(${skippedCount} multi-grade/custom class${skippedCount === 1 ? '' : 'es'} will remain untouched)` : '') +
+          `\n\nProceed with top-down rollover now?`,
+      );
+      if (!confirmed) return;
+
+      const execRes = await fetch(`/api/admin/schools/${schoolId}/rollover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dry_run: false }),
+      });
+      const execJson = await execRes.json().catch(() => ({}));
+      if (!execRes.ok) throw new Error(execJson.error || 'Rollover failed.');
+
+      setRolloverBanner({
+        type: 'success',
+        text: execJson.message || `Session rollover complete for ${schoolName}.`,
+      });
+      onRefresh(true);
+    } catch (err: any) {
+      setRolloverBanner({ type: 'error', text: err?.message || 'Rollover failed.' });
+    } finally {
+      setRolloverSchoolId(null);
+    }
+  };
 
   // Clean separation of concerns: keep Current Session operations cleanly separated
   // from Prior Session / Withdrawn / Archive records so old sessions never distort live KPIs.
@@ -842,6 +901,17 @@ export default function AccountabilityDashboard({
                 />
               }
             >
+              {rolloverBanner && (
+                <div
+                  className={`rounded-xl border px-4 py-3 text-xs font-bold ${
+                    rolloverBanner.type === 'success'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                      : 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                  }`}
+                >
+                  {rolloverBanner.text}
+                </div>
+              )}
               {filteredSchoolsSummary.length === 0 ? (
                 <div className={`${CARD} p-10 text-center text-sm text-muted-foreground`}>
                   No schools match &ldquo;{schoolSearch}&rdquo;.
@@ -900,7 +970,7 @@ export default function AccountabilityDashboard({
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/70">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/70">
                         <button
                           type="button"
                           onClick={() => {
@@ -914,12 +984,22 @@ export default function AccountabilityDashboard({
                         >
                           View Accounts ({s.students_total}) →
                         </button>
-                        <Link
-                          href={`/dashboard/classes?school=${encodeURIComponent(s.name)}`}
-                          className="text-xs font-bold text-muted-foreground hover:text-foreground"
-                        >
-                          Classes →
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={rolloverSchoolId === s.id}
+                            onClick={() => void handleSchoolRollover(s.id, s.name)}
+                            className="rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 text-[11px] font-black text-amber-800 dark:text-amber-300 transition-colors disabled:opacity-50"
+                          >
+                            {rolloverSchoolId === s.id ? 'Checking…' : 'Rollover'}
+                          </button>
+                          <Link
+                            href={`/dashboard/classes?school=${encodeURIComponent(s.name)}`}
+                            className="text-xs font-bold text-muted-foreground hover:text-foreground"
+                          >
+                            Classes →
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ))}

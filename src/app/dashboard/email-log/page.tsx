@@ -174,6 +174,8 @@ export default function EmailLogPage() {
   const [retrying, setRetrying] = useState(false);
   const [retryEmailOverride, setRetryEmailOverride] = useState('');
   const [retryFeedback, setRetryFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [bulkRetrying, setBulkRetrying] = useState(false);
+  const [bulkRetryFeedback, setBulkRetryFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleRetryDelivery = async (row: Row) => {
     setRetrying(true);
@@ -309,6 +311,43 @@ export default function EmailLogPage() {
     });
   }, [scope, outcome, audience, origin, search]);
 
+  const failedRealIds = useMemo(
+    () => scope.filter((r) => facts(r).failed && !r.internal && r.channel === 'email').map((r) => r.id),
+    [scope],
+  );
+
+  const handleBulkRetryFailed = async () => {
+    const batch = failedRealIds.slice(0, 25);
+    if (batch.length === 0) return;
+    if (
+      !confirm(
+        `Retry ${batch.length} failed real-mailbox email${batch.length === 1 ? '' : 's'} now? Internal @rillcod.com portal IDs are skipped automatically.`,
+      )
+    ) {
+      return;
+    }
+    setBulkRetrying(true);
+    setBulkRetryFeedback(null);
+    try {
+      const res = await fetch('/api/admin/email-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'retry_failed_bulk',
+          delivery_ids: batch,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Bulk retry failed.');
+      setBulkRetryFeedback({ type: 'success', text: json.message || `Retried ${batch.length} emails.` });
+      void load();
+    } catch (err: any) {
+      setBulkRetryFeedback({ type: 'error', text: err?.message || 'Bulk retry failed.' });
+    } finally {
+      setBulkRetrying(false);
+    }
+  };
+
   const resetAll = () => {
     setOutcome('all'); setAudience('all'); setOrigin('all');
     setChannel(''); setProvider(''); setSchool(''); setRole(''); setSearch(''); setRange('all');
@@ -343,6 +382,19 @@ export default function EmailLogPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {failedRealIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleBulkRetryFailed}
+              disabled={bulkRetrying}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-800 hover:bg-amber-900 px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors disabled:opacity-60"
+            >
+              <ArrowPathIcon className={`w-4 h-4 ${bulkRetrying ? 'animate-spin' : ''}`} />
+              {bulkRetrying
+                ? 'Retrying…'
+                : `Retry Failed Real Emails (${Math.min(failedRealIds.length, 25)}${failedRealIds.length > 25 ? `/${failedRealIds.length}` : ''})`}
+            </button>
+          )}
           <Link href="/dashboard/office?workspace=settings&section=templates"
             className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-accent">
             Message templates
@@ -357,6 +409,18 @@ export default function EmailLogPage() {
           </button>
         </div>
       </div>
+
+      {bulkRetryFeedback && (
+        <p
+          className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+            bulkRetryFeedback.type === 'success'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+              : 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+          }`}
+        >
+          {bulkRetryFeedback.text}
+        </p>
+      )}
 
       {error && (
         <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>

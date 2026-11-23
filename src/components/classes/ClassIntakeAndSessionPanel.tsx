@@ -297,7 +297,7 @@ export function ClassIntakeAndSessionPanel({
   const [ackPhoneOverride, setAckPhoneOverride] = useState<string>('');
   const [editingAckPhone, setEditingAckPhone] = useState<boolean>(false);
   const [ackGradeOverride, setAckGradeOverride] = useState<string>('');
-  const [confirmingExit, setConfirmingExit] = useState(false);
+  const [showKioskState, setShowKioskState] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showBulkPaste, setShowBulkPaste] = useState(false);
   const [bulkPasteText, setBulkPasteText] = useState('');
@@ -956,6 +956,34 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
+  const copyResultsBroadcast = async () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com';
+    const verifyUrl = `${origin}/result-check`;
+    const activeCount = students.length;
+    const message = [
+      `📢 *${className} — Rillcod Coding & Robotics Results & Progress Update*`,
+      `Session: *${currentSession}* (${activeCount} active learner${activeCount === 1 ? '' : 's'})`,
+      '',
+      'Dear Parents & Guardians,',
+      `Your child's latest Coding & Robotics scores, attendance, and term report for *${className}* are available on the Rillcod Parent Portal.`,
+      '',
+      '✅ *How to Check & Verify in 30 Seconds:*',
+      `1. Open: ${verifyUrl}`,
+      '2. Enter your child\'s *RC Student Code* (from their access card) or registered parent WhatsApp number.',
+      '3. View and download the official stamped term report.',
+      '',
+      'Need your child\'s RC code or want to update your WhatsApp number? Reply directly to this message and our instructor will assist immediately.',
+      '',
+      '— *Rillcod Technologies Academy*',
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(message);
+      toast.success('Copied Results & Verification WhatsApp announcement — ready to paste in the class group!');
+    } catch {
+      toast.error('Could not copy to clipboard.');
+    }
+  };
+
   const downloadWhatsAppVCard = () => {
     const entries = students
       .map((s) => ({ student: s, digits: formatWhatsAppDigits(s.parent_phone) }))
@@ -1079,70 +1107,172 @@ export function ClassIntakeAndSessionPanel({
       aria-label={`${className} Digital Class Intake and Session Workspace`}
       className="fixed inset-0 z-[9990] bg-background flex flex-col overflow-hidden"
     >
-      {/* FULL-SCREEN ZERO-DISTRACTION KID-FRIENDLY PASS-AROUND KIOSK */}
+      {/* FULL-SCREEN MOBILE-FIRST KID-FRIENDLY PASS-AROUND KIOSK */}
       {passAroundMode && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Student Pass-Around Check-In"
-          className="fixed inset-0 z-[9995] bg-background flex flex-col overflow-y-auto"
+          className="fixed inset-0 z-[9995] h-[100dvh] bg-background flex flex-col overflow-hidden"
         >
-          {/* Minimal distraction-free top bar */}
-          <div className="px-4 sm:px-6 py-3 border-b border-border bg-card flex items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm">
-                RC
-              </span>
+          {/* Sticky top bar: 1-tap Back + Class & Count + Live Teacher State Check */}
+          <div className="sticky top-0 z-20 px-3 sm:px-6 py-2.5 border-b border-border bg-card flex items-center justify-between gap-2 shrink-0 shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                aria-label="Exit pass-around mode and go back"
+                onClick={() => {
+                  setShowKioskState(false);
+                  setPassAroundMode(false);
+                  setKioskCelebration(null);
+                  setAcknowledgeCandidate(null);
+                  setKioskNewLogin(null);
+                }}
+                className="shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl border border-border bg-muted hover:bg-muted/80 text-xs font-black text-foreground transition-colors"
+              >
+                <ArrowLeftIcon className="w-4 h-4" />
+                <span>Back</span>
+              </button>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm font-black text-foreground truncate">
                   {className} {lockGrade ? `· ${selectedGrade}` : ''}
                 </p>
-                <p className="text-[11px] font-semibold text-muted-foreground">
+                <p className="text-[11px] font-semibold text-muted-foreground truncate">
                   {passAroundAddedCount > 0
-                    ? `${passAroundAddedCount} classmate${passAroundAddedCount === 1 ? '' : 's'} checked in`
-                    : `${currentSession} Class Check-In`}
+                    ? `${passAroundAddedCount} checked in · ${pendingQueue.length} queued`
+                    : `${students.length} in class · ${currentSession}`}
                 </p>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => {
-                if (passAroundAddedCount > 0 && !confirmingExit) {
-                  setConfirmingExit(true);
-                  setTimeout(() => setConfirmingExit(false), 3500);
-                  return;
-                }
-                setConfirmingExit(false);
-                setPassAroundMode(false);
-                setKioskCelebration(null);
-                setAcknowledgeCandidate(null);
-              }}
-              className={`shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3.5 py-2 rounded-xl border text-xs font-black transition-colors ${
-                confirmingExit
-                  ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
-                  : 'border-border bg-muted hover:bg-muted/80 text-foreground'
+              onClick={() => setShowKioskState((v) => !v)}
+              aria-expanded={showKioskState}
+              className={`shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl border text-xs font-black transition-colors ${
+                showKioskState
+                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                  : 'border-border bg-card hover:bg-muted text-foreground'
               }`}
             >
-              {confirmingExit
-                ? `Tap Again to Finish (${pendingQueue.length})`
-                : `Teacher Finish (${pendingQueue.length})`}
+              <ClipboardDocumentListIcon className="w-4 h-4" />
+              <span>{showKioskState ? 'Resume' : `State (${pendingQueue.length + issuedLogins.length})`}</span>
             </button>
           </div>
 
-          {/* Center Kid-Friendly Card */}
-          <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
-            <div className="w-full max-w-2xl">
-              {kioskNewLogin ? (
-                <div className="rounded-3xl border-2 border-emerald-500 bg-card p-6 sm:p-8 shadow-2xl space-y-5">
-                  <div className="text-center space-y-1.5">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-md">
-                      <CheckCircleIcon className="w-8 h-8" />
+          {/* Mobile Keyboard-Safe Scrollable Body (top-aligned on mobile so keyboard never clips card!) */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-8 pt-3 pb-28 sm:py-8 flex flex-col sm:items-center sm:justify-center">
+            <div className="w-full max-w-2xl mx-auto">
+              {showKioskState ? (
+                <div className="rounded-2xl sm:rounded-3xl border-2 border-primary/30 bg-card p-4 sm:p-6 shadow-xl space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                        Teacher Live Check-In State
+                      </p>
+                      <h2 className="text-lg sm:text-xl font-black text-foreground mt-0.5">
+                        {className} · {currentSession}
+                      </h2>
                     </div>
-                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowKioskState(false);
+                        setTimeout(() => kioskInputRef.current?.focus(), 30);
+                      }}
+                      className="shrink-0 min-h-9 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider"
+                    >
+                      Resume Check-In
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-border bg-muted/40 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-foreground">{students.length}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">In Class</div>
+                    </div>
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-amber-800 dark:text-amber-300">{pendingQueue.length}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">In Queue</div>
+                    </div>
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-emerald-800 dark:text-emerald-300">{issuedLogins.length}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">New Logins</div>
+                    </div>
+                  </div>
+
+                  {pendingQueue.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                        Checked In So Far (Pending Review)
+                      </p>
+                      <div className="max-h-56 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+                        {pendingQueue.map((item, idx) => (
+                          <div key={item.localId} className="px-3 py-2 flex items-center justify-between gap-2 bg-background/60">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-foreground truncate">
+                                {idx + 1}. {item.full_name}
+                              </p>
+                              <p className="text-[10px] font-semibold text-muted-foreground truncate">
+                                {item.grade}{item.parent_phone ? ` · ${item.parent_phone}` : ' · No phone yet'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setPendingQueue((prev) => prev.filter((p) => p.localId !== item.localId))}
+                              className="shrink-0 px-2 py-1 rounded-lg border border-rose-500/30 text-[10px] font-black text-rose-700 dark:text-rose-300 hover:bg-rose-500/10"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                      No students waiting in the review queue yet.
+                      {issuedLogins.length > 0 ? ` (${issuedLogins.length} new account${issuedLogins.length === 1 ? '' : 's'} already created & saved!)` : ''}
+                    </p>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowKioskState(false);
+                        setPassAroundMode(false);
+                        setKioskCelebration(null);
+                        setAcknowledgeCandidate(null);
+                        setKioskNewLogin(null);
+                      }}
+                      className="flex-1 min-h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider px-4 py-2.5 shadow-sm"
+                    >
+                      {pendingQueue.length > 0
+                        ? `Exit to Review & Save (${pendingQueue.length}) →`
+                        : 'Back to Class Intake Sheet →'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowKioskState(false);
+                        setTimeout(() => kioskInputRef.current?.focus(), 30);
+                      }}
+                      className="min-h-11 rounded-xl border border-border bg-muted hover:bg-muted/80 text-foreground text-xs font-black uppercase tracking-wider px-4 py-2.5"
+                    >
+                      Keep Passing Device
+                    </button>
+                  </div>
+                </div>
+              ) : kioskNewLogin ? (
+                <div className="rounded-2xl sm:rounded-3xl border-2 border-emerald-500 bg-card p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-5">
+                  <div className="text-center space-y-1.5">
+                    <div className="mx-auto flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-md">
+                      <CheckCircleIcon className="w-7 h-7 sm:w-8 sm:h-8" />
+                    </div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
                       Account Created — Save Your Login Details
                     </p>
-                    <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                    <h2 className="text-xl sm:text-3xl font-black text-foreground">
                       {kioskNewLogin.full_name}
                     </h2>
                     <p className="text-xs sm:text-sm text-muted-foreground">
@@ -1151,12 +1281,12 @@ export function ClassIntakeAndSessionPanel({
                   </div>
 
                   <div className="space-y-3">
-                    <div className="rounded-2xl border-2 border-primary/30 bg-primary/[0.06] p-4 flex items-center justify-between gap-3">
+                    <div className="rounded-2xl border-2 border-primary/30 bg-primary/[0.06] p-3.5 sm:p-4 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary">
                           Username / Login Email
                         </p>
-                        <p className="text-lg sm:text-xl font-mono font-black text-foreground break-all mt-0.5">
+                        <p className="text-base sm:text-xl font-mono font-black text-foreground break-all mt-0.5">
                           {kioskNewLogin.email}
                         </p>
                       </div>
@@ -1170,12 +1300,12 @@ export function ClassIntakeAndSessionPanel({
                     </div>
 
                     {kioskNewLogin.password && (
-                      <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.08] p-4 flex items-center justify-between gap-3">
+                      <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.08] p-3.5 sm:p-4 flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">
                             Password
                           </p>
-                          <p className="text-xl sm:text-2xl font-mono font-black text-foreground mt-0.5">
+                          <p className="text-lg sm:text-2xl font-mono font-black text-foreground mt-0.5">
                             {kioskNewLogin.password}
                           </p>
                         </div>
@@ -1189,12 +1319,12 @@ export function ClassIntakeAndSessionPanel({
                       </div>
                     )}
 
-                    <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="rounded-2xl border border-border bg-muted/40 px-3.5 py-2.5 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                           Student RC Number (For Results)
                         </p>
-                        <p className="text-base font-mono font-black text-foreground mt-0.5">
+                        <p className="text-sm sm:text-base font-mono font-black text-foreground mt-0.5">
                           {kioskNewLogin.rc_code}
                         </p>
                       </div>
@@ -1219,7 +1349,7 @@ export function ClassIntakeAndSessionPanel({
                       setKioskNewLogin(null);
                       setTimeout(() => kioskInputRef.current?.focus(), 20);
                     }}
-                    className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
+                    className="w-full h-14 sm:h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-base sm:text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
                   >
                     I&apos;ve Copied It — Next Classmate →
                   </button>
@@ -1231,38 +1361,38 @@ export function ClassIntakeAndSessionPanel({
                     setKioskCelebration(null);
                     setTimeout(() => kioskInputRef.current?.focus(), 20);
                   }}
-                  className="w-full rounded-3xl border-2 border-emerald-500 bg-emerald-500/10 p-8 sm:p-12 text-center space-y-3 shadow-xl"
+                  className="w-full rounded-2xl sm:rounded-3xl border-2 border-emerald-500 bg-emerald-500/10 p-6 sm:p-12 text-center space-y-3 shadow-xl"
                 >
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg">
-                    <CheckCircleIcon className="w-10 h-10" />
+                  <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg">
+                    <CheckCircleIcon className="w-9 h-9 sm:w-10 sm:h-10" />
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                  <h2 className="text-xl sm:text-3xl font-black text-foreground">
                     Well done, {kioskCelebration}!
                   </h2>
-                  <p className="text-base sm:text-lg font-bold text-emerald-800 dark:text-emerald-300">
+                  <p className="text-sm sm:text-lg font-bold text-emerald-800 dark:text-emerald-300">
                     Pass the device to your next classmate 👉
                   </p>
-                  <p className="text-xs text-muted-foreground pt-2">
+                  <p className="text-xs text-muted-foreground pt-1">
                     Tap anywhere to continue immediately
                   </p>
                 </button>
               ) : acknowledgeCandidate ? (
-                <div className="rounded-3xl border-2 border-emerald-500/50 bg-card p-6 sm:p-8 shadow-2xl space-y-5 text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-md">
-                    <ShieldCheckIcon className="w-8 h-8" />
+                <div className="rounded-2xl sm:rounded-3xl border-2 border-emerald-500/50 bg-card p-4 sm:p-8 shadow-2xl space-y-4 sm:space-y-5 text-center">
+                  <div className="mx-auto flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-md">
+                    <ShieldCheckIcon className="w-7 h-7 sm:w-8 sm:h-8" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
                       {acknowledgeCandidate.consent_signed
                         ? 'Parent Consent Form Found ✓'
                         : 'Student Record Found ✓'}
                     </p>
-                    <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                    <h2 className="text-xl sm:text-3xl font-black text-foreground">
                       {acknowledgeCandidate.full_name}
                     </h2>
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-muted/40 p-4 text-left space-y-2.5 text-sm">
+                  <div className="rounded-2xl border border-border bg-muted/40 p-3.5 sm:p-4 text-left space-y-2.5 text-sm">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-muted-foreground font-semibold">Current Class / Grade</span>
@@ -1325,14 +1455,14 @@ export function ClassIntakeAndSessionPanel({
                           className="w-full h-12 rounded-xl border-2 border-primary bg-background px-3.5 text-base font-mono font-bold text-foreground"
                         />
                       ) : (
-                        <p className="text-lg sm:text-xl font-mono font-black text-emerald-700 dark:text-emerald-400 tracking-wide">
+                        <p className="text-base sm:text-xl font-mono font-black text-emerald-700 dark:text-emerald-400 tracking-wide">
                           {acknowledgeCandidate.parent_phone || 'Not added yet'}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-2.5 pt-1">
+                  <div className="space-y-2 pt-1">
                     <button
                       type="button"
                       onClick={() =>
@@ -1342,7 +1472,7 @@ export function ClassIntakeAndSessionPanel({
                           ackGradeOverride || undefined,
                         )
                       }
-                      className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
+                      className="w-full h-14 sm:h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-base sm:text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
                     >
                       Yes, This Is My Record — Confirm ✓
                     </button>
@@ -1354,7 +1484,7 @@ export function ClassIntakeAndSessionPanel({
                         setAckPhoneOverride('');
                         setTimeout(() => kioskInputRef.current?.focus(), 20);
                       }}
-                      className="w-full h-12 rounded-xl border border-border bg-muted/50 hover:bg-muted text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                      className="w-full h-11 rounded-xl border border-border bg-muted/50 hover:bg-muted text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground"
                     >
                       Not Me — Go Back
                     </button>
@@ -1363,15 +1493,15 @@ export function ClassIntakeAndSessionPanel({
               ) : (
                 <form
                   onSubmit={handleIntakeSubmit}
-                  className="rounded-3xl border-2 border-primary/30 bg-card p-6 sm:p-8 shadow-2xl space-y-5"
+                  className="rounded-2xl sm:rounded-3xl border-2 border-primary/30 bg-card p-4 sm:p-8 shadow-xl space-y-4 sm:space-y-5"
                 >
-                  <div className="text-center space-y-2">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-primary">
+                  <div className="text-center space-y-1.5">
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-primary">
                       <span>1. Type Name</span>
                       <span className="opacity-40">→</span>
                       <span>{fullName.trim().length >= 2 ? '2. Tap Name or Done' : '2. Confirm'}</span>
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                    <h2 className="text-xl sm:text-3xl font-black text-foreground leading-tight">
                       What is your full name?
                     </h2>
                     <p className="text-xs sm:text-sm text-muted-foreground">
@@ -1379,7 +1509,7 @@ export function ClassIntakeAndSessionPanel({
                     </p>
                   </div>
 
-                  {/* Giant Name Input */}
+                  {/* Mobile-Friendly Name Input */}
                   <div className="space-y-2">
                     <input
                       ref={kioskInputRef}
@@ -1394,16 +1524,16 @@ export function ClassIntakeAndSessionPanel({
                         setSelectedCandidate(null);
                       }}
                       placeholder="e.g. Chinedu Okafor"
-                      className="w-full h-16 rounded-2xl border-2 border-primary/40 bg-background px-5 text-xl sm:text-2xl font-black text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                      className="w-full h-13 sm:h-16 rounded-2xl border-2 border-primary/40 bg-background px-4 sm:px-5 text-lg sm:text-2xl font-black text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
                     />
 
-                    {/* Direct Giant Tap-to-Check-In Suggestion Cards */}
+                    {/* Direct Tap-to-Check-In Suggestion Cards */}
                     {liveSuggestions.length > 0 && !selectedCandidate && (
-                      <div className="space-y-2 pt-1">
+                      <div className="space-y-1.5 pt-1">
                         <p className="text-[11px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                           👇 Tap your name if you see it:
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {liveSuggestions.slice(0, 4).map((cand) => {
                             const hasPhoneOrConsent = cand.consent_signed || cand.parent_verified || Boolean(cand.parent_phone);
                             return (
@@ -1418,22 +1548,22 @@ export function ClassIntakeAndSessionPanel({
                                     handleSelectCandidate(cand);
                                   }
                                 }}
-                                className="w-full min-h-14 rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.08] hover:bg-emerald-500/15 px-4 py-3 text-left flex items-center justify-between gap-3 transition-all active:scale-[0.99]"
+                                className="w-full min-h-13 rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.08] hover:bg-emerald-500/15 px-3.5 py-2.5 text-left flex items-center justify-between gap-2.5 transition-all active:scale-[0.99]"
                               >
                                 <div className="min-w-0">
-                                  <p className="text-base sm:text-lg font-black text-foreground truncate">
+                                  <p className="text-sm sm:text-lg font-black text-foreground truncate">
                                     {cand.full_name}
                                   </p>
-                                  <p className="text-xs font-semibold text-muted-foreground truncate">
+                                  <p className="text-[11px] font-semibold text-muted-foreground truncate">
                                     {cand.grade || cand.section_class || className}
                                     {cand.consent_signed
-                                      ? ' · Parent consent form on file ✓'
+                                      ? ' · Consent form on file ✓'
                                       : hasPhoneOrConsent
-                                      ? ' · Record already in system ✓'
+                                      ? ' · Already in system ✓'
                                       : ' · Tap to select'}
                                   </p>
                                 </div>
-                                <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm">
+                                <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-white shadow-sm">
                                   {hasPhoneOrConsent ? "That's Me ✓" : 'Select'}
                                 </span>
                               </button>
@@ -1446,23 +1576,23 @@ export function ClassIntakeAndSessionPanel({
 
                   {/* Progressive Reveal: only show Grade / Phone / Submit once child starts typing */}
                   {fullName.trim().length >= 2 && (
-                    <div className="space-y-4 pt-1 border-t border-border/60">
+                    <div className="space-y-3.5 pt-2 border-t border-border/60">
                       {/* Grade selector ONLY if teacher did not lock the grade */}
                       {!lockGrade && (
-                        <div className="space-y-2">
-                          <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground">
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-muted-foreground">
                             Tap Your Grade / Class *
                           </label>
                           {sectionGrades.length > 1 && (
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                               {sectionGrades.map((g) => (
                                 <button
                                   key={g}
                                   type="button"
                                   onClick={() => setSelectedGrade(g)}
-                                  className={`min-h-12 rounded-2xl border-2 text-sm sm:text-base font-black transition-all ${
+                                  className={`min-h-11 rounded-xl sm:rounded-2xl border-2 text-xs sm:text-base font-black transition-all ${
                                     selectedGrade === g
-                                      ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                                       : 'border-border bg-background text-foreground hover:border-primary/50'
                                   }`}
                                 >
@@ -1475,8 +1605,8 @@ export function ClassIntakeAndSessionPanel({
                             aria-label="Your grade"
                             value={selectedGrade}
                             onChange={(e) => setSelectedGrade(e.target.value)}
-                            className={`w-full rounded-2xl border-2 border-border bg-background px-4 font-bold text-foreground ${
-                              sectionGrades.length > 1 ? 'h-11 text-xs text-muted-foreground' : 'h-14 text-lg'
+                            className={`w-full rounded-xl sm:rounded-2xl border-2 border-border bg-background px-3.5 font-bold text-foreground ${
+                              sectionGrades.length > 1 ? 'h-10 text-xs text-muted-foreground' : 'h-12 sm:h-14 text-base sm:text-lg'
                             }`}
                           >
                             {SINGLE_GRADES.map((g) => (
@@ -1488,7 +1618,7 @@ export function ClassIntakeAndSessionPanel({
 
                       {/* Parent WhatsApp Phone Input (silent optionality — never tells kids to skip!) */}
                       <div>
-                        <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
+                        <label className="block text-[11px] font-black uppercase tracking-wider text-muted-foreground mb-1">
                           Parent WhatsApp Number
                           {requirePhone && <span className="text-rose-600 dark:text-rose-400"> *</span>}
                         </label>
@@ -1499,15 +1629,15 @@ export function ClassIntakeAndSessionPanel({
                           value={parentPhone}
                           onChange={(e) => setParentPhone(e.target.value)}
                           placeholder="0801 234 5678"
-                          className="w-full h-14 rounded-2xl border-2 border-border bg-background px-5 text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                          className="w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl border-2 border-border bg-background px-4 text-base sm:text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
                         />
                       </div>
 
-                      {/* Giant Submit Button */}
+                      {/* Submit Button */}
                       <button
                         type="submit"
                         disabled={submitting || fullName.trim().length < 2}
-                        className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-lg sm:text-xl font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
+                        className="w-full h-13 sm:h-16 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-base sm:text-xl font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
                       >
                         {submitting ? 'Creating Account…' : 'Done — Next Classmate →'}
                       </button>
@@ -2297,6 +2427,17 @@ export function ClassIntakeAndSessionPanel({
                         >
                           <PhoneIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                           Copy Group Welcome Post
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowExportMenu(false);
+                            void copyResultsBroadcast();
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-bold text-foreground hover:bg-muted flex items-center gap-2"
+                        >
+                          <CheckCircleIcon className="w-4 h-4 text-primary" />
+                          Copy Results &amp; Verify Post
                         </button>
                       </div>
                     )}

@@ -56,6 +56,49 @@ export default function CBTPage() {
 
   const getExamType = (e: any) => e.metadata?.exam_type ?? 'examination';
 
+  const liveOps = isStaff
+    ? (() => {
+        let inProgressCount = 0;
+        let pendingGradingCount = 0;
+        let busiestLiveExam: any = null;
+        let busiestLiveCount = 0;
+        let nextGradeExam: any = null;
+        let nextGradeCount = 0;
+        let activeCount = 0;
+
+        for (const e of exams) {
+          if (e.is_active) activeCount += 1;
+          const examSessions = Array.isArray(e.cbt_sessions) ? e.cbt_sessions : [];
+          let live = 0;
+          let pending = 0;
+          for (const s of examSessions) {
+            if (s.status === 'in_progress') live += 1;
+            else if (s.status === 'pending_grading') pending += 1;
+          }
+          inProgressCount += live;
+          pendingGradingCount += pending;
+          if (live > busiestLiveCount) {
+            busiestLiveCount = live;
+            busiestLiveExam = e;
+          }
+          if (pending > nextGradeCount) {
+            nextGradeCount = pending;
+            nextGradeExam = e;
+          }
+        }
+        if (!busiestLiveExam) {
+          busiestLiveExam = exams.find((e) => e.is_active) ?? null;
+        }
+        return {
+          activeCount,
+          inProgressCount,
+          pendingGradingCount,
+          busiestLiveExam,
+          nextGradeExam,
+        };
+      })()
+    : null;
+
   const filtered = exams.filter(e => {
     const matchesSearch = (e.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (e.programs?.name ?? '').toLowerCase().includes(search.toLowerCase());
@@ -191,6 +234,55 @@ export default function CBTPage() {
             )}
           </div>
         </div>
+
+        {/* ── STAFF LIVE EXAM OPERATIONS CONTROL STRIP ── */}
+        {isStaff && liveOps && exams.length > 0 && (
+          <div className="rounded-2xl border border-border bg-card/90 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-5">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex h-2.5 w-2.5 rounded-full ${
+                    liveOps.inProgressCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'
+                  }`}
+                />
+                <span className="text-xs font-black uppercase tracking-wider text-foreground">
+                  Live Exam Ops
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+                <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-800 dark:text-emerald-300 tabular-nums">
+                  {liveOps.inProgressCount} live sitting{liveOps.inProgressCount === 1 ? '' : 's'}
+                </span>
+                <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-800 dark:text-amber-300 tabular-nums">
+                  {liveOps.pendingGradingCount} pending grading
+                </span>
+                <span className="rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-muted-foreground tabular-nums">
+                  {liveOps.activeCount} open exam{liveOps.activeCount === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {liveOps.busiestLiveExam && (
+                <Link
+                  href={`/dashboard/cbt/${liveOps.busiestLiveExam.id}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-sm hover:opacity-95 transition-opacity"
+                >
+                  <EyeIcon className="w-3.5 h-3.5" />
+                  {liveOps.inProgressCount > 0 ? 'Monitor Live →' : 'Open Exam Monitor →'}
+                </Link>
+              )}
+              {liveOps.nextGradeExam && liveOps.pendingGradingCount > 0 && (
+                <Link
+                  href={`/dashboard/cbt/${liveOps.nextGradeExam.id}`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-colors"
+                >
+                  <PencilIcon className="w-3.5 h-3.5" />
+                  Grade Queue ({liveOps.pendingGradingCount}) →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── TYPE FILTER TABS ── */}
         <MobileScrollStrip
