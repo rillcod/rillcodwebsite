@@ -5,6 +5,7 @@ import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { logAudit } from '@/lib/audit/log';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
 
 /**
  * Full accountability census: every school, every account, where they are placed,
@@ -79,23 +80,24 @@ export async function GET() {
   let coverageRes: Awaited<ReturnType<typeof db.rpc>>;
   let peopleRes: { data: any[]; error: { message: string } | null };
   let backlogRes: Awaited<ReturnType<typeof db.rpc>>;
-  let liveRoleRes: { data: Array<{ id: string; role: string; school_id: string | null; class_id: string | null }> | null; error: { message: string } | null };
+  let liveRoleRes: { data: Array<{ id: string; role: string; school_id: string | null; class_id: string | null; created_at: string | null; metadata: any }> | null; error: { message: string } | null };
   let settingsRes: { data: { value?: string | null } | null; error: { message: string } | null };
   let schoolsRes: { data: Array<{ id: string; name: string; city: string | null; state: string | null; status: string | null }> | null; error: { message: string } | null };
   let classesRes: { data: Array<{ id: string; name: string; school_id: string | null; term_id: string | null; teacher_id: string | null; status: string | null }> | null; error: { message: string } | null };
+  let rostersRes: { data: Array<{ student_id: string; class_id: string; status: string | null; started_at: string | null; reinstated_at: string | null; term_id: string | null }> | null; error: { message: string } | null };
 
   try {
-    [coverageRes, peopleRes, backlogRes, liveRoleRes, settingsRes, schoolsRes, classesRes] = await Promise.race([
+    [coverageRes, peopleRes, backlogRes, liveRoleRes, settingsRes, schoolsRes, classesRes, rostersRes] = await Promise.race([
       Promise.all([
         db.rpc('get_academic_coverage' as never),
         fetchAllSupabaseRows<any>((from, to) =>
           db.from('accountability_people_mv' as never).select('*').range(from, to),
         ),
         db.rpc('get_report_backlog' as never),
-        fetchAllSupabaseRows<{ id: string; role: string; school_id: string | null; class_id: string | null }>((from, to) =>
+        fetchAllSupabaseRows<{ id: string; role: string; school_id: string | null; class_id: string | null; created_at: string | null; metadata: any }>((from, to) =>
           db
             .from('portal_users')
-            .select('id, role, school_id, class_id')
+            .select('id, role, school_id, class_id, created_at, metadata')
             .eq('is_deleted', false)
             .range(from, to),
         ),
@@ -112,6 +114,13 @@ export async function GET() {
           db
             .from('classes')
             .select('id, name, school_id, term_id, teacher_id, status')
+            .range(from, to),
+        ),
+        fetchAllSupabaseRows<{ student_id: string; class_id: string; status: string | null; started_at: string | null; reinstated_at: string | null; term_id: string | null }>((from, to) =>
+          (db as any)
+            .from('class_term_rosters')
+            .select('student_id, class_id, status, started_at, reinstated_at, term_id')
+            .eq('status', 'active')
             .range(from, to),
         ),
       ]),
@@ -144,9 +153,23 @@ export async function GET() {
   });
   const classById = new Map(allClasses.map((c) => [c.id, c]));
   const liveUserMap = new Map((liveRoleRes.data ?? []).map((u) => [u.id, u]));
+  const sessionBoundary = getSessionBoundary(coverageData?.term_context?.academic_year ?? null);
+  const activeRosterByStudent = new Map<
+    string,
+    { class_id: string; status: string | null; started_at: string | null; reinstated_at: string | null; term_id: string | null }
+  >();
+  for (const r of rostersRes.data ?? []) {
+    const existing = activeRosterByStudent.get(r.student_id);
+    const liveClassId = liveUserMap.get(r.student_id)?.class_id;
+    // Prefer the active roster matching portal_users.class_id, or the most recently reinstated/started row.
+    if (!existing || (liveClassId && r.class_id === liveClassId)) {
+      activeRosterByStudent.set(r.student_id, r);
+    }
+  }
 
-  // Enrich every person with authoritative school_id/school_name AND clean session_scope
-  // so old-session / withdrawn records never pollute current-term operations.
+  // Enrich every person with authoritative school_id/school_name AND strict session_scope
+  // using the canonical session-scope classifier so unconfirmed 3rd-term carryover students
+  // are NEVER falsely counted as placed/enrolled for the current session.
   const people = (peopleRes.data ?? []).map((p: any) => {
     const live = liveUserMap.get(p.id);
     const resolvedSchoolId =
@@ -160,6 +183,7 @@ export async function GET() {
     const flags: string[] = Array.isArray(p.flags) ? p.flags : [];
     const rosterStatus = String(p.roster_status || '').toLowerCase();
     const liveClass = live?.class_id ? classById.get(live.class_id) : null;
+    const activeRoster = activeRosterByStudent.get(p.id) ?? null;
 
     let session_scope: 'current' | 'archive' | 'unassigned' = 'current';
     if (roleNorm === 'student') {
@@ -167,13 +191,37 @@ export async function GET() {
         !p.is_active
         || flags.includes('withdrawn')
         || ['withdrawn', 'ended', 'removed', 'completed'].includes(rosterStatus);
-      const isPriorTermClass = Boolean(
-        activeTermId
-        && liveClass?.term_id
-        && liveClass.term_id !== activeTermId
-        && !p.class_from_roster,
+
+      const meta = live?.metadata && typeof live.metadata === 'object' ? (live.metadata as Record<string, any>) : {};
+      const confirmedByMeta =
+        String(meta.confirmed_session || '') === sessionBoundary.periodLabel ||
+        String(meta.rollover_session || '') === sessionBoundary.periodLabel ||
+        (Array.isArray(meta.session_history) &&
+          meta.session_history.some((h: any) => String(h?.session || '') === sessionBoundary.periodLabel));
+
+      const sessionStatus = classifyStudentSessionStatus(
+        {
+          is_active: Boolean(p.is_active) && !isWithdrawnOrInactive,
+          created_at: live?.created_at ?? null,
+          metadata: meta,
+        },
+        activeRoster
+          ? {
+              status: activeRoster.status,
+              term_id: activeRoster.term_id ?? liveClass?.term_id ?? null,
+              started_at: activeRoster.reinstated_at ?? activeRoster.started_at ?? null,
+            }
+          : null,
+        {
+          canonicalTermId: activeTermId,
+          boundary: sessionBoundary,
+        },
       );
-      if (isWithdrawnOrInactive || isPriorTermClass) {
+
+      if (isWithdrawnOrInactive) {
+        session_scope = 'archive';
+      } else if (!confirmedByMeta && sessionStatus === 'carryover_unconfirmed') {
+        // Prior-session (e.g. 3rd term) student NOT YET confirmed for this session → keep in Archive/Unconfirmed!
         session_scope = 'archive';
       } else if (!p.class_from_roster && !live?.class_id) {
         session_scope = 'unassigned';
