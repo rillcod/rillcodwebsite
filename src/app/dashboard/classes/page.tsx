@@ -471,12 +471,19 @@ export default function ClassesPage() {
                       <Link
                         href={`/dashboard/classes/${cls.id}?operation=roster`}
                         title="Open class student roster"
-                        className="inline-flex items-center gap-1.5 font-bold text-foreground hover:text-primary transition-colors"
+                        className="inline-flex flex-wrap items-center gap-1.5 font-bold text-foreground hover:text-primary transition-colors"
                       >
                         <UserGroupIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isFull ? 'text-rose-600 dark:text-rose-400' : 'text-primary'}`} />
                         <span className={isFull ? 'text-rose-600 dark:text-rose-400' : ''}>
-                          {cls.current_students ?? 0}{cls.max_students ? ` / ${cls.max_students}` : ''} students
+                          {typeof cls.confirmed_students === 'number'
+                            ? `${cls.confirmed_students} confirmed`
+                            : `${cls.current_students ?? 0}${cls.max_students ? ` / ${cls.max_students}` : ''} students`}
                         </span>
+                        {typeof cls.unconfirmed_students === 'number' && cls.unconfirmed_students > 0 && (
+                          <span className="rounded-full bg-amber-500/15 border border-amber-500/35 px-1.5 py-0.5 text-[9px] font-black text-amber-800 dark:text-amber-300">
+                            {cls.unconfirmed_students} 3rd-term
+                          </span>
+                        )}
                       </Link>
                       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground truncate max-w-[55%]">
                         <ClockIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/70" />

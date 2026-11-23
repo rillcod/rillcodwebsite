@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -147,15 +148,58 @@ export async function GET(request: NextRequest) {
     const countMap: Record<string, number> = {};
     classIds.forEach((cid) => { countMap[cid] = 0; });
 
-    // 1. Students directly assigned via class_id FK
-    const { data: directStudents } = await admin
-      .from('portal_users')
-      .select('class_id')
-      .eq('role', 'student')
-      .in('class_id', classIds);
+    // 1. Students directly assigned via class_id FK + canonical current-session vs 3rd-term split
+    const confirmedMap: Record<string, number> = {};
+    const unconfirmedMap: Record<string, number> = {};
+    classIds.forEach((cid) => {
+      confirmedMap[cid] = 0;
+      unconfirmedMap[cid] = 0;
+    });
+
+    const boundary = getSessionBoundary();
+    const [{ data: directStudents }, { data: canonicalTerm }, { data: activeRosters }] = await Promise.all([
+      admin
+        .from('portal_users')
+        .select('id, class_id, is_active, created_at, metadata')
+        .eq('role', 'student')
+        .eq('is_active', true)
+        .eq('is_deleted', false)
+        .in('class_id', classIds),
+      admin
+        .from('academic_terms')
+        .select('id')
+        .eq('term_label', boundary.termLabel)
+        .eq('academic_year', boundary.periodLabel)
+        .maybeSingle(),
+      (admin as any)
+        .from('class_term_rosters')
+        .select('student_id, class_id, status, term_id, started_at, reinstated_at')
+        .in('class_id', classIds)
+        .eq('status', 'active'),
+    ]);
+
+    const canonicalTermId = (canonicalTerm as { id?: string } | null)?.id ?? null;
+    const rosterByKey = new Map<string, any>();
+    for (const r of (activeRosters ?? []) as any[]) {
+      rosterByKey.set(`${r.class_id}::${r.student_id}`, r);
+    }
 
     (directStudents ?? []).forEach((s: any) => {
-      if (s.class_id) countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
+      if (!s.class_id) return;
+      countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
+      const ar = rosterByKey.get(`${s.class_id}::${s.id}`) ?? null;
+      const status = classifyStudentSessionStatus(
+        { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
+        ar
+          ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+          : null,
+        { canonicalTermId, boundary },
+      );
+      if (status === 'confirmed_current') {
+        confirmedMap[s.class_id] = (confirmedMap[s.class_id] ?? 0) + 1;
+      } else if (status === 'carryover_unconfirmed') {
+        unconfirmedMap[s.class_id] = (unconfirmedMap[s.class_id] ?? 0) + 1;
+      }
     });
 
     // 2. Also count section_class-matched students whose class_id is not yet set
@@ -194,6 +238,8 @@ export async function GET(request: NextRequest) {
     const enriched = classData.map((c: any) => ({
       ...c,
       current_students: countMap[c.id] ?? c.current_students ?? 0,
+      confirmed_students: confirmedMap[c.id] ?? 0,
+      unconfirmed_students: unconfirmedMap[c.id] ?? 0,
     }));
 
     return NextResponse.json({ data: enriched });
