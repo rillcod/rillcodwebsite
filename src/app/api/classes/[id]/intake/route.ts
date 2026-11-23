@@ -114,6 +114,92 @@ async function authorizeStaffForClass(classId: string) {
 }
 
 /**
+ * GET /api/classes/[id]/intake
+ * Lightweight school student directory for instant 0ms client-side autocomplete,
+ * smart duplicate detection, and auto-fill (including parent verification status).
+ */
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id: classId } = await context.params;
+    const auth = await authorizeStaffForClass(classId);
+    if ('error' in auth) return auth.error;
+    const { admin, cls } = auth;
+
+    let q = admin
+      .from('portal_users')
+      .select('id, full_name, grade, class_id, section_class, is_active, metadata')
+      .eq('role', 'student')
+      .neq('is_deleted', true)
+      .order('full_name')
+      .limit(1200);
+
+    if (cls.school_id) {
+      q = q.eq('school_id', cls.school_id);
+    } else {
+      q = q.eq('class_id', classId);
+    }
+
+    const { data: portalRows, error: qErr } = await q;
+    if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
+
+    const rows = portalRows ?? [];
+    const userIds = rows.map((r: any) => r.id).filter(Boolean);
+
+    const studentByUserId = new Map<string, any>();
+    const verifiedStudentTableIds = new Set<string>();
+
+    if (userIds.length > 0) {
+      const { data: stRows } = await admin
+        .from('students')
+        .select('id, user_id, parent_phone, parent_name')
+        .in('user_id', userIds);
+
+      const stIds: string[] = [];
+      for (const st of stRows ?? []) {
+        if ((st as any).user_id) {
+          studentByUserId.set((st as any).user_id, st);
+          if ((st as any).id) stIds.push((st as any).id);
+        }
+      }
+      if (stIds.length > 0) {
+        const { data: links } = await admin
+          .from('parent_student_links')
+          .select('student_id')
+          .in('student_id', stIds);
+        for (const l of links ?? []) {
+          if ((l as any).student_id) verifiedStudentTableIds.add((l as any).student_id);
+        }
+      }
+    }
+
+    const candidates = rows.map((r: any) => {
+      const meta = (r.metadata && typeof r.metadata === 'object' ? r.metadata : {}) as Record<string, any>;
+      const st = studentByUserId.get(r.id);
+      const parentPhone = String(st?.parent_phone || meta.parent_phone || '').trim() || null;
+      const parentVerified = Boolean(st?.id && verifiedStudentTableIds.has(st.id));
+      return {
+        id: r.id,
+        full_name: r.full_name,
+        grade: r.grade || null,
+        class_id: r.class_id || null,
+        section_class: r.section_class || null,
+        is_active: r.is_active !== false,
+        in_this_class: r.class_id === classId && r.is_active !== false,
+        parent_phone: parentPhone,
+        parent_verified: parentVerified,
+      };
+    });
+
+    return NextResponse.json({ candidates }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
+/**
  * POST /api/classes/[id]/intake
  * Unified endpoint for both Teachers and Admins:
  *  1. action: 'intake_add' — Digital first-day / pass-around class intake (optional parent phone).
@@ -308,6 +394,197 @@ export async function POST(
           parent_phone: parentPhone || null,
           session_status: 'confirmed_current',
         },
+      });
+    }
+
+    // ── 1b. Batch Teacher-Verified Intake Commit (Zero-Lag Queue → Single Commit) ─
+    if (action === 'intake_batch_commit') {
+      const entries: Array<{
+        full_name?: string;
+        grade?: string;
+        parent_phone?: string;
+        matched_student_id?: string | null;
+      }> = Array.isArray(body?.entries) ? body.entries : [];
+
+      if (entries.length === 0) {
+        return NextResponse.json({ error: 'No intake entries to verify and save.' }, { status: 400 });
+      }
+
+      let linkedExisting = 0;
+      let createdNew = 0;
+      const errors: string[] = [];
+
+      for (const entry of entries) {
+        const cleanedName = cleanStudentName(String(entry?.full_name || ''));
+        if (!cleanedName || cleanedName.length < 2) {
+          errors.push(`Skipped blank or invalid name.`);
+          continue;
+        }
+        const rawGrade = String(entry?.grade || cls.qa_grade_key || '').trim();
+        const resolvedGrade = cleanGrade(rawGrade) || canonicalGrade(cls.qa_grade_key || cls.name) || rawGrade || null;
+        const parentPhone = normalizePhoneInput(entry?.parent_phone);
+        const explicitMatchId = String(entry?.matched_student_id || '').trim() || null;
+
+        let studentId: string | null = null;
+        let studentEmail = '';
+        let existingMeta: Record<string, any> = {};
+        let isExisting = false;
+
+        if (explicitMatchId) {
+          const { data: matched } = await admin
+            .from('portal_users')
+            .select('id, full_name, email, class_id, is_active, metadata')
+            .eq('id', explicitMatchId)
+            .eq('role', 'student')
+            .maybeSingle();
+          if (matched) {
+            studentId = matched.id;
+            studentEmail = matched.email;
+            existingMeta = (matched.metadata && typeof matched.metadata === 'object'
+              ? matched.metadata
+              : {}) as Record<string, any>;
+            isExisting = true;
+          }
+        }
+
+        if (!studentId) {
+          // Exact name match in this class first
+          const { data: inClass } = await admin
+            .from('portal_users')
+            .select('id, full_name, email, metadata')
+            .eq('class_id', classId)
+            .eq('role', 'student')
+            .ilike('full_name', cleanedName)
+            .maybeSingle();
+          if (inClass) {
+            studentId = inClass.id;
+            studentEmail = inClass.email;
+            existingMeta = (inClass.metadata && typeof inClass.metadata === 'object'
+              ? inClass.metadata
+              : {}) as Record<string, any>;
+            isExisting = true;
+          }
+        }
+
+        if (!studentId) {
+          const email = buildLoginEmailFromName(cleanedName);
+          const provisioned = await findOrCreateStudentPortal(admin, {
+            email,
+            fullName: cleanedName,
+            schoolId: cls.school_id,
+            schoolName,
+            classId,
+            sectionClass: cls.name,
+            grade: resolvedGrade,
+            passwordPolicy: 'set',
+            archiveCredentials: true,
+            batchLabel: `class-intake-${currentSession}`,
+            classNameForArchive: cls.name,
+          });
+          if (!provisioned.ok || !provisioned.studentId) {
+            errors.push(`${cleanedName}: ${provisioned.error || 'Could not create student'}`);
+            continue;
+          }
+          studentId = provisioned.studentId;
+          studentEmail = provisioned.email || email;
+          createdNew += 1;
+        } else {
+          linkedExisting += 1;
+        }
+
+        // Enroll / activate in this class
+        const reinstated = await reinstateStudentToClass(admin, {
+          studentId,
+          classId,
+          actor: { id: caller.id, role: caller.role },
+          grade: resolvedGrade,
+          forceCrossTeacher: caller.role === 'admin',
+        });
+        if (!reinstated.ok) {
+          errors.push(`${cleanedName}: ${reinstated.error}`);
+          continue;
+        }
+
+        const nextMeta: Record<string, any> = {
+          ...existingMeta,
+          confirmed_session: currentSession,
+          intake_verified_by: caller.id,
+          intake_verified_at: nowIso,
+        };
+        if (parentPhone) {
+          nextMeta.parent_phone = parentPhone;
+          if (!nextMeta.parent_phone_source) nextMeta.parent_phone_source = 'class_intake';
+        }
+
+        const portalUpdate: Record<string, any> = {
+          full_name: cleanedName,
+          is_active: true,
+          metadata: nextMeta,
+          updated_at: nowIso,
+        };
+        if (resolvedGrade) portalUpdate.grade = resolvedGrade;
+        await admin.from('portal_users').update(portalUpdate).eq('id', studentId);
+
+        const { data: existingStudentRow } = await admin
+          .from('students')
+          .select('id, parent_phone')
+          .eq('user_id', studentId)
+          .maybeSingle();
+
+        if (existingStudentRow) {
+          const studentPatch: Record<string, any> = {
+            full_name: cleanedName,
+            name: cleanedName,
+            current_class: cls.name,
+            is_active: true,
+          };
+          if (resolvedGrade) {
+            studentPatch.grade = resolvedGrade;
+            studentPatch.grade_level = resolvedGrade;
+          }
+          if (parentPhone) {
+            studentPatch.parent_phone = parentPhone;
+          }
+          await admin.from('students').update(studentPatch).eq('id', existingStudentRow.id);
+        } else {
+          await admin.from('students').insert({
+            user_id: studentId,
+            name: cleanedName,
+            full_name: cleanedName,
+            email: studentEmail,
+            school_id: cls.school_id,
+            school_name: schoolName,
+            current_class: cls.name,
+            grade: resolvedGrade,
+            grade_level: resolvedGrade,
+            parent_phone: parentPhone || null,
+            is_active: true,
+            status: 'approved',
+            payment_plan: 'school_partner',
+            created_by: caller.id,
+          } as any);
+        }
+
+        if (!isExisting) {
+          void ensureStudentCardIssued(admin as any, {
+            holderId: studentId,
+            schoolId: cls.school_id,
+            classId,
+            actorId: caller.id,
+          }).catch(() => {});
+        }
+      }
+
+      await syncClassActiveCount(admin, classId);
+
+      const committed = linkedExisting + createdNew;
+      return NextResponse.json({
+        ok: committed > 0,
+        committed,
+        linked_existing: linkedExisting,
+        created_new: createdNew,
+        errors,
+        message: `Verified & saved ${committed} student${committed === 1 ? '' : 's'} (${linkedExisting} matched existing, ${createdNew} new).`,
       });
     }
 

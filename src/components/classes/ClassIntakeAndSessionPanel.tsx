@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   CheckCircleIcon,
@@ -51,6 +51,76 @@ interface ClassIntakeAndSessionPanelProps {
   onRefresh: () => void | Promise<void>;
 }
 
+export interface DirectoryCandidate {
+  id: string;
+  full_name: string;
+  grade?: string | null;
+  class_id?: string | null;
+  section_class?: string | null;
+  is_active: boolean;
+  in_this_class: boolean;
+  parent_phone?: string | null;
+  parent_verified: boolean;
+}
+
+interface PendingIntakeEntry {
+  localId: string;
+  full_name: string;
+  grade: string;
+  parent_phone: string;
+  matched_student_id: string | null;
+  matched_label?: string | null;
+  matched_verified?: boolean;
+}
+
+function normalizeNameTokens(name: string): string[] {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+}
+
+function findSmartCandidateMatches(
+  query: string,
+  candidates: DirectoryCandidate[],
+  limit = 5,
+): DirectoryCandidate[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const qTokens = normalizeNameTokens(q);
+  const scored: Array<{ c: DirectoryCandidate; score: number }> = [];
+
+  for (const c of candidates) {
+    const nameLower = c.full_name.toLowerCase();
+    if (nameLower === q) {
+      scored.push({ c, score: 100 });
+      continue;
+    }
+    if (nameLower.startsWith(q)) {
+      scored.push({ c, score: 85 + (c.in_this_class ? 5 : 0) });
+      continue;
+    }
+    if (nameLower.includes(q)) {
+      scored.push({ c, score: 70 + (c.in_this_class ? 5 : 0) });
+      continue;
+    }
+    if (qTokens.length >= 2) {
+      const cTokens = normalizeNameTokens(c.full_name);
+      const overlap = qTokens.filter((t) => cTokens.some((ct) => ct.startsWith(t) || t.startsWith(ct))).length;
+      if (overlap >= 2) {
+        scored.push({ c, score: 60 + overlap * 8 + (c.in_this_class ? 5 : 0) });
+      }
+    }
+  }
+
+  return scored
+    .sort((a, b) => b.score - a.score || a.c.full_name.localeCompare(b.c.full_name))
+    .slice(0, limit)
+    .map((s) => s.c);
+}
+
 function formatWhatsAppDigits(phone?: string | null): string | null {
   const digits = String(phone ?? '').replace(/\D/g, '');
   if (digits.length < 10) return null;
@@ -96,10 +166,43 @@ export function ClassIntakeAndSessionPanel({
   // Teacher/Admin Grade Lock vs Student Grade Dropdown
   const [lockGrade, setLockGrade] = useState<boolean>(Boolean(canonicalGrade(classGradeKey || className)));
   const [selectedGrade, setSelectedGrade] = useState<string>(defaultGrade);
-  // Kid-friendly Pass-Around Mode (hides roster editing/deletion while passing device around class)
+  // Kid-friendly Pass-Around Mode (full-screen zero-distraction classroom kiosk!)
   const [passAroundMode, setPassAroundMode] = useState(false);
   const [passAroundAddedCount, setPassAroundAddedCount] = useState(0);
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
+  const [kioskCelebration, setKioskCelebration] = useState<string | null>(null);
+  const kioskInputRef = useRef<HTMLInputElement>(null);
+
+  const queueCandidateDirect = (cand: DirectoryCandidate) => {
+    const alreadyQueued = pendingQueue.some(
+      (item) =>
+        item.matched_student_id === cand.id ||
+        item.full_name.trim().toLowerCase() === cand.full_name.trim().toLowerCase(),
+    );
+    if (!alreadyQueued) {
+      const entry: PendingIntakeEntry = {
+        localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        full_name: cand.full_name,
+        grade: lockGrade ? selectedGrade : (cand.grade || selectedGrade),
+        parent_phone: cand.parent_phone || '',
+        matched_student_id: cand.id,
+        matched_label: `${cand.in_this_class ? 'In this class' : cand.section_class || 'Returning'}${cand.grade ? ` · ${cand.grade}` : ''}`,
+        matched_verified: Boolean(cand.parent_verified),
+      };
+      setPendingQueue((prev) => [entry, ...prev]);
+      setPassAroundAddedCount((c) => c + 1);
+    }
+    setFullName('');
+    setParentPhone('');
+    setSelectedCandidate(null);
+    setShowSuggestions(false);
+    setLastAddedName(cand.full_name);
+    setKioskCelebration(cand.full_name);
+    setTimeout(() => {
+      setKioskCelebration(null);
+      kioskInputRef.current?.focus();
+    }, 1150);
+  };
 
   // Organize / filter / sort controls for Tab 1 live sheet
   const [sheetSearch, setSheetSearch] = useState('');
@@ -107,11 +210,55 @@ export function ClassIntakeAndSessionPanel({
   const [sheetSort, setSheetSort] = useState<'name' | 'grade' | 'phone' | 'session'>('name');
   const [reinstatingId, setReinstatingId] = useState<string | null>(null);
 
-  // Quick intake form
+  // Quick intake form + Smart Autocomplete + Zero-Lag Teacher Verification Queue
+  const queueStorageKey = `rillcod:intake-queue:${classId}`;
+  const [directory, setDirectory] = useState<DirectoryCandidate[]>([]);
   const [fullName, setFullName] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [selectedCandidate, setSelectedCandidate] = useState<DirectoryCandidate | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [pendingQueue, setPendingQueue] = useState<PendingIntakeEntry[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(`rillcod:intake-queue:${classId}`);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const [committingBatch, setCommittingBatch] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/classes/${classId}/intake`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!cancelled && Array.isArray(json?.candidates)) {
+          setDirectory(json.candidates);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [classId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(queueStorageKey, JSON.stringify(pendingQueue));
+    } catch {
+      /* ignore storage quota errors */
+    }
+  }, [pendingQueue, queueStorageKey]);
+
+  const liveSuggestions = useMemo(
+    () => findSmartCandidateMatches(fullName, directory, 5),
+    [fullName, directory],
+  );
 
   // Inline phone edit
   const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null);
@@ -227,7 +374,20 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
-  const handleIntakeSubmit = async (e: React.FormEvent) => {
+  const handleSelectCandidate = (c: DirectoryCandidate) => {
+    setSelectedCandidate(c);
+    setFullName(c.full_name);
+    if (c.parent_phone) {
+      setParentPhone(c.parent_phone);
+    }
+    if (!lockGrade && c.grade && (SINGLE_GRADES as readonly string[]).includes(c.grade)) {
+      setSelectedGrade(c.grade);
+    }
+    setShowSuggestions(false);
+  };
+
+  // Zero-lag instant queue collection (0ms — no network wait while students enter!)
+  const handleIntakeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = fullName.trim();
     if (trimmed.length < 2) {
@@ -235,36 +395,87 @@ export function ClassIntakeAndSessionPanel({
       nameInputRef.current?.focus();
       return;
     }
+
+    // Prevent duplicate entries in the local queue
+    const alreadyQueued = pendingQueue.some(
+      (item) => item.full_name.trim().toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (alreadyQueued) {
+      toast.info(`${trimmed} is already in the verification queue below.`);
+      setFullName('');
+      setParentPhone('');
+      setSelectedCandidate(null);
+      setTimeout(() => nameInputRef.current?.focus(), 20);
+      return;
+    }
+
+    // Smart auto-match if exact/strong token match exists in school directory
+    let matched = selectedCandidate;
+    if (!matched) {
+      const exact = directory.find(
+        (c) => c.full_name.trim().toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (exact) matched = exact;
+    }
+
+    const entry: PendingIntakeEntry = {
+      localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      full_name: matched?.full_name || trimmed,
+      grade: selectedGrade,
+      parent_phone: parentPhone.trim() || matched?.parent_phone || '',
+      matched_student_id: matched?.id ?? null,
+      matched_label: matched
+        ? `${matched.in_this_class ? 'In this class' : matched.section_class || 'Returning'}${matched.grade ? ` · ${matched.grade}` : ''}`
+        : null,
+      matched_verified: Boolean(matched?.parent_verified),
+    };
+
+    setPendingQueue((prev) => [entry, ...prev]);
+    setFullName('');
+    setParentPhone('');
+    setSelectedCandidate(null);
+    setShowSuggestions(false);
+    setLastAddedName(entry.full_name);
+    if (passAroundMode) {
+      setPassAroundAddedCount((c) => c + 1);
+      setKioskCelebration(entry.full_name);
+      setTimeout(() => {
+        setKioskCelebration(null);
+        kioskInputRef.current?.focus();
+      }, 1150);
+    } else {
+      setTimeout(() => nameInputRef.current?.focus(), 20);
+    }
+  };
+
+  const handleCommitVerifiedQueue = async () => {
+    if (pendingQueue.length === 0) return;
+    setCommittingBatch(true);
     setSubmitting(true);
     try {
       const res = await fetch(`/api/classes/${classId}/intake`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'intake_add',
-          full_name: trimmed,
-          grade: selectedGrade,
-          parent_phone: parentPhone.trim() || undefined,
+          action: 'intake_batch_commit',
+          entries: pendingQueue.map((item) => ({
+            full_name: item.full_name,
+            grade: item.grade,
+            parent_phone: item.parent_phone || undefined,
+            matched_student_id: item.matched_student_id,
+          })),
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Could not add student.');
-      setFullName('');
-      setParentPhone('');
-      setLastAddedName(json.student?.full_name || trimmed);
-      if (passAroundMode) {
-        setPassAroundAddedCount((c) => c + 1);
-      }
-      toast.success(
-        json.created
-          ? `${json.student?.full_name || trimmed} added to ${className}!`
-          : `${json.student?.full_name || trimmed} confirmed on ${className}!`,
-      );
+      if (!res.ok) throw new Error(json.error || 'Could not save verified batch.');
+      toast.success(json.message || `Verified & saved ${pendingQueue.length} students!`);
+      setPendingQueue([]);
+      setLastAddedName(null);
       await onRefresh();
-      setTimeout(() => nameInputRef.current?.focus(), 40);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to add student.');
+      toast.error(err?.message || 'Batch verification failed.');
     } finally {
+      setCommittingBatch(false);
       setSubmitting(false);
     }
   };
@@ -422,6 +633,195 @@ export function ClassIntakeAndSessionPanel({
 
   return (
     <div className="rounded-2xl border border-primary/30 bg-card shadow-lg overflow-hidden">
+      {/* FULL-SCREEN ZERO-DISTRACTION KID-FRIENDLY PASS-AROUND KIOSK */}
+      {passAroundMode && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Student Pass-Around Check-In"
+          className="fixed inset-0 z-[9995] bg-background flex flex-col overflow-y-auto"
+        >
+          {/* Minimal distraction-free top bar */}
+          <div className="px-4 sm:px-6 py-3 border-b border-border bg-card flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm">
+                RC
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-black text-foreground truncate">
+                  {className} {lockGrade ? `· ${selectedGrade}` : ''}
+                </p>
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  {passAroundAddedCount > 0
+                    ? `${passAroundAddedCount} classmate${passAroundAddedCount === 1 ? '' : 's'} checked in`
+                    : `${currentSession} Class Check-In`}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPassAroundMode(false);
+                setKioskCelebration(null);
+              }}
+              className="shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3.5 py-2 rounded-xl border border-border bg-muted hover:bg-muted/80 text-xs font-black text-foreground"
+            >
+              Teacher Finish ({pendingQueue.length})
+            </button>
+          </div>
+
+          {/* Center Kid-Friendly Card */}
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+            <div className="w-full max-w-xl">
+              {kioskCelebration ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setKioskCelebration(null);
+                    setTimeout(() => kioskInputRef.current?.focus(), 20);
+                  }}
+                  className="w-full rounded-3xl border-2 border-emerald-500 bg-emerald-500/10 p-8 sm:p-12 text-center space-y-3 shadow-xl"
+                >
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg">
+                    <CheckCircleIcon className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                    Well done, {kioskCelebration}!
+                  </h2>
+                  <p className="text-base sm:text-lg font-bold text-emerald-800 dark:text-emerald-300">
+                    Pass the device to your next classmate 👉
+                  </p>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Tap anywhere to continue immediately
+                  </p>
+                </button>
+              ) : (
+                <form
+                  onSubmit={handleIntakeSubmit}
+                  className="rounded-3xl border-2 border-primary/30 bg-card p-6 sm:p-8 shadow-2xl space-y-5"
+                >
+                  <div className="text-center space-y-1">
+                    <p className="text-xs font-black uppercase tracking-widest text-primary">
+                      {lockGrade ? selectedGrade : className} · Quick Check-In
+                    </p>
+                    <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                      Type Your Full Name
+                    </h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      If your name pops up below, just tap it!
+                    </p>
+                  </div>
+
+                  {/* Giant Name Input */}
+                  <div className="space-y-2">
+                    <input
+                      ref={kioskInputRef}
+                      type="text"
+                      required
+                      autoFocus
+                      autoComplete="off"
+                      aria-label="Your full name"
+                      value={fullName}
+                      onChange={(e) => {
+                        setFullName(e.target.value);
+                        setSelectedCandidate(null);
+                      }}
+                      placeholder="e.g. Chinedu Okafor"
+                      className="w-full h-16 rounded-2xl border-2 border-primary/40 bg-background px-5 text-xl sm:text-2xl font-black text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15"
+                    />
+
+                    {/* Direct Giant Tap-to-Check-In Suggestion Cards */}
+                    {liveSuggestions.length > 0 && !selectedCandidate && (
+                      <div className="space-y-2 pt-1">
+                        <p className="text-[11px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                          👇 Tap your name if you see it:
+                        </p>
+                        <div className="space-y-2">
+                          {liveSuggestions.slice(0, 4).map((cand) => {
+                            const hasPhoneOrVerified = cand.parent_verified || Boolean(cand.parent_phone);
+                            return (
+                              <button
+                                key={cand.id}
+                                type="button"
+                                onClick={() => {
+                                  // Already verified or phone already on file → 1-TAP INSTANT CHECK-IN!
+                                  if (hasPhoneOrVerified) {
+                                    queueCandidateDirect(cand);
+                                  } else {
+                                    handleSelectCandidate(cand);
+                                  }
+                                }}
+                                className="w-full min-h-14 rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.08] hover:bg-emerald-500/15 px-4 py-3 text-left flex items-center justify-between gap-3 transition-all active:scale-[0.99]"
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-base sm:text-lg font-black text-foreground truncate">
+                                    {cand.full_name}
+                                  </p>
+                                  <p className="text-xs font-semibold text-muted-foreground truncate">
+                                    {cand.grade || cand.section_class || className}
+                                    {hasPhoneOrVerified ? ' · Parent contact already on file' : ' · Tap to select'}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm">
+                                  {hasPhoneOrVerified ? "That's Me ✓" : 'Select'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Grade selector ONLY if teacher did not lock the grade */}
+                  {!lockGrade && (
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
+                        Your Class / Grade
+                      </label>
+                      <select
+                        aria-label="Your grade"
+                        value={selectedGrade}
+                        onChange={(e) => setSelectedGrade(e.target.value)}
+                        className="w-full h-14 rounded-2xl border-2 border-border bg-background px-4 text-lg font-bold text-foreground"
+                      >
+                        {SINGLE_GRADES.map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Optional Parent Phone Input (hidden only when verified candidate already 1-tapped) */}
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Parent Phone Number <span className="font-semibold normal-case">(Optional — skip if you don&apos;t know it)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      aria-label="Parent phone number (optional)"
+                      value={parentPhone}
+                      onChange={(e) => setParentPhone(e.target.value)}
+                      placeholder="0801 234 5678 (optional)"
+                      className="w-full h-14 rounded-2xl border-2 border-border bg-background px-5 text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {/* Giant Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={fullName.trim().length < 2}
+                    className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-lg sm:text-xl font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
+                  >
+                    Done — Next Classmate →
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-primary/5 border-b border-border px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
@@ -575,19 +975,76 @@ export function ClassIntakeAndSessionPanel({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-              <div className={lockGrade ? 'sm:col-span-5' : 'sm:col-span-4'}>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                  Student Full Name *
-                </label>
+              <div className={`relative ${lockGrade ? 'sm:col-span-5' : 'sm:col-span-4'}`}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Student Full Name *
+                  </label>
+                  {selectedCandidate && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 text-[9px] font-black text-emerald-800 dark:text-emerald-300">
+                      <ShieldCheckIcon className="w-3 h-3" />
+                      {selectedCandidate.parent_verified ? 'Already Verified ✓' : 'In System ✓'}
+                    </span>
+                  )}
+                </div>
                 <input
                   ref={nameInputRef}
                   type="text"
                   required
+                  autoComplete="off"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Chinedu Okafor"
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 160)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    setSelectedCandidate(null);
+                    setShowSuggestions(true);
+                  }}
+                  placeholder="Start typing name — existing students auto-suggest…"
                   className="w-full min-h-11 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+
+                {/* Smart Instant Suggestions & Auto-Fill Dropdown */}
+                {showSuggestions && liveSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl border border-primary/35 bg-card shadow-xl overflow-hidden divide-y divide-border">
+                    <div className="px-3 py-1.5 bg-primary/5 text-[9px] font-black uppercase tracking-widest text-primary">
+                      Already in system — tap to auto-fill &amp; skip re-verification
+                    </div>
+                    {liveSuggestions.map((cand) => (
+                      <button
+                        key={cand.id}
+                        type="button"
+                        onMouseDown={(ev) => {
+                          ev.preventDefault();
+                          handleSelectCandidate(cand);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-muted/60 flex items-center justify-between gap-2 transition-colors"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-foreground truncate">{cand.full_name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {cand.in_this_class
+                              ? 'Already in this class'
+                              : cand.is_active
+                              ? cand.section_class || 'Existing student'
+                              : 'Previously archived (returning)'}
+                            {cand.grade ? ` · ${cand.grade}` : ''}
+                            {cand.parent_phone ? ` · ${cand.parent_phone}` : ''}
+                          </p>
+                        </div>
+                        {cand.parent_verified ? (
+                          <span className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 text-[9px] font-black text-emerald-800 dark:text-emerald-300">
+                            Verified ✓
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-black text-primary">
+                            Auto-fill
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {!lockGrade && (
@@ -628,11 +1085,176 @@ export function ClassIntakeAndSessionPanel({
                   className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-45 px-4 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-sm transition-colors"
                 >
                   <PlusIcon className="w-4 h-4" />
-                  {submitting ? 'Saving…' : 'Add & Next'}
+                  Add &amp; Next
                 </button>
               </div>
             </div>
           </form>
+
+          {/* Teacher / Admin Post-Entry Smart Verification Queue (zero-lag collection → 1-click verify & save) */}
+          {!passAroundMode && pendingQueue.length > 0 && (
+            <div className="rounded-2xl border-2 border-primary/40 bg-primary/[0.04] p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-primary">
+                    Teacher / Admin Verification Queue ({pendingQueue.length} ready)
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Collected with zero lag. Review names, grades, smart existing-student matches &amp; optional phones below, then save all in 1 click.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Clear all ${pendingQueue.length} unsaved entries from the queue?`)) {
+                        setPendingQueue([]);
+                      }
+                    }}
+                    className="min-h-10 px-3 py-1.5 rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    disabled={committingBatch}
+                    onClick={() => void handleCommitVerifiedQueue()}
+                    className="min-h-10 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider shadow-sm"
+                  >
+                    <CheckCircleIcon className="w-4 h-4" />
+                    {committingBatch ? 'Verifying & Saving…' : `Verify & Save All (${pendingQueue.length})`}
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border">
+                {pendingQueue.map((entry, i) => {
+                  const smartSuggestion = !entry.matched_student_id
+                    ? findSmartCandidateMatches(entry.full_name, directory, 1)[0] ?? null
+                    : null;
+                  return (
+                    <div key={entry.localId} className="p-3 space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                        <div className="sm:col-span-5 flex items-center gap-2">
+                          <span className="text-[11px] font-mono text-muted-foreground w-5 shrink-0">{i + 1}.</span>
+                          <input
+                            type="text"
+                            aria-label={`Queued student name ${i + 1}`}
+                            value={entry.full_name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPendingQueue((prev) =>
+                                prev.map((row) => (row.localId === entry.localId ? { ...row, full_name: val } : row)),
+                              );
+                            }}
+                            className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs font-bold text-foreground"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <select
+                            aria-label={`Queued student grade ${i + 1}`}
+                            value={entry.grade}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPendingQueue((prev) =>
+                                prev.map((row) => (row.localId === entry.localId ? { ...row, grade: val } : row)),
+                              );
+                            }}
+                            className="w-full h-9 rounded-lg border border-border bg-background px-2 text-xs font-bold text-foreground"
+                          >
+                            {SINGLE_GRADES.map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="sm:col-span-3">
+                          <input
+                            type="tel"
+                            aria-label={`Queued parent phone ${i + 1}`}
+                            value={entry.parent_phone}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPendingQueue((prev) =>
+                                prev.map((row) => (row.localId === entry.localId ? { ...row, parent_phone: val } : row)),
+                              );
+                            }}
+                            placeholder="Optional phone"
+                            className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs font-mono text-foreground"
+                          />
+                        </div>
+                        <div className="sm:col-span-2 flex items-center justify-end gap-1.5">
+                          {entry.matched_student_id ? (
+                            <button
+                              type="button"
+                              title="Matched to existing student — click to treat as brand new instead"
+                              onClick={() =>
+                                setPendingQueue((prev) =>
+                                  prev.map((row) =>
+                                    row.localId === entry.localId
+                                      ? { ...row, matched_student_id: null, matched_label: null, matched_verified: false }
+                                      : row,
+                                  ),
+                                )
+                              }
+                              className="rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 text-[9px] font-black text-emerald-800 dark:text-emerald-300 hover:bg-rose-500/15"
+                            >
+                              {entry.matched_verified ? 'Verified ✓' : 'Existing ✓'}
+                            </button>
+                          ) : (
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-black uppercase text-muted-foreground">
+                              New
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${entry.full_name} from queue`}
+                            onClick={() =>
+                              setPendingQueue((prev) => prev.filter((row) => row.localId !== entry.localId))
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-rose-600 hover:border-rose-500/40"
+                          >
+                            <XMarkIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Smart Duplicate / Existing-Student Suggestion */}
+                      {smartSuggestion && (
+                        <div className="pl-7 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-[11px]">
+                          <span className="text-amber-950 dark:text-amber-200 font-semibold">
+                            Smart match found: <strong>{smartSuggestion.full_name}</strong> ({smartSuggestion.grade || smartSuggestion.section_class || 'In school'})
+                            {smartSuggestion.parent_verified ? ' · Already Verified' : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingQueue((prev) =>
+                                prev.map((row) =>
+                                  row.localId === entry.localId
+                                    ? {
+                                        ...row,
+                                        full_name: smartSuggestion.full_name,
+                                        parent_phone: row.parent_phone || smartSuggestion.parent_phone || '',
+                                        matched_student_id: smartSuggestion.id,
+                                        matched_label: smartSuggestion.grade || smartSuggestion.section_class || 'Existing',
+                                        matched_verified: smartSuggestion.parent_verified,
+                                      }
+                                    : row,
+                                ),
+                              )
+                            }
+                            className="shrink-0 rounded-md bg-amber-800 hover:bg-amber-900 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white"
+                          >
+                            Link Existing &amp; Auto-Fill
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Teacher / Admin Live List + WhatsApp Export (hidden in Pass-Around Mode!) */}
           {!passAroundMode && (

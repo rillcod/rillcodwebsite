@@ -339,6 +339,7 @@ export default function ClassDetailPage() {
         const studentPromise = fetchActionJson<{
           students: any[];
           former_students: any[];
+          current_session?: string;
           report_indicator_enabled: boolean;
           paste_claim_enabled: boolean;
           error: string;
