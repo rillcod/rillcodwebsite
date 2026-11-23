@@ -1820,9 +1820,13 @@ export default function ClassDetailPage() {
       : enrollmentType === 'in_person'
         ? 'In-person Programme'
         : 'Regular School';
-  const termLabel = cls.academic_offering_periods?.label
-    || (cls.academic_terms ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}` : null)
-    || (isTermBased ? 'No term assigned' : 'Delivery period not assigned');
+  const termLabel = isTermBased
+    ? (cls.academic_terms
+        ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}`
+        : cls.academic_offering_periods?.label || 'No term assigned')
+    : (cls.academic_offering_periods?.label
+        || (cls.academic_terms ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}` : null)
+        || 'Delivery period not assigned');
   /**
    * Per-learner signal for the roster, built from the submissions and CBT sessions the
    * page already loads — no extra queries. Deliberately shallow: enough to spot who is
