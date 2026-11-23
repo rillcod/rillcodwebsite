@@ -486,16 +486,14 @@ function renderPrintQuestionBlock(q: CbtPrintQuestion, num: number, mode: 'stude
   </div>`;
 }
 
-function formalInstructionsHtml(cfg: CbtPrintSheetConfig, totalMarks: number, hasMcq: boolean, hasTheory: boolean): string {
+function formalInstructionsHtml(cfg: CbtPrintSheetConfig, hasMcq: boolean, hasTheory: boolean): string {
   const extra = cfg.description ? `<p class="instr-extra">${escapeHtml(cfg.description)}</p>` : '';
   const sectionRules = [
-    hasMcq ? 'Objective: circle one letter only.' : null,
-    hasTheory ? 'Theory: write legibly in blue or black ink.' : null,
+    hasMcq ? 'Objective: circle one letter (A–D) per question.' : null,
+    hasTheory ? 'Theory: write clearly in the spaces provided.' : null,
   ].filter(Boolean).join(' ');
   return `<div class="instructions">
-    <div class="instr-title">Candidate Instructions</div>
-    <p><strong>1.</strong> Complete your details and answer <strong>ALL</strong> questions. Total: <strong>${totalMarks}</strong> marks · Time: <strong>${cfg.durationMinutes} min</strong> · Pass: <strong>${cfg.passingScore}%</strong>.</p>
-    <p><strong>2.</strong> ${sectionRules} No phones, smart watches, or unauthorised materials; stop immediately when instructed.</p>
+    <p><strong>Instructions:</strong> Answer <strong>ALL</strong> questions. ${sectionRules}</p>
     ${extra}
   </div>`;
 }
@@ -518,13 +516,13 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
 
   const mcqColumns = canUsePrintColumns(mcq);
   const mcqHtml = mcq.length
-    ? `<div class="section-hdr"><span class="s-title">Section A — Objective (Multiple Choice &amp; True/False)</span><span class="s-pts">${mcq.length} Q · ${mcqPts} marks</span></div>
+    ? `<div class="section-hdr"><span class="s-title">Section A — Objective</span><span class="s-pts">${mcqPts} marks</span></div>
        <div class="${mcqColumns ? 'q-columns' : 'q-list'}">${mcq.map((q, i) => renderPrintQuestionBlock(q, i + 1, cfg.mode)).join('')}</div>`
     : '';
 
   const subSectionLetter = mcq.length > 0 ? 'Section B' : 'Section A';
   const subjectiveHtml = subjective.length
-    ? `<div class="section-hdr"><span class="s-title">${subSectionLetter} — Subjective &amp; Short Answer</span><span class="s-pts">${subjective.length} Q · ${subPts} marks</span></div>
+    ? `<div class="section-hdr"><span class="s-title">${subSectionLetter} — Short Answer</span><span class="s-pts">${subPts} marks</span></div>
        <div class="q-list">${subjective.map((q, i) => renderPrintQuestionBlock(q, mcq.length + i + 1, cfg.mode)).join('')}</div>`
     : '';
 
@@ -534,7 +532,7 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
       ? 'Section B'
       : 'Section A';
   const essayHtml = essay.length
-    ? `<div class="section-hdr"><span class="s-title">${essaySectionLetter} — Essay &amp; Extended Theory</span><span class="s-pts">${essay.length} Q · ${essayPts} marks</span></div>
+    ? `<div class="section-hdr"><span class="s-title">${essaySectionLetter} — Theory</span><span class="s-pts">${essayPts} marks</span></div>
        <div class="q-list">${essay.map((q, i) => renderPrintQuestionBlock(q, mcq.length + subjective.length + i + 1, cfg.mode)).join('')}</div>`
     : '';
 
@@ -593,11 +591,11 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;background:#f1f5f9;padding:0}
-.screen-toolbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;background:#0f172a;color:#fff;font-family:'Segoe UI',Arial,sans-serif;border-bottom:2px solid #4f46e5}
+.screen-toolbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;background:#111827;color:#fff;font-family:'Segoe UI',Arial,sans-serif;border-bottom:2.5px solid #f97316}
 .screen-toolbar-title{font-size:13px;font-weight:800}
 .screen-toolbar-actions{display:flex;gap:8px}
-.screen-btn-print{padding:7px 16px;border:none;border-radius:6px;background:#4f46e5;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
-.screen-btn-close{padding:7px 12px;border:1px solid #334155;border-radius:6px;background:#1e293b;color:#cbd5e1;font-size:11px;font-weight:700;cursor:pointer}
+.screen-btn-print{padding:7px 16px;border:none;border-radius:6px;background:#f97316;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.screen-btn-close{padding:7px 12px;border:1px solid #374151;border-radius:6px;background:#1f2937;color:#d1d5db;font-size:11px;font-weight:700;cursor:pointer}
 .paper-sheet{max-width:210mm;margin:14px auto 28px;background:#fff;padding:12mm 12mm;box-shadow:0 10px 28px rgba(0,0,0,0.12)}
 @page{size:A4 portrait;margin:12mm 11mm}
 @media print{
@@ -605,31 +603,25 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
   .screen-toolbar{display:none!important}
   .paper-sheet{max-width:none;margin:0;padding:0;box-shadow:none}
 }
-.official-hdr{display:flex;align-items:center;gap:10pt;padding:6pt 8pt;border-bottom:2.5pt solid #0f172a;background:#f8fafc;margin-bottom:6pt;break-inside:avoid;page-break-inside:avoid}
-.compact-hdr{margin-bottom:4pt}
-.hdr-logo{width:40pt;height:40pt;object-fit:contain;flex-shrink:0}
+.official-hdr{display:flex;align-items:center;gap:10pt;padding:6pt 2pt 7pt;border-top:2.5pt solid #f97316;border-bottom:1.5pt solid #111827;margin-bottom:6pt;break-inside:avoid;page-break-inside:avoid}
+.compact-hdr{margin-bottom:5pt}
+.hdr-logo{width:34pt;height:34pt;object-fit:contain;flex-shrink:0}
 .hdr-org{flex:1;text-align:center;font-family:'Segoe UI',Arial,sans-serif}
-.hdr-school{font-size:12pt;font-weight:900;text-transform:uppercase;letter-spacing:1.1px;line-height:1.15;color:#0f172a}
-.hdr-brand{font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#475569;margin-top:2pt}
-.hdr-type{background:#0f172a;color:#fff;padding:4.5pt 9pt;border-radius:3pt;font-family:'Segoe UI',Arial,sans-serif;font-size:7pt;font-weight:900;text-transform:uppercase;letter-spacing:1.4px;flex-shrink:0}
-.title-band{text-align:center;margin:6pt 0 5pt;break-inside:avoid;page-break-inside:avoid}
-.exam-title{font-family:'Segoe UI',Arial,sans-serif;font-size:13pt;font-weight:900;text-transform:uppercase;letter-spacing:0.5px;color:#0f172a}
-.exam-sub{font-family:'Segoe UI',Arial,sans-serif;font-size:8.2pt;color:#475569;margin-top:2pt;font-weight:600}
-.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #0f172a;margin:5pt 0;font-family:'Segoe UI',Arial,sans-serif;font-size:8.3pt;break-inside:avoid;page-break-inside:avoid}
-.meta-cell{padding:3.5pt 4pt;border-right:0.8pt solid #cbd5e1;text-align:center}
-.meta-cell:last-child{border-right:none}
-.meta-label{font-size:6pt;font-weight:800;text-transform:uppercase;color:#64748b;display:block;letter-spacing:0.6px}
-.meta-val{font-size:9pt;font-weight:800;color:#0f172a;display:block;margin-top:1pt}
-.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #0f172a;margin:5pt 0;font-family:'Segoe UI',Arial,sans-serif;break-inside:avoid;page-break-inside:avoid}
-.stu-field{padding:3.5pt 6pt 3pt;border-right:0.8pt solid #cbd5e1}
+.hdr-school{font-size:12.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.9px;line-height:1.15;color:#111827}
+.hdr-brand{font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:#6b7280;margin-top:2pt}
+.hdr-type{border:1pt solid #111827;color:#111827;padding:3pt 8pt;border-radius:3pt;font-family:'Segoe UI',Arial,sans-serif;font-size:7pt;font-weight:900;text-transform:uppercase;letter-spacing:1.2px;flex-shrink:0}
+.title-band{text-align:center;margin:4pt 0 6pt;break-inside:avoid;page-break-inside:avoid}
+.exam-title{font-family:'Segoe UI',Arial,sans-serif;font-size:12.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.4px;color:#111827}
+.exam-meta-line{font-family:'Segoe UI',Arial,sans-serif;font-size:8.4pt;color:#374151;margin-top:3pt;font-weight:600}
+.stu-box{display:grid;grid-template-columns:2.4fr 1.2fr;border:0.9pt solid #111827;margin:5pt 0 6pt;font-family:'Segoe UI',Arial,sans-serif;break-inside:avoid;page-break-inside:avoid}
+.stu-field{padding:4pt 7pt 3.5pt;border-right:0.8pt solid #cbd5e1}
 .stu-field:last-child{border-right:none}
-.stu-label{font-size:6pt;font-weight:800;text-transform:uppercase;color:#475569;display:block;margin-bottom:3pt;letter-spacing:0.5px}
-.stu-line{border-bottom:0.9pt solid #334155;height:12pt}
-.instructions{border:0.8pt solid #cbd5e1;border-left:3pt solid #0f172a;background:#f8fafc;padding:4pt 7pt;margin:4pt 0 6pt;font-family:'Segoe UI',Arial,sans-serif;font-size:8pt;line-height:1.35;color:#1e293b;break-inside:avoid;page-break-inside:avoid}
-.instr-title{font-size:6.8pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#0f172a;margin-bottom:2pt}
-.instructions p{margin:0 0 1.5pt}
-.instr-extra{margin-top:2pt!important;font-style:italic;color:#334155}
-.section-hdr{display:flex;align-items:center;gap:6pt;margin:9pt 0 5pt;padding:4pt 7pt;background:#f1f5f9;border-left:3pt solid #0f172a;border-top:0.6pt solid #cbd5e1;border-bottom:0.6pt solid #cbd5e1;font-family:'Segoe UI',Arial,sans-serif;break-after:avoid;page-break-after:avoid}
+.stu-label{font-size:6.2pt;font-weight:800;text-transform:uppercase;color:#4b5563;display:block;margin-bottom:2.5pt;letter-spacing:0.5px}
+.stu-line{border-bottom:0.8pt solid #4b5563;height:11pt}
+.instructions{border-left:2.5pt solid #111827;background:#f9fafb;padding:4pt 8pt;margin:4pt 0 7pt;font-family:'Segoe UI',Arial,sans-serif;font-size:8.2pt;line-height:1.4;color:#1f2937;break-inside:avoid;page-break-inside:avoid}
+.instructions p{margin:0}
+.instr-extra{margin-top:2pt!important;font-style:italic;color:#4b5563}
+.section-hdr{display:flex;align-items:center;gap:6pt;margin:9pt 0 5pt;padding:3.5pt 7pt;background:#f3f4f6;border-left:2.5pt solid #111827;border-bottom:0.6pt solid #d1d5db;font-family:'Segoe UI',Arial,sans-serif;break-after:avoid;page-break-after:avoid}
 .s-title{font-size:8.6pt;font-weight:900;text-transform:uppercase;letter-spacing:0.8px;color:#0f172a}
 .s-pts{font-size:7.8pt;font-weight:700;color:#334155;margin-left:auto}
 .q-list{display:block}
@@ -679,39 +671,29 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
   <img src="${cfg.logoUrl}" class="hdr-logo" onerror="this.style.display='none'"/>
   <div class="hdr-org">
     <div class="hdr-school">${escapeHtml(cfg.schoolName)}</div>
-    <div class="hdr-brand">Rillcod Technologies · Coding &amp; STEM Academy · www.rillcod.com</div>
+    <div class="hdr-brand">Rillcod Technologies · Official Examination Paper</div>
   </div>
   <div class="hdr-type">${examLabel}</div>
 </div>
 <div class="title-band">
   <div class="exam-title">${escapeHtml(cfg.title)}</div>
-  ${cfg.subtitle ? `<div class="exam-sub">${escapeHtml(cfg.subtitle)}</div>` : ''}
-</div>
-<div class="meta-grid">
-  <div class="meta-cell"><span class="meta-label">Duration</span><span class="meta-val">${cfg.durationMinutes} min</span></div>
-  <div class="meta-cell"><span class="meta-label">Total Marks</span><span class="meta-val">${totalMarks}</span></div>
-  <div class="meta-cell"><span class="meta-label">Pass Mark</span><span class="meta-val">${cfg.passingScore}%</span></div>
-  <div class="meta-cell"><span class="meta-label">Questions</span><span class="meta-val">${totalQ}</span></div>
-  <div class="meta-cell"><span class="meta-label">Date</span><span class="meta-val">${escapeHtml(cfg.dateStr)}</span></div>
+  <div class="exam-meta-line">
+    ${cfg.subtitle ? `${escapeHtml(cfg.subtitle)} &nbsp;·&nbsp; ` : ''}Time Allowed: <strong>${cfg.durationMinutes} min</strong> &nbsp;·&nbsp; Total Marks: <strong>${totalMarks}</strong> &nbsp;·&nbsp; ${escapeHtml(cfg.dateStr)}
+  </div>
 </div>
 <div class="stu-box">
   <div class="stu-field"><span class="stu-label">Student Full Name</span><div class="stu-line"></div></div>
   <div class="stu-field"><span class="stu-label">Class / Grade</span><div class="stu-line"></div></div>
-  <div class="stu-field"><span class="stu-label">Adm. No.</span><div class="stu-line"></div></div>
-  <div class="stu-field"><span class="stu-label">Score</span><div class="stu-line"></div></div>
 </div>
-${formalInstructionsHtml(cfg, totalMarks, mcq.length > 0, subjective.length > 0 || essay.length > 0)}
+${formalInstructionsHtml(cfg, mcq.length > 0, subjective.length > 0 || essay.length > 0)}
 ${mcqHtml}
 ${subjectiveHtml}
 ${essayHtml}
 <div class="score-box">
-  ${mcq.length ? '<div class="score-cell"><span class="score-label">Section A (Obj)</span><div class="score-space"></div></div>' : ''}
-  ${subjective.length ? `<div class="score-cell"><span class="score-label">${subSectionLetter} (Subj)</span><div class="score-space"></div></div>` : ''}
-  ${essay.length ? `<div class="score-cell"><span class="score-label">${essaySectionLetter} (Essay)</span><div class="score-space"></div></div>` : ''}
-  <div class="score-cell"><span class="score-label">Total</span><div class="score-space"></div></div>
-  <div class="score-cell"><span class="score-label">Examiner</span><div class="score-space"></div></div>
+  <div class="score-cell"><span class="score-label">Total Score (/ ${totalMarks})</span><div class="score-space"></div></div>
+  <div class="score-cell"><span class="score-label">Examiner Signature &amp; Date</span><div class="score-space"></div></div>
 </div>
-<div class="page-footer"><span>${escapeHtml(cfg.schoolName)} · ${examLabel} · Ref ${escapeHtml(cfg.docRef)}</span><span>${escapeHtml(cfg.dateStr)}</span></div>
+<div class="page-footer"><span>${escapeHtml(cfg.schoolName)} · Rillcod Technologies</span><span>${escapeHtml(cfg.dateStr)}</span></div>
 ${staffPage}
 </div>
 </body></html>`;
