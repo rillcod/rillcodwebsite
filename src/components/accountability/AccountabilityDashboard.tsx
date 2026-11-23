@@ -136,6 +136,53 @@ export default function AccountabilityDashboard({
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
   const [rolloverSchoolId, setRolloverSchoolId] = useState<string | null>(null);
   const [rolloverBanner, setRolloverBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [integrityBusy, setIntegrityBusy] = useState(false);
+  const [integrityBanner, setIntegrityBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleCheckRosterIntegrity = async () => {
+    setIntegrityBusy(true);
+    setIntegrityBanner(null);
+    try {
+      const res = await fetch('/api/admin/roster-integrity', { cache: 'no-store' });
+      const scan = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(scan.error || 'Could not run roster integrity check.');
+      const totalIssues = (scan.stale_rosters_count ?? 0) + (scan.stale_enrollments_count ?? 0);
+      if (totalIssues === 0) {
+        setIntegrityBanner({
+          type: 'success',
+          text: `All ${scan.checked_students} regular students are clean — 0 duplicate rosters and 0 stale programme enrollments.`,
+        });
+        return;
+      }
+      const ok = confirm(
+        `Roster Integrity Check (${scan.checked_students} regular students scanned):\n\n` +
+          `• ${scan.stale_rosters_count} stale duplicate regular-class roster(s)\n` +
+          `• ${scan.stale_enrollments_count} stale other-programme enrollment(s)\n\n` +
+          `Specialized programmes (Summer School / Bootcamp / Online) are untouched.\n` +
+          `Clean these up now?`,
+      );
+      if (!ok) {
+        setIntegrityBanner({
+          type: 'error',
+          text: `Found ${scan.stale_rosters_count} stale roster(s) and ${scan.stale_enrollments_count} stale enrollment(s). Click Check Integrity again when ready to fix.`,
+        });
+        return;
+      }
+      const fixRes = await fetch('/api/admin/roster-integrity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const fixJson = await fixRes.json().catch(() => ({}));
+      if (!fixRes.ok) throw new Error(fixJson.error || 'Integrity repair failed.');
+      setIntegrityBanner({ type: 'success', text: fixJson.message || 'Roster integrity repaired.' });
+      onRefresh(true);
+    } catch (err: any) {
+      setIntegrityBanner({ type: 'error', text: err?.message || 'Integrity check failed.' });
+    } finally {
+      setIntegrityBusy(false);
+    }
+  };
 
   const handleSchoolRollover = async (schoolId: string, schoolName: string) => {
     setRolloverSchoolId(schoolId);
@@ -609,6 +656,15 @@ export default function AccountabilityDashboard({
           </select>
           <button
             type="button"
+            onClick={() => void handleCheckRosterIntegrity()}
+            disabled={integrityBusy}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            <ShieldCheckIcon className={`h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 ${integrityBusy ? 'animate-pulse' : ''}`} />
+            {integrityBusy ? 'Scanning…' : 'Check Integrity'}
+          </button>
+          <button
+            type="button"
             onClick={() => void handleGeneratePdf()}
             disabled={reportBusy || people.length === 0}
             className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
@@ -618,6 +674,17 @@ export default function AccountabilityDashboard({
           </button>
         </div>
       </div>
+      {integrityBanner && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-xs font-bold ${
+            integrityBanner.type === 'success'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200'
+          }`}
+        >
+          {integrityBanner.text}
+        </div>
+      )}
 
       {/* Tabs — mobile strip + desktop bar */}
       <MobileScrollStrip

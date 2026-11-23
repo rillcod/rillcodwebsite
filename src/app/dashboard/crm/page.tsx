@@ -250,11 +250,27 @@ export default function CRMPage() {
   const [emailFollowUpDays, setEmailFollowUpDays] = useState<number>(3);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailNotice, setEmailNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [broadcastMode, setBroadcastMode] = useState(false);
 
-  const openEmailComposer = (preset?: 'partnership' | 'parent' | 'invoice' | 'reengage') => {
-    if (!selected?.email) return;
-    const firstName = selected.full_name.split(' ')[0] || 'there';
-    const schoolLabel = selected.school_name || selected.full_name;
+  const realEmailContacts = useMemo(
+    () =>
+      contacts.filter((c) => {
+        const em = String(c.email || '').trim().toLowerCase();
+        if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return false;
+        if (em.endsWith('@rillcod.com') && em !== 'support@rillcod.com') return false;
+        return true;
+      }),
+    [contacts],
+  );
+
+  const openEmailComposer = (
+    preset?: 'partnership' | 'parent' | 'invoice' | 'reengage',
+    isBroadcast = false,
+  ) => {
+    if (!isBroadcast && !selected?.email) return;
+    setBroadcastMode(isBroadcast);
+    const firstName = isBroadcast ? 'there' : selected?.full_name.split(' ')[0] || 'there';
+    const schoolLabel = isBroadcast ? 'your school' : selected?.school_name || selected?.full_name || 'your school';
     if (preset === 'partnership') {
       setEmailSubject(`STEM & Robotics Partnership Next Steps — ${schoolLabel}`);
       setEmailMessage(
@@ -290,6 +306,46 @@ export default function CRMPage() {
 
   const handleSendCrmEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (broadcastMode) {
+      const batch = realEmailContacts.slice(0, 25);
+      if (batch.length === 0) return;
+      if (!confirm(`Send this branded email to ${batch.length} real-mailbox contact${batch.length === 1 ? '' : 's'} now?`)) return;
+      setSendingEmail(true);
+      setEmailNotice(null);
+      let sent = 0;
+      let failed = 0;
+      try {
+        for (const recipient of batch) {
+          try {
+            const res = await fetch('/api/crm/email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: recipient.email,
+                subject: emailSubject.trim(),
+                message: emailMessage.trim(),
+                contact_id: recipient.id,
+                contact_name: recipient.full_name,
+                contact_type: crmContactTypeFromRole(recipient.role),
+                follow_up_days: emailFollowUpDays,
+              }),
+            });
+            if (res.ok) sent += 1;
+            else failed += 1;
+          } catch {
+            failed += 1;
+          }
+        }
+        setEmailNotice({
+          type: sent > 0 ? 'success' : 'error',
+          text: `Sent ${sent}/${batch.length} branded email${sent === 1 ? '' : 's'}${failed ? ` (${failed} undeliverable)` : ''}.`,
+        });
+      } finally {
+        setSendingEmail(false);
+      }
+      return;
+    }
+
     if (!selected?.email) return;
     setSendingEmail(true);
     setEmailNotice(null);
@@ -1038,12 +1094,25 @@ export default function CRMPage() {
               {preset.label}
             </button>
           ))}
+          {realEmailContacts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => openEmailComposer('reengage', true)}
+              className="shrink-0 ml-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black transition-colors"
+            >
+              <Mail size={11} />
+              Email Filtered ({Math.min(realEmailContacts.length, 25)}{realEmailContacts.length > 25 ? `/${realEmailContacts.length}` : ''})
+            </button>
+          )}
         </div>
 
         {/* Overdue alerts */}
         {overdueAlerts.length > 0 && (
-          <div className="px-4 pb-2 flex gap-2 overflow-x-auto scrollbar-none">
-            {overdueAlerts.slice(0, 3).map(t => (
+          <div className="px-4 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-none">
+            <span className="shrink-0 rounded-full bg-rose-700 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+              Overdue ({overdueAlerts.length})
+            </span>
+            {overdueAlerts.slice(0, 4).map(t => (
               <button key={t.id} onClick={() => {
                 const c = contacts.find(x => x.id === t.contact_id);
                 if (c) { selectContact(c); setTab('tasks'); }
@@ -1895,22 +1964,24 @@ export default function CRMPage() {
           </div>
         </div>
       )}
-      {/* Quick Branded Email & Auto-Follow-Up Composer Modal */}
-      {showEmailModal && selected?.email && (
+      {/* Quick Branded Email & Auto-Follow-Up Composer Modal (Single or Filtered Broadcast) */}
+      {showEmailModal && (broadcastMode || selected?.email) && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`Send email to ${selected.full_name}`}
+          aria-label={broadcastMode ? 'Send broadcast email to filtered contacts' : `Send email to ${selected?.full_name || 'contact'}`}
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
         >
           <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]">
             <div className="px-5 py-3.5 border-b border-border bg-primary/5 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                  Rillcod Branded Email &amp; Follow-Up
+                  {broadcastMode ? 'Rillcod Stage / Filtered Broadcast Email' : 'Rillcod Branded Email & Follow-Up'}
                 </p>
                 <p className="text-sm font-black text-foreground truncate">
-                  To: {selected.full_name} ({selected.email})
+                  {broadcastMode
+                    ? `To: ${Math.min(realEmailContacts.length, 25)} real-mailbox contact${Math.min(realEmailContacts.length, 25) === 1 ? '' : 's'} (internal IDs auto-skipped)`
+                    : `To: ${selected?.full_name} (${selected?.email})`}
                 </p>
               </div>
               <button
@@ -1939,7 +2010,7 @@ export default function CRMPage() {
                     <button
                       key={tpl.id}
                       type="button"
-                      onClick={() => openEmailComposer(tpl.id as any)}
+                      onClick={() => openEmailComposer(tpl.id as any, broadcastMode)}
                       className="px-2.5 py-1 rounded-full border border-border bg-muted/50 hover:bg-primary/10 hover:border-primary/40 text-[11px] font-bold text-foreground transition-colors"
                     >
                       {tpl.label}
