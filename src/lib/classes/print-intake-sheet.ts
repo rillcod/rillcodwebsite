@@ -59,8 +59,36 @@ export function openClassIntakeLetterheadPdf(opts: {
   const verifiedOrConsent = students.filter((s) => s.parent_verified || s.consent_signed).length;
   const missingPhone = Math.max(0, students.length - withPhone);
 
-  const rowsHtml = students
+  // Group and sort progressively by Grade when a class section holds multiple grades
+  const gradeCounts = new Map<string, number>();
+  const sortedStudents = [...students].sort((a, b) => {
+    const ga = (a.grade || classGradeKey || 'Unassigned').trim();
+    const gb = (b.grade || classGradeKey || 'Unassigned').trim();
+    return ga.localeCompare(gb) || a.full_name.localeCompare(b.full_name);
+  });
+  for (const s of sortedStudents) {
+    const g = (s.grade || classGradeKey || 'Unassigned').trim();
+    gradeCounts.set(g, (gradeCounts.get(g) ?? 0) + 1);
+  }
+  const hasMultipleGrades = gradeCounts.size > 1;
+  const gradeBreakdownHtml = hasMultipleGrades
+    ? `<div class="grade-strip">
+        <span class="grade-strip-label">Section Grade Breakdown:</span>
+        ${Array.from(gradeCounts.entries())
+          .map(([g, count]) => `<span class="grade-pill">${esc(g)}: <strong>${count}</strong></span>`)
+          .join('')}
+      </div>`
+    : '';
+
+  let lastGroup = '';
+  const rowsHtml = sortedStudents
     .map((s, idx) => {
+      const g = (s.grade || classGradeKey || '—').trim();
+      const groupRow =
+        hasMultipleGrades && g !== lastGroup
+          ? `<tr class="group-row"><td colspan="8">${esc(g)} &nbsp;·&nbsp; ${gradeCounts.get(g) ?? 0} Student${(gradeCounts.get(g) ?? 0) === 1 ? '' : 's'}</td></tr>`
+          : '';
+      lastGroup = g;
       const hasPhone = String(s.parent_phone ?? '').replace(/\D/g, '').length >= 10;
       const statusBadge = s.parent_verified
         ? '<span class="badge badge-green">Verified</span>'
@@ -70,11 +98,11 @@ export function openClassIntakeLetterheadPdf(opts: {
         ? '<span class="badge badge-amber">Pending Verify</span>'
         : '<span class="badge badge-gray">No Phone</span>';
       const rc = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
-      return `
+      return `${groupRow}
         <tr>
           <td class="num">${idx + 1}</td>
           <td class="name">${esc(s.full_name)}</td>
-          <td>${esc(s.grade || classGradeKey || '—')}</td>
+          <td>${esc(g)}</td>
           <td>${esc(s.parent_name || '—')}</td>
           <td class="mono">${esc(formatWaPhone(s.parent_phone))}</td>
           <td>${statusBadge}</td>
@@ -147,6 +175,29 @@ export function openClassIntakeLetterheadPdf(opts: {
     .kpi-value { font-size: 18px; font-weight: 900; color: #111827; margin-top: 2px; }
     .kpi-accent { color: #047857; }
     .kpi-warn { color: #b45309; }
+    .grade-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 10px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+    }
+    .grade-strip-label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #9a3412; margin-right: 4px; }
+    .grade-pill { font-size: 10px; font-weight: 700; color: #111827; background: #ffffff; border: 1px solid #fdba74; border-radius: 999px; padding: 2px 8px; }
+    tr.group-row td {
+      background: #1f2937 !important;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 10px;
+      border-color: #1f2937;
+    }
 
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
     thead th {
@@ -254,6 +305,8 @@ export function openClassIntakeLetterheadPdf(opts: {
         <div class="kpi-value kpi-warn">${missingPhone}</div>
       </div>
     </div>
+
+    ${gradeBreakdownHtml}
 
     <table>
       <thead>

@@ -2959,6 +2959,7 @@ export default function ClassDetailPage() {
                       <ClassIntakeAndSessionPanel
                         classId={id}
                         className={cls?.name || 'Class'}
+                        schoolName={cls?.schools?.name}
                         classGradeKey={cls?.qa_grade_key}
                         classGradeBand={cls?.qa_grade_band}
                         currentSession={currentSessionLabel}

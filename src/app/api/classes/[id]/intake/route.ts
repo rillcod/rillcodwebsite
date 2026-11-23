@@ -47,6 +47,22 @@ function buildLoginEmailFromName(fullName: string): string {
   return `${slug}${rand}@rillcod.com`;
 }
 
+/**
+ * Progressive session-by-session class/grade ledger stored in portal_users.metadata.session_history.
+ * Upserts the entry for the current academic session while preserving prior sessions intact
+ * (e.g. 2025/2026: JSS 1 → 2026/2027: JSS 2).
+ */
+function upsertSessionHistory(
+  meta: Record<string, any>,
+  entry: { session: string; class_id: string; class_name: string; grade: string | null; recorded_at: string },
+) {
+  const prev = Array.isArray(meta.session_history) ? meta.session_history : [];
+  const filtered = prev.filter(
+    (item: any) => item && typeof item === 'object' && String(item.session || '') !== entry.session,
+  );
+  return [...filtered, entry];
+}
+
 async function syncClassActiveCount(admin: ReturnType<typeof adminClient>, classId: string) {
   const { count } = await admin
     .from('portal_users')
@@ -393,12 +409,19 @@ export async function POST(
         }
       }
 
-      // Stamp confirmed_session + optional parent_phone on portal_users.metadata & students
+      // Stamp confirmed_session + progressive session_history + optional parent_phone
       const nextMeta: Record<string, any> = {
         ...existingMeta,
         confirmed_session: currentSession,
         intake_recorded_by: caller.id,
         intake_recorded_at: nowIso,
+        session_history: upsertSessionHistory(existingMeta, {
+          session: currentSession,
+          class_id: classId,
+          class_name: cls.name,
+          grade: resolvedGrade,
+          recorded_at: nowIso,
+        }),
       };
       if (parentPhone) {
         nextMeta.parent_phone = parentPhone;
@@ -613,6 +636,13 @@ export async function POST(
           confirmed_session: currentSession,
           intake_verified_by: caller.id,
           intake_verified_at: nowIso,
+          session_history: upsertSessionHistory(existingMeta, {
+            session: currentSession,
+            class_id: classId,
+            class_name: cls.name,
+            grade: resolvedGrade,
+            recorded_at: nowIso,
+          }),
         };
         if (parentPhone) {
           nextMeta.parent_phone = parentPhone;
@@ -900,6 +930,13 @@ export async function POST(
                 confirmed_session: currentSession,
                 grade_upgraded_at: nowIso,
                 grade_upgraded_by: caller.id,
+                session_history: upsertSessionHistory(meta, {
+                  session: currentSession,
+                  class_id: classId,
+                  class_name: cls.name,
+                  grade: targetGrade,
+                  recorded_at: nowIso,
+                }),
               },
               updated_at: nowIso,
             })

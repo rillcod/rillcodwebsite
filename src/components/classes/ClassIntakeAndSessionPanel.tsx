@@ -43,6 +43,7 @@ export interface DestinationClassOption {
 interface ClassIntakeAndSessionPanelProps {
   classId: string;
   className: string;
+  schoolName?: string | null;
   classGradeKey?: string | null;
   classGradeBand?: string | null;
   currentSession: string;
@@ -187,6 +188,7 @@ function suggestNextClass(
 export function ClassIntakeAndSessionPanel({
   classId,
   className,
+  schoolName,
   classGradeKey,
   classGradeBand,
   currentSession,
@@ -219,6 +221,7 @@ export function ClassIntakeAndSessionPanel({
   const [acknowledgeCandidate, setAcknowledgeCandidate] = useState<DirectoryCandidate | null>(null);
   const [ackPhoneOverride, setAckPhoneOverride] = useState<string>('');
   const [editingAckPhone, setEditingAckPhone] = useState<boolean>(false);
+  const [ackGradeOverride, setAckGradeOverride] = useState<string>('');
   const [confirmingExit, setConfirmingExit] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [issuedLogins, setIssuedLogins] = useState<IssuedStudentLogin[]>([]);
@@ -260,8 +263,9 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
-  const queueCandidateDirect = (cand: DirectoryCandidate, phoneOverride?: string) => {
+  const queueCandidateDirect = (cand: DirectoryCandidate, phoneOverride?: string, gradeOverride?: string) => {
     const finalPhone = (phoneOverride !== undefined ? phoneOverride.trim() : cand.parent_phone || '') || '';
+    const finalGrade = (gradeOverride?.trim()) || (lockGrade ? selectedGrade : (cand.grade || selectedGrade));
     const alreadyQueued = pendingQueue.some(
       (item) =>
         item.matched_student_id === cand.id ||
@@ -271,7 +275,7 @@ export function ClassIntakeAndSessionPanel({
       const entry: PendingIntakeEntry = {
         localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         full_name: cand.full_name,
-        grade: lockGrade ? selectedGrade : (cand.grade || selectedGrade),
+        grade: finalGrade,
         parent_name: cand.parent_name || undefined,
         parent_phone: finalPhone,
         matched_student_id: cand.id,
@@ -285,6 +289,7 @@ export function ClassIntakeAndSessionPanel({
     setAcknowledgeCandidate(null);
     setEditingAckPhone(false);
     setAckPhoneOverride('');
+    setAckGradeOverride('');
     setFullName('');
     setParentPhone('');
     setSelectedCandidate(null);
@@ -1071,12 +1076,35 @@ export function ClassIntakeAndSessionPanel({
                     </h2>
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-muted/40 p-4 text-left space-y-2 text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground font-semibold">Class / Grade</span>
-                      <span className="font-black text-foreground">
-                        {lockGrade ? selectedGrade : (acknowledgeCandidate.grade || className)}
-                      </span>
+                  <div className="rounded-2xl border border-border bg-muted/40 p-4 text-left space-y-2.5 text-sm">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground font-semibold">Current Class / Grade</span>
+                        <span className="font-black text-foreground">
+                          {ackGradeOverride || (lockGrade ? selectedGrade : (acknowledgeCandidate.grade || selectedGrade))}
+                        </span>
+                      </div>
+                      {!lockGrade && (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {(sectionGrades.length > 1 ? sectionGrades : SINGLE_GRADES.slice(0, 6)).map((g) => {
+                            const active = (ackGradeOverride || acknowledgeCandidate.grade || selectedGrade) === g;
+                            return (
+                              <button
+                                key={g}
+                                type="button"
+                                onClick={() => setAckGradeOverride(g)}
+                                className={`px-2.5 py-1 rounded-lg border text-xs font-black transition-colors ${
+                                  active
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-border bg-card text-foreground hover:border-primary/50'
+                                }`}
+                              >
+                                {g}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     {acknowledgeCandidate.parent_name && (
                       <div className="flex items-center justify-between gap-2">
@@ -1125,6 +1153,7 @@ export function ClassIntakeAndSessionPanel({
                         queueCandidateDirect(
                           acknowledgeCandidate,
                           editingAckPhone ? ackPhoneOverride : undefined,
+                          ackGradeOverride || undefined,
                         )
                       }
                       className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
@@ -1903,9 +1932,10 @@ export function ClassIntakeAndSessionPanel({
                     onClick={() => {
                       const ok = openClassIntakeLetterheadPdf({
                         className,
+                        schoolName,
                         currentSession,
                         classGradeKey,
-                        students,
+                        students: filteredStudents,
                         withdrawnCount: formerStudents.length,
                       });
                       if (!ok) toast.error('Allow pop-ups to open the letterhead PDF preview.');
