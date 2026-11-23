@@ -244,6 +244,83 @@ export default function CRMPage() {
   // ── Edit contact ───────────────────────────────────────────────
   const [editMode, setEditMode]   = useState(false);
   const [editName, setEditName]   = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [emailFollowUpDays, setEmailFollowUpDays] = useState<number>(3);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailNotice, setEmailNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const openEmailComposer = (preset?: 'partnership' | 'parent' | 'invoice' | 'reengage') => {
+    if (!selected?.email) return;
+    const firstName = selected.full_name.split(' ')[0] || 'there';
+    const schoolLabel = selected.school_name || selected.full_name;
+    if (preset === 'partnership') {
+      setEmailSubject(`STEM & Robotics Partnership Next Steps — ${schoolLabel}`);
+      setEmailMessage(
+        `Hello ${firstName},\n\nThank you for connecting with Rillcod Technologies regarding STEM, Coding & Robotics education for ${schoolLabel}.\n\nWe would love to confirm our onboarding schedule and share the curriculum plan for this term. Please reply with a convenient time for a brief call or school visit.\n\nWarm regards,\nRillcod Technologies Team`,
+      );
+      setEmailFollowUpDays(3);
+    } else if (preset === 'parent') {
+      setEmailSubject(`Rillcod Academy — Parent Portal & Term Progress Access`);
+      setEmailMessage(
+        `Hello ${firstName},\n\nThank you for partnering with Rillcod Academy for your child's STEM & Coding journey.\n\nYou can verify your parent contact and check your child's progress reports anytime at https://www.rillcod.com/result-check using their student RC number.\n\nPlease reply if you need any assistance.\n\nWarm regards,\nRillcod Academy Team`,
+      );
+      setEmailFollowUpDays(5);
+    } else if (preset === 'invoice') {
+      setEmailSubject(`Friendly Term Billing & Invoice Check-In — ${schoolLabel}`);
+      setEmailMessage(
+        `Hello ${firstName},\n\nThis is a friendly check-in regarding your current term invoice with Rillcod Technologies. Please let us know if you need a fresh copy of the invoice or payment confirmation receipt.\n\nThank you for your continued partnership.\n\nBest regards,\nRillcod Finance & Partnerships`,
+      );
+      setEmailFollowUpDays(3);
+    } else if (preset === 'reengage') {
+      setEmailSubject(`New Session STEM & Coding Enrollment — Rillcod Academy`);
+      setEmailMessage(
+        `Hello ${firstName},\n\nEnrollment for the new session at Rillcod Academy is now open! Our hands-on Robotics, Web Development, and Coding tracks are ready for learners across Basic, JSS, and SS levels.\n\nReply to this email or message us on WhatsApp and we'll reserve a spot right away.\n\nWarm regards,\nRillcod Academy Team`,
+      );
+      setEmailFollowUpDays(5);
+    } else {
+      setEmailSubject(`Following up from Rillcod Technologies`);
+      setEmailMessage(`Hello ${firstName},\n\n`);
+      setEmailFollowUpDays(3);
+    }
+    setEmailNotice(null);
+    setShowEmailModal(true);
+  };
+
+  const handleSendCrmEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected?.email) return;
+    setSendingEmail(true);
+    setEmailNotice(null);
+    try {
+      const res = await fetch('/api/crm/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: selected.email,
+          subject: emailSubject.trim(),
+          message: emailMessage.trim(),
+          contact_id: selected.id,
+          contact_name: selected.full_name,
+          contact_type: crmContactTypeFromRole(selected.role),
+          follow_up_days: emailFollowUpDays,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not send email.');
+      setEmailNotice({ type: 'success', text: json.message || 'Email sent!' });
+      setTimeout(() => {
+        setShowEmailModal(false);
+        setEmailNotice(null);
+      }, 1100);
+    } catch (err: any) {
+      setEmailNotice({ type: 'error', text: err?.message || 'Failed to send email.' });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editSchool, setEditSchool] = useState('');
@@ -1129,6 +1206,24 @@ export default function CRMPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {selected.email && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openEmailComposer(
+                            selected.role === 'school'
+                              ? 'partnership'
+                              : selected.role === 'parent'
+                              ? 'parent'
+                              : 'reengage',
+                          )
+                        }
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/25 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
+                        title="Send branded email & schedule follow-up"
+                      >
+                        <Mail size={12} /> Email
+                      </button>
+                    )}
                     {(selected.phone || selected.phone_number) && (
                       <a href={`https://wa.me/${normalizeWaPhone(selected.phone || selected.phone_number)}`}
                         target="_blank" rel="noopener noreferrer"
@@ -1797,6 +1892,136 @@ export default function CRMPage() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Quick Branded Email & Auto-Follow-Up Composer Modal */}
+      {showEmailModal && selected?.email && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Send email to ${selected.full_name}`}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+        >
+          <div className="w-full max-w-xl rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col max-h-[92dvh]">
+            <div className="px-5 py-3.5 border-b border-border bg-primary/5 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  Rillcod Branded Email &amp; Follow-Up
+                </p>
+                <p className="text-sm font-black text-foreground truncate">
+                  To: {selected.full_name} ({selected.email})
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close email composer"
+                onClick={() => setShowEmailModal(false)}
+                className="p-1.5 rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendCrmEmail} className="p-5 space-y-4 overflow-y-auto">
+              {/* 1-Tap Marketing & Follow-Up Templates */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Quick Templates
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'partnership', label: 'School Partnership' },
+                    { id: 'parent', label: 'Parent Result Check' },
+                    { id: 'invoice', label: 'Billing Follow-Up' },
+                    { id: 'reengage', label: 'Re-Engage Lead' },
+                  ].map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => openEmailComposer(tpl.id as any)}
+                      className="px-2.5 py-1 rounded-full border border-border bg-muted/50 hover:bg-primary/10 hover:border-primary/40 text-[11px] font-bold text-foreground transition-colors"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                  Subject *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm font-bold text-foreground focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                  Message *
+                </label>
+                <textarea
+                  rows={6}
+                  required
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 px-3.5 py-2.5">
+                <span className="text-xs font-bold text-foreground">
+                  Auto-schedule follow-up reminder:
+                </span>
+                <select
+                  aria-label="Follow-up reminder schedule"
+                  value={emailFollowUpDays}
+                  onChange={(e) => setEmailFollowUpDays(Number(e.target.value))}
+                  className="h-9 rounded-lg border border-border bg-card px-2.5 text-xs font-bold text-foreground"
+                >
+                  <option value={0}>No follow-up task</option>
+                  <option value={2}>In 2 days</option>
+                  <option value={3}>In 3 days (Recommended)</option>
+                  <option value={5}>In 5 days</option>
+                  <option value={7}>In 7 days</option>
+                </select>
+              </div>
+
+              {emailNotice && (
+                <div
+                  className={`rounded-xl border px-3.5 py-2 text-xs font-bold ${
+                    emailNotice.type === 'success'
+                      ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                      : 'border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                  }`}
+                >
+                  {emailNotice.text}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailModal(false)}
+                  className="min-h-10 px-4 py-2 rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingEmail}
+                  className="min-h-10 inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-wider shadow-sm"
+                >
+                  <Send size={13} />
+                  {sendingEmail ? 'Sending…' : 'Send Branded Email'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
