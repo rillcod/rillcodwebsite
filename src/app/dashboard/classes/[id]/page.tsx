@@ -2151,9 +2151,33 @@ export default function ClassDetailPage() {
                   </button>
                 )}
               </div>
-              <span className="hidden sm:inline text-[11px] font-semibold text-muted-foreground">
-                {currentTermStudents.length} active student{currentTermStudents.length === 1 ? '' : 's'}
-              </span>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                {(() => {
+                  const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
+                  const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
+                  return (
+                    <>
+                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-emerald-800 dark:text-emerald-300 tabular-nums">
+                        {confirmedCnt} confirmed
+                      </span>
+                      {unconfirmedCnt > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            selectOperation('roster');
+                            setIntakePanelTab('hygiene');
+                            setShowIntakePanel(true);
+                            setRosterOpen(true);
+                          }}
+                          className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 transition-colors tabular-nums"
+                        >
+                          {unconfirmedCnt} unconfirmed (3rd term) →
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           )}
         </div>
@@ -2283,6 +2307,71 @@ export default function ClassDetailPage() {
 
               {activeOperation === 'roster' && (
                 <div className="min-w-0 space-y-3 sm:space-y-4 sm:rounded-2xl sm:border sm:border-border sm:bg-background sm:p-4">
+                  {isStaff && (() => {
+                    const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
+                    const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
+                    if (unconfirmedCnt === 0 && confirmedCnt > 0) return null;
+                    return (
+                      <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3.5 sm:p-4 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                              Build My Class · New-Session Adoption Guide
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {confirmedCnt} confirmed for this session · {unconfirmedCnt} unconfirmed from 3rd term. Follow 3 quick steps:
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIntakePanelTab('hygiene');
+                              setShowIntakePanel(true);
+                              setRosterOpen(true);
+                            }}
+                            className="rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/40 transition-colors"
+                          >
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                              1. Clear / Adopt Returning
+                            </p>
+                            <p className="text-xs font-black text-foreground mt-0.5">
+                              {unconfirmedCnt > 0 ? `Review ${unconfirmedCnt} old-session →` : 'Adopt incoming feeder class →'}
+                            </p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIntakePanelTab('intake');
+                              setShowIntakePanel(true);
+                              setRosterOpen(true);
+                            }}
+                            className="rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/40 transition-colors"
+                          >
+                            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                              2. Roll Call / New Kids
+                            </p>
+                            <p className="text-xs font-black text-foreground mt-0.5">
+                              Open Pass-Around or Bulk Paste →
+                            </p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openSessionConfirm()}
+                            className="rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/40 transition-colors"
+                          >
+                            <p className="text-[10px] font-black uppercase tracking-wider text-primary">
+                              3. Confirm Grades
+                            </p>
+                            <p className="text-xs font-black text-foreground mt-0.5">
+                              Verify final grades &amp; lock roster →
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {(pendingIncomingTransfers.length > 0 || pendingOutgoingTransfers.length > 0) && (
                     <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
                       <div>
@@ -2357,26 +2446,16 @@ export default function ClassDetailPage() {
                               setShowIntakePanel((v) => !v);
                               setRosterOpen(true);
                             }}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black transition-colors shadow-sm ${showIntakePanel
-                              ? 'border-emerald-700 bg-emerald-700 text-white'
-                              : 'border-emerald-600/40 bg-emerald-700 text-white hover:bg-emerald-800'
-                              }`}
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white transition-colors shadow-sm"
                           >
                             <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span>{showIntakePanel ? 'Hide Intake Sheet' : 'Intake & Pass-Around'}</span>
+                            <span>{showIntakePanel ? 'Hide Class Intake' : 'Intake, Adopt & Pass-Around'}</span>
                             {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length > 0 && (
                               <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
                                 {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length}
                               </span>
                             )}
                           </button>
-                          <Link
-                            href={`/dashboard/classes/${id}/enroll`}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
-                          >
-                            <PlusIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span>Add / Adopt</span>
-                          </Link>
                           <div className="relative">
                             <button
                               type="button"
@@ -2404,6 +2483,14 @@ export default function ClassDetailPage() {
                                       Close
                                     </button>
                                   </div>
+                                  <Link
+                                    href={`/dashboard/classes/${id}/enroll`}
+                                    onClick={() => setShowRosterActions(false)}
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-primary rounded-lg hover:bg-primary/10 transition-colors"
+                                  >
+                                    <PlusIcon className="h-4 w-4 shrink-0" />
+                                    Full Enroll / Directory Page
+                                  </Link>
                                   <button
                                     type="button"
                                     onClick={() => {

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
+import { classifyStudentSessionStatus } from '@/lib/academic/session-scope';
 
 const SPECIALIZED_ENROLLMENT_TYPES = new Set([
   'bootcamp',
@@ -127,7 +128,7 @@ export async function reinstateStudentToClass(
   const [{ data: student }, { data: cls }] = await Promise.all([
     admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, enrollment_type, grade, section_class, class_id, primary_teacher_id, is_deleted, is_active, classes:class_id(qa_grade_key, name)')
+      .select('id, full_name, email, role, school_id, school_name, enrollment_type, grade, section_class, class_id, primary_teacher_id, is_deleted, is_active, created_at, metadata, classes:class_id(qa_grade_key, name)')
       .eq('id', studentId)
       .maybeSingle(),
     admin
@@ -221,7 +222,7 @@ export async function reinstateStudentToClass(
 
     const { data: prevRoster } = await (admin as any)
       .from('class_term_rosters')
-      .select('id, status')
+      .select('id, status, term_id, started_at, reinstated_at')
       .eq('class_id', prevClassId)
       .eq('student_id', studentId)
       .order('updated_at', { ascending: false })
@@ -232,18 +233,40 @@ export async function reinstateStudentToClass(
     const prevStatus = ((prevRoster as { status?: string } | null)?.status ?? 'active').toLowerCase();
     wasWithdrawn = prevStatus !== 'active';
 
-    // Active under another teacher -> block unless force/admin (direct claim bypasses this).
+    // Prior-session unconfirmed carryover students (e.g. last session's 3rd term) may be
+    // adopted directly by their new-session teacher without a blocking transfer request.
+    // Transfer approval is strictly reserved for students already confirmed in another
+    // teacher's class for the current session.
+    const prevSessionStatus = classifyStudentSessionStatus(
+      {
+        is_active: student.is_active,
+        created_at: (student as any).created_at ?? null,
+        metadata: (student as any).metadata ?? null,
+      },
+      prevRoster
+        ? {
+            status: (prevRoster as any).status,
+            term_id: (prevRoster as any).term_id ?? null,
+            started_at: (prevRoster as any).reinstated_at ?? (prevRoster as any).started_at ?? null,
+          }
+        : null,
+      { canonicalTermId: cls.term_id ?? null },
+    );
+    const isConfirmedInOtherTeacherCurrentSession = prevSessionStatus === 'confirmed_current';
+
+    // Active & confirmed under another teacher -> block unless force/admin (direct claim bypasses this).
     if (
       !force
       && actor.role === 'teacher'
       && prevOwnerTeacherId
       && prevOwnerTeacherId !== actor.id
       && prevStatus === 'active'
+      && isConfirmedInOtherTeacherCurrentSession
     ) {
       return {
         ok: false,
         code: 'OTHER_TEACHER',
-        error: `"${student.full_name}" is still active in another teacher's class. Send a transfer request, or ask an admin to move them.`,
+        error: `"${student.full_name}" is already confirmed in another teacher's current-session class. Send a transfer request, or ask an admin to move them.`,
       };
     }
   } else if (prevClassId === classId) {

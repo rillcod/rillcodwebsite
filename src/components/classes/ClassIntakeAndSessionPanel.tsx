@@ -522,20 +522,44 @@ export function ClassIntakeAndSessionPanel({
   const [hygieneBusy, setHygieneBusy] = useState<string | null>(null);
   // 1-click Migrate / Adopt students from other classes or archive into THIS class
   const [adoptSearch, setAdoptSearch] = useState('');
+  const [adoptFeederOnly, setAdoptFeederOnly] = useState(false);
   const [adoptSelectedIds, setAdoptSelectedIds] = useState<Set<string>>(new Set());
   const [adoptGrade, setAdoptGrade] = useState<string>(defaultGrade);
   const [adoptingBusy, setAdoptingBusy] = useState(false);
 
+  // Smart incoming feeder grade(s) for this class (e.g. JSS 1 → Basic 6/5, SS 1 → JSS 3, Basic 4–6 → Basic 3)
+  const suggestedFeederGrades = useMemo(() => {
+    const firstGrade = sectionGrades[0] || canonicalGrade(classGradeKey || className);
+    if (!firstGrade) return [] as string[];
+    const idx = (SINGLE_GRADES as readonly string[]).indexOf(firstGrade);
+    if (idx <= 0) return [] as string[];
+    const prev = SINGLE_GRADES[idx - 1];
+    // For JSS 1, include both Basic 6 and Basic 5 (for 5-year primary schools)
+    if (firstGrade === 'JSS 1') return ['Basic 6', 'Basic 5'];
+    return [prev];
+  }, [sectionGrades, classGradeKey, className]);
+
+  const suggestedIncomingStudents = useMemo(() => {
+    if (suggestedFeederGrades.length === 0) return [] as DirectoryCandidate[];
+    return directory.filter((c) => {
+      if (c.in_this_class || c.id.startsWith('consent:')) return false;
+      const g = canonicalGrade(c.grade) || canonicalGrade(c.section_class);
+      return Boolean(g && suggestedFeederGrades.includes(g));
+    });
+  }, [directory, suggestedFeederGrades]);
+
   const adoptableSchoolStudents = useMemo(() => {
     const q = adoptSearch.trim().toLowerCase();
-    return directory
-      .filter((c) => !c.in_this_class && !c.id.startsWith('consent:'))
+    const base = adoptFeederOnly && suggestedIncomingStudents.length > 0
+      ? suggestedIncomingStudents
+      : directory.filter((c) => !c.in_this_class && !c.id.startsWith('consent:'));
+    return base
       .filter((c) => {
         if (!q) return true;
         return `${c.full_name} ${c.grade || ''} ${c.section_class || ''}`.toLowerCase().includes(q);
       })
       .slice(0, 60);
-  }, [directory, adoptSearch]);
+  }, [directory, adoptSearch, adoptFeederOnly, suggestedIncomingStudents]);
 
   const handleAdoptIntoThisClass = async () => {
     const ids = Array.from(adoptSelectedIds);
@@ -3062,6 +3086,36 @@ export function ClassIntakeAndSessionPanel({
               </div>
             </div>
             <div className="p-3 space-y-2.5 bg-card">
+              {suggestedIncomingStudents.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-500/35 bg-emerald-500/[0.06] px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAdoptFeederOnly((v) => !v)}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                        adoptFeederOnly
+                          ? 'border-emerald-700 bg-emerald-700 text-white'
+                          : 'border-emerald-600/40 bg-card text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/15'
+                      }`}
+                    >
+                      ★ Suggested from {suggestedFeederGrades.join(' / ')} ({suggestedIncomingStudents.length})
+                    </button>
+                    <span className="text-[11px] text-muted-foreground">
+                      Likely incoming students ready for {className}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdoptFeederOnly(true);
+                      setAdoptSelectedIds(new Set(suggestedIncomingStudents.map((s) => s.id)));
+                    }}
+                    className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white"
+                  >
+                    Select All {suggestedIncomingStudents.length} Suggested
+                  </button>
+                </div>
+              )}
               <input
                 type="search"
                 aria-label="Search school students to migrate into this class"
