@@ -374,7 +374,7 @@ export async function reinstateStudentToClass(
         // roster rows for this student so a learner can never hold two active regular classes.
         const { data: otherActiveRosters } = await (admin as any)
           .from('class_term_rosters')
-          .select('id, class_id, classes(name)')
+          .select('id, class_id, classes:class_id(name)')
           .eq('student_id', studentId)
           .neq('class_id', classId)
           .eq('status', 'active');

@@ -222,38 +222,25 @@ export async function POST(
     if (classIds.length > 0) {
       const { data: activeStudents } = await admin
         .from('portal_users')
-        .select('id, full_name, email, class_id, grade')
+        .select('id, full_name, email, class_id, grade, metadata')
         .eq('role', 'student')
         .eq('is_active', true)
         .in('class_id', classIds);
 
-      const allStudentIds = ((activeStudents ?? []) as any[]).map((s) => s.id).filter(Boolean);
-
-      // DOUBLE-PROMOTION GUARD: check students.session_history for currentSession so
-      // if either the teacher OR admin already promoted/confirmed a student this session,
+      // DOUBLE-PROMOTION GUARD: check portal_users.metadata (same ledger used by Class Intake)
+      // so if either the teacher OR admin already promoted/confirmed a student this session,
       // they are automatically skipped and can NEVER be promoted twice!
-      if (allStudentIds.length > 0) {
-        const { data: studentRecords } = await (admin as any)
-          .from('students')
-          .select('user_id, session_history')
-          .in('user_id', allStudentIds);
-        for (const rec of (studentRecords ?? []) as any[]) {
-          const hist = Array.isArray(rec.session_history) ? rec.session_history : [];
-          const doneThisSession = hist.some(
-            (h: any) =>
-              String(h?.session || '') === currentSession &&
-              ['promoted', 'upgraded', 'confirmed_current', 'rollover_promoted', 'rollover_upgraded', 'rollover_graduated'].includes(
-                String(h?.action || ''),
-              ),
-          );
-          if (doneThisSession && rec.user_id) {
-            alreadyRolledOverIds.add(rec.user_id);
-          }
-        }
-      }
-
       for (const st of (activeStudents ?? []) as any[]) {
-        if (alreadyRolledOverIds.has(st.id)) continue;
+        const meta = st.metadata && typeof st.metadata === 'object' ? (st.metadata as Record<string, any>) : {};
+        const hist = Array.isArray(meta.session_history) ? meta.session_history : [];
+        const doneThisSession =
+          String(meta.confirmed_session || '') === currentSession ||
+          String(meta.rollover_session || '') === currentSession ||
+          hist.some((h: any) => String(h?.session || '') === currentSession);
+        if (doneThisSession) {
+          alreadyRolledOverIds.add(st.id);
+          continue;
+        }
         const cid = String(st.class_id || '');
         if (!cid) continue;
         const arr = studentsByClass.get(cid) ?? [];
@@ -381,26 +368,38 @@ export async function POST(
       fromGrade: string,
       toGrade: string | null,
       toClassId: string | null,
+      toClassName: string | null,
     ) => {
       if (studentIds.length === 0) return;
-      const { data: rows } = await (admin as any)
-        .from('students')
-        .select('id, user_id, session_history')
-        .in('user_id', studentIds);
+      const { data: rows } = await admin
+        .from('portal_users')
+        .select('id, metadata')
+        .in('id', studentIds);
       for (const r of (rows ?? []) as any[]) {
-        const hist = Array.isArray(r.session_history) ? r.session_history : [];
+        const meta = r.metadata && typeof r.metadata === 'object' ? (r.metadata as Record<string, any>) : {};
+        const prev = Array.isArray(meta.session_history) ? meta.session_history : [];
+        const filtered = prev.filter((item: any) => String(item?.session || '') !== currentSession);
         const nextEntry = {
           session: currentSession,
           action: entryAction,
           from_grade: fromGrade,
-          to_grade: toGrade,
+          grade: toGrade,
           class_id: toClassId,
+          class_name: toClassName,
           actor_id: caller.id,
-          at: nowIso,
+          recorded_at: nowIso,
         };
-        await (admin as any)
-          .from('students')
-          .update({ session_history: [...hist, nextEntry] })
+        const nextMeta: Record<string, any> = {
+          ...meta,
+          rollover_session: currentSession,
+          session_history: [...filtered, nextEntry],
+        };
+        if (!requireTeacherConfirmation) {
+          nextMeta.confirmed_session = currentSession;
+        }
+        await admin
+          .from('portal_users')
+          .update({ metadata: nextMeta, updated_at: nowIso })
           .eq('id', r.id);
       }
     };
@@ -456,7 +455,14 @@ export async function POST(
         if (upgErr) failed += step.student_ids.length;
         else {
           upgradedInPlace += step.student_ids.length;
-          await appendSessionHistory(step.student_ids, 'rollover_upgraded', step.from_grade, step.to_grade, step.from_class_id);
+          await appendSessionHistory(
+            step.student_ids,
+            'rollover_upgraded',
+            step.from_grade,
+            step.to_grade,
+            step.from_class_id,
+            step.from_class_name,
+          );
         }
         continue;
       }
@@ -478,7 +484,14 @@ export async function POST(
             failed += 1;
           }
         }
-        await appendSessionHistory(promotedIds, 'rollover_promoted', step.from_grade, step.to_grade, step.to_class_id);
+        await appendSessionHistory(
+          promotedIds,
+          'rollover_promoted',
+          step.from_grade,
+          step.to_grade,
+          step.to_class_id,
+          step.to_class_name,
+        );
       }
     }
 

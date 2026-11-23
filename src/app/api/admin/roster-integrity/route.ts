@@ -16,7 +16,7 @@ type ScanResult = {
 async function scanRosterIntegrity(admin: ReturnType<typeof createAdminClient>): Promise<ScanResult> {
   const { data: activeRosters, error: rErr } = await (admin as any)
     .from('class_term_rosters')
-    .select('id, student_id, class_id, status, classes(name)')
+    .select('id, student_id, class_id, status, classes:class_id(name)')
     .eq('status', 'active')
     .limit(5000);
   if (rErr) throw new Error(rErr.message);
