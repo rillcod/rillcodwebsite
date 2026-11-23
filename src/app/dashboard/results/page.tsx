@@ -37,6 +37,7 @@ import { LearnerReportFlowStrip, learnerReportHref } from '@/components/reports/
 import { AutoFillStatusBanner, NoScoresYetNotice, ResultStatusBadges } from '@/components/reports/ResultStatusBadges';
 import { ReportSessionContextBanner, SessionCalendarRollNotice } from '@/components/reports/ReportSessionContextBanner';
 import { sessionFromReport, sessionLabel } from '@/lib/reports/session-scope';
+import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
 import {
   rollRosterSessionIfStale,
   rosterSessionQueryFilters,
@@ -200,6 +201,8 @@ function ResultsPageInner() {
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'has' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
+    const [showAllSessionsRoster, setShowAllSessionsRoster] = useState(false);
+    const currentSessionBoundary = getSessionBoundary();
     const [sortBy, setSortBy] = useState<'name' | 'grade' | 'status' | 'school' | 'date'>('name');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc'); // asc = A→Z / oldest first; desc = Z→A / newest first
     const [filterTeacher, setFilterTeacher] = useState(''); // admin: filter by class teacher (lms-isolation specificity)
@@ -431,7 +434,7 @@ function ResultsPageInner() {
             // 2. Build student query — join classes + schools for proper display names
             // Page past PostgREST’s default 1000-row cap (and the old admin 10k / staff 400 caps).
             let finalQuery = db.from('portal_users')
-                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, created_at, metadata, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
                 .eq('role', 'student')
                 .neq('is_deleted', true);
 
@@ -807,14 +810,18 @@ function ResultsPageInner() {
         [...schoolScoped.map(s => (s as any).grade_level), filterGrade].filter(Boolean)
     )].sort() as string[];
 
+    const isViewingLiveSession = confirmedPeriod?.year === currentSessionBoundary.periodLabel;
     const filtered = students.filter(s => {
+        const r = reportsMap[s.id];
+        if (isViewingLiveSession && !showAllSessionsRoster) {
+            if (!r && !isStudentInCurrentSession(s as any, currentSessionBoundary)) return false;
+        }
         const matchSearch = !search
             || (s.full_name ?? '').toLowerCase().includes(search.toLowerCase())
             || (s.email ?? '').toLowerCase().includes(search.toLowerCase());
         const matchSchool = !filterSchool || studentSchoolName(s) === filterSchool;
         const matchClass = !filterClass || studentClassName(s) === filterClass;
         const matchGrade = !filterGrade || ((s as any).grade_level ?? '') === filterGrade;
-        const r = reportsMap[s.id];
         const matchStatus =
             filterStatus === 'all' ? true :
                 filterStatus === 'has' ? !!r :
@@ -1537,11 +1544,25 @@ function ResultsPageInner() {
                 )}>
                     <div className="min-w-0 hidden md:block">
                         {isStaff && staffPeriodReady ? (
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
                                 <span className="text-muted-foreground">{stats.total} students</span>
                                 <span className="font-semibold text-emerald-700 dark:text-emerald-400">{stats.published} published</span>
                                 <span className="font-semibold text-amber-800 dark:text-amber-400">{stats.draft} drafts</span>
                                 <span className="text-muted-foreground">{stats.none} new</span>
+                                {isViewingLiveSession && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllSessionsRoster(v => !v)}
+                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black transition-colors ${
+                                            showAllSessionsRoster
+                                                ? 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                                                : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
+                                        }`}
+                                        title="Switch between confirmed current-session students and all historical students"
+                                    >
+                                        {showAllSessionsRoster ? `All Sessions (${students.length})` : `${currentSessionBoundary.periodLabel} Only`}
+                                    </button>
+                                )}
                             </div>
                         ) : !isStaff ? (
                             <h1 className="truncate text-base font-extrabold tracking-tight sm:text-lg">My Report Card</h1>

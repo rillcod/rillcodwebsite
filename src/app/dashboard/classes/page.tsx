@@ -110,7 +110,10 @@ export default function ClassesPage() {
     const matchName = (c.name ?? '').toLowerCase().includes(q)
       || (c.programs?.name ?? '').toLowerCase().includes(q)
       || (c.schools?.name ?? '').toLowerCase().includes(q);
-    const matchStatus = filterStatus === 'all' || c.status === filterStatus;
+    const matchStatus = filterStatus === 'all'
+      || (filterStatus === 'needs_clean_slate'
+        ? (c.unconfirmed_students ?? 0) > 0
+        : c.status === filterStatus);
     const classTermKey = c.academic_terms
       ? `${c.academic_terms.term_label} ${c.academic_terms.academic_year}`
       : 'No term';
@@ -119,9 +122,17 @@ export default function ClassesPage() {
     return matchName && matchStatus && matchTerm && matchSchool;
   });
 
-  // Compute student count from the active filtered view so old-term + new-term classes
-  // never double-count the same students when a term or school filter is applied.
-  const totalStudents = filtered.reduce((sum, c) => sum + (c.current_students ?? 0), 0);
+  // Compute confirmed student count from the active filtered view so unconfirmed
+  // prior-session carryovers never inflate current-session totals.
+  const totalConfirmedStudents = filtered.reduce(
+    (sum, c) => sum + (typeof c.confirmed_students === 'number' ? c.confirmed_students : (c.current_students ?? 0)),
+    0,
+  );
+  const totalUnconfirmedStudents = filtered.reduce(
+    (sum, c) => sum + (typeof c.unconfirmed_students === 'number' ? c.unconfirmed_students : 0),
+    0,
+  );
+  const needsCleanSlateCount = classes.filter(c => (c.unconfirmed_students ?? 0) > 0).length;
   const activeCount = classes.filter(c => c.status === 'active').length;
   const scheduledCount = classes.filter(c => c.status === 'scheduled').length;
   const completedCount = classes.filter(c => c.status === 'completed').length;
@@ -304,10 +315,10 @@ export default function ClassesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', border: 'border-primary/10 hover:border-primary/20', color: 'text-primary', mobile: true },
-          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   border: 'border-primary/10 hover:border-primary/20', color: 'text-primary', mobile: false },
-          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-600 dark:text-emerald-400', mobile: true },
-          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', border: 'border-purple-500/10 hover:border-purple-500/20', color: 'text-purple-600 dark:text-purple-400', mobile: false },
+          { label: 'Total Classes',      value: classes.length,         sub: null, icon: AcademicCapIcon, bg: 'bg-primary/10',     border: 'border-primary/10 hover:border-primary/20',     color: 'text-primary',                             mobile: true },
+          { label: 'Confirmed Students', value: totalConfirmedStudents, sub: totalUnconfirmedStudents > 0 ? `${totalUnconfirmedStudents} 3rd-term unconfirmed` : null, icon: UserGroupIcon,   bg: 'bg-primary/10',     border: 'border-primary/10 hover:border-primary/20',     color: 'text-primary',                             mobile: false },
+          { label: 'Active Classes',     value: activeCount,            sub: needsCleanSlateCount > 0 ? `${needsCleanSlateCount} need clean slate` : null, icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-600 dark:text-emerald-400', mobile: true },
+          { label: 'Programmes',         value: programCount,           sub: null, icon: ChartBarIcon,    bg: 'bg-purple-500/10',  border: 'border-purple-500/10 hover:border-purple-500/20',   color: 'text-purple-600 dark:text-purple-400',   mobile: false },
         ].map(s => (
           <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl ${!s.mobile ? 'hidden sm:block' : ''}`}>
             <div className={`absolute top-0 right-0 w-20 h-20 ${s.bg} rounded-full blur-3xl opacity-30 -mr-8 -mt-8`} />
@@ -316,6 +327,9 @@ export default function ClassesPage() {
             </div>
             <p className={`text-2xl font-black ${s.color} tracking-tight`}>{s.value}</p>
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1.5">{s.label}</p>
+            {s.sub && (
+              <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 mt-1">{s.sub}</p>
+            )}
           </div>
         ))}
       </div>
@@ -333,6 +347,9 @@ export default function ClassesPage() {
           {[
             { key: 'all', label: 'All Classes', count: classes.length },
             { key: 'active', label: 'Active', count: activeCount },
+            ...(needsCleanSlateCount > 0
+              ? [{ key: 'needs_clean_slate', label: 'Needs Clean Slate', count: needsCleanSlateCount }]
+              : []),
             { key: 'scheduled', label: 'Scheduled', count: scheduledCount },
             { key: 'completed', label: 'Completed', count: completedCount },
           ].map(pill => (
@@ -429,8 +446,11 @@ export default function ClassesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(cls => {
-            const isFull = cls.max_students > 0 && (cls.current_students ?? 0) >= cls.max_students;
-            const nearFull = !isFull && cls.max_students > 0 && (cls.current_students ?? 0) / cls.max_students >= 0.9;
+            const activeHeadcount = typeof cls.confirmed_students === 'number'
+              ? cls.confirmed_students
+              : (cls.current_students ?? 0);
+            const isFull = cls.max_students > 0 && activeHeadcount >= cls.max_students;
+            const nearFull = !isFull && cls.max_students > 0 && activeHeadcount / cls.max_students >= 0.9;
             return (
               <div key={cls.id} className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
 
@@ -511,7 +531,7 @@ export default function ClassesPage() {
                             className={`h-full rounded-full transition-all ${
                               isFull ? 'bg-rose-500' : nearFull ? 'bg-amber-500' : 'bg-primary'
                             }`}
-                            style={{ width: `${Math.min(100, Math.round(((cls.current_students ?? 0) / cls.max_students) * 100))}%` }}
+                            style={{ width: `${Math.min(100, Math.round((activeHeadcount / cls.max_students) * 100))}%` }}
                           />
                         </div>
                       </div>

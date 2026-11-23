@@ -154,7 +154,7 @@ export default function ClassDetailPage() {
   const [modalTargetGrade, setModalTargetGrade] = useState('');
   const [modalStudentActions, setModalStudentActions] = useState<Record<string, 'promote' | 'demote' | 'retain'>>({});
   const [modalSchoolClasses, setModalSchoolClasses] = useState<Array<{ id: string; name: string; qa_grade_key: string | null; teacher_name: string | null; student_count: number }>>([]);
-  // Session Roster Confirmation + Inline Quick-Add + Digital Intake & Session Hygiene
+  // Session Roster Confirmation + Digital Intake & Session Hygiene
   const [showSessionConfirm, setShowSessionConfirm] = useState(false);
   const [showIntakePanel, setShowIntakePanel] = useState(false);
   const [intakePanelTab, setIntakePanelTab] = useState<'intake' | 'hygiene'>('intake');
@@ -928,7 +928,11 @@ export default function ClassDetailPage() {
     }
   };
 
-  const submitSessionConfirm = async (onlyQuickAdd = false) => {
+  const submitSessionConfirm = async (
+    onlyQuickAdd = false,
+    quickNamesOverride?: string,
+    gradeOverride?: string,
+  ) => {
     if (!id) return;
     setSavingSessionConfirm(true);
     setSessionConfirmNotice(null);
@@ -954,14 +958,20 @@ export default function ClassDetailPage() {
         }
       }
 
+      const rawNames = (quickNamesOverride !== undefined ? quickNamesOverride : quickAddInput).trim();
+      const chosenGrade =
+        gradeOverride !== undefined
+          ? (gradeOverride && gradeOverride !== '__retain__' ? gradeOverride : '')
+          : quickAddGrade;
+
       const res = await fetch(`/api/classes/${id}/enroll`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           updates,
           withdrawStudentIds,
-          quickAddNames: quickAddInput.trim() || undefined,
-          defaultGrade: quickAddGrade || defaultEntryGradeForClass() || undefined,
+          quickAddNames: rawNames || undefined,
+          defaultGrade: chosenGrade || defaultEntryGradeForClass() || undefined,
         }),
       });
       const json = await res.json();
@@ -985,7 +995,10 @@ export default function ClassDetailPage() {
         ambiguous,
         errors: errs,
       });
-      if (added.length > 0 && errs.length === 0 && ambiguous.length === 0) setQuickAddInput('');
+      if (added.length > 0 && errs.length === 0 && ambiguous.length === 0) {
+        setQuickAddInput('');
+        if (quickNamesOverride !== undefined) setRosterSearch('');
+      }
       const createdWithPwd = added
         .filter((a: any) => a.password && a.email)
         .map((a: any) => ({
@@ -1923,7 +1936,7 @@ export default function ClassDetailPage() {
     : inactiveTermStudents.filter(matchesRosterText);
   const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 0;
 
-  // Smart cross-school & sister-school search matches (multi-term comma/semicolon + sister school aware)
+  // Unified smart cross-school & sister-school search + feeder-promotion priority sort
   const schoolSearchMatches = (() => {
     if (rosterQ.length < 2 || schoolSuggestionsPool.length === 0) return [];
     return schoolSuggestionsPool
@@ -1934,18 +1947,6 @@ export default function ClassDetailPage() {
         }
         return tokenMatches(blob, rosterQ);
       })
-      .slice(0, 25);
-  })();
-
-  const quickAddQuery = quickAddInput.trim();
-  const quickAddSingleLine = quickAddQuery && !quickAddQuery.includes('\n');
-  const quickAlreadyInClass = quickAddSingleLine && quickAddQuery.length >= 2
-    ? currentTermStudents.filter((s: any) => tokenMatches([s.full_name, s.email].filter(Boolean).join(' '), quickAddQuery)).slice(0, 3)
-    : [];
-  const smartQuickSuggestions = (() => {
-    if (!quickAddSingleLine || quickAddQuery.length < 2 || schoolSuggestionsPool.length === 0) return [];
-    return schoolSuggestionsPool
-      .filter((s: any) => tokenMatches([s.full_name, s.email, s.grade, s.current_class_name].filter(Boolean).join(' '), quickAddQuery))
       .sort((a: any, b: any) => {
         if (a.is_feeder_promotion && !b.is_feeder_promotion) return -1;
         if (!a.is_feeder_promotion && b.is_feeder_promotion) return 1;
@@ -1953,7 +1954,7 @@ export default function ClassDetailPage() {
         if (a.class_id && !b.class_id) return 1;
         return (a.full_name || '').localeCompare(b.full_name || '');
       })
-      .slice(0, 6);
+      .slice(0, 25);
   })();
   // Each mode carries its own numbers, so the page header does not have to repeat them.
   // `attention` is work waiting on a person — it is the only thing that gets a red badge.
@@ -1994,10 +1995,10 @@ export default function ClassDetailPage() {
     },
     {
       id: 'communication' as const,
-      title: 'Communication',
-      desc: 'Attendance, broadcast, parent updates',
+      title: 'Attendance & Updates',
+      desc: 'Mark attendance, class sessions and parent broadcasts',
       icon: ClipboardDocumentCheckIcon,
-      stat: `${sessions.length} sessions`,
+      stat: `${sessions.length} session${sessions.length === 1 ? '' : 's'}`,
       progress: null as number | null,
       attention: 0,
       attentionLabel: '',
@@ -2006,11 +2007,16 @@ export default function ClassDetailPage() {
     {
       id: 'roster' as const,
       title: 'Students',
-      desc: 'Roster, transfers and term movement',
+      desc: 'Roster, enrollment, grades and transfers',
       icon: UserGroupIcon,
-      stat: studentRecordsLoaded
-        ? `${currentTermStudents.length} active · ${inactiveTermStudents.length} withdrawn`
-        : 'Open to load students',
+      stat: (() => {
+        if (!studentRecordsLoaded) return 'Open to load students';
+        const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
+        const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
+        return unconfirmedCnt > 0
+          ? `${confirmedCnt} confirmed · ${unconfirmedCnt} 3rd-term`
+          : `${confirmedCnt} confirmed${inactiveTermStudents.length > 0 ? ` · ${inactiveTermStudents.length} archived` : ''}`;
+      })(),
       progress: null as number | null,
       attention:
         transferRequests.filter((request: any) => request.status === 'pending').length
@@ -2072,147 +2078,67 @@ export default function ClassDetailPage() {
                     className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted"
                   >
                     <PencilIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    Setup
-                  </Link>
-                  <Link
-                    href={`/dashboard/attendance?class_id=${id}`}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-black text-primary-foreground shadow-sm shadow-primary/20 transition-opacity hover:opacity-95"
-                  >
-                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
-                    Attendance
+                    Class Setup
                   </Link>
                 </div>
               )}
             </div>
 
-            <div className="min-w-0">
-              <h1 className="break-words text-xl sm:text-2xl font-black tracking-tight text-foreground leading-snug">
-                {cls.name}
-              </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/90">
-                  <BookOpenIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                  {cls.programs?.name ?? 'No programme'}
-                </span>
-                <span className="text-border" aria-hidden="true">•</span>
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  {termLabel}
-                </span>
-                <span className="text-border" aria-hidden="true">•</span>
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <UserGroupIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  {cls.portal_users?.full_name ?? 'Teacher not assigned'}
-                </span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="break-words text-xl sm:text-2xl font-black tracking-tight text-foreground leading-snug">
+                  {cls.name}
+                </h1>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-foreground/90">
+                    <BookOpenIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+                    {cls.programs?.name ?? 'No programme'}
+                  </span>
+                  <span className="text-border" aria-hidden="true">•</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    {termLabel}
+                  </span>
+                  <span className="text-border" aria-hidden="true">•</span>
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <UserGroupIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    {cls.portal_users?.full_name ?? 'Teacher not assigned'}
+                  </span>
+                </div>
               </div>
+
+              {canView && isStaff && (() => {
+                const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
+                const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold shrink-0">
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-800 dark:text-emerald-300 tabular-nums">
+                      {confirmedCnt} confirmed
+                    </span>
+                    {unconfirmedCnt > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          selectOperation('roster');
+                          setIntakePanelTab('hygiene');
+                          setShowIntakePanel(true);
+                          setRosterOpen(true);
+                        }}
+                        className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 transition-colors tabular-nums"
+                      >
+                        {unconfirmedCnt} unconfirmed (3rd term) →
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
-
-          {/* Tier 2: Crisp 1-Tap Staff Shortcuts (zero duplicate tab nav!) */}
-          {canView && isStaff && (
-            <div className="border-t border-border/70 bg-muted/25 px-4 py-2.5 sm:px-6 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    selectOperation('roster');
-                    setIntakePanelTab('intake');
-                    setShowIntakePanel(true);
-                    setRosterOpen(true);
-                  }}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 text-xs font-black text-white shadow-sm transition-colors"
-                >
-                  <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
-                  Intake &amp; Pass-Around
-                </button>
-                <Link
-                  href={learnerReportHref('write', {
-                    classId: id,
-                    courseId: searchParams.get('course_id') || cls?.current_course_id,
-                  })}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 px-3 text-xs font-bold text-emerald-800 dark:text-emerald-300 whitespace-nowrap transition-colors hover:bg-emerald-600/20"
-                >
-                  <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                  Result Builder
-                  {reportIndicatorEnabled && needsReportCount > 0 && (
-                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                      {needsReportCount}
-                    </span>
-                  )}
-                </Link>
-                {offBandCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      selectOperation('roster');
-                      openSessionConfirm();
-                      setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-                    }}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
-                  >
-                    <CheckCircleIcon className="h-3.5 w-3.5" />
-                    Confirm Grades ({offBandCount})
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
-                {(() => {
-                  const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
-                  const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
-                  return (
-                    <>
-                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-emerald-800 dark:text-emerald-300 tabular-nums">
-                        {confirmedCnt} confirmed
-                      </span>
-                      {unconfirmedCnt > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            selectOperation('roster');
-                            setIntakePanelTab('hygiene');
-                            setShowIntakePanel(true);
-                            setRosterOpen(true);
-                          }}
-                          className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 transition-colors tabular-nums"
-                        >
-                          {unconfirmedCnt} unconfirmed (3rd term) →
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
         </div>
 
-        {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
+        {cls?.max_students > 0 && currentTermStudents.filter((s: any) => s.session_status !== 'carryover_unconfirmed').length >= cls?.max_students && (
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold leading-snug text-rose-600 dark:text-rose-400">
             Class capacity has been reached. Move students to another class or increase capacity before adding more.
-          </div>
-        )}
-
-        {isStaff && offBandCount > 0 && !(activeOperation === 'roster' && showSessionConfirm) && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-card px-4 py-3 text-xs shadow-sm">
-            <div className="min-w-0">
-              <p className="font-black text-foreground">
-                Session Grade Check · <span className="text-primary">{offBandCount} student{offBandCount === 1 ? '' : 's'}</span> still carry a previous session&apos;s grade
-              </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Confirm returning students with their new grade, withdraw anyone who left, or add new students inline.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                selectOperation('roster');
-                openSessionConfirm();
-                setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-              }}
-              className="shrink-0 min-h-10 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity"
-            >
-              Confirm Session &amp; Grades →
-            </button>
           </div>
         )}
 
@@ -2311,71 +2237,6 @@ export default function ClassDetailPage() {
 
               {activeOperation === 'roster' && (
                 <div className="min-w-0 space-y-3 sm:space-y-4 sm:rounded-2xl sm:border sm:border-border sm:bg-background sm:p-4">
-                  {isStaff && (() => {
-                    const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
-                    const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
-                    if (unconfirmedCnt === 0 && confirmedCnt > 0) return null;
-                    return (
-                      <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3.5 sm:p-4 space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                              Build My Class · New-Session Adoption Guide
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {confirmedCnt} confirmed for this session · {unconfirmedCnt} unconfirmed from 3rd term. Follow 3 quick steps:
-                            </p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIntakePanelTab('hygiene');
-                              setShowIntakePanel(true);
-                              setRosterOpen(true);
-                            }}
-                            className="rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/40 transition-colors"
-                          >
-                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                              1. Clear / Adopt Returning
-                            </p>
-                            <p className="text-xs font-black text-foreground mt-0.5">
-                              {unconfirmedCnt > 0 ? `Review ${unconfirmedCnt} old-session →` : 'Adopt incoming feeder class →'}
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIntakePanelTab('intake');
-                              setShowIntakePanel(true);
-                              setRosterOpen(true);
-                            }}
-                            className="rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/40 transition-colors"
-                          >
-                            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                              2. Roll Call / New Kids
-                            </p>
-                            <p className="text-xs font-black text-foreground mt-0.5">
-                              Open Pass-Around or Bulk Paste →
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openSessionConfirm()}
-                            className="rounded-xl border border-border bg-card px-3 py-2 text-left hover:border-primary/40 transition-colors"
-                          >
-                            <p className="text-[10px] font-black uppercase tracking-wider text-primary">
-                              3. Confirm Grades
-                            </p>
-                            <p className="text-xs font-black text-foreground mt-0.5">
-                              Verify final grades &amp; lock roster →
-                            </p>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
                   {(pendingIncomingTransfers.length > 0 || pendingOutgoingTransfers.length > 0) && (
                     <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
                       <div>
@@ -2426,50 +2287,57 @@ export default function ClassDetailPage() {
                         </div>
                         <ChevronDownIcon className={`mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${rosterOpen ? 'rotate-180' : ''}`} />
                       </button>
-                      {reportIndicatorEnabled && currentTermStudents.length > 0 && (
-                        <p className={`-mt-1 break-words text-xs ${needsReportCount ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                          {reportedCount}/{currentTermStudents.length} reports{' '}
-                          {needsReportCount ? (
+                      {isStaff && (() => {
+                        const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
+                        return (
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => { setShowNeedsReportOnly(v => !v); setRosterOpen(true); }}
-                              className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-700 dark:text-amber-300' : ''}`}
-                              title="Show only students who still need a report"
+                              onClick={() => {
+                                setIntakePanelTab(unconfirmedCnt > 0 ? 'hygiene' : 'intake');
+                                setShowIntakePanel((v) => !v);
+                                setRosterOpen(true);
+                              }}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white transition-colors shadow-sm"
                             >
-                              · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered)' : ''}
+                              <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
+                              <span>{showIntakePanel ? 'Hide Enrollment Hub' : '+ Enrol / Intake Students'}</span>
+                              {unconfirmedCnt > 0 && (
+                                <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
+                                  {unconfirmedCnt}
+                                </span>
+                              )}
                             </button>
-                          ) : ' ✓'}
-                        </p>
-                      )}
-                      {isStaff && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIntakePanelTab('intake');
-                              setShowIntakePanel((v) => !v);
-                              setRosterOpen(true);
-                            }}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white transition-colors shadow-sm"
-                          >
-                            <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span>{showIntakePanel ? 'Hide Class Intake' : 'Intake, Adopt & Pass-Around'}</span>
-                            {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length > 0 && (
-                              <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
-                                {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length}
-                              </span>
-                            )}
-                          </button>
-                          <div className="relative">
                             <button
                               type="button"
-                              onClick={() => setShowRosterActions(v => !v)}
-                              aria-expanded={showRosterActions}
-                              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                              onClick={() => {
+                                if (showSessionConfirm) setShowSessionConfirm(false);
+                                else openSessionConfirm();
+                              }}
+                              className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black transition-colors ${
+                                showSessionConfirm || offBandCount > 0
+                                  ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                                  : 'border-border bg-card text-foreground hover:border-primary/50'
+                              }`}
                             >
-                              More Tools
-                              <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showRosterActions ? 'rotate-180' : ''}`} />
+                              <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
+                              Confirm Grades
+                              {offBandCount > 0 && (
+                                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black text-primary-foreground">
+                                  {offBandCount}
+                                </span>
+                              )}
                             </button>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowRosterActions(v => !v)}
+                                aria-expanded={showRosterActions}
+                                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                              >
+                                Print &amp; Tools
+                                <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showRosterActions ? 'rotate-180' : ''}`} />
+                              </button>
                             {showRosterActions && (
                               <>
                                 <div
@@ -2597,218 +2465,9 @@ export default function ClassDetailPage() {
                             )}
                           </div>
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
-                    {isStaff && !showSessionConfirm && (
-                      <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-3 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-black text-foreground">
-                            + Quick-Add or Auto-Adopt Student Inline
-                          </p>
-                          <span className="text-[10px] text-muted-foreground">
-                            Auto-matches school records (no duplicates) or creates login + ID card
-                          </span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <input
-                            type="text"
-                            value={quickAddInput}
-                            onChange={(e) => setQuickAddInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && quickAddInput.trim() && !savingSessionConfirm) {
-                                e.preventDefault();
-                                void submitSessionConfirm(true);
-                              }
-                            }}
-                            placeholder="Type student name (e.g. Chinedu Eze or Ada Okafor JSS 1)"
-                            className="min-h-10 flex-1 rounded-xl border border-border bg-card px-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                          />
-                          <select
-                            aria-label="Grade for quick-added student"
-                            value={quickAddGrade}
-                            onChange={(e) => setQuickAddGrade(e.target.value)}
-                            className="min-h-10 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
-                          >
-                            <option value="">Auto grade ({defaultEntryGradeForClass() || 'Class'})</option>
-                            {SINGLE_GRADES.map((g) => (
-                              <option key={g} value={g}>{g}</option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            disabled={savingSessionConfirm || !quickAddInput.trim()}
-                            onClick={() => void submitSessionConfirm(true)}
-                            className="min-h-10 rounded-xl bg-primary px-4 text-xs font-black text-primary-foreground hover:opacity-90 disabled:opacity-40 shrink-0"
-                          >
-                            {savingSessionConfirm ? 'Adding…' : '+ Add / Adopt'}
-                          </button>
-                        </div>
-                        {/* Live smart suggestions from this school & sister schools (multi-tick bulk adopt in 1 call) */}
-                        {quickAddSingleLine && quickAddQuery.length >= 2 && (quickAlreadyInClass.length > 0 || smartQuickSuggestions.length > 0 || !loadingSchoolPool) && (() => {
-                          const adoptableQuick = smartQuickSuggestions.filter((s: any) => !s.requires_transfer_request);
-                          const quickTickedCount = adoptableQuick.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).length;
-                          const allQuickTicked = adoptableQuick.length > 0 && quickTickedCount === adoptableQuick.length;
-                          return (
-                            <div className="rounded-xl border border-emerald-500/30 bg-card shadow-sm overflow-hidden divide-y divide-border text-xs">
-                              {adoptableQuick.length > 1 && (
-                                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-500/10 px-3 py-1.5">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-200">
-                                      {adoptableQuick.length} School Matches
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setCheckedSchoolAdoptIds((prev) => {
-                                          const next = new Set(prev);
-                                          if (allQuickTicked) adoptableQuick.forEach((s: any) => next.delete(s.id));
-                                          else adoptableQuick.forEach((s: any) => next.add(s.id));
-                                          return next;
-                                        });
-                                      }}
-                                      className="rounded-md border border-emerald-500/40 bg-card px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/15"
-                                    >
-                                      {allQuickTicked ? 'Untick All' : `Tick All (${adoptableQuick.length})`}
-                                    </button>
-                                  </div>
-                                  {quickTickedCount > 0 && (
-                                    <button
-                                      type="button"
-                                      disabled={bulkAdoptingSchool}
-                                      onClick={async () => {
-                                        const ids = adoptableQuick.filter((s: any) => checkedSchoolAdoptIds.has(s.id)).map((s: any) => s.id);
-                                        await bulkAdoptFromSchool(ids, quickAddGrade || undefined);
-                                        setQuickAddInput('');
-                                      }}
-                                      className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1 text-[10px] font-black uppercase text-white shadow-xs disabled:opacity-40"
-                                    >
-                                      {bulkAdoptingSchool ? 'Adopting…' : `+ Adopt Selected (${quickTickedCount})`}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                              {quickAlreadyInClass.map((s: any) => (
-                                <div key={`in-${s.id}`} className="flex items-center justify-between gap-2 bg-emerald-500/5 px-3 py-2">
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-foreground truncate">{s.full_name}</p>
-                                    <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
-                                      Already in this class ✓ · Grade: {s.grade || 'Not set'}
-                                    </p>
-                                  </div>
-                                  <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
-                                    Active
-                                  </span>
-                                </div>
-                              ))}
-                              {smartQuickSuggestions.map((s: any) => {
-                                const targetG = quickAddGrade || s.suggested_grade || defaultEntryGradeForClass();
-                                const locked = Boolean(s.requires_transfer_request);
-                                const isTicked = !locked && checkedSchoolAdoptIds.has(s.id);
-                                return (
-                                  <div
-                                    key={`sug-${s.id}`}
-                                    className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 transition-colors ${isTicked ? 'bg-emerald-500/10' : 'hover:bg-muted/40'
-                                      }`}
-                                  >
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      {!locked && (
-                                        <input
-                                          type="checkbox"
-                                          checked={isTicked}
-                                          aria-label={`Select ${s.full_name} to adopt`}
-                                          onChange={() =>
-                                            setCheckedSchoolAdoptIds((prev) => {
-                                              const next = new Set(prev);
-                                              if (next.has(s.id)) next.delete(s.id);
-                                              else next.add(s.id);
-                                              return next;
-                                            })
-                                          }
-                                          className="h-4 w-4 shrink-0 rounded accent-emerald-600 cursor-pointer"
-                                        />
-                                      )}
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                          <span className="font-bold text-foreground truncate">{s.full_name}</span>
-                                          {s.grade && (
-                                            <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-foreground">
-                                              {s.grade}{targetG && targetG !== s.grade ? ` → ${targetG}` : ''}
-                                            </span>
-                                          )}
-                                          {s.sister_school_name && (
-                                            <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">
-                                              {s.sister_school_name}
-                                            </span>
-                                          )}
-                                          {s.is_feeder_promotion && (
-                                            <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
-                                              Returning Feeder
-                                            </span>
-                                          )}
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground truncate">
-                                          {s.current_class_name
-                                            ? `From: ${s.current_class_name}${s.current_teacher_name ? ` · ${s.current_teacher_name}` : ''}`
-                                            : 'Unassigned / Old record in this school'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      disabled={!!processingStudent || bulkAdoptingSchool}
-                                      onClick={async () => {
-                                        await assignStudent(s.id, 'promote', quickAddGrade || undefined);
-                                        setQuickAddInput('');
-                                      }}
-                                      className="shrink-0 min-h-9 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
-                                    >
-                                      {processingStudent === s.id ? 'Adopting…' : `Adopt${targetG ? ` → ${targetG}` : ''}`}
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                              {quickAlreadyInClass.length === 0 && (
-                                <button
-                                  type="button"
-                                  disabled={savingSessionConfirm}
-                                  onClick={() => void submitSessionConfirm(true)}
-                                  className="flex w-full items-center justify-between gap-2 bg-primary/[0.04] px-3 py-2 text-left hover:bg-primary/10 transition-colors"
-                                >
-                                  <span className="font-bold text-primary truncate">
-                                    + Register “{quickAddQuery}” as new student ({quickAddGrade || defaultEntryGradeForClass() || 'auto grade'})
-                                  </span>
-                                  <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
-                                    Auto login + ID card
-                                  </span>
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })()}
-                        {sessionConfirmNotice && (
-                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2 text-xs space-y-1">
-                            <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
-                            {sessionConfirmNotice.ambiguous && sessionConfirmNotice.ambiguous.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {sessionConfirmNotice.ambiguous.flatMap((row) =>
-                                  row.candidates.map((c) => (
-                                    <button
-                                      key={c.id}
-                                      type="button"
-                                      disabled={!!processingStudent}
-                                      onClick={() => void assignStudent(c.id, 'promote')}
-                                      className="rounded-lg border border-primary/35 bg-card px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/10"
-                                    >
-                                      + Adopt {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
-                                    </button>
-                                  )),
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     {rosterOpen && showCredSheet && isStaff && (
                       <div className="rounded-2xl border border-primary/30 bg-card p-3.5 sm:p-4 space-y-3 shadow-sm">
@@ -2953,32 +2612,6 @@ export default function ClassDetailPage() {
                             </table>
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {rosterOpen && isStaff && !showIntakePanel && currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length > 0 && (
-                      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                        <div className="flex items-start gap-2.5 min-w-0">
-                          <ExclamationTriangleIcon className="w-5 h-5 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
-                          <div className="text-xs text-amber-950 dark:text-amber-200">
-                            <p className="font-black">
-                              {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length} prior-session student{currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length === 1 ? '' : 's'} mixed into {cls?.name || 'this class'}
-                            </p>
-                            <p className="opacity-90 mt-0.5">
-                              Separate last session&apos;s set from {currentSessionLabel} — promote them to their next class, archive cleanly (keeps all results), or confirm returning students.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIntakePanelTab('hygiene');
-                            setShowIntakePanel(true);
-                          }}
-                          className="shrink-0 inline-flex min-h-9 items-center justify-center rounded-lg bg-amber-800 hover:bg-amber-900 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider text-white shadow-sm"
-                        >
-                          Clean Up Old vs New
-                        </button>
                       </div>
                     )}
 
@@ -3132,70 +2765,6 @@ export default function ClassDetailPage() {
                             })}
                           </div>
                         )}
-
-                        {/* Inline Quick-Add / Smart Auto-Adopt */}
-                        <div className="rounded-xl border border-primary/25 bg-card p-3 space-y-2.5">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-xs font-black text-foreground">
-                              + Quick-Add New or Returning Student Inline
-                            </p>
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black text-primary">
-                              Target pitch: {quickAddGrade || `Auto (${defaultEntryGradeForClass() || 'Class'})`}
-                            </span>
-                          </div>
-                          {/* 1-tap Target Grade Pitch bar */}
-                          <div className="flex flex-wrap items-center gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Pitch grade:</span>
-                            <button
-                              type="button"
-                              onClick={() => setQuickAddGrade('')}
-                              className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${!quickAddGrade
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                                }`}
-                            >
-                              Auto
-                            </button>
-                            {SINGLE_GRADES.map((g) => {
-                              const active = quickAddGrade === g;
-                              const inBand = classBand ? bandCoversGrade(classBand, g) : false;
-                              return (
-                                <button
-                                  key={`pitch-${g}`}
-                                  type="button"
-                                  onClick={() => setQuickAddGrade(g)}
-                                  className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${active
-                                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                                    : inBand
-                                      ? 'border-primary/35 bg-primary/5 text-primary hover:bg-primary/15'
-                                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
-                                    }`}
-                                >
-                                  {g}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <textarea
-                              rows={2}
-                              value={quickAddInput}
-                              onChange={(e) => setQuickAddInput(e.target.value)}
-                              placeholder={`Type student name(s) to push into ${quickAddGrade || defaultEntryGradeForClass() || 'this class'} — e.g. Samuel Agha (or paste one per line, optionally with grade like Ada Okafor JSS 2)`}
-                              className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                            />
-                            <div className="flex sm:flex-col gap-2 shrink-0">
-                              <button
-                                type="button"
-                                disabled={savingSessionConfirm || !quickAddInput.trim()}
-                                onClick={() => void submitSessionConfirm(true)}
-                                className="min-h-10 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground hover:bg-primary/90 disabled:opacity-40 shadow-sm"
-                              >
-                                + Push to {quickAddGrade || defaultEntryGradeForClass() || 'Class'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
 
                         {sessionConfirmNotice && (
                           <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-3 text-xs space-y-1.5">
@@ -3355,16 +2924,33 @@ export default function ClassDetailPage() {
                       </div>
                     )}
 
-                    {rosterOpen && (rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
+                    {rosterOpen && (isStaff || rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="space-y-2">
                         <div className="flex flex-col sm:flex-row gap-2">
                           <div className="relative flex-1">
                             <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <input
-                              aria-label="Search this class roster"
+                              aria-label="Search class roster, adopt returning students, or type a new student name"
                               value={rosterSearch}
                               onChange={(e) => setRosterSearch(e.target.value)}
-                              placeholder="Search name (or comma-separated names), grade, email…"
+                              onKeyDown={(e) => {
+                                if (
+                                  e.key === 'Enter' &&
+                                  isStaff &&
+                                  rosterSearch.trim().length >= 2 &&
+                                  visibleCurrent.length === 0 &&
+                                  schoolSearchMatches.length === 0 &&
+                                  !savingSessionConfirm
+                                ) {
+                                  e.preventDefault();
+                                  void submitSessionConfirm(true, rosterSearch.trim(), schoolAdoptTargetGrade);
+                                }
+                              }}
+                              placeholder={
+                                isStaff
+                                  ? 'Search roster, find & adopt returning students (comma-separated supported), or type a new name…'
+                                  : 'Search name, grade, email…'
+                              }
                               className="min-h-11 w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground outline-none focus:border-primary/50"
                             />
                             {rosterSearch && (
@@ -3378,6 +2964,20 @@ export default function ClassDetailPage() {
                               </button>
                             )}
                           </div>
+                          {isStaff && (rosterSearch.trim().length >= 2 || checkedSchoolAdoptIds.size > 0) && (
+                            <select
+                              aria-label="Target grade for adoption or new registration"
+                              value={schoolAdoptTargetGrade}
+                              onChange={(e) => setSchoolAdoptTargetGrade(e.target.value)}
+                              className="min-h-11 shrink-0 rounded-xl border border-primary/35 bg-primary/5 px-3 text-xs font-bold text-primary outline-none focus:border-primary"
+                            >
+                              <option value="">Grade: Auto ({defaultEntryGradeForClass() || 'Class / +1'})</option>
+                              <option value="__retain__">Grade: Keep Current</option>
+                              {SINGLE_GRADES.map((g) => (
+                                <option key={`unified-g-${g}`} value={g}>Set Grade: {g}</option>
+                              ))}
+                            </select>
+                          )}
                           <select
                             aria-label="Sort class roster"
                             value={rosterSort}
@@ -3392,23 +2992,22 @@ export default function ClassDetailPage() {
                         </div>
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
                           {([
-                            { id: 'active', label: `Active (${currentTermStudents.length})` },
+                            {
+                              id: 'current_session',
+                              label: `Current Session (${currentTermStudents.filter((s: any) => s.session_status !== 'carryover_unconfirmed').length})`,
+                            },
                             ...(currentTermStudents.some((s: any) => s.session_status === 'carryover_unconfirmed')
                               ? [
                                   {
-                                    id: 'current_session',
-                                    label: `${currentSessionLabel} Only (${currentTermStudents.filter((s: any) => s.session_status !== 'carryover_unconfirmed').length})`,
-                                  },
-                                  {
                                     id: 'prior_session',
-                                    label: `Prior Session (${currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length})`,
+                                    label: `3rd-Term Carryover (${currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length})`,
                                   },
+                                  { id: 'active', label: `All Active (${currentTermStudents.length})` },
                                 ]
                               : []),
-                            ...(offBandCount > 0 ? [{ id: 'off_band', label: `Off-band (${offBandCount})` }] : []),
                             ...(reportIndicatorEnabled && needsReportCount > 0 ? [{ id: 'needs_report', label: `Needs Report (${needsReportCount})` }] : []),
-                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn', label: `Withdrawn (${inactiveTermStudents.length})` }] : []),
-                            ...(inactiveTermStudents.length > 0 ? [{ id: 'all', label: `All (${currentTermStudents.length + inactiveTermStudents.length})` }] : []),
+                            ...(offBandCount > 0 ? [{ id: 'off_band', label: `Off-band (${offBandCount})` }] : []),
+                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn', label: `Archived (${inactiveTermStudents.length})` }] : []),
                           ] as Array<{ id: typeof rosterFilter; label: string }>).map((chip) => (
                             <button
                               key={chip.id}
@@ -3430,12 +3029,7 @@ export default function ClassDetailPage() {
                     )}
                   </div>
 
-                  {!rosterOpen ? null : currentTermStudents.length === 0 && inactiveTermStudents.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border p-8 text-center">
-                      <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm font-semibold text-muted-foreground">No students in this class yet.</p>
-                    </div>
-                  ) : (
+                  {!rosterOpen ? null : (
                     <div className="space-y-3">
                       {/* Instant Feedback Banner with 1-Click Undo / Remove */}
                       {adoptFeedback && (
@@ -3472,26 +3066,71 @@ export default function ClassDetailPage() {
                         </div>
                       )}
 
-                      {/* Persistent Multi-Search Selection Basket + School & Sister-School Adopt Panel */}
-                      {isStaff && (checkedSchoolAdoptIds.size > 0 || schoolSearchMatches.length > 0) && (() => {
+                      {/* Unified Quick-Add / Fuzzy Duplicate-Guard Feedback Banner (when triggered from search) */}
+                      {isStaff && !showSessionConfirm && sessionConfirmNotice && (
+                        <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2.5 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-black text-emerald-800 dark:text-emerald-200">{sessionConfirmNotice.summary}</p>
+                            <button
+                              type="button"
+                              onClick={() => setSessionConfirmNotice(null)}
+                              aria-label="Dismiss quick-add notice"
+                              className="px-1 text-base leading-none opacity-70 hover:opacity-100"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {sessionConfirmNotice.ambiguous && sessionConfirmNotice.ambiguous.length > 0 && (
+                            <div className="space-y-1 pt-1">
+                              <p className="text-[11px] font-bold text-amber-800 dark:text-amber-200">
+                                Existing student(s) found in this school — click to adopt instead of creating a duplicate:
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {sessionConfirmNotice.ambiguous.flatMap((row) =>
+                                  row.candidates.map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      disabled={!!processingStudent}
+                                      onClick={() => void assignStudent(c.id, 'promote', schoolAdoptTargetGrade && schoolAdoptTargetGrade !== '__retain__' ? schoolAdoptTargetGrade : undefined)}
+                                      className="rounded-lg border border-primary/35 bg-card px-2.5 py-1 text-[10px] font-black text-primary hover:bg-primary/10"
+                                    >
+                                      + Adopt {c.full_name}{c.grade ? ` (${c.grade})` : ''}{c.current_class_name ? ` · ${c.current_class_name}` : ''}
+                                    </button>
+                                  )),
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {sessionConfirmNotice.errors.length > 0 && (
+                            <p className="text-[11px] font-bold text-rose-700 dark:text-rose-300">
+                              {sessionConfirmNotice.errors.map((e) => `${e.input}: ${e.error}`).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Unified Smart Search & Multi-Search Adopt Basket (Feeder-prioritized + Sister-School aware + 1-click New Student creation) */}
+                      {isStaff && !showIntakePanel && (checkedSchoolAdoptIds.size > 0 || schoolSearchMatches.length > 0) && (() => {
                         const adoptableMatches = schoolSearchMatches.filter((s: any) => !s.requires_transfer_request);
                         const allMatchesTicked = adoptableMatches.length > 0 && adoptableMatches.every((s: any) => checkedSchoolAdoptIds.has(s.id));
                         const basketStudents = schoolSuggestionsPool.filter((s: any) => checkedSchoolAdoptIds.has(s.id));
+                        const explicitGrade = schoolAdoptTargetGrade && schoolAdoptTargetGrade !== '__retain__' ? schoolAdoptTargetGrade : '';
                         return (
-                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/5 p-3 text-left space-y-2.5">
-                            {/* Persistent Basket Header: survives clearing search so you can search & tick multiple names in a row */}
+                          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/5 p-2.5 text-left space-y-2">
+                            {/* Persistent Multi-Search Basket Chips + Destination Class & Bulk Adopt */}
                             {checkedSchoolAdoptIds.size > 0 && (
                               <div className="rounded-xl border border-emerald-500/40 bg-card p-2.5 space-y-2">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-200">
-                                    ✓ {checkedSchoolAdoptIds.size} Student{checkedSchoolAdoptIds.size === 1 ? '' : 's'} Ready to Adopt (persists across searches)
+                                    ✓ {checkedSchoolAdoptIds.size} Student{checkedSchoolAdoptIds.size === 1 ? '' : 's'} in Adopt Basket (persists across searches)
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => setCheckedSchoolAdoptIds(new Set())}
                                     className="text-[10px] font-bold text-muted-foreground hover:text-foreground underline"
                                   >
-                                    Clear Selection
+                                    Clear Basket
                                   </button>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
@@ -3534,18 +3173,6 @@ export default function ClassDetailPage() {
                                       ))}
                                     </select>
                                   )}
-                                  <select
-                                    aria-label="Target grade for adoption"
-                                    value={schoolAdoptTargetGrade}
-                                    onChange={(e) => setSchoolAdoptTargetGrade(e.target.value)}
-                                    className="h-8 rounded-lg border border-primary/35 bg-primary/5 px-2 text-[11px] font-bold text-primary focus:border-primary focus:outline-none"
-                                  >
-                                    <option value="">Grade: Auto ({defaultEntryGradeForClass() || 'Class / +1'})</option>
-                                    <option value="__retain__">Grade: Keep Current Grade</option>
-                                    {SINGLE_GRADES.map((g) => (
-                                      <option key={`adopt-g-${g}`} value={g}>Set Grade: {g}</option>
-                                    ))}
-                                  </select>
                                   <button
                                     type="button"
                                     disabled={bulkAdoptingSchool}
@@ -3564,9 +3191,9 @@ export default function ClassDetailPage() {
                             {schoolSearchMatches.length > 0 && (
                               <>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
-                                    Found {schoolSearchMatches.length} in School / Sister Schools — Tick to add to basket
-                                  </p>
+                                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
+                                    Found {schoolSearchMatches.length} in School / Sister Schools — Tick to add to basket or adopt in 1 click
+                                  </span>
                                   {adoptableMatches.length > 1 && (
                                     <button
                                       type="button"
@@ -3584,15 +3211,20 @@ export default function ClassDetailPage() {
                                     </button>
                                   )}
                                 </div>
-                                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                                <div className="max-h-52 overflow-y-auto space-y-1 pr-1">
                                   {schoolSearchMatches.map((s: any) => {
                                     const locked = Boolean(s.requires_transfer_request);
                                     const isTicked = !locked && checkedSchoolAdoptIds.has(s.id);
+                                    const targetG =
+                                      schoolAdoptTargetGrade === '__retain__'
+                                        ? s.grade
+                                        : (explicitGrade || s.suggested_grade || defaultEntryGradeForClass());
                                     return (
                                       <div
                                         key={`sm-${s.id}`}
-                                        className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition-colors ${isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
-                                          }`}
+                                        className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
+                                          isTicked ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border bg-card'
+                                        }`}
                                       >
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                           {!locked && (
@@ -3613,7 +3245,17 @@ export default function ClassDetailPage() {
                                           )}
                                           <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-1.5">
-                                              <p className="font-bold text-foreground truncate">{s.full_name}</p>
+                                              <span className="font-bold text-foreground truncate">{s.full_name}</span>
+                                              {s.grade && (
+                                                <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-black uppercase text-foreground">
+                                                  {s.grade}{targetG && targetG !== s.grade ? ` → ${targetG}` : ''}
+                                                </span>
+                                              )}
+                                              {s.is_feeder_promotion && (
+                                                <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300">
+                                                  ★ Returning Feeder
+                                                </span>
+                                              )}
                                               {s.sister_school_name && (
                                                 <span className="rounded-full border border-indigo-500/35 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 dark:text-indigo-300">
                                                   {s.sister_school_name}
@@ -3621,13 +3263,14 @@ export default function ClassDetailPage() {
                                               )}
                                             </div>
                                             <p className="text-[10px] text-muted-foreground truncate">
-                                              {s.grade ? `${s.grade}${s.suggested_grade && s.suggested_grade !== s.grade ? ` → ${s.suggested_grade}` : ''} · ` : ''}
-                                              {s.current_class_name || 'Unassigned'}
+                                              {s.current_class_name
+                                                ? `From: ${s.current_class_name}${s.current_teacher_name ? ` · ${s.current_teacher_name}` : ''}`
+                                                : 'Unassigned / Old record in this school'}
                                             </p>
                                           </div>
                                         </div>
                                         {locked ? (
-                                          <span className="shrink-0 rounded-md bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                          <span className="shrink-0 rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
                                             Other Teacher
                                           </span>
                                         ) : (
@@ -3638,9 +3281,9 @@ export default function ClassDetailPage() {
                                               await bulkAdoptFromSchool([s.id]);
                                               setRosterSearch('');
                                             }}
-                                            className="shrink-0 rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
+                                            className="shrink-0 rounded-lg bg-emerald-700 px-2.5 py-1 text-[10px] font-black uppercase text-white hover:bg-emerald-800 disabled:opacity-40"
                                           >
-                                            {processingStudent === s.id ? 'Adopting…' : 'Adopt Here'}
+                                            {processingStudent === s.id ? '…' : `+ Adopt${targetG ? ` → ${targetG}` : ''}`}
                                           </button>
                                         )}
                                       </div>
@@ -3649,15 +3292,61 @@ export default function ClassDetailPage() {
                                 </div>
                               </>
                             )}
+
+                            {/* Direct 1-click New Student creation right inside the search panel when name is not already on the active roster */}
+                            {rosterSearch.trim().length >= 2 && visibleCurrent.length === 0 && (
+                              <button
+                                type="button"
+                                disabled={savingSessionConfirm}
+                                onClick={() => void submitSessionConfirm(true, rosterSearch.trim(), schoolAdoptTargetGrade)}
+                                className="flex w-full items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-2 text-left text-xs hover:bg-primary/15 transition-colors disabled:opacity-50"
+                              >
+                                <span className="font-black text-primary truncate">
+                                  {savingSessionConfirm
+                                    ? 'Registering…'
+                                    : `+ Register “${rosterSearch.trim()}” as New Student (${explicitGrade || defaultEntryGradeForClass() || 'auto grade'})`}
+                                </span>
+                                <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">
+                                  Auto login + ID card
+                                </span>
+                              </button>
+                            )}
                           </div>
                         );
                       })()}
 
                       {visibleCurrent.length === 0 && visibleInactive.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border p-5 text-center">
+                        <div className="rounded-xl border border-dashed border-border p-5 text-center space-y-2.5">
                           <p className="text-sm font-semibold text-muted-foreground">
-                            No students currently on this roster match “{rosterSearch || rosterFilter}”.
+                            {rosterSearch.trim()
+                              ? `No students currently on this roster match “${rosterSearch}”.`
+                              : 'No students in this view yet.'}
                           </p>
+                          {isStaff && rosterSearch.trim().length >= 2 && (
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                disabled={savingSessionConfirm}
+                                onClick={() => void submitSessionConfirm(true, rosterSearch.trim(), schoolAdoptTargetGrade)}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary hover:opacity-90 px-3.5 py-2 text-xs font-black text-primary-foreground shadow-sm transition-opacity disabled:opacity-50"
+                              >
+                                <PlusIcon className="h-3.5 w-3.5" />
+                                {savingSessionConfirm
+                                  ? 'Registering…'
+                                  : `Register “${rosterSearch.trim()}” as New Student (${(schoolAdoptTargetGrade && schoolAdoptTargetGrade !== '__retain__' ? schoolAdoptTargetGrade : defaultEntryGradeForClass()) || 'auto grade'})`}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIntakePanelTab('intake');
+                                  setShowIntakePanel(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:border-primary/40 px-3.5 py-2 text-xs font-bold text-foreground transition-colors"
+                              >
+                                Open Bulk Intake &amp; Pass-Around
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -3948,22 +3637,6 @@ export default function ClassDetailPage() {
                                       )}
                                     </div>
                                     <div className="mt-1 flex items-center gap-1.5 flex-shrink-0">
-                                      {isStaff && (
-                                        <Link
-                                          href={learnerReportHref('write', {
-                                            studentId: student.id,
-                                            classId: id,
-                                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                                            term: student.report_term,
-                                            period: student.report_period,
-                                          })}
-                                          onClick={(e) => e.stopPropagation()}
-                                          title={`Open Result Builder for ${student.full_name}`}
-                                          className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-colors"
-                                        >
-                                          Result Builder
-                                        </Link>
-                                      )}
                                       <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); toggleStudentExpanded(student.id); }}
@@ -4397,20 +4070,19 @@ export default function ClassDetailPage() {
                           })}
                           className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary/40"
                         >
-                          Report View
+                          Published Reports
                         </Link>
-                        <Link
-                          href={buildResultsHref({
-                            classId: id,
-                            courseId: searchParams.get('course_id') || cls?.current_course_id,
-                          })}
-                          className={`inline-flex min-h-10 items-center justify-center rounded-xl px-3 py-2 text-xs font-bold transition-colors ${assessmentPolicy?.usesHostEvaluation
-                            ? 'bg-primary text-primary-foreground shadow-sm hover:opacity-90'
-                            : 'border border-border bg-background text-foreground hover:border-primary/40'
-                            }`}
-                        >
-                          {assessmentCopy?.resultsAction ?? 'Auto-Fill Scores'}
-                        </Link>
+                        {assessmentPolicy?.usesHostEvaluation && (
+                          <Link
+                            href={buildResultsHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+                          >
+                            {assessmentCopy?.resultsAction ?? 'School Scores'}
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -4451,20 +4123,45 @@ export default function ClassDetailPage() {
               {/* Session history is the record strip below; these are the two actions that
                   are not a list. They were full-height tiles repeating the header's Attendance. */}
               {activeOperation === 'communication' && (
-                <div className="flex min-w-0 flex-wrap gap-2">
-                  <Link
-                    href={`/dashboard/attendance?class_id=${id}`}
-                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm shadow-primary/25 hover:opacity-90"
-                  >
-                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" /> Mark attendance
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-700/10 px-4 py-2 text-xs font-black text-emerald-600 transition-colors hover:bg-emerald-800 hover:text-white dark:text-emerald-400"
-                  >
-                    <CloudArrowUpIcon className="h-3.5 w-3.5" /> Broadcast to class
-                  </button>
+                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                      Daily Class Operations
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Take attendance for today&apos;s session, schedule a new class meeting, or message parents.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <Link
+                      href={`/dashboard/attendance?class_id=${id}`}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-90"
+                    >
+                      <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
+                      Mark Attendance
+                    </Link>
+                    {isStaff && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSession({ id: 'new', class_id: id });
+                          setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
+                        }}
+                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-primary/40 transition-colors"
+                      >
+                        <PlusIcon className="h-3.5 w-3.5 text-primary" />
+                        New Session
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-700/10 px-3.5 py-2 text-xs font-black text-emerald-700 transition-colors hover:bg-emerald-800 hover:text-white dark:text-emerald-300"
+                    >
+                      <CloudArrowUpIcon className="h-3.5 w-3.5" />
+                      Broadcast
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -6395,79 +6092,6 @@ export default function ClassDetailPage() {
                 ) : (
                   `Queue for ${reachableStudents.length} Student${reachableStudents.length !== 1 ? 's' : ''}`
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Sticky Bulk Roster Action Bar (Move, Set Grade, Reset Passwords, Withdraw) */}
-      {activeOperation === 'roster' && canView && checkedEnrollIds.size > 0 && (
-        <div className="fixed inset-x-0 bottom-[var(--app-bottom-nav-height)] md:bottom-0 z-40 border-t border-border bg-card/95 px-3 sm:px-5 py-3 shadow-2xl backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-black text-primary-foreground">
-                {checkedEnrollIds.size} selected
-              </span>
-              <span className="hidden sm:inline text-muted-foreground font-semibold">
-                Tip: Shift+Click checkboxes to select a range
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {isStaff && destinationClasses.length > 0 && (
-                <select
-                  aria-label="Bulk move selected students to another class"
-                  value=""
-                  disabled={movingStudent === 'bulk'}
-                  onChange={(e) => void bulkMoveSelectedToClass(e.target.value)}
-                  className="min-h-10 rounded-xl border border-primary/45 bg-primary/10 px-3 text-xs font-black text-primary outline-none hover:border-primary disabled:opacity-50"
-                >
-                  <option value="">{movingStudent === 'bulk' ? 'Moving…' : `Move ${checkedEnrollIds.size} to Class…`}</option>
-                  {destinationClasses.map((destination: any) => (
-                    <option key={`sticky-dest-${destination.id}`} value={destination.id}>
-                      {destination.qa_grade_key ? `${destination.qa_grade_key} · ` : ''}{destination.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {isStaff && (
-                <select
-                  aria-label="Bulk set grade for selected students"
-                  value=""
-                  disabled={bulkSettingGrade}
-                  onChange={(e) => void bulkSetSelectedGrade(e.target.value)}
-                  className="min-h-10 rounded-xl border border-emerald-500/45 bg-emerald-500/10 px-3 text-xs font-black text-emerald-800 dark:text-emerald-300 outline-none hover:border-emerald-500 disabled:opacity-50"
-                >
-                  <option value="">{bulkSettingGrade ? 'Updating…' : 'Set Grade…'}</option>
-                  {SINGLE_GRADES.map((g) => (
-                    <option key={`sticky-g-${g}`} value={g}>{g}</option>
-                  ))}
-                </select>
-              )}
-              {isStaff && (
-                <button
-                  type="button"
-                  disabled={resettingPasswords !== null}
-                  onClick={() => void resetStudentPasswords([...checkedEnrollIds])}
-                  className="min-h-10 rounded-xl border border-indigo-500/35 bg-indigo-500/10 px-3 text-xs font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white disabled:opacity-50"
-                >
-                  Reset Logins
-                </button>
-              )}
-              <button
-                type="button"
-                disabled={bulkRemoving}
-                onClick={bulkUnenrol}
-                className="min-h-10 rounded-xl border border-rose-500/35 bg-rose-700/10 px-3 text-xs font-black text-rose-700 dark:text-rose-300 hover:bg-rose-700 hover:text-white disabled:opacity-50"
-              >
-                Withdraw
-              </button>
-              <button
-                type="button"
-                onClick={() => setCheckedEnrollIds(new Set())}
-                className="min-h-10 rounded-xl border border-border bg-background px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
-              >
-                Clear
               </button>
             </div>
           </div>

@@ -87,7 +87,15 @@ export function classifyStudentSessionStatus(
       : {};
 
   const confirmedSession = String(meta.confirmed_session ?? '').trim();
-  if (confirmedSession && confirmedSession === boundary.periodLabel) {
+  const rolloverSession = String(meta.rollover_session ?? '').trim();
+  const hasSessionHistory =
+    Array.isArray(meta.session_history) &&
+    meta.session_history.some((h: any) => String(h?.session ?? '').trim() === boundary.periodLabel);
+  if (
+    (confirmedSession && confirmedSession === boundary.periodLabel) ||
+    (rolloverSession && rolloverSession === boundary.periodLabel) ||
+    hasSessionHistory
+  ) {
     return 'confirmed_current';
   }
 
