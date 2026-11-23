@@ -370,26 +370,36 @@ export async function reinstateStudentToClass(
         || isSpecializedProgramRecord(null, (prevCls as any).name);
       if (!crossingSpecializedBoundary) {
         await upsertRoster(admin, prevCls as any, studentId, 'withdrawn', actor.id);
-        // Also withdraw any earlier-term `active` roster rows on the previous class
-        // so returning/promoted students never carry a second active regular-class roster.
-        await (admin as any)
+        // Automatically withdraw ALL earlier/other non-specialized active regular-class
+        // roster rows for this student so a learner can never hold two active regular classes.
+        const { data: otherActiveRosters } = await (admin as any)
           .from('class_term_rosters')
-          .update({
-            status: 'withdrawn',
-            ended_at: new Date().toISOString(),
-            updated_by: actor.id,
-          })
+          .select('id, class_id, classes(name)')
           .eq('student_id', studentId)
-          .eq('class_id', prevClassId)
+          .neq('class_id', classId)
           .eq('status', 'active');
-        // Complete old programme enrollment when transitioning across regular programmes
-        // (e.g. Young Innovators → Teen Developers) so prior-programme exams/assignments never bleed.
-        if (prevCls.program_id && cls.program_id && prevCls.program_id !== cls.program_id) {
+        const toWithdrawIds = (otherActiveRosters ?? [])
+          .filter((r: any) => !isSpecializedProgramRecord(null, r?.classes?.name))
+          .map((r: any) => r.id)
+          .filter(Boolean);
+        if (toWithdrawIds.length > 0) {
+          await (admin as any)
+            .from('class_term_rosters')
+            .update({
+              status: 'withdrawn',
+              ended_at: new Date().toISOString(),
+              updated_by: actor.id,
+            })
+            .in('id', toWithdrawIds);
+        }
+        // Automatically complete all stale other-programme enrollments when placing a
+        // regular-school student so prior-programme exams/assignments never bleed.
+        if (cls.program_id) {
           await admin
             .from('enrollments')
             .update({ status: 'completed', updated_at: new Date().toISOString() })
             .eq('user_id', studentId)
-            .eq('program_id', prevCls.program_id)
+            .neq('program_id', cls.program_id)
             .in('status', ['active', 'enrolled', 'approved']);
         }
       }
