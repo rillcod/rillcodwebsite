@@ -295,6 +295,12 @@ export async function reinstateStudentToClass(
 
   const effectiveOwnerId = ownerTeacherId ?? (force && actor.role === 'teacher' ? actor.id : null);
 
+  const resolvedGrade =
+    grade?.trim()
+    || ((cls as any).qa_grade_key && !String((cls as any).qa_grade_key).includes('-')
+      ? String((cls as any).qa_grade_key).trim()
+      : null);
+
   const portalUpdate: Record<string, unknown> = {
     class_id: classId,
     section_class: cls.name,
@@ -304,7 +310,7 @@ export async function reinstateStudentToClass(
   };
   // Always stamp ownership on force claim / when we know the destination owner.
   if (effectiveOwnerId) portalUpdate.primary_teacher_id = effectiveOwnerId;
-  if (grade?.trim()) portalUpdate.grade = grade.trim();
+  if (resolvedGrade) portalUpdate.grade = resolvedGrade;
   if (classArm?.trim()) portalUpdate.class_arm = classArm.trim().toUpperCase();
   if (cls.school_id) {
     const { data: school } = await admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
@@ -329,13 +335,23 @@ export async function reinstateStudentToClass(
     is_active: true,
     status: 'active',
   };
-  if (grade?.trim()) {
-    registryUpdate.grade = grade.trim();
-    registryUpdate.grade_level = grade.trim();
+  if (resolvedGrade) {
+    registryUpdate.grade = resolvedGrade;
+    registryUpdate.grade_level = resolvedGrade;
   }
-  const { error: registryErr } = await admin.from('students').update(registryUpdate).eq('user_id', studentId);
+  const { data: updatedByUid, error: registryErr } = await admin
+    .from('students')
+    .update(registryUpdate)
+    .eq('user_id', studentId)
+    .select('id');
   if (registryErr) {
     console.warn('[reinstate] registry sync failed', registryErr);
+  } else if ((!updatedByUid || updatedByUid.length === 0) && student.email) {
+    // Fallback for consent-form / legacy student rows that were created before user_id was linked
+    await admin
+      .from('students')
+      .update({ ...registryUpdate, user_id: studentId })
+      .ilike('email', student.email.trim());
   }
 
   // Withdraw previous class roster ONLY when switching between classes in the same school/pathway.

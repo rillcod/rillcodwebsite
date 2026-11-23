@@ -59,7 +59,17 @@ export async function GET(_request: NextRequest) {
         const filterSid = searchParams.get('school_id');
         if (filterSid) query = query.eq('school_id', filterSid) as any;
       } else if (caller.role === 'teacher') {
-        query = query.eq('created_by', caller.id) as any;
+        // Show exams created by this teacher OR tied to any class assigned to this teacher
+        const { data: teacherClasses } = await admin
+          .from('classes')
+          .select('id')
+          .eq('teacher_id', caller.id);
+        const teacherClassIds = (teacherClasses ?? []).map((c: any) => c.id).filter(Boolean);
+        if (teacherClassIds.length > 0) {
+          query = query.or(`created_by.eq.${caller.id},class_id.in.(${teacherClassIds.join(',')})`) as any;
+        } else {
+          query = query.eq('created_by', caller.id) as any;
+        }
       } else if (caller.role === 'school') {
         if (caller.school_id) {
           query = query.eq('school_id', caller.school_id) as any;
@@ -93,7 +103,7 @@ export async function GET(_request: NextRequest) {
     const now = new Date().toISOString();
     let examQuery = admin
       .from('cbt_exams')
-      .select('id, title, description, duration_minutes, passing_score, total_questions, is_active, start_date, end_date, program_id, course_id, school_id, metadata, programs(name), courses(title)')
+      .select('id, title, description, duration_minutes, passing_score, total_questions, is_active, start_date, end_date, class_id, term_id, program_id, course_id, school_id, metadata, programs(name), courses(title)')
       .eq('is_active', true)
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`)

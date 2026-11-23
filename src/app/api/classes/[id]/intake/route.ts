@@ -879,6 +879,68 @@ export async function POST(
         });
       }
 
+      if (operation === 'sync_grades_to_class') {
+        const targetGrade =
+          cleanGrade(String(body?.target_grade || ''))
+          || canonicalGrade(cls.qa_grade_key || cls.name)
+          || null;
+        if (!targetGrade) {
+          return NextResponse.json({ error: 'Choose a target grade to upgrade these students to.' }, { status: 400 });
+        }
+        let upgraded = 0;
+        for (const st of validStudents) {
+          const meta = (st.metadata && typeof st.metadata === 'object' ? st.metadata : {}) as Record<string, any>;
+          await admin
+            .from('portal_users')
+            .update({
+              grade: targetGrade,
+              section_class: cls.name,
+              metadata: {
+                ...meta,
+                confirmed_session: currentSession,
+                grade_upgraded_at: nowIso,
+                grade_upgraded_by: caller.id,
+              },
+              updated_at: nowIso,
+            })
+            .eq('id', st.id);
+
+          const { data: updatedSt } = await admin
+            .from('students')
+            .update({
+              grade: targetGrade,
+              grade_level: targetGrade,
+              current_class: cls.name,
+              section: cls.name,
+              updated_at: nowIso,
+            })
+            .eq('user_id', st.id)
+            .select('id');
+
+          if (!updatedSt || updatedSt.length === 0) {
+            await admin
+              .from('students')
+              .update({
+                user_id: st.id,
+                grade: targetGrade,
+                grade_level: targetGrade,
+                current_class: cls.name,
+                section: cls.name,
+                updated_at: nowIso,
+              })
+              .ilike('full_name', st.full_name)
+              .eq('school_id', cls.school_id ?? '');
+          }
+          upgraded += 1;
+        }
+        return NextResponse.json({
+          ok: true,
+          operation,
+          affected: upgraded,
+          message: `Upgraded ${upgraded} student${upgraded === 1 ? '' : 's'} (including consent-form records) to ${targetGrade} in ${cls.name}.`,
+        });
+      }
+
       if (operation === 'promote_to_class') {
         const destClassId = String(body?.destination_class_id || '').trim();
         if (!destClassId || destClassId === classId) {

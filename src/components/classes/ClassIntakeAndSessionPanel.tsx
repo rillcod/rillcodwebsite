@@ -398,7 +398,46 @@ export function ClassIntakeAndSessionPanel({
   const [destClassId, setDestClassId] = useState<string>(() =>
     suggestNextClass(className, classGradeKey, destinationClasses),
   );
+  const [upgradeTargetGrade, setUpgradeTargetGrade] = useState<string>(defaultGrade);
   const [hygieneBusy, setHygieneBusy] = useState<string | null>(null);
+
+  // Support mobile swipe-back & browser Back button cleanly:
+  // Pushing a state when the full-screen modal opens ensures swiping back closes the modal
+  // (with confirmation if unsaved items exist) instead of leaving the class page abruptly.
+  const closedByPopstateRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.history.pushState({ rillcodIntakeModal: true }, '');
+    const onPopState = () => {
+      if (passAroundMode) {
+        if (!confirm('Stop Student Pass-Around Mode and return to Teacher View?')) {
+          window.history.pushState({ rillcodIntakeModal: true }, '');
+          return;
+        }
+        setPassAroundMode(false);
+        setAcknowledgeCandidate(null);
+        setKioskCelebration(null);
+        setKioskNewLogin(null);
+        window.history.pushState({ rillcodIntakeModal: true }, '');
+        return;
+      }
+      if (pendingQueue.length > 0) {
+        if (!confirm(`You have ${pendingQueue.length} unverified entries in the queue. Close anyway?`)) {
+          window.history.pushState({ rillcodIntakeModal: true }, '');
+          return;
+        }
+      }
+      closedByPopstateRef.current = true;
+      onClose();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      if (!closedByPopstateRef.current && window.history.state?.rillcodIntakeModal) {
+        window.history.back();
+      }
+    };
+  }, [onClose, passAroundMode, pendingQueue.length]);
 
   const withPhoneCount = useMemo(
     () => students.filter((s) => Boolean(formatWhatsAppDigits(s.parent_phone))).length,
@@ -800,7 +839,7 @@ export function ClassIntakeAndSessionPanel({
     toast.success(`Exported ${students.length} student record${students.length === 1 ? '' : 's'} to CSV.`);
   };
 
-  const runCohortHygiene = async (operation: 'confirm_current' | 'archive_old' | 'promote_to_class') => {
+  const runCohortHygiene = async (operation: 'confirm_current' | 'archive_old' | 'promote_to_class' | 'sync_grades_to_class') => {
     const ids = Array.from(selectedHygieneIds);
     if (ids.length === 0) {
       toast.error('Select at least one student first.');
@@ -814,6 +853,7 @@ export function ClassIntakeAndSessionPanel({
       confirm_current: `Confirm ${ids.length} student(s) as active in ${className} for ${currentSession}?`,
       archive_old: `Archive ${ids.length} prior-session student(s) out of ${className}'s active roster? Their past results and certificates stay 100% safe.`,
       promote_to_class: `Move ${ids.length} student(s) to the selected next class for ${currentSession}?`,
+      sync_grades_to_class: `Upgrade ${ids.length} student(s) (including consent-form records) to ${upgradeTargetGrade} in ${className}?`,
     };
     if (!confirm(labelMap[operation])) return;
 
@@ -827,6 +867,7 @@ export function ClassIntakeAndSessionPanel({
           operation,
           student_ids: ids,
           destination_class_id: operation === 'promote_to_class' ? destClassId : undefined,
+          target_grade: operation === 'sync_grades_to_class' ? upgradeTargetGrade : undefined,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -1288,11 +1329,11 @@ export function ClassIntakeAndSessionPanel({
           <button
             type="button"
             onClick={handleSafeClose}
-            aria-label="Close digital class sheet"
-            className="inline-flex h-9 items-center gap-1.5 px-3 rounded-xl border border-border bg-background text-xs font-black text-foreground hover:bg-muted"
+            aria-label="Stop and close digital class sheet"
+            className="inline-flex min-h-10 items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300"
           >
             <XMarkIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">Close</span>
+            <span>Stop / Close</span>
           </button>
         </div>
       </div>
@@ -2186,6 +2227,28 @@ export function ClassIntakeAndSessionPanel({
               >
                 {hygieneBusy === 'archive_old' ? 'Archiving…' : 'Archive Old Set'}
               </button>
+
+              {/* Fix stale entry grades (e.g. consent-form JSS 1 stuck after moving to JSS 2) */}
+              <div className="flex items-center gap-1.5">
+                <select
+                  aria-label="Target grade for upgrade"
+                  value={upgradeTargetGrade}
+                  onChange={(e) => setUpgradeTargetGrade(e.target.value)}
+                  className="min-h-9 rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
+                >
+                  {SINGLE_GRADES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={hygieneBusy !== null || selectedHygieneIds.size === 0}
+                  onClick={() => void runCohortHygiene('sync_grades_to_class')}
+                  className="min-h-9 px-3 py-1.5 rounded-lg border border-primary bg-primary/10 hover:bg-primary/20 disabled:opacity-40 text-primary text-[11px] font-black uppercase tracking-wider"
+                >
+                  {hygieneBusy === 'sync_grades_to_class' ? 'Upgrading…' : 'Upgrade Grade'}
+                </button>
+              </div>
             </div>
           </div>
 
