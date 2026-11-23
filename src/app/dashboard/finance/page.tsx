@@ -2328,7 +2328,7 @@ export default function FinancePage() {
             </h1>
             <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
               {profile.role === 'student'
-                ? 'View your balances and pay securely.'
+                ? 'See what you owe and pay from here.'
                 : profile.role === 'school'
                 ? 'Track school invoices, receipts, and payment statements.'
                 : 'Invoices, collections, reconciliation, and revenue reports in one hub.'}
