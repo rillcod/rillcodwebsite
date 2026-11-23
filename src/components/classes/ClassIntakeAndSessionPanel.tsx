@@ -100,6 +100,15 @@ interface PendingIntakeEntry {
   consent_signed?: boolean;
 }
 
+interface IssuedStudentLogin {
+  student_id: string;
+  full_name: string;
+  grade?: string | null;
+  email: string;
+  password: string | null;
+  rc_code: string;
+}
+
 function maskPhoneForKiosk(phone?: string | null): string {
   const digits = String(phone ?? '').replace(/\D/g, '');
   if (digits.length < 7) return 'On file';
@@ -216,7 +225,19 @@ export function ClassIntakeAndSessionPanel({
   const [acknowledgeCandidate, setAcknowledgeCandidate] = useState<DirectoryCandidate | null>(null);
   const [confirmingExit, setConfirmingExit] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [issuedLogins, setIssuedLogins] = useState<IssuedStudentLogin[]>([]);
+  const [kioskNewLogin, setKioskNewLogin] = useState<IssuedStudentLogin | null>(null);
+  const [instantAccountMode, setInstantAccountMode] = useState<boolean>(true);
   const kioskInputRef = useRef<HTMLInputElement>(null);
+
+  const copyTextQuick = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Copied ${label}!`);
+    } catch {
+      toast.error('Could not copy to clipboard.');
+    }
+  };
 
   const acceptAllSmartMatches = () => {
     let matchedCount = 0;
@@ -327,6 +348,30 @@ export function ClassIntakeAndSessionPanel({
       /* ignore storage quota errors */
     }
   }, [pendingQueue, queueStorageKey]);
+
+  // Guard browser Back / Reload / Tab close so nobody loses unsaved entries or exits Kiosk by mistake
+  useEffect(() => {
+    if (!passAroundMode && pendingQueue.length === 0) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [passAroundMode, pendingQueue.length]);
+
+  const handleSafeClose = () => {
+    if (pendingQueue.length > 0) {
+      if (!confirm(`You have ${pendingQueue.length} unverified student entr${pendingQueue.length === 1 ? 'y' : 'ies'} in the queue. Close anyway? (Your queue stays saved locally until you return.)`)) {
+        return;
+      }
+    } else if (issuedLogins.length > 0) {
+      if (!confirm('Have you finished copying the new student login credentials? Close now?')) {
+        return;
+      }
+    }
+    onClose();
+  };
 
   const liveSuggestions = useMemo(
     () => findSmartCandidateMatches(fullName, directory, 5),
@@ -476,8 +521,11 @@ export function ClassIntakeAndSessionPanel({
     setShowSuggestions(false);
   };
 
-  // Zero-lag instant queue collection (0ms — no network wait while students enter!)
-  const handleIntakeSubmit = (e: React.FormEvent) => {
+  // Smart submit:
+  // - Matched existing / consent student → 0ms queue (no re-verification)
+  // - Brand-new student when instantAccountMode is ON → creates account immediately & shows giant copyable Username + Password!
+  // - Otherwise → 0ms queue for teacher post-entry verification
+  const handleIntakeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = fullName.trim();
     if (trimmed.length < 2) {
@@ -488,7 +536,76 @@ export function ClassIntakeAndSessionPanel({
 
     const effectivePhone = parentPhone.trim() || selectedCandidate?.parent_phone || '';
     if (requirePhone && !selectedCandidate?.parent_verified && !selectedCandidate?.consent_signed && !formatWhatsAppDigits(effectivePhone)) {
-      toast.error('Teacher set WhatsApp phone number as required — please enter a valid 10+ digit phone number.');
+      toast.error('Please enter a valid 10+ digit parent WhatsApp phone number.');
+      return;
+    }
+
+    // Smart auto-match if exact match exists in school directory
+    let matched = selectedCandidate;
+    if (!matched) {
+      const exact = directory.find(
+        (c) => c.full_name.trim().toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (exact) matched = exact;
+    }
+
+    // If brand-new student (not in system) and instantAccountMode is enabled → create account immediately
+    // so their Username & Password are super visible to copy right away!
+    if (!matched && instantAccountMode) {
+      setSubmitting(true);
+      try {
+        const res = await fetch(`/api/classes/${classId}/intake`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'intake_add',
+            full_name: trimmed,
+            grade: selectedGrade,
+            parent_phone: effectivePhone || undefined,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not create student account.');
+        const st = json.student;
+        const cred: IssuedStudentLogin | null = st?.email
+          ? {
+              student_id: st.id,
+              full_name: st.full_name || trimmed,
+              grade: st.grade || selectedGrade,
+              email: st.email,
+              password: st.password ?? null,
+              rc_code: st.rc_code || formatAccessCardCodeDisplay(accessCardCodeForStudent(st.id)),
+            }
+          : null;
+        if (cred) {
+          setIssuedLogins((prev) => [cred, ...prev.filter((p) => p.student_id !== cred.student_id)]);
+        }
+        setFullName('');
+        setParentPhone('');
+        setSelectedCandidate(null);
+        setShowSuggestions(false);
+        setLastAddedName(st?.full_name || trimmed);
+        if (passAroundMode) {
+          setPassAroundAddedCount((c) => c + 1);
+          if (cred && json.created) {
+            setKioskNewLogin(cred);
+          } else {
+            setKioskCelebration(st?.full_name || trimmed);
+            setTimeout(() => {
+              setKioskCelebration(null);
+              kioskInputRef.current?.focus();
+            }, 1150);
+          }
+        } else {
+          toast.success(`${st?.full_name || trimmed} account created — login credentials shown below!`);
+          setTimeout(() => nameInputRef.current?.focus(), 20);
+        }
+        await onRefresh();
+      } catch (err: any) {
+        toast.error(err?.message || 'Could not create account.');
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -501,29 +618,22 @@ export function ClassIntakeAndSessionPanel({
       setFullName('');
       setParentPhone('');
       setSelectedCandidate(null);
-      setTimeout(() => nameInputRef.current?.focus(), 20);
+      setTimeout(() => (passAroundMode ? kioskInputRef : nameInputRef).current?.focus(), 20);
       return;
-    }
-
-    // Smart auto-match if exact/strong token match exists in school directory
-    let matched = selectedCandidate;
-    if (!matched) {
-      const exact = directory.find(
-        (c) => c.full_name.trim().toLowerCase() === trimmed.toLowerCase(),
-      );
-      if (exact) matched = exact;
     }
 
     const entry: PendingIntakeEntry = {
       localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       full_name: matched?.full_name || trimmed,
       grade: selectedGrade,
-      parent_phone: parentPhone.trim() || matched?.parent_phone || '',
+      parent_name: matched?.parent_name || undefined,
+      parent_phone: effectivePhone,
       matched_student_id: matched?.id ?? null,
       matched_label: matched
         ? `${matched.in_this_class ? 'In this class' : matched.section_class || 'Returning'}${matched.grade ? ` · ${matched.grade}` : ''}`
         : null,
       matched_verified: Boolean(matched?.parent_verified),
+      consent_signed: Boolean(matched?.consent_signed),
     };
 
     setPendingQueue((prev) => [entry, ...prev]);
@@ -565,6 +675,9 @@ export function ClassIntakeAndSessionPanel({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Could not save verified batch.');
+      if (Array.isArray(json.created_credentials) && json.created_credentials.length > 0) {
+        setIssuedLogins((prev) => [...json.created_credentials, ...prev]);
+      }
       toast.success(json.message || `Verified & saved ${pendingQueue.length} students!`);
       setPendingQueue([]);
       setLastAddedName(null);
@@ -729,7 +842,12 @@ export function ClassIntakeAndSessionPanel({
   };
 
   return (
-    <div className="rounded-2xl border border-primary/30 bg-card shadow-lg overflow-hidden">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${className} Digital Class Intake and Session Workspace`}
+      className="fixed inset-0 z-[9990] bg-background flex flex-col overflow-hidden"
+    >
       {/* FULL-SCREEN ZERO-DISTRACTION KID-FRIENDLY PASS-AROUND KIOSK */}
       {passAroundMode && (
         <div
@@ -783,8 +901,99 @@ export function ClassIntakeAndSessionPanel({
 
           {/* Center Kid-Friendly Card */}
           <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
-            <div className="w-full max-w-xl">
-              {kioskCelebration ? (
+            <div className="w-full max-w-2xl">
+              {kioskNewLogin ? (
+                <div className="rounded-3xl border-2 border-emerald-500 bg-card p-6 sm:p-8 shadow-2xl space-y-5">
+                  <div className="text-center space-y-1.5">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-md">
+                      <CheckCircleIcon className="w-8 h-8" />
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                      Account Created — Save Your Login Details
+                    </p>
+                    <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                      {kioskNewLogin.full_name}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Copy or write down your username and password below before passing the device!
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border-2 border-primary/30 bg-primary/[0.06] p-4 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                          Username / Login Email
+                        </p>
+                        <p className="text-lg sm:text-xl font-mono font-black text-foreground break-all mt-0.5">
+                          {kioskNewLogin.email}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void copyTextQuick(kioskNewLogin.email, 'Username')}
+                        className="shrink-0 min-h-11 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-wider shadow-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+
+                    {kioskNewLogin.password && (
+                      <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.08] p-4 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">
+                            Password
+                          </p>
+                          <p className="text-xl sm:text-2xl font-mono font-black text-foreground mt-0.5">
+                            {kioskNewLogin.password}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void copyTextQuick(kioskNewLogin.password!, 'Password')}
+                          className="shrink-0 min-h-11 px-4 py-2 rounded-xl bg-emerald-700 text-white text-xs font-black uppercase tracking-wider shadow-sm"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                          Student RC Number (For Results)
+                        </p>
+                        <p className="text-base font-mono font-black text-foreground mt-0.5">
+                          {kioskNewLogin.rc_code}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void copyTextQuick(
+                            `${kioskNewLogin.full_name}\nUsername: ${kioskNewLogin.email}\nPassword: ${kioskNewLogin.password || ''}\nRC Code: ${kioskNewLogin.rc_code}`,
+                            'All Login Details',
+                          )
+                        }
+                        className="shrink-0 min-h-10 px-3 py-1.5 rounded-xl border border-border bg-card text-xs font-black text-foreground hover:bg-muted"
+                      >
+                        Copy All
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKioskNewLogin(null);
+                      setTimeout(() => kioskInputRef.current?.focus(), 20);
+                    }}
+                    className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
+                  >
+                    I&apos;ve Copied It — Next Classmate →
+                  </button>
+                </div>
+              ) : kioskCelebration ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -989,23 +1198,19 @@ export function ClassIntakeAndSessionPanel({
                         </div>
                       )}
 
-                      {/* Parent WhatsApp Phone Input (Required or Optional per Teacher toggle) */}
+                      {/* Parent WhatsApp Phone Input (silent optionality — never tells kids to skip!) */}
                       <div>
                         <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
-                          Parent WhatsApp Number{' '}
-                          {requirePhone ? (
-                            <span className="text-rose-600 dark:text-rose-400">* Required</span>
-                          ) : (
-                            <span className="font-semibold normal-case">(Optional — skip if you don&apos;t know it)</span>
-                          )}
+                          Parent WhatsApp Number
+                          {requirePhone && <span className="text-rose-600 dark:text-rose-400"> *</span>}
                         </label>
                         <input
                           type="tel"
                           required={requirePhone}
-                          aria-label={requirePhone ? 'Parent WhatsApp number (required)' : 'Parent WhatsApp number (optional)'}
+                          aria-label="Parent WhatsApp number"
                           value={parentPhone}
                           onChange={(e) => setParentPhone(e.target.value)}
-                          placeholder={requirePhone ? '0801 234 5678 (required)' : '0801 234 5678 (or leave blank)'}
+                          placeholder="0801 234 5678"
                           className="w-full h-14 rounded-2xl border-2 border-border bg-background px-5 text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
                         />
                       </div>
@@ -1013,10 +1218,10 @@ export function ClassIntakeAndSessionPanel({
                       {/* Giant Submit Button */}
                       <button
                         type="submit"
-                        disabled={fullName.trim().length < 2}
+                        disabled={submitting || fullName.trim().length < 2}
                         className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-lg sm:text-xl font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
                       >
-                        Done — Next Classmate →
+                        {submitting ? 'Creating Account…' : 'Done — Next Classmate →'}
                       </button>
                     </div>
                   )}
@@ -1082,18 +1287,111 @@ export function ClassIntakeAndSessionPanel({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleSafeClose}
             aria-label="Close digital class sheet"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground"
+            className="inline-flex h-9 items-center gap-1.5 px-3 rounded-xl border border-border bg-background text-xs font-black text-foreground hover:bg-muted"
           >
             <XMarkIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Close</span>
           </button>
         </div>
       </div>
 
+      {/* Scrollable full-screen content container */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto w-full">
+
       {/* TAB 1: DIGITAL INTAKE & WHATSAPP CONTACT LIST */}
       {tab === 'intake' && (
-        <div className="p-4 sm:p-5 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5">
+          {/* Newly Created Student Login Credentials Banner (Very Visible & 1-Tap Copy) */}
+          {issuedLogins.length > 0 && (
+            <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/[0.06] p-4 sm:p-5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">
+                    ✓ New Student Login Credentials Ready ({issuedLogins.length})
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Share or copy these usernames and passwords so students can log in immediately.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyTextQuick(
+                        issuedLogins
+                          .map(
+                            (c, idx) =>
+                              `${idx + 1}. ${c.full_name} (${c.grade || className}) — Username: ${c.email} | Password: ${c.password || 'N/A'} | RC: ${c.rc_code}`,
+                          )
+                          .join('\n'),
+                        'All New Credentials',
+                      )
+                    }
+                    className="min-h-9 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-black uppercase tracking-wider shadow-sm"
+                  >
+                    Copy All Logins
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIssuedLogins([])}
+                    className="min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-card text-[11px] font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {issuedLogins.map((c) => (
+                  <div
+                    key={c.student_id}
+                    className="rounded-xl border border-emerald-500/30 bg-card p-3 flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-black text-foreground truncate">{c.full_name}</span>
+                      <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-mono font-bold text-muted-foreground">
+                        {c.rc_code}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-muted/50 px-2.5 py-1.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="block text-[9px] font-black uppercase text-muted-foreground">Username</span>
+                          <span className="font-mono font-bold text-foreground break-all">{c.email}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void copyTextQuick(c.email, 'Username')}
+                          className="shrink-0 px-2 py-1 rounded bg-primary text-primary-foreground text-[10px] font-black uppercase"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 px-2.5 py-1.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="block text-[9px] font-black uppercase text-muted-foreground">Password</span>
+                          <span className="font-mono font-black text-emerald-700 dark:text-emerald-400">
+                            {c.password || 'Existing'}
+                          </span>
+                        </div>
+                        {c.password && (
+                          <button
+                            type="button"
+                            onClick={() => void copyTextQuick(c.password!, 'Password')}
+                            className="shrink-0 px-2 py-1 rounded bg-emerald-700 text-white text-[10px] font-black uppercase"
+                          >
+                            Copy
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Teacher Grade Lock + Pass-Around Student Entry Toggle */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-3">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -1131,7 +1429,19 @@ export function ClassIntakeAndSessionPanel({
                 }`}
               >
                 <PhoneIcon className="w-3.5 h-3.5" />
-                {requirePhone ? 'WhatsApp No: Required' : 'WhatsApp No: Optional'}
+                {requirePhone ? 'WhatsApp No: Required' : 'WhatsApp No: Flexible'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setInstantAccountMode((v) => !v)}
+                className={`inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg border text-xs font-black transition-colors ${
+                  instantAccountMode
+                    ? 'border-emerald-600 bg-emerald-500/15 text-emerald-900 dark:text-emerald-200'
+                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <ShieldCheckIcon className="w-3.5 h-3.5" />
+                {instantAccountMode ? 'New Kids: Show Login Immediately' : 'New Kids: Queue for Review'}
               </button>
             </div>
 
@@ -1283,13 +1593,14 @@ export function ClassIntakeAndSessionPanel({
 
               <div className={lockGrade ? 'sm:col-span-4' : 'sm:col-span-3'}>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                  Parent Phone <span className="text-muted-foreground font-semibold normal-case">(Optional)</span>
+                  Parent WhatsApp Number{requirePhone ? ' *' : ''}
                 </label>
                 <input
                   type="tel"
+                  required={requirePhone}
                   value={parentPhone}
                   onChange={(e) => setParentPhone(e.target.value)}
-                  placeholder="0801 234 5678 (or leave blank)"
+                  placeholder="0801 234 5678"
                   className="w-full min-h-11 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -2020,6 +2331,8 @@ export function ClassIntakeAndSessionPanel({
           )}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

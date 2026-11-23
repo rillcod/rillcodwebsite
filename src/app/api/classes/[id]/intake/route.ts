@@ -6,6 +6,7 @@ import { cleanGrade, canonicalGrade } from '@/lib/classes/naming';
 import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
+import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { currentAcademicPeriod } from '@/lib/reports/coverage';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 
@@ -321,6 +322,7 @@ export async function POST(
 
       let studentId: string;
       let studentEmail: string;
+      let tempPassword: string | null = null;
       let created = false;
       let existingMeta: Record<string, any> = {};
 
@@ -374,6 +376,7 @@ export async function POST(
           }
           studentId = provisioned.studentId;
           studentEmail = provisioned.email || email;
+          tempPassword = provisioned.password ?? null;
           created = Boolean(provisioned.created);
         }
 
@@ -469,6 +472,9 @@ export async function POST(
           id: studentId,
           full_name: cleanedName,
           grade: resolvedGrade,
+          email: studentEmail,
+          password: tempPassword,
+          rc_code: formatAccessCardCodeDisplay(accessCardCodeForStudent(studentId)),
           parent_phone: parentPhone || null,
           session_status: 'confirmed_current',
         },
@@ -492,6 +498,14 @@ export async function POST(
       let linkedExisting = 0;
       let createdNew = 0;
       const errors: string[] = [];
+      const createdCredentials: Array<{
+        student_id: string;
+        full_name: string;
+        grade: string | null;
+        email: string;
+        password: string | null;
+        rc_code: string;
+      }> = [];
 
       for (const entry of entries) {
         const cleanedName = cleanStudentName(String(entry?.full_name || ''));
@@ -569,6 +583,14 @@ export async function POST(
           studentId = provisioned.studentId;
           studentEmail = provisioned.email || email;
           createdNew += 1;
+          createdCredentials.push({
+            student_id: studentId,
+            full_name: cleanedName,
+            grade: resolvedGrade,
+            email: studentEmail,
+            password: provisioned.password ?? null,
+            rc_code: formatAccessCardCodeDisplay(accessCardCodeForStudent(studentId)),
+          });
         } else {
           linkedExisting += 1;
         }
@@ -671,6 +693,7 @@ export async function POST(
         committed,
         linked_existing: linkedExisting,
         created_new: createdNew,
+        created_credentials: createdCredentials,
         errors,
         message: `Verified & saved ${committed} student${committed === 1 ? '' : 's'} (${linkedExisting} matched existing, ${createdNew} new).`,
       });
