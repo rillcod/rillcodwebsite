@@ -186,7 +186,7 @@ export default function ClassDetailPage() {
   const [pasteStep, setPasteStep] = useState<'paste' | 'review' | 'done'>('paste');
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
-  const [rosterFilter, setRosterFilter] = useState<'active' | 'current_session' | 'prior_session' | 'off_band' | 'needs_report' | 'withdrawn' | 'all'>('active');
+  const [rosterFilter, setRosterFilter] = useState<'active' | 'current_session' | 'prior_session' | 'off_band' | 'needs_report' | 'withdrawn' | 'all'>('current_session');
   const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
   const [schoolSuggestionsPool, setSchoolSuggestionsPool] = useState<any[]>([]);
   const [loadingSchoolPool, setLoadingSchoolPool] = useState(false);
