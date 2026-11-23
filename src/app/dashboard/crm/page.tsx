@@ -158,6 +158,11 @@ function fileIcon(type?: string) {
 function isOverdue(task: Task) {
   return task.due_at && new Date(task.due_at) < new Date() && task.status !== 'completed';
 }
+function normalizeWaPhone(raw?: string | null): string {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length >= 10 && digits.startsWith('0')) return `234${digits.slice(1)}`;
+  return digits;
+}
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
@@ -845,6 +850,12 @@ export default function CRMPage() {
           <CrmStatChips stats={stats} className="flex-1 min-w-0" />
           <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto sm:ml-auto">
             <Link
+              href="/dashboard/partnerships"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Building2 size={12} /> Partnerships
+            </Link>
+            <Link
               href="/dashboard/customer-book"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
@@ -920,6 +931,31 @@ export default function CRMPage() {
             />
           </div>
         )}
+
+        {/* 1-Tap Marketing & Outreach Triage Presets */}
+        <div className="px-3 sm:px-4 pb-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          {[
+            { label: 'All Contacts', active: roleFilter === 'all' && stageFilter === 'all', onClick: () => { setRoleFilter('all'); setStageFilter('all'); } },
+            { label: 'Prospects', active: stageFilter === 'prospect', onClick: () => { setRoleFilter('all'); setStageFilter('prospect'); } },
+            { label: 'At Risk', active: stageFilter === 'at_risk', onClick: () => { setRoleFilter('all'); setStageFilter('at_risk'); } },
+            { label: 'Leads (Forms)', active: roleFilter === 'lead', onClick: () => { setRoleFilter('lead'); setStageFilter('all'); } },
+            { label: 'School Partners', active: roleFilter === 'school', onClick: () => { setRoleFilter('school'); setStageFilter('all'); } },
+            { label: 'Parents', active: roleFilter === 'parent', onClick: () => { setRoleFilter('parent'); setStageFilter('all'); } },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={preset.onClick}
+              className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                preset.active
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
         {/* Overdue alerts */}
         {overdueAlerts.length > 0 && (
@@ -1086,13 +1122,28 @@ export default function CRMPage() {
                       {selected.school_name && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Building2 size={10} />{selected.school_name}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                     {(selected.phone || selected.phone_number) && (
-                      <a href={`https://wa.me/${(selected.phone || selected.phone_number || '').replace(/\D/g, '')}`}
+                      <a href={`https://wa.me/${normalizeWaPhone(selected.phone || selected.phone_number)}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="p-1.5 rounded-lg bg-[#25d366]/10 text-[#25d366] hover:bg-[#25d366]/20 transition-colors" title="WhatsApp">
-                        <MessageSquare size={14} />
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold hover:bg-emerald-500/20 transition-colors" title="WhatsApp">
+                        <MessageSquare size={12} /> WhatsApp
                       </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setTab('tasks'); setShowTaskForm(true); }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground text-[11px] font-bold hover:bg-muted transition-colors"
+                    >
+                      <Plus size={12} /> Task
+                    </button>
+                    {selected.role === 'school' && (
+                      <Link
+                        href="/dashboard/partnerships"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
+                      >
+                        <Building2 size={12} /> Deal Desk
+                      </Link>
                     )}
                     {selected.role === 'lead' && (
                       <button

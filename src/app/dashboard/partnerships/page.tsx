@@ -109,7 +109,7 @@ export default function PartnershipsPage() {
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
-  const [lens, setLens] = useState<"all" | "partners" | "prospects">("all");
+  const [lens, setLens] = useState<"all" | "partners" | "prospects" | "needs_terms">("all");
   const [selectedId, setSelectedId] = useState("");
   const [mobileShowSidebar, setMobileShowSidebar] = useState(false);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("compose");
@@ -255,7 +255,9 @@ export default function PartnershipsPage() {
         ? schools
         : lens === "partners"
           ? schools.filter((s) => s.status === "approved")
-          : schools.filter((s) => s.status !== "approved");
+          : lens === "needs_terms"
+            ? schools.filter((s) => s.status === "approved" && !withTerms.has(s.id))
+            : schools.filter((s) => s.status !== "approved");
     if (!q) return byLens;
     return byLens.filter(
       (s) =>
@@ -263,7 +265,7 @@ export default function PartnershipsPage() {
         (s.city ?? "").toLowerCase().includes(q) ||
         (s.state ?? "").toLowerCase().includes(q),
     );
-  }, [schools, search, lens]);
+  }, [schools, search, lens, withTerms]);
 
   const partners = useMemo(() => schools.filter((s) => s.status === "approved"), [schools]);
   const prospects = schools.length - partners.length;
@@ -626,24 +628,26 @@ export default function PartnershipsPage() {
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/50 border border-border">
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted/50 border border-border">
             {(
               [
                 { v: "all", label: "All", n: schools.length },
                 { v: "prospects", label: "Prospects", n: prospects },
                 { v: "partners", label: "Partners", n: partners.length },
+                { v: "needs_terms", label: "No Terms", n: awaiting },
               ] as const
             ).map((t) => (
               <button
                 key={t.v}
+                type="button"
                 onClick={() => setLens(t.v)}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                   lens === t.v
-                    ? "bg-emerald-600 text-white shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t.label} {t.n > 0 && <span className="opacity-75">({t.n})</span>}
+                {t.label} {t.n > 0 && <span className="opacity-80">({t.n})</span>}
               </button>
             ))}
           </div>
@@ -726,9 +730,9 @@ export default function PartnershipsPage() {
             </div>
           ) : (
             <>
-              {/* Selected School Executive Banner */}
-              <div className="rounded-3xl bg-card border border-border p-5 shadow-lg space-y-4">
-                <div className="hidden sm:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              {/* Selected School Executive Banner (visible on mobile & desktop) */}
+              <div className="rounded-3xl bg-card border border-border p-4 sm:p-5 shadow-lg space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg sm:text-xl font-black text-foreground">{selected.name}</h2>
@@ -775,6 +779,25 @@ export default function PartnershipsPage() {
                           {selected.email}
                         </a>
                       )}
+                      {selected.phone && (
+                        <a
+                          href={buildWhatsAppUrl(
+                            selected.phone,
+                            `Hello ${selected.contact_person || selected.name}, reaching out from Rillcod Technologies regarding our STEM & Coding partnership.`,
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold"
+                        >
+                          WhatsApp
+                        </a>
+                      )}
+                      <Link
+                        href="/dashboard/crm"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground text-[11px] font-bold"
+                      >
+                        Open in CRM →
+                      </Link>
                     </div>
                   </div>
 
@@ -794,6 +817,29 @@ export default function PartnershipsPage() {
                   )}
                 </div>
 
+                {dealState && (
+                  <div className="grid grid-cols-4 gap-1.5 pt-1">
+                    {[
+                      { num: 1, label: "Proposal", active: dealState.step <= 2, done: dealState.step > 2 },
+                      { num: 2, label: "Terms", active: dealState.step === 3, done: dealState.step > 3 },
+                      { num: 3, label: "MoU", active: dealState.step === 4, done: dealState.step > 4 },
+                      { num: 4, label: "Onboard", active: dealState.step >= 5, done: dealState.tone === "done" },
+                    ].map((s) => (
+                      <div
+                        key={s.num}
+                        className={`rounded-xl border px-2 py-1.5 text-center text-[10px] font-black uppercase tracking-wider ${
+                          s.done
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                            : s.active
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-border bg-muted/30 text-muted-foreground"
+                        }`}
+                      >
+                        {s.num}. {s.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {dealState && (
                     <div
                       className={`rounded-2xl border p-3 sm:p-4 flex flex-col gap-3 ${
