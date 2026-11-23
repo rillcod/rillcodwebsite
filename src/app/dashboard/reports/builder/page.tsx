@@ -23,7 +23,7 @@ import {
   academicYearOptions,
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
-import { getSessionBoundary } from '@/lib/academic/session-scope';
+import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { generatePredictiveComments, getStrengthBankSuggestions, getGrowthBankSuggestions } from '@/lib/reports/comment-warehouse';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
@@ -1481,16 +1481,11 @@ function ReportBuilderInner() {
         if (overrideFilters || search.length >= 2) return matchesSearch;
 
         // Current Session Only guard (default ON): hide unconfirmed prior-session students
-        // unless they were created/confirmed/rolled over for this session or already have a report.
+        // unless they belong to the current session (via canonical session_status/metadata/created_at)
+        // or already have a report for this term.
         if (currentSessionOnly) {
-            const meta = (s as any).metadata && typeof (s as any).metadata === 'object' ? (s as any).metadata : {};
-            const createdMs = (s as any).created_at ? Date.parse((s as any).created_at) : NaN;
             const inCurrentSession =
-                String(meta.confirmed_session || '') === sessionBoundary.periodLabel ||
-                String(meta.rollover_session || '') === sessionBoundary.periodLabel ||
-                (Array.isArray(meta.session_history) &&
-                    meta.session_history.some((h: any) => String(h?.session || '') === sessionBoundary.periodLabel)) ||
-                (Number.isFinite(createdMs) && createdMs >= sessionBoundary.sessionStartMs) ||
+                isStudentInCurrentSession(s as any, sessionBoundary) ||
                 reportedIds.has(s.id) ||
                 draftedIds.has(s.id);
             if (!inCurrentSession) return false;

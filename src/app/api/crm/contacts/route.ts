@@ -13,6 +13,7 @@ import {
   rowMatchesSchoolNames,
 } from '@/lib/crm/scope';
 import { mergeContactMetadata } from '@/lib/supabase/json';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
 import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
@@ -80,16 +81,54 @@ export async function GET(req: NextRequest) {
 
     const ids = (portalUsers || []).map((u: any) => u.id);
     const stageMap: Record<string, string> = {};
+    const rosterByStudent = new Map<string, any>();
+    const sessionBoundary = getSessionBoundary();
+    let canonicalTermId: string | null = null;
     if (ids.length > 0) {
-      const { data: pipes } = await db.from('crm_pipeline').select('contact_id, stage').in('contact_id', ids);
+      const studentIds = (portalUsers || []).filter((u: any) => u.role === 'student').map((u: any) => u.id);
+      const [{ data: pipes }, termRes, rosterRes] = await Promise.all([
+        db.from('crm_pipeline').select('contact_id, stage').in('contact_id', ids),
+        studentIds.length > 0
+          ? db
+              .from('academic_terms')
+              .select('id')
+              .eq('term_label', sessionBoundary.termLabel)
+              .eq('academic_year', sessionBoundary.periodLabel)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        studentIds.length > 0
+          ? (db as any)
+              .from('class_term_rosters')
+              .select('student_id, class_id, status, term_id, started_at, reinstated_at')
+              .in('student_id', studentIds)
+              .eq('status', 'active')
+          : Promise.resolve({ data: [] }),
+      ]);
       (pipes || []).forEach((p: any) => { stageMap[p.contact_id] = p.stage; });
+      canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
+      for (const r of (rosterRes.data ?? []) as any[]) {
+        if (!rosterByStudent.has(r.student_id)) rosterByStudent.set(r.student_id, r);
+      }
     }
 
-    let contacts: any[] = (portalUsers || []).map((u: any) => ({
-      ...u,
-      pipeline_stage: normalizeCrmStage(stageMap[u.id]),
-      _type: 'portal',
-    }));
+    let contacts: any[] = (portalUsers || []).map((u: any) => {
+      const ar = u.role === 'student' ? (rosterByStudent.get(u.id) ?? null) : null;
+      const session_status = u.role === 'student'
+        ? classifyStudentSessionStatus(
+            { is_active: u.is_active, created_at: u.created_at ?? null, metadata: u.metadata ?? null },
+            ar
+              ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+              : null,
+            { canonicalTermId, boundary: sessionBoundary },
+          )
+        : undefined;
+      return {
+        ...u,
+        ...(session_status ? { session_status } : {}),
+        pipeline_stage: normalizeCrmStage(stageMap[u.id]),
+        _type: 'portal',
+      };
+    });
 
     const isSystemEmail = (e?: string | null) => {
       const x = (e || '').trim().toLowerCase();

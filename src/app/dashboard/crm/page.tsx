@@ -24,7 +24,7 @@ import { CrmListToolbar } from '@/components/crm/CrmListToolbar';
 import { CrmMergePanel } from '@/components/crm/CrmMergePanel';
 import { useOfficeOptional } from '@/components/office/OfficeContext';
 import { useOfficeAdminRedirect } from '@/components/office/useOfficeAdminRedirect';
-import { getSessionBoundary } from '@/lib/academic/session-scope';
+import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -261,13 +261,7 @@ export default function CRMPage() {
       // Keep school partners, leads, teachers, and admins visible across sessions;
       // filter old unconfirmed students out of Current Session CRM view.
       if (c.role !== 'student') return true;
-      const meta = c.metadata && typeof c.metadata === 'object' ? c.metadata : {};
-      const createdMs = c.created_at ? Date.parse(c.created_at) : NaN;
-      return (
-        String(meta.confirmed_session || '') === crmSessionBoundary.periodLabel ||
-        String(meta.rollover_session || '') === crmSessionBoundary.periodLabel ||
-        (Number.isFinite(createdMs) && createdMs >= crmSessionBoundary.sessionStartMs)
-      );
+      return isStudentInCurrentSession(c as any, crmSessionBoundary);
     });
   }, [contacts, crmSessionOnly, crmSessionBoundary]);
 

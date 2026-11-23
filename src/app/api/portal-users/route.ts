@@ -11,6 +11,7 @@ import { getProtectedAcademicEvidence, protectedAcademicEvidenceMessage } from '
 import { logAudit } from '@/lib/audit/log';
 import { z } from 'zod';
 import { requireSupabaseResult } from '@/lib/supabase/require-result';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -193,6 +194,66 @@ export async function GET(request: NextRequest) {
     }
 
     if (loadError) return NextResponse.json({ error: loadError.message }, { status: 500 });
+
+    // Attach authoritative canonical session_status ('confirmed_current' | 'carryover_unconfirmed' | 'withdrawn')
+    // to every student row so Result Builder, Students Directory, and Card Studio always agree
+    // 100% with Class Roster & Accountability (including returning students whose roster started this term).
+    const studentRows = rows.filter((r: any) => String(r.role || '').toLowerCase() === 'student');
+    if (studentRows.length > 0) {
+      const boundary = getSessionBoundary();
+      const studentIds = studentRows.map((r: any) => r.id).filter(Boolean) as string[];
+      const [{ data: canonicalTerm }, rosterRes] = await Promise.all([
+        admin
+          .from('academic_terms')
+          .select('id')
+          .eq('term_label', boundary.termLabel)
+          .eq('academic_year', boundary.periodLabel)
+          .maybeSingle(),
+        (async () => {
+          const out: any[] = [];
+          for (let i = 0; i < studentIds.length; i += 300) {
+            const slice = studentIds.slice(i, i + 300);
+            const { data } = await (admin as any)
+              .from('class_term_rosters')
+              .select('student_id, class_id, status, term_id, started_at, reinstated_at')
+              .in('student_id', slice)
+              .eq('status', 'active');
+            if (Array.isArray(data)) out.push(...data);
+          }
+          return out;
+        })(),
+      ]);
+      const canonicalTermId = (canonicalTerm as { id?: string } | null)?.id ?? null;
+      const rosterByStudent = new Map<string, any>();
+      const classByStudent = new Map(studentRows.map((r: any) => [r.id, r.class_id]));
+      for (const r of rosterRes) {
+        const existing = rosterByStudent.get(r.student_id);
+        const liveCid = classByStudent.get(r.student_id);
+        if (!existing || (liveCid && r.class_id === liveCid)) {
+          rosterByStudent.set(r.student_id, r);
+        }
+      }
+      rows = rows.map((r: any) => {
+        if (String(r.role || '').toLowerCase() !== 'student') return r;
+        const ar = rosterByStudent.get(r.id) ?? null;
+        const session_status = classifyStudentSessionStatus(
+          {
+            is_active: r.is_active,
+            created_at: r.created_at ?? null,
+            metadata: r.metadata ?? null,
+          },
+          ar
+            ? {
+                status: ar.status,
+                term_id: ar.term_id ?? null,
+                started_at: ar.reinstated_at ?? ar.started_at ?? null,
+              }
+            : null,
+          { canonicalTermId, boundary },
+        );
+        return { ...r, session_status };
+      });
+    }
     // Opt-in: attach THIS-term progress-report status (?with_reports=1) so lists (card studio,
     // students page) can flag who still needs a published report. Term-scoped for consistency.
     if (searchParams.get('with_reports') === '1' && rows.length) {

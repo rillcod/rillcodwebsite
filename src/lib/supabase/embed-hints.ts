@@ -46,7 +46,7 @@ export const EMBED = {
 /** Standard select fragments — use plain strings (not template literals) for Supabase typings. */
 export const SELECT = {
   portalUsersListWithClass:
-    'id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, created_at, updated_at, classes!portal_users_class_id_fkey(name)',
+    'id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, is_deleted, created_at, updated_at, metadata, classes!portal_users_class_id_fkey(name)',
   invoiceWithPortalUser:
     '*, portal_users!invoices_portal_user_id_fkey(full_name, email), schools(name)',
   invoiceWithPortalUserFull:
