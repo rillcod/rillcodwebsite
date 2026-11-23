@@ -370,6 +370,18 @@ export async function reinstateStudentToClass(
         || isSpecializedProgramRecord(null, (prevCls as any).name);
       if (!crossingSpecializedBoundary) {
         await upsertRoster(admin, prevCls as any, studentId, 'withdrawn', actor.id);
+        // Also withdraw any earlier-term `active` roster rows on the previous class
+        // so returning/promoted students never carry a second active regular-class roster.
+        await (admin as any)
+          .from('class_term_rosters')
+          .update({
+            status: 'withdrawn',
+            ended_at: new Date().toISOString(),
+            updated_by: actor.id,
+          })
+          .eq('student_id', studentId)
+          .eq('class_id', prevClassId)
+          .eq('status', 'active');
         // Complete old programme enrollment when transitioning across regular programmes
         // (e.g. Young Innovators → Teen Developers) so prior-programme exams/assignments never bleed.
         if (prevCls.program_id && cls.program_id && prevCls.program_id !== cls.program_id) {

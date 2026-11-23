@@ -116,20 +116,23 @@ export function assignmentVisibleToStudent(
     return false;
   }
 
-  // 3. Class / section scoping.
-  const targetClassId = meta.target_class_id || asgn.class_id;
-  if (meta.visibility === 'class' || targetClassId || meta.target_class_name) {
-    const classIdMatch = targetClassId && student.class_id && targetClassId === student.class_id;
+  // 3. Class / section scoping (Current Class Mandate).
+  //    An assignment tied to a specific class_id MUST match the student's current class_id.
+  const targetClassId = meta.target_class_id || asgn.class_id || meta.class_id;
+  if (targetClassId) {
+    if (!student.class_id || targetClassId !== student.class_id) return false;
+  } else if (meta.visibility === 'class' || meta.target_class_name) {
     const classNameMatch = meta.target_class_name && student.section_class &&
       String(meta.target_class_name).toLowerCase().trim() === student.section_class.toLowerCase().trim();
-    if (!classIdMatch && !classNameMatch) return false;
+    if (!classNameMatch) return false;
   }
-  // No explicit class scoping, but created by a teacher → only that teacher's own
-  // students (their class tutees or those who name them as primary teacher) see it.
+  // No explicit class scoping, but created by a teacher → enforce current class teacher when placed.
   else if (creatorRole === 'teacher') {
-    const isTutor = classTeacherId && creatorId === classTeacherId;
-    const isPrimaryTeacher = student.primary_teacher_id && creatorId === student.primary_teacher_id;
-    if (!isTutor && !isPrimaryTeacher) return false;
+    if (classTeacherId) {
+      if (creatorId !== classTeacherId) return false;
+    } else if (!student.primary_teacher_id || creatorId !== student.primary_teacher_id) {
+      return false;
+    }
   }
 
   // 4. Work-mode targeting (specific student / group).

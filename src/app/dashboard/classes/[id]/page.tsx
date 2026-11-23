@@ -2104,65 +2104,39 @@ export default function ClassDetailPage() {
             </div>
           </div>
 
-          {/* Tier 2: Segmented Workspace Modes + Academic Tools */}
-          {canView && (
-            <div className="border-t border-border/70 bg-muted/30 px-4 py-2.5 sm:px-6 flex flex-col gap-2.5 md:flex-row md:items-center md:justify-between">
-              {/* Primary Workspace Switcher */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                {isStaff && (
-                  <button
-                    type="button"
-                    onClick={() => selectOperation('teaching')}
-                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${activeOperation === 'teaching'
-                      ? 'bg-card text-primary border border-primary/40 shadow-sm'
-                      : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
-                      }`}
-                  >
-                    <BookOpenIcon className="h-3.5 w-3.5" />
-                    Teach
-                  </button>
-                )}
-                {isStaff && (
-                  <button
-                    type="button"
-                    onClick={() => selectOperation('assessment')}
-                    className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${activeOperation === 'assessment'
-                      ? 'bg-card text-primary border border-primary/40 shadow-sm'
-                      : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
-                      }`}
-                  >
-                    <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                    Assessment
-                    {assessmentSummary.awaiting_review > 0 && (
-                      <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                        {assessmentSummary.awaiting_review}
-                      </span>
-                    )}
-                  </button>
-                )}
+          {/* Tier 2: Crisp 1-Tap Staff Shortcuts (zero duplicate tab nav!) */}
+          {canView && isStaff && (
+            <div className="border-t border-border/70 bg-muted/25 px-4 py-2.5 sm:px-6 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     selectOperation('roster');
-                    document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    setIntakePanelTab('intake');
+                    setShowIntakePanel(true);
+                    setRosterOpen(true);
                   }}
-                  className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 text-xs font-bold whitespace-nowrap transition-all ${activeOperation === 'roster'
-                    ? 'bg-card text-primary border border-primary/40 shadow-sm'
-                    : 'text-muted-foreground hover:bg-card/70 hover:text-foreground border border-transparent'
-                    }`}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 text-xs font-black text-white shadow-sm transition-colors"
                 >
-                  <UserGroupIcon className="h-3.5 w-3.5" />
-                  Students
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${activeOperation === 'roster' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
-                    }`}>
-                    {currentTermStudents.length}
-                  </span>
+                  <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
+                  Intake &amp; Pass-Around
                 </button>
-              </div>
-
-              {/* Academic Quick Tools */}
-              {isStaff && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2 md:border-t-0 md:pt-0">
+                <Link
+                  href={learnerReportHref('write', {
+                    classId: id,
+                    courseId: searchParams.get('course_id') || cls?.current_course_id,
+                  })}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 px-3 text-xs font-bold text-emerald-800 dark:text-emerald-300 whitespace-nowrap transition-colors hover:bg-emerald-600/20"
+                >
+                  <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
+                  Result Builder
+                  {reportIndicatorEnabled && needsReportCount > 0 && (
+                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                      {needsReportCount}
+                    </span>
+                  )}
+                </Link>
+                {offBandCount > 0 && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2170,37 +2144,16 @@ export default function ClassDetailPage() {
                       openSessionConfirm();
                       setTimeout(() => document.getElementById('class-operation-roster')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
                     }}
-                    className={`inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-colors ${offBandCount > 0
-                      ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
-                      : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-600/20'
-                      }`}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
                   >
                     <CheckCircleIcon className="h-3.5 w-3.5" />
-                    Confirm Grades
-                    {offBandCount > 0 && (
-                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black text-primary-foreground">
-                        {offBandCount}
-                      </span>
-                    )}
+                    Confirm Grades ({offBandCount})
                   </button>
-
-                  <Link
-                    href={learnerReportHref('write', {
-                      classId: id,
-                      courseId: searchParams.get('course_id') || cls?.current_course_id,
-                    })}
-                    className="inline-flex h-8.5 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 whitespace-nowrap transition-colors hover:bg-emerald-600/20"
-                  >
-                    <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                    Result Builder
-                    {reportIndicatorEnabled && needsReportCount > 0 && (
-                      <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                        {needsReportCount}
-                      </span>
-                    )}
-                  </Link>
-                </div>
-              )}
+                )}
+              </div>
+              <span className="hidden sm:inline text-[11px] font-semibold text-muted-foreground">
+                {currentTermStudents.length} active student{currentTermStudents.length === 1 ? '' : 's'}
+              </span>
             </div>
           )}
         </div>
@@ -2235,9 +2188,8 @@ export default function ClassDetailPage() {
           </div>
         )}
 
-        {/* ── The work ──────────────────────────────────────────────────────────
-            Directly under the identity bar, because this is what the page is for. */}
-        <div className="rounded-3xl border border-border bg-card shadow-sm">
+        {/* ── Single Unified Class Workspace (1 clean 4-tab bar on mobile & desktop, full-width content) ── */}
+        <div className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
 
           {/* Mobile work modes */}
           <div className="border-b border-border p-2 sm:p-3 lg:hidden">
@@ -2257,49 +2209,43 @@ export default function ClassDetailPage() {
             />
           </div>
 
-          <div className="grid min-w-0 gap-0 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
-            {/* Desktop sidebar work modes */}
-            <aside className="hidden border-b border-border bg-muted/20 p-4 lg:block lg:border-b-0 lg:border-r">
-              <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Choose work mode</p>
-              <div className="grid grid-cols-1 gap-2">
-                {operationCards.map(card => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => selectOperation(card.id)}
-                    className={`rounded-2xl border p-3 text-left transition-all ${activeOperation === card.id
-                      ? 'border-primary/40 bg-primary/10 shadow-sm'
-                      : 'border-border bg-background hover:border-primary/20 hover:bg-muted'
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card">
-                        <card.icon className={`h-4 w-4 ${card.tone}`} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-black text-foreground">{card.title}</p>
-                          {card.attention > 0 && (
-                            <span
-                              title={card.attentionLabel}
-                              className="rounded-full bg-rose-700 px-1.5 py-0.5 text-[9px] font-black leading-none text-white"
-                            >
-                              {card.attention}
-                            </span>
-                          )}
-                        </div>
-                        <p className="break-words text-[10px] text-muted-foreground">{card.stat}</p>
-                      </div>
+          {/* Desktop unified 4-tab workspace bar (replaces competing sidebar for full-width clarity) */}
+          <div className="hidden lg:grid lg:grid-cols-4 gap-2 border-b border-border bg-muted/20 p-3">
+            {operationCards.map((card, idx) => (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => selectOperation(card.id)}
+                className={`rounded-2xl border p-3 text-left transition-all ${activeOperation === card.id
+                  ? 'border-primary/50 bg-card shadow-sm ring-1 ring-primary/20'
+                  : 'border-transparent bg-transparent hover:border-border hover:bg-card/60'
+                  }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border ${activeOperation === card.id ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'}`}>
+                    <card.icon className={`h-4 w-4 ${card.tone}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-muted-foreground">{idx + 1}.</span>
+                      <p className="text-sm font-black text-foreground truncate">{card.title}</p>
+                      {card.attention > 0 && (
+                        <span
+                          title={card.attentionLabel}
+                          className="rounded-full bg-rose-700 px-1.5 py-0.5 text-[9px] font-black leading-none text-white"
+                        >
+                          {card.attention}
+                        </span>
+                      )}
                     </div>
-                    {typeof card.progress === 'number' && (
-                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${card.progress}%` }} />
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </aside>
+                    <p className="truncate text-[11px] text-muted-foreground mt-0.5">{card.stat}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="min-w-0">
 
             <div
               id={`class-operation-${activeOperation}`}
@@ -2403,7 +2349,7 @@ export default function ClassDetailPage() {
                         </p>
                       )}
                       {isStaff && (
-                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -2411,13 +2357,13 @@ export default function ClassDetailPage() {
                               setShowIntakePanel((v) => !v);
                               setRosterOpen(true);
                             }}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors shadow-sm ${showIntakePanel
+                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black transition-colors shadow-sm ${showIntakePanel
                               ? 'border-emerald-700 bg-emerald-700 text-white'
                               : 'border-emerald-600/40 bg-emerald-700 text-white hover:bg-emerald-800'
                               }`}
                           >
                             <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{showIntakePanel ? 'Hide Intake Sheet' : 'Intake & WhatsApp'}</span>
+                            <span>{showIntakePanel ? 'Hide Intake Sheet' : 'Intake & Pass-Around'}</span>
                             {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length > 0 && (
                               <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
                                 {currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length}
@@ -2426,63 +2372,19 @@ export default function ClassDetailPage() {
                           </button>
                           <Link
                             href={`/dashboard/classes/${id}/enroll`}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
+                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
                           >
                             <PlusIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">Add / Adopt</span>
+                            <span>Add / Adopt</span>
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => (showSessionConfirm ? setShowSessionConfirm(false) : openSessionConfirm())}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${showSessionConfirm
-                              ? 'border-emerald-600 bg-emerald-700 text-white'
-                              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
-                              }`}
-                          >
-                            <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{showSessionConfirm ? 'Close Confirm' : 'Confirm Grades'}</span>
-                          </button>
-                          <Link
-                            href={learnerReportHref('write', {
-                              classId: id,
-                              courseId: searchParams.get('course_id') || cls?.current_course_id,
-                            })}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors hover:bg-emerald-500/20"
-                          >
-                            <ClipboardDocumentListIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">Result Builder</span>
-                            {reportIndicatorEnabled && needsReportCount > 0 && (
-                              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
-                                {needsReportCount}
-                              </span>
-                            )}
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => (showCredSheet ? setShowCredSheet(false) : openCredSheet())}
-                            className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-black transition-colors ${showCredSheet
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
-                              }`}
-                          >
-                            <PrinterIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{showCredSheet ? 'Hide Login List' : 'Login & RC List'}</span>
-                          </button>
-                          <Link
-                            href={`/dashboard/classes/${id}/cards`}
-                            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50"
-                          >
-                            <UserGroupIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
-                            <span className="truncate">ID / RC Cards</span>
-                          </Link>
-                          <div className="relative col-span-2 sm:col-span-1">
+                          <div className="relative">
                             <button
                               type="button"
                               onClick={() => setShowRosterActions(v => !v)}
                               aria-expanded={showRosterActions}
-                              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50 sm:w-auto"
+                              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/50"
                             >
-                              More Actions
+                              More Tools
                               <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showRosterActions ? 'rotate-180' : ''}`} />
                             </button>
                             {showRosterActions && (
@@ -2493,7 +2395,7 @@ export default function ClassDetailPage() {
                                 />
                                 <div className="fixed inset-x-3 bottom-[calc(var(--app-bottom-nav-height,64px)+0.75rem)] z-[200] max-h-[72dvh] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card p-2 shadow-2xl space-y-1 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1.5 sm:w-64 sm:max-h-[70vh] sm:rounded-xl sm:p-1.5 sm:space-y-0.5">
                                   <div className="flex items-center justify-between border-b border-border px-3 py-2 sm:hidden">
-                                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Class Roster Actions</span>
+                                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Class Roster Tools</span>
                                     <button
                                       type="button"
                                       onClick={() => setShowRosterActions(false)}
@@ -2502,6 +2404,38 @@ export default function ClassDetailPage() {
                                       Close
                                     </button>
                                   </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowRosterActions(false);
+                                      if (showSessionConfirm) setShowSessionConfirm(false);
+                                      else openSessionConfirm();
+                                    }}
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                                  >
+                                    <CheckCircleIcon className="h-4 w-4 shrink-0" />
+                                    {showSessionConfirm ? 'Close Grade Confirm' : 'Confirm Session & Grades'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowRosterActions(false);
+                                      if (showCredSheet) setShowCredSheet(false);
+                                      else openCredSheet();
+                                    }}
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <PrinterIcon className="h-4 w-4 shrink-0 text-primary" />
+                                    {showCredSheet ? 'Hide Login & RC List' : 'Login & RC List'}
+                                  </button>
+                                  <Link
+                                    href={`/dashboard/classes/${id}/cards`}
+                                    onClick={() => setShowRosterActions(false)}
+                                    className="flex min-h-11 items-center gap-2.5 w-full px-3 py-2.5 text-left text-sm font-bold text-foreground rounded-lg hover:bg-muted/60 transition-colors"
+                                  >
+                                    <UserGroupIcon className="h-4 w-4 shrink-0 text-primary" />
+                                    Student ID / RC Cards
+                                  </Link>
                                   <button
                                     type="button"
                                     onClick={() => { setShowRosterActions(false); setShowRegisterModal(true); }}
@@ -4262,48 +4196,33 @@ export default function ClassDetailPage() {
                 </div>
               )}
 
-              {/* Assessment Command Bar — clean 2-step hierarchy: Issue Work -> Mark & Results */}
+              {/* Assessment Command Bar — crystal-clear 2-card workflow: 1. Give Class Work -> 2. Mark & Publish Results */}
               {activeOperation === 'assessment' && (
                 <div className="min-w-0 space-y-3">
-                  <div className="rounded-2xl border border-border bg-card p-3.5 sm:p-4 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
-                        <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                          {assessmentCopy?.standingLabel ?? 'Class Assessment'}
-                        </span>
-                        {assessmentRecordsLoaded && (
-                          <span className="text-muted-foreground">
-                            {assessmentSummary.open} open · {assessmentSummary.awaiting_review} to mark · {assessmentSummary.marked} marked
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-                      {!isSchool && (
-                        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Issue new assessment">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">
-                            1. Issue:
-                          </span>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {!isSchool && (
+                      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Step 1 · Give Class Work</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Choose what you want to assign to this class</p>
+                          </div>
+                          {assessmentRecordsLoaded && (
+                            <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-black text-foreground">
+                              {assessmentSummary.open} open
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Issue new assessment">
                           <Link
                             href={buildAssignmentNewHref({
                               classId: id,
                               courseId: searchParams.get('course_id') || cls?.current_course_id,
                             })}
-                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
                           >
                             <PlusIcon className="h-3.5 w-3.5" />
                             Assignment
-                          </Link>
-                          <Link
-                            href={buildProjectNewHref({
-                              classId: id,
-                              courseId: searchParams.get('course_id') || cls?.current_course_id,
-                            })}
-                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-primary/40 transition-colors"
-                          >
-                            <PlusIcon className="h-3.5 w-3.5 text-primary" />
-                            Project
                           </Link>
                           <Link
                             href={buildCbtNewHref({
@@ -4312,38 +4231,57 @@ export default function ClassDetailPage() {
                               programId: cls?.program_id,
                               schoolId: cls?.school_id,
                             })}
-                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-amber-500/40 transition-colors"
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-black text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
                           >
-                            <PlusIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                            <PlusIcon className="h-3.5 w-3.5" />
                             {assessmentPolicy?.usesHostEvaluation ? 'Practice CBT' : 'CBT Exam'}
+                          </Link>
+                          <Link
+                            href={buildProjectNewHref({
+                              classId: id,
+                              courseId: searchParams.get('course_id') || cls?.current_course_id,
+                            })}
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary/40 transition-colors"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5 text-primary" />
+                            Project
                           </Link>
                           <Link
                             href={`/dashboard/exams/new?class_id=${id}${searchParams.get('course_id') || cls?.current_course_id
                               ? `&course_id=${searchParams.get('course_id') || cls?.current_course_id}`
                               : ''
                               }${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`}
-                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground hover:border-primary/40 transition-colors"
+                            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary/40 transition-colors"
                           >
                             <PlusIcon className="h-3.5 w-3.5 text-primary" />
                             Written Exam
                           </Link>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      <div className="flex flex-wrap items-center gap-2 lg:border-l lg:border-border lg:pl-3" role="group" aria-label="Mark and view results">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">
-                          2. Review:
-                        </span>
+                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Step 2 · Mark &amp; Publish Results</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {assessmentRecordsLoaded
+                              ? `${assessmentSummary.awaiting_review} waiting to mark · ${assessmentSummary.marked} already marked`
+                              : 'Grade submissions and build term reports'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Mark and view results">
                         {!isSchool && (
                           <>
                             <Link
                               href={`/dashboard/grades?class_id=${id}`}
-                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-2 text-xs font-black text-white shadow-sm transition-colors"
                             >
                               <AcademicCapIcon className="h-3.5 w-3.5" />
-                              Mark Class Work
+                              Mark Work
                               {assessmentSummary.awaiting_review > 0 && (
-                                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-black text-black">
+                                <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
                                   {assessmentSummary.awaiting_review}
                                 </span>
                               )}
@@ -4353,7 +4291,7 @@ export default function ClassDetailPage() {
                                 classId: id,
                                 courseId: searchParams.get('course_id') || cls?.current_course_id,
                               })}
-                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/35 bg-primary/10 px-3.5 py-2 text-xs font-black text-primary hover:bg-primary/20 transition-colors"
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-black text-primary hover:bg-primary/20 transition-colors"
                             >
                               <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
                               Result Builder
@@ -4366,7 +4304,7 @@ export default function ClassDetailPage() {
                             schoolId: cls?.school_id,
                             courseId: searchParams.get('course_id') || cls?.current_course_id,
                           })}
-                          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/40"
+                          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary/40"
                         >
                           Report View
                         </Link>
@@ -4375,7 +4313,7 @@ export default function ClassDetailPage() {
                             classId: id,
                             courseId: searchParams.get('course_id') || cls?.current_course_id,
                           })}
-                          className={`inline-flex min-h-10 items-center justify-center rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${assessmentPolicy?.usesHostEvaluation
+                          className={`inline-flex min-h-10 items-center justify-center rounded-xl px-3 py-2 text-xs font-bold transition-colors ${assessmentPolicy?.usesHostEvaluation
                             ? 'bg-primary text-primary-foreground shadow-sm hover:opacity-90'
                             : 'border border-border bg-background text-foreground hover:border-primary/40'
                             }`}

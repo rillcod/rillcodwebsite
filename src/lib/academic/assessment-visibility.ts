@@ -25,9 +25,11 @@ export function assessmentVisibleToStudent(
   const courseId = typeof assessment.course_id === 'string' ? assessment.course_id : null;
   const targetClassId = typeof assessment.class_id === 'string' && assessment.class_id
     ? assessment.class_id
-    : typeof metadata.target_class_id === 'string'
+    : typeof metadata.target_class_id === 'string' && metadata.target_class_id
       ? metadata.target_class_id
-      : null;
+      : typeof metadata.class_id === 'string' && metadata.class_id
+        ? metadata.class_id
+        : null;
   const classScoped = metadata.visibility === 'class' || !!targetClassId;
 
   if (student.school_id) {

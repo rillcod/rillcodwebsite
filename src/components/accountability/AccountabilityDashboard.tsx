@@ -510,7 +510,7 @@ export default function AccountabilityDashboard({
       <MobilePageHero
         badge="Rillcod Technologies · Accountability"
         title="Platform Accountability"
-        description="Executive health score, actionable lapses, teacher coverage, and official audit exports."
+        description="See what needs attention today, check school health, and clear pending reports in one place."
         icon={ShieldCheckIcon}
         actions={
           <>
@@ -521,26 +521,6 @@ export default function AccountabilityDashboard({
             >
               <PaperAirplaneIcon className="h-4 w-4" /> Message Parents
             </button>
-            <button
-              type="button"
-              onClick={() => void handleGeneratePdf()}
-              disabled={reportBusy || people.length === 0}
-              className={`${MOBILE_TOUCH_BTN} border border-border bg-card hover:bg-accent disabled:opacity-50`}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4 text-primary" />
-              {reportBusy ? 'Building PDF…' : 'Export PDF'}
-            </button>
-            <select
-              value={pollInterval}
-              onChange={(e) => setPollInterval(Number(e.target.value))}
-              className="min-h-11 rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground"
-              aria-label="Auto-refresh interval"
-            >
-              <option value={0}>Auto-refresh: Off</option>
-              <option value={15000}>Auto-refresh: 15s</option>
-              <option value={30000}>Auto-refresh: 30s</option>
-              <option value={60000}>Auto-refresh: 60s</option>
-            </select>
             <button
               type="button"
               onClick={() => onRefresh(true)}
@@ -591,23 +571,13 @@ export default function AccountabilityDashboard({
         </div>
       )}
 
-      {/* Clean Session Separation Bar — keeps Current Session cleanly separated from Prior/Archive */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Session Scope</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {sessionScope === 'current'
-              ? 'Showing active current-session accounts only — old-session and withdrawn records are cleanly separated.'
-              : sessionScope === 'archive'
-                ? 'Viewing prior-session, withdrawn, and inactive historical accounts.'
-                : 'Viewing combined current and historical accounts across all sessions.'}
-          </p>
-        </div>
-        <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1 gap-1 shrink-0">
+      {/* Compact Session Scope + Quick Utilities Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-border bg-card px-3.5 py-2.5 shadow-sm">
+        <div className="inline-flex flex-wrap rounded-xl border border-border bg-muted/40 p-1 gap-1">
           {(
             [
               { id: 'current', label: 'Current Session', count: sessionCounts.current },
-              { id: 'archive', label: 'Prior / Archive', count: sessionCounts.archive },
+              { id: 'archive', label: 'Archive', count: sessionCounts.archive },
               { id: 'all', label: 'All Time', count: sessionCounts.all },
             ] as const
           ).map((opt) => (
@@ -624,6 +594,28 @@ export default function AccountabilityDashboard({
               {opt.label} <span className="opacity-80">({opt.count})</span>
             </button>
           ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={pollInterval}
+            onChange={(e) => setPollInterval(Number(e.target.value))}
+            className="min-h-9 rounded-xl border border-border bg-background px-2.5 text-xs font-bold text-foreground"
+            aria-label="Auto-refresh interval"
+          >
+            <option value={0}>Live Sync: Off</option>
+            <option value={15000}>Live Sync: 15s</option>
+            <option value={30000}>Live Sync: 30s</option>
+            <option value={60000}>Live Sync: 60s</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => void handleGeneratePdf()}
+            disabled={reportBusy || people.length === 0}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            <ArrowDownTrayIcon className="h-3.5 w-3.5 text-primary" />
+            {reportBusy ? 'Building…' : 'PDF Report'}
+          </button>
         </div>
       </div>
 
@@ -665,6 +657,50 @@ export default function AccountabilityDashboard({
           {/* ── OVERVIEW (Streamlined Executive View) ─────────────────── */}
           {tab === 'overview' && (
             <>
+              {/* Newcomer-Friendly Start Here Guide */}
+              <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-black uppercase tracking-wider text-primary">
+                    Start Here · Quick Daily Check
+                  </p>
+                  <span className="text-[11px] font-semibold text-muted-foreground">
+                    Tap any step below to jump straight to the fix
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => focusFlag(analytics.unplaced > 0 ? 'no_class' : null)}
+                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/40 transition-colors"
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">1. Class Placement</p>
+                    <p className="text-xs font-black text-foreground mt-0.5">
+                      {analytics.unplaced > 0 ? `${analytics.unplaced} student${analytics.unplaced === 1 ? '' : 's'} need a class →` : 'All students placed ✓'}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('reports')}
+                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/40 transition-colors"
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">2. Term Reports</p>
+                    <p className="text-xs font-black text-foreground mt-0.5">
+                      {analytics.draftReports > 0 ? `${analytics.draftReports} draft${analytics.draftReports === 1 ? '' : 's'} ready to publish →` : `${analytics.publishedPct}% reports published ✓`}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('schools')}
+                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/40 transition-colors"
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">3. Schools &amp; Rollover</p>
+                    <p className="text-xs font-black text-foreground mt-0.5">
+                      Inspect {schoolsSummary.length} school{schoolsSummary.length === 1 ? '' : 's'} &amp; rollover →
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className={`${CARD} p-5 sm:p-6 lg:col-span-4 flex flex-col justify-between`}>
                   <div>
@@ -1419,10 +1455,10 @@ export default function AccountabilityDashboard({
                   </div>
                   {backlog.overdue_by_teacher.length > 0 && (
                     <div className={`${CARD} overflow-x-auto`}>
-                      <table className="w-full text-sm min-w-[600px]">
+                      <table className="w-full text-sm min-w-[640px]">
                         <thead>
                           <tr className="border-b border-border text-left bg-muted/25">
-                            {['Teacher', 'Course', 'Term', 'Unpublished', 'Oldest'].map((h) => (
+                            {['Teacher', 'Course', 'Term', 'Unpublished', 'Oldest', 'Action'].map((h) => (
                               <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
                             ))}
                           </tr>
@@ -1435,6 +1471,14 @@ export default function AccountabilityDashboard({
                               <td className="px-3 py-2.5 text-muted-foreground">{o.term}</td>
                               <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400">{o.drafts}</td>
                               <td className="px-3 py-2.5">{o.oldest_days == null ? '—' : <span className={o.oldest_days >= 60 ? 'font-black text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}>{o.oldest_days} days</span>}</td>
+                              <td className="px-3 py-2.5">
+                                <Link
+                                  href="/dashboard/reports/builder"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-black text-primary hover:bg-primary/20 whitespace-nowrap"
+                                >
+                                  Open Reports →
+                                </Link>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
