@@ -386,8 +386,18 @@ export async function reinstateStudentToClass(
 
   await upsertRoster(admin, cls as any, studentId, 'active', actor.id);
 
-  // Programme enrollment
+  // Programme enrollment — ensure destination programme is active, and when moving within
+  // regular school classes, complete any stale other-programme enrollments so prior programmes
+  // (e.g. Young Innovators after moving into JSS 1 Teen Developers) never bleed into rosters/exams.
   if (cls.program_id) {
+    if (!isSpecializedStudent && !isSpecializedDest) {
+      await admin
+        .from('enrollments')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('user_id', studentId)
+        .neq('program_id', cls.program_id)
+        .in('status', ['active', 'enrolled', 'approved']);
+    }
     const { data: existing } = await admin
       .from('enrollments')
       .select('id, status')

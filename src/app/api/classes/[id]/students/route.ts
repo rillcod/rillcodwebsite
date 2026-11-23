@@ -7,6 +7,7 @@ import {
   getSessionBoundary,
   partitionStudentsBySession,
 } from '@/lib/academic/session-scope';
+import { isSpecializedProgramRecord } from '@/lib/students/reinstate-to-class';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
 import { generateTempPassword } from '@/lib/utils/password';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
@@ -89,7 +90,7 @@ export async function GET(
     const sectionQuery = cls.school_id && cls.name
       ? admin
           .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
+          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, enrollment_type, created_at, metadata')
           .eq('school_id', cls.school_id)
           .eq('section_class', cls.name)
           .is('class_id', null)
@@ -131,9 +132,39 @@ export async function GET(
       .filter((row: any) => row.status !== 'active')
       .forEach((row: any) => row.student_id && withdrawnFromThisClass.add(row.student_id));
 
+    const clsIsSpecialized = isSpecializedProgramRecord(null, cls.name);
     let sectionStudents = (sectionResult.data ?? []).filter(
-      (student: any) => !knownIds.has(student.id) && !withdrawnFromThisClass.has(student.id),
+      (student: any) =>
+        !knownIds.has(student.id) &&
+        !withdrawnFromThisClass.has(student.id) &&
+        // Prevent Summer School / Bootcamp / Specialized programme students from silently
+        // bleeding into regular school rosters (e.g. JSS 1) via legacy section_class matching.
+        (clsIsSpecialized || !isSpecializedProgramRecord(student.enrollment_type, student.school_name)),
     );
+    // Also prevent cross-programme bleed: if this class belongs to a specific programme
+    // (e.g. Teen Developers for JSS 1), never auto-heal unassigned students whose active
+    // enrollment is strictly in a different programme (e.g. Young Innovators).
+    if (sectionStudents.length > 0 && cls.program_id) {
+      const candidateIds = sectionStudents.map((s: any) => s.id);
+      const { data: candEnrollments } = await admin
+        .from('enrollments')
+        .select('user_id, program_id')
+        .in('user_id', candidateIds)
+        .in('status', ['active', 'enrolled', 'approved']);
+      const programsByStudent = new Map<string, Set<string>>();
+      for (const row of candEnrollments ?? []) {
+        const uid = (row as any).user_id;
+        const pid = (row as any).program_id;
+        if (!uid || !pid) continue;
+        if (!programsByStudent.has(uid)) programsByStudent.set(uid, new Set());
+        programsByStudent.get(uid)!.add(pid);
+      }
+      sectionStudents = sectionStudents.filter((student: any) => {
+        const progs = programsByStudent.get(student.id);
+        if (!progs || progs.size === 0) return true;
+        return progs.has(cls.program_id!);
+      });
+    }
     if (sectionStudents.length > 0) {
       const sectionIds = sectionStudents.map((student: any) => student.id);
       const { error: healError } = await admin

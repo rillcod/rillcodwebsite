@@ -48,17 +48,25 @@ export async function resolveStudentProgramScope(
     .eq('user_id', studentId)
     .in('status', ['active', 'enrolled', 'approved']);
 
-  const programIds = new Set(
+  let programIds = new Set(
     (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean) as string[],
   );
+
+  // When a student is placed in a class that has an authoritative program_id
+  // (e.g. JSS 1 → Teen Developers), scope strictly to that class's programme so
+  // stale prior-session programme enrollments (e.g. Young Innovators from Basic 6)
+  // never bleed exams, lessons, or assignments into the new class.
   if (classId) {
     const { data: cls } = await admin
       .from('classes')
       .select('program_id')
       .eq('id', classId)
       .maybeSingle();
-    if (cls?.program_id) programIds.add(cls.program_id);
+    if (cls?.program_id) {
+      programIds = new Set([cls.program_id]);
+    }
   }
+
   if (programIds.size === 0) return { programIds, courseIds: new Set() };
 
   const { data: courses } = await admin
