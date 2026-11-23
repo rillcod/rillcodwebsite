@@ -71,14 +71,21 @@ export function openClassIntakeLetterheadPdf(opts: {
     gradeCounts.set(g, (gradeCounts.get(g) ?? 0) + 1);
   }
   const hasMultipleGrades = gradeCounts.size > 1;
+  const singleGradeLabel =
+    !hasMultipleGrades
+      ? (Array.from(gradeCounts.keys())[0] || classGradeKey || className)
+      : null;
   const gradeBreakdownHtml = hasMultipleGrades
     ? `<div class="grade-strip">
-        <span class="grade-strip-label">Section Grade Breakdown:</span>
+        <span class="grade-strip-label">Multi-Grade Section:</span>
         ${Array.from(gradeCounts.entries())
           .map(([g, count]) => `<span class="grade-pill">${esc(g)}: <strong>${count}</strong></span>`)
           .join('')}
       </div>`
-    : '';
+    : `<div class="grade-strip">
+        <span class="grade-strip-label">Single Class Label:</span>
+        <span class="grade-pill"><strong>${esc(singleGradeLabel)}</strong> · ${students.length} Active Student${students.length === 1 ? '' : 's'}</span>
+      </div>`;
 
   let lastGroup = '';
   const rowsHtml = sortedStudents

@@ -1519,6 +1519,11 @@ export function ClassIntakeAndSessionPanel({
             <span className="text-[10px] font-black uppercase tracking-widest text-primary">
               Digital Class Sheet · {currentSession}
             </span>
+            <span className="inline-flex items-center rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-[10px] font-black text-primary">
+              {isMultiGradeSection
+                ? `Multi-Grade Section · ${sectionGrades[0]}–${sectionGrades[sectionGrades.length - 1]}`
+                : `Single Class · ${selectedGrade}`}
+            </span>
             {carryoverStudents.length > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
                 <ExclamationTriangleIcon className="w-3 h-3" />
@@ -2218,7 +2223,7 @@ export function ClassIntakeAndSessionPanel({
                         className,
                         schoolName,
                         currentSession,
-                        classGradeKey,
+                        classGradeKey: lockGrade ? selectedGrade : classGradeKey,
                         students: filteredStudents,
                         withdrawnCount: formerStudents.length,
                       });
