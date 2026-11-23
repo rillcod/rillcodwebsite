@@ -1,5 +1,10 @@
 import { billingDocsDb } from '@/lib/billing/docs-auth';
 import { deriveSchoolPricingFromInvoice } from '@/lib/billing/derive-school-pricing';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  type StudentSessionStatus,
+} from '@/lib/academic/session-scope';
 
 export type BillingDocsStudent = {
   id: string;
@@ -8,6 +13,7 @@ export type BillingDocsStudent = {
   /** Academic class level (e.g. Basic 5, JSS 1) — portal_users.grade */
   grade: string | null;
   email: string | null;
+  session_status?: StudentSessionStatus;
 };
 
 export type BillingDocsInvoice = {
@@ -64,17 +70,69 @@ export type BillingDocsSchool = {
   commission_rate?: number | null;
 };
 
-/** Payment-register payload: active students + per-student invoices/receipts. */
-export async function loadPaymentRegisterData(schoolId: string) {
+/**Classify a school's active students into current-session vs unconfirmed carryover.*/
+async function loadClassifiedSchoolStudents(schoolId: string): Promise<BillingDocsStudent[]> {
   const db = billingDocsDb();
-  const [stuRes, invRes, recRes] = await Promise.all([
+  const boundary = getSessionBoundary();
+  const [stuRes, termRes, classesRes] = await Promise.all([
     db
       .from('portal_users')
-      .select('id, full_name, section_class, grade, email')
+      .select('id, full_name, section_class, grade, email, is_active, created_at, metadata')
       .eq('role', 'student')
       .eq('school_id', schoolId)
       .eq('is_active', true)
       .order('full_name'),
+    db
+      .from('academic_terms')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from('classes')
+      .select('id')
+      .eq('school_id', schoolId),
+  ]);
+
+  if (stuRes.error) throw new Error(stuRes.error.message);
+  const canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
+  const classIds = ((classesRes.data ?? []) as Array<{ id: string }>).map((c) => c.id);
+
+  const rosterByStudent = new Map<string, { status?: string | null; term_id?: string | null; started_at?: string | null }>();
+  if (classIds.length > 0) {
+    const { data: rosterRows } = await db
+      .from('class_term_rosters')
+      .select('student_id, status, term_id, started_at')
+      .in('class_id', classIds)
+      .eq('status', 'active');
+    for (const r of (rosterRows ?? []) as any[]) {
+      if (!r?.student_id) continue;
+      const existing = rosterByStudent.get(r.student_id);
+      if (!existing || (canonicalTermId && r.term_id === canonicalTermId)) {
+        rosterByStudent.set(r.student_id, r);
+      }
+    }
+  }
+
+  return ((stuRes.data ?? []) as any[]).map((s) => ({
+    id: s.id,
+    full_name: s.full_name,
+    section_class: s.section_class,
+    grade: s.grade,
+    email: s.email,
+    session_status: classifyStudentSessionStatus(
+      s,
+      rosterByStudent.get(s.id) ?? null,
+      { canonicalTermId, boundary },
+    ),
+  }));
+}
+
+/** Payment-register payload: active students + per-student invoices/receipts. */
+export async function loadPaymentRegisterData(schoolId: string) {
+  const db = billingDocsDb();
+  const [students, invRes, recRes] = await Promise.all([
+    loadClassifiedSchoolStudents(schoolId),
     db
       .from('invoices')
       .select('portal_user_id, amount, currency, status, due_date')
@@ -86,12 +144,11 @@ export async function loadPaymentRegisterData(schoolId: string) {
       .eq('school_id', schoolId),
   ]);
 
-  if (stuRes.error) throw new Error(stuRes.error.message);
   if (invRes.error) throw new Error(invRes.error.message);
   if (recRes.error) throw new Error(recRes.error.message);
 
   return {
-    students: (stuRes.data ?? []) as BillingDocsStudent[],
+    students,
     invoices: ((invRes.data ?? []) as any[]).map((i) => ({
       ...i,
       currency: i.currency ?? 'NGN',
@@ -219,21 +276,15 @@ export async function loadBillingDocsBootstrap() {
   };
 }
 
-/** Active student headcount for a partner school. */
+/** Active student headcount for a partner school (prefers confirmed current-session students when present). */
 export async function loadSchoolStudentCount(schoolId: string): Promise<number> {
-  const db = billingDocsDb();
-  const { count, error } = await db
-    .from('portal_users')
-    .select('id', { count: 'exact', head: true })
-    .eq('role', 'student')
-    .eq('is_active', true)
-    .eq('school_id', schoolId);
-  if (error) throw new Error(error.message);
-  return count ?? 0;
+  const students = await loadClassifiedSchoolStudents(schoolId);
+  const confirmed = students.filter((s) => s.session_status === 'confirmed_current').length;
+  return confirmed > 0 ? confirmed : students.length;
 }
 
 /**
- * Builder context: student count + linked term invoice + derived pricing.
+ * Builder context: student count + session breakdown + linked term invoice + derived pricing.
  * academicYear / termNumber optional — when omitted, only count is returned.
  */
 export async function loadSchoolInvoiceContext(
@@ -241,13 +292,20 @@ export async function loadSchoolInvoiceContext(
   academicYear?: string | null,
   termNumber?: string | null,
 ) {
-  const studentCount = await loadSchoolStudentCount(schoolId);
+  const classified = await loadClassifiedSchoolStudents(schoolId);
+  const confirmedStudentCount = classified.filter((s) => s.session_status === 'confirmed_current').length;
+  const unconfirmedStudentCount = classified.filter((s) => s.session_status === 'carryover_unconfirmed').length;
+  const totalActiveStudentCount = classified.length;
+  const studentCount = confirmedStudentCount > 0 ? confirmedStudentCount : totalActiveStudentCount;
   let linkedInvoice: LinkedSchoolInvoice | null = null;
   if (academicYear && termNumber) {
     linkedInvoice = await loadLinkedSchoolInvoice(schoolId, academicYear, termNumber);
   }
   return {
     studentCount,
+    confirmedStudentCount,
+    unconfirmedStudentCount,
+    totalActiveStudentCount,
     linkedInvoice,
     pricing: deriveSchoolPricingFromInvoice(linkedInvoice),
     billingRate: await loadResolvedBillingRate(schoolId),

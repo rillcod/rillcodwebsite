@@ -44,6 +44,7 @@ import {
 import { normalizeFinanceAcademicYearParam } from '@/lib/school-reports/invoice-match';
 import { schoolSessionDisplay } from '@/lib/finance/school-term';
 import { invoiceOutstandingAmount, invoiceOverpaidAmount } from '@/lib/finance/invoice-state';
+import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
 
 interface InvoiceRow {
   id: string;
@@ -95,6 +96,9 @@ interface StudentOption {
   full_name: string;
   email: string;
   school_id: string | null;
+  created_at?: string | null;
+  metadata?: Record<string, any> | null;
+  session_status?: string | null;
 }
 
 const INVOICE_STATUS_STYLES: Record<string, string> = {
@@ -1327,6 +1331,8 @@ function QuickInvoiceForm({
   const [sendEmail, setSendEmail] = useState(true);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
+  const [currentSessionOnly, setCurrentSessionOnly] = useState(true);
+  const sessionBoundary = useMemo(() => getSessionBoundary(), []);
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
   const [paymentAccounts, setPaymentAccounts] = useState<QuickPaymentAccount[]>([]);
   const [paymentAccountId, setPaymentAccountId] = useState('');
@@ -1399,15 +1405,19 @@ function QuickInvoiceForm({
 
   const filteredStudents = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return students.slice(0, 20);
-    return students
+    const pool = currentSessionOnly
+      ? students.filter((s) => isStudentInCurrentSession(s, sessionBoundary))
+      : students;
+    const activePool = pool.length > 0 ? pool : students;
+    if (!q) return activePool.slice(0, 20);
+    return activePool
       .filter(
         (s) =>
           s.full_name.toLowerCase().includes(q) ||
           s.email.toLowerCase().includes(q),
       )
       .slice(0, 20);
-  }, [query, students]);
+  }, [query, students, currentSessionOnly, sessionBoundary]);
 
   const selectedStudent = students.find((s) => s.id === portalUserId);
 
@@ -1504,9 +1514,22 @@ function QuickInvoiceForm({
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">
-              Payer (learner / parent account)
-            </label>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Payer (learner / parent account)
+              </label>
+              <button
+                type="button"
+                onClick={() => setCurrentSessionOnly((v) => !v)}
+                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black transition-colors ${
+                  currentSessionOnly
+                    ? 'border-primary/35 bg-primary/10 text-primary'
+                    : 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                }`}
+              >
+                {currentSessionOnly ? `${sessionBoundary.periodLabel} Only` : 'All Sessions'}
+              </button>
+            </div>
             {selectedStudent ? (
               <div className="flex items-center justify-between px-3 py-2 border border-border bg-card rounded-md">
                 <div>

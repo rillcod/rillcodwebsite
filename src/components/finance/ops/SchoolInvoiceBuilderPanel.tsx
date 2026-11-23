@@ -170,6 +170,8 @@ export function SchoolInvoiceBuilderPanel({
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [studentCount, setStudentCount] = useState<number | null>(null);
+  const [confirmedStudentCount, setConfirmedStudentCount] = useState<number | null>(null);
+  const [unconfirmedStudentCount, setUnconfirmedStudentCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
@@ -292,6 +294,8 @@ export function SchoolInvoiceBuilderPanel({
       .then((j) => {
         if (cancelled) return;
         setStudentCount(typeof j.data?.studentCount === 'number' ? j.data.studentCount : 0);
+        setConfirmedStudentCount(typeof j.data?.confirmedStudentCount === 'number' ? j.data.confirmedStudentCount : null);
+        setUnconfirmedStudentCount(typeof j.data?.unconfirmedStudentCount === 'number' ? j.data.unconfirmedStudentCount : null);
         const linked = (j.data?.linkedInvoice ?? null) as LinkedInvoiceSummary | null;
         setLinkedInvoice(linked);
         const pricing = (j.data?.pricing ?? null) as DerivedSchoolPricing | null;
@@ -974,6 +978,25 @@ export function SchoolInvoiceBuilderPanel({
                     }
                     className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
                   />
+                  {confirmedStudentCount != null && unconfirmedStudentCount != null && unconfirmedStudentCount > 0 && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, manual_student_count: String(confirmedStudentCount) }))}
+                        className="rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 font-black text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                      >
+                        Confirmed: {confirmedStudentCount}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, manual_student_count: String(confirmedStudentCount + unconfirmedStudentCount) }))}
+                        className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                        title="Includes unconfirmed 3rd-term carryover students"
+                      >
+                        +{unconfirmedStudentCount} 3rd-term (Total {confirmedStudentCount + unconfirmedStudentCount})
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Lbl>Rate per Child (₦)</Lbl>

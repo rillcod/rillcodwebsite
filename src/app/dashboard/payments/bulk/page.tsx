@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
 import Link from 'next/link';
 import {
   UserGroupIcon, CheckCircleIcon, XCircleIcon, ArrowLeftIcon,
@@ -20,6 +21,8 @@ type PortalStudent = {
   email: string;
   school_id: string | null;
   school_name?: string;
+  created_at?: string | null;
+  metadata?: Record<string, any> | null;
   source: 'portal';
 };
 
@@ -183,6 +186,8 @@ export default function BulkPaymentsPage() {
   // Filters
   const [search, setSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
+  const [currentSessionOnly, setCurrentSessionOnly] = useState(true);
+  const sessionBoundary = getSessionBoundary();
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -237,7 +242,7 @@ export default function BulkPaymentsPage() {
   async function loadPortalStudents() {
     setLoadingStudents(true);
     const base = db.from('portal_users')
-      .select('id, full_name, email, school_id, schools(name)')
+      .select('id, full_name, email, school_id, created_at, metadata, schools(name)')
       .eq('role', 'student')
       .eq('is_active', true);
     const { data } = await (
@@ -246,10 +251,12 @@ export default function BulkPaymentsPage() {
         : base.order('full_name')
     );
     if (data) {
-      type Row = { id: string; full_name: string; email: string; school_id: string | null; schools: { name: string } | null };
+      type Row = { id: string; full_name: string; email: string; school_id: string | null; created_at?: string | null; metadata?: Record<string, any> | null; schools: { name: string } | null };
       setPortalStudents((data as unknown as Row[]).map(s => ({
         id: s.id, full_name: s.full_name, email: s.email,
-        school_id: s.school_id, school_name: s.schools?.name, source: 'portal' as const,
+        school_id: s.school_id, school_name: s.schools?.name,
+        created_at: s.created_at, metadata: s.metadata,
+        source: 'portal' as const,
       })));
     }
     setLoadingStudents(false);
@@ -321,6 +328,14 @@ export default function BulkPaymentsPage() {
 
   const filtered = students.filter(s => {
     const q = search.toLowerCase();
+    if (
+      source === 'portal' &&
+      currentSessionOnly &&
+      q.length < 2 &&
+      !isStudentInCurrentSession(s as PortalStudent, sessionBoundary)
+    ) {
+      return false;
+    }
     const matchSearch = !search || s.full_name.toLowerCase().includes(q) ||
       ('email' in s && s.email?.toLowerCase().includes(q));
     const matchSchool = !schoolFilter || (source === 'portal'
@@ -531,6 +546,19 @@ export default function BulkPaymentsPage() {
                     <option value="">All Schools</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
+                )}
+                {source === 'portal' && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentSessionOnly((v) => !v)}
+                    className={`px-3 py-2.5 rounded-xl border text-xs font-black transition-colors flex-shrink-0 ${
+                      currentSessionOnly
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                    }`}
+                  >
+                    {currentSessionOnly ? `${sessionBoundary.periodLabel} Only (${filtered.length})` : `All Sessions (${portalStudents.length})`}
+                  </button>
                 )}
                 <div className="flex items-center gap-2 text-xs font-bold flex-shrink-0">
                   <span className="text-muted-foreground">{selected.size} selected</span>

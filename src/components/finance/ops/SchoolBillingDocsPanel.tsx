@@ -89,6 +89,7 @@ interface StudentRow {
   section_class: string | null;
   grade: string | null;
   email: string | null;
+  session_status?: string;
 }
 interface InvoiceRow {
   portal_user_id: string | null;
@@ -363,6 +364,8 @@ export function SchoolBillingDocsPanel() {
   const [dateTo, setDateTo] = useState('');
   /** Empty means every class level; otherwise the document covers one level. */
   const [gradeFilter, setGradeFilter] = useState('');
+  /** Default true: exclude unconfirmed 3rd-term carryover students unless they already have a receipt/invoice. */
+  const [currentSessionOnly, setCurrentSessionOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [linkedInvoice, setLinkedInvoice] = useState<LinkedInvoice | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -630,14 +633,18 @@ export function SchoolBillingDocsPanel() {
       const regRes = await fetch(`/api/billing/docs/data?mode=register&schoolId=${encodeURIComponent(schoolId)}`, { cache: 'no-store' });
       const regJson = await regRes.json().catch(() => ({}));
       if (!regRes.ok) throw new Error(regJson.error || 'Failed to load payment register data');
-      // Filtered once, here, so the rows, the counts and the totals below can
-      // never describe different sets of learners.
-      const students: StudentRow[] = byGrade(
-        (regJson.data?.students ?? []) as StudentRow[],
-        gradeFilter,
-      );
       const invoices: InvoiceRow[] = (regJson.data?.invoices ?? []) as InvoiceRow[];
       const receipts: ReceiptRow[] = (regJson.data?.receipts ?? []) as ReceiptRow[];
+      const allStudents = (regJson.data?.students ?? []) as StudentRow[];
+      const paidOrBilledIds = new Set<string>([
+        ...invoices.map((i) => i.portal_user_id).filter((x): x is string => Boolean(x)),
+        ...receipts.map((r) => r.portal_user_id).filter((x): x is string => Boolean(x)),
+      ]);
+      const confirmedOnly = allStudents.filter(
+        (s) => s.session_status !== 'carryover_unconfirmed' || paidOrBilledIds.has(s.id),
+      );
+      const scopedStudents = currentSessionOnly && confirmedOnly.length > 0 ? confirmedOnly : allStudents;
+      const students: StudentRow[] = byGrade(scopedStudents, gradeFilter);
 
       const invMap: Record<string, InvoiceRow> = {};
       invoices.forEach(inv => {
@@ -922,14 +929,18 @@ ${brandFooterContact(docRef)}
         const stmtRegRes = await fetch(`/api/billing/docs/data?mode=register&schoolId=${encodeURIComponent(schoolId)}`, { cache: 'no-store' });
         const stmtRegJson = await stmtRegRes.json().catch(() => ({}));
         if (!stmtRegRes.ok) throw new Error(stmtRegJson.error || 'Failed to load billing statement data');
-        // Filtered before the amounts are summed, or the statement total would
-        // still be the whole school's.
-        const rawStudents: StudentRow[] = byGrade(
-          (stmtRegJson.data?.students ?? []) as StudentRow[],
-          gradeFilter,
-        );
         const invoices: InvoiceRow[] = (stmtRegJson.data?.invoices ?? []) as InvoiceRow[];
         const receipts: ReceiptRow[] = (stmtRegJson.data?.receipts ?? []) as ReceiptRow[];
+        const allStmtStudents = (stmtRegJson.data?.students ?? []) as StudentRow[];
+        const paidOrBilledIds = new Set<string>([
+          ...invoices.map((i) => i.portal_user_id).filter((x): x is string => Boolean(x)),
+          ...receipts.map((r) => r.portal_user_id).filter((x): x is string => Boolean(x)),
+        ]);
+        const confirmedStmt = allStmtStudents.filter(
+          (s) => s.session_status !== 'carryover_unconfirmed' || paidOrBilledIds.has(s.id),
+        );
+        const scopedStmt = currentSessionOnly && confirmedStmt.length > 0 ? confirmedStmt : allStmtStudents;
+        const rawStudents: StudentRow[] = byGrade(scopedStmt, gradeFilter);
         const invMap: Record<string, InvoiceRow> = {};
         invoices.forEach(inv => { if (inv.portal_user_id && (!invMap[inv.portal_user_id] || inv.status === 'paid')) invMap[inv.portal_user_id] = inv; });
         const recMap: Record<string, ReceiptRow> = {};
@@ -1352,6 +1363,22 @@ body{background:#fff;color:#111;-webkit-print-color-adjust:exact;print-color-adj
               {gradeFilter
                 ? `Covers ${gradeFilter} only — rows and totals.`
                 : 'Every level, ordered Nursery through SS.'}
+            </p>
+          </div>
+
+          <div>
+            <DocsLbl>Student Session Scope</DocsLbl>
+            <DocsSelect
+              value={currentSessionOnly ? 'current' : 'all'}
+              onChange={(e) => setCurrentSessionOnly(e.target.value === 'current')}
+            >
+              <option value="current">Current Session Only (Confirmed)</option>
+              <option value="all">Include Unconfirmed 3rd-Term Carryover</option>
+            </DocsSelect>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {currentSessionOnly
+                ? 'Excludes unconfirmed 3rd-term carryovers from registers & fee slips.'
+                : 'Includes all active records from previous terms.'}
             </p>
           </div>
 
