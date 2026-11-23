@@ -47,13 +47,44 @@ async function getCaller(): Promise<Caller | null> {
   return (caller as Caller) ?? null;
 }
 
-/** Returns true if the caller can manage/write this exam. */
-async function callerCanManageExam(caller: Caller, examCreatedBy: string | null): Promise<boolean> {
+/** Returns true if the caller can view/manage this exam (created it, owns its class, or is assigned to its school). */
+async function callerCanManageExam(
+  admin: ReturnType<typeof adminClient>,
+  caller: Caller,
+  examMeta: { created_by?: string | null; class_id?: string | null; school_id?: string | null; metadata?: any },
+  mode: 'read' | 'write' = 'write',
+): Promise<boolean> {
   if (caller.role === 'admin') return true;
   if (caller.role !== 'teacher') return false;
 
   // Teacher can always manage exams they personally created
-  if (examCreatedBy === caller.id) return true;
+  if (examMeta.created_by === caller.id) return true;
+
+  // Teacher assigned to the exam's target class can monitor & manage it
+  const targetClassId =
+    examMeta.class_id ||
+    (examMeta.metadata && typeof examMeta.metadata === 'object' ? (examMeta.metadata as any).target_class_id : null);
+  if (targetClassId) {
+    const { data: cls } = await admin
+      .from('classes')
+      .select('teacher_id, school_id')
+      .eq('id', targetClassId)
+      .maybeSingle();
+    if (cls?.teacher_id === caller.id) return true;
+  }
+
+  // For read/monitor views, allow teachers assigned to the exam's school
+  if (mode === 'read' && examMeta.school_id) {
+    if (caller.school_id === examMeta.school_id) return true;
+    const { data: ts } = await admin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id)
+      .eq('school_id', examMeta.school_id)
+      .maybeSingle();
+    if (ts) return true;
+  }
+
   return false;
 }
 
@@ -121,7 +152,7 @@ export async function GET(
     return NextResponse.json({ error: 'Access denied: exam is outside your school scope' }, { status: 403 });
   }
   if (caller.role === 'teacher') {
-    const canAccess = await callerCanManageExam(caller, examMeta.created_by);
+    const canAccess = await callerCanManageExam(admin, caller, examMeta, 'read');
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied: exam is outside your school scope' }, { status: 403 });
     }
@@ -189,7 +220,7 @@ export async function PATCH(
 
   if (!examMeta) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
 
-  const canManage = await callerCanManageExam(caller, examMeta.created_by);
+  const canManage = await callerCanManageExam(admin, caller, examMeta, 'write');
   if (!canManage) {
     return NextResponse.json({ error: 'Access denied: you did not create this exam and are not assigned to its school' }, { status: 403 });
   }
@@ -441,13 +472,13 @@ export async function DELETE(
 
     const { data: examMeta } = await admin
       .from('cbt_exams')
-      .select('school_id, created_by, title, is_active')
+      .select('school_id, class_id, created_by, title, is_active, metadata')
       .eq('id', id)
       .maybeSingle();
 
     if (!examMeta) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
 
-    const canManage = await callerCanManageExam(caller, examMeta.created_by);
+    const canManage = await callerCanManageExam(admin, caller, examMeta, 'write');
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: you did not create this exam and are not assigned to its school' }, { status: 403 });
     }

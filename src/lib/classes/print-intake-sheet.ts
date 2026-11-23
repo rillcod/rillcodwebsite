@@ -341,17 +341,41 @@ export function openClassIntakeLetterheadPdf(opts: {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'noopener,noreferrer');
-  if (!win) return false;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => {
-    try {
-      win.print();
-    } catch {
-      /* user can still click Print button */
-    }
-  }, 350);
-  return true;
+  // Use a Blob URL (never window.open with 'noopener,noreferrer' + document.write,
+  // which opens a blank detached window in modern Chrome/Safari/Edge!).
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const win = window.open(blobUrl, '_blank');
+  if (win) {
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    return true;
+  }
+
+  // Fallback when mobile/browser blocks popups: render into a hidden iframe & print directly
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.src = blobUrl;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        setTimeout(() => {
+          iframe.remove();
+          URL.revokeObjectURL(blobUrl);
+        }, 15_000);
+      }
+    };
+    return true;
+  } catch {
+    URL.revokeObjectURL(blobUrl);
+    return false;
+  }
 }

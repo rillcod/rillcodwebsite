@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  ArrowLeftIcon,
   CheckCircleIcon,
   ClipboardDocumentListIcon,
   CloudArrowDownIcon,
@@ -582,14 +583,20 @@ export function ClassIntakeAndSessionPanel({
   };
 
   // Support mobile swipe-back & browser Back button cleanly:
-  // Pushing a state when the full-screen modal opens ensures swiping back closes the modal
-  // (with confirmation if unsaved items exist) instead of leaving the class page abruptly.
+  // Push history state ONCE on mount (using refs for latest state so updates never trigger history.back!).
   const closedByPopstateRef = useRef(false);
+  const passAroundRef = useRef(passAroundMode);
+  const pendingCountRef = useRef(pendingQueue.length);
+  const onCloseRef = useRef(onClose);
+  passAroundRef.current = passAroundMode;
+  pendingCountRef.current = pendingQueue.length;
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.history.pushState({ rillcodIntakeModal: true }, '');
     const onPopState = () => {
-      if (passAroundMode) {
+      if (passAroundRef.current) {
         if (!confirm('Stop Student Pass-Around Mode and return to Teacher View?')) {
           window.history.pushState({ rillcodIntakeModal: true }, '');
           return;
@@ -601,14 +608,14 @@ export function ClassIntakeAndSessionPanel({
         window.history.pushState({ rillcodIntakeModal: true }, '');
         return;
       }
-      if (pendingQueue.length > 0) {
-        if (!confirm(`You have ${pendingQueue.length} unverified entries in the queue. Close anyway?`)) {
+      if (pendingCountRef.current > 0) {
+        if (!confirm(`You have ${pendingCountRef.current} unverified entries in the queue. Close anyway?`)) {
           window.history.pushState({ rillcodIntakeModal: true }, '');
           return;
         }
       }
       closedByPopstateRef.current = true;
-      onClose();
+      onCloseRef.current();
     };
     window.addEventListener('popstate', onPopState);
     return () => {
@@ -617,7 +624,7 @@ export function ClassIntakeAndSessionPanel({
         window.history.back();
       }
     };
-  }, [onClose, passAroundMode, pendingQueue.length]);
+  }, []);
 
   const withPhoneCount = useMemo(
     () => students.filter((s) => Boolean(formatWhatsAppDigits(s.parent_phone))).length,
@@ -1512,37 +1519,62 @@ export function ClassIntakeAndSessionPanel({
           </div>
         </div>
       )}
-      {/* Header */}
-      <div className="bg-primary/5 border-b border-border px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-              Digital Class Sheet · {currentSession}
-            </span>
-            <span className="inline-flex items-center rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-[10px] font-black text-primary">
-              {isMultiGradeSection
-                ? `Multi-Grade Section · ${sectionGrades[0]}–${sectionGrades[sectionGrades.length - 1]}`
-                : `Single Class · ${selectedGrade}`}
-            </span>
-            {carryoverStudents.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:text-amber-300">
-                <ExclamationTriangleIcon className="w-3 h-3" />
-                {carryoverStudents.length} prior-session unconfirmed
-              </span>
-            )}
+      {/* Crisp 2-row sticky mobile & desktop header — always visible Back button, zero screen crowding */}
+      <div className="sticky top-0 z-30 bg-card border-b border-border shrink-0 shadow-sm">
+        {/* Row 1: Always-visible Back button + Class Title + Close */}
+        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={handleSafeClose}
+              aria-label="Go back to class"
+              className="shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/80 border border-border text-xs font-black text-foreground transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              <span>Back</span>
+            </button>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-black text-foreground truncate">
+                {className}
+              </h3>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground truncate">
+                <span className="text-primary font-black">
+                  {isMultiGradeSection
+                    ? `${sectionGrades[0]}–${sectionGrades[sectionGrades.length - 1]}`
+                    : selectedGrade}
+                </span>
+                <span>·</span>
+                <span>{currentSession}</span>
+                {carryoverStudents.length > 0 && (
+                  <>
+                    <span>·</span>
+                    <span className="text-amber-700 dark:text-amber-300 font-black">
+                      {carryoverStudents.length} old session
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <h3 className="text-sm sm:text-base font-black text-foreground mt-0.5">
-            {className} — Intake, WhatsApp List &amp; Session Cleanup
-          </h3>
+
+          <button
+            type="button"
+            onClick={handleSafeClose}
+            aria-label="Close digital class sheet"
+            className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <XMarkIcon className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {!passAroundMode && (
-            <div className="inline-flex rounded-xl bg-muted p-1 border border-border">
+        {/* Row 2: Clean full-width mobile segmented tabs */}
+        {!passAroundMode && (
+          <div className="max-w-5xl mx-auto px-3 sm:px-5 pb-2.5">
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 border border-border">
               <button
                 type="button"
                 onClick={() => setTab('intake')}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+                className={`min-h-9 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
                   tab === 'intake'
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -1553,7 +1585,7 @@ export function ClassIntakeAndSessionPanel({
               <button
                 type="button"
                 onClick={() => setTab('hygiene')}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all inline-flex items-center gap-1.5 ${
+                className={`min-h-9 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all inline-flex items-center justify-center gap-1.5 ${
                   tab === 'hygiene'
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -1569,18 +1601,8 @@ export function ClassIntakeAndSessionPanel({
                 )}
               </button>
             </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleSafeClose}
-            aria-label="Stop and close digital class sheet"
-            className="inline-flex min-h-10 items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300"
-          >
-            <XMarkIcon className="w-4 h-4" />
-            <span>Stop / Close</span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Scrollable full-screen content container */}
@@ -2054,103 +2076,100 @@ export function ClassIntakeAndSessionPanel({
                 </div>
               </div>
 
-              <div className="max-h-80 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border">
+              <div className="max-h-96 overflow-y-auto space-y-2.5 pr-0.5">
                 {pendingQueue.map((entry, i) => {
                   const smartSuggestion = !entry.matched_student_id
                     ? findSmartCandidateMatches(entry.full_name, directory, 1)[0] ?? null
                     : null;
                   return (
-                    <div key={entry.localId} className="p-3 space-y-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                        <div className="sm:col-span-5 flex items-center gap-2">
-                          <span className="text-[11px] font-mono text-muted-foreground w-5 shrink-0">{i + 1}.</span>
-                          <input
-                            type="text"
-                            aria-label={`Queued student name ${i + 1}`}
-                            value={entry.full_name}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setPendingQueue((prev) =>
-                                prev.map((row) => (row.localId === entry.localId ? { ...row, full_name: val } : row)),
-                              );
-                            }}
-                            className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs font-bold text-foreground"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <select
-                            aria-label={`Queued student grade ${i + 1}`}
-                            value={entry.grade}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setPendingQueue((prev) =>
-                                prev.map((row) => (row.localId === entry.localId ? { ...row, grade: val } : row)),
-                              );
-                            }}
-                            className="w-full h-9 rounded-lg border border-border bg-background px-2 text-xs font-bold text-foreground"
-                          >
-                            {SINGLE_GRADES.map((g) => (
-                              <option key={g} value={g}>{g}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="sm:col-span-3">
-                          <input
-                            type="tel"
-                            aria-label={`Queued parent phone ${i + 1}`}
-                            value={entry.parent_phone}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setPendingQueue((prev) =>
-                                prev.map((row) => (row.localId === entry.localId ? { ...row, parent_phone: val } : row)),
-                              );
-                            }}
-                            placeholder="Optional phone"
-                            className="w-full h-9 rounded-lg border border-border bg-background px-2.5 text-xs font-mono text-foreground"
-                          />
-                        </div>
-                        <div className="sm:col-span-2 flex items-center justify-end gap-1.5">
-                          {entry.matched_student_id ? (
-                            <button
-                              type="button"
-                              title="Matched to existing student — click to treat as brand new instead"
-                              onClick={() =>
-                                setPendingQueue((prev) =>
-                                  prev.map((row) =>
-                                    row.localId === entry.localId
-                                      ? { ...row, matched_student_id: null, matched_label: null, matched_verified: false }
-                                      : row,
-                                  ),
-                                )
-                              }
-                              className="rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 text-[9px] font-black text-emerald-800 dark:text-emerald-300 hover:bg-rose-500/15"
-                            >
-                              {entry.matched_verified ? 'Verified ✓' : 'Existing ✓'}
-                            </button>
-                          ) : (
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-black uppercase text-muted-foreground">
-                              New
-                            </span>
-                          )}
+                    <div key={entry.localId} className="rounded-xl border border-border bg-card p-3 shadow-sm space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-black text-muted-foreground">
+                          {i + 1}
+                        </span>
+                        <input
+                          type="text"
+                          aria-label={`Queued student name ${i + 1}`}
+                          value={entry.full_name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPendingQueue((prev) =>
+                              prev.map((row) => (row.localId === entry.localId ? { ...row, full_name: val } : row)),
+                            );
+                          }}
+                          className="flex-1 min-w-0 h-10 rounded-lg border border-border bg-background px-3 text-sm font-bold text-foreground focus:outline-none focus:border-primary"
+                        />
+                        {entry.matched_student_id ? (
                           <button
                             type="button"
-                            aria-label={`Remove ${entry.full_name} from queue`}
+                            title="Matched to existing student — click to treat as brand new instead"
                             onClick={() =>
-                              setPendingQueue((prev) => prev.filter((row) => row.localId !== entry.localId))
+                              setPendingQueue((prev) =>
+                                prev.map((row) =>
+                                  row.localId === entry.localId
+                                    ? { ...row, matched_student_id: null, matched_label: null, matched_verified: false }
+                                    : row,
+                                ),
+                              )
                             }
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-rose-600 hover:border-rose-500/40"
+                            className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2.5 py-1 text-[10px] font-black text-emerald-800 dark:text-emerald-300"
                           >
-                            <XMarkIcon className="w-3.5 h-3.5" />
+                            {entry.matched_verified ? 'Verified ✓' : 'Existing ✓'}
                           </button>
-                        </div>
+                        ) : (
+                          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[10px] font-black uppercase text-muted-foreground">
+                            New
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          aria-label={`Remove ${entry.full_name} from queue`}
+                          onClick={() =>
+                            setPendingQueue((prev) => prev.filter((row) => row.localId !== entry.localId))
+                          }
+                          className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-rose-600 hover:border-rose-500/40"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-0 sm:pl-8">
+                        <select
+                          aria-label={`Queued student grade ${i + 1}`}
+                          value={entry.grade}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPendingQueue((prev) =>
+                              prev.map((row) => (row.localId === entry.localId ? { ...row, grade: val } : row)),
+                            );
+                          }}
+                          className="w-full h-10 rounded-lg border border-border bg-background px-3 text-xs font-bold text-foreground"
+                        >
+                          {SINGLE_GRADES.map((g) => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          aria-label={`Queued parent phone ${i + 1}`}
+                          value={entry.parent_phone}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPendingQueue((prev) =>
+                              prev.map((row) => (row.localId === entry.localId ? { ...row, parent_phone: val } : row)),
+                            );
+                          }}
+                          placeholder="Parent WhatsApp (e.g. 0801 234 5678)"
+                          className="w-full h-10 rounded-lg border border-border bg-background px-3 text-xs font-mono text-foreground"
+                        />
                       </div>
 
                       {/* Smart Duplicate / Existing-Student Suggestion */}
                       {smartSuggestion && (
-                        <div className="pl-7 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 text-[11px]">
+                        <div className="sm:ml-8 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-[11px]">
                           <span className="text-amber-950 dark:text-amber-200 font-semibold">
-                            Smart match found: <strong>{smartSuggestion.full_name}</strong> ({smartSuggestion.grade || smartSuggestion.section_class || 'In school'})
-                            {smartSuggestion.parent_verified ? ' · Already Verified' : ''}
+                            Match found: <strong>{smartSuggestion.full_name}</strong> ({smartSuggestion.grade || smartSuggestion.section_class || 'In school'})
+                            {smartSuggestion.parent_verified ? ' · Verified' : ''}
                           </span>
                           <button
                             type="button"
@@ -2172,7 +2191,7 @@ export function ClassIntakeAndSessionPanel({
                             }
                             className="shrink-0 rounded-md bg-amber-800 hover:bg-amber-900 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white"
                           >
-                            Link Existing &amp; Auto-Fill
+                            Link &amp; Auto-Fill
                           </button>
                         </div>
                       )}
