@@ -150,6 +150,14 @@ export async function GET(
 
     const studentByUserId = new Map<string, any>();
     const verifiedStudentTableIds = new Set<string>();
+    const consentByStudentId = new Map<string, { parent_name?: string | null; parent_phone?: string | null; signed_at?: string | null }>();
+    const unlinkedConsentEntries: Array<{
+      id: string;
+      full_name: string;
+      grade?: string | null;
+      parent_name?: string | null;
+      parent_phone?: string | null;
+    }> = [];
 
     if (userIds.length > 0) {
       const { data: stRows } = await admin
@@ -175,23 +183,93 @@ export async function GET(
       }
     }
 
-    const candidates = rows.map((r: any) => {
-      const meta = (r.metadata && typeof r.metadata === 'object' ? r.metadata : {}) as Record<string, any>;
-      const st = studentByUserId.get(r.id);
-      const parentPhone = String(st?.parent_phone || meta.parent_phone || '').trim() || null;
-      const parentVerified = Boolean(st?.id && verifiedStudentTableIds.has(st.id));
-      return {
-        id: r.id,
-        full_name: r.full_name,
-        grade: r.grade || null,
-        class_id: r.class_id || null,
-        section_class: r.section_class || null,
-        is_active: r.is_active !== false,
-        in_this_class: r.class_id === classId && r.is_active !== false,
-        parent_phone: parentPhone,
-        parent_verified: parentVerified,
-      };
-    });
+    // Merge Parent Consent Form responses for this school so children whose parents already
+    // submitted consent forms immediately see their record & acknowledge with zero duplicates!
+    if (cls.school_id) {
+      const { data: forms } = await admin
+        .from('consent_forms')
+        .select('id')
+        .eq('school_id', cls.school_id)
+        .limit(100);
+      const formIds = (forms ?? []).map((f: any) => f.id).filter(Boolean);
+      if (formIds.length > 0) {
+        const { data: responses } = await admin
+          .from('consent_responses')
+          .select('id, student_id, parent_id, response_data, signed_at')
+          .in('form_id', formIds)
+          .order('signed_at', { ascending: false })
+          .limit(600);
+
+        const knownPortalNames = new Set(
+          rows.map((r: any) => String(r.full_name || '').trim().toLowerCase()).filter(Boolean),
+        );
+
+        for (const resp of responses ?? []) {
+          const rd = (resp.response_data && typeof resp.response_data === 'object'
+            ? resp.response_data
+            : {}) as Record<string, any>;
+          const pName = String(rd.parent_name || rd.guardian_name || rd.parentName || '').trim() || null;
+          const pPhone = normalizePhoneInput(rd.parent_phone || rd.phone || rd.whatsapp || rd.parentPhone) || null;
+          const cName = cleanStudentName(String(rd.student_name || rd.child_name || rd.studentName || rd.full_name || ''));
+          const cGrade = cleanGrade(String(rd.grade || rd.student_grade || rd.class_level || '')) || null;
+
+          if (resp.student_id && !consentByStudentId.has(resp.student_id)) {
+            consentByStudentId.set(resp.student_id, {
+              parent_name: pName,
+              parent_phone: pPhone,
+              signed_at: resp.signed_at,
+            });
+          } else if (cName.length >= 2 && !knownPortalNames.has(cName.toLowerCase())) {
+            knownPortalNames.add(cName.toLowerCase());
+            unlinkedConsentEntries.push({
+              id: `consent:${resp.id}`,
+              full_name: cName,
+              grade: cGrade,
+              parent_name: pName,
+              parent_phone: pPhone,
+            });
+          }
+        }
+      }
+    }
+
+    const candidates = [
+      ...rows.map((r: any) => {
+        const meta = (r.metadata && typeof r.metadata === 'object' ? r.metadata : {}) as Record<string, any>;
+        const st = studentByUserId.get(r.id);
+        const consent = consentByStudentId.get(r.id) || (st?.id ? consentByStudentId.get(st.id) : undefined);
+        const parentPhone = String(st?.parent_phone || consent?.parent_phone || meta.parent_phone || '').trim() || null;
+        const parentName = String(st?.parent_name || consent?.parent_name || meta.parent_name || '').trim() || null;
+        const parentVerified = Boolean(st?.id && verifiedStudentTableIds.has(st.id));
+        const consentSigned = Boolean(consent);
+        return {
+          id: r.id,
+          full_name: r.full_name,
+          grade: r.grade || null,
+          class_id: r.class_id || null,
+          section_class: r.section_class || null,
+          is_active: r.is_active !== false,
+          in_this_class: r.class_id === classId && r.is_active !== false,
+          parent_name: parentName,
+          parent_phone: parentPhone,
+          parent_verified: parentVerified,
+          consent_signed: consentSigned,
+        };
+      }),
+      ...unlinkedConsentEntries.map((u) => ({
+        id: u.id,
+        full_name: u.full_name,
+        grade: u.grade || null,
+        class_id: null,
+        section_class: 'Consent Form',
+        is_active: true,
+        in_this_class: false,
+        parent_name: u.parent_name || null,
+        parent_phone: u.parent_phone || null,
+        parent_verified: false,
+        consent_signed: true,
+      })),
+    ];
 
     return NextResponse.json({ candidates }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err: any) {
@@ -402,6 +480,7 @@ export async function POST(
       const entries: Array<{
         full_name?: string;
         grade?: string;
+        parent_name?: string;
         parent_phone?: string;
         matched_student_id?: string | null;
       }> = Array.isArray(body?.entries) ? body.entries : [];
@@ -423,7 +502,9 @@ export async function POST(
         const rawGrade = String(entry?.grade || cls.qa_grade_key || '').trim();
         const resolvedGrade = cleanGrade(rawGrade) || canonicalGrade(cls.qa_grade_key || cls.name) || rawGrade || null;
         const parentPhone = normalizePhoneInput(entry?.parent_phone);
-        const explicitMatchId = String(entry?.matched_student_id || '').trim() || null;
+        const parentName = String(entry?.parent_name || '').trim() || null;
+        const rawMatchId = String(entry?.matched_student_id || '').trim() || null;
+        const explicitMatchId = rawMatchId && !rawMatchId.startsWith('consent:') ? rawMatchId : null;
 
         let studentId: string | null = null;
         let studentEmail = '';
@@ -515,6 +596,9 @@ export async function POST(
           nextMeta.parent_phone = parentPhone;
           if (!nextMeta.parent_phone_source) nextMeta.parent_phone_source = 'class_intake';
         }
+        if (parentName && !nextMeta.parent_name) {
+          nextMeta.parent_name = parentName;
+        }
 
         const portalUpdate: Record<string, any> = {
           full_name: cleanedName,
@@ -545,6 +629,9 @@ export async function POST(
           if (parentPhone) {
             studentPatch.parent_phone = parentPhone;
           }
+          if (parentName) {
+            studentPatch.parent_name = parentName;
+          }
           await admin.from('students').update(studentPatch).eq('id', existingStudentRow.id);
         } else {
           await admin.from('students').insert({
@@ -557,6 +644,7 @@ export async function POST(
             current_class: cls.name,
             grade: resolvedGrade,
             grade_level: resolvedGrade,
+            parent_name: parentName,
             parent_phone: parentPhone || null,
             is_active: true,
             status: 'approved',

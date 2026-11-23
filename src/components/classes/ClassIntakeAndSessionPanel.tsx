@@ -11,12 +11,14 @@ import {
   LockOpenIcon,
   PhoneIcon,
   PlusIcon,
+  PrinterIcon,
   ShieldCheckIcon,
   UserGroupIcon,
   XMarkIcon,
 } from '@/lib/icons';
 import { SINGLE_GRADES, canonicalGrade } from '@/lib/classes/naming';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
+import { openClassIntakeLetterheadPdf } from '@/lib/classes/print-intake-sheet';
 
 export interface IntakeStudentRow {
   id: string;
@@ -59,18 +61,28 @@ export interface DirectoryCandidate {
   section_class?: string | null;
   is_active: boolean;
   in_this_class: boolean;
+  parent_name?: string | null;
   parent_phone?: string | null;
   parent_verified: boolean;
+  consent_signed?: boolean;
 }
 
 interface PendingIntakeEntry {
   localId: string;
   full_name: string;
   grade: string;
+  parent_name?: string;
   parent_phone: string;
   matched_student_id: string | null;
   matched_label?: string | null;
   matched_verified?: boolean;
+  consent_signed?: boolean;
+}
+
+function maskPhoneForKiosk(phone?: string | null): string {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  if (digits.length < 7) return 'On file';
+  return `${digits.slice(0, 4)} •••• ${digits.slice(-3)}`;
 }
 
 function normalizeNameTokens(name: string): string[] {
@@ -163,14 +175,16 @@ export function ClassIntakeAndSessionPanel({
   const defaultGrade = canonicalGrade(classGradeKey || className) || SINGLE_GRADES[0];
 
   const [tab, setTab] = useState<'intake' | 'hygiene'>(initialTab);
-  // Teacher/Admin Grade Lock vs Student Grade Dropdown
+  // Teacher/Admin Grade Lock vs Student Grade Dropdown + Required WhatsApp Phone Toggle
   const [lockGrade, setLockGrade] = useState<boolean>(Boolean(canonicalGrade(classGradeKey || className)));
   const [selectedGrade, setSelectedGrade] = useState<string>(defaultGrade);
+  const [requirePhone, setRequirePhone] = useState<boolean>(false);
   // Kid-friendly Pass-Around Mode (full-screen zero-distraction classroom kiosk!)
   const [passAroundMode, setPassAroundMode] = useState(false);
   const [passAroundAddedCount, setPassAroundAddedCount] = useState(0);
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
   const [kioskCelebration, setKioskCelebration] = useState<string | null>(null);
+  const [acknowledgeCandidate, setAcknowledgeCandidate] = useState<DirectoryCandidate | null>(null);
   const kioskInputRef = useRef<HTMLInputElement>(null);
 
   const queueCandidateDirect = (cand: DirectoryCandidate) => {
@@ -184,14 +198,17 @@ export function ClassIntakeAndSessionPanel({
         localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         full_name: cand.full_name,
         grade: lockGrade ? selectedGrade : (cand.grade || selectedGrade),
+        parent_name: cand.parent_name || undefined,
         parent_phone: cand.parent_phone || '',
         matched_student_id: cand.id,
-        matched_label: `${cand.in_this_class ? 'In this class' : cand.section_class || 'Returning'}${cand.grade ? ` · ${cand.grade}` : ''}`,
+        matched_label: `${cand.consent_signed ? 'Consent Form' : cand.in_this_class ? 'In this class' : cand.section_class || 'Returning'}${cand.grade ? ` · ${cand.grade}` : ''}`,
         matched_verified: Boolean(cand.parent_verified),
+        consent_signed: Boolean(cand.consent_signed),
       };
       setPendingQueue((prev) => [entry, ...prev]);
       setPassAroundAddedCount((c) => c + 1);
     }
+    setAcknowledgeCandidate(null);
     setFullName('');
     setParentPhone('');
     setSelectedCandidate(null);
@@ -392,7 +409,13 @@ export function ClassIntakeAndSessionPanel({
     const trimmed = fullName.trim();
     if (trimmed.length < 2) {
       toast.error('Please enter the student full name.');
-      nameInputRef.current?.focus();
+      (passAroundMode ? kioskInputRef : nameInputRef).current?.focus();
+      return;
+    }
+
+    const effectivePhone = parentPhone.trim() || selectedCandidate?.parent_phone || '';
+    if (requirePhone && !selectedCandidate?.parent_verified && !selectedCandidate?.consent_signed && !formatWhatsAppDigits(effectivePhone)) {
+      toast.error('Teacher set WhatsApp phone number as required — please enter a valid 10+ digit phone number.');
       return;
     }
 
@@ -461,6 +484,7 @@ export function ClassIntakeAndSessionPanel({
           entries: pendingQueue.map((item) => ({
             full_name: item.full_name,
             grade: item.grade,
+            parent_name: item.parent_name || undefined,
             parent_phone: item.parent_phone || undefined,
             matched_student_id: item.matched_student_id,
           })),
@@ -696,6 +720,63 @@ export function ClassIntakeAndSessionPanel({
                     Tap anywhere to continue immediately
                   </p>
                 </button>
+              ) : acknowledgeCandidate ? (
+                <div className="rounded-3xl border-2 border-emerald-500/50 bg-card p-6 sm:p-8 shadow-2xl space-y-5 text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-700 text-white shadow-md">
+                    <ShieldCheckIcon className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                      {acknowledgeCandidate.consent_signed
+                        ? 'Parent Consent Form Found ✓'
+                        : 'Student Record Found ✓'}
+                    </p>
+                    <h2 className="text-2xl sm:text-3xl font-black text-foreground">
+                      {acknowledgeCandidate.full_name}
+                    </h2>
+                  </div>
+
+                  <div className="rounded-2xl border border-border bg-muted/40 p-4 text-left space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground font-semibold">Class / Grade</span>
+                      <span className="font-black text-foreground">
+                        {lockGrade ? selectedGrade : (acknowledgeCandidate.grade || className)}
+                      </span>
+                    </div>
+                    {acknowledgeCandidate.parent_name && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground font-semibold">Parent / Guardian</span>
+                        <span className="font-bold text-foreground">{acknowledgeCandidate.parent_name}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground font-semibold">Parent WhatsApp</span>
+                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                        {maskPhoneForKiosk(acknowledgeCandidate.parent_phone)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => queueCandidateDirect(acknowledgeCandidate)}
+                      className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
+                    >
+                      Yes, This Is My Record — Confirm ✓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAcknowledgeCandidate(null);
+                        setTimeout(() => kioskInputRef.current?.focus(), 20);
+                      }}
+                      className="w-full h-12 rounded-xl border border-border bg-muted/50 hover:bg-muted text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                    >
+                      Not Me — Go Back
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <form
                   onSubmit={handleIntakeSubmit}
@@ -739,15 +820,15 @@ export function ClassIntakeAndSessionPanel({
                         </p>
                         <div className="space-y-2">
                           {liveSuggestions.slice(0, 4).map((cand) => {
-                            const hasPhoneOrVerified = cand.parent_verified || Boolean(cand.parent_phone);
+                            const hasPhoneOrConsent = cand.consent_signed || cand.parent_verified || Boolean(cand.parent_phone);
                             return (
                               <button
                                 key={cand.id}
                                 type="button"
                                 onClick={() => {
-                                  // Already verified or phone already on file → 1-TAP INSTANT CHECK-IN!
-                                  if (hasPhoneOrVerified) {
-                                    queueCandidateDirect(cand);
+                                  // Existing / Consent record with contact on file → Child Acknowledge screen (zero duplicates!)
+                                  if (hasPhoneOrConsent) {
+                                    setAcknowledgeCandidate(cand);
                                   } else {
                                     handleSelectCandidate(cand);
                                   }
@@ -760,11 +841,15 @@ export function ClassIntakeAndSessionPanel({
                                   </p>
                                   <p className="text-xs font-semibold text-muted-foreground truncate">
                                     {cand.grade || cand.section_class || className}
-                                    {hasPhoneOrVerified ? ' · Parent contact already on file' : ' · Tap to select'}
+                                    {cand.consent_signed
+                                      ? ' · Parent consent form on file ✓'
+                                      : hasPhoneOrConsent
+                                      ? ' · Record already in system ✓'
+                                      : ' · Tap to select'}
                                   </p>
                                 </div>
                                 <span className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm">
-                                  {hasPhoneOrVerified ? "That's Me ✓" : 'Select'}
+                                  {hasPhoneOrConsent ? "That's Me ✓" : 'Select'}
                                 </span>
                               </button>
                             );
@@ -793,17 +878,23 @@ export function ClassIntakeAndSessionPanel({
                     </div>
                   )}
 
-                  {/* Optional Parent Phone Input (hidden only when verified candidate already 1-tapped) */}
+                  {/* Parent WhatsApp Phone Input (Required or Optional per Teacher toggle) */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Parent Phone Number <span className="font-semibold normal-case">(Optional — skip if you don&apos;t know it)</span>
+                      Parent WhatsApp Number{' '}
+                      {requirePhone ? (
+                        <span className="text-rose-600 dark:text-rose-400">* Required</span>
+                      ) : (
+                        <span className="font-semibold normal-case">(Optional — skip if you don&apos;t know it)</span>
+                      )}
                     </label>
                     <input
                       type="tel"
-                      aria-label="Parent phone number (optional)"
+                      required={requirePhone}
+                      aria-label={requirePhone ? 'Parent WhatsApp number (required)' : 'Parent WhatsApp number (optional)'}
                       value={parentPhone}
                       onChange={(e) => setParentPhone(e.target.value)}
-                      placeholder="0801 234 5678 (optional)"
+                      placeholder={requirePhone ? '0801 234 5678 (required)' : '0801 234 5678 (optional)'}
                       className="w-full h-14 rounded-2xl border-2 border-border bg-background px-5 text-lg font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -917,6 +1008,18 @@ export function ClassIntakeAndSessionPanel({
                   ))}
                 </select>
               )}
+              <button
+                type="button"
+                onClick={() => setRequirePhone((v) => !v)}
+                className={`inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg border text-xs font-black transition-colors ${
+                  requirePhone
+                    ? 'border-amber-600 bg-amber-500/15 text-amber-900 dark:text-amber-200'
+                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <PhoneIcon className="w-3.5 h-3.5" />
+                {requirePhone ? 'WhatsApp No: Required' : 'WhatsApp No: Optional'}
+              </button>
             </div>
 
             <button
@@ -1311,6 +1414,23 @@ export function ClassIntakeAndSessionPanel({
                   >
                     <CloudArrowDownIcon className="w-3.5 h-3.5" />
                     Attendance / Admin CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = openClassIntakeLetterheadPdf({
+                        className,
+                        currentSession,
+                        classGradeKey,
+                        students,
+                        withdrawnCount: formerStudents.length,
+                      });
+                      if (!ok) toast.error('Allow pop-ups to open the letterhead PDF preview.');
+                    }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-primary-foreground shadow-sm"
+                  >
+                    <PrinterIcon className="w-3.5 h-3.5" />
+                    Letterhead PDF / Print
                   </button>
                 </div>
 
