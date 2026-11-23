@@ -109,12 +109,6 @@ interface IssuedStudentLogin {
   rc_code: string;
 }
 
-function maskPhoneForKiosk(phone?: string | null): string {
-  const digits = String(phone ?? '').replace(/\D/g, '');
-  if (digits.length < 7) return 'On file';
-  return `${digits.slice(0, 4)} •••• ${digits.slice(-3)}`;
-}
-
 function normalizeNameTokens(name: string): string[] {
   return name
     .toLowerCase()
@@ -223,6 +217,8 @@ export function ClassIntakeAndSessionPanel({
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
   const [kioskCelebration, setKioskCelebration] = useState<string | null>(null);
   const [acknowledgeCandidate, setAcknowledgeCandidate] = useState<DirectoryCandidate | null>(null);
+  const [ackPhoneOverride, setAckPhoneOverride] = useState<string>('');
+  const [editingAckPhone, setEditingAckPhone] = useState<boolean>(false);
   const [confirmingExit, setConfirmingExit] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [issuedLogins, setIssuedLogins] = useState<IssuedStudentLogin[]>([]);
@@ -264,7 +260,8 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
-  const queueCandidateDirect = (cand: DirectoryCandidate) => {
+  const queueCandidateDirect = (cand: DirectoryCandidate, phoneOverride?: string) => {
+    const finalPhone = (phoneOverride !== undefined ? phoneOverride.trim() : cand.parent_phone || '') || '';
     const alreadyQueued = pendingQueue.some(
       (item) =>
         item.matched_student_id === cand.id ||
@@ -276,7 +273,7 @@ export function ClassIntakeAndSessionPanel({
         full_name: cand.full_name,
         grade: lockGrade ? selectedGrade : (cand.grade || selectedGrade),
         parent_name: cand.parent_name || undefined,
-        parent_phone: cand.parent_phone || '',
+        parent_phone: finalPhone,
         matched_student_id: cand.id,
         matched_label: `${cand.consent_signed ? 'Consent Form' : cand.in_this_class ? 'In this class' : cand.section_class || 'Returning'}${cand.grade ? ` · ${cand.grade}` : ''}`,
         matched_verified: Boolean(cand.parent_verified),
@@ -286,6 +283,8 @@ export function ClassIntakeAndSessionPanel({
       setPassAroundAddedCount((c) => c + 1);
     }
     setAcknowledgeCandidate(null);
+    setEditingAckPhone(false);
+    setAckPhoneOverride('');
     setFullName('');
     setParentPhone('');
     setSelectedCandidate(null);
@@ -1085,18 +1084,49 @@ export function ClassIntakeAndSessionPanel({
                         <span className="font-bold text-foreground">{acknowledgeCandidate.parent_name}</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground font-semibold">Parent WhatsApp</span>
-                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                        {maskPhoneForKiosk(acknowledgeCandidate.parent_phone)}
-                      </span>
+                    <div className="space-y-1.5 pt-1 border-t border-border/60">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground font-semibold">Parent WhatsApp</span>
+                        {!editingAckPhone && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAckPhoneOverride(acknowledgeCandidate.parent_phone || '');
+                              setEditingAckPhone(true);
+                            }}
+                            className="text-[11px] font-black text-primary hover:underline"
+                          >
+                            Change number
+                          </button>
+                        )}
+                      </div>
+                      {editingAckPhone ? (
+                        <input
+                          type="tel"
+                          aria-label="Update parent WhatsApp number"
+                          value={ackPhoneOverride}
+                          onChange={(e) => setAckPhoneOverride(e.target.value)}
+                          placeholder="0801 234 5678"
+                          autoFocus
+                          className="w-full h-12 rounded-xl border-2 border-primary bg-background px-3.5 text-base font-mono font-bold text-foreground"
+                        />
+                      ) : (
+                        <p className="text-lg sm:text-xl font-mono font-black text-emerald-700 dark:text-emerald-400 tracking-wide">
+                          {acknowledgeCandidate.parent_phone || 'Not added yet'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-2.5 pt-1">
                     <button
                       type="button"
-                      onClick={() => queueCandidateDirect(acknowledgeCandidate)}
+                      onClick={() =>
+                        queueCandidateDirect(
+                          acknowledgeCandidate,
+                          editingAckPhone ? ackPhoneOverride : undefined,
+                        )
+                      }
                       className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white text-lg font-black uppercase tracking-wider shadow-lg transition-all active:scale-[0.99]"
                     >
                       Yes, This Is My Record — Confirm ✓
@@ -1105,6 +1135,8 @@ export function ClassIntakeAndSessionPanel({
                       type="button"
                       onClick={() => {
                         setAcknowledgeCandidate(null);
+                        setEditingAckPhone(false);
+                        setAckPhoneOverride('');
                         setTimeout(() => kioskInputRef.current?.focus(), 20);
                       }}
                       className="w-full h-12 rounded-xl border border-border bg-muted/50 hover:bg-muted text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground"
