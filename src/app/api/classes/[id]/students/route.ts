@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { reportCoverageForStudents, currentAcademicPeriod } from '@/lib/reports/coverage';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  partitionStudentsBySession,
+} from '@/lib/academic/session-scope';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
 import { generateTempPassword } from '@/lib/utils/password';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
@@ -258,13 +263,11 @@ export async function GET(
     const [[reportIndicatorEnabled, pasteClaimEnabled], canonicalTermResult, liveCountResult] =
       await Promise.all([rosterSettingsPromise, canonicalTermPromise, liveCountPromise]);
 
-    // ── Enrich with Parent Contact / Verification status & Session Cohort hygiene ──
+    // ── Enrich with Parent Contact / Verification status & Canonical Session Isolation ──
     const canonicalTermId = (canonicalTermResult.data as { id?: string } | null)?.id ?? null;
-    const currentSessionLabel = academicPeriod.periodLabel;
-    const sessionStartYearMatch = /^(\d{4})/.exec(currentSessionLabel);
-    const sessionCutoffMs = sessionStartYearMatch
-      ? Date.UTC(Number(sessionStartYearMatch[1]), 7, 1) // Aug 1 of session start year
-      : Date.now() - 120 * 24 * 60 * 60 * 1000;
+    const sessionBoundary = getSessionBoundary(academicPeriod.periodLabel);
+    const currentSessionLabel = sessionBoundary.periodLabel;
+    const requestedSessionScope = new URL(_request.url).searchParams.get('session_scope');
 
     if (!light && allRosterIds.length > 0) {
       const { data: studentRows } = await admin
@@ -300,14 +303,10 @@ export async function GET(
         const parentVerified = Boolean(st?.id && verifiedStudentTableIds.has(st.id));
         const confirmedSession = String(meta.confirmed_session || '').trim() || null;
         const roster = rosterByStudent.get(s.id);
-        const createdMs = s.created_at ? Date.parse(s.created_at) : 0;
-        const rosterStartMs = roster?.started_at ? Date.parse(roster.started_at) : 0;
-        const isCurrentTermRoster = Boolean(canonicalTermId && roster?.term_id === canonicalTermId && roster?.status === 'active');
-        const isConfirmedThisSession =
-          confirmedSession === currentSessionLabel ||
-          isCurrentTermRoster ||
-          createdMs >= sessionCutoffMs ||
-          rosterStartMs >= sessionCutoffMs;
+        const sessionStatus = classifyStudentSessionStatus(s, roster, {
+          canonicalTermId,
+          boundary: sessionBoundary,
+        });
         return {
           ...s,
           parent_phone: parentPhone,
@@ -315,11 +314,16 @@ export async function GET(
           parent_verified: parentVerified,
           parent_phone_source: String(meta.parent_phone_source || '').trim() || null,
           confirmed_session: confirmedSession,
-          session_status: isConfirmedThisSession ? 'confirmed_current' : 'carryover_unconfirmed',
+          session_status: sessionStatus,
         };
       };
       students = students.map(enrichContactAndSession);
       formerStudents = formerStudents.map(enrichContactAndSession);
+    }
+
+    const sessionPartition = partitionStudentsBySession(students as any[]);
+    if (requestedSessionScope === 'current') {
+      students = sessionPartition.currentSession as typeof students;
     }
 
     // ?with_reports=1 (class ID-card / RC roster screen) always needs report status,
@@ -388,8 +392,15 @@ export async function GET(
         },
         max_students: cls.max_students,
         total: actualCount,
-        current_session: academicPeriod.periodLabel,
+        current_session: currentSessionLabel,
         current_term: academicPeriod.termLabel,
+        session_summary: {
+          current_session: currentSessionLabel,
+          previous_session: sessionBoundary.previousPeriodLabel,
+          confirmed_count: sessionPartition.currentSession.length,
+          carryover_count: sessionPartition.carryoverUnconfirmed.length,
+          withdrawn_count: formerStudents.length + sessionPartition.withdrawn.length,
+        },
         report_indicator_enabled: reportIndicatorEnabled,
         paste_claim_enabled: pasteClaimEnabled,
       },

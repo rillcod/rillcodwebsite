@@ -404,6 +404,67 @@ export function ClassIntakeAndSessionPanel({
   );
   const [upgradeTargetGrade, setUpgradeTargetGrade] = useState<string>(defaultGrade);
   const [hygieneBusy, setHygieneBusy] = useState<string | null>(null);
+  // 1-click Migrate / Adopt students from other classes or archive into THIS class
+  const [adoptSearch, setAdoptSearch] = useState('');
+  const [adoptSelectedIds, setAdoptSelectedIds] = useState<Set<string>>(new Set());
+  const [adoptGrade, setAdoptGrade] = useState<string>(defaultGrade);
+  const [adoptingBusy, setAdoptingBusy] = useState(false);
+
+  const adoptableSchoolStudents = useMemo(() => {
+    const q = adoptSearch.trim().toLowerCase();
+    return directory
+      .filter((c) => !c.in_this_class && !c.id.startsWith('consent:'))
+      .filter((c) => {
+        if (!q) return true;
+        return `${c.full_name} ${c.grade || ''} ${c.section_class || ''}`.toLowerCase().includes(q);
+      })
+      .slice(0, 60);
+  }, [directory, adoptSearch]);
+
+  const handleAdoptIntoThisClass = async () => {
+    const ids = Array.from(adoptSelectedIds);
+    if (ids.length === 0) {
+      toast.error('Select at least one student to adopt into this class.');
+      return;
+    }
+    const chosen = directory.filter((c) => ids.includes(c.id));
+    if (
+      !confirm(
+        `Migrate & adopt ${chosen.length} student${chosen.length === 1 ? '' : 's'} into ${className} as ${adoptGrade}?\n\nTheir grade, class roster, and CBT exam access will immediately switch to ${className}.`,
+      )
+    ) {
+      return;
+    }
+    setAdoptingBusy(true);
+    try {
+      const res = await fetch(`/api/classes/${classId}/intake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'intake_batch_commit',
+          entries: chosen.map((c) => ({
+            full_name: c.full_name,
+            grade: adoptGrade,
+            parent_name: c.parent_name || undefined,
+            parent_phone: c.parent_phone || undefined,
+            matched_student_id: c.id,
+          })),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not adopt students.');
+      toast.success(
+        `Adopted ${json.committed ?? chosen.length} student${chosen.length === 1 ? '' : 's'} into ${className} (${adoptGrade})! Exams & rosters synced.`,
+      );
+      setAdoptSelectedIds(new Set());
+      setAdoptSearch('');
+      await onRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || 'Adoption failed.');
+    } finally {
+      setAdoptingBusy(false);
+    }
+  };
 
   // Support mobile swipe-back & browser Back button cleanly:
   // Pushing a state when the full-screen modal opens ensures swiping back closes the modal
@@ -2418,6 +2479,93 @@ export function ClassIntakeAndSessionPanel({
               </div>
             </div>
           </div>
+          {/* 1-Click Migrate / Adopt Students from Previous Classes or Archive into THIS Class */}
+          <div className="rounded-xl border border-primary/35 bg-primary/[0.03] overflow-hidden">
+            <div className="bg-primary/10 px-3.5 py-2.5 border-b border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-primary">
+                  Migrate / Adopt Returning Students Into {className}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Pull students from last session&apos;s class or archive directly into {className} — automatically upgrades their grade, syncs CBT exams to this class, and preserves past results.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <select
+                  aria-label="Grade for adopted students"
+                  value={adoptGrade}
+                  onChange={(e) => setAdoptGrade(e.target.value)}
+                  className="min-h-9 rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground"
+                >
+                  {SINGLE_GRADES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={adoptingBusy || adoptSelectedIds.size === 0}
+                  onClick={() => void handleAdoptIntoThisClass()}
+                  className="min-h-9 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-[11px] font-black uppercase tracking-wider shadow-sm"
+                >
+                  {adoptingBusy ? 'Migrating…' : `Adopt Selected (${adoptSelectedIds.size})`}
+                </button>
+              </div>
+            </div>
+            <div className="p-3 space-y-2.5 bg-card">
+              <input
+                type="search"
+                aria-label="Search school students to migrate into this class"
+                value={adoptSearch}
+                onChange={(e) => setAdoptSearch(e.target.value)}
+                placeholder="Search any student in this school by name, previous class, or grade (e.g. JSS 1, Basic 1)…"
+                className="w-full min-h-9 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground"
+              />
+              {adoptableSchoolStudents.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">
+                  {adoptSearch ? 'No matching school students outside this class.' : 'All active school students are already in this class.'}
+                </p>
+              ) : (
+                <div className="max-h-52 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                  {adoptableSchoolStudents.map((c) => {
+                    const checked = adoptSelectedIds.has(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setAdoptSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(c.id)) next.delete(c.id);
+                                else next.add(c.id);
+                                return next;
+                              });
+                            }}
+                            className="h-4 w-4 accent-primary shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-foreground truncate">{c.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {c.is_active ? (c.section_class || 'Other class') : 'Archived / Unassigned'}
+                              {c.grade ? ` · Currently ${c.grade}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                          {c.parent_phone || 'No phone'}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Withdrawn / Safe Archive (Excluded from active counts & reports, 1-click Reinstate if they return) */}
           {formerStudents.length > 0 && (
             <div className="rounded-xl border border-border overflow-hidden">

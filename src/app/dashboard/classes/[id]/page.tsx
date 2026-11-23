@@ -186,7 +186,7 @@ export default function ClassDetailPage() {
   const [pasteStep, setPasteStep] = useState<'paste' | 'review' | 'done'>('paste');
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
-  const [rosterFilter, setRosterFilter] = useState<'active' | 'off_band' | 'needs_report' | 'withdrawn' | 'all'>('active');
+  const [rosterFilter, setRosterFilter] = useState<'active' | 'current_session' | 'prior_session' | 'off_band' | 'needs_report' | 'withdrawn' | 'all'>('active');
   const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
   const [schoolSuggestionsPool, setSchoolSuggestionsPool] = useState<any[]>([]);
   const [loadingSchoolPool, setLoadingSchoolPool] = useState(false);
@@ -1895,6 +1895,8 @@ export default function ClassDetailPage() {
   const matchesRoster = (student: any) =>
     matchesRosterText(student) &&
     (!showNeedsReportOnly || !student.has_published_report) &&
+    (rosterFilter !== 'current_session' || student.session_status !== 'carryover_unconfirmed') &&
+    (rosterFilter !== 'prior_session' || student.session_status === 'carryover_unconfirmed') &&
     (rosterFilter !== 'off_band' || isOffBand(student)) &&
     (rosterFilter !== 'needs_report' || !student.has_published_report);
   // Sort active roster by teacher's chosen sort order (default: needs-report attention first, then A-Z).
@@ -3366,9 +3368,21 @@ export default function ClassDetailPage() {
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
                           {([
                             { id: 'active', label: `Active (${currentTermStudents.length})` },
-                            ...(offBandCount > 0 ? [{ id: 'off_band', label: `Old / Off-band (${offBandCount})` }] : []),
+                            ...(currentTermStudents.some((s: any) => s.session_status === 'carryover_unconfirmed')
+                              ? [
+                                  {
+                                    id: 'current_session',
+                                    label: `${currentSessionLabel} Only (${currentTermStudents.filter((s: any) => s.session_status !== 'carryover_unconfirmed').length})`,
+                                  },
+                                  {
+                                    id: 'prior_session',
+                                    label: `Prior Session (${currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length})`,
+                                  },
+                                ]
+                              : []),
+                            ...(offBandCount > 0 ? [{ id: 'off_band', label: `Off-band (${offBandCount})` }] : []),
                             ...(reportIndicatorEnabled && needsReportCount > 0 ? [{ id: 'needs_report', label: `Needs Report (${needsReportCount})` }] : []),
-                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn', label: `Withdrawn / Old (${inactiveTermStudents.length})` }] : []),
+                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn', label: `Withdrawn (${inactiveTermStudents.length})` }] : []),
                             ...(inactiveTermStudents.length > 0 ? [{ id: 'all', label: `All (${currentTermStudents.length + inactiveTermStudents.length})` }] : []),
                           ] as Array<{ id: typeof rosterFilter; label: string }>).map((chip) => (
                             <button
