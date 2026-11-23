@@ -12,6 +12,17 @@ import {
   type SettingsSection,
 } from './types';
 
+const WORKSPACE_SHORTCUTS: Record<OfficeWorkspace, string> = {
+  desk: '1',
+  cases: '2',
+  inbox: '3',
+  duty: '4',
+  feedback: '5',
+  crm: '6',
+  newsletters: '7',
+  settings: '8',
+};
+
 const WORKSPACE_LABELS: Record<OfficeWorkspace, string> = {
   desk: 'Desk',
   cases: 'Help requests',
@@ -92,16 +103,25 @@ export function OfficeNavigation({ mobileOpen = true, onNavigate }: Props) {
                       active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted'
                     }`}
                   >
-                    <span>{WORKSPACE_LABELS[key]}</span>
-                    {badge ? (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                          active ? 'bg-white/20 text-primary-foreground' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                        }`}
-                      >
-                        {badge}
-                      </span>
-                    ) : null}
+                    <span className="flex items-center gap-2">
+                      <span>{WORKSPACE_LABELS[key]}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      {badge ? (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                            active ? 'bg-white/20 text-primary-foreground' : 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                          }`}
+                        >
+                          {badge}
+                        </span>
+                      ) : null}
+                      <kbd className={`hidden lg:inline rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                        active ? 'bg-white/15 text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {WORKSPACE_SHORTCUTS[key]}
+                      </kbd>
+                    </span>
                   </button>
                   {key === 'inbox' && workspace === 'inbox' ? (
                     <ul className="ml-3 mt-1 space-y-1 border-l border-border pl-3">

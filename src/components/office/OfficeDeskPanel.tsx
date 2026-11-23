@@ -55,6 +55,19 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
       ? 'Loading counts…'
       : 'Freshness unknown';
 
+  const attentionCounts = useMemo(() => {
+    const rows = data?.attention ?? [];
+    const now = Date.now();
+    const viewerId = data?.viewerId;
+    return {
+      all: rows.length,
+      my_queue: viewerId ? rows.filter((row) => row.assignedToId === viewerId).length : rows.length,
+      unassigned: rows.filter((row) => row.owner.includes('Not assigned')).length,
+      overdue: rows.filter((row) => row.dueAt && new Date(row.dueAt).getTime() < now).length,
+      failed_delivery: rows.filter((row) => row.reason === 'Delivery failed').length,
+    };
+  }, [data?.attention, data?.viewerId]);
+
   const filteredAttention = useMemo(() => {
     const rows = data?.attention ?? [];
     const now = Date.now();
@@ -179,23 +192,41 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
           <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Academic ops bridge</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Census gaps and student exceptions live in Academic Office — not as another Desk tab.
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Company Operations Bridge</p>
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                  Jump directly to Accountability, Partnerships, Classes, Finance, or Academic Exceptions.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Link
                   href="/dashboard/academic#academic-exceptions"
-                  className="min-h-11 touch-manipulation rounded-xl bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-800 dark:text-amber-300"
+                  className="inline-flex min-h-10 items-center touch-manipulation rounded-xl bg-amber-500/15 px-3.5 py-2 text-xs font-black text-amber-800 dark:text-amber-300"
                 >
-                  Open exceptions
+                  Exceptions
                 </Link>
                 <Link
                   href="/dashboard/accountability"
-                  className="min-h-11 touch-manipulation rounded-xl border border-border px-4 py-2 text-sm font-black"
+                  className="inline-flex min-h-10 items-center touch-manipulation rounded-xl border border-border px-3.5 py-2 text-xs font-black hover:border-primary/50"
                 >
                   Accountability
+                </Link>
+                <Link
+                  href="/dashboard/partnerships"
+                  className="inline-flex min-h-10 items-center touch-manipulation rounded-xl border border-border px-3.5 py-2 text-xs font-black hover:border-primary/50"
+                >
+                  Partnerships
+                </Link>
+                <Link
+                  href="/dashboard/classes"
+                  className="inline-flex min-h-10 items-center touch-manipulation rounded-xl border border-border px-3.5 py-2 text-xs font-black hover:border-primary/50"
+                >
+                  Classes
+                </Link>
+                <Link
+                  href="/dashboard/finance"
+                  className="inline-flex min-h-10 items-center touch-manipulation rounded-xl border border-border px-3.5 py-2 text-xs font-black hover:border-primary/50"
+                >
+                  Finance
                 </Link>
               </div>
             </div>
@@ -249,7 +280,12 @@ export function OfficeDeskPanel({ embedded = false }: Props) {
                         attentionFilter === key ? 'bg-primary text-primary-foreground' : 'border border-border bg-background'
                       }`}
                     >
-                      {label}
+                      {label}{' '}
+                      <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] ${
+                        attentionFilter === key ? 'bg-white/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {attentionCounts[key]}
+                      </span>
                     </button>
                   ))}
                 </div>

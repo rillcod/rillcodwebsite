@@ -30,6 +30,24 @@ export function OfficeCommandBar() {
       { id: 'health', label: 'Go to Scheduled Jobs', hint: 'Operations', run: () => office.setWorkspace('settings', 'health') },
       { id: 'results', label: 'Go to Office Results', hint: 'Operations', run: () => office.setWorkspace('settings', 'results') },
       {
+        id: 'partnerships',
+        label: 'Open Partnerships Desk',
+        hint: 'Growth & Deals',
+        run: () => { window.location.assign('/dashboard/partnerships'); },
+      },
+      {
+        id: 'classes',
+        label: 'Open Classes & Rosters',
+        hint: 'Academic Office',
+        run: () => { window.location.assign('/dashboard/classes'); },
+      },
+      {
+        id: 'finance',
+        label: 'Open Finance Center',
+        hint: 'Billing & Revenue',
+        run: () => { window.location.assign('/dashboard/finance'); },
+      },
+      {
         id: 'academic-exceptions',
         label: 'Open Academic Exceptions',
         hint: 'Academic Office',
@@ -89,8 +107,13 @@ export function OfficeCommandBar() {
   );
 
   useEffect(() => {
+    const onOpenCommand = () => setOpen(true);
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('rillcod:office-command-open', onOpenCommand);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('rillcod:office-command-open', onOpenCommand);
+    };
   }, [onKeyDown]);
 
   if (!open) return null;

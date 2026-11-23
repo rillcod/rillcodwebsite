@@ -11,6 +11,7 @@ import {
   SETTINGS_SECTIONS,
   officeZoneForWorkspace,
   type InboxSection,
+  type OfficeWorkspace,
   type SettingsSection,
 } from '@/components/office/types';
 import { OfficeDeskPanel } from '@/components/office/OfficeDeskPanel';
@@ -197,61 +198,109 @@ function OfficeCenterInner() {
     <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain bg-background [-webkit-overflow-scrolling:touch]">
       <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 sm:px-6 sm:py-8 mobile-page-root">
         {/* Header */}
-        <div className="mb-6 bg-card/90 backdrop-blur-2xl border border-border/80 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10">
-            <span className="inline-block px-3 py-1 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-sm mb-2">
-              Platform Headquarters & Operations
-            </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-foreground leading-none">Office Center</h1>
-            <p className="mt-2 max-w-3xl text-xs sm:text-sm text-muted-foreground font-medium">
-              One calm place for daily work — start on <span className="font-bold text-foreground">Today</span>, then
-              handle conversations, relationships, and operations when you need them.
-            </p>
-            {(duty || summary) && (
-              <p className="mt-3 break-words text-xs text-muted-foreground font-medium">
-                {duty ? (
-                  <>
-                    On duty: <span className="font-bold text-foreground">{duty.primaryName || 'Admin review'}</span>
-                    {' · '}
-                    {duty.available}/{duty.totalEligible} available
-                  </>
-                ) : null}
-                {duty && summary ? ' · ' : null}
-                {summary ? (
-                  <>
-                    Needs attention {summary.needsAttention}
-                    {summary.unassigned > 0 ? ` · Unassigned ${summary.unassigned}` : ''}
-                    {summary.automationProblems > 0 ? ` · Check systems ${summary.automationProblems}` : ''}
-                  </>
-                ) : null}
+        <div className="mb-5 bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-sm relative overflow-hidden">
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="inline-block px-2.5 py-0.5 bg-brand-red-accent text-white text-[9px] font-black uppercase tracking-widest rounded-full">
+                  Rillcod Technologies · HQ
+                </span>
+                {duty && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                    On duty: {duty.primaryName || 'Admin review'} ({duty.available}/{duty.totalEligible})
+                  </span>
+                )}
                 {snapshotMeta?.stale ? (
-                  <>
-                    {' · '}
-                    <span className="font-bold text-amber-700 dark:text-amber-300">Counts may be stale</span>
-                  </>
+                  <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                    Counts may be stale
+                  </span>
                 ) : snapshotMeta?.lastUpdatedAt ? (
-                  <>
-                    {' · '}
+                  <span className="text-[11px] text-muted-foreground font-medium">
                     Updated {new Date(snapshotMeta.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </>
+                  </span>
                 ) : null}
-                {' · '}
-                <Link href="/dashboard/finance" className="font-bold text-primary underline-offset-2 hover:underline">
-                  Finance Center
-                </Link>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground leading-tight">Office Center</h1>
+              <p className="mt-1 max-w-2xl text-xs sm:text-sm text-muted-foreground">
+                Unified headquarters for daily desk triage, conversations, relationships, and operations.
               </p>
-            )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('rillcod:office-command-open'))}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground hover:border-primary/50 transition-colors"
+              >
+                <span>Quick Jump</span>
+                <kbd className="hidden sm:inline rounded bg-muted px-1.5 py-0.5 text-[10px] font-black text-muted-foreground">Ctrl K</kbd>
+              </button>
+              <Link
+                href="/dashboard/accountability"
+                className="inline-flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary/50 transition-colors"
+              >
+                Accountability
+              </Link>
+              <Link
+                href="/dashboard/partnerships"
+                className="inline-flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:border-primary/50 transition-colors"
+              >
+                Partnerships
+              </Link>
+              <Link
+                href="/dashboard/finance"
+                className="inline-flex min-h-10 items-center rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground hover:opacity-95 transition-opacity"
+              >
+                Finance
+              </Link>
+            </div>
           </div>
         </div>
 
-        <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
+        {/* Mobile 1-Tap Workspace Strip (eliminates opening a drawer just to switch tools) */}
+        <div className="mb-4 flex items-center gap-1.5 overflow-x-auto pb-1 lg:hidden scrollbar-hide">
+          {(
+            [
+              { key: 'desk', label: 'Desk' },
+              { key: 'cases', label: 'Cases', badge: summary?.needsAttention || 0 },
+              { key: 'inbox', label: 'Inbox' },
+              { key: 'duty', label: 'Duty' },
+              { key: 'feedback', label: 'Feedback' },
+              { key: 'crm', label: 'CRM' },
+              { key: 'newsletters', label: 'Newsletters' },
+              { key: 'settings', label: 'Systems', badge: summary?.failedMessages || 0 },
+            ] as Array<{ key: OfficeWorkspace; label: string; badge?: number }>
+          ).map((item) => {
+            const active = workspace === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  setWorkspace(item.key);
+                  setMobileNavOpen(false);
+                }}
+                className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold border transition-colors ${
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-card border-border text-foreground hover:bg-muted'
+                }`}
+              >
+                <span>{item.label}</span>
+                {item.badge ? (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/20' : 'bg-amber-500/15 text-amber-800 dark:text-amber-300'}`}>
+                    {item.badge}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
           <button
             type="button"
             onClick={() => setMobileNavOpen((open) => !open)}
-            className="rounded-xl border border-border px-3 py-2 text-xs font-black"
+            className="shrink-0 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-muted-foreground"
           >
-            {mobileNavOpen ? 'Hide menu' : 'Office menu'}
+            {mobileNavOpen ? 'Hide' : 'More'}
           </button>
         </div>
 
