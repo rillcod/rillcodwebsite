@@ -47,6 +47,9 @@ export default function ExamDetailPage() {
   const [savingHall, setSavingHall] = useState(false);
   const [hallError, setHallError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const [pollWarning, setPollWarning] = useState<string | null>(null);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [resultsOpen, setResultsOpen] = useState(true);
@@ -112,17 +115,24 @@ export default function ExamDetailPage() {
     if (!id) return;
 
     if (isStaff) {
+      setLoadError(null);
       // Fetch sessions without the portal_users join (RLS blocks it from the browser client)
       // Then enrich with student names from the API
       Promise.all([
         fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(async (r) => {
-          const payload = await r.json();
+          const payload = await r.json().catch(() => ({}));
           if (!r.ok) throw new Error(payload.error || 'Exam not available');
           return payload.data;
         }),
-        fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then(r => r.json()),
+        fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then(async (r) => {
+          const payload = await r.json().catch(() => ({}));
+          return { ok: r.ok, ...payload };
+        }),
         fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
       ]).then(async ([examData, sesRes, usersJson]) => {
+        if (!sesRes.ok && sesRes.error) {
+          setMonitorNotice({ type: 'error', text: `Live sessions warning: ${sesRes.error}` });
+        }
         const umap: Record<string, any> = {};
         (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
         userMapRef.current = umap;
@@ -139,6 +149,7 @@ export default function ExamDetailPage() {
         setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
         setSessions(enriched);
         setLastSyncedAt(new Date());
+        setPollWarning(null);
         const classIdForRoster = examData?.class_id || examData?.metadata?.target_class_id;
         const paperMax = hostMaxFromExam({
           metadata: examData?.metadata,
@@ -161,16 +172,18 @@ export default function ExamDetailPage() {
           setHallDraft({});
         }
         setLoading(false);
-      }).catch(() => {
+      }).catch((err: any) => {
+        setLoadError(err?.message || 'Could not load this exam.');
         setExam(null);
         setQuestions([]);
         setSessions([]);
         setLoading(false);
       });
     } else {
+      setLoadError(null);
       Promise.all([
         fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(async (r) => {
-          const payload = await r.json();
+          const payload = await r.json().catch(() => ({}));
           if (!r.ok) throw new Error(payload.error || 'Exam not available');
           return payload.data;
         }),
@@ -180,21 +193,27 @@ export default function ExamDetailPage() {
         setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
         setSessions(sessionPayload.data ? [sessionPayload.data] : []);
         setLoading(false);
-      }).catch(() => {
+      }).catch((err: any) => {
+        setLoadError(err?.message || 'Could not load this exam.');
         setExam(null);
         setQuestions([]);
         setSessions([]);
         setLoading(false);
       });
     }
-  }, [profile?.id, params?.id, authLoading]); // eslint-disable-line
+  }, [profile?.id, params?.id, authLoading, reloadNonce]); // eslint-disable-line
 
   const refreshLiveSessions = useCallback(async (manual = false) => {
     const id = params?.id as string;
     if (!id || !isStaff) return;
     if (manual) setRefreshingSessions(true);
     try {
-      const sesRes = await fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then((r) => r.json());
+      const res = await fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' });
+      const sesRes = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPollWarning(sesRes?.error || 'Live sync temporarily unavailable — retrying…');
+        return;
+      }
       const umap = userMapRef.current;
       let rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
       if (role === 'school' && profile?.school_id) {
@@ -206,8 +225,9 @@ export default function ExamDetailPage() {
       }));
       setSessions(enriched);
       setLastSyncedAt(new Date());
+      setPollWarning(null);
     } catch {
-      // Transient polling errors are ignored silently
+      setPollWarning('Connection paused — retrying live sync…');
     } finally {
       if (manual) setRefreshingSessions(false);
     }
@@ -407,8 +427,41 @@ export default function ExamDetailPage() {
     </div>
   );
   if (!exam) return (
-    <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
-      <p className="text-muted-foreground">Exam not found.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 mobile-page-root">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center space-y-4 shadow-lg">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300">
+          <ExclamationTriangleIcon className="h-6 w-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-base font-black text-foreground">
+            {loadError ? 'Could not open this exam' : 'Exam not found'}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {loadError || 'This exam may have been removed or is outside your assigned school/class scope.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              setLoadError(null);
+              setReloadNonce((n) => n + 1);
+            }}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-primary-foreground shadow-sm hover:bg-primary/90"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
+            Retry
+          </button>
+          <Link
+            href="/dashboard/cbt"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-muted/50 px-4 py-2 text-xs font-black uppercase tracking-wider text-foreground hover:bg-muted"
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back to Exams
+          </Link>
+        </div>
+      </div>
     </div>
   );
 
@@ -1386,6 +1439,22 @@ export default function ExamDetailPage() {
                     </button>
                   </div>
                 </div>
+
+                {pollWarning && (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-900 dark:text-amber-200">
+                    <span className="inline-flex items-center gap-1.5">
+                      <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+                      {pollWarning}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void refreshLiveSessions(true)}
+                      className="shrink-0 rounded-lg bg-amber-800 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white hover:bg-amber-900"
+                    >
+                      Sync Now
+                    </button>
+                  </div>
+                )}
 
                 {monitorNotice && (
                   <div className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold ${

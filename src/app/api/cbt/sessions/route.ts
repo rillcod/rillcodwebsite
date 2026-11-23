@@ -133,6 +133,7 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') return !!caller.school_id && exam.school_id === caller.school_id;
   if (caller.role === 'teacher') {
+    if (exam.created_by === caller.id) return true;
     const metadata = exam.metadata && typeof exam.metadata === 'object' && !Array.isArray(exam.metadata)
       ? exam.metadata as Record<string, unknown>
       : {};
@@ -143,10 +144,10 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
         .select('teacher_id')
         .eq('id', targetClassId)
         .maybeSingle();
-      return klass?.teacher_id === caller.id;
+      if (klass?.teacher_id === caller.id) return true;
     }
-    if (exam.created_by === caller.id) return true;
     if (!exam.school_id) return false;
+    if (caller.school_id === exam.school_id) return true;
     const { data: assignment } = await admin
       .from('teacher_schools')
       .select('school_id')
