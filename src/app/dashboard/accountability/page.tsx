@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { ArrowPathIcon, ShieldCheckIcon } from '@/lib/icons';
 import AccountabilityDashboard from '@/components/accountability/AccountabilityDashboard';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
-import type { Backlog, Coverage, Person } from '@/lib/accountability/types';
+import type { Backlog, Coverage, Person, SchoolAccountabilityRow } from '@/lib/accountability/types';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import type { StudentExceptionKind } from '@/lib/accountability/student-exceptions';
 
@@ -18,6 +18,7 @@ export default function AccountabilityPage() {
   const [data, setData] = useState<{
     coverage: Coverage | null;
     people: Person[];
+    schools_summary?: SchoolAccountabilityRow[];
     backlog?: Backlog | null;
     census?: {
       total: number;
@@ -167,6 +168,7 @@ export default function AccountabilityPage() {
     <AccountabilityDashboard
       coverage={data?.coverage ?? null}
       people={data?.people ?? []}
+      schoolsSummary={data?.schools_summary ?? []}
       backlog={data?.backlog ?? null}
       census={data?.census ?? null}
       exceptionTotals={exceptionTotals ?? undefined}

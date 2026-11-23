@@ -7,15 +7,10 @@ import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { logAudit } from '@/lib/audit/log';
 
 /**
- * Full accountability census: every account, where they are placed, what they
- * hold, and what is missing.
+ * Full accountability census: every school, every account, where they are placed,
+ * cleanly separated into Current Session vs Prior Session / Archive.
  *
- * People are read from accountability_people_mv. PostgREST caps a single select
- * at 1000 rows by default — `.range(0, 99999)` does NOT bypass that. Without
- * pagination the People census always showed exactly 1000 accounts (roles
- * summing to 1000) while the database held more.
- *
- * Refresh: POST /api/admin/accountability → refresh_accountability_cache().
+ * Refresh: POST /api/admin/accountability -> refresh_accountability_cache().
  */
 
 export const dynamic = 'force-dynamic';
@@ -84,22 +79,23 @@ export async function GET() {
   let coverageRes: Awaited<ReturnType<typeof db.rpc>>;
   let peopleRes: { data: any[]; error: { message: string } | null };
   let backlogRes: Awaited<ReturnType<typeof db.rpc>>;
-  let liveRoleRes: { data: Array<{ role: string }> | null; error: { message: string } | null };
+  let liveRoleRes: { data: Array<{ id: string; role: string; school_id: string | null; class_id: string | null }> | null; error: { message: string } | null };
   let settingsRes: { data: { value?: string | null } | null; error: { message: string } | null };
+  let schoolsRes: { data: Array<{ id: string; name: string; city: string | null; state: string | null; status: string | null }> | null; error: { message: string } | null };
+  let classesRes: { data: Array<{ id: string; name: string; school_id: string | null; term_id: string | null; teacher_id: string | null; status: string | null }> | null; error: { message: string } | null };
 
   try {
-    [coverageRes, peopleRes, backlogRes, liveRoleRes, settingsRes] = await Promise.race([
+    [coverageRes, peopleRes, backlogRes, liveRoleRes, settingsRes, schoolsRes, classesRes] = await Promise.race([
       Promise.all([
         db.rpc('get_academic_coverage' as never),
-        // Page past the 1000-row PostgREST cap so the census matches the DB.
         fetchAllSupabaseRows<any>((from, to) =>
           db.from('accountability_people_mv' as never).select('*').range(from, to),
         ),
         db.rpc('get_report_backlog' as never),
-        fetchAllSupabaseRows<{ role: string }>((from, to) =>
+        fetchAllSupabaseRows<{ id: string; role: string; school_id: string | null; class_id: string | null }>((from, to) =>
           db
             .from('portal_users')
-            .select('role')
+            .select('id, role, school_id, class_id')
             .eq('is_deleted', false)
             .range(from, to),
         ),
@@ -107,6 +103,17 @@ export async function GET() {
           .select('value')
           .eq('key', 'lms.ops.permissions')
           .maybeSingle(),
+        db
+          .from('schools')
+          .select('id, name, city, state, status')
+          .neq('is_deleted', true)
+          .order('name'),
+        fetchAllSupabaseRows<{ id: string; name: string; school_id: string | null; term_id: string | null; teacher_id: string | null; status: string | null }>((from, to) =>
+          db
+            .from('classes')
+            .select('id, name, school_id, term_id, teacher_id, status')
+            .range(from, to),
+        ),
       ]),
       timeout(RPC_TIMEOUT_MS),
     ]);
@@ -124,7 +131,115 @@ export async function GET() {
     return NextResponse.json({ error: peopleRes.error.message }, { status: 500 });
   }
 
-  const people = peopleRes.data ?? [];
+  const coverageData = (coverageRes.data ?? null) as any;
+  const activeTermId: string | null = coverageData?.term_context?.term_id ?? null;
+
+  const allSchools = schoolsRes.data ?? [];
+  const schoolById = new Map(allSchools.map((s) => [s.id, s]));
+  const schoolIdByName = new Map(allSchools.map((s) => [s.name.trim().toLowerCase(), s.id]));
+
+  const allClasses = (classesRes.data ?? []).filter((c) => {
+    const st = String(c.status || 'active').toLowerCase();
+    return st !== 'deleted' && st !== 'archived';
+  });
+  const classById = new Map(allClasses.map((c) => [c.id, c]));
+  const liveUserMap = new Map((liveRoleRes.data ?? []).map((u) => [u.id, u]));
+
+  // Enrich every person with authoritative school_id/school_name AND clean session_scope
+  // so old-session / withdrawn records never pollute current-term operations.
+  const people = (peopleRes.data ?? []).map((p: any) => {
+    const live = liveUserMap.get(p.id);
+    const resolvedSchoolId =
+      live?.school_id
+      ?? (p.school_name ? schoolIdByName.get(String(p.school_name).trim().toLowerCase()) ?? null : null);
+    const resolvedSchoolName =
+      p.school_name
+      || (resolvedSchoolId ? schoolById.get(resolvedSchoolId)?.name ?? null : null);
+
+    const roleNorm = String(p.role || '').toLowerCase();
+    const flags: string[] = Array.isArray(p.flags) ? p.flags : [];
+    const rosterStatus = String(p.roster_status || '').toLowerCase();
+    const liveClass = live?.class_id ? classById.get(live.class_id) : null;
+
+    let session_scope: 'current' | 'archive' | 'unassigned' = 'current';
+    if (roleNorm === 'student') {
+      const isWithdrawnOrInactive =
+        !p.is_active
+        || flags.includes('withdrawn')
+        || ['withdrawn', 'ended', 'removed', 'completed'].includes(rosterStatus);
+      const isPriorTermClass = Boolean(
+        activeTermId
+        && liveClass?.term_id
+        && liveClass.term_id !== activeTermId
+        && !p.class_from_roster,
+      );
+      if (isWithdrawnOrInactive || isPriorTermClass) {
+        session_scope = 'archive';
+      } else if (!p.class_from_roster && !live?.class_id) {
+        session_scope = 'unassigned';
+      } else {
+        session_scope = 'current';
+      }
+    } else if (!p.is_active) {
+      session_scope = 'archive';
+    }
+
+    return {
+      ...p,
+      school_id: resolvedSchoolId,
+      school_name: resolvedSchoolName,
+      session_scope,
+    };
+  });
+
+  // Complete per-school accountability summary covering EVERY school in public.schools
+  // (never omitting schools with 0 students or 0 classes yet).
+  const schoolsSummary = allSchools.map((s) => {
+    const sClasses = allClasses.filter((c) => c.school_id === s.id);
+    const sPeople = people.filter(
+      (p) => p.school_id === s.id || (p.school_name && p.school_name.trim().toLowerCase() === s.name.trim().toLowerCase()),
+    );
+    const sStudents = sPeople.filter((p) => String(p.role || '').toLowerCase() === 'student' && p.session_scope !== 'archive');
+    const sTeachers = sPeople.filter((p) => String(p.role || '').toLowerCase() === 'teacher' && p.is_active);
+    const placed = sStudents.filter((p) => Boolean(p.class_from_roster)).length;
+    const unplaced = Math.max(0, sStudents.length - placed);
+    const published = sStudents.reduce((sum, p) => sum + (Number(p.reports_published) || 0), 0);
+    const draft = sStudents.reduce((sum, p) => sum + (Number(p.reports_draft) || 0), 0);
+    const emailMatched = sStudents.filter((p) => Boolean(p.has_parent_email)).length;
+    const placedPct = sStudents.length > 0 ? Math.round((placed / sStudents.length) * 100) : 0;
+    const reportDenom = Math.max(placed, published + draft, 1);
+    const pubPct = placed > 0 ? Math.min(100, Math.round((published / reportDenom) * 100)) : 0;
+    const emailPct = sStudents.length > 0 ? Math.round((emailMatched / sStudents.length) * 100) : 0;
+    const healthScore = sStudents.length === 0
+      ? (sClasses.length > 0 ? 50 : 0)
+      : Math.min(100, Math.round(placedPct * 0.35 + pubPct * 0.35 + emailPct * 0.3));
+
+    const gaps: string[] = [];
+    if (sClasses.length === 0) gaps.push('No active classes');
+    if (sStudents.length === 0) gaps.push('No current-session students');
+    if (sTeachers.length === 0 && !sClasses.some((c) => c.teacher_id)) gaps.push('No teacher assigned');
+    if (unplaced > 0) gaps.push(`${unplaced} unplaced`);
+    if (draft > 0) gaps.push(`${draft} draft reports`);
+
+    return {
+      id: s.id,
+      name: s.name,
+      city: s.city,
+      state: s.state,
+      status: s.status,
+      classes_count: sClasses.length,
+      teachers_count: sTeachers.length,
+      students_total: sStudents.length,
+      students_placed: placed,
+      students_unplaced: unplaced,
+      reports_published: published,
+      reports_draft: draft,
+      parent_email_pct: emailPct,
+      health_score: healthScore,
+      gaps,
+    };
+  });
+
   const mvRoleCounts = countByRole(people);
   const liveRoleCounts = liveRoleRes.error ? null : countByRole(liveRoleRes.data ?? []);
   const liveTotal = liveRoleCounts
@@ -149,8 +264,9 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      coverage: coverageRes.data ?? null,
+      coverage: coverageData,
       people,
+      schools_summary: schoolsSummary,
       backlog: backlogRes.error ? null : (backlogRes.data ?? null),
       census: {
         total: people.length,

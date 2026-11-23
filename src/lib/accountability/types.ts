@@ -5,16 +5,36 @@ export type Person = {
   role: string | null;
   is_active: boolean;
   enrollment_type: string | null;
+  school_id?: string | null;
   school_name: string | null;
   class_from_roster: string | null;
   class_on_profile: string | null;
   roster_status: string | null;
+  session_scope?: 'current' | 'archive' | 'unassigned';
   reports_total: number;
   reports_published: number;
   reports_draft: number;
   has_parent_contact: boolean;
   has_parent_email?: boolean;
   flags: string[] | null;
+};
+
+export type SchoolAccountabilityRow = {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  status: string | null;
+  classes_count: number;
+  teachers_count: number;
+  students_total: number;
+  students_placed: number;
+  students_unplaced: number;
+  reports_published: number;
+  reports_draft: number;
+  parent_email_pct: number;
+  health_score: number;
+  gaps: string[];
 };
 
 export type ClassRow = {
@@ -73,6 +93,7 @@ export type Backlog = {
 
 export type AccountabilityTab =
   | 'overview'
+  | 'schools'
   | 'people'
   | 'teachers'
   | 'reports'

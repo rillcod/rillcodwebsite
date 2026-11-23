@@ -18,7 +18,7 @@ import TeacherAccountabilityPanel from '@/components/accountability/TeacherAccou
 import { AtRiskList } from '@/components/analytics/AtRiskList';
 import {
   AccountabilityTab, Backlog, ClassRow, Coverage, FLAG_LABEL, Person,
-  fmtDate, isStudent, isTeacher, normalizeRole, roleMeta,
+  SchoolAccountabilityRow, fmtDate, isStudent, isTeacher, normalizeRole, roleMeta,
 } from '@/lib/accountability/types';
 import { computeAccountabilityMetrics, downloadPeopleCsv, generateAccountabilityPdf } from '@/lib/accountability/report';
 import MobilePageHero from '@/components/mobile/MobilePageHero';
@@ -30,8 +30,9 @@ const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-for
 
 const TABS: { id: AccountabilityTab; label: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', hint: 'Health & action queue' },
+  { id: 'schools', label: 'Schools', hint: 'Every school scorecard' },
   { id: 'people', label: 'Directory', hint: 'All accounts & flags' },
-  { id: 'teachers', label: 'Teachers', hint: 'Classes & reports' },
+  { id: 'teachers', label: 'Teachers', hint: 'Activity & reports' },
   { id: 'reports', label: 'Classes & Reports', hint: 'Coverage by class' },
   { id: 'comms', label: 'Parent Reach', hint: 'Contacts & emails' },
   { id: 'report', label: 'Export', hint: 'PDF & CSV reports' },
@@ -83,6 +84,7 @@ function Section({
 type Props = {
   coverage: Coverage | null;
   people: Person[];
+  schoolsSummary?: SchoolAccountabilityRow[];
   backlog: Backlog | null;
   census?: {
     total: number;
@@ -110,7 +112,8 @@ const ACADEMIC_EXCEPTIONS_HREF = '/dashboard/academic#academic-exceptions';
 
 export default function AccountabilityDashboard({
   coverage: c,
-  people,
+  people: rawPeople,
+  schoolsSummary = [],
   backlog,
   census,
   exceptionTotals,
@@ -128,7 +131,37 @@ export default function AccountabilityDashboard({
   generatedBy,
 }: Props) {
   const [tab, setTab] = useState<AccountabilityTab>('overview');
+  const [sessionScope, setSessionScope] = useState<'current' | 'archive' | 'all'>('current');
+  const [schoolSearch, setSchoolSearch] = useState('');
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
+
+  // Clean separation of concerns: keep Current Session operations cleanly separated
+  // from Prior Session / Withdrawn / Archive records so old sessions never distort live KPIs.
+  const sessionCounts = useMemo(() => {
+    let current = 0;
+    let archive = 0;
+    for (const p of rawPeople) {
+      if (p.session_scope === 'archive') archive += 1;
+      else current += 1;
+    }
+    return { current, archive, all: rawPeople.length };
+  }, [rawPeople]);
+
+  const people = useMemo(() => {
+    if (sessionScope === 'all') return rawPeople;
+    if (sessionScope === 'archive') return rawPeople.filter((p) => p.session_scope === 'archive');
+    return rawPeople.filter((p) => p.session_scope !== 'archive');
+  }, [rawPeople, sessionScope]);
+
+  const filteredSchoolsSummary = useMemo(() => {
+    const q = schoolSearch.trim().toLowerCase();
+    const list = q
+      ? schoolsSummary.filter((s) =>
+          `${s.name} ${s.city ?? ''} ${s.state ?? ''} ${s.status ?? ''}`.toLowerCase().includes(q),
+        )
+      : schoolsSummary;
+    return [...list].sort((a, b) => b.students_total - a.students_total || a.name.localeCompare(b.name));
+  }, [schoolsSummary, schoolSearch]);
   const [reachOutPerson, setReachOutPerson] = useState<Person | null>(null);
   const [placementTargets, setPlacementTargets] = useState<Person[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -163,8 +196,11 @@ export default function AccountabilityDashboard({
   const gapPeople = useMemo(() => people.filter((p) => (p.flags ?? []).length > 0), [people]);
 
   const schools = useMemo(
-    () => Array.from(new Set(people.map((p) => p.school_name).filter(Boolean) as string[])).sort(),
-    [people],
+    () => Array.from(new Set([
+      ...schoolsSummary.map((s) => s.name),
+      ...(rawPeople.map((p) => p.school_name).filter(Boolean) as string[]),
+    ])).sort(),
+    [schoolsSummary, rawPeople],
   );
 
   const filtered = useMemo(() => {
@@ -489,6 +525,42 @@ export default function AccountabilityDashboard({
         </div>
       )}
 
+      {/* Clean Session Separation Bar — keeps Current Session cleanly separated from Prior/Archive */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Session Scope</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {sessionScope === 'current'
+              ? 'Showing active current-session accounts only — old-session and withdrawn records are cleanly separated.'
+              : sessionScope === 'archive'
+                ? 'Viewing prior-session, withdrawn, and inactive historical accounts.'
+                : 'Viewing combined current and historical accounts across all sessions.'}
+          </p>
+        </div>
+        <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1 gap-1 shrink-0">
+          {(
+            [
+              { id: 'current', label: 'Current Session', count: sessionCounts.current },
+              { id: 'archive', label: 'Prior / Archive', count: sessionCounts.archive },
+              { id: 'all', label: 'All Time', count: sessionCounts.all },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => { setSessionScope(opt.id); setPage(1); }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all whitespace-nowrap ${
+                sessionScope === opt.id
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label} <span className="opacity-80">({opt.count})</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Tabs — mobile strip + desktop bar */}
       <MobileScrollStrip
         label="Sections"
@@ -746,6 +818,107 @@ export default function AccountabilityDashboard({
                 </div>
               </div>
             </>
+          )}
+
+          {/* ── SCHOOLS SCORECARD (Every School in DB — Zero Omissions) ── */}
+          {tab === 'schools' && (
+            <Section
+              title={`All Schools (${filteredSchoolsSummary.length} of ${schoolsSummary.length})`}
+              icon={<BuildingOfficeIcon className="w-3.5 h-3.5 text-primary" />}
+              action={
+                <input
+                  value={schoolSearch}
+                  onChange={(e) => setSchoolSearch(e.target.value)}
+                  placeholder="Search any school by name, city, or status…"
+                  aria-label="Search schools scorecard"
+                  className="w-full sm:w-72 bg-card border border-border rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-primary"
+                />
+              }
+            >
+              {filteredSchoolsSummary.length === 0 ? (
+                <div className={`${CARD} p-10 text-center text-sm text-muted-foreground`}>
+                  No schools match &ldquo;{schoolSearch}&rdquo;.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredSchoolsSummary.map((s) => (
+                    <div key={s.id} className={`${CARD} p-4 sm:p-5 flex flex-col justify-between gap-4 hover:border-primary/40 transition-colors`}>
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-black text-foreground truncate">{s.name}</h3>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {[s.city, s.state].filter(Boolean).join(', ') || 'Nigeria'}
+                              {s.status ? ` · ${s.status}` : ''}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-black tabular-nums ${
+                            s.health_score >= 80
+                              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                              : s.health_score >= 50
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                                : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                          }`}>
+                            {s.health_score}%
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2.5 py-2 text-center">
+                            <div className="text-base font-black tabular-nums text-foreground">{s.students_total}</div>
+                            <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Students</div>
+                          </div>
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2.5 py-2 text-center">
+                            <div className="text-base font-black tabular-nums text-foreground">{s.classes_count}</div>
+                            <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Classes</div>
+                          </div>
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2.5 py-2 text-center">
+                            <div className="text-base font-black tabular-nums text-foreground">{s.parent_email_pct}%</div>
+                            <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Parents</div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {s.gaps.length === 0 ? (
+                            <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                              All set this session
+                            </span>
+                          ) : (
+                            s.gaps.map((g) => (
+                              <span key={g} className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                                {g}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/70">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSchool(s.name);
+                            setRole(null);
+                            setFlag(null);
+                            setPage(1);
+                            setTab('people');
+                          }}
+                          className="text-xs font-bold text-primary hover:underline"
+                        >
+                          View Accounts ({s.students_total}) →
+                        </button>
+                        <Link
+                          href="/dashboard/classes"
+                          className="text-xs font-bold text-muted-foreground hover:text-foreground"
+                        >
+                          Classes →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
           )}
 
           {/* ── DIRECTORY (PEOPLE) ────────────────────────────────────── */}
