@@ -135,7 +135,28 @@ export default function AccountabilityDashboard({
   const [schoolSearch, setSchoolSearch] = useState('');
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
   const [rolloverSchoolId, setRolloverSchoolId] = useState<string | null>(null);
+  const [rolloverExecuting, setRolloverExecuting] = useState(false);
   const [rolloverBanner, setRolloverBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [rolloverModal, setRolloverModal] = useState<{
+    schoolId: string;
+    schoolName: string;
+    currentSession: string;
+    availableClasses: Array<{ id: string; name: string }>;
+    skippedClasses: Array<{ id: string; name: string; reason: string }>;
+    requireTeacherConfirmation: boolean;
+    rows: Array<{
+      row_key: string;
+      from_class_id: string;
+      from_class_name: string;
+      from_grade: string;
+      to_class_id: string | null;
+      to_class_name: string | null;
+      to_grade: string | null;
+      action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'mark_inactive';
+      student_count: number;
+      enabled: boolean;
+    }>;
+  } | null>(null);
   const [integrityBusy, setIntegrityBusy] = useState(false);
   const [integrityBanner, setIntegrityBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -205,44 +226,58 @@ export default function AccountabilityDashboard({
         return;
       }
 
-      const lines = actionable.map((p: any) => {
-        if (p.action === 'archive_graduated') {
-          return `• ${p.from_class_name} (${p.from_grade}, ${p.student_count}) → Graduated Archive`;
-        }
-        if (p.action === 'mark_inactive') {
-          return `• ${p.from_class_name} (${p.from_grade}, ${p.student_count}) → Mark Inactive (no ${p.to_grade} class in school)`;
-        }
-        if (p.action === 'upgrade_in_place') {
-          return `• ${p.from_class_name} (${p.from_grade} → ${p.to_grade}, ${p.student_count}) → Upgrade grade inside band`;
-        }
-        return `• ${p.from_class_name} (${p.from_grade}, ${p.student_count}) → Move to ${p.to_class_name} as ${p.to_grade} (for teacher confirmation)`;
+      setRolloverModal({
+        schoolId,
+        schoolName,
+        currentSession: preview.current_session || '',
+        availableClasses: Array.isArray(preview.available_classes) ? preview.available_classes : [],
+        skippedClasses: Array.isArray(preview.skipped_classes) ? preview.skipped_classes : [],
+        requireTeacherConfirmation: true,
+        rows: actionable.map((p: any) => ({ ...p, enabled: true })),
       });
-      const skippedCount = (preview.skipped_classes ?? []).length;
-      const confirmed = confirm(
-        `Session Rollover Preview — ${schoolName} (${preview.total_students_affected} student${preview.total_students_affected === 1 ? '' : 's'}):\n\n` +
-          `${lines.join('\n')}` +
-          (skippedCount > 0 ? `\n\n(${skippedCount} multi-grade/custom class${skippedCount === 1 ? '' : 'es'} will remain untouched)` : '') +
-          `\n\nProceed with top-down rollover now?`,
-      );
-      if (!confirmed) return;
+    } catch (err: any) {
+      setRolloverBanner({ type: 'error', text: err?.message || 'Rollover preview failed.' });
+    } finally {
+      setRolloverSchoolId(null);
+    }
+  };
 
-      const execRes = await fetch(`/api/admin/schools/${schoolId}/rollover`, {
+  const executeSchoolRollover = async () => {
+    if (!rolloverModal) return;
+    const enabledRows = rolloverModal.rows.filter((r) => r.enabled);
+    if (enabledRows.length === 0) {
+      setRolloverBanner({ type: 'error', text: 'Select at least one class transition to run rollover.' });
+      return;
+    }
+    setRolloverExecuting(true);
+    try {
+      const execRes = await fetch(`/api/admin/schools/${rolloverModal.schoolId}/rollover`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dry_run: false }),
+        body: JSON.stringify({
+          dry_run: false,
+          require_teacher_confirmation: rolloverModal.requireTeacherConfirmation,
+          overrides: rolloverModal.rows.map((r) => ({
+            row_key: r.row_key,
+            enabled: r.enabled,
+            action: r.action,
+            to_class_id: r.to_class_id,
+          })),
+        }),
       });
       const execJson = await execRes.json().catch(() => ({}));
       if (!execRes.ok) throw new Error(execJson.error || 'Rollover failed.');
 
       setRolloverBanner({
         type: 'success',
-        text: execJson.message || `Session rollover complete for ${schoolName}.`,
+        text: execJson.message || `Session rollover complete for ${rolloverModal.schoolName}.`,
       });
+      setRolloverModal(null);
       onRefresh(true);
     } catch (err: any) {
       setRolloverBanner({ type: 'error', text: err?.message || 'Rollover failed.' });
     } finally {
-      setRolloverSchoolId(null);
+      setRolloverExecuting(false);
     }
   };
 
@@ -1750,6 +1785,238 @@ export default function AccountabilityDashboard({
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {rolloverModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Session Rollover Planner for ${rolloverModal.schoolName}`}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+        >
+          <div className="w-full max-w-3xl max-h-[92dvh] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-primary/5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  Smart Session Rollover Planner · {rolloverModal.currentSession}
+                </p>
+                <h3 className="text-base sm:text-lg font-black text-foreground truncate">
+                  {rolloverModal.schoolName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRolloverModal(null)}
+                disabled={rolloverExecuting}
+                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+              {(() => {
+                const active = rolloverModal.rows.filter((r) => r.enabled);
+                const moving = active.filter((r) => r.action === 'promote').reduce((s, r) => s + r.student_count, 0);
+                const inBand = active.filter((r) => r.action === 'upgrade_in_place').reduce((s, r) => s + r.student_count, 0);
+                const graduating = active.filter((r) => r.action === 'archive_graduated').reduce((s, r) => s + r.student_count, 0);
+                const inactive = active.filter((r) => r.action === 'mark_inactive').reduce((s, r) => s + r.student_count, 0);
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="rounded-xl border border-primary/25 bg-primary/5 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-primary">{moving}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Move to Class</div>
+                    </div>
+                    <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-emerald-700 dark:text-emerald-300">{inBand}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Upgrade in Band</div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/40 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-foreground">{graduating}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Graduate</div>
+                    </div>
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-center">
+                      <div className="text-lg font-black tabular-nums text-amber-800 dark:text-amber-300">{inactive}</div>
+                      <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Mark Inactive</div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <label className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rolloverModal.requireTeacherConfirmation}
+                  onChange={(e) =>
+                    setRolloverModal((prev) =>
+                      prev ? { ...prev, requireTeacherConfirmation: e.target.checked } : prev,
+                    )
+                  }
+                  className="mt-0.5 rounded border-border accent-primary"
+                />
+                <span>
+                  <strong className="text-foreground">Teacher presence confirmation mode:</strong>{' '}
+                  <span className="text-muted-foreground">
+                    Moved students appear in the receiving teacher&apos;s class for presence confirmation; students without a next-tier class are marked inactive cleanly.
+                  </span>
+                </span>
+              </label>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    Top-Down Transitions ({rolloverModal.rows.filter((r) => r.enabled).length}/{rolloverModal.rows.length} selected)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRolloverModal((prev) =>
+                          prev ? { ...prev, rows: prev.rows.map((r) => ({ ...r, enabled: true })) } : prev,
+                        )
+                      }
+                      className="text-[11px] font-bold text-primary hover:underline"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRolloverModal((prev) =>
+                          prev ? { ...prev, rows: prev.rows.map((r) => ({ ...r, enabled: false })) } : prev,
+                        )
+                      }
+                      className="text-[11px] font-bold text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border divide-y divide-border">
+                  {rolloverModal.rows.map((row) => {
+                    const selectVal =
+                      row.action === 'archive_graduated'
+                        ? '__graduate__'
+                        : row.action === 'mark_inactive'
+                          ? '__inactive__'
+                          : row.to_class_id || '__inactive__';
+                    return (
+                      <div
+                        key={row.row_key}
+                        className={`p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                          row.enabled ? 'bg-card' : 'bg-muted/25 opacity-60'
+                        }`}
+                      >
+                        <label className="flex items-start gap-2.5 min-w-0 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={row.enabled}
+                            onChange={(e) =>
+                              setRolloverModal((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      rows: prev.rows.map((r) =>
+                                        r.row_key === row.row_key ? { ...r, enabled: e.target.checked } : r,
+                                      ),
+                                    }
+                                  : prev,
+                              )
+                            }
+                            aria-label={`Include ${row.from_class_name} ${row.from_grade}`}
+                            className="mt-1 rounded border-border accent-primary"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-foreground truncate">
+                              {row.from_class_name} · <span className="text-primary">{row.from_grade}</span>
+                              {row.to_grade ? ` → ${row.to_grade}` : ''}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {row.student_count} active student{row.student_count === 1 ? '' : 's'}
+                            </p>
+                          </div>
+                        </label>
+
+                        <select
+                          aria-label={`Destination for ${row.from_class_name} ${row.from_grade}`}
+                          disabled={!row.enabled}
+                          value={selectVal}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRolloverModal((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                rows: prev.rows.map((r) => {
+                                  if (r.row_key !== row.row_key) return r;
+                                  if (val === '__graduate__') {
+                                    return { ...r, action: 'archive_graduated', to_class_id: null, to_class_name: 'Graduated Archive' };
+                                  }
+                                  if (val === '__inactive__') {
+                                    return { ...r, action: 'mark_inactive', to_class_id: null, to_class_name: 'Mark Inactive' };
+                                  }
+                                  const cls = prev.availableClasses.find((c) => c.id === val);
+                                  const isSame = val === r.from_class_id;
+                                  return {
+                                    ...r,
+                                    action: isSame ? 'upgrade_in_place' : 'promote',
+                                    to_class_id: val,
+                                    to_class_name: cls?.name || r.to_class_name,
+                                  };
+                                }),
+                              };
+                            });
+                          }}
+                          className="min-h-9 sm:w-64 rounded-xl border border-border bg-background px-2.5 text-xs font-bold text-foreground disabled:opacity-50"
+                        >
+                          <option value="__inactive__">Mark Inactive (no next-tier class)</option>
+                          <option value="__graduate__">Graduated Archive</option>
+                          {rolloverModal.availableClasses.map((cls) => (
+                            <option key={cls.id} value={cls.id}>
+                              {cls.id === row.from_class_id ? `Upgrade in place: ${cls.name}` : `Move to: ${cls.name}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {rolloverModal.skippedClasses.length > 0 && (
+                <p className="text-[11px] text-muted-foreground rounded-xl border border-border bg-muted/25 px-3 py-2">
+                  Safely untouched ({rolloverModal.skippedClasses.length} custom/non-grade class{rolloverModal.skippedClasses.length === 1 ? '' : 'es'}):{' '}
+                  {rolloverModal.skippedClasses.map((s) => s.name).join(', ')}.
+                </p>
+              )}
+            </div>
+
+            <div className="px-5 py-3.5 border-t border-border bg-muted/20 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-muted-foreground">
+                {rolloverModal.rows.filter((r) => r.enabled).reduce((s, r) => s + r.student_count, 0)} student(s) will be updated
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRolloverModal(null)}
+                  disabled={rolloverExecuting}
+                  className="min-h-10 rounded-xl border border-border bg-background px-4 py-2 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={rolloverExecuting || rolloverModal.rows.every((r) => !r.enabled)}
+                  onClick={() => void executeSchoolRollover()}
+                  className="min-h-10 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-5 py-2 text-xs font-black uppercase tracking-wider text-white shadow-sm disabled:opacity-50"
+                >
+                  {rolloverExecuting ? 'Running Rollover…' : 'Run Selected Rollover →'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

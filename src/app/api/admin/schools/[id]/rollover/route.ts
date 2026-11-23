@@ -65,6 +65,7 @@ function parseClassGrades(name: string | null | undefined): { grades: CanonicalG
 }
 
 type PlanRow = {
+  row_key: string;
   from_class_id: string;
   from_class_name: string;
   from_grade: string;
@@ -74,6 +75,13 @@ type PlanRow = {
   action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'mark_inactive';
   student_count: number;
   student_ids: string[];
+};
+
+type RolloverOverride = {
+  row_key: string;
+  enabled?: boolean;
+  action?: PlanRow['action'];
+  to_class_id?: string | null;
 };
 
 /**
@@ -106,12 +114,21 @@ export async function POST(
       .eq('id', user.id)
       .maybeSingle();
 
-    if (caller?.role !== 'admin') {
-      return NextResponse.json({ error: 'Administrators only' }, { status: 403 });
+    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));
     const dryRun = body?.dry_run !== false;
+    const scopedClassId = typeof body?.class_id === 'string' && body.class_id.trim() ? body.class_id.trim() : null;
+
+    // Teachers may ONLY roll over their own assigned class — never another teacher's class.
+    if (caller.role === 'teacher' && !scopedClassId) {
+      return NextResponse.json(
+        { error: 'Teachers must specify class_id to roll over their own assigned class.' },
+        { status: 403 },
+      );
+    }
 
     const { data: school, error: schoolErr } = await admin
       .from('schools')
@@ -135,6 +152,16 @@ export async function POST(
         !['archived', 'inactive', 'completed'].includes(String(c.status || '').toLowerCase()) &&
         !isSpecializedProgramRecord(null, c.name),
     );
+
+    if (caller.role === 'teacher' && scopedClassId) {
+      const owned = activeClasses.find((c: any) => c.id === scopedClassId && c.teacher_id === caller.id);
+      if (!owned) {
+        return NextResponse.json(
+          { error: 'You can only run rollover for a class assigned to you.' },
+          { status: 403 },
+        );
+      }
+    }
 
     type ParsedClass = { cls: any; grades: CanonicalGrade[]; isBand: boolean };
     const parsedClasses: ParsedClass[] = [];
@@ -184,8 +211,13 @@ export async function POST(
       return candidates[0].cls;
     };
 
-    const classIds = parsedClasses.map((p) => p.cls.id);
+    const currentSession = getSessionBoundary().periodLabel;
+    const sourceClasses = scopedClassId
+      ? parsedClasses.filter((p) => p.cls.id === scopedClassId)
+      : parsedClasses;
+    const classIds = sourceClasses.map((p) => p.cls.id);
     const studentsByClass = new Map<string, Array<{ id: string; full_name: string | null; grade: string | null; email: string | null }>>();
+    const alreadyRolledOverIds = new Set<string>();
 
     if (classIds.length > 0) {
       const { data: activeStudents } = await admin
@@ -195,7 +227,33 @@ export async function POST(
         .eq('is_active', true)
         .in('class_id', classIds);
 
+      const allStudentIds = ((activeStudents ?? []) as any[]).map((s) => s.id).filter(Boolean);
+
+      // DOUBLE-PROMOTION GUARD: check students.session_history for currentSession so
+      // if either the teacher OR admin already promoted/confirmed a student this session,
+      // they are automatically skipped and can NEVER be promoted twice!
+      if (allStudentIds.length > 0) {
+        const { data: studentRecords } = await (admin as any)
+          .from('students')
+          .select('user_id, session_history')
+          .in('user_id', allStudentIds);
+        for (const rec of (studentRecords ?? []) as any[]) {
+          const hist = Array.isArray(rec.session_history) ? rec.session_history : [];
+          const doneThisSession = hist.some(
+            (h: any) =>
+              String(h?.session || '') === currentSession &&
+              ['promoted', 'upgraded', 'confirmed_current', 'rollover_promoted', 'rollover_upgraded', 'rollover_graduated'].includes(
+                String(h?.action || ''),
+              ),
+          );
+          if (doneThisSession && rec.user_id) {
+            alreadyRolledOverIds.add(rec.user_id);
+          }
+        }
+      }
+
       for (const st of (activeStudents ?? []) as any[]) {
+        if (alreadyRolledOverIds.has(st.id)) continue;
         const cid = String(st.class_id || '');
         if (!cid) continue;
         const arr = studentsByClass.get(cid) ?? [];
@@ -207,7 +265,7 @@ export async function POST(
     // Group transitions by (from_class_id, from_grade) and sort strictly top-down (SS 3 → Basic 1)
     const planBuckets = new Map<string, PlanRow & { ladderIndex: number }>();
 
-    for (const pc of parsedClasses) {
+    for (const pc of sourceClasses) {
       const roster = studentsByClass.get(pc.cls.id) ?? [];
       for (const st of roster) {
         const currentGrade =
@@ -241,6 +299,7 @@ export async function POST(
           existing.student_ids.push(st.id);
         } else {
           planBuckets.set(bucketKey, {
+            row_key: bucketKey,
             from_class_id: pc.cls.id,
             from_class_name: pc.cls.name,
             from_grade: currentGrade,
@@ -265,6 +324,7 @@ export async function POST(
     const sortedPlan = Array.from(planBuckets.values()).sort((a, b) => b.ladderIndex - a.ladderIndex);
     const totalStudentsAffected = sortedPlan.reduce((sum, p) => sum + p.student_count, 0);
     const currentSession = getSessionBoundary().periodLabel;
+    const availableClasses = activeClasses.map((c: any) => ({ id: c.id, name: c.name }));
 
     if (dryRun) {
       return NextResponse.json({
@@ -274,10 +334,38 @@ export async function POST(
         school_name: school.name,
         current_session: currentSession,
         plan: sortedPlan.map(({ student_ids: _ids, ladderIndex: _idx, ...rest }) => rest),
+        available_classes: availableClasses,
         skipped_classes: skippedClasses,
         total_students_affected: totalStudentsAffected,
       });
     }
+
+    const rawOverrides: RolloverOverride[] = Array.isArray(body?.overrides) ? body.overrides : [];
+    const overrideMap = new Map<string, RolloverOverride>();
+    for (const ov of rawOverrides) {
+      if (ov?.row_key) overrideMap.set(String(ov.row_key), ov);
+    }
+    const validClassIds = new Set(activeClasses.map((c: any) => c.id));
+    const requireTeacherConfirmation = body?.require_teacher_confirmation !== false;
+
+    const effectivePlan = sortedPlan
+      .map((step) => {
+        const ov = overrideMap.get(step.row_key);
+        if (!ov) return step;
+        if (ov.enabled === false) return null;
+        const nextAction = ov.action ?? step.action;
+        let nextToClassId = ov.to_class_id !== undefined ? ov.to_class_id : step.to_class_id;
+        if (nextAction === 'promote') {
+          if (!nextToClassId || !validClassIds.has(nextToClassId)) return null;
+          if (nextToClassId === step.from_class_id) {
+            return { ...step, action: 'upgrade_in_place' as const, to_class_id: step.from_class_id };
+          }
+        } else if (nextAction === 'archive_graduated' || nextAction === 'mark_inactive') {
+          nextToClassId = null;
+        }
+        return { ...step, action: nextAction, to_class_id: nextToClassId };
+      })
+      .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
     let promoted = 0;
     let upgradedInPlace = 0;
@@ -287,7 +375,7 @@ export async function POST(
     const touchedClassIds = new Set<string>();
     const nowIso = new Date().toISOString();
 
-    for (const step of sortedPlan) {
+    for (const step of effectivePlan) {
       touchedClassIds.add(step.from_class_id);
       if (step.to_class_id) touchedClassIds.add(step.to_class_id);
 
@@ -373,6 +461,7 @@ export async function POST(
       newValues: {
         school_name: school.name,
         session: currentSession,
+        require_teacher_confirmation: requireTeacherConfirmation,
         promoted,
         upgraded_in_place: upgradedInPlace,
         archived,
