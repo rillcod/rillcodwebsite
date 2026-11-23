@@ -323,7 +323,6 @@ export async function POST(
     // Top-down execution order (SS 3 first, Basic 1 last) so promotions never collide!
     const sortedPlan = Array.from(planBuckets.values()).sort((a, b) => b.ladderIndex - a.ladderIndex);
     const totalStudentsAffected = sortedPlan.reduce((sum, p) => sum + p.student_count, 0);
-    const currentSession = getSessionBoundary().periodLabel;
     const availableClasses = activeClasses.map((c: any) => ({ id: c.id, name: c.name }));
 
     if (dryRun) {
@@ -333,6 +332,7 @@ export async function POST(
         school_id: school.id,
         school_name: school.name,
         current_session: currentSession,
+        already_rolled_over_count: alreadyRolledOverIds.size,
         plan: sortedPlan.map(({ student_ids: _ids, ladderIndex: _idx, ...rest }) => rest),
         available_classes: availableClasses,
         skipped_classes: skippedClasses,
@@ -374,6 +374,36 @@ export async function POST(
     let failed = 0;
     const touchedClassIds = new Set<string>();
     const nowIso = new Date().toISOString();
+
+    const appendSessionHistory = async (
+      studentIds: string[],
+      entryAction: string,
+      fromGrade: string,
+      toGrade: string | null,
+      toClassId: string | null,
+    ) => {
+      if (studentIds.length === 0) return;
+      const { data: rows } = await (admin as any)
+        .from('students')
+        .select('id, user_id, session_history')
+        .in('user_id', studentIds);
+      for (const r of (rows ?? []) as any[]) {
+        const hist = Array.isArray(r.session_history) ? r.session_history : [];
+        const nextEntry = {
+          session: currentSession,
+          action: entryAction,
+          from_grade: fromGrade,
+          to_grade: toGrade,
+          class_id: toClassId,
+          actor_id: caller.id,
+          at: nowIso,
+        };
+        await (admin as any)
+          .from('students')
+          .update({ session_history: [...hist, nextEntry] })
+          .eq('id', r.id);
+      }
+    };
 
     for (const step of effectivePlan) {
       touchedClassIds.add(step.from_class_id);
@@ -424,11 +454,15 @@ export async function POST(
           .in('user_id', step.student_ids);
 
         if (upgErr) failed += step.student_ids.length;
-        else upgradedInPlace += step.student_ids.length;
+        else {
+          upgradedInPlace += step.student_ids.length;
+          await appendSessionHistory(step.student_ids, 'rollover_upgraded', step.from_grade, step.to_grade, step.from_class_id);
+        }
         continue;
       }
 
       if (step.action === 'promote' && step.to_class_id) {
+        const promotedIds: string[] = [];
         for (const sid of step.student_ids) {
           const result = await reinstateStudentToClass(admin as any, {
             studentId: sid,
@@ -437,9 +471,14 @@ export async function POST(
             grade: step.to_grade,
             forceCrossTeacher: true,
           });
-          if (result.ok) promoted += 1;
-          else failed += 1;
+          if (result.ok) {
+            promoted += 1;
+            promotedIds.push(sid);
+          } else {
+            failed += 1;
+          }
         }
+        await appendSessionHistory(promotedIds, 'rollover_promoted', step.from_grade, step.to_grade, step.to_class_id);
       }
     }
 
