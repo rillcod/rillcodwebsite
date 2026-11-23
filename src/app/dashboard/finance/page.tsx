@@ -2321,42 +2321,65 @@ export default function FinancePage() {
     <div className={`min-h-screen bg-background ${MOBILE_PAGE_ROOT} ${showSticky ? MOBILE_STICKY_ACTIONS_BOTTOM : ''}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-            {profile.role === 'student' ? 'My Fees' : 'Finance Center'}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {profile.role === 'student'
-              ? 'See what you owe and pay from here.'
-              : profile.role === 'teacher'
-              ? 'Today = payment status overview · Invoices = scoped records'
-              : profile.role === 'school'
-              ? 'Today = what needs action · Reports = summary & statements · Invoices = bills & payment proof'
-              : 'Today = action queue · Reports = KPIs & docs · Invoices/Collections/Reconciliation = the work'}
-            {profile.role === 'school' && profile.school_id && (
-              <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
-                <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school
-              </span>
-            )}
-          </p>
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+              {profile.role === 'student' ? 'My Fees' : 'Finance Center'}
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
+              {profile.role === 'student'
+                ? 'View your balances and pay securely.'
+                : profile.role === 'school'
+                ? 'Track school invoices, receipts, and payment statements.'
+                : 'Invoices, collections, reconciliation, and revenue reports in one hub.'}
+              {profile.role === 'school' && profile.school_id && (
+                <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
+                  <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school
+                </span>
+              )}
+            </p>
+          </div>
+          {isAdmin && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => switchTab('invoices')}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-95"
+              >
+                <PlusIcon className="w-4 h-4" /> Invoices
+              </button>
+              <Link
+                href="/dashboard/payments/bulk"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground hover:border-primary/50"
+              >
+                Bulk Billing
+              </Link>
+              <Link
+                href="/dashboard/office"
+                className="inline-flex min-h-10 items-center rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground hover:text-foreground"
+              >
+                Office HQ
+              </Link>
+            </div>
+          )}
         </div>
 
-        {/* Workspace nav */}
-        <div className="mb-6 -mx-4 sm:mx-0">
-          <div className="flex overflow-x-auto gap-1 px-4 sm:px-0 pb-1 scrollbar-hide">
+        {/* Consolidated Mobile & Web Workspace Navigation */}
+        <div className="mb-5 -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="flex overflow-x-auto gap-1 rounded-2xl border border-border bg-muted/40 p-1 scrollbar-hide">
             {visibleTabs.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
+                type="button"
                 onClick={() => switchTab(key)}
-                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                className={`flex min-h-10 items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                   tab === key
-                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60'
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{label}</span>
-                <span className="sm:hidden">{label.split(' ')[0]}</span>
+                <span>{label}</span>
               </button>
             ))}
           </div>

@@ -151,30 +151,28 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
         </div>
       )}
 
-      {showDocumentFilter && (
-        <div className="space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Document type</span>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+      {showDocumentFilter && documentFilters.length > 1 && (
+        <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1 gap-1">
           {documentFilters.map((t) => {
             const Icon = t.Icon;
             const active = tab === t.k;
             return (
               <button
                 key={t.k}
+                type="button"
                 onClick={() => switchTab(t.k)}
-                className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
                   active
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
+                    ? 'bg-card text-primary shadow-sm border border-primary/30'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
                 title={t.hint}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 {t.label}
               </button>
             );
           })}
-          </div>
         </div>
       )}
 

@@ -610,71 +610,111 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
-        {canCreateInvoices && (
-          <button
-            onClick={() => setShowGeneratorChoice(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-md hover:bg-primary/90"
-          >
-            <PlusIcon className="w-4 h-4" /> Create premium invoice
-          </button>
-        )}
-        {isAdmin && (
-          <Link
-            href="/dashboard/payments/bulk"
-            className="inline-flex items-center gap-2 px-4 py-2 border border-border font-black text-xs uppercase tracking-widest rounded-md hover:border-primary text-foreground"
-          >
-            Bulk invoicing
-          </Link>
-        )}
-
-        <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
-          {(['all', 'open', 'paid', 'overdue', 'overpaid'] as const).map((s) => (
+      <div className="space-y-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {canCreateInvoices && (
             <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 font-black uppercase tracking-widest ${
-                statusFilter === s
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              type="button"
+              onClick={() => setShowGeneratorChoice(true)}
+              className="inline-flex min-h-10 items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-wider rounded-xl hover:opacity-95"
             >
-              {s === 'overpaid' && ledgerMetrics.overpaidCount > 0
-                ? `Overpaid (${ledgerMetrics.overpaidCount})`
-                : s}
+              <PlusIcon className="w-4 h-4" /> New Invoice
             </button>
-          ))}
+          )}
+          {isAdmin && (
+            <Link
+              href="/dashboard/payments/bulk"
+              className="inline-flex min-h-10 items-center gap-1.5 px-3.5 py-2 border border-border bg-card font-bold text-xs rounded-xl hover:border-primary/50 text-foreground"
+            >
+              Bulk Billing
+            </Link>
+          )}
+          {filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const esc = (v: unknown) => {
+                  let s = v == null ? '' : String(v);
+                  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+                  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+                };
+                const headers = ['Invoice #', 'Stream', 'Status', 'Payer / School', 'Amount', 'Paid', 'Remaining', 'Currency', 'Issued', 'Due'];
+                const rows = filtered.map((inv) => [
+                  esc(inv.invoice_number),
+                  esc(streamLabel(inv.stream)),
+                  esc(inv.status),
+                  esc(inv.schools?.name || inv.portal_users?.full_name || '—'),
+                  esc(inv.amount),
+                  esc(inv.amount_paid ?? 0),
+                  esc(invoiceOutstandingAmount(inv as any)),
+                  esc(inv.currency || 'NGN'),
+                  esc(formatShortDate(inv.created_at)),
+                  esc(inv.due_date ? formatShortDate(inv.due_date) : '—'),
+                ].join(','));
+                const blob = new Blob(['\uFEFF' + [headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `rillcod-invoices-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="inline-flex min-h-10 items-center gap-1.5 px-3 py-2 border border-border bg-card font-bold text-xs rounded-xl hover:border-primary/50 text-foreground"
+            >
+              Export CSV ({filtered.length})
+            </button>
+          )}
+          <div className="relative flex-1 min-w-[200px]">
+            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search invoice #, school, payer…"
+              aria-label="Search invoices"
+              className="w-full min-h-10 pl-9 pr-3 py-2 text-xs border border-border bg-background rounded-xl focus:outline-none focus:border-primary"
+            />
+          </div>
         </div>
 
-        {(isAdmin || isSchool) && (
-          <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
-            {(['all', 'school', 'individual'] as const).map((s) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center overflow-x-auto border border-border rounded-xl p-0.5 bg-muted/30 text-xs max-w-full scrollbar-hide">
+            {(['all', 'open', 'paid', 'overdue', 'overpaid'] as const).map((s) => (
               <button
                 key={s}
-                onClick={() => setStreamFilter(s)}
-                className={`px-3 py-1.5 font-black uppercase tracking-widest ${
-                  streamFilter === s
-                    ? 'bg-primary text-primary-foreground'
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                className={`shrink-0 px-3 py-1.5 rounded-lg font-bold capitalize transition-colors ${
+                  statusFilter === s
+                    ? 'bg-card text-foreground shadow-sm border border-border'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {s === 'all' ? 'All' : streamLabel(s)}
+                {s === 'overpaid' && ledgerMetrics.overpaidCount > 0
+                  ? `Overpaid (${ledgerMetrics.overpaidCount})`
+                  : s}
               </button>
             ))}
           </div>
-        )}
 
-        <div className="flex-1" />
-
-        <div className="relative">
-          <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search invoice #, payer…"
-            className="w-full md:w-64 pl-9 pr-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
-          />
+          {(isAdmin || isSchool) && (
+            <div className="inline-flex border border-border rounded-xl p-0.5 bg-muted/30 text-xs">
+              {(['all', 'school', 'individual'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStreamFilter(s)}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
+                    streamFilter === s
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {s === 'all' ? 'All Streams' : streamLabel(s)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -809,12 +849,6 @@ export function InvoicesPanel({ editInvoiceId }: { editInvoiceId?: string | null
                   <div className="text-[11px] text-muted-foreground mt-1">
                     Issued {formatShortDate(inv.created_at)}
                     {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
-                    {inv.stream === 'school' && (inv.metadata?.term_label || (inv.metadata?.term_number != null && inv.metadata?.academic_year != null)) && (
-                      <span className="ml-1 text-primary/80 font-bold">
-                        · {inv.metadata.term_label
-                          || schoolSessionDisplay(String(inv.metadata.academic_year), String(inv.metadata.term_number))}
-                      </span>
-                    )}
                   </div>
                 </div>
 
