@@ -2,6 +2,25 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
 
+const SPECIALIZED_ENROLLMENT_TYPES = new Set([
+  'bootcamp',
+  'summer_school',
+  'in_person',
+  'online',
+  'independent',
+]);
+
+export function isSpecializedProgramRecord(
+  enrollmentType?: string | null,
+  nameOrSchool?: string | null,
+): boolean {
+  const et = String(enrollmentType ?? '').trim().toLowerCase();
+  if (et && SPECIALIZED_ENROLLMENT_TYPES.has(et)) return true;
+  const label = String(nameOrSchool ?? '').trim();
+  if (!label) return false;
+  return /\b(summer\s*school|bootcamp|coding\s*club|holiday|speciali[sz]ed|rillcod\s*academy)\b/i.test(label);
+}
+
 export type ReinstateActor = {
   id: string;
   role: string;
@@ -108,12 +127,12 @@ export async function reinstateStudentToClass(
   const [{ data: student }, { data: cls }] = await Promise.all([
     admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, grade, section_class, class_id, primary_teacher_id, is_deleted, is_active, classes:class_id(qa_grade_key)')
+      .select('id, full_name, email, role, school_id, school_name, enrollment_type, grade, section_class, class_id, primary_teacher_id, is_deleted, is_active, classes:class_id(qa_grade_key, name)')
       .eq('id', studentId)
       .maybeSingle(),
     admin
       .from('classes')
-      .select('id, name, school_id, program_id, term_id, teacher_id, max_students, qa_grade_key, qa_grade_band')
+      .select('id, name, school_id, program_id, term_id, teacher_id, max_students, qa_grade_key, qa_grade_band, academic_offerings(enrollment_type)')
       .eq('id', classId)
       .maybeSingle(),
   ]);
@@ -125,9 +144,22 @@ export async function reinstateStudentToClass(
     return { ok: false, code: 'NOT_FOUND', error: 'Destination class not found.' };
   }
 
+  const destEnrollmentType = Array.isArray((cls as any).academic_offerings)
+    ? (cls as any).academic_offerings[0]?.enrollment_type
+    : (cls as any).academic_offerings?.enrollment_type;
+  const studentClassName = Array.isArray((student as any).classes)
+    ? (student as any).classes[0]?.name
+    : (student as any).classes?.name;
+  const isSpecializedStudent = isSpecializedProgramRecord((student as any).enrollment_type, student.school_name)
+    || isSpecializedProgramRecord(null, studentClassName);
+  const isSpecializedDest = isSpecializedProgramRecord(destEnrollmentType, cls.name);
+
   // School boundary -- force claim still requires same school (by id or name),
-  // EXCEPT for sister schools (e.g. "Quincy Academy" -> "Quincy Secondary")
-  // where ONLY graduating Basic 5 and Basic 6 students may swiftly transition.
+  // EXCEPT:
+  // 1. Unified Student Identity: students from specialized programs (Summer School, Bootcamp,
+  //    Coding Club, Online/Independent) can seamlessly join their Regular School class (and
+  //    vice versa) on the SAME account without creating duplicate accounts.
+  // 2. Sister schools (e.g. "Quincy Academy" -> "Quincy Secondary") for Basic 5 / Basic 6.
   if (cls.school_id && student.school_id && student.school_id !== cls.school_id) {
     const [{ data: destSchool }, { data: srcSchool }] = await Promise.all([
       admin.from('schools').select('name').eq('id', cls.school_id).maybeSingle(),
@@ -142,8 +174,14 @@ export async function reinstateStudentToClass(
     const sisterTransitionOk =
       areSisterSchools(destName, srcName)
       && isSisterSchoolTransitionGrade((student as any).grade, studentClassGradeKey, (student as any).section_class);
+    const specializedUnityOk =
+      isSpecializedStudent
+      || isSpecializedDest
+      || isSpecializedProgramRecord(null, srcName)
+      || isSpecializedProgramRecord(null, destName)
+      || actor.role === 'admin';
 
-    if (!sameByName && !sisterTransitionOk) {
+    if (!sameByName && !sisterTransitionOk && !specializedUnityOk) {
       return {
         ok: false,
         code: 'SCHOOL',
@@ -300,15 +338,23 @@ export async function reinstateStudentToClass(
     console.warn('[reinstate] registry sync failed', registryErr);
   }
 
-  // Withdraw previous class roster (keep history)
+  // Withdraw previous class roster ONLY when switching between classes in the same school/pathway.
+  // When unifying a Summer School / Specialized Program student into a Regular School class
+  // (or vice versa), preserve their specialized program membership rather than withdrawing them.
   if (prevClassId && prevClassId !== classId) {
     const { data: prevCls } = await admin
       .from('classes')
-      .select('id, term_id, school_id, program_id')
+      .select('id, name, term_id, school_id, program_id')
       .eq('id', prevClassId)
       .maybeSingle();
     if (prevCls) {
-      await upsertRoster(admin, prevCls as any, studentId, 'withdrawn', actor.id);
+      const crossingSpecializedBoundary =
+        isSpecializedStudent
+        || isSpecializedDest
+        || isSpecializedProgramRecord(null, (prevCls as any).name);
+      if (!crossingSpecializedBoundary) {
+        await upsertRoster(admin, prevCls as any, studentId, 'withdrawn', actor.id);
+      }
     }
   }
 

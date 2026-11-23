@@ -5,7 +5,7 @@ import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
-import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
+import { isSpecializedProgramRecord, reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
 import { isPasteClaimEnabled } from '@/lib/server/app-settings';
 import {
@@ -307,7 +307,14 @@ export async function GET(
     );
     sisterSchoolMap = new Map(sisterSchools.map((sc: any) => [sc.id, sc.name as string]));
 
-    const orParts: string[] = [`school_id.eq.${cls.school_id}`];
+    const orParts: string[] = [
+      `school_id.eq.${cls.school_id}`,
+      // Unified Student Identity: always surface specialized-program / Summer School /
+      // Bootcamp / unassigned-school students so teachers can enroll them into their
+      // regular school class on the exact same account without creating duplicates.
+      'school_id.is.null',
+      'enrollment_type.neq.school',
+    ];
     if (schoolName) {
       orParts.push(`and(school_id.is.null,school_name.eq.${JSON.stringify(schoolName)})`);
     }
@@ -316,6 +323,13 @@ export async function GET(
       if (ss.name) {
         orParts.push(`and(school_id.is.null,school_name.eq.${JSON.stringify(ss.name)})`);
       }
+    }
+    // Also include any school record representing Summer School / Bootcamp / Rillcod Academy
+    const specializedSchools = (allSchools ?? []).filter(
+      (sc: any) => sc.id !== cls.school_id && isSpecializedProgramRecord(null, sc.name),
+    );
+    for (const sp of specializedSchools) {
+      orParts.push(`school_id.eq.${sp.id}`);
     }
     query = query.or(orParts.join(',')) as any;
   } else {
@@ -353,9 +367,18 @@ export async function GET(
   const feederGrade = feederGrades[0] ?? null;
   const feederSet = new Set(feederGrades.map((g) => g.toLowerCase()));
 
+  const isSpecializedDest = isSpecializedProgramRecord(expectedEnrollmentType, (cls as any)?.name);
+
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
     .filter((u: any) => {
+      // Unified Student Identity: always allow Summer School / Bootcamp / Specialized Program
+      // students to be discovered and linked into Regular School classes (and vice versa).
+      const isSpecializedStudent =
+        isSpecializedProgramRecord(u.enrollment_type, u.school_name)
+        || isSpecializedProgramRecord(null, u.classes?.name);
+      if (isSpecializedStudent || isSpecializedDest) return true;
+
       // For sister-school records (e.g. Quincy Academy -> Quincy Secondary),
       // ONLY surface Basic 5 and Basic 6 transition students.
       if (cls?.school_id && u.school_id && u.school_id !== cls.school_id) {
@@ -366,11 +389,13 @@ export async function GET(
       }
       return true;
     })
-    .filter((u: any) => !expectedEnrollmentType || u.enrollment_type === expectedEnrollmentType)
     .map((u: any) => {
       const currentTeacherId = u.classes?.teacher_id ?? u.primary_teacher_id ?? null;
       const studentGrade = canonicalGrade(u.grade || u.classes?.qa_grade_key || u.section_class) || (u.grade || u.classes?.qa_grade_key || '').trim();
       const fromPriorTerm = Boolean(cls?.term_id && u.classes?.term_id && u.classes.term_id !== cls.term_id);
+      const isSpecializedStudent =
+        isSpecializedProgramRecord(u.enrollment_type, u.school_name)
+        || isSpecializedProgramRecord(null, u.classes?.name);
       const isSisterSchoolFeeder = Boolean(
         cls?.school_id
         && u.school_id
@@ -380,15 +405,16 @@ export async function GET(
       );
       const sisterSchoolName = isSisterSchoolFeeder
         ? (sisterSchoolMap.get(u.school_id) || u.school_name || 'Sister School')
-        : null;
+        : isSpecializedStudent
+          ? (u.school_name || 'Summer School / Specialized Program')
+          : null;
       const isFeederPromotion = isSisterSchoolFeeder || Boolean(studentGrade && feederSet.has(studentGrade.toLowerCase()));
       const isInClassBand = Boolean(classBand && studentGrade && bandCoversGrade(classBand, studentGrade));
       const isCrossGradePromotion = Boolean(classGrade && studentGrade && studentGrade.toLowerCase() !== classGrade.toLowerCase());
       const suggestedGrade = resolveGradeForAction('promote', studentGrade, cls as any);
-      // Session handover: students moving up from feeder grades (including Basic 5 & Basic 6 -> JSS 1
-      // across sister schools like Quincy Academy -> Quincy Secondary), prior terms, or into this class's
-      // grade band can be adopted directly by the class teacher.
-      const requiresTransfer = (fromPriorTerm || isFeederPromotion || isInClassBand || isCrossGradePromotion)
+      // Session handover + specialized program unity: students moving up from feeder grades,
+      // prior terms, grade bands, or Summer School / specialized programs can be unified directly.
+      const requiresTransfer = (fromPriorTerm || isFeederPromotion || isInClassBand || isCrossGradePromotion || isSpecializedStudent || isSpecializedDest)
         ? false
         : requiresTeacherTransferRequest({ actorRole: caller.role, currentTeacherId, destinationTeacherId: cls?.teacher_id ?? null });
       return {
@@ -397,6 +423,7 @@ export async function GET(
         suggested_grade: suggestedGrade,
         current_class_name: u.classes?.name ?? u.section_class ?? null,
         sister_school_name: sisterSchoolName,
+        is_specialized_program: isSpecializedStudent,
         current_teacher_id: currentTeacherId,
         current_teacher_name: ownerMap.get(currentTeacherId)?.full_name ?? null,
         current_teacher_email: ownerMap.get(currentTeacherId)?.email ?? null,

@@ -1095,7 +1095,7 @@ export default function DashboardNavigation() {
           <div className="min-w-0 flex-1 leading-tight">
             {isRoot ? (
               <Link href="/dashboard" className="block min-w-0">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Rillcod Academy</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Rillcod Technologies</p>
                 <p className="text-[14px] font-bold text-foreground truncate">{mobileTitle}</p>
               </Link>
             ) : (

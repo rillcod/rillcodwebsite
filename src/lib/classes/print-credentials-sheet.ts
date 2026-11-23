@@ -17,6 +17,23 @@ function esc(v: string): string {
     .replace(/"/g, '&quot;');
 }
 
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/images/logo.png', { cache: 'force-cache' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 function buildCredentialsHtml(input: {
   className: string;
   schoolName?: string | null;
@@ -25,9 +42,8 @@ function buildCredentialsHtml(input: {
   autoPrint?: boolean;
 }): string {
   const includeRc = input.includeRc === true;
-  const originHost = typeof window !== 'undefined'
-    ? window.location.origin.replace(/^https?:\/\//, '')
-    : 'rillcod.com';
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com';
+  const originHost = originUrl.replace(/^https?:\/\//, '');
   const today = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -54,7 +70,7 @@ function buildCredentialsHtml(input: {
     .join('');
 
   const heading = includeRc
-    ? 'Student Username, Password & Result RC List'
+    ? 'Student Portal Login & RC Login List'
     : 'Student Portal Login List (Username & Password)';
 
   return `<!doctype html>
@@ -65,17 +81,68 @@ function buildCredentialsHtml(input: {
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     body { font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: #111827; margin: 0; font-size: 11px; }
-    .hdr { background: #1A3A8F; color: #fff; border-top: 4px solid #10b981; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-    .hdr-brand { font-size: 8.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #a7f3d0; margin-bottom: 3px; }
-    .hdr h1 { margin: 0; font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em; line-height: 1.25; }
-    .hdr-sub { margin: 4px 0 0; color: #dbeafe; font-size: 10.5px; font-weight: 600; }
-    .hdr-meta { text-align: right; flex-shrink: 0; border-left: 1px solid rgba(255,255,255,0.22); padding-left: 14px; }
-    .hdr-count { font-size: 12px; font-weight: 800; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.04em; }
-    .hdr-date { margin-top: 3px; font-size: 9.5px; color: #e2e8f0; }
-    .guide { display: grid; grid-template-columns: ${includeRc ? '1fr 1fr' : '1fr'}; gap: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3.5px solid #1A3A8F; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; font-size: 10px; }
-    .guide strong { color: #1A3A8F; }
+    .hdr {
+      position: relative;
+      background: #111827;
+      background-image: radial-gradient(rgba(249,115,22,0.14) 1px, transparent 1px);
+      background-size: 12px 12px;
+      color: #ffffff;
+      border-top: 4px solid #f97316;
+      border-bottom: 2px solid #dc2626;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .hdr-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .hdr-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 5px;
+      object-fit: contain;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .hdr-brand { font-size: 11px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; color: #ffffff; }
+    .hdr-brand span { color: #f97316; }
+    .hdr-tag { font-size: 8px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #fdba74; margin-top: 2px; }
+    .hdr h1 { margin: 4px 0 0; font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em; line-height: 1.25; }
+    .hdr-sub { margin: 3px 0 0; color: #d1d5db; font-size: 10.5px; font-weight: 600; }
+    .hdr-meta { text-align: right; flex-shrink: 0; border-left: 1px solid rgba(255,255,255,0.18); padding-left: 14px; }
+    .hdr-count { font-size: 12px; font-weight: 900; color: #fb923c; text-transform: uppercase; letter-spacing: 0.05em; }
+    .hdr-date { margin-top: 3px; font-size: 9.5px; color: #e5e7eb; }
+    .guide {
+      display: grid;
+      grid-template-columns: ${includeRc ? '1fr 1fr' : '1fr'};
+      gap: 8px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-left: 3.5px solid #f97316;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      font-size: 10px;
+      color: #1f2937;
+    }
+    .guide strong { color: #c2410c; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: #f1f5f9; color: #1A3A8F; border-top: 1.5px solid #1A3A8F; border-bottom: 1.5px solid #cbd5e1; text-align: left; padding: 7px 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    th {
+      background: #f9fafb;
+      color: #111827;
+      border-top: 2px solid #f97316;
+      border-bottom: 1.5px solid #e5e7eb;
+      text-align: left;
+      padding: 7px 8px;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
     td { border-bottom: 1px solid #e5e7eb; padding: 6.5px 8px; vertical-align: middle; }
     tr:nth-child(even) td { background: #f9fafb; }
     .num { width: 26px; text-align: center; color: #6b7280; font-weight: 700; }
@@ -83,17 +150,21 @@ function buildCredentialsHtml(input: {
     .meta { font-size: 9.5px; color: #6b7280; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; }
     .pw { font-weight: 700; color: #047857; }
-    .rc { font-weight: 800; color: #1A3A8F; }
-    .foot { margin-top: 12px; padding-top: 6px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+    .rc { font-weight: 800; color: #c2410c; }
+    .foot { margin-top: 12px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #6b7280; display: flex; justify-content: space-between; }
     @media print { .no-print { display: none; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
   <div class="hdr">
-    <div>
-      <div class="hdr-brand">Rillcod Academy · Official Student Credentials</div>
-      <h1>${esc(heading)}</h1>
-      <div class="hdr-sub">${esc(input.className)}${input.schoolName ? ` &nbsp;·&nbsp; ${esc(input.schoolName)}` : ''}</div>
+    <div class="hdr-left">
+      <img class="hdr-logo" src="${esc(originUrl)}/images/logo.png" alt="Rillcod Technologies" />
+      <div>
+        <div class="hdr-brand">RILLCOD<span>.</span> TECHNOLOGIES</div>
+        <div class="hdr-tag">Official Student Portal &amp; RC Login Credentials</div>
+        <h1>${esc(heading)}</h1>
+        <div class="hdr-sub">${esc(input.className)}${input.schoolName ? ` &nbsp;·&nbsp; ${esc(input.schoolName)}` : ''}</div>
+      </div>
     </div>
     <div class="hdr-meta">
       <div class="hdr-count">${input.students.length} Student${input.students.length === 1 ? '' : 's'}</div>
@@ -101,8 +172,8 @@ function buildCredentialsHtml(input: {
     </div>
   </div>
   <div class="guide">
-    <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and enter your Username (Email) &amp; Password below.</div>
-    ${includeRc ? `<div><strong>Result Check:</strong> Visit <strong>${esc(originHost)}/result-check</strong> and enter the RC Number below.</div>` : ''}
+    <div><strong>Student Portal Login:</strong> Visit <strong>${esc(originHost)}/login</strong> and sign in with Username (Email) &amp; Password below.</div>
+    ${includeRc ? `<div><strong>RC Login / Result Check:</strong> Visit <strong>${esc(originHost)}/result-check</strong> and enter the RC Code below.</div>` : ''}
   </div>
   <table>
     <thead>
@@ -111,13 +182,13 @@ function buildCredentialsHtml(input: {
         <th>Student &amp; Grade</th>
         <th>Username (Email)</th>
         <th>Password</th>
-        ${includeRc ? '<th>Result RC Number</th>' : ''}
+        ${includeRc ? '<th>RC Login Code</th>' : ''}
       </tr>
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>
   <div class="foot">
-    <span>Choose "Save as PDF" in the print dialog to save a PDF copy.</span>
+    <span>Confidential — Official Rillcod Technologies Student Credentials</span>
     <span>${esc(originHost)}</span>
   </div>
   ${input.autoPrint !== false ? '<script>window.onload = () => { setTimeout(() => window.print(), 250); };</script>' : ''}
@@ -127,7 +198,7 @@ function buildCredentialsHtml(input: {
 
 /**
  * Opens a clean A4 printable sheet showing EVERY student's Username (Email) & Password
- * (with optional Result Check RC Number when `includeRc: true`).
+ * (with optional RC Login / Result Check Code when `includeRc: true`).
  * Falls back to a hidden print iframe if pop-ups are blocked.
  */
 export function openClassCredentialsPrintSheet(input: {
@@ -173,8 +244,8 @@ export function openClassCredentialsPrintSheet(input: {
 }
 
 /**
- * Direct 1-click A4 PDF download (jsPDF) of every student's Username (Email) & Password
- * (with optional Result RC Number when `includeRc: true`).
+ * Direct 1-click A4 PDF download (jsPDF) styled with the official Rillcod Technologies
+ * letterhead, logo mark, brand orange/red accents, and RC Login details.
  */
 export async function downloadClassCredentialsPdf(input: {
   className: string;
@@ -184,7 +255,10 @@ export async function downloadClassCredentialsPdf(input: {
 }): Promise<boolean> {
   if (!input.students.length || typeof window === 'undefined') return false;
   const includeRc = input.includeRc === true;
-  const { default: JsPDF } = await import('jspdf');
+  const [{ default: JsPDF }, logoDataUrl] = await Promise.all([
+    import('jspdf'),
+    loadLogoDataUrl(),
+  ]);
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -204,11 +278,11 @@ export async function downloadClassCredentialsPdf(input: {
   const colRc = margin + 157;
 
   const heading = includeRc
-    ? 'Student Login & Result RC List'
+    ? 'Student Portal Login & RC Login List'
     : 'Student Portal Login List';
 
   const rowH = 8.5;
-  const firstRowY = 58.5;
+  const firstRowY = 60;
   const maxRowY = pageH - 16;
   const rowsPerPage = Math.max(1, Math.floor((maxRowY - firstRowY) / rowH) + 1);
   const totalPages = Math.max(1, Math.ceil(input.students.length / rowsPerPage));
@@ -224,95 +298,109 @@ export async function downloadClassCredentialsPdf(input: {
   };
 
   const drawHeader = (pageNum: number) => {
-    // Executive Navy Header Card with Emerald Top Accent Stripe
-    doc.setFillColor(26, 58, 143);
-    doc.roundedRect(margin, 10, contentW, 23, 2.5, 2.5, 'F');
-    doc.setFillColor(16, 185, 129);
+    // Official Rillcod Technologies Obsidian Header Card + Brand Orange/Red Stripes
+    doc.setFillColor(17, 24, 39);
+    doc.roundedRect(margin, 10, contentW, 25, 2.5, 2.5, 'F');
+    doc.setFillColor(249, 115, 22);
     doc.rect(margin, 10, contentW, 1.8, 'F');
+    doc.setFillColor(220, 38, 38);
+    doc.rect(margin, 33.8, contentW, 1.2, 'F');
 
-    // Left Block: Brand Eyebrow + Document Title + Class & School Metadata
-    const leftMaxW = contentW - 52;
+    // White Logo Badge + Official Rillcod Logo
+    const textStartX = logoDataUrl ? margin + 20 : margin + 5;
+    if (logoDataUrl) {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(margin + 4, 14.5, 13, 13, 2, 2, 'F');
+      try {
+        doc.addImage(logoDataUrl, 'PNG', margin + 5.2, 15.7, 10.6, 10.6);
+      } catch {
+        // Ignore image decoding errors in restricted environments
+      }
+    }
+
+    // Left Block: RILLCOD. TECHNOLOGIES + Document Title + Class & School Metadata
+    const leftMaxW = contentW - (textStartX - margin) - 46;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(167, 243, 208);
-    doc.text('RILLCOD ACADEMY  ·  OFFICIAL STUDENT CREDENTIALS', margin + 5, 16.5);
+    doc.setFontSize(8.5);
+    doc.setTextColor(251, 146, 60);
+    doc.text('RILLCOD. TECHNOLOGIES  ·  OFFICIAL CREDENTIALS', textStartX, 17);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13.5);
+    doc.setFontSize(13);
     doc.setTextColor(255, 255, 255);
-    doc.text(fitText(heading, leftMaxW), margin + 5, 22.8);
+    doc.text(fitText(heading, leftMaxW), textStartX, 23.4);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
-    doc.setTextColor(219, 234, 254);
+    doc.setTextColor(209, 213, 219);
     const sub = `${input.className}${input.schoolName ? `  ·  ${input.schoolName}` : ''}`;
-    doc.text(fitText(sub, leftMaxW), margin + 5, 28.6);
+    doc.text(fitText(sub, leftMaxW), textStartX, 29.4);
 
     // Subtle Vertical Divider before Right Metadata Column
-    const dividerX = pageW - margin - 44;
-    doc.setDrawColor(96, 130, 205);
+    const dividerX = pageW - margin - 43;
+    doc.setDrawColor(75, 85, 99);
     doc.setLineWidth(0.3);
-    doc.line(dividerX, 14.5, dividerX, 29.8);
+    doc.line(dividerX, 14.5, dividerX, 30.8);
 
-    // Right Block: Student Count, Issued Date, Page X of Y (100% collision-free)
+    // Right Block: Student Count, Issued Date, Page X of Y
     const rightX = pageW - margin - 4.5;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(167, 243, 208);
-    doc.text(`${input.students.length} STUDENT${input.students.length === 1 ? '' : 'S'}`, rightX, 17, { align: 'right' });
+    doc.setTextColor(251, 146, 60);
+    doc.text(`${input.students.length} STUDENT${input.students.length === 1 ? '' : 'S'}`, rightX, 17.5, { align: 'right' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(226, 232, 240);
-    doc.text(`Issued: ${today}`, rightX, 22.8, { align: 'right' });
+    doc.setTextColor(229, 231, 235);
+    doc.text(`Issued: ${today}`, rightX, 23.4, { align: 'right' });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
-    doc.text(`Page ${pageNum} of ${totalPages}`, rightX, 28.6, { align: 'right' });
+    doc.text(`Page ${pageNum} of ${totalPages}`, rightX, 29.4, { align: 'right' });
 
-    // Portal Instructions Strip with Left Navy Accent Bar
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(203, 213, 225);
+    // Portal & RC Login Instructions Strip with Brand Orange Accent
+    doc.setFillColor(255, 247, 237);
+    doc.setDrawColor(254, 215, 170);
     doc.setLineWidth(0.25);
-    doc.roundedRect(margin, 35.5, contentW, 8.5, 1.5, 1.5, 'FD');
-    doc.setFillColor(26, 58, 143);
-    doc.rect(margin, 35.5, 1.8, 8.5, 'F');
+    doc.roundedRect(margin, 37, contentW, 8.5, 1.5, 1.5, 'FD');
+    doc.setFillColor(249, 115, 22);
+    doc.rect(margin, 37, 1.8, 8.5, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.8);
-    doc.setTextColor(30, 41, 59);
+    doc.setTextColor(31, 41, 55);
     const guideText = includeRc
-      ? `Student Portal: ${originHost}/login     |     Result Check: ${originHost}/result-check`
+      ? `Portal Login: ${originHost}/login     |     RC Login / Result Check: ${originHost}/result-check`
       : `Student Portal Login: Visit ${originHost}/login and sign in with your Username (Email) & Password below.`;
-    doc.text(fitText(guideText, contentW - 8), margin + 4.5, 40.8);
+    doc.text(fitText(guideText, contentW - 8), margin + 4.5, 42.3);
 
     // Table Header Bar
-    doc.setFillColor(241, 245, 249);
-    doc.rect(margin, 46.5, contentW, 7.5, 'F');
-    doc.setDrawColor(26, 58, 143);
-    doc.setLineWidth(0.45);
-    doc.line(margin, 46.5, pageW - margin, 46.5);
-    doc.setDrawColor(203, 213, 225);
+    doc.setFillColor(249, 250, 251);
+    doc.rect(margin, 48, contentW, 7.5, 'F');
+    doc.setDrawColor(249, 115, 22);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 48, pageW - margin, 48);
+    doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.3);
-    doc.line(margin, 54, pageW - margin, 54);
+    doc.line(margin, 55.5, pageW - margin, 55.5);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.8);
-    doc.setTextColor(26, 58, 143);
-    doc.text('#', colNum, 51.3);
-    doc.text('STUDENT & GRADE', colName, 51.3);
-    doc.text('USERNAME (EMAIL)', colEmail, 51.3);
-    doc.text('PASSWORD', colPass, 51.3);
-    if (includeRc) doc.text('RESULT RC', colRc, 51.3);
+    doc.setTextColor(17, 24, 39);
+    doc.text('#', colNum, 52.8);
+    doc.text('STUDENT & GRADE', colName, 52.8);
+    doc.text('USERNAME (EMAIL)', colEmail, 52.8);
+    doc.text('PASSWORD', colPass, 52.8);
+    if (includeRc) doc.text('RC LOGIN CODE', colRc, 52.8);
 
     // Clean Footer Hairline
-    doc.setDrawColor(226, 232, 240);
+    doc.setDrawColor(229, 231, 235);
     doc.setLineWidth(0.25);
     doc.line(margin, pageH - 11, pageW - margin, pageH - 11);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.2);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Confidential — Official Rillcod Academy Student Login Credentials', margin, pageH - 7);
+    doc.setTextColor(107, 114, 128);
+    doc.text('Confidential — Official Rillcod Technologies Student Credentials', margin, pageH - 7);
     doc.text(`${originHost}  ·  Page ${pageNum} of ${totalPages}`, pageW - margin, pageH - 7, { align: 'right' });
   };
 
@@ -335,7 +423,7 @@ export async function downloadClassCredentialsPdf(input: {
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.2);
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(107, 114, 128);
     doc.text(String(idx + 1), colNum, y);
 
     doc.setFont('helvetica', 'bold');
@@ -346,7 +434,7 @@ export async function downloadClassCredentialsPdf(input: {
 
     doc.setFont('courier', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(30, 41, 59);
+    doc.setTextColor(31, 41, 55);
     doc.text(fitText(s.email || '—', colPass - colEmail - 3), colEmail, y);
 
     doc.setFont('courier', 'bold');
@@ -359,7 +447,7 @@ export async function downloadClassCredentialsPdf(input: {
       const rcDisplay = formatAccessCardCodeDisplay(accessCardCodeForStudent(s.id));
       doc.setFont('courier', 'bold');
       doc.setFontSize(8.2);
-      doc.setTextColor(26, 58, 143);
+      doc.setTextColor(194, 65, 12);
       doc.text(fitText(rcDisplay, pageW - margin - colRc - 1), colRc, y);
     }
 
