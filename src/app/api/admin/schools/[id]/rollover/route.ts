@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
+import { isSpecializedProgramRecord, reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 import { getSessionBoundary } from '@/lib/academic/session-scope';
 import { logAudit } from '@/lib/audit/log';
 
@@ -22,25 +22,46 @@ const GRADE_LADDER = [
   'SS 3',
 ] as const;
 
-function detectSingleGrade(name: string | null | undefined, gradeLevel: string | null | undefined): string | null {
-  const combined = `${String(gradeLevel || '').trim()} ${String(name || '').trim()}`.trim();
-  if (!combined) return null;
+type CanonicalGrade = (typeof GRADE_LADDER)[number];
 
-  // Reject multi-grade range classes (e.g. "Basic 1-3", "JSS 1 & 2", "Primary 4-6")
-  if (/\b(?:basic|primary|pry|jss|js|sss|ss|grade)\s*\d+\s*(?:[-–—&/,]|to)\s*\d+/i.test(combined)) {
-    return null;
+function canonicalizeSingleGrade(raw: string | null | undefined): CanonicalGrade | null {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const ssMatch = s.match(/\b(?:sss|ss)\s*([1-3])\b/i);
+  if (ssMatch) return `SS ${ssMatch[1]}` as CanonicalGrade;
+  const jssMatch = s.match(/\b(?:jss|js)\s*([1-3])\b/i);
+  if (jssMatch) return `JSS ${jssMatch[1]}` as CanonicalGrade;
+  const basicMatch = s.match(/\b(?:basic|primary|pry|grade)\s*([1-6])\b/i);
+  if (basicMatch) return `Basic ${basicMatch[1]}` as CanonicalGrade;
+  return null;
+}
+
+/**
+ * Parse every canonical grade covered by a class name — works for both
+ * single-grade classes ("SS 1", "Basic 4") and multi-grade bands ("Basic 1-3", "JSS 1–3", "SS 1 & 2").
+ */
+function parseClassGrades(name: string | null | undefined): { grades: CanonicalGrade[]; isBand: boolean } {
+  const s = String(name || '').trim();
+  if (!s) return { grades: [], isBand: false };
+
+  // Band range: e.g. "Basic 1-3", "Primary 4–6", "JSS 1 to 3", "SS 1 & 2"
+  const rangeMatch = s.match(/\b(basic|primary|pry|grade|jss|js|sss|ss)\s*(\d+)\s*(?:[-–—&/,]|to)\s*(\d+)\b/i);
+  if (rangeMatch) {
+    const rawPrefix = rangeMatch[1].toLowerCase();
+    const low = Math.min(Number(rangeMatch[2]), Number(rangeMatch[3]));
+    const high = Math.max(Number(rangeMatch[2]), Number(rangeMatch[3]));
+    const prefix = rawPrefix.startsWith('ss') ? 'SS' : rawPrefix.startsWith('js') ? 'JSS' : 'Basic';
+    const max = prefix === 'Basic' ? 6 : 3;
+    const grades: CanonicalGrade[] = [];
+    for (let n = Math.max(1, low); n <= Math.min(max, high); n++) {
+      grades.push(`${prefix} ${n}` as CanonicalGrade);
+    }
+    if (grades.length > 0) return { grades, isBand: grades.length > 1 };
   }
 
-  const ssMatch = combined.match(/\b(?:sss|ss)\s*([1-3])\b/i);
-  if (ssMatch) return `SS ${ssMatch[1]}`;
-
-  const jssMatch = combined.match(/\b(?:jss|js)\s*([1-3])\b/i);
-  if (jssMatch) return `JSS ${jssMatch[1]}`;
-
-  const basicMatch = combined.match(/\b(?:basic|primary|pry|grade)\s*([1-6])\b/i);
-  if (basicMatch) return `Basic ${basicMatch[1]}`;
-
-  return null;
+  const single = canonicalizeSingleGrade(s);
+  if (single) return { grades: [single], isBand: false };
+  return { grades: [], isBand: false };
 }
 
 type PlanRow = {
@@ -50,19 +71,23 @@ type PlanRow = {
   to_class_id: string | null;
   to_class_name: string | null;
   to_grade: string | null;
-  action: 'promote' | 'archive_graduated' | 'no_target_class';
+  action: 'promote' | 'upgrade_in_place' | 'archive_graduated' | 'mark_inactive';
   student_count: number;
+  student_ids: string[];
 };
 
 /**
  * POST /api/admin/schools/[id]/rollover
  * { dry_run?: boolean } (defaults to true)
  *
- * Admin-only top-down school-wide session rollover:
- *   SS 3 → archive_graduated
- *   SS 2 → SS 3, SS 1 → SS 2, JSS 3 → SS 1, ..., Basic 1 → Basic 2
- * Reuses reinstateStudentToClass so class_term_rosters, portal_users.class_id,
- * students.grade/current_class, and classes.current_students all stay in sync.
+ * Admin-only top-down school-wide session rollover (supports single-grade AND multi-grade band classes):
+ *   1. SS 3 → archive_graduated (inactive, graduated archive)
+ *   2. Any grade whose next grade has a matching class in this school:
+ *      - Different class (e.g. JSS 3 → SS 1 tier, Basic 3 → Basic 4–6) → promote (moved into target class for teacher confirmation)
+ *      - Same band class (e.g. Basic 1 → Basic 2 inside Basic 1–3) → upgrade_in_place
+ *   3. Any grade whose next grade has NO class in this school (e.g. Basic 6 in a Primary-only school or JSS 3 with no SS 1) → mark_inactive
+ *
+ * Strictly skips specialized classes (Summer School / Bootcamp / Online / Coding Club).
  */
 export async function POST(
   req: NextRequest,
@@ -99,101 +124,146 @@ export async function POST(
 
     const { data: classes, error: clsErr } = await admin
       .from('classes')
-      .select('id, name, program_id, term_id, school_id, status')
+      .select('id, name, program_id, term_id, school_id, teacher_id, status')
       .eq('school_id', schoolId)
       .order('name');
 
     if (clsErr) return NextResponse.json({ error: clsErr.message }, { status: 500 });
 
     const activeClasses = (classes ?? []).filter(
-      (c: any) => !['archived', 'inactive', 'completed'].includes(String(c.status || '').toLowerCase()),
+      (c: any) =>
+        !['archived', 'inactive', 'completed'].includes(String(c.status || '').toLowerCase()) &&
+        !isSpecializedProgramRecord(null, c.name),
     );
 
-    // Group single-grade classes by (program_id, grade) so we never cross programmes.
-    const classByProgramAndGrade = new Map<string, any>();
-    const parsedClasses: Array<{ cls: any; grade: string; ladderIndex: number }> = [];
+    type ParsedClass = { cls: any; grades: CanonicalGrade[]; isBand: boolean };
+    const parsedClasses: ParsedClass[] = [];
     const skippedClasses: Array<{ id: string; name: string; reason: string }> = [];
 
     for (const cls of activeClasses) {
-      const grade = detectSingleGrade(cls.name, null);
-      if (!grade) {
+      const parsed = parseClassGrades(cls.name);
+      if (parsed.grades.length === 0) {
         skippedClasses.push({
           id: cls.id,
           name: cls.name,
-          reason: 'Multi-grade or custom section (promote via Class Intake instead)',
+          reason: 'Custom / non-grade class (manage manually inside Class Intake)',
         });
         continue;
       }
-      const ladderIndex = GRADE_LADDER.indexOf(grade as (typeof GRADE_LADDER)[number]);
-      if (ladderIndex < 0) continue;
-      parsedClasses.push({ cls, grade, ladderIndex });
-      const key = `${cls.program_id || 'none'}::${grade}`;
-      if (!classByProgramAndGrade.has(key)) {
-        classByProgramAndGrade.set(key, cls);
-      }
+      parsedClasses.push({ cls, ...parsed });
     }
 
-    // Sort top-down (SS 3 first, Basic 1 last) so promotions never collide.
-    parsedClasses.sort((a, b) => b.ladderIndex - a.ladderIndex);
+    /**
+     * Find the best destination class in this school for `nextGrade`.
+     * Priority:
+     *   1. Exact single-grade class covering `nextGrade` (same teacher > same programme > any)
+     *   2. Band class covering `nextGrade` (same class > same teacher > same programme > any)
+     */
+    const findTargetClass = (nextGrade: CanonicalGrade, fromCls: any): any | null => {
+      const candidates = parsedClasses.filter((p) => p.grades.includes(nextGrade));
+      if (candidates.length === 0) return null;
+
+      candidates.sort((a, b) => {
+        // Prefer exact single-grade tier (e.g. dedicated SS 1 class) over a wide band
+        const exactA = a.isBand ? 1 : 0;
+        const exactB = b.isBand ? 1 : 0;
+        if (exactA !== exactB) return exactA - exactB;
+        // Prefer same class if staying inside the same band
+        const sameClsA = a.cls.id === fromCls.id ? 0 : 1;
+        const sameClsB = b.cls.id === fromCls.id ? 0 : 1;
+        if (sameClsA !== sameClsB) return sameClsA - sameClsB;
+        // Prefer same teacher
+        const sameTeacherA = fromCls.teacher_id && a.cls.teacher_id === fromCls.teacher_id ? 0 : 1;
+        const sameTeacherB = fromCls.teacher_id && b.cls.teacher_id === fromCls.teacher_id ? 0 : 1;
+        if (sameTeacherA !== sameTeacherB) return sameTeacherA - sameTeacherB;
+        // Prefer same programme
+        const sameProgA = fromCls.program_id && a.cls.program_id === fromCls.program_id ? 0 : 1;
+        const sameProgB = fromCls.program_id && b.cls.program_id === fromCls.program_id ? 0 : 1;
+        return sameProgA - sameProgB;
+      });
+      return candidates[0].cls;
+    };
 
     const classIds = parsedClasses.map((p) => p.cls.id);
-    const studentsByClass = new Map<string, Array<{ id: string; full_name: string | null }>>();
+    const studentsByClass = new Map<string, Array<{ id: string; full_name: string | null; grade: string | null; email: string | null }>>();
 
     if (classIds.length > 0) {
       const { data: activeStudents } = await admin
         .from('portal_users')
-        .select('id, full_name, class_id')
+        .select('id, full_name, email, class_id, grade')
         .eq('role', 'student')
         .eq('is_active', true)
         .in('class_id', classIds);
 
-      for (const st of activeStudents ?? []) {
+      for (const st of (activeStudents ?? []) as any[]) {
         const cid = String(st.class_id || '');
         if (!cid) continue;
         const arr = studentsByClass.get(cid) ?? [];
-        arr.push({ id: st.id, full_name: st.full_name });
+        arr.push({ id: st.id, full_name: st.full_name, grade: st.grade, email: st.email });
         studentsByClass.set(cid, arr);
       }
     }
 
-    const plan: PlanRow[] = [];
-    for (const item of parsedClasses) {
-      const roster = studentsByClass.get(item.cls.id) ?? [];
-      if (item.ladderIndex === GRADE_LADDER.length - 1) {
-        plan.push({
-          from_class_id: item.cls.id,
-          from_class_name: item.cls.name,
-          from_grade: item.grade,
-          to_class_id: null,
-          to_class_name: 'Graduated Archive',
-          to_grade: 'Graduated',
-          action: 'archive_graduated',
-          student_count: roster.length,
-        });
-        continue;
+    // Group transitions by (from_class_id, from_grade) and sort strictly top-down (SS 3 → Basic 1)
+    const planBuckets = new Map<string, PlanRow & { ladderIndex: number }>();
+
+    for (const pc of parsedClasses) {
+      const roster = studentsByClass.get(pc.cls.id) ?? [];
+      for (const st of roster) {
+        const currentGrade =
+          canonicalizeSingleGrade(st.grade) ??
+          (!pc.isBand ? pc.grades[0] : pc.grades[0]);
+        const ladderIndex = GRADE_LADDER.indexOf(currentGrade);
+        if (ladderIndex < 0) continue;
+
+        let action: PlanRow['action'];
+        let targetClass: any = null;
+        let nextGrade: CanonicalGrade | null = null;
+
+        if (ladderIndex === GRADE_LADDER.length - 1) {
+          action = 'archive_graduated';
+        } else {
+          nextGrade = GRADE_LADDER[ladderIndex + 1];
+          targetClass = findTargetClass(nextGrade, pc.cls);
+          if (!targetClass) {
+            action = 'mark_inactive';
+          } else if (targetClass.id === pc.cls.id) {
+            action = 'upgrade_in_place';
+          } else {
+            action = 'promote';
+          }
+        }
+
+        const bucketKey = `${pc.cls.id}::${currentGrade}::${action}::${targetClass?.id || 'none'}`;
+        const existing = planBuckets.get(bucketKey);
+        if (existing) {
+          existing.student_count += 1;
+          existing.student_ids.push(st.id);
+        } else {
+          planBuckets.set(bucketKey, {
+            from_class_id: pc.cls.id,
+            from_class_name: pc.cls.name,
+            from_grade: currentGrade,
+            to_class_id: targetClass?.id ?? null,
+            to_class_name:
+              action === 'archive_graduated'
+                ? 'Graduated Archive'
+                : action === 'mark_inactive'
+                  ? `Inactive (no ${nextGrade} class)`
+                  : targetClass?.name ?? null,
+            to_grade: action === 'archive_graduated' ? 'Graduated' : nextGrade,
+            action,
+            student_count: 1,
+            student_ids: [st.id],
+            ladderIndex,
+          });
+        }
       }
-
-      const nextGrade = GRADE_LADDER[item.ladderIndex + 1];
-      const sameProgKey = `${item.cls.program_id || 'none'}::${nextGrade}`;
-      const fallbackAnyKey = Array.from(classByProgramAndGrade.keys()).find((k) => k.endsWith(`::${nextGrade}`));
-      const targetClass =
-        classByProgramAndGrade.get(sameProgKey) ??
-        (fallbackAnyKey ? classByProgramAndGrade.get(fallbackAnyKey) : null);
-
-      plan.push({
-        from_class_id: item.cls.id,
-        from_class_name: item.cls.name,
-        from_grade: item.grade,
-        to_class_id: targetClass?.id ?? null,
-        to_class_name: targetClass?.name ?? null,
-        to_grade: nextGrade,
-        action: targetClass ? 'promote' : 'no_target_class',
-        student_count: roster.length,
-      });
     }
 
-    const actionablePlan = plan.filter((p) => p.student_count > 0 && p.action !== 'no_target_class');
-    const totalStudentsAffected = actionablePlan.reduce((sum, p) => sum + p.student_count, 0);
+    // Top-down execution order (SS 3 first, Basic 1 last) so promotions never collide!
+    const sortedPlan = Array.from(planBuckets.values()).sort((a, b) => b.ladderIndex - a.ladderIndex);
+    const totalStudentsAffected = sortedPlan.reduce((sum, p) => sum + p.student_count, 0);
     const currentSession = getSessionBoundary().periodLabel;
 
     if (dryRun) {
@@ -203,54 +273,77 @@ export async function POST(
         school_id: school.id,
         school_name: school.name,
         current_session: currentSession,
-        plan,
+        plan: sortedPlan.map(({ student_ids: _ids, ladderIndex: _idx, ...rest }) => rest),
         skipped_classes: skippedClasses,
         total_students_affected: totalStudentsAffected,
       });
     }
 
     let promoted = 0;
+    let upgradedInPlace = 0;
     let archived = 0;
+    let inactivated = 0;
     let failed = 0;
+    const touchedClassIds = new Set<string>();
+    const nowIso = new Date().toISOString();
 
-    for (const step of actionablePlan) {
-      const roster = studentsByClass.get(step.from_class_id) ?? [];
-      if (step.action === 'archive_graduated') {
-        const studentIds = roster.map((s) => s.id);
-        if (studentIds.length > 0) {
-          const nowIso = new Date().toISOString();
-          await (admin as any)
-            .from('class_term_rosters')
-            .update({ status: 'withdrawn', ended_at: nowIso, updated_by: caller.id })
-            .eq('class_id', step.from_class_id)
-            .in('student_id', studentIds);
+    for (const step of sortedPlan) {
+      touchedClassIds.add(step.from_class_id);
+      if (step.to_class_id) touchedClassIds.add(step.to_class_id);
 
-          const { error: clearErr } = await admin
-            .from('portal_users')
-            .update({ class_id: null, section_class: `Graduated (${currentSession})` })
-            .in('id', studentIds);
+      if (step.action === 'archive_graduated' || step.action === 'mark_inactive') {
+        const isGrad = step.action === 'archive_graduated';
+        await (admin as any)
+          .from('class_term_rosters')
+          .update({ status: 'withdrawn', ended_at: nowIso, updated_by: caller.id })
+          .eq('class_id', step.from_class_id)
+          .in('student_id', step.student_ids);
 
-          if (clearErr) {
-            failed += studentIds.length;
-          } else {
-            archived += studentIds.length;
-          }
+        const { error: clearErr } = await admin
+          .from('portal_users')
+          .update({
+            class_id: null,
+            is_active: false,
+            section_class: isGrad ? `Graduated (${currentSession})` : `Inactive — Awaiting ${step.to_grade} (${currentSession})`,
+            updated_at: nowIso,
+          })
+          .in('id', step.student_ids);
 
-          const { data: activeCount } = await (admin as any).rpc('active_class_student_count', {
-            p_class_id: step.from_class_id,
-          });
-          await admin
-            .from('classes')
-            .update({ current_students: Number(activeCount ?? 0) })
-            .eq('id', step.from_class_id);
-        }
+        await admin
+          .from('students')
+          .update({
+            is_active: false,
+            status: isGrad ? 'graduated' : 'inactive',
+            updated_at: nowIso,
+          })
+          .in('user_id', step.student_ids);
+
+        if (clearErr) failed += step.student_ids.length;
+        else if (isGrad) archived += step.student_ids.length;
+        else inactivated += step.student_ids.length;
+        continue;
+      }
+
+      if (step.action === 'upgrade_in_place' && step.to_grade) {
+        const { error: upgErr } = await admin
+          .from('portal_users')
+          .update({ grade: step.to_grade, updated_at: nowIso })
+          .in('id', step.student_ids);
+
+        await admin
+          .from('students')
+          .update({ grade: step.to_grade, grade_level: step.to_grade, updated_at: nowIso })
+          .in('user_id', step.student_ids);
+
+        if (upgErr) failed += step.student_ids.length;
+        else upgradedInPlace += step.student_ids.length;
         continue;
       }
 
       if (step.action === 'promote' && step.to_class_id) {
-        for (const st of roster) {
+        for (const sid of step.student_ids) {
           const result = await reinstateStudentToClass(admin as any, {
-            studentId: st.id,
+            studentId: sid,
             classId: step.to_class_id,
             actor: { id: caller.id, role: 'admin' },
             grade: step.to_grade,
@@ -262,6 +355,16 @@ export async function POST(
       }
     }
 
+    for (const cid of touchedClassIds) {
+      const { data: activeCount } = await (admin as any).rpc('active_class_student_count', {
+        p_class_id: cid,
+      });
+      await admin
+        .from('classes')
+        .update({ current_students: Number(activeCount ?? 0) })
+        .eq('id', cid);
+    }
+
     await logAudit(admin as any, {
       actorId: caller.id,
       action: 'school_session_rollover',
@@ -271,7 +374,9 @@ export async function POST(
         school_name: school.name,
         session: currentSession,
         promoted,
+        upgraded_in_place: upgradedInPlace,
         archived,
+        inactivated,
         failed,
       },
     });
@@ -282,9 +387,11 @@ export async function POST(
       school_id: school.id,
       school_name: school.name,
       promoted,
+      upgraded_in_place: upgradedInPlace,
       archived,
+      inactivated,
       failed,
-      message: `Rollover complete for ${school.name}: ${promoted} promoted, ${archived} graduated/archived${failed ? `, ${failed} skipped` : ''}.`,
+      message: `Rollover complete for ${school.name}: ${promoted} moved to next class, ${upgradedInPlace} upgraded in band, ${archived} graduated, ${inactivated} marked inactive${failed ? `, ${failed} skipped` : ''}.`,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Rollover failed' }, { status: 500 });

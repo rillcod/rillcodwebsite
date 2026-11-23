@@ -196,22 +196,27 @@ export default function AccountabilityDashboard({
       const preview = await previewRes.json().catch(() => ({}));
       if (!previewRes.ok) throw new Error(preview.error || 'Could not preview school rollover.');
 
-      const actionable = (preview.plan ?? []).filter(
-        (p: any) => p.student_count > 0 && p.action !== 'no_target_class',
-      );
+      const actionable = (preview.plan ?? []).filter((p: any) => p.student_count > 0);
       if (actionable.length === 0) {
         setRolloverBanner({
           type: 'error',
-          text: `No single-grade classes with active students ready to roll over in ${schoolName}. Multi-grade sections can be promoted inside Class Intake.`,
+          text: `No active students ready to roll over in ${schoolName}.`,
         });
         return;
       }
 
-      const lines = actionable.map((p: any) =>
-        p.action === 'archive_graduated'
-          ? `• ${p.from_class_name} (${p.student_count}) → Graduated Archive`
-          : `• ${p.from_class_name} (${p.student_count}) → ${p.to_class_name} (${p.to_grade})`,
-      );
+      const lines = actionable.map((p: any) => {
+        if (p.action === 'archive_graduated') {
+          return `• ${p.from_class_name} (${p.from_grade}, ${p.student_count}) → Graduated Archive`;
+        }
+        if (p.action === 'mark_inactive') {
+          return `• ${p.from_class_name} (${p.from_grade}, ${p.student_count}) → Mark Inactive (no ${p.to_grade} class in school)`;
+        }
+        if (p.action === 'upgrade_in_place') {
+          return `• ${p.from_class_name} (${p.from_grade} → ${p.to_grade}, ${p.student_count}) → Upgrade grade inside band`;
+        }
+        return `• ${p.from_class_name} (${p.from_grade}, ${p.student_count}) → Move to ${p.to_class_name} as ${p.to_grade} (for teacher confirmation)`;
+      });
       const skippedCount = (preview.skipped_classes ?? []).length;
       const confirmed = confirm(
         `Session Rollover Preview — ${schoolName} (${preview.total_students_affected} student${preview.total_students_affected === 1 ? '' : 's'}):\n\n` +
