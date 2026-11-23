@@ -110,6 +110,80 @@ interface IssuedStudentLogin {
   rc_code: string;
 }
 
+interface ParsedBulkLine {
+  full_name: string;
+  grade: string;
+  parent_phone: string;
+  matched: DirectoryCandidate | null;
+}
+
+function parseSmartBulkLines(
+  rawText: string,
+  defaultGrade: string,
+  directory: DirectoryCandidate[],
+): ParsedBulkLine[] {
+  const lines = rawText.split(/\r?\n/);
+  const seen = new Set<string>();
+  const parsed: ParsedBulkLine[] = [];
+
+  for (const raw of lines) {
+    let line = raw
+      .replace(/^\s*(?:\d+[.)\-:\s]+|[-•*]+\s+)/, '')
+      .trim();
+    if (!line) continue;
+
+    // Extract phone number (10-14 digits, optionally starting with +)
+    let phone = '';
+    const phoneMatch = line.match(/(?:\+?234|0)[789]\d[\d\s\-()]{7,12}/) || line.match(/\+?\d[\d\s\-()]{9,14}/);
+    if (phoneMatch) {
+      const digits = phoneMatch[0].replace(/\D/g, '');
+      if (digits.length >= 10) {
+        phone = phoneMatch[0].trim();
+        line = line.replace(phoneMatch[0], ' ');
+      }
+    }
+
+    // Extract grade if mentioned on the line (e.g. Basic 1, JSS 2, SS1, Primary 3)
+    let grade = defaultGrade;
+    const gradeMatch = line.match(/\b((?:basic|primary|pry|jss|js|sss|ss)\s*[1-6])\b/i);
+    if (gradeMatch) {
+      const canon = canonicalGrade(gradeMatch[1]);
+      if (canon) {
+        grade = canon;
+        line = line.replace(gradeMatch[0], ' ');
+      }
+    }
+
+    // Clean leftover separators (, ; | - tab)
+    const fullName = line
+      .replace(/[,;|\t]+/g, ' ')
+      .replace(/\s+-\s+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/^[\-\s,]+|[\-\s,]+$/g, '')
+      .trim();
+
+    if (fullName.length < 2) continue;
+    const dedupeKey = fullName.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const match = findSmartCandidateMatches(fullName, directory, 1)[0] ?? null;
+    const strongMatch =
+      match &&
+      (match.full_name.toLowerCase() === dedupeKey ||
+        normalizeNameTokens(fullName).length >= 2);
+
+    parsed.push({
+      full_name: strongMatch ? match.full_name : fullName,
+      grade,
+      parent_phone: phone || (strongMatch ? match.parent_phone || '' : ''),
+      matched: strongMatch ? match : null,
+    });
+  }
+
+  return parsed;
+}
+
 function normalizeNameTokens(name: string): string[] {
   return name
     .toLowerCase()
@@ -224,6 +298,8 @@ export function ClassIntakeAndSessionPanel({
   const [ackGradeOverride, setAckGradeOverride] = useState<string>('');
   const [confirmingExit, setConfirmingExit] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showBulkPaste, setShowBulkPaste] = useState(false);
+  const [bulkPasteText, setBulkPasteText] = useState('');
   const [issuedLogins, setIssuedLogins] = useState<IssuedStudentLogin[]>([]);
   const [kioskNewLogin, setKioskNewLogin] = useState<IssuedStudentLogin | null>(null);
   const [instantAccountMode, setInstantAccountMode] = useState<boolean>(true);
@@ -381,6 +457,45 @@ export function ClassIntakeAndSessionPanel({
     () => findSmartCandidateMatches(fullName, directory, 5),
     [fullName, directory],
   );
+
+  const parsedBulkPreview = useMemo(
+    () => parseSmartBulkLines(bulkPasteText, selectedGrade, directory),
+    [bulkPasteText, selectedGrade, directory],
+  );
+
+  const handleQueueBulkLines = () => {
+    if (parsedBulkPreview.length === 0) {
+      toast.error('Paste at least one student name first.');
+      return;
+    }
+    const existingNames = new Set(pendingQueue.map((p) => p.full_name.trim().toLowerCase()));
+    const additions: PendingIntakeEntry[] = [];
+    for (const item of parsedBulkPreview) {
+      if (existingNames.has(item.full_name.trim().toLowerCase())) continue;
+      existingNames.add(item.full_name.trim().toLowerCase());
+      additions.push({
+        localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${additions.length}`,
+        full_name: item.full_name,
+        grade: item.grade,
+        parent_name: item.matched?.parent_name || undefined,
+        parent_phone: item.parent_phone,
+        matched_student_id: item.matched?.id ?? null,
+        matched_label: item.matched
+          ? `${item.matched.consent_signed ? 'Consent Form' : item.matched.in_this_class ? 'In this class' : item.matched.section_class || 'Existing'}${item.matched.grade ? ` · ${item.matched.grade}` : ''}`
+          : null,
+        matched_verified: Boolean(item.matched?.parent_verified),
+        consent_signed: Boolean(item.matched?.consent_signed),
+      });
+    }
+    if (additions.length === 0) {
+      toast.info('All pasted students are already in your verification queue.');
+      return;
+    }
+    setPendingQueue((prev) => [...additions, ...prev]);
+    setBulkPasteText('');
+    setShowBulkPaste(false);
+    toast.success(`Added ${additions.length} student${additions.length === 1 ? '' : 's'} to Teacher Verification Queue — review and click Verify & Save All!`);
+  };
 
   // Inline phone edit
   const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null);
@@ -904,8 +1019,11 @@ export function ClassIntakeAndSessionPanel({
     toast.success(`Exported ${students.length} student record${students.length === 1 ? '' : 's'} to CSV.`);
   };
 
-  const runCohortHygiene = async (operation: 'confirm_current' | 'archive_old' | 'promote_to_class' | 'sync_grades_to_class') => {
-    const ids = Array.from(selectedHygieneIds);
+  const runCohortHygiene = async (
+    operation: 'confirm_current' | 'archive_old' | 'promote_to_class' | 'sync_grades_to_class',
+    explicitIds?: string[],
+  ) => {
+    const ids = explicitIds ?? Array.from(selectedHygieneIds);
     if (ids.length === 0) {
       toast.error('Select at least one student first.');
       return;
@@ -1608,22 +1726,127 @@ export function ClassIntakeAndSessionPanel({
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setPassAroundMode((v) => !v);
-                setLastAddedName(null);
-              }}
-              className={`inline-flex items-center gap-1.5 min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                passAroundMode
-                  ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm'
-                  : 'border border-emerald-600/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
-              }`}
-            >
-              <UserGroupIcon className="w-4 h-4" />
-              {passAroundMode ? 'Exit Pass-Around Mode' : 'Student Pass-Around Mode'}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkPaste((v) => !v)}
+                className={`inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg border text-xs font-black uppercase tracking-wider transition-colors ${
+                  showBulkPaste
+                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                    : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                }`}
+              >
+                <ClipboardDocumentListIcon className="w-4 h-4" />
+                {showBulkPaste ? 'Hide Bulk Paste' : 'Bulk Paste List'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPassAroundMode((v) => !v);
+                  setLastAddedName(null);
+                }}
+                className={`inline-flex items-center gap-1.5 min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                  passAroundMode
+                    ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm'
+                    : 'border border-emerald-600/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                }`}
+              >
+                <UserGroupIcon className="w-4 h-4" />
+                {passAroundMode ? 'Exit Pass-Around Mode' : 'Student Pass-Around Mode'}
+              </button>
+            </div>
           </div>
+
+          {/* Smart Bulk Paste Registration Assistant */}
+          {!passAroundMode && showBulkPaste && (
+            <div className="rounded-2xl border-2 border-primary/40 bg-primary/[0.04] p-4 sm:p-5 space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-primary">
+                    Smart Bulk Registration Assistant
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Paste names from WhatsApp, Excel, or Notes — one per line (optional phone or grade on any line). Existing &amp; consent-form students auto-match with zero duplicates!
+                  </p>
+                </div>
+                {parsedBulkPreview.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black">
+                    <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-primary">
+                      {parsedBulkPreview.length} detected
+                    </span>
+                    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-emerald-800 dark:text-emerald-300">
+                      {parsedBulkPreview.filter((p) => p.matched).length} auto-matched
+                    </span>
+                    <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+                      {parsedBulkPreview.filter((p) => !p.matched).length} brand new
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                rows={5}
+                aria-label="Bulk paste student names and optional parent phone numbers"
+                value={bulkPasteText}
+                onChange={(e) => setBulkPasteText(e.target.value)}
+                placeholder={'1. Chinedu Okafor, 08031234567\n2. Amaka Eze - 08098765432\n3. Tunde Bello, Basic 2, 07011223344\n4. Grace Musa'}
+                className="w-full rounded-xl border border-border bg-background p-3 text-xs sm:text-sm font-mono text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+
+              {parsedBulkPreview.length > 0 && (
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-card divide-y divide-border text-xs">
+                  {parsedBulkPreview.slice(0, 20).map((item, idx) => (
+                    <div key={`${item.full_name}-${idx}`} className="px-3 py-1.5 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-[10px] text-muted-foreground">{idx + 1}.</span>
+                        <span className="font-bold text-foreground truncate">{item.full_name}</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">{item.grade}</span>
+                        {item.parent_phone && (
+                          <span className="font-mono text-[10px] text-muted-foreground">{item.parent_phone}</span>
+                        )}
+                      </div>
+                      {item.matched ? (
+                        <span className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/35 px-2 py-0.5 text-[9px] font-black text-emerald-800 dark:text-emerald-300">
+                          {item.matched.consent_signed ? 'Consent Match ✓' : 'Existing ✓'}
+                        </span>
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[9px] font-black uppercase text-muted-foreground">
+                          New
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {parsedBulkPreview.length > 20 && (
+                    <p className="px-3 py-1.5 text-[10px] text-muted-foreground text-center">
+                      +{parsedBulkPreview.length - 20} more parsed…
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkPasteText('');
+                    setShowBulkPaste(false);
+                  }}
+                  className="min-h-10 px-3 py-1.5 rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={parsedBulkPreview.length === 0}
+                  onClick={handleQueueBulkLines}
+                  className="min-h-10 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground text-xs font-black uppercase tracking-wider shadow-sm"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Add {parsedBulkPreview.length} to Verification Queue →
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Fast Intake Entry Form (Paper-Sheet Replacement) */}
           <form
@@ -2280,6 +2503,62 @@ export function ClassIntakeAndSessionPanel({
                 : `Every student currently on this roster is confirmed for ${currentSession}. You can still select students below if you need to promote or archive anyone.`}
             </p>
           </div>
+
+          {/* 1-Click Clean Slate Smart Decision Wizard (zero manual ticking!) */}
+          {carryoverStudents.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              {destinationClasses.length > 0 && (
+                <button
+                  type="button"
+                  disabled={hygieneBusy !== null}
+                  onClick={() => void runCohortHygiene('promote_to_class', carryoverStudents.map((s) => s.id))}
+                  className="text-left rounded-xl border-2 border-primary/40 bg-primary/[0.06] hover:bg-primary/10 p-3.5 transition-all disabled:opacity-40 space-y-1"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">
+                    {isEntryClass ? '★ Recommended · Clean Slate' : '1-Click Promote All Old Set'}
+                  </p>
+                  <p className="text-sm font-black text-foreground">
+                    Move {carryoverStudents.length} → {destinationClasses.find((c) => c.id === destClassId)?.name || 'Next Class'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Upgrades grades &amp; switches exams to next class, leaving {className} spotless for {currentSession}.
+                  </p>
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={hygieneBusy !== null}
+                onClick={() => void runCohortHygiene('archive_old', carryoverStudents.map((s) => s.id))}
+                className="text-left rounded-xl border-2 border-rose-500/35 bg-rose-500/[0.05] hover:bg-rose-500/10 p-3.5 transition-all disabled:opacity-40 space-y-1"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-400">
+                  Start 100% Clean Slate
+                </p>
+                <p className="text-sm font-black text-foreground">
+                  Archive All {carryoverStudents.length} Old-Session Students
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Clears {className} immediately. Past results stay safe &amp; anyone who returns can be reinstated in 1 click.
+                </p>
+              </button>
+              <button
+                type="button"
+                disabled={hygieneBusy !== null}
+                onClick={() => void runCohortHygiene('confirm_current', carryoverStudents.map((s) => s.id))}
+                className="text-left rounded-xl border-2 border-emerald-500/35 bg-emerald-500/[0.05] hover:bg-emerald-500/10 p-3.5 transition-all disabled:opacity-40 space-y-1"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">
+                  Same Set Returning
+                </p>
+                <p className="text-sm font-black text-foreground">
+                  Confirm All {carryoverStudents.length} for {currentSession}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Keeps everyone in {className} and marks them active for this session&apos;s attendance &amp; reports.
+                </p>
+              </button>
+            </div>
+          )}
 
           {/* Bulk Action Bar */}
           <div className="rounded-xl border border-border bg-muted/40 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
