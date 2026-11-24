@@ -3,8 +3,10 @@ import { deriveSchoolPricingFromInvoice } from '@/lib/billing/derive-school-pric
 import {
   classifyStudentSessionStatus,
   getSessionBoundary,
+  shouldReplaceRosterRow,
   type StudentSessionStatus,
 } from '@/lib/academic/session-scope';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export type BillingDocsStudent = {
   id: string;
@@ -99,27 +101,20 @@ async function loadClassifiedSchoolStudents(schoolId: string): Promise<BillingDo
   const classIds = ((classesRes.data ?? []) as Array<{ id: string }>).map((c) => c.id);
   const classByStudent = new Map(((stuRes.data ?? []) as any[]).map((s) => [s.id, s.class_id]));
 
-  const rosterByStudent = new Map<string, { class_id?: string | null; status?: string | null; term_id?: string | null; started_at?: string | null; reinstated_at?: string | null }>();
+  const rosterByStudent = new Map<string, { class_id?: string | null; status?: string | null; term_id?: string | null; started_at?: string | null; ended_at?: string | null; reinstated_at?: string | null }>();
   if (classIds.length > 0) {
-    const { data: rosterRows } = await (db as any)
-      .from('class_term_rosters')
-      .select('student_id, class_id, status, term_id, started_at, reinstated_at')
-      .in('class_id', classIds)
-      .eq('status', 'active')
-      .limit(5000);
+    const { data: rosterRows } = await fetchAllSupabaseRows<any>((from, to) =>
+      (db as any)
+        .from('class_term_rosters')
+        .select('student_id, class_id, status, term_id, started_at, ended_at, reinstated_at')
+        .in('class_id', classIds)
+        .range(from, to),
+    );
     for (const r of (rosterRows ?? []) as any[]) {
       if (!r?.student_id) continue;
       const existing = rosterByStudent.get(r.student_id);
       const liveCid = classByStudent.get(r.student_id);
-      if (!existing) {
-        rosterByStudent.set(r.student_id, r);
-        continue;
-      }
-      const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
-      const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
-      const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
-      const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
-      if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
+      if (shouldReplaceRosterRow(existing, r, liveCid)) {
         rosterByStudent.set(r.student_id, r);
       }
     }

@@ -11,7 +11,11 @@ import { getProtectedAcademicEvidence, protectedAcademicEvidenceMessage } from '
 import { logAudit } from '@/lib/audit/log';
 import { z } from 'zod';
 import { requireSupabaseResult } from '@/lib/supabase/require-result';
-import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -215,9 +219,8 @@ export async function GET(request: NextRequest) {
             const slice = studentIds.slice(i, i + 300);
             const { data } = await (admin as any)
               .from('class_term_rosters')
-              .select('student_id, class_id, status, term_id, started_at, reinstated_at')
-              .in('student_id', slice)
-              .eq('status', 'active');
+              .select('student_id, class_id, status, term_id, started_at, ended_at, reinstated_at')
+              .in('student_id', slice);
             if (Array.isArray(data)) out.push(...data);
           }
           return out;
@@ -227,17 +230,10 @@ export async function GET(request: NextRequest) {
       const rosterByStudent = new Map<string, any>();
       const classByStudent = new Map(studentRows.map((r: any) => [r.id, r.class_id]));
       for (const r of rosterRes) {
+        if (!r?.student_id) continue;
         const existing = rosterByStudent.get(r.student_id);
         const liveCid = classByStudent.get(r.student_id);
-        if (!existing) {
-          rosterByStudent.set(r.student_id, r);
-          continue;
-        }
-        const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
-        const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
-        const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
-        const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
-        if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
+        if (shouldReplaceRosterRow(existing, r, liveCid)) {
           rosterByStudent.set(r.student_id, r);
         }
       }

@@ -434,7 +434,7 @@ function ResultsPageInner() {
             // 2. Build student query — join classes + schools for proper display names
             // Page past PostgREST’s default 1000-row cap (and the old admin 10k / staff 400 caps).
             let finalQuery = db.from('portal_users')
-                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, created_at, metadata, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, grade, is_active, created_at, metadata, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
                 .eq('role', 'student')
                 .neq('is_deleted', true);
 
@@ -531,9 +531,13 @@ function ResultsPageInner() {
             const studs = allStudRows;
 
             // Enrich with grade_level + parent_email from the students shadow table
+            // AND active class_term_rosters so returning confirmed students & withdrawn learners
+            // match Class Roster and Result Builder 100%.
             const portalIds = studs.map(s => s.id).filter(Boolean);
             const gradeByUserId: Record<string, string> = {};
             const parentEmailByUserId: Record<string, string> = {};
+            const bestRosterByUserId: Record<string, any> = {};
+            const classByUserId = new Map(studs.map((s: any) => [s.id, s.class_id]));
             if (portalIds.length > 0) {
                 // Batch to prevent HTTP 400 Bad Request URL length limits
                 const chunkSize = 100;
@@ -543,25 +547,62 @@ function ResultsPageInner() {
                 }
                 
                 await Promise.all(chunks.map(async (chunk) => {
-                    const { data: gradeRows } = await withTimeout(
-                        db.from('students')
-                            .select('user_id, grade_level, parent_email')
-                            .in('user_id', chunk),
-                        { data: [], error: null },
-                        'results student grade chunk',
-                    );
+                    const [{ data: gradeRows }, { data: rosterRows }] = await Promise.all([
+                        withTimeout(
+                            db.from('students')
+                                .select('user_id, grade_level, parent_email')
+                                .in('user_id', chunk),
+                            { data: [], error: null },
+                            'results student grade chunk',
+                        ),
+                        withTimeout(
+                            (db as any).from('class_term_rosters')
+                                .select('student_id, class_id, status, term_id, started_at, reinstated_at')
+                                .in('student_id', chunk),
+                            { data: [], error: null },
+                            'results student roster chunk',
+                        ),
+                    ]);
                     
                     (gradeRows ?? []).forEach((r: any) => {
                         if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level;
                         if (r.user_id && r.parent_email) parentEmailByUserId[r.user_id] = r.parent_email;
                     });
+                    (rosterRows ?? []).forEach((r: any) => {
+                        if (!r?.student_id) return;
+                        const existing = bestRosterByUserId[r.student_id];
+                        const liveCid = classByUserId.get(r.student_id);
+                        if (!existing) {
+                            bestRosterByUserId[r.student_id] = r;
+                            return;
+                        }
+                        const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
+                        const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
+                        const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+                        const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
+                        if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
+                            bestRosterByUserId[r.student_id] = r;
+                        }
+                    });
                 }));
             }
-            const studsWithGrade = studs.map(s => ({
-                ...s,
-                grade_level: gradeByUserId[(s as any).id] ?? '',
-                parent_email: parentEmailByUserId[(s as any).id] ?? null,
-            }));
+            const { classifyStudentSessionStatus } = await import('@/lib/academic/session-scope');
+            const studsWithGrade = studs.map((s: any) => {
+                const ar = bestRosterByUserId[s.id] ?? null;
+                const session_status = classifyStudentSessionStatus(
+                    { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
+                    ar
+                        ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+                        : null,
+                    { boundary: currentSessionBoundary },
+                );
+                return {
+                    ...s,
+                    grade_level: s.grade || gradeByUserId[s.id] || '',
+                    parent_email: parentEmailByUserId[s.id] ?? null,
+                    session_status,
+                };
+            });
             setStudents(studsWithGrade as unknown as PortalUser[]);
             setOrgSettings(orgRes.data);
 

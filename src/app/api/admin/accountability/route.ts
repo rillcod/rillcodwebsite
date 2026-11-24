@@ -5,7 +5,11 @@ import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { logAudit } from '@/lib/audit/log';
-import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
 
 /**
  * Full accountability census: every school, every account, where they are placed,
@@ -84,7 +88,7 @@ export async function GET() {
   let settingsRes: { data: { value?: string | null } | null; error: { message: string } | null };
   let schoolsRes: { data: Array<{ id: string; name: string; city: string | null; state: string | null; status: string | null }> | null; error: { message: string } | null };
   let classesRes: { data: Array<{ id: string; name: string; school_id: string | null; term_id: string | null; teacher_id: string | null; status: string | null }> | null; error: { message: string } | null };
-  let rostersRes: { data: Array<{ student_id: string; class_id: string; status: string | null; started_at: string | null; reinstated_at: string | null; term_id: string | null }> | null; error: { message: string } | null };
+  let rostersRes: { data: Array<{ student_id: string; class_id: string; status: string | null; started_at: string | null; ended_at: string | null; reinstated_at: string | null; term_id: string | null }> | null; error: { message: string } | null };
 
   try {
     [coverageRes, peopleRes, backlogRes, liveRoleRes, settingsRes, schoolsRes, classesRes, rostersRes] = await Promise.race([
@@ -116,11 +120,10 @@ export async function GET() {
             .select('id, name, school_id, term_id, teacher_id, status')
             .range(from, to),
         ),
-        fetchAllSupabaseRows<{ student_id: string; class_id: string; status: string | null; started_at: string | null; reinstated_at: string | null; term_id: string | null }>((from, to) =>
+        fetchAllSupabaseRows<{ student_id: string; class_id: string; status: string | null; started_at: string | null; ended_at: string | null; reinstated_at: string | null; term_id: string | null }>((from, to) =>
           (db as any)
             .from('class_term_rosters')
-            .select('student_id, class_id, status, started_at, reinstated_at, term_id')
-            .eq('status', 'active')
+            .select('student_id, class_id, status, started_at, ended_at, reinstated_at, term_id')
             .range(from, to),
         ),
       ]),
@@ -156,20 +159,13 @@ export async function GET() {
   const sessionBoundary = getSessionBoundary(coverageData?.term_context?.academic_year ?? null);
   const activeRosterByStudent = new Map<
     string,
-    { class_id: string; status: string | null; started_at: string | null; reinstated_at: string | null; term_id: string | null }
+    { class_id: string; status: string | null; started_at: string | null; ended_at: string | null; reinstated_at: string | null; term_id: string | null }
   >();
   for (const r of rostersRes.data ?? []) {
+    if (!r?.student_id) continue;
     const existing = activeRosterByStudent.get(r.student_id);
     const liveClassId = liveUserMap.get(r.student_id)?.class_id;
-    if (!existing) {
-      activeRosterByStudent.set(r.student_id, r);
-      continue;
-    }
-    const rMatchesLive = Boolean(liveClassId && r.class_id === liveClassId);
-    const exMatchesLive = Boolean(liveClassId && existing.class_id === liveClassId);
-    const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
-    const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
-    if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
+    if (shouldReplaceRosterRow(existing, r, liveClassId)) {
       activeRosterByStudent.set(r.student_id, r);
     }
   }

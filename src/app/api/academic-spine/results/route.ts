@@ -9,7 +9,12 @@ import { resolveClassReportSession } from '@/lib/reports/session-labels';
 import { autoFillHostSchoolMessage, autoFillResultMessage } from '@/lib/reports/score';
 import { parseScoreAuthority } from '@/lib/reports/complement';
 import { mergeHostSchoolMetrics } from '@/lib/academic/host-marks';
-import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -64,10 +69,25 @@ export async function GET() {
 
   const boundary = getSessionBoundary();
   const [students, plans, termRes, rostersRes] = await Promise.all([
-    db.from('portal_users').select('id,full_name,class_id,enrollment_type,is_active,created_at,metadata').eq('role', 'student').in('class_id', classIds).eq('is_deleted', false).order('full_name').limit(5000),
+    fetchAllSupabaseRows<any>((from, to) =>
+      db
+        .from('portal_users')
+        .select('id,full_name,class_id,enrollment_type,is_active,created_at,metadata')
+        .eq('role', 'student')
+        .in('class_id', classIds)
+        .eq('is_deleted', false)
+        .order('full_name')
+        .range(from, to),
+    ),
     db.from('lesson_plans').select('id,class_id,course_id,curriculum_release_id,status,courses(title)').in('class_id', classIds).neq('status', 'archived'),
     db.from('academic_terms').select('id').eq('is_current', true).limit(1).maybeSingle(),
-    (db as any).from('class_term_rosters').select('student_id,class_id,status,term_id,started_at,reinstated_at').in('class_id', classIds).limit(5000),
+    fetchAllSupabaseRows<any>((from, to) =>
+      (db as any)
+        .from('class_term_rosters')
+        .select('student_id,class_id,status,term_id,started_at,ended_at,reinstated_at')
+        .in('class_id', classIds)
+        .range(from, to),
+    ),
   ]);
   const listError = students.error || plans.error;
   if (listError) return NextResponse.json({ error: listError.message }, { status: 500 });
@@ -75,11 +95,10 @@ export async function GET() {
   const canonicalTermId = (termRes?.data as { id?: string } | null)?.id ?? null;
   const bestRosterByKey = new Map<string, any>();
   for (const r of (rostersRes?.data ?? []) as any[]) {
+    if (!r?.class_id || !r?.student_id) continue;
     const key = `${r.class_id}::${r.student_id}`;
     const prev = bestRosterByKey.get(key);
-    const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
-    const prevMs = prev ? (Date.parse(prev.reinstated_at || prev.started_at || '') || 0) : -1;
-    if (!prev || rMs >= prevMs) {
+    if (shouldReplaceRosterRow(prev, r, r.class_id)) {
       bestRosterByKey.set(key, r);
     }
   }

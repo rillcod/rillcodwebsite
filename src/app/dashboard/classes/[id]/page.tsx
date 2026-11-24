@@ -329,9 +329,11 @@ export default function ClassDetailPage() {
       classLoaded = true;
 
       // Show the teacher's class and daily-work controls as soon as the class
-      // itself is known. Secondary records continue loading progressively.
+      // itself is known. Always load student roster counts (light when on the
+      // teaching tab) so the Students workspace card immediately displays
+      // accurate confirmed vs 3rd-term counts instead of "Open to load students".
       setLoading(false);
-      const needsStudentRecords = activeOperation !== 'teaching';
+      const needsStudentRecords = true;
       if (needsStudentRecords) {
         setOperationLoadState('loading');
         setOperationLoadError(null);
@@ -741,7 +743,7 @@ export default function ClassDetailPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || 'Could not load student login details');
       const list: CredentialSheetStudent[] = (json.students ?? [])
-        .filter((s: any) => s.is_current_term_active !== false)
+        .filter((s: any) => s.is_current_term_active !== false && s.session_status !== 'carryover_unconfirmed')
         .map((s: any) => ({
           id: s.id,
           full_name: s.full_name || 'Student',
@@ -1601,8 +1603,9 @@ export default function ClassDetailPage() {
     const issuedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     const docRef = `RC-${cls.id?.slice(0, 8).toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
-    // Deduplicate enrollments to prevent duplicate rows in the register
-    const uniqueEnrollments = Array.from(new Map(enrollments.map((e: any) => [e.portal_user_id || e.id, e])).values());
+    // Deduplicate enrollments and default to confirmed current-session learners
+    const exportSource = confirmedCurrentStudents.length > 0 ? confirmedCurrentStudents : currentTermStudents;
+    const uniqueEnrollments = Array.from(new Map(exportSource.map((e: any) => [e.portal_user_id || e.id, e])).values());
 
     const enrRows = uniqueEnrollments.map((enr: any, idx: number) => `
       <tr style="page-break-inside: avoid;">

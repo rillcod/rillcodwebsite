@@ -4,6 +4,8 @@ import {
   getSessionBoundary,
   isStudentInCurrentSession,
   partitionStudentsBySession,
+  rosterRowEffectiveMs,
+  shouldReplaceRosterRow,
 } from './session-scope';
 
 describe('academic session-scope isolation', () => {
@@ -159,5 +161,37 @@ describe('academic session-scope isolation', () => {
     };
     expect(classifyStudentSessionStatus(rolledTo2027, { status: 'active' }, { boundary: nextBoundary })).toBe('confirmed_current');
     expect(isStudentInCurrentSession(rolledTo2027, nextBoundary)).toBe(true);
+  });
+
+  it('resolves duplicate class_term_rosters rows so a newer withdrawn row overrides an older 3rd-term active row', () => {
+    const oldThirdTermActive = {
+      class_id: 'winrose-class',
+      status: 'active',
+      term_id: 'third-term-2025-2026',
+      started_at: '2026-03-25T10:00:00.000Z',
+      ended_at: null,
+      reinstated_at: null,
+    };
+    const newerFirstTermWithdrawn = {
+      class_id: 'winrose-class',
+      status: 'withdrawn',
+      term_id: 'first-term-2026-2027',
+      started_at: '2026-08-08T04:34:01.000Z',
+      ended_at: '2026-11-23T14:22:00.000Z',
+      reinstated_at: null,
+    };
+
+    expect(rosterRowEffectiveMs(newerFirstTermWithdrawn)).toBeGreaterThan(
+      rosterRowEffectiveMs(oldThirdTermActive),
+    );
+    expect(shouldReplaceRosterRow(oldThirdTermActive, newerFirstTermWithdrawn, 'winrose-class')).toBe(true);
+    expect(shouldReplaceRosterRow(newerFirstTermWithdrawn, oldThirdTermActive, 'winrose-class')).toBe(false);
+    expect(
+      classifyStudentSessionStatus(
+        { is_active: true, created_at: '2026-03-25T10:00:00.000Z', metadata: null },
+        newerFirstTermWithdrawn,
+        { boundary },
+      ),
+    ).toBe('withdrawn');
   });
 });

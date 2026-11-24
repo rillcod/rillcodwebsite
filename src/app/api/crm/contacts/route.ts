@@ -13,7 +13,12 @@ import {
   rowMatchesSchoolNames,
 } from '@/lib/crm/scope';
 import { mergeContactMetadata } from '@/lib/supabase/json';
-import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { findOrCreateParentPortal } from '@/lib/parents/provision';
 import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
@@ -97,29 +102,22 @@ export async function GET(req: NextRequest) {
               .maybeSingle()
           : Promise.resolve({ data: null }),
         studentIds.length > 0
-          ? (db as any)
-              .from('class_term_rosters')
-              .select('student_id, class_id, status, term_id, started_at, reinstated_at')
-              .in('student_id', studentIds)
-              .eq('status', 'active')
-              .limit(5000)
+          ? fetchAllSupabaseRows<any>((from, to) =>
+              (db as any)
+                .from('class_term_rosters')
+                .select('student_id, class_id, status, term_id, started_at, ended_at, reinstated_at')
+                .range(from, to),
+            )
           : Promise.resolve({ data: [] }),
       ]);
       (pipes || []).forEach((p: any) => { stageMap[p.contact_id] = p.stage; });
       canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
       const classByStudent = new Map((portalUsers || []).map((u: any) => [u.id, u.class_id]));
       for (const r of (rosterRes.data ?? []) as any[]) {
+        if (!r?.student_id || !classByStudent.has(r.student_id)) continue;
         const existing = rosterByStudent.get(r.student_id);
         const liveCid = classByStudent.get(r.student_id);
-        if (!existing) {
-          rosterByStudent.set(r.student_id, r);
-          continue;
-        }
-        const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
-        const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
-        const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
-        const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
-        if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
+        if (shouldReplaceRosterRow(existing, r, liveCid)) {
           rosterByStudent.set(r.student_id, r);
         }
       }

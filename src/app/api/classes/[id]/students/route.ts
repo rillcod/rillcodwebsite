@@ -6,8 +6,8 @@ import {
   classifyStudentSessionStatus,
   getSessionBoundary,
   partitionStudentsBySession,
+  shouldReplaceRosterRow,
 } from '@/lib/academic/session-scope';
-import { isSpecializedProgramRecord } from '@/lib/students/reinstate-to-class';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
 import { generateTempPassword } from '@/lib/utils/password';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
@@ -78,29 +78,15 @@ export async function GET(
       }
     }
 
-    // The roster, direct assignments and legacy section candidates are three
-    // views of the same class identity. Read them together, and reuse the one
-    // roster result for both withdrawn guards and status enrichment below.
-    let rosterQuery = (admin as any)
+    // Read all roster history for this class across terms so we can accurately
+    // resolve the latest action per student (active vs withdrawn/reinstated)
+    // without silently re-adding withdrawn or moved learners.
+    const rosterQuery = (admin as any)
       .from('class_term_rosters')
-      .select('id, student_id, status, started_at, ended_at, reinstated_at, term_id')
+      .select('id, student_id, class_id, status, started_at, ended_at, reinstated_at, term_id')
       .eq('class_id', classId);
-    rosterQuery = cls.term_id ? rosterQuery.eq('term_id', cls.term_id) : rosterQuery.is('term_id', null);
 
-    const sectionQuery = cls.school_id && cls.name
-      ? admin
-          .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, enrollment_type, created_at, metadata')
-          .eq('school_id', cls.school_id)
-          .eq('section_class', cls.name)
-          .is('class_id', null)
-          .eq('role', 'student')
-          .neq('is_active', false)
-          .neq('is_deleted', true)
-          .order('full_name')
-      : Promise.resolve({ data: [], error: null });
-
-    const [directResult, rosterResult, sectionResult] = await Promise.all([
+    const [directResult, rosterResult] = await Promise.all([
       admin
         .from('portal_users')
         .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
@@ -110,80 +96,15 @@ export async function GET(
         .neq('is_deleted', true)
         .order('full_name'),
       rosterQuery,
-      sectionQuery,
     ]);
     const { data: directStudents, error: directErr } = directResult;
     if (directErr) return NextResponse.json({ error: directErr.message }, { status: 500 });
     if (rosterResult.error) {
       console.warn('[class_term_rosters] unable to enrich class roster', rosterResult.error);
     }
-    if (sectionResult.error) {
-      console.warn('[students API] legacy section candidates unavailable', sectionResult.error);
-    }
     const rosterRows: any[] = !rosterResult.error && Array.isArray(rosterResult.data)
       ? rosterResult.data
       : [];
-    const knownIds = new Set((directStudents ?? []).map((s: any) => s.id));
-
-    // Students deliberately withdrawn from this class must never be silently
-    // re-added by the section-name compatibility heal.
-    const withdrawnFromThisClass = new Set<string>();
-    rosterRows
-      .filter((row: any) => row.status !== 'active')
-      .forEach((row: any) => row.student_id && withdrawnFromThisClass.add(row.student_id));
-
-    const clsIsSpecialized = isSpecializedProgramRecord(null, cls.name);
-    let sectionStudents = (sectionResult.data ?? []).filter(
-      (student: any) =>
-        !knownIds.has(student.id) &&
-        !withdrawnFromThisClass.has(student.id) &&
-        // Prevent Summer School / Bootcamp / Specialized programme students from silently
-        // bleeding into regular school rosters (e.g. JSS 1) via legacy section_class matching.
-        (clsIsSpecialized || !isSpecializedProgramRecord(student.enrollment_type, student.school_name)),
-    );
-    // Also prevent cross-programme bleed: if this class belongs to a specific programme
-    // (e.g. Teen Developers for JSS 1), never auto-heal unassigned students whose active
-    // enrollment is strictly in a different programme (e.g. Young Innovators).
-    if (sectionStudents.length > 0 && cls.program_id) {
-      const candidateIds = sectionStudents.map((s: any) => s.id);
-      const { data: candEnrollments } = await admin
-        .from('enrollments')
-        .select('user_id, program_id')
-        .in('user_id', candidateIds)
-        .in('status', ['active', 'enrolled', 'approved']);
-      const programsByStudent = new Map<string, Set<string>>();
-      for (const row of candEnrollments ?? []) {
-        const uid = (row as any).user_id;
-        const pid = (row as any).program_id;
-        if (!uid || !pid) continue;
-        if (!programsByStudent.has(uid)) programsByStudent.set(uid, new Set());
-        programsByStudent.get(uid)!.add(pid);
-      }
-      sectionStudents = sectionStudents.filter((student: any) => {
-        const progs = programsByStudent.get(student.id);
-        if (!progs || progs.size === 0) return true;
-        return progs.has(cls.program_id!);
-      });
-    }
-    if (sectionStudents.length > 0) {
-      const sectionIds = sectionStudents.map((student: any) => student.id);
-      const { error: healError } = await admin
-        .from('portal_users')
-        .update({ class_id: classId })
-        .in('id', sectionIds)
-        .eq('role', 'student');
-      if (healError) {
-        console.error('[students API] section-class repair failed', healError);
-        return NextResponse.json(
-          { error: 'Student records need repair before this roster can be loaded. Please retry.' },
-          { status: 503 },
-        );
-      }
-      sectionStudents = sectionStudents.map((student: any) => ({ ...student, class_id: classId }));
-      console.log(`[students API] class="${cls.name}" (${classId}) auto-healed ${sectionIds.length} section_class-matched student(s)`);
-    }
-
-    let students = [...(directStudents ?? []), ...sectionStudents];
 
     // Settings, current-count verification and the reporting period do not
     // depend on the profile enrichment below. Start them now so opening the
@@ -215,50 +136,18 @@ export async function GET(
         .neq('is_deleted', true),
     );
 
-    // Recovery: if this teacher has already entered progress reports for this
-    // class IN THE CURRENT SESSION, keep unassigned students visible even if their
-    // class_id drifted — never resurrect students who were withdrawn, deactivated,
-    // or already promoted/moved to another class!
-    if (caller.role === 'teacher') {
-      const knownStudentIds = new Set(students.map((s: any) => s.id));
-      let reportQuery = admin
-        .from('student_progress_reports')
-        .select('student_id')
-        .eq('teacher_id', caller.id)
-        .eq('section_class', cls.name)
-        .eq('report_period', academicPeriod.periodLabel)
-        .not('student_id', 'is', null);
-      if (cls.school_id) reportQuery = reportQuery.eq('school_id', cls.school_id);
-      const { data: reportRows } = await reportQuery;
-      const reportStudentIds = (reportRows ?? [])
-        .map((r: any) => r.student_id)
-        .filter((sid: any) => sid && !knownStudentIds.has(sid) && !withdrawnFromThisClass.has(sid));
-
-      if (reportStudentIds.length > 0) {
-        const { data: reportLinkedStudents } = await admin
-          .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
-          .in('id', reportStudentIds)
-          .eq('role', 'student')
-          .is('class_id', null)
-          .neq('is_active', false)
-          .neq('is_deleted', true)
-          .order('full_name');
-        students.push(...(reportLinkedStudents ?? []));
-      }
-    }
-
-    let formerStudents: any[] = [];
+    // Resolve the most recent roster action per student in this class.
+    // A newer 'withdrawn' row (with ended_at) MUST win over an older 3rd-term 'active' row!
     const rosterByStudent = new Map<string, any>();
     for (const row of rosterRows) {
+      if (!row?.student_id) continue;
       const prev = rosterByStudent.get(row.student_id);
-      const rowMs = Date.parse(row.reinstated_at || row.started_at || '');
-      const prevMs = prev ? Date.parse(prev.reinstated_at || prev.started_at || '') : -1;
-      if (!prev || (row.status === 'active' && prev.status !== 'active') || rowMs > prevMs) {
+      if (shouldReplaceRosterRow(prev, row, classId)) {
         rosterByStudent.set(row.student_id, row);
       }
     }
-    students = students.map((student: any) => {
+
+    let students = (directStudents ?? []).map((student: any) => {
       const roster = rosterByStudent.get(student.id);
       return {
         ...student,
@@ -269,31 +158,50 @@ export async function GET(
       };
     });
 
-    const currentIds = new Set(students.map((student: any) => student.id));
-    const inactiveIds = rosterRows
-      .filter((row: any) => row.status !== 'active' && !currentIds.has(row.student_id))
+    // Separate students whose latest roster row in this class is withdrawn/inactive
+    // even if portal_users.class_id still points to this class.
+    const withdrawnDirectStudents = students.filter((s: any) => !s.is_current_term_active);
+    students = students.filter((s: any) => s.is_current_term_active);
+
+    let formerStudents: any[] = [...withdrawnDirectStudents];
+    const currentAndWithdrawnDirectIds = new Set([
+      ...students.map((s: any) => s.id),
+      ...withdrawnDirectStudents.map((s: any) => s.id),
+    ]);
+    const inactiveIds = Array.from(rosterByStudent.values())
+      .filter((row: any) => row.status !== 'active' && !currentAndWithdrawnDirectIds.has(row.student_id))
       .map((row: any) => row.student_id)
       .filter(Boolean);
     if (inactiveIds.length > 0) {
       const { data: inactiveProfiles, error: inactiveError } = await admin
         .from('portal_users')
-        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
+        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
         .in('id', inactiveIds)
         .eq('role', 'student')
         .order('full_name');
       if (inactiveError) {
         console.warn('[class_term_rosters] former student profiles unavailable', inactiveError);
       }
-      formerStudents = (inactiveProfiles ?? []).map((student: any) => {
-        const roster = rosterByStudent.get(student.id);
-        return {
-          ...student,
-          roster_status: roster?.status ?? 'withdrawn',
-          roster_started_at: roster?.started_at ?? null,
-          roster_ended_at: roster?.ended_at ?? null,
-          is_current_term_active: false,
-        };
-      });
+      // Do not show students in "Former / Withdrawn" if they were promoted or moved
+      // to another active class (student.class_id && student.class_id !== classId).
+      const trueFormerProfiles = (inactiveProfiles ?? []).filter(
+        (student: any) => !student.class_id || student.class_id === classId,
+      );
+      formerStudents.push(
+        ...trueFormerProfiles.map((student: any) => {
+          const roster = rosterByStudent.get(student.id);
+          return {
+            ...student,
+            roster_status: roster?.status ?? 'withdrawn',
+            roster_started_at: roster?.started_at ?? null,
+            roster_ended_at: roster?.ended_at ?? null,
+            is_current_term_active: false,
+          };
+        }),
+      );
+      formerStudents.sort((a: any, b: any) =>
+        String(a.full_name || '').localeCompare(String(b.full_name || '')),
+      );
     }
 
     // ── Progress-report status per student — flags who still needs a published report THIS
@@ -311,6 +219,36 @@ export async function GET(
     const sessionBoundary = getSessionBoundary(academicPeriod.periodLabel);
     const currentSessionLabel = sessionBoundary.periodLabel;
     const requestedSessionScope = new URL(_request.url).searchParams.get('session_scope');
+
+    // Always stamp session_status on every student (even in ?light=1 mode) so header pills,
+    // transfer lists, and quick-pick summaries always distinguish confirmed vs 3rd-term.
+    const stampSessionStatus = (s: any) => {
+      const meta = (s.metadata && typeof s.metadata === 'object' ? s.metadata : {}) as Record<string, any>;
+      const confirmedSession = String(meta.confirmed_session || '').trim() || null;
+      const roster = rosterByStudent.get(s.id);
+      const sessionStatus = classifyStudentSessionStatus(
+        s,
+        roster
+          ? {
+              status: roster.status ?? null,
+              term_id: roster.term_id ?? null,
+              started_at: roster.reinstated_at ?? roster.started_at ?? null,
+            }
+          : null,
+        {
+          canonicalTermId,
+          boundary: sessionBoundary,
+        },
+      );
+      return {
+        ...s,
+        confirmed_session: confirmedSession,
+        session_status: sessionStatus,
+        is_current_term_active: s.is_current_term_active !== false && sessionStatus !== 'withdrawn',
+      };
+    };
+    students = students.map(stampSessionStatus);
+    formerStudents = formerStudents.map(stampSessionStatus);
 
     if (!light && allRosterIds.length > 0) {
       const { data: studentRows } = await admin
@@ -338,30 +276,22 @@ export async function GET(
         }
       }
 
-      const enrichContactAndSession = (s: any) => {
+      const enrichContact = (s: any) => {
         const meta = (s.metadata && typeof s.metadata === 'object' ? s.metadata : {}) as Record<string, any>;
         const st = studentRowByUserId.get(s.id);
         const parentPhone = String(st?.parent_phone || meta.parent_phone || '').trim() || null;
         const parentName = String(st?.parent_name || meta.parent_name || '').trim() || null;
         const parentVerified = Boolean(st?.id && verifiedStudentTableIds.has(st.id));
-        const confirmedSession = String(meta.confirmed_session || '').trim() || null;
-        const roster = rosterByStudent.get(s.id);
-        const sessionStatus = classifyStudentSessionStatus(s, roster, {
-          canonicalTermId,
-          boundary: sessionBoundary,
-        });
         return {
           ...s,
           parent_phone: parentPhone,
           parent_name: parentName,
           parent_verified: parentVerified,
           parent_phone_source: String(meta.parent_phone_source || '').trim() || null,
-          confirmed_session: confirmedSession,
-          session_status: sessionStatus,
         };
       };
-      students = students.map(enrichContactAndSession);
-      formerStudents = formerStudents.map(enrichContactAndSession);
+      students = students.map(enrichContact);
+      formerStudents = formerStudents.map(enrichContact);
     }
 
     const sessionPartition = partitionStudentsBySession(students as any[]);
@@ -418,11 +348,7 @@ export async function GET(
       }
     }
 
-    // ── Sync current_students count from DB (not from local array) ───────────
-    const actualCount = liveCountResult.count ?? students.length;
-    if (actualCount !== cls.current_students) {
-      await admin.from('classes').update({ current_students: actualCount }).eq('id', classId);
-    }
+    const actualCount = sessionPartition.currentSession.length;
 
     return NextResponse.json(
       {

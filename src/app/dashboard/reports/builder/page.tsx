@@ -1516,12 +1516,26 @@ function ReportBuilderInner() {
     const reportPathwayLabel = selectedSchoolStanding === 'compulsory'
         ? 'Compulsory school · school examination papers'
         : 'Optional programme · Rillcod learning evidence';
-    const classRoster = students.filter((student: any) => {
+    const allClassRoster = students.filter((student: any) => {
         if (!activeSessionClass) return false;
         return student.class_id === activeSessionClass.id
             || (student.section_class === activeSessionClass.name
                 && (!activeSessionClass.school_id || student.school_id === activeSessionClass.school_id));
     });
+    const classCarryoverRoster = allClassRoster.filter(
+        (student: any) =>
+            !isStudentInCurrentSession(student, sessionBoundary) &&
+            !reportedIds.has(student.id) &&
+            !draftedIds.has(student.id),
+    );
+    const classRoster = currentSessionOnly
+        ? allClassRoster.filter(
+            (student: any) =>
+                isStudentInCurrentSession(student, sessionBoundary) ||
+                reportedIds.has(student.id) ||
+                draftedIds.has(student.id),
+        )
+        : allClassRoster;
     const classPublishedCount = classRoster.filter(student => reportedIds.has(student.id)).length;
     const classDraftCount = classRoster.filter(student => draftedIds.has(student.id)).length;
     const classRemainingCount = Math.max(0, classRoster.length - classPublishedCount - classDraftCount);
@@ -3487,8 +3501,10 @@ function ReportBuilderInner() {
                                 <div className="space-y-1.5">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick-pick your class (1 click)</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {teacherClasses.slice(0, 10).map(c => {
+                                        {teacherClasses.slice(0, 10).map((c: any) => {
                                             const active = sessionConfig.class_id === c.id;
+                                            const confirmedCnt = Number(c.confirmed_students ?? 0);
+                                            const unconfirmedCnt = Number(c.unconfirmed_students ?? 0);
                                             return (
                                                 <button
                                                     key={c.id}
@@ -3501,6 +3517,9 @@ function ReportBuilderInner() {
                                                     }`}
                                                 >
                                                     {c.name}
+                                                    <span className="ml-1.5 opacity-80">
+                                                        ({confirmedCnt > 0 ? `${confirmedCnt} confirmed` : unconfirmedCnt > 0 ? `0 · ${unconfirmedCnt} 3rd-term` : '0'})
+                                                    </span>
                                                 </button>
                                             );
                                         })}
@@ -3887,11 +3906,42 @@ function ReportBuilderInner() {
                                 </div>
                             </div>
                             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRoster.length}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</p></div>
+                                <div className="rounded-xl border border-border bg-muted/20 p-3">
+                                    <p className="text-xl font-black text-foreground">{classRoster.length}</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        {currentSessionOnly ? `Confirmed (${sessionBoundary.periodLabel})` : 'Students'}
+                                    </p>
+                                </div>
                                 <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><p className="text-xl font-black text-amber-600 dark:text-amber-400">{classDraftCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-amber-700/70 dark:text-amber-300/70">Drafts</p></div>
                                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3"><p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{classPublishedCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/70 dark:text-emerald-300/70">Published</p></div>
                                 <div className="rounded-xl border border-border bg-muted/20 p-3"><p className="text-xl font-black text-foreground">{classRemainingCount}</p><p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Remaining</p></div>
                             </div>
+                            {currentSessionOnly && classCarryoverRoster.length > 0 && (
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3.5 py-2.5 text-xs">
+                                    <span className="font-bold text-amber-900 dark:text-amber-200">
+                                        {classRoster.length === 0
+                                            ? `0 students confirmed for ${sessionBoundary.periodLabel} in this class (${classCarryoverRoster.length} carried over from 3rd Term).`
+                                            : `${classCarryoverRoster.length} unconfirmed 3rd-term carryover student${classCarryoverRoster.length === 1 ? ' is' : 's are'} excluded from ${sessionBoundary.periodLabel} grading.`}
+                                    </span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {sessionConfig.class_id && (
+                                            <Link
+                                                href={`/dashboard/classes/${sessionConfig.class_id}?operation=roster`}
+                                                className="rounded-lg bg-emerald-700 px-3 py-1.5 font-black text-white hover:bg-emerald-800"
+                                            >
+                                                Open Class → Confirm or Promote ({classCarryoverRoster.length})
+                                            </Link>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentSessionOnly(false)}
+                                            className="rounded-lg border border-border bg-card px-3 py-1.5 font-bold text-foreground hover:bg-muted"
+                                        >
+                                            Include 3rd-Term Carryover ({classCarryoverRoster.length})
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             {classRoster.length > 0 && (
                                 <div className="mt-3 pt-3 border-t border-border flex flex-wrap items-center gap-2">
                                     <button

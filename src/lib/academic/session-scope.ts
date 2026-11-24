@@ -22,6 +22,66 @@ const WITHDRAWN_ROSTER_STATUSES = new Set([
 ]);
 
 /**
+ * Returns the effective timestamp (ms) of a `class_term_rosters` row so duplicate
+ * rows across terms for the same `(class_id, student_id)` always resolve to the
+ * most recent action (whether reinstatement, enrollment, or withdrawal).
+ */
+export function rosterRowEffectiveMs(
+  row: {
+    status?: string | null;
+    started_at?: string | null;
+    reinstated_at?: string | null;
+    ended_at?: string | null;
+  } | null | undefined,
+): number {
+  if (!row) return -1;
+  const status = String(row.status ?? '').trim().toLowerCase();
+  const startMs = Date.parse(row.reinstated_at || row.started_at || '') || 0;
+  if (WITHDRAWN_ROSTER_STATUSES.has(status)) {
+    const endMs = Date.parse(row.ended_at || '') || 0;
+    return Math.max(endMs, startMs);
+  }
+  return startMs;
+}
+
+/**
+ * Given an existing roster row and a candidate roster row for the same student,
+ * returns true when `candidate` should replace `existing` (preferring rows that
+ * match the student's live `class_id`, then the row with the latest effective timestamp).
+ */
+export function shouldReplaceRosterRow(
+  existing: {
+    class_id?: string | null;
+    status?: string | null;
+    started_at?: string | null;
+    reinstated_at?: string | null;
+    ended_at?: string | null;
+  } | null | undefined,
+  candidate: {
+    class_id?: string | null;
+    status?: string | null;
+    started_at?: string | null;
+    reinstated_at?: string | null;
+    ended_at?: string | null;
+  },
+  liveClassId?: string | null,
+): boolean {
+  if (!existing) return true;
+  if (liveClassId) {
+    const candMatches = candidate.class_id === liveClassId;
+    const exMatches = existing.class_id === liveClassId;
+    if (candMatches && !exMatches) return true;
+    if (!candMatches && exMatches) return false;
+  }
+  const candMs = rosterRowEffectiveMs(candidate);
+  const exMs = rosterRowEffectiveMs(existing);
+  if (candMs !== exMs) return candMs > exMs;
+  const candWithdrawn = WITHDRAWN_ROSTER_STATUSES.has(String(candidate.status ?? '').trim().toLowerCase());
+  const exWithdrawn = WITHDRAWN_ROSTER_STATUSES.has(String(existing.status ?? '').trim().toLowerCase());
+  return candWithdrawn && !exWithdrawn;
+}
+
+/**
  * Single source of truth for the current academic session boundary.
  * All roster, class, intake, report, and accountability filters derive their
  * current-vs-prior cutoff here so prior sessions never bleed into live work.

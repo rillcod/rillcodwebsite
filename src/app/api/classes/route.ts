@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import { classifyStudentSessionStatus, getSessionBoundary, shouldReplaceRosterRow } from '@/lib/academic/session-scope';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
@@ -157,93 +158,72 @@ export async function GET(request: NextRequest) {
     });
 
     const boundary = getSessionBoundary();
-    const [{ data: directStudents }, { data: canonicalTerm }, { data: activeRosters }] = await Promise.all([
-      admin
-        .from('portal_users')
-        .select('id, class_id, is_active, created_at, metadata')
-        .eq('role', 'student')
-        .eq('is_active', true)
-        .eq('is_deleted', false)
-        .in('class_id', classIds)
-        .limit(5000),
+    const [directStudentsRes, { data: canonicalTerm }, allRostersRes] = await Promise.all([
+      fetchAllSupabaseRows<any>((from, to) =>
+        admin
+          .from('portal_users')
+          .select('id, class_id, is_active, created_at, metadata')
+          .eq('role', 'student')
+          .eq('is_active', true)
+          .eq('is_deleted', false)
+          .in('class_id', classIds)
+          .range(from, to),
+      ),
       admin
         .from('academic_terms')
         .select('id')
         .eq('term_label', boundary.termLabel)
         .eq('academic_year', boundary.periodLabel)
         .maybeSingle(),
-      (admin as any)
-        .from('class_term_rosters')
-        .select('student_id, class_id, status, term_id, started_at, reinstated_at')
-        .in('class_id', classIds)
-        .eq('status', 'active')
-        .limit(5000),
+      fetchAllSupabaseRows<any>((from, to) =>
+        (admin as any)
+          .from('class_term_rosters')
+          .select('student_id, class_id, status, term_id, started_at, reinstated_at, ended_at')
+          .in('class_id', classIds)
+          .range(from, to),
+      ),
     ]);
 
+    const directStudents = directStudentsRes.data ?? [];
+    const allRosters = allRostersRes.data ?? [];
     const canonicalTermId = (canonicalTerm as { id?: string } | null)?.id ?? null;
     const rosterByKey = new Map<string, any>();
-    for (const r of (activeRosters ?? []) as any[]) {
+    for (const r of allRosters) {
       const k = `${r.class_id}::${r.student_id}`;
       const prev = rosterByKey.get(k);
-      const rMs = Date.parse(r.reinstated_at || r.started_at || '');
-      const prevMs = prev ? Date.parse(prev.reinstated_at || prev.started_at || '') : -1;
-      if (!prev || rMs > prevMs) rosterByKey.set(k, r);
+      if (shouldReplaceRosterRow(prev, r, r.class_id)) {
+        rosterByKey.set(k, r);
+      }
     }
 
-    (directStudents ?? []).forEach((s: any) => {
+    directStudents.forEach((s: any) => {
       if (!s.class_id) return;
-      countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
       const ar = rosterByKey.get(`${s.class_id}::${s.id}`) ?? null;
       const status = classifyStudentSessionStatus(
         { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
         ar
-          ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+          ? {
+              status: ar.status,
+              term_id: ar.term_id ?? null,
+              started_at: ar.reinstated_at ?? ar.started_at ?? null,
+              reinstated_at: ar.reinstated_at ?? null,
+            }
           : null,
         { canonicalTermId, boundary },
       );
       if (status === 'confirmed_current') {
         confirmedMap[s.class_id] = (confirmedMap[s.class_id] ?? 0) + 1;
+        countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
       } else if (status === 'carryover_unconfirmed') {
         unconfirmedMap[s.class_id] = (unconfirmedMap[s.class_id] ?? 0) + 1;
+        countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
       }
     });
 
-    // 2. Also count section_class-matched students whose class_id is not yet set
-    //    (covers legacy / pre-heal students that appear inside the class detail)
-    const schoolIds = [...new Set(classData.map((c: any) => c.school_id).filter(Boolean))] as string[];
-    if (schoolIds.length > 0) {
-      const { data: sectionStudents } = await admin
-        .from('portal_users')
-        .select('school_id, section_class')
-        .eq('role', 'student')
-        .is('class_id', null)
-        .in('school_id', schoolIds);
-
-      // Build lookup: "schoolId::className" → classId
-      const lookup: Record<string, string> = {};
-      classData.forEach((c: any) => {
-        if (c.school_id && c.name) lookup[`${c.school_id}::${c.name}`] = c.id;
-      });
-
-      (sectionStudents ?? []).forEach((s: any) => {
-        const cid = lookup[`${s.school_id}::${s.section_class}`];
-        if (cid) countMap[cid] = (countMap[cid] ?? 0) + 1;
-      });
-    }
-    // Current-term active rosters are authoritative. The database function also
-    // includes unrostered legacy members so old imports remain visible.
-    const activeCounts = await Promise.all(classIds.map(async (classId) => {
-      const { data } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
-      return [classId, Number(data ?? 0)] as const;
-    }));
-    for (const [classId, count] of activeCounts) countMap[classId] = count;
-
-
-    // Fall back to the DB-synced current_students when live count is still 0
-    // (covers program-enrolled students not yet healed by the detail page)
     const enriched = classData.map((c: any) => ({
       ...c,
-      current_students: countMap[c.id] ?? c.current_students ?? 0,
+      current_students: confirmedMap[c.id] ?? 0,
+      total_active_students: countMap[c.id] ?? 0,
       confirmed_students: confirmedMap[c.id] ?? 0,
       unconfirmed_students: unconfirmedMap[c.id] ?? 0,
     }));

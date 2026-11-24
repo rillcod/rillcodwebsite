@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { reportCoverageForStudents, currentAcademicPeriod, currentTermLabel } from '@/lib/reports/coverage';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
+import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,9 +46,11 @@ export async function GET() {
 
     let q = admin
       .from('portal_users')
-      .select('id, full_name, school_name, class_id, section_class, classes:class_id(name)')
+      .select('id, full_name, school_name, class_id, section_class, is_active, created_at, metadata, classes:class_id(name)')
       .eq('role', 'student')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .limit(5000);
 
     if (caller.role !== 'admin') {
       const schoolIds: string[] = [];
@@ -69,15 +77,49 @@ export async function GET() {
 
     const { data: students, error } = await q;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    const list = students ?? [];
-    const ids = list.map((s: any) => s.id);
+    const rawList = students ?? [];
     const academicPeriod = currentAcademicPeriod();
-    const { data: canonicalTerm } = await admin
-      .from('academic_terms')
-      .select('id')
-      .eq('term_label', academicPeriod.termLabel)
-      .eq('academic_year', academicPeriod.periodLabel)
-      .maybeSingle();
+    const boundary = getSessionBoundary(academicPeriod.periodLabel);
+    const [{ data: canonicalTerm }, { data: rosterRows }] = await Promise.all([
+      admin
+        .from('academic_terms')
+        .select('id')
+        .eq('term_label', academicPeriod.termLabel)
+        .eq('academic_year', academicPeriod.periodLabel)
+        .maybeSingle(),
+      rawList.length > 0
+        ? fetchAllSupabaseRows<any>((from, to) =>
+            (admin as any)
+              .from('class_term_rosters')
+              .select('student_id, class_id, status, term_id, started_at, ended_at, reinstated_at')
+              .range(from, to),
+          )
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const classByStudent = new Map(rawList.map((s: any) => [s.id, s.class_id]));
+    const rosterByStudent = new Map<string, any>();
+    for (const r of (rosterRows ?? []) as any[]) {
+      if (!r?.student_id || !classByStudent.has(r.student_id)) continue;
+      const existing = rosterByStudent.get(r.student_id);
+      const liveCid = classByStudent.get(r.student_id);
+      if (shouldReplaceRosterRow(existing, r, liveCid)) {
+        rosterByStudent.set(r.student_id, r);
+      }
+    }
+
+    const list = rawList.filter((s: any) => {
+      const ar = rosterByStudent.get(s.id) ?? null;
+      const status = classifyStudentSessionStatus(
+        { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
+        ar
+          ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+          : null,
+        { canonicalTermId: canonicalTerm?.id ?? null, boundary },
+      );
+      return status === 'confirmed_current';
+    });
+    const ids = list.map((s: any) => s.id);
     const { published, drafted } = await reportCoverageForStudents(admin, ids, {
       ...academicPeriod,
       termId: canonicalTerm?.id ?? null,
