@@ -74,7 +74,7 @@ describe('class workspace resilience and focus', () => {
 
   it('uses one roster read for withdrawal guards and status enrichment', () => {
     expect(studentsRoute.match(/\.from\('class_term_rosters'\)/g)).toHaveLength(1);
-    expect(studentsRoute).toContain('const [directResult, rosterResult, sectionResult] = await Promise.all');
+    expect(studentsRoute).toContain('const [directResult, rosterResult] = await Promise.all');
     expect(studentsRoute).toContain('rosterSettingsPromise');
     expect(studentsRoute).toContain('liveCountPromise');
   });

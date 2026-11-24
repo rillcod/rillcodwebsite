@@ -4,6 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { bandForGrade, buildClassName, cleanClassName } from '@/lib/classes/naming';
 import { deleteRebuildableClass } from '@/lib/operations/delete-rebuildable-class';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
 
 function adminClient() {
   return createClient(
@@ -99,7 +104,61 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ data });
+  // Enrich with confirmed_students and unconfirmed_students so the class header
+  // and Students tab card show accurate counts immediately even before the full
+  // roster tab is opened.
+  const [stuRes, rosterRes, termRes] = await Promise.all([
+    admin
+      .from('portal_users')
+      .select('id, is_active, created_at, metadata')
+      .eq('class_id', id)
+      .eq('role', 'student')
+      .neq('is_active', false)
+      .neq('is_deleted', true),
+    (admin as any)
+      .from('class_term_rosters')
+      .select('student_id, class_id, status, term_id, started_at, ended_at, reinstated_at')
+      .eq('class_id', id),
+    admin.from('academic_terms').select('id').eq('is_current', true).limit(1).maybeSingle(),
+  ]);
+
+  const canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
+  const boundary = getSessionBoundary();
+  const rosterByStudent = new Map<string, any>();
+  for (const r of (rosterRes.data ?? []) as any[]) {
+    if (!r?.student_id) continue;
+    const prev = rosterByStudent.get(r.student_id);
+    if (shouldReplaceRosterRow(prev, r, id)) {
+      rosterByStudent.set(r.student_id, r);
+    }
+  }
+
+  let confirmedStudents = 0;
+  let unconfirmedStudents = 0;
+  for (const s of (stuRes.data ?? []) as any[]) {
+    const ar = rosterByStudent.get(s.id) ?? null;
+    const status = classifyStudentSessionStatus(
+      s,
+      ar
+        ? {
+            status: ar.status ?? null,
+            term_id: ar.term_id ?? null,
+            started_at: ar.reinstated_at ?? ar.started_at ?? null,
+          }
+        : null,
+      { canonicalTermId, boundary },
+    );
+    if (status === 'confirmed_current') confirmedStudents += 1;
+    else if (status === 'carryover_unconfirmed') unconfirmedStudents += 1;
+  }
+
+  return NextResponse.json({
+    data: {
+      ...data,
+      confirmed_students: confirmedStudents,
+      unconfirmed_students: unconfirmedStudents,
+    },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

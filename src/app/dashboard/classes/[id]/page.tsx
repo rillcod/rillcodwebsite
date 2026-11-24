@@ -329,11 +329,9 @@ export default function ClassDetailPage() {
       classLoaded = true;
 
       // Show the teacher's class and daily-work controls as soon as the class
-      // itself is known. Always load student roster counts (light when on the
-      // teaching tab) so the Students workspace card immediately displays
-      // accurate confirmed vs 3rd-term counts instead of "Open to load students".
+      // itself is known. Secondary records continue loading progressively.
       setLoading(false);
-      const needsStudentRecords = true;
+      const needsStudentRecords = activeOperation !== 'teaching';
       if (needsStudentRecords) {
         setOperationLoadState('loading');
         setOperationLoadError(null);
@@ -2015,7 +2013,15 @@ export default function ClassDetailPage() {
       desc: 'Roster, enrollment, grades and transfers',
       icon: UserGroupIcon,
       stat: (() => {
-        if (!studentRecordsLoaded) return 'Open to load students';
+        if (!studentRecordsLoaded) {
+          if (typeof cls?.confirmed_students === 'number') {
+            const unconf = typeof cls?.unconfirmed_students === 'number' ? cls.unconfirmed_students : 0;
+            return unconf > 0
+              ? `${cls.confirmed_students} confirmed · ${unconf} 3rd-term`
+              : `${cls.confirmed_students} confirmed`;
+          }
+          return 'Open to load students';
+        }
         const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
         const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
         return unconfirmedCnt > 0
@@ -2113,8 +2119,12 @@ export default function ClassDetailPage() {
               </div>
 
               {canView && isStaff && (() => {
-                const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
-                const confirmedCnt = Math.max(0, currentTermStudents.length - unconfirmedCnt);
+                const unconfirmedCnt = studentRecordsLoaded
+                  ? currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length
+                  : (typeof cls?.unconfirmed_students === 'number' ? cls.unconfirmed_students : 0);
+                const confirmedCnt = studentRecordsLoaded
+                  ? Math.max(0, currentTermStudents.length - unconfirmedCnt)
+                  : (typeof cls?.confirmed_students === 'number' ? cls.confirmed_students : 0);
                 return (
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold shrink-0">
                     <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-800 dark:text-emerald-300 tabular-nums">

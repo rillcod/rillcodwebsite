@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
+  ArrowsPointingOutIcon,
   CheckCircleIcon,
   ClipboardDocumentListIcon,
   CloudArrowDownIcon,
@@ -304,7 +306,71 @@ export function ClassIntakeAndSessionPanel({
   const [issuedLogins, setIssuedLogins] = useState<IssuedStudentLogin[]>([]);
   const [kioskNewLogin, setKioskNewLogin] = useState<IssuedStudentLogin | null>(null);
   const [instantAccountMode, setInstantAccountMode] = useState<boolean>(true);
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
+  const [portalMounted, setPortalMounted] = useState(false);
   const kioskInputRef = useRef<HTMLInputElement>(null);
+  const overlayRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPortalMounted(true);
+    // Lock background page scroll and hide global floating chrome while the full-screen
+    // intake & pass-around workspace is open so nothing ever covers the Back button or top menu.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.setAttribute('data-live-meeting', '1');
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.removeAttribute('data-live-meeting');
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsNativeFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  const toggleSmartFullscreen = async () => {
+    if (typeof document === 'undefined') return;
+    try {
+      if (!document.fullscreenElement) {
+        const target = overlayRootRef.current || document.documentElement;
+        if (target.requestFullscreen) {
+          await target.requestFullscreen();
+        }
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      /* fallback silently when browser blocks programmatic fullscreen */
+    }
+  };
+
+  const enterPassAroundMode = () => {
+    setPassAroundMode(true);
+    setLastAddedName(null);
+    // Automatically request true browser fullscreen on user gesture for distraction-free classroom pass-around
+    if (typeof document !== 'undefined' && !document.fullscreenElement) {
+      const target = overlayRootRef.current || document.documentElement;
+      target.requestFullscreen?.().catch(() => {});
+    }
+  };
+
+  const exitPassAroundMode = () => {
+    setShowKioskState(false);
+    setPassAroundMode(false);
+    setKioskCelebration(null);
+    setAcknowledgeCandidate(null);
+    setKioskNewLogin(null);
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
 
   const copyTextQuick = async (text: string, label: string) => {
     try {
@@ -643,6 +709,9 @@ export function ClassIntakeAndSessionPanel({
         setAcknowledgeCandidate(null);
         setKioskCelebration(null);
         setKioskNewLogin(null);
+        if (typeof document !== 'undefined' && document.fullscreenElement) {
+          document.exitFullscreen?.().catch(() => {});
+        }
         window.history.pushState({ rillcodIntakeModal: true }, '');
         return;
       }
@@ -1132,12 +1201,13 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
-  return (
+  const panelContent = (
     <div
+      ref={overlayRootRef}
       role="dialog"
       aria-modal="true"
       aria-label={`${className} Digital Class Intake and Session Workspace`}
-      className="fixed inset-0 z-[9990] bg-background flex flex-col overflow-hidden"
+      className="fixed inset-0 z-[10050] h-[100dvh] w-full bg-background text-foreground flex flex-col overflow-hidden isolate"
     >
       {/* FULL-SCREEN MOBILE-FIRST KID-FRIENDLY PASS-AROUND KIOSK */}
       {passAroundMode && (
@@ -1145,22 +1215,19 @@ export function ClassIntakeAndSessionPanel({
           role="dialog"
           aria-modal="true"
           aria-label="Student Pass-Around Check-In"
-          className="fixed inset-0 z-[9995] h-[100dvh] bg-background flex flex-col overflow-hidden"
+          className="fixed inset-0 z-[10060] h-[100dvh] w-full bg-background text-foreground flex flex-col overflow-hidden isolate"
         >
-          {/* Sticky top bar: 1-tap Back + Class & Count + Live Teacher State Check */}
-          <div className="sticky top-0 z-20 px-3 sm:px-6 py-2.5 border-b border-border bg-card flex items-center justify-between gap-2 shrink-0 shadow-sm">
+          {/* Sticky top bar: safe-area padded, 1-tap Back + Class & Count + Smart Fullscreen + Live Teacher State Check */}
+          <div
+            className="sticky top-0 z-50 px-3 sm:px-6 pb-2.5 border-b border-border bg-card flex items-center justify-between gap-2 shrink-0 shadow-sm pointer-events-auto"
+            style={{ paddingTop: 'max(0.65rem, env(safe-area-inset-top, 0px))' }}
+          >
             <div className="flex items-center gap-2 min-w-0">
               <button
                 type="button"
                 aria-label="Exit pass-around mode and go back"
-                onClick={() => {
-                  setShowKioskState(false);
-                  setPassAroundMode(false);
-                  setKioskCelebration(null);
-                  setAcknowledgeCandidate(null);
-                  setKioskNewLogin(null);
-                }}
-                className="shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl border border-border bg-muted hover:bg-muted/80 text-xs font-black text-foreground transition-colors"
+                onClick={exitPassAroundMode}
+                className="relative z-10 shrink-0 inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border border-border bg-muted hover:bg-muted/80 active:scale-95 text-xs font-black text-foreground transition-all cursor-pointer touch-manipulation"
               >
                 <ArrowLeftIcon className="w-4 h-4" />
                 <span>Back</span>
@@ -1177,19 +1244,36 @@ export function ClassIntakeAndSessionPanel({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowKioskState((v) => !v)}
-              aria-expanded={showKioskState}
-              className={`shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl border text-xs font-black transition-colors ${
-                showKioskState
-                  ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                  : 'border-border bg-card hover:bg-muted text-foreground'
-              }`}
-            >
-              <ClipboardDocumentListIcon className="w-4 h-4" />
-              <span>{showKioskState ? 'Resume' : `State (${pendingQueue.length + issuedLogins.length})`}</span>
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => void toggleSmartFullscreen()}
+                aria-label={isNativeFullscreen ? 'Exit full screen' : 'Enter full screen'}
+                title={isNativeFullscreen ? 'Exit full screen' : 'Full screen kiosk'}
+                className={`inline-flex items-center gap-1 min-h-11 px-3 py-2 rounded-xl border text-xs font-black transition-all cursor-pointer touch-manipulation ${
+                  isNativeFullscreen
+                    ? 'border-emerald-600/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+                    : 'border-border bg-background hover:bg-muted text-foreground'
+                }`}
+              >
+                <ArrowsPointingOutIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">{isNativeFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowKioskState((v) => !v)}
+                aria-expanded={showKioskState}
+                className={`shrink-0 inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl border text-xs font-black transition-all cursor-pointer touch-manipulation ${
+                  showKioskState
+                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                    : 'border-border bg-card hover:bg-muted text-foreground'
+                }`}
+              >
+                <ClipboardDocumentListIcon className="w-4 h-4" />
+                <span>{showKioskState ? 'Resume' : `State (${pendingQueue.length + issuedLogins.length})`}</span>
+              </button>
+            </div>
           </div>
 
           {/* Mobile Keyboard-Safe Scrollable Body (top-aligned on mobile so keyboard never clips card!) */}
@@ -1352,13 +1436,7 @@ export function ClassIntakeAndSessionPanel({
                   <div className="flex flex-col sm:flex-row gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowKioskState(false);
-                        setPassAroundMode(false);
-                        setKioskCelebration(null);
-                        setAcknowledgeCandidate(null);
-                        setKioskNewLogin(null);
-                      }}
+                      onClick={exitPassAroundMode}
                       className="flex-1 min-h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider px-4 py-2.5 shadow-sm"
                     >
                       {pendingQueue.length > 0
@@ -1780,15 +1858,18 @@ export function ClassIntakeAndSessionPanel({
         </div>
       )}
       {/* Crisp 2-row sticky mobile & desktop header — always visible Back button, zero screen crowding */}
-      <div className="sticky top-0 z-30 bg-card border-b border-border shrink-0 shadow-sm">
-        {/* Row 1: Always-visible Back button + Class Title + Close */}
-        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2">
+      <div
+        className="sticky top-0 z-50 bg-card border-b border-border shrink-0 shadow-sm pointer-events-auto"
+        style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+      >
+        {/* Row 1: Always-visible Back button + Class Title + Smart Fullscreen + Pass-Around + Close */}
+        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={handleSafeClose}
               aria-label="Go back to class"
-              className="shrink-0 inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/80 border border-border text-xs font-black text-foreground transition-colors"
+              className="relative z-10 shrink-0 inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-xl bg-muted hover:bg-muted/80 active:scale-95 border border-border text-xs font-black text-foreground transition-all cursor-pointer touch-manipulation"
             >
               <ArrowLeftIcon className="w-4 h-4" />
               <span>Back</span>
@@ -1817,14 +1898,41 @@ export function ClassIntakeAndSessionPanel({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSafeClose}
-            aria-label="Close digital class sheet"
-            className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={enterPassAroundMode}
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-black transition-all shadow-sm cursor-pointer touch-manipulation"
+              title="Open full-screen student pass-around check-in"
+            >
+              <UserGroupIcon className="w-4 h-4" />
+              <span className="hidden xs:inline sm:inline">Pass-Around</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void toggleSmartFullscreen()}
+              aria-label={isNativeFullscreen ? 'Exit full screen' : 'Enter full screen'}
+              title={isNativeFullscreen ? 'Exit full screen' : 'Expand to full screen'}
+              className={`inline-flex h-11 w-11 sm:w-auto sm:px-3 items-center justify-center gap-1.5 rounded-xl border text-xs font-black transition-all cursor-pointer touch-manipulation ${
+                isNativeFullscreen
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <ArrowsPointingOutIcon className="w-4 h-4" />
+              <span className="hidden md:inline">{isNativeFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSafeClose}
+              aria-label="Close digital class sheet"
+              className="shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted active:scale-95 transition-all cursor-pointer touch-manipulation"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Row 2: 3-Step Guided Workflow Tabs (1. Clean Slate -> 2. Adopt Returning -> 3. Intake & Pass-Around) */}
@@ -2047,8 +2155,8 @@ export function ClassIntakeAndSessionPanel({
               <button
                 type="button"
                 onClick={() => {
-                  setPassAroundMode((v) => !v);
-                  setLastAddedName(null);
+                  if (passAroundMode) exitPassAroundMode();
+                  else enterPassAroundMode();
                 }}
                 className={`inline-flex items-center gap-1.5 min-h-9 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
                   passAroundMode
@@ -3236,6 +3344,11 @@ export function ClassIntakeAndSessionPanel({
       </div>
     </div>
   );
+
+  if (portalMounted && typeof document !== 'undefined') {
+    return createPortal(panelContent, document.body);
+  }
+  return panelContent;
 }
 
 export default ClassIntakeAndSessionPanel;
