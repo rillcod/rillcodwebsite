@@ -40,6 +40,7 @@ type Member = {
   school_id?: string | null;
   has_published_report?: boolean;
   has_draft_report?: boolean;
+  session_status?: string | null;
 };
 
 type DbCard = {
@@ -68,7 +69,8 @@ export default function ClassCardsPage() {
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
 
   const [cls, setCls] = useState<any>(null);
-  const [members, setMembers] = useState<Member[]>([]);
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
+  const [includeCarryover, setIncludeCarryover] = useState(false);
   const [cards, setCards] = useState<Map<string, DbCard>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -115,7 +117,7 @@ export default function ClassCardsPage() {
       const list: Member[] = (stuJson.students ?? [])
         .filter((s: any) => s.is_current_term_active !== false)
         .sort((a: Member, b: Member) => (a.full_name || '').localeCompare(b.full_name || ''));
-      setMembers(list);
+      setAllMembers(list);
       await loadCards(klass?.school_id ?? list[0]?.school_id ?? null);
     } catch (e: any) {
       setError(e?.message || 'Something went wrong');
@@ -125,6 +127,17 @@ export default function ClassCardsPage() {
   }, [id, loadCards]);
 
   useEffect(() => { if (isStaff) void load(); }, [isStaff, load]);
+
+  const carryoverMembers = useMemo(
+    () => allMembers.filter((m) => m.session_status === 'carryover_unconfirmed'),
+    [allMembers],
+  );
+  const members = useMemo(
+    () => includeCarryover
+      ? allMembers
+      : allMembers.filter((m) => m.session_status !== 'carryover_unconfirmed'),
+    [allMembers, includeCarryover],
+  );
 
   // Deep link from a roster row (?student=<id>) → that learner is pre-ticked.
   const focusStudent = searchParams.get('student');
@@ -550,10 +563,35 @@ export default function ClassCardsPage() {
           {error} <button type="button" onClick={() => void load()} className="ml-2 font-bold underline">Try again</button>
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-          <p className="text-sm font-bold text-foreground">No students in this class yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Add or promote students into the class first, then come back to issue cards.</p>
-          <Link href={`/dashboard/classes/${id}?operation=roster`} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground">Open class roster</Link>
+        <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center space-y-3">
+          {carryoverMembers.length > 0 ? (
+            <>
+              <p className="text-sm font-black text-amber-800 dark:text-amber-200">
+                0 students confirmed for the current session in this class ({carryoverMembers.length} carried over from 3rd Term)
+              </p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Confirm or promote returning students on the class page first so ID cards and RC rosters reflect this term&apos;s confirmed class list.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <Link href={`/dashboard/classes/${id}?operation=roster`} className="inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 text-xs font-black text-white hover:bg-emerald-800">
+                  Go to Class → Confirm or Promote {carryoverMembers.length} Students
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIncludeCarryover(true)}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-border bg-background px-4 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  Load 3rd-Term Carryover List Anyway ({carryoverMembers.length})
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-bold text-foreground">No students in this class yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">Add or promote students into the class first, then come back to issue cards.</p>
+              <Link href={`/dashboard/classes/${id}?operation=roster`} className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground">Open class roster</Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">

@@ -34,7 +34,7 @@ type Klass = {
   academic_offering_periods?: { label: string } | null;
   academic_terms?: { term_label: string; academic_year: string } | null;
 };
-type Student = { id: string; full_name: string; class_id: string; enrollment_type: string };
+type Student = { id: string; full_name: string; class_id: string; enrollment_type: string; session_status?: string };
 type Plan = { id: string; class_id: string; course_id: string; curriculum_release_id: string | null; courses?: { title: string } | null };
 type Data = { classes: Klass[]; students: Student[]; plans: Plan[]; reports: AutoFillReport[] };
 
@@ -112,9 +112,20 @@ function CentralResultsPageInner() {
     setReportId(linkedReportId);
   }, [linkedReportId, data.reports]);
 
+  const [includeCarryover, setIncludeCarryover] = useState(false);
   const activeClass = data.classes.find((item) => item.id === classId);
   const compulsorySchoolPapers = activeClass?.schools?.programme_standing === 'compulsory';
-  const students = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
+  const allClassStudents = useMemo(() => data.students.filter((item) => item.class_id === classId), [data.students, classId]);
+  const unconfirmedClassStudents = useMemo(
+    () => allClassStudents.filter((item) => item.session_status === 'carryover_unconfirmed'),
+    [allClassStudents],
+  );
+  const students = useMemo(
+    () => includeCarryover
+      ? allClassStudents
+      : allClassStudents.filter((item) => item.session_status !== 'carryover_unconfirmed'),
+    [allClassStudents, includeCarryover],
+  );
   const plans = useMemo(() => data.plans.filter((item) => item.class_id === classId), [data.plans, classId]);
   const courseOptions = useMemo(
     () => [...new Map(plans.map((plan) => [plan.course_id, plan])).values()],
@@ -527,7 +538,35 @@ function CentralResultsPageInner() {
             {enrollmentLabel[activeClass.academic_offerings?.enrollment_type || ''] || 'Programme'}
             {' · '}
             {activeClass.academic_offering_periods?.label || 'Current period'}
+            {' · '}
+            <strong className="text-foreground">{students.length} confirmed</strong>
+            {unconfirmedClassStudents.length > 0 ? ` (${unconfirmedClassStudents.length} from 3rd term unconfirmed)` : ''}
           </p>
+        ) : null}
+
+        {classId && unconfirmedClassStudents.length > 0 ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-xs">
+            <span className="font-bold text-amber-900 dark:text-amber-200">
+              {students.length === 0
+                ? `0 students confirmed for the current session in this class (${unconfirmedClassStudents.length} carried over from 3rd Term).`
+                : `${unconfirmedClassStudents.length} 3rd-term carryover student${unconfirmedClassStudents.length === 1 ? ' is' : 's are'} hidden until confirmed for this session.`}
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/dashboard/classes/${classId}?operation=roster`}
+                className="rounded-xl bg-emerald-700 px-3 py-1.5 font-black text-white hover:bg-emerald-800"
+              >
+                Open Class → Confirm or Promote ({unconfirmedClassStudents.length})
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIncludeCarryover((v) => !v)}
+                className="rounded-xl border border-border bg-card px-3 py-1.5 font-bold text-foreground hover:bg-muted"
+              >
+                {includeCarryover ? 'Hide 3rd-Term Carryover' : `Include 3rd-Term Carryover (${unconfirmedClassStudents.length})`}
+              </button>
+            </div>
+          </div>
         ) : null}
 
         <div className="mt-5 grid gap-4 lg:grid-cols-2">

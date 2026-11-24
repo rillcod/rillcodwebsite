@@ -9,6 +9,7 @@ import { resolveClassReportSession } from '@/lib/reports/session-labels';
 import { autoFillHostSchoolMessage, autoFillResultMessage } from '@/lib/reports/score';
 import { parseScoreAuthority } from '@/lib/reports/complement';
 import { mergeHostSchoolMetrics } from '@/lib/academic/host-marks';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
 
 type Actor = { id: string; role: string; school_id: string | null };
 
@@ -60,19 +61,55 @@ export async function GET() {
   if (classError) return NextResponse.json({ error: classError.message }, { status: 500 });
   const classIds = (classes ?? []).map((item: any) => item.id);
   if (!classIds.length) return NextResponse.json({ data: { classes: [], students: [], plans: [], reports: [] } });
-  const [students, plans] = await Promise.all([
-    db.from('portal_users').select('id,full_name,class_id,enrollment_type').eq('role', 'student').in('class_id', classIds).eq('is_deleted', false).order('full_name'),
+
+  const boundary = getSessionBoundary();
+  const [students, plans, termRes, rostersRes] = await Promise.all([
+    db.from('portal_users').select('id,full_name,class_id,enrollment_type,is_active,created_at,metadata').eq('role', 'student').in('class_id', classIds).eq('is_deleted', false).order('full_name').limit(5000),
     db.from('lesson_plans').select('id,class_id,course_id,curriculum_release_id,status,courses(title)').in('class_id', classIds).neq('status', 'archived'),
+    db.from('academic_terms').select('id').eq('is_current', true).limit(1).maybeSingle(),
+    (db as any).from('class_term_rosters').select('student_id,class_id,status,term_id,started_at,reinstated_at').in('class_id', classIds).limit(5000),
   ]);
   const listError = students.error || plans.error;
   if (listError) return NextResponse.json({ error: listError.message }, { status: 500 });
+
+  const canonicalTermId = (termRes?.data as { id?: string } | null)?.id ?? null;
+  const bestRosterByKey = new Map<string, any>();
+  for (const r of (rostersRes?.data ?? []) as any[]) {
+    const key = `${r.class_id}::${r.student_id}`;
+    const prev = bestRosterByKey.get(key);
+    const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+    const prevMs = prev ? (Date.parse(prev.reinstated_at || prev.started_at || '') || 0) : -1;
+    if (!prev || rMs >= prevMs) {
+      bestRosterByKey.set(key, r);
+    }
+  }
+
+  const enrichedStudents = ((students.data ?? []) as any[])
+    .map((s) => {
+      const ar = bestRosterByKey.get(`${s.class_id}::${s.id}`) ?? null;
+      const session_status = classifyStudentSessionStatus(
+        { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
+        ar
+          ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+          : null,
+        { canonicalTermId, boundary },
+      );
+      return {
+        id: s.id,
+        full_name: s.full_name,
+        class_id: s.class_id,
+        enrollment_type: s.enrollment_type,
+        session_status,
+      };
+    })
+    .filter((s) => s.session_status !== 'withdrawn');
 
   // Report Builder loads by student_id. Many older rows have null class_id, so
   // filtering only `.in('class_id', classIds)` under-counted the workspace hero.
   const reportSelect =
     'id,student_id,class_id,course_id,student_name,course_name,report_term,report_period,overall_score,overall_grade,calculation_mode,academic_qa_status,is_published,updated_at,calculation_snapshot,engagement_metrics';
   const byId = new Map<string, Record<string, unknown>>();
-  const studentIds = ((students.data ?? []) as Array<{ id: string }>).map((s) => s.id);
+  const studentIds = enrichedStudents.map((s) => s.id);
 
   async function collectReports(column: 'class_id' | 'student_id', ids: string[]) {
     for (let i = 0; i < ids.length; i += 120) {
@@ -110,7 +147,7 @@ export async function GET() {
 
   return NextResponse.json({ data: {
     classes: classes ?? [],
-    students: students.data ?? [],
+    students: enrichedStudents,
     plans: plans.data ?? [],
     reports,
   } });

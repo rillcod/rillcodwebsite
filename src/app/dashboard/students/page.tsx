@@ -1257,29 +1257,37 @@ export default function StudentsPage() {
     ...combined.filter(s => s.class_id && classMap[s.class_id]).map(s => classMap[s.class_id]),
   ])].sort() as string[];
   const distinctGradesReg = [...new Set(combined.map(s => s.grade_level).filter(Boolean))].sort(sortByGrade) as string[];
-  const unassignedEnrolledCount = normalizedEnrolled.filter(s => !s.class_id && !s.section_class).length;
-  const assignedEnrolledCount = normalizedEnrolled.filter(s => Boolean(s.class_id || s.section_class)).length;
+  const scopedEnrolled = currentSessionOnly
+    ? normalizedEnrolled.filter(s => isStudentInCurrentSession(s as any, sessionBoundary))
+    : normalizedEnrolled;
+  const scopedApplications = currentSessionOnly
+    ? normalizedApplications.filter(s => isStudentInCurrentSession(s as any, sessionBoundary))
+    : normalizedApplications;
+  const scopedCombined = [...scopedApplications, ...scopedEnrolled];
+
+  const unassignedEnrolledCount = scopedEnrolled.filter(s => !s.class_id && !s.section_class).length;
+  const assignedEnrolledCount = scopedEnrolled.filter(s => Boolean(s.class_id || s.section_class)).length;
   const visibleEnrolledIds = filtered.filter((s: any) => s._source === 'enrolled').map((s: any) => s.id as string);
   const allVisibleEnrolledSelected = visibleEnrolledIds.length > 0 && visibleEnrolledIds.every(id => selectedForEnrol.has(id));
   const selectedWithClassCount = portalStudents.filter(s => selectedForEnrol.has(s.id) && s.class_id).length;
 
-  const pending = normalizedApplications.filter(s => s.status === 'pending').length;
+  const pending = scopedApplications.filter(s => s.status === 'pending').length;
 
-  // Fee stats computed from enrolled students
+  // Fee stats computed from session-scoped enrolled students
   const feeStats = {
-    paid: normalizedEnrolled.filter(s => feeMap[s.id]?.status === 'paid').length,
-    overdue: normalizedEnrolled.filter(s => {
+    paid: scopedEnrolled.filter(s => feeMap[s.id]?.status === 'paid').length,
+    overdue: scopedEnrolled.filter(s => {
       const fe = feeMap[s.id];
       if (!fe) return false;
       return fe.status.toLowerCase() === 'overdue' || (fe.status === 'sent' && fe.dueDate && new Date(fe.dueDate) < new Date());
     }).length,
-    pending: normalizedEnrolled.filter(s => {
+    pending: scopedEnrolled.filter(s => {
       const fe = feeMap[s.id];
       if (!fe) return false;
       const isOv = fe.status.toLowerCase() === 'overdue' || (fe.status === 'sent' && fe.dueDate && new Date(fe.dueDate) < new Date());
       return !isOv && ['pending', 'sent'].includes(fe.status.toLowerCase());
     }).length,
-    none: normalizedEnrolled.filter(s => !feeMap[s.id]).length,
+    none: scopedEnrolled.filter(s => !feeMap[s.id]).length,
   };
 
   // ── Calculate age ──────────────────────────────────────────
@@ -1884,9 +1892,9 @@ export default function StudentsPage() {
           {/* ── Stats ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden px-1 sm:px-0">
             {([
-              { label: 'Total', value: combined.length, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'all' && filter === 'all', onClick: () => { setSourceFilter('all'); setFilter('all'); } },
-              { label: 'Enrolled', value: normalizedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
-              { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
+              { label: currentSessionOnly ? `Total (${sessionBoundary.periodLabel})` : 'Total (All Sessions)', value: scopedCombined.length, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'all' && filter === 'all', onClick: () => { setSourceFilter('all'); setFilter('all'); } },
+              { label: currentSessionOnly ? `Confirmed (${sessionBoundary.periodLabel})` : 'Enrolled (All)', value: scopedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
+              { label: 'Applications', value: scopedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-primary', bg: 'bg-primary/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
               { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
             ]).map(s => (
               <button key={s.label} onClick={s.onClick}
@@ -1907,7 +1915,7 @@ export default function StudentsPage() {
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Fee Payment Status — Enrolled Students</p>
               <div className="flex flex-wrap gap-2">
                 {([
-                  { key: 'all', label: 'All Enrolled', count: normalizedEnrolled.length, cls: 'border-border text-muted-foreground hover:border-primary/40', activeCls: 'border-primary bg-primary/10 text-primary' },
+                  { key: 'all', label: 'All Enrolled', count: scopedEnrolled.length, cls: 'border-border text-muted-foreground hover:border-primary/40', activeCls: 'border-primary bg-primary/10 text-primary' },
                   { key: 'paid', label: '✓ Paid', count: feeStats.paid, cls: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/60', activeCls: 'border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
                   { key: 'pending', label: '· Pending', count: feeStats.pending, cls: 'border-amber-500/30 text-amber-600 dark:text-amber-400 hover:border-amber-500/60', activeCls: 'border-amber-500 bg-amber-500/15 text-amber-600 dark:text-amber-400' },
                   { key: 'overdue', label: '⚠ Overdue', count: feeStats.overdue, cls: 'border-rose-500/30 text-rose-600 dark:text-rose-400 hover:border-rose-500/60', activeCls: 'border-rose-500 bg-rose-500/15 text-rose-600 dark:text-rose-400' },

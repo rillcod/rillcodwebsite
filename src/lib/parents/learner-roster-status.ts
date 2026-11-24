@@ -5,23 +5,35 @@ export type ParentLearnerRosterRow = {
   student_id: string;
   class_id: string;
   status: string | null;
+  started_at?: string | null;
+  reinstated_at?: string | null;
+  ended_at?: string | null;
 };
 
 const REGISTRY_INACTIVE = new Set(['inactive', 'withdrawn', 'suspended']);
 
-/** True when the learner has a departed roster row for their assigned class. */
+/** True when the learner's most recent roster row for their assigned class is departed. */
 export function learnerDepartedOnClassRoster(
   studentId: string,
   classId: string | null | undefined,
   rosterRows: ParentLearnerRosterRow[],
 ): boolean {
   if (!classId) return false;
-  return rosterRows.some(
-    (row) =>
-      row.student_id === studentId &&
-      row.class_id === classId &&
-      hasDeparted(row.status),
+  const matching = rosterRows.filter(
+    (row) => row.student_id === studentId && row.class_id === classId,
   );
+  if (matching.length === 0) return false;
+  let latest = matching[0];
+  let latestMs = Date.parse(latest.reinstated_at || latest.ended_at || latest.started_at || '') || 0;
+  for (let i = 1; i < matching.length; i++) {
+    const candidate = matching[i];
+    const cMs = Date.parse(candidate.reinstated_at || candidate.ended_at || candidate.started_at || '') || 0;
+    if (cMs >= latestMs) {
+      latest = candidate;
+      latestMs = cMs;
+    }
+  }
+  return hasDeparted(latest.status);
 }
 
 /** Parent-facing enrollment fields — registry status plus class roster withdrawal. */
@@ -70,7 +82,7 @@ export async function loadParentLearnerRosterContext(
   let rosterRows: ParentLearnerRosterRow[] = [];
   const { data: rosters, error: rosterErr } = await admin
     .from('class_term_rosters')
-    .select('student_id, class_id, status')
+    .select('student_id, class_id, status, started_at, reinstated_at, ended_at')
     .in('student_id', studentIds);
   if (rosterErr?.code !== '42P01') {
     rosterRows = (rosters ?? []) as ParentLearnerRosterRow[];

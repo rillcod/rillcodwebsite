@@ -132,6 +132,8 @@ function AttendanceContent() {
             // classroom photograph belongs in. The API already returns both.
             school_id: c.school_id ?? c.schools?.id ?? null,
             school_name: c.schools?.name ?? null,
+            confirmed_students: Number(c.confirmed_students ?? 0),
+            unconfirmed_students: Number(c.unconfirmed_students ?? 0),
             programs: c.programs ? { name: c.programs.name } : null,
             academic_terms: c.academic_terms
               ? { term_label: c.academic_terms.term_label, academic_year: c.academic_terms.academic_year }
@@ -963,9 +965,12 @@ function AttendanceContent() {
                 <option value="">Choose a class...</option>
                 {classes.map(c => {
                   const term = [c.academic_terms?.term_label, c.academic_terms?.academic_year].filter(Boolean).join(' ');
+                  const countBadge = c.unconfirmed_students > 0 && c.confirmed_students === 0
+                    ? `0 confirmed (${c.unconfirmed_students} 3rd-term)`
+                    : `${c.confirmed_students ?? 0} confirmed`;
                   return (
                     <option key={c.id} value={c.id}>
-                      {[c.name, c.programs?.name, term].filter(Boolean).join(' — ')}
+                      {[c.name, c.programs?.name, term, countBadge].filter(Boolean).join(' — ')}
                     </option>
                   );
                 })}
@@ -989,10 +994,16 @@ function AttendanceContent() {
                 <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                   {sessions.length} session{sessions.length !== 1 ? 's' : ''}
                 </span>
-                {students.length > 0 && (
-                  <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    {students.length} student{students.length !== 1 ? 's' : ''}
-                  </span>
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">
+                  {students.length > 0 ? students.length : (currentClass.confirmed_students ?? 0)} confirmed
+                </span>
+                {(unconfirmedStudents.length > 0 || (currentClass.unconfirmed_students ?? 0) > 0) && (
+                  <Link
+                    href={`/dashboard/classes/${selectedClass}?operation=roster`}
+                    className="rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
+                  >
+                    {unconfirmedStudents.length || currentClass.unconfirmed_students} 3rd-term unconfirmed → Confirm
+                  </Link>
                 )}
               </div>
             </div>
@@ -1038,9 +1049,12 @@ function AttendanceContent() {
                       <option value="">Choose a class…</option>
                       {classes.map(c => {
                         const term = [c.academic_terms?.term_label, c.academic_terms?.academic_year].filter(Boolean).join(' ');
+                        const countBadge = c.unconfirmed_students > 0 && c.confirmed_students === 0
+                          ? `0 confirmed (${c.unconfirmed_students} 3rd-term)`
+                          : `${c.confirmed_students ?? 0} confirmed`;
                         return (
                           <option key={c.id} value={c.id}>
-                            {[c.name, c.programs?.name, term].filter(Boolean).join(' — ')}
+                            {[c.name, c.programs?.name, term, countBadge].filter(Boolean).join(' — ')}
                           </option>
                         );
                       })}
@@ -1455,6 +1469,36 @@ function AttendanceContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
+                  {students.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-sm">
+                        {unconfirmedStudents.length > 0 ? (
+                          <div className="space-y-2.5">
+                            <p className="font-black text-amber-800 dark:text-amber-200">
+                              0 students confirmed for the current session in this class ({unconfirmedStudents.length} carried over from 3rd Term).
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                              <Link
+                                href={`/dashboard/classes/${selectedClass}?operation=roster`}
+                                className="inline-block rounded-xl bg-teal-700 px-4 py-2 text-xs font-black text-white hover:bg-teal-800"
+                              >
+                                Go to Class → Confirm or Promote {unconfirmedStudents.length} Students
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => setStudents(unconfirmedStudents)}
+                                className="inline-block rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground"
+                              >
+                                Show 3rd-Term Roster in Log ({unconfirmedStudents.length})
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No confirmed students in this class yet.</span>
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   {students.map(student => {
                     const studentRecords = fullAttendanceData.filter(d => d.user_id === student.id);
                     const summary = attendanceRate(studentRecords.map(r => r.status), sessions.length);

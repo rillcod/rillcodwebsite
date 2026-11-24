@@ -238,6 +238,25 @@ async function upsertClassTermRoster(
         });
     if (error?.code === '42P01') return;
     if (error) console.warn('[class_term_rosters] upsert failed', error);
+
+    // Prevent duplicate active rows across terms for the same (class_id, student_id):
+    // retire any other active rows in this class that belong to an older term_id.
+    let cleanupQuery = (admin as any)
+      .from('class_term_rosters')
+      .update({
+        status: active ? 'completed' : status,
+        ended_at: new Date().toISOString(),
+        updated_by: actorId,
+      })
+      .eq('class_id', cls.id)
+      .eq('student_id', studentId)
+      .eq('status', 'active');
+    if (existing?.id) {
+      cleanupQuery = cleanupQuery.neq('id', existing.id);
+    } else if (cls.term_id) {
+      cleanupQuery = cleanupQuery.neq('term_id', cls.term_id);
+    }
+    await cleanupQuery;
   }
 }
 

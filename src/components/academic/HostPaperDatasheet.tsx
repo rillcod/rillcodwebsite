@@ -36,7 +36,7 @@ import { getWAECGrade } from '@/lib/grading';
 import { openOfficialOfficePrintable } from '@/lib/reports/office-printables';
 import { buildCbtNewHref, buildClassTeachingHref, hostPaperDatasheetHref } from '@/lib/curriculum/href';
 
-type StudentRow = { id: string; full_name: string | null };
+type StudentRow = { id: string; full_name: string | null; session_status?: string | null };
 
 type SessionRow = {
   id?: string;
@@ -128,6 +128,7 @@ export function HostPaperDatasheet(props: {
   const [schoolId, setSchoolId] = useState(props.schoolId || '');
   const [exam, setExam] = useState<ExamRow | null>(null);
   const [roster, setRoster] = useState<StudentRow[]>([]);
+  const [unconfirmedRoster, setUnconfirmedRoster] = useState<StudentRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [paperSnapshots, setPaperSnapshots] = useState<Record<HostAssessmentKind, PaperSnapshot>>({
     first_test: { examId: null, max: SUGGESTED_HOST_PAPER_MAX.first_test, byStudent: {} },
@@ -386,10 +387,13 @@ export function HostPaperDatasheet(props: {
         courseId: nextCourseId || null,
       });
 
-      const classRoster = ((rosterRes.data ?? []) as StudentRow[]).sort((a, b) =>
-        String(a.full_name ?? '').localeCompare(String(b.full_name ?? '')),
-      );
+      const rawClassStudents = ((rosterRes.data ?? []) as StudentRow[])
+        .filter((s) => s.session_status !== 'withdrawn')
+        .sort((a, b) => String(a.full_name ?? '').localeCompare(String(b.full_name ?? '')));
+      const classRoster = rawClassStudents.filter((s) => s.session_status !== 'carryover_unconfirmed');
+      const carryoverRoster = rawClassStudents.filter((s) => s.session_status === 'carryover_unconfirmed');
       setRoster(classRoster);
+      setUnconfirmedRoster(carryoverRoster);
 
       // Load active paper detail + ALL 3 papers' sessions in parallel for live 3-paper sync
       const activeExamId = picked[props.kind];
@@ -1184,6 +1188,29 @@ export function HostPaperDatasheet(props: {
               {invalidRows.length > 0 ? `${invalidRows.length} mark${invalidRows.length === 1 ? '' : 's'} need correction. ` : ''}
               {clearedRows.length > 0 ? `${clearedRows.length} saved mark${clearedRows.length === 1 ? ' is' : 's are'} blank; type the corrected score instead.` : ''}
               {' '}Nothing will save until these rows are resolved.
+            </div>
+          ) : null}
+
+          {roster.length === 0 && unconfirmedRoster.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3.5 py-2.5 text-xs">
+              <span className="font-bold text-amber-900 dark:text-amber-200">
+                0 students confirmed for the current session in this class ({unconfirmedRoster.length} carried over from 3rd Term).
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/dashboard/classes/${props.classId}?operation=roster`}
+                  className="rounded-lg bg-emerald-700 px-3 py-1.5 font-black text-white hover:bg-emerald-800"
+                >
+                  Go to Class → Confirm or Promote {unconfirmedRoster.length} Students
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setRoster(unconfirmedRoster)}
+                  className="rounded-lg border border-border bg-card px-3 py-1.5 font-bold text-foreground hover:bg-muted"
+                >
+                  Load 3rd-Term Roster Anyway ({unconfirmedRoster.length})
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
