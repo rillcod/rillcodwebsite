@@ -77,7 +77,7 @@ async function loadClassifiedSchoolStudents(schoolId: string): Promise<BillingDo
   const [stuRes, termRes, classesRes] = await Promise.all([
     db
       .from('portal_users')
-      .select('id, full_name, section_class, grade, email, is_active, created_at, metadata')
+      .select('id, full_name, section_class, grade, email, class_id, is_active, created_at, metadata')
       .eq('role', 'student')
       .eq('school_id', schoolId)
       .eq('is_active', true)
@@ -85,7 +85,7 @@ async function loadClassifiedSchoolStudents(schoolId: string): Promise<BillingDo
     db
       .from('academic_terms')
       .select('id')
-      .eq('is_active', true)
+      .eq('is_current', true)
       .limit(1)
       .maybeSingle(),
     db
@@ -97,35 +97,55 @@ async function loadClassifiedSchoolStudents(schoolId: string): Promise<BillingDo
   if (stuRes.error) throw new Error(stuRes.error.message);
   const canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
   const classIds = ((classesRes.data ?? []) as Array<{ id: string }>).map((c) => c.id);
+  const classByStudent = new Map(((stuRes.data ?? []) as any[]).map((s) => [s.id, s.class_id]));
 
-  const rosterByStudent = new Map<string, { status?: string | null; term_id?: string | null; started_at?: string | null }>();
+  const rosterByStudent = new Map<string, { class_id?: string | null; status?: string | null; term_id?: string | null; started_at?: string | null; reinstated_at?: string | null }>();
   if (classIds.length > 0) {
-    const { data: rosterRows } = await db
+    const { data: rosterRows } = await (db as any)
       .from('class_term_rosters')
-      .select('student_id, status, term_id, started_at')
+      .select('student_id, class_id, status, term_id, started_at, reinstated_at')
       .in('class_id', classIds)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .limit(5000);
     for (const r of (rosterRows ?? []) as any[]) {
       if (!r?.student_id) continue;
       const existing = rosterByStudent.get(r.student_id);
-      if (!existing || (canonicalTermId && r.term_id === canonicalTermId)) {
+      const liveCid = classByStudent.get(r.student_id);
+      if (!existing) {
+        rosterByStudent.set(r.student_id, r);
+        continue;
+      }
+      const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
+      const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
+      const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+      const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
+      if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
         rosterByStudent.set(r.student_id, r);
       }
     }
   }
 
-  return ((stuRes.data ?? []) as any[]).map((s) => ({
-    id: s.id,
-    full_name: s.full_name,
-    section_class: s.section_class,
-    grade: s.grade,
-    email: s.email,
-    session_status: classifyStudentSessionStatus(
-      s,
-      rosterByStudent.get(s.id) ?? null,
-      { canonicalTermId, boundary },
-    ),
-  }));
+  return ((stuRes.data ?? []) as any[]).map((s) => {
+    const ar = rosterByStudent.get(s.id) ?? null;
+    return {
+      id: s.id,
+      full_name: s.full_name,
+      section_class: s.section_class,
+      grade: s.grade,
+      email: s.email,
+      session_status: classifyStudentSessionStatus(
+        s,
+        ar
+          ? {
+              status: ar.status ?? null,
+              term_id: ar.term_id ?? null,
+              started_at: ar.reinstated_at ?? ar.started_at ?? null,
+            }
+          : null,
+        { canonicalTermId, boundary },
+      ),
+    };
+  });
 }
 
 /** Payment-register payload: active students + per-student invoices/receipts. */
@@ -276,11 +296,10 @@ export async function loadBillingDocsBootstrap() {
   };
 }
 
-/** Active student headcount for a partner school (prefers confirmed current-session students when present). */
+/** Active confirmed current-session student headcount for a partner school. */
 export async function loadSchoolStudentCount(schoolId: string): Promise<number> {
   const students = await loadClassifiedSchoolStudents(schoolId);
-  const confirmed = students.filter((s) => s.session_status === 'confirmed_current').length;
-  return confirmed > 0 ? confirmed : students.length;
+  return students.filter((s) => s.session_status === 'confirmed_current').length;
 }
 
 /**
@@ -296,7 +315,7 @@ export async function loadSchoolInvoiceContext(
   const confirmedStudentCount = classified.filter((s) => s.session_status === 'confirmed_current').length;
   const unconfirmedStudentCount = classified.filter((s) => s.session_status === 'carryover_unconfirmed').length;
   const totalActiveStudentCount = classified.length;
-  const studentCount = confirmedStudentCount > 0 ? confirmedStudentCount : totalActiveStudentCount;
+  const studentCount = confirmedStudentCount;
   let linkedInvoice: LinkedSchoolInvoice | null = null;
   if (academicYear && termNumber) {
     linkedInvoice = await loadLinkedSchoolInvoice(schoolId, academicYear, termNumber);

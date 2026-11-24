@@ -249,7 +249,15 @@ export async function GET(
     }
 
     let formerStudents: any[] = [];
-    const rosterByStudent = new Map(rosterRows.map((row: any) => [row.student_id, row]));
+    const rosterByStudent = new Map<string, any>();
+    for (const row of rosterRows) {
+      const prev = rosterByStudent.get(row.student_id);
+      const rowMs = Date.parse(row.reinstated_at || row.started_at || '');
+      const prevMs = prev ? Date.parse(prev.reinstated_at || prev.started_at || '') : -1;
+      if (!prev || (row.status === 'active' && prev.status !== 'active') || rowMs > prevMs) {
+        rosterByStudent.set(row.student_id, row);
+      }
+    }
     students = students.map((student: any) => {
       const roster = rosterByStudent.get(student.id);
       return {

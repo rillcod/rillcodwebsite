@@ -229,7 +229,15 @@ export async function GET(request: NextRequest) {
       for (const r of rosterRes) {
         const existing = rosterByStudent.get(r.student_id);
         const liveCid = classByStudent.get(r.student_id);
-        if (!existing || (liveCid && r.class_id === liveCid)) {
+        if (!existing) {
+          rosterByStudent.set(r.student_id, r);
+          continue;
+        }
+        const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
+        const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
+        const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+        const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
+        if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
           rosterByStudent.set(r.student_id, r);
         }
       }

@@ -1867,6 +1867,8 @@ export default function ClassDetailPage() {
   })();
 
   const currentTermStudents = enrollments.filter((student: any) => student.is_current_term_active !== false);
+  const confirmedCurrentStudents = currentTermStudents.filter((student: any) => student.session_status !== 'carryover_unconfirmed');
+  const unconfirmedCarryoverStudents = currentTermStudents.filter((student: any) => student.session_status === 'carryover_unconfirmed');
   const inactiveTermStudents = [
     ...enrollments.filter((student: any) => student.is_current_term_active === false),
     ...formerEnrollments,
@@ -1875,7 +1877,8 @@ export default function ClassDetailPage() {
   // ── Band-fit health: the class name's last segment is its grade band ("Basic 1-3").
   //    A student is "off-band" when their canonical grade parses to a real level/number the
   //    class band does not cover. The grade comes from the clean portal_users.grade column;
-  //    section_class is only a legacy fallback. Unparseable grades are never flagged. ──
+  //    section_class is only a legacy fallback. Unparseable grades are never flagged.
+  //    Only confirmed current-session students trigger off-band or missing-report alarms. ──
   const classBand = parseBandLabel(cls.name?.split('·').pop()?.trim());
   const studentGrade = (student: any) => student.grade || student.section_class;
   const isOffBand = (student: any): boolean => {
@@ -1884,11 +1887,10 @@ export default function ClassDetailPage() {
     if (!parseGrade(g)) return false; // unknown grade — don't flag
     return !bandCoversGrade(classBand, g);
   };
-  const offBandCount = currentTermStudents.filter(isOffBand).length;
-  // Progress-report coverage — how many active students have a PUBLISHED report (the rest
-  // "need attention"). Powers the roster summary + per-student indicator.
-  const reportedCount = currentTermStudents.filter((s: any) => s.has_published_report).length;
-  const needsReportCount = currentTermStudents.length - reportedCount;
+  const offBandCount = confirmedCurrentStudents.filter(isOffBand).length;
+  // Progress-report coverage — how many confirmed current-session students have a PUBLISHED report.
+  const reportedCount = confirmedCurrentStudents.filter((s: any) => s.has_published_report).length;
+  const needsReportCount = confirmedCurrentStudents.length - reportedCount;
 
   // ── Smart roster search: token-order-independent match across name, email, grade, section ──
   const tokenMatches = (haystack: string, rawQuery: string): boolean => {
@@ -2277,7 +2279,10 @@ export default function ClassDetailPage() {
                         <div className="min-w-0 flex-1">
                           <h3 className="text-sm font-black text-foreground">Class Roster</h3>
                           <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                            {currentTermStudents.length} active
+                            <span className="font-bold text-foreground">{confirmedCurrentStudents.length} confirmed</span> ({currentSessionLabel})
+                            {unconfirmedCarryoverStudents.length > 0 ? (
+                              <span className="text-amber-600 dark:text-amber-400"> · {unconfirmedCarryoverStudents.length} unconfirmed (3rd-term)</span>
+                            ) : ''}
                             {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
                             {offBandCount ? <span className="text-amber-600 dark:text-amber-400"> · {offBandCount} off-band</span> : ''}
                             {classWorkTotal > 0 && (
@@ -3316,12 +3321,55 @@ export default function ClassDetailPage() {
                       })()}
 
                       {visibleCurrent.length === 0 && visibleInactive.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border p-5 text-center space-y-2.5">
-                          <p className="text-sm font-semibold text-muted-foreground">
-                            {rosterSearch.trim()
-                              ? `No students currently on this roster match “${rosterSearch}”.`
-                              : 'No students in this view yet.'}
-                          </p>
+                        <div className="rounded-xl border border-dashed border-border p-5 text-center space-y-3">
+                          {!rosterSearch.trim() && rosterFilter === 'current_session' && unconfirmedCarryoverStudents.length > 0 ? (
+                            <>
+                              <div className="mx-auto max-w-lg space-y-1">
+                                <p className="text-sm font-black text-amber-800 dark:text-amber-200">
+                                  0 students confirmed for {currentSessionLabel} yet · {unconfirmedCarryoverStudents.length} student{unconfirmedCarryoverStudents.length === 1 ? '' : 's'} carried over from 3rd Term
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  These {unconfirmedCarryoverStudents.length} learners are from last session (3rd Term) and have not been confirmed or promoted for {currentSessionLabel} yet.
+                                </p>
+                              </div>
+                              {isStaff && (
+                                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setIntakePanelTab('hygiene');
+                                      setShowIntakePanel(true);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-sm transition-colors"
+                                  >
+                                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5" />
+                                    Review &amp; Confirm {unconfirmedCarryoverStudents.length} Returning Students
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openSessionConfirm()}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 px-3.5 py-2 text-xs font-black text-primary transition-colors"
+                                  >
+                                    <CheckCircleIcon className="h-3.5 w-3.5" />
+                                    Confirm Grades Inline ({unconfirmedCarryoverStudents.length})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRosterFilter('prior_session')}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:border-primary/40 px-3.5 py-2 text-xs font-bold text-foreground transition-colors"
+                                  >
+                                    View 3rd-Term Carryover List ({unconfirmedCarryoverStudents.length})
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm font-semibold text-muted-foreground">
+                              {rosterSearch.trim()
+                                ? `No students currently on this roster match “${rosterSearch}”.`
+                                : 'No students in this view yet.'}
+                            </p>
+                          )}
                           {isStaff && rosterSearch.trim().length >= 2 && (
                             <div className="flex flex-wrap items-center justify-center gap-2">
                               <button

@@ -643,7 +643,7 @@ export function SchoolBillingDocsPanel() {
       const confirmedOnly = allStudents.filter(
         (s) => s.session_status !== 'carryover_unconfirmed' || paidOrBilledIds.has(s.id),
       );
-      const scopedStudents = currentSessionOnly && confirmedOnly.length > 0 ? confirmedOnly : allStudents;
+      const scopedStudents = currentSessionOnly ? confirmedOnly : allStudents;
       const students: StudentRow[] = byGrade(scopedStudents, gradeFilter);
 
       const invMap: Record<string, InvoiceRow> = {};
@@ -939,7 +939,7 @@ ${brandFooterContact(docRef)}
         const confirmedStmt = allStmtStudents.filter(
           (s) => s.session_status !== 'carryover_unconfirmed' || paidOrBilledIds.has(s.id),
         );
-        const scopedStmt = currentSessionOnly && confirmedStmt.length > 0 ? confirmedStmt : allStmtStudents;
+        const scopedStmt = currentSessionOnly ? confirmedStmt : allStmtStudents;
         const rawStudents: StudentRow[] = byGrade(scopedStmt, gradeFilter);
         const invMap: Record<string, InvoiceRow> = {};
         invoices.forEach(inv => { if (inv.portal_user_id && (!invMap[inv.portal_user_id] || inv.status === 'paid')) invMap[inv.portal_user_id] = inv; });

@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
 import { roleHasCapability } from '@/lib/auth/capabilities';
 import { auditContent, contentVerdict, type ContentAuditInput } from '@/lib/academic/content-inventory';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
 import type { WeekPackageAsset } from '@/lib/academic/week-package';
 import { fetchAllSupabaseRows } from '@/lib/supabase/fetch-all-rows';
 
@@ -247,76 +248,86 @@ export async function GET() {
   // someone withdrawn or removed for a term, which class_id cannot express.
   let rosterRows: Array<{ class_id: string; student_id: string; status: string | null }> = [];
   const withdrawnByClass = new Map<string, number>();
+  const sessionBoundary = getSessionBoundary(term?.academic_year ?? null);
+  const studentMap = new Map<string, { id: string; full_name: string | null; email: string | null; is_active: boolean; enrollment_type: string | null }>();
   if (classIds.length > 0) {
-    const membership = new Map<string, string>();
+    const membership = new Map<string, { class_id: string; is_active: boolean; created_at: string | null; metadata: any }>();
     for (let i = 0; i < classIds.length; i += 100) {
       const chunk = classIds.slice(i, i + 100);
       const { data, error } = await fetchAllSupabaseRows((from, to) => db
         .from('portal_users')
-        .select('id, class_id')
+        .select('id, full_name, email, class_id, is_active, enrollment_type, created_at, metadata')
         .eq('role', 'student')
         .eq('is_deleted', false)
         .in('class_id', chunk)
         .range(from, to));
       if (error) return NextResponse.json({ error: `Load class membership: ${error.message}` }, { status: 500 });
-      for (const row of data ?? []) {
-        if (row.class_id) membership.set(row.id, row.class_id);
+      for (const row of (data ?? []) as any[]) {
+        if (row.class_id) {
+          membership.set(row.id, {
+            class_id: row.class_id,
+            is_active: !!row.is_active,
+            created_at: row.created_at ?? null,
+            metadata: row.metadata ?? null,
+          });
+          studentMap.set(row.id, {
+            id: row.id,
+            full_name: row.full_name ?? null,
+            email: row.email ?? null,
+            is_active: !!row.is_active,
+            enrollment_type: row.enrollment_type ?? null,
+          });
+        }
       }
     }
 
-    // Anyone the roster marks as gone for this term drops out, whichever class
-    // their profile still points at.
+    // Load all roster rows for these classes to detect both departed learners and confirmed current-session placements.
     const departed = new Set<string>();
-    const { data: rosterStatuses, error: rosterError } = await fetchAllSupabaseRows((from, to) => {
-      let rq = db.from('class_term_rosters').select('student_id, status').in('class_id', classIds).range(from, to);
-      if (term?.id) rq = rq.or(`term_id.eq.${term.id},term_id.is.null`);
-      return rq;
-    });
+    const bestActiveRosterByKey = new Map<string, { status: string | null; term_id: string | null; started_at: string | null; reinstated_at: string | null }>();
+    const { data: rosterStatuses, error: rosterError } = await fetchAllSupabaseRows((from, to) =>
+      (db as any)
+        .from('class_term_rosters')
+        .select('student_id, class_id, status, term_id, started_at, reinstated_at')
+        .in('class_id', classIds)
+        .range(from, to),
+    );
     if (rosterError) return NextResponse.json({ error: `Load class roster status: ${rosterError.message}` }, { status: 500 });
-    for (const r of rosterStatuses ?? []) {
-      if (['removed', 'ended', 'withdrawn'].includes(String(r.status || 'active').toLowerCase())) {
+    for (const r of (rosterStatuses ?? []) as any[]) {
+      const st = String(r.status || 'active').toLowerCase();
+      if (['removed', 'ended', 'withdrawn'].includes(st) && (!term?.id || !r.term_id || r.term_id === term.id)) {
         departed.add(r.student_id);
+      } else if (st === 'active') {
+        const key = `${r.class_id}::${r.student_id}`;
+        const prev = bestActiveRosterByKey.get(key);
+        const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+        const prevMs = prev ? (Date.parse(prev.reinstated_at || prev.started_at || '') || 0) : -1;
+        if (!prev || rMs > prevMs) {
+          bestActiveRosterByKey.set(key, r);
+        }
       }
     }
 
-    // Withdrawn learners are counted separately rather than dropped. Removing
-    // them silently means a class that lost half its learners reads as fully
-    // reported, and a teacher's percentage improves as people leave — the
-    // opposite of accountability.
-    for (const [studentId, classId] of membership.entries()) {
-      withdrawnByClass.set(classId, (withdrawnByClass.get(classId) ?? 0) + (departed.has(studentId) ? 1 : 0));
+    for (const [studentId, member] of membership.entries()) {
+      withdrawnByClass.set(member.class_id, (withdrawnByClass.get(member.class_id) ?? 0) + (departed.has(studentId) ? 1 : 0));
     }
 
     rosterRows = [...membership.entries()]
-      .filter(([studentId]) => !departed.has(studentId))
-      .map(([studentId, classId]) => ({ class_id: classId, student_id: studentId, status: 'active' }));
+      .filter(([studentId, member]) => {
+        if (departed.has(studentId)) return false;
+        const ar = bestActiveRosterByKey.get(`${member.class_id}::${studentId}`) ?? null;
+        const sessionStatus = classifyStudentSessionStatus(
+          { is_active: member.is_active, created_at: member.created_at, metadata: member.metadata },
+          ar
+            ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
+            : null,
+          { canonicalTermId: term?.id ?? null, boundary: sessionBoundary },
+        );
+        return sessionStatus === 'confirmed_current';
+      })
+      .map(([studentId, member]) => ({ class_id: member.class_id, student_id: studentId, status: 'active' }));
   }
 
   const studentIds = [...new Set(rosterRows.map((r) => r.student_id))];
-
-  const studentMap = new Map<string, { id: string; full_name: string | null; email: string | null; is_active: boolean; enrollment_type: string | null }>();
-  if (studentIds.length > 0) {
-    // Chunk to avoid URL limits
-    for (let i = 0; i < studentIds.length; i += 200) {
-      const chunk = studentIds.slice(i, i + 200);
-      const { data, error } = await fetchAllSupabaseRows((from, to) => db
-        .from('portal_users')
-        .select('id, full_name, email, is_active, enrollment_type, role')
-        .in('id', chunk)
-        .eq('role', 'student')
-        .range(from, to));
-      if (error) return NextResponse.json({ error: `Load student accountability profiles: ${error.message}` }, { status: 500 });
-      for (const s of data ?? []) {
-        studentMap.set(s.id, {
-          id: s.id,
-          full_name: s.full_name,
-          email: s.email,
-          is_active: !!s.is_active,
-          enrollment_type: s.enrollment_type,
-        });
-      }
-    }
-  }
 
   // Current-term reports for roster students (any teacher_id — we attribute by class ownership + report teacher)
   type ReportRow = {

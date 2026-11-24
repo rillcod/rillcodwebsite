@@ -6,6 +6,7 @@ import { roleHasCapability } from '@/lib/auth/capabilities';
 import { logAudit } from '@/lib/audit/log';
 import { requireSupabaseResult, requireSupabaseWrite } from '@/lib/supabase/require-result';
 import { resolveActiveRosterPlacements } from '@/lib/accountability/class-placement';
+import { getSessionBoundary } from '@/lib/academic/session-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,7 @@ export async function POST() {
     // 1. Fetch current active term
     const { data: term, error: termError } = await db
       .from('academic_terms')
-      .select('id')
+      .select('id, academic_year')
       .eq('is_current', true)
       .order('updated_at', { ascending: false })
       .limit(1)
@@ -60,10 +61,20 @@ export async function POST() {
       return NextResponse.json({ error: 'No current academic term is configured. Class placement was not changed.' }, { status: 409 });
     }
 
-    // 2. Fetch active term rosters
-    const query = db.from('class_term_rosters').select('student_id, class_id, status').eq('term_id', term.id);
-    const { data: rosters, error: rosterErr } = await query;
+    const boundary = getSessionBoundary((term as any)?.academic_year ?? null);
+
+    // 2. Fetch active term rosters confirmed in the current session
+    const { data: rawRosters, error: rosterErr } = await (db as any)
+      .from('class_term_rosters')
+      .select('student_id, class_id, status, started_at, reinstated_at')
+      .eq('term_id', term.id)
+      .limit(5000);
     if (rosterErr) throw new Error(rosterErr.message);
+
+    const rosters = ((rawRosters ?? []) as any[]).filter((r) => {
+      const ts = Date.parse(r.reinstated_at || r.started_at || '');
+      return Number.isFinite(ts) && ts >= boundary.sessionStartMs;
+    });
 
     // Map student_id -> class_id for active rosters
     const { placements: rosterMap, conflicts } = resolveActiveRosterPlacements(rosters ?? []);

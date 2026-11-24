@@ -161,8 +161,15 @@ export async function GET() {
   for (const r of rostersRes.data ?? []) {
     const existing = activeRosterByStudent.get(r.student_id);
     const liveClassId = liveUserMap.get(r.student_id)?.class_id;
-    // Prefer the active roster matching portal_users.class_id, or the most recently reinstated/started row.
-    if (!existing || (liveClassId && r.class_id === liveClassId)) {
+    if (!existing) {
+      activeRosterByStudent.set(r.student_id, r);
+      continue;
+    }
+    const rMatchesLive = Boolean(liveClassId && r.class_id === liveClassId);
+    const exMatchesLive = Boolean(liveClassId && existing.class_id === liveClassId);
+    const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+    const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
+    if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
       activeRosterByStudent.set(r.student_id, r);
     }
   }

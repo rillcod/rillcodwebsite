@@ -1405,10 +1405,9 @@ function QuickInvoiceForm({
 
   const filteredStudents = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pool = currentSessionOnly
+    const activePool = currentSessionOnly
       ? students.filter((s) => isStudentInCurrentSession(s, sessionBoundary))
       : students;
-    const activePool = pool.length > 0 ? pool : students;
     if (!q) return activePool.slice(0, 20);
     return activePool
       .filter(

@@ -164,7 +164,8 @@ export async function GET(request: NextRequest) {
         .eq('role', 'student')
         .eq('is_active', true)
         .eq('is_deleted', false)
-        .in('class_id', classIds),
+        .in('class_id', classIds)
+        .limit(5000),
       admin
         .from('academic_terms')
         .select('id')
@@ -175,13 +176,18 @@ export async function GET(request: NextRequest) {
         .from('class_term_rosters')
         .select('student_id, class_id, status, term_id, started_at, reinstated_at')
         .in('class_id', classIds)
-        .eq('status', 'active'),
+        .eq('status', 'active')
+        .limit(5000),
     ]);
 
     const canonicalTermId = (canonicalTerm as { id?: string } | null)?.id ?? null;
     const rosterByKey = new Map<string, any>();
     for (const r of (activeRosters ?? []) as any[]) {
-      rosterByKey.set(`${r.class_id}::${r.student_id}`, r);
+      const k = `${r.class_id}::${r.student_id}`;
+      const prev = rosterByKey.get(k);
+      const rMs = Date.parse(r.reinstated_at || r.started_at || '');
+      const prevMs = prev ? Date.parse(prev.reinstated_at || prev.started_at || '') : -1;
+      if (!prev || rMs > prevMs) rosterByKey.set(k, r);
     }
 
     (directStudents ?? []).forEach((s: any) => {

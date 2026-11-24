@@ -75,6 +75,7 @@ function AttendanceContent() {
 
   // History matrix state
   const [fullAttendanceData, setFullAttendanceData] = useState<any[]>([]);
+  const [unconfirmedStudents, setUnconfirmedStudents] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -214,6 +215,7 @@ function AttendanceContent() {
         setSessions(sess);
         setSelectedSession('');
         setStudents([]);
+        setUnconfirmedStudents([]);
         setAttendance({});
 
         const today = schoolCalendarDate();
@@ -272,8 +274,10 @@ function AttendanceContent() {
         if (attRes.error) throw attRes.error;
         const allStuds: any[] = studsJson.students ?? [];
         const confirmedStuds = allStuds.filter((s: any) => s.session_status !== 'carryover_unconfirmed');
-        const studs: any[] = confirmedStuds.length > 0 ? confirmedStuds : allStuds;
+        const carryoverStuds = allStuds.filter((s: any) => s.session_status === 'carryover_unconfirmed');
+        const studs: any[] = confirmedStuds;
         setStudents(studs);
+        setUnconfirmedStudents(carryoverStuds);
 
         const attMap: Record<string, { status: string; notes: string }> = {};
         (attRes.data ?? []).forEach((a: any) => {
@@ -309,10 +313,13 @@ function AttendanceContent() {
       .then(json => {
         const allStuds: any[] = json.students ?? [];
         const confirmedStuds = allStuds.filter((s: any) => s.session_status !== 'carryover_unconfirmed');
-        setStudents(confirmedStuds.length > 0 ? confirmedStuds : allStuds);
+        const carryoverStuds = allStuds.filter((s: any) => s.session_status === 'carryover_unconfirmed');
+        setStudents(confirmedStuds);
+        setUnconfirmedStudents(carryoverStuds);
       })
       .catch((error) => {
         setStudents([]);
+        setUnconfirmedStudents([]);
         setPageMessage({ type: 'error', text: error instanceof Error ? error.message : 'Students could not be loaded.' });
       });
   }, [activeTab, selectedClass]);
@@ -1226,17 +1233,54 @@ function AttendanceContent() {
             )}
 
             {!loading && selectedSession && students.length === 0 && (
-              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-xl">
-                <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground font-semibold">No enrolled students found for this class.</p>
-                <p className="text-muted-foreground text-sm mt-1">Enroll students first from the class detail page.</p>
-                {selectedClass && (
-                  <a
-                    href={`/dashboard/classes/${selectedClass}`}
-                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
-                  >
-                    Go to Class → Enroll Students
-                  </a>
+              <div className="text-center py-12 px-4 bg-card shadow-sm border border-border rounded-xl space-y-3">
+                <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-1" />
+                {unconfirmedStudents.length > 0 ? (
+                  <>
+                    <p className="text-amber-800 dark:text-amber-200 font-black">
+                      0 students confirmed for the current session in this class ({unconfirmedStudents.length} carried over from 3rd Term).
+                    </p>
+                    <p className="text-muted-foreground text-xs max-w-md mx-auto">
+                      Confirm or promote returning students on the class page first so attendance only tracks active current-session learners.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                      {selectedClass && (
+                        <a
+                          href={`/dashboard/classes/${selectedClass}`}
+                          className="inline-block px-4 py-2 bg-teal-700 text-white rounded-xl text-xs font-black hover:bg-teal-800 transition-all"
+                        >
+                          Go to Class → Confirm or Promote {unconfirmedStudents.length} Students
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudents(unconfirmedStudents);
+                          const nextAtt: Record<string, { status: string; notes: string }> = { ...attendance };
+                          unconfirmedStudents.forEach((s: any) => {
+                            if (!nextAtt[s.id]) nextAtt[s.id] = { status: 'present', notes: '' };
+                          });
+                          setAttendance(nextAtt);
+                        }}
+                        className="inline-block px-4 py-2 bg-card border border-border text-muted-foreground hover:text-foreground rounded-xl text-xs font-bold transition-all"
+                      >
+                        Load 3rd-Term Roster Anyway ({unconfirmedStudents.length})
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground font-semibold">No enrolled students found for this class.</p>
+                    <p className="text-muted-foreground text-sm mt-1">Enroll students first from the class detail page.</p>
+                    {selectedClass && (
+                      <a
+                        href={`/dashboard/classes/${selectedClass}`}
+                        className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
+                      >
+                        Go to Class → Enroll Students
+                      </a>
+                    )}
+                  </>
                 )}
               </div>
             )}

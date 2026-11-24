@@ -102,12 +102,26 @@ export async function GET(req: NextRequest) {
               .select('student_id, class_id, status, term_id, started_at, reinstated_at')
               .in('student_id', studentIds)
               .eq('status', 'active')
+              .limit(5000)
           : Promise.resolve({ data: [] }),
       ]);
       (pipes || []).forEach((p: any) => { stageMap[p.contact_id] = p.stage; });
       canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
+      const classByStudent = new Map((portalUsers || []).map((u: any) => [u.id, u.class_id]));
       for (const r of (rosterRes.data ?? []) as any[]) {
-        if (!rosterByStudent.has(r.student_id)) rosterByStudent.set(r.student_id, r);
+        const existing = rosterByStudent.get(r.student_id);
+        const liveCid = classByStudent.get(r.student_id);
+        if (!existing) {
+          rosterByStudent.set(r.student_id, r);
+          continue;
+        }
+        const rMatchesLive = Boolean(liveCid && r.class_id === liveCid);
+        const exMatchesLive = Boolean(liveCid && existing.class_id === liveCid);
+        const rMs = Date.parse(r.reinstated_at || r.started_at || '') || 0;
+        const exMs = Date.parse(existing.reinstated_at || existing.started_at || '') || 0;
+        if ((rMatchesLive && !exMatchesLive) || (rMatchesLive === exMatchesLive && rMs > exMs)) {
+          rosterByStudent.set(r.student_id, r);
+        }
       }
     }
 

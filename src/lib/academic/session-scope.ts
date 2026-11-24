@@ -32,8 +32,9 @@ export function getSessionBoundary(periodOverride?: string | null): SessionBound
   const match = /^(\d{4})\s*\/\s*(\d{2,4})$/.exec(periodLabel);
   if (match) {
     const startYear = Number(match[1]);
-    // Nigerian & international academic year begins in August/September of startYear.
-    const sessionStartMs = Date.UTC(startYear, 7, 1, 0, 0, 0, 0);
+    // Nigerian & international academic year begins September 1 of startYear
+    // (matching academic_terms.start_date = YYYY-09-01; August is still 3rd Term / Summer).
+    const sessionStartMs = Date.UTC(startYear, 8, 1, 0, 0, 0, 0);
     return {
       periodLabel,
       termLabel: live.termLabel,
@@ -68,6 +69,7 @@ export function classifyStudentSessionStatus(
     status?: string | null;
     term_id?: string | null;
     started_at?: string | null;
+    reinstated_at?: string | null;
   } | null | undefined,
   opts: {
     canonicalTermId?: string | null;
@@ -99,20 +101,16 @@ export function classifyStudentSessionStatus(
     return 'confirmed_current';
   }
 
-  if (
-    opts.canonicalTermId &&
-    rosterRow?.term_id === opts.canonicalTermId &&
-    rosterStatus === 'active'
-  ) {
-    return 'confirmed_current';
-  }
-
   const createdMs = student.created_at ? Date.parse(student.created_at) : NaN;
   if (Number.isFinite(createdMs) && createdMs >= boundary.sessionStartMs) {
     return 'confirmed_current';
   }
 
-  const rosterStartMs = rosterRow?.started_at ? Date.parse(rosterRow.started_at) : NaN;
+  // Note: never trust `rosterRow.term_id === canonicalTermId` alone without a
+  // current-session start/reinstatement timestamp — an August 2026 migration
+  // bulk-stamped First Term's term_id onto 780 unconfirmed 3rd-term rosters.
+  const effectiveRosterStart = rosterRow?.reinstated_at || rosterRow?.started_at;
+  const rosterStartMs = effectiveRosterStart ? Date.parse(effectiveRosterStart) : NaN;
   if (Number.isFinite(rosterStartMs) && rosterStartMs >= boundary.sessionStartMs) {
     return 'confirmed_current';
   }

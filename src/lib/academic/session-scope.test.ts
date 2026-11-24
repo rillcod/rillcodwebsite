@@ -9,11 +9,11 @@ import {
 describe('academic session-scope isolation', () => {
   const boundary = getSessionBoundary('2026/2027');
 
-  it('computes canonical session boundary for an academic year', () => {
+  it('computes canonical session boundary for an academic year (September 1 start)', () => {
     expect(boundary.periodLabel).toBe('2026/2027');
     expect(boundary.previousPeriodLabel).toBe('2025/2026');
     expect(boundary.startYear).toBe(2026);
-    expect(boundary.sessionStartIso).toBe('2026-08-01T00:00:00.000Z');
+    expect(boundary.sessionStartIso).toBe('2026-09-01T00:00:00.000Z');
   });
 
   it('marks inactive or withdrawn students as withdrawn so they never pollute active counts', () => {
@@ -60,7 +60,7 @@ describe('academic session-scope isolation', () => {
     ).toBe('confirmed_current');
   });
 
-  it('isolates prior-session students who have not been confirmed yet as carryover_unconfirmed', () => {
+  it('isolates prior-session students (including August 3rd-term backfills with new term_id) as carryover_unconfirmed', () => {
     expect(
       classifyStudentSessionStatus(
         {
@@ -69,6 +69,24 @@ describe('academic session-scope isolation', () => {
           metadata: { confirmed_session: '2025/2026' },
         },
         { status: 'active', term_id: 'old-term', started_at: '2025-10-01T08:00:00.000Z' },
+        { canonicalTermId: 'new-term', boundary },
+      ),
+    ).toBe('carryover_unconfirmed');
+
+    // Regression guard: St Peter / 3rd-term students created in July 2026 whose roster
+    // was bulk-backfilled on 2026-08-08 with First Term's term_id must remain carryover_unconfirmed!
+    expect(
+      classifyStudentSessionStatus(
+        {
+          is_active: true,
+          created_at: '2026-07-10T08:58:52.000Z',
+          metadata: null,
+        },
+        {
+          status: 'active',
+          term_id: 'new-term',
+          started_at: '2026-08-08T04:34:01.000Z',
+        },
         { canonicalTermId: 'new-term', boundary },
       ),
     ).toBe('carryover_unconfirmed');
@@ -102,15 +120,15 @@ describe('academic session-scope isolation', () => {
       ),
     ).toBe(true);
 
-    // Created_at boundary (Aug 1 cutoff)
-    expect(isStudentInCurrentSession({ created_at: '2026-08-01T00:00:00.000Z', metadata: {} }, boundary)).toBe(true);
-    expect(isStudentInCurrentSession({ created_at: '2026-07-31T23:59:59.000Z', metadata: {} }, boundary)).toBe(false);
+    // Created_at boundary (Sep 1 cutoff — August is still 3rd Term)
+    expect(isStudentInCurrentSession({ created_at: '2026-09-01T00:00:00.000Z', metadata: {} }, boundary)).toBe(true);
+    expect(isStudentInCurrentSession({ created_at: '2026-08-31T23:59:59.000Z', metadata: {} }, boundary)).toBe(false);
   });
 
   it('automatically isolates 2026/2027 students as carryover when the calendar rolls to 2027/2028', () => {
     const nextBoundary = getSessionBoundary('2027/2028');
     expect(nextBoundary.previousPeriodLabel).toBe('2026/2027');
-    expect(nextBoundary.sessionStartIso).toBe('2027-08-01T00:00:00.000Z');
+    expect(nextBoundary.sessionStartIso).toBe('2027-09-01T00:00:00.000Z');
 
     const studentFrom2026 = {
       is_active: true,
