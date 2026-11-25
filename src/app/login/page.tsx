@@ -213,7 +213,7 @@ function LoginContent() {
       if (authError) throw authError;
       if (!authData?.user) throw new Error("Sign in failed. Please try again.");
 
-      let { data: profileData, error: profileError } = await withTimeoutOrThrow(
+      const profileResult = await withTimeoutOrThrow(
         supabase
           .from('portal_users')
           .select('role, is_active, is_deleted, full_name, metadata, school_id, class_id')
@@ -222,6 +222,8 @@ function LoginContent() {
         'Your account details could not be confirmed. Please try again.',
         12_000,
       );
+      const profileError = profileResult.error;
+      let profileData = profileResult.data;
 
       if (profileError) throw profileError;
       if (!profileData) {
