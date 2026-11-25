@@ -2282,7 +2282,7 @@ function ResultsPageInner() {
                                                                 disabled={isTogglingInvoice}
                                                                 className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
                                                             >
-                                                                <span>{(selectedReport as any).show_payment_notice ? 'Hide Fee Notice' : 'Fee Notice'}</span>
+                                                                <span>{(selectedReport as any).show_payment_notice ? 'Hide payment notice' : 'Show payment notice'}</span>
                                                             </button>
                                                             <button
                                                                 type="button"
