@@ -2830,9 +2830,18 @@ export default function ClassDetailPage() {
                                       className="min-h-9 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-bold text-foreground"
                                     >
                                       <option value="">Select grade</option>
-                                      {SINGLE_GRADES.map((g) => (
-                                        <option key={g} value={g}>{g}</option>
-                                      ))}
+                                      <optgroup label="Nursery">
+                                        {SINGLE_GRADES.filter((g) => g.startsWith('Nursery')).map((g) => <option key={g} value={g}>{g}</option>)}
+                                      </optgroup>
+                                      <optgroup label="Basic (Primary)">
+                                        {SINGLE_GRADES.filter((g) => g.startsWith('Basic')).map((g) => <option key={g} value={g}>{g}</option>)}
+                                      </optgroup>
+                                      <optgroup label="Junior Secondary (JSS)">
+                                        {SINGLE_GRADES.filter((g) => g.startsWith('JSS')).map((g) => <option key={g} value={g}>{g}</option>)}
+                                      </optgroup>
+                                      <optgroup label="Senior Secondary (SS)">
+                                        {SINGLE_GRADES.filter((g) => g.startsWith('SS')).map((g) => <option key={g} value={g}>{g}</option>)}
+                                      </optgroup>
                                     </select>
                                   ) : (
                                     <span className="rounded-md bg-rose-500/15 px-2 py-1 text-[10px] font-black uppercase text-rose-700 dark:text-rose-300">
@@ -3052,9 +3061,18 @@ export default function ClassDetailPage() {
                             >
                               <option value="">Grade: Auto ({defaultEntryGradeForClass() || 'Class / +1'})</option>
                               <option value="__retain__">Grade: Keep Current</option>
-                              {SINGLE_GRADES.map((g) => (
-                                <option key={`unified-g-${g}`} value={g}>Set Grade: {g}</option>
-                              ))}
+                              <optgroup label="Nursery">
+                                {SINGLE_GRADES.filter((g) => g.startsWith('Nursery')).map((g) => <option key={`unified-g-${g}`} value={g}>Set Grade: {g}</option>)}
+                              </optgroup>
+                              <optgroup label="Basic (Primary)">
+                                {SINGLE_GRADES.filter((g) => g.startsWith('Basic')).map((g) => <option key={`unified-g-${g}`} value={g}>Set Grade: {g}</option>)}
+                              </optgroup>
+                              <optgroup label="Junior Secondary (JSS)">
+                                {SINGLE_GRADES.filter((g) => g.startsWith('JSS')).map((g) => <option key={`unified-g-${g}`} value={g}>Set Grade: {g}</option>)}
+                              </optgroup>
+                              <optgroup label="Senior Secondary (SS)">
+                                {SINGLE_GRADES.filter((g) => g.startsWith('SS')).map((g) => <option key={`unified-g-${g}`} value={g}>Set Grade: {g}</option>)}
+                              </optgroup>
                             </select>
                           )}
                           <select
@@ -3069,41 +3087,54 @@ export default function ClassDetailPage() {
                             <option value="grade">Sort: Grade</option>
                           </select>
                         </div>
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-                          {([
+                        {(() => {
+                          const unconfirmedCnt = currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length;
+                          const basicChips: Array<{ id: typeof rosterFilter; label: string }> = [
                             {
                               id: 'current_session',
-                              label: `Current Session (${currentTermStudents.filter((s: any) => s.session_status !== 'carryover_unconfirmed').length})`,
+                              label: `Current Session (${currentTermStudents.length - unconfirmedCnt})`,
                             },
-                            ...(currentTermStudents.some((s: any) => s.session_status === 'carryover_unconfirmed')
-                              ? [
-                                  {
-                                    id: 'prior_session',
-                                    label: `3rd-Term Carryover (${currentTermStudents.filter((s: any) => s.session_status === 'carryover_unconfirmed').length})`,
-                                  },
-                                  { id: 'active', label: `All Active (${currentTermStudents.length})` },
-                                ]
-                              : []),
-                            ...(reportIndicatorEnabled && needsReportCount > 0 ? [{ id: 'needs_report', label: `Needs Report (${needsReportCount})` }] : []),
-                            ...(offBandCount > 0 ? [{ id: 'off_band', label: `Off-band (${offBandCount})` }] : []),
-                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn', label: `Archived (${inactiveTermStudents.length})` }] : []),
-                          ] as Array<{ id: typeof rosterFilter; label: string }>).map((chip) => (
-                            <button
-                              key={chip.id}
-                              type="button"
-                              onClick={() => {
-                                setRosterFilter(chip.id);
-                                if (chip.id === 'withdrawn' || chip.id === 'all') setShowWithdrawnList(true);
-                              }}
-                              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors ${rosterFilter === chip.id
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border bg-card text-muted-foreground hover:text-foreground'
-                                }`}
-                            >
-                              {chip.label}
-                            </button>
-                          ))}
-                        </div>
+                            { id: 'active', label: `All Active (${currentTermStudents.length})` },
+                            ...(inactiveTermStudents.length > 0 ? [{ id: 'withdrawn' as typeof rosterFilter, label: `Archived (${inactiveTermStudents.length})` }] : []),
+                          ];
+                          const extraChips: Array<{ id: typeof rosterFilter; label: string }> = [
+                            ...(unconfirmedCnt > 0 ? [{ id: 'prior_session' as typeof rosterFilter, label: `3rd-Term Carryover (${unconfirmedCnt})` }] : []),
+                            ...(reportIndicatorEnabled && needsReportCount > 0 ? [{ id: 'needs_report' as typeof rosterFilter, label: `Needs Report (${needsReportCount})` }] : []),
+                            ...(offBandCount > 0 ? [{ id: 'off_band' as typeof rosterFilter, label: `Off-band (${offBandCount})` }] : []),
+                          ];
+                          const activeIsExtra = extraChips.some((c) => c.id === rosterFilter);
+                          const showExtra = activeIsExtra || showMoreStudents;
+                          const visibleChips = showExtra ? [...basicChips, ...extraChips] : basicChips;
+                          return (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {visibleChips.map((chip) => (
+                                <button
+                                  key={chip.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setRosterFilter(chip.id);
+                                    if (chip.id === 'withdrawn' || chip.id === 'all') setShowWithdrawnList(true);
+                                  }}
+                                  className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black transition-colors ${rosterFilter === chip.id
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                  {chip.label}
+                                </button>
+                              ))}
+                              {extraChips.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowMoreStudents((v) => !v)}
+                                  className="shrink-0 rounded-full border border-dashed border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                                >
+                                  {showExtra ? '← Less' : `More filters (${extraChips.length})`}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
