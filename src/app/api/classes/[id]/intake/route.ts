@@ -9,6 +9,9 @@ import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { accessCardCodeForStudent, formatAccessCardCodeDisplay } from '@/lib/access-card-code';
 import { currentAcademicPeriod } from '@/lib/reports/coverage';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
+import { inferCanonicalEnrollmentTypeForClass } from '@/lib/academic/enrollment-type';
+import { syncStudentAuthReadiness } from '@/lib/students/student-access-sync';
+import { normalizeRillcodTempPassword } from '@/lib/utils/password';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,15 +67,9 @@ function upsertSessionHistory(
 }
 
 async function syncClassActiveCount(admin: ReturnType<typeof adminClient>, classId: string) {
-  const { count } = await admin
-    .from('portal_users')
-    .select('id', { count: 'exact', head: true })
-    .eq('class_id', classId)
-    .eq('role', 'student')
-    .neq('is_active', false)
-    .neq('is_deleted', true);
-  if (typeof count === 'number') {
-    await admin.from('classes').update({ current_students: count }).eq('id', classId);
+  const { data: activeTotal } = await (admin as any).rpc('active_class_student_count', { p_class_id: classId });
+  if (typeof activeTotal === 'number') {
+    await admin.from('classes').update({ current_students: activeTotal }).eq('id', classId);
   }
 }
 
@@ -94,7 +91,7 @@ async function authorizeStaffForClass(classId: string) {
 
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, school_id, program_id, term_id, qa_grade_key, qa_grade_band')
+    .select('id, name, school_id, program_id, term_id, qa_grade_key, qa_grade_band, academic_offerings(enrollment_type)')
     .eq('id', classId)
     .single();
 
@@ -127,7 +124,14 @@ async function authorizeStaffForClass(classId: string) {
     schoolName = school?.name ?? null;
   }
 
-  return { admin, caller, cls, schoolName };
+  const classEnrollmentType = inferCanonicalEnrollmentTypeForClass({
+    academicOfferings: (cls as any).academic_offerings,
+    className: cls.name,
+    schoolId: cls.school_id,
+    schoolName,
+  });
+
+  return { admin, caller, cls, schoolName, classEnrollmentType };
 }
 
 /**
@@ -161,6 +165,25 @@ export async function GET(
 
     const { data: portalRows, error: qErr } = await q;
     if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
+
+    const { data: classRosterRows } = await (admin as any)
+      .from('class_term_rosters')
+      .select('student_id, status, updated_at, reinstated_at, started_at')
+      .eq('class_id', classId);
+    const withdrawnInThisClass = new Set<string>();
+    const latestRosterByStudent = new Map<string, any>();
+    for (const rr of (classRosterRows ?? []) as any[]) {
+      if (!rr?.student_id) continue;
+      const prev = latestRosterByStudent.get(rr.student_id);
+      const rMs = Date.parse(rr.reinstated_at || rr.updated_at || rr.started_at || '') || 0;
+      const pMs = Date.parse(prev?.reinstated_at || prev?.updated_at || prev?.started_at || '') || 0;
+      if (!prev || rMs >= pMs) latestRosterByStudent.set(rr.student_id, rr);
+    }
+    for (const [sid, rr] of latestRosterByStudent.entries()) {
+      if (['withdrawn', 'ended', 'removed', 'completed'].includes(String(rr.status ?? '').toLowerCase())) {
+        withdrawnInThisClass.add(sid);
+      }
+    }
 
     const rows = portalRows ?? [];
     const userIds = rows.map((r: any) => r.id).filter(Boolean);
@@ -266,7 +289,7 @@ export async function GET(
           class_id: r.class_id || null,
           section_class: r.section_class || null,
           is_active: r.is_active !== false,
-          in_this_class: r.class_id === classId && r.is_active !== false,
+          in_this_class: r.class_id === classId && r.is_active !== false && !withdrawnInThisClass.has(r.id),
           parent_name: parentName,
           parent_phone: parentPhone,
           parent_verified: parentVerified,
@@ -309,7 +332,7 @@ export async function POST(
     const { id: classId } = await context.params;
     const auth = await authorizeStaffForClass(classId);
     if ('error' in auth) return auth.error;
-    const { admin, caller, cls, schoolName } = auth;
+    const { admin, caller, cls, schoolName, classEnrollmentType } = auth;
 
     const body = await request.json().catch(() => ({}));
     const action = String(body?.action || '').trim();
@@ -348,6 +371,14 @@ export async function POST(
         existingMeta = (existingInClass.metadata && typeof existingInClass.metadata === 'object'
           ? existingInClass.metadata
           : {}) as Record<string, any>;
+        // Reactivate soft-withdrawn students in this class on Pass-Around Kiosk / Quick Add
+        await reinstateStudentToClass(admin, {
+          studentId,
+          classId,
+          actor: { id: caller.id, role: caller.role },
+          grade: resolvedGrade || existingInClass.grade || undefined,
+          forceCrossTeacher: true,
+        });
       } else {
         // Also check if an unassigned/archived student with the same name exists in this school
         let existingInSchool: any = null;
@@ -379,6 +410,7 @@ export async function POST(
             classId,
             sectionClass: cls.name,
             grade: resolvedGrade,
+            enrollmentType: classEnrollmentType,
             passwordPolicy: 'set',
             archiveCredentials: true,
             batchLabel: `class-intake-${currentSession}`,
@@ -402,10 +434,36 @@ export async function POST(
           classId,
           actor: { id: caller.id, role: caller.role },
           grade: resolvedGrade,
-          forceCrossTeacher: caller.role === 'admin',
+          forceCrossTeacher: true,
         });
         if (!reinstated.ok) {
           return NextResponse.json({ error: reinstated.error }, { status: 400 });
+        }
+      }
+
+      // Ensure returning/matched students in Pass-Around Kiosk also get their archived password
+      // (and have Auth readiness synced) so EVERY student sees their full login card!
+      if (!tempPassword && studentEmail) {
+        await syncStudentAuthReadiness(admin, [
+          {
+            id: studentId,
+            full_name: cleanedName,
+            email: studentEmail,
+            school_id: cls.school_id,
+            school_name: schoolName,
+            section_class: cls.name,
+          },
+        ]).catch(() => { });
+
+        const { data: archivedCred } = await admin
+          .from('registration_results')
+          .select('password')
+          .eq('email', studentEmail.trim().toLowerCase())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (archivedCred?.password) {
+          tempPassword = normalizeRillcodTempPassword(archivedCred.password);
         }
       }
 
@@ -430,6 +488,7 @@ export async function POST(
 
       const portalUpdate: Record<string, any> = {
         full_name: cleanedName,
+        enrollment_type: classEnrollmentType,
         is_active: true,
         metadata: nextMeta,
         updated_at: nowIso,
@@ -486,7 +545,7 @@ export async function POST(
         schoolId: cls.school_id,
         classId,
         actorId: caller.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       return NextResponse.json({
         ok: true,
@@ -594,6 +653,7 @@ export async function POST(
             classId,
             sectionClass: cls.name,
             grade: resolvedGrade,
+            enrollmentType: classEnrollmentType,
             passwordPolicy: 'set',
             archiveCredentials: true,
             batchLabel: `class-intake-${currentSession}`,
@@ -624,7 +684,7 @@ export async function POST(
           classId,
           actor: { id: caller.id, role: caller.role },
           grade: resolvedGrade,
-          forceCrossTeacher: caller.role === 'admin',
+          forceCrossTeacher: true,
         });
         if (!reinstated.ok) {
           errors.push(`${cleanedName}: ${reinstated.error}`);
@@ -654,6 +714,7 @@ export async function POST(
 
         const portalUpdate: Record<string, any> = {
           full_name: cleanedName,
+          enrollment_type: classEnrollmentType,
           is_active: true,
           metadata: nextMeta,
           updated_at: nowIso,
@@ -711,7 +772,7 @@ export async function POST(
             schoolId: cls.school_id,
             classId,
             actorId: caller.id,
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
 
@@ -796,6 +857,7 @@ export async function POST(
               });
           }
         }
+        await syncClassActiveCount(admin, classId);
         return NextResponse.json({
           ok: true,
           operation,
@@ -829,6 +891,18 @@ export async function POST(
             .from('students')
             .update({ is_active: false })
             .eq('user_id', st.id);
+
+          if (cls.program_id) {
+            await admin
+              .from('enrollments')
+              .update({
+                status: 'suspended',
+                updated_at: nowIso,
+                notes: 'Archived from prior-session class roster; history and reports preserved.',
+              })
+              .eq('user_id', st.id)
+              .eq('program_id', cls.program_id);
+          }
 
           let lookup = (admin as any)
             .from('class_term_rosters')
@@ -1063,7 +1137,7 @@ export async function PATCH(
     const { id: classId } = await context.params;
     const auth = await authorizeStaffForClass(classId);
     if ('error' in auth) return auth.error;
-    const { admin, caller, cls, schoolName } = auth;
+    const { admin, caller, cls, schoolName, classEnrollmentType } = auth;
 
     const body = await request.json().catch(() => ({}));
     const studentId = String(body?.student_id || '').trim();

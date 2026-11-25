@@ -13,33 +13,60 @@ describe('resolveStudentProgramScope', () => {
   });
 
   it('includes program from class when student has no enrollments', async () => {
-    // Mock enrollments query returning empty
-    mockFrom.mockImplementationOnce(() => ({
-      select: () => ({
-        eq: () => ({
-          in: () => ({
-            data: [],
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'enrollments') {
+        return { select: () => ({ eq: () => ({ in: () => ({ data: [] }) }) }) };
+      }
+      if (table === 'class_term_rosters') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => ({
+                  limit: () => ({ maybeSingle: async () => ({ data: { status: 'active' } }) }),
+                }),
+              }),
+            }),
           }),
-        }),
-      }),
-    }));
-    // Mock classes query returning a program_id
-    mockFrom.mockImplementationOnce(() => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: { program_id: 'prog-123' } }),
-        }),
-      }),
-    }));
-    // Mock courses query returning no courses (not needed for this test)
-    mockFrom.mockImplementationOnce(() => ({
-      select: () => ({
-        in: () => ({ data: [] }),
-      }),
-    }));
+        };
+      }
+      if (table === 'classes') {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { program_id: 'prog-123' } }) }) }) };
+      }
+      if (table === 'courses') {
+        return { select: () => ({ in: () => ({ data: [] }) }) };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
 
     const result = await resolveStudentProgramScope(mockAdmin, 'student-1', 'class-1');
     expect(result.programIds.has('prog-123')).toBe(true);
+    expect(result.courseIds.size).toBe(0);
+  });
+
+  it('returns empty scope when student is soft-withdrawn from the class roster', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'enrollments') {
+        return { select: () => ({ eq: () => ({ in: () => ({ data: [{ program_id: 'prog-123' }] }) }) }) };
+      }
+      if (table === 'class_term_rosters') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => ({
+                  limit: () => ({ maybeSingle: async () => ({ data: { status: 'withdrawn' } }) }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    const result = await resolveStudentProgramScope(mockAdmin, 'student-1', 'class-1');
+    expect(result.programIds.size).toBe(0);
     expect(result.courseIds.size).toBe(0);
   });
 });

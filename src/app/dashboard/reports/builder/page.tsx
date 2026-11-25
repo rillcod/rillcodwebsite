@@ -24,6 +24,7 @@ import {
 } from '@/lib/reports/academic-period';
 import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
+import { isTermlySchoolCalendar, canonicalizeEnrollmentType } from '@/lib/academic/enrollment-type';
 import { buildGrowthRecommendations, composeGrowthRecommendations } from '@/lib/reports/growth-recommendations';
 import { generatePredictiveComments, getStrengthBankSuggestions, getGrowthBankSuggestions } from '@/lib/reports/comment-warehouse';
 import { reconcileCourseWithClassSection, resolveLinkedCourseForClass } from '@/lib/reports/class-course';
@@ -942,14 +943,10 @@ function ReportBuilderInner() {
         org_phone: '', org_email: '', org_website: '', logo_url: '',
     });
 
-    // ── Local Grade Helper (Avoids conflict with imported one) ─────────────
+    // ── Local Grade Helper (WAEC-aligned so Builder strip, history & AI match saved reports) ──
     const reportGrade = (score: number) => {
-        if (score >= 90) return { g: 'A+', label: 'Exceptional' };
-        if (score >= 80) return { g: 'A', label: 'Excellent' };
-        if (score >= 70) return { g: 'B', label: 'Very Good' };
-        if (score >= 60) return { g: 'C', label: 'Good' };
-        if (score >= 50) return { g: 'D', label: 'Fair' };
-        return { g: 'F', label: 'Needs Improvement' };
+        const w = getWAECGrade(score);
+        return { g: w.code, label: w.label };
     };
 
     // ── Restore session config from localStorage + init date ──────────────────
@@ -1487,8 +1484,10 @@ function ReportBuilderInner() {
         // unless they belong to the current session (via canonical session_status/metadata/created_at)
         // or already have a report for this term.
         if (currentSessionOnly) {
+            const studentClass = teacherClasses.find(c => c.id === (s as any).class_id);
+            const classEnrollmentType = (studentClass as any)?.academic_offerings?.enrollment_type ?? null;
             const inCurrentSession =
-                isStudentInCurrentSession(s as any, sessionBoundary) ||
+                isStudentInCurrentSession(s as any, sessionBoundary, { classEnrollmentType }) ||
                 reportedIds.has(s.id) ||
                 draftedIds.has(s.id);
             if (!inCurrentSession) return false;
@@ -1525,16 +1524,17 @@ function ReportBuilderInner() {
             || (student.section_class === activeSessionClass.name
                 && (!activeSessionClass.school_id || student.school_id === activeSessionClass.school_id));
     });
+    const activeClassEnrollmentType = (activeSessionClass as any)?.academic_offerings?.enrollment_type ?? null;
     const classCarryoverRoster = allClassRoster.filter(
         (student: any) =>
-            !isStudentInCurrentSession(student, sessionBoundary) &&
+            !isStudentInCurrentSession(student, sessionBoundary, { classEnrollmentType: activeClassEnrollmentType }) &&
             !reportedIds.has(student.id) &&
             !draftedIds.has(student.id),
     );
     const classRoster = currentSessionOnly
         ? allClassRoster.filter(
             (student: any) =>
-                isStudentInCurrentSession(student, sessionBoundary) ||
+                isStudentInCurrentSession(student, sessionBoundary, { classEnrollmentType: activeClassEnrollmentType }) ||
                 reportedIds.has(student.id) ||
                 draftedIds.has(student.id),
         )
@@ -1598,6 +1598,8 @@ function ReportBuilderInner() {
             const sameAsClassTerm = !!matchingClass.term_id
                 && report_term === (term?.term_label || '')
                 && report_period === (term?.academic_year || '');
+            const classEnrType = canonicalizeEnrollmentType((matchingClass as any)?.academic_offerings?.enrollment_type);
+            const derivedSchoolSection = classEnrType && !isTermlySchoolCalendar(classEnrType) ? 'bootcamp' : 'school';
             return {
                 ...current,
                 class_id: matchingClass.id,
@@ -1616,7 +1618,7 @@ function ReportBuilderInner() {
                 current_module: '',
                 next_module: '',
                 learning_milestones: suggestedMilestones,
-                school_section: current.school_section || 'school',
+                school_section: derivedSchoolSection,
             };
         });
         if (linkedCourse?.id) {
@@ -1712,12 +1714,13 @@ function ReportBuilderInner() {
         }));
     }, [courses, teacherClasses, sessionConfig.class_id, sessionConfig.course_id, sessionProgramId]);
 
-    // Old saved browser seats may pre-date report timing. A real class defaults
-    // to the school-term route so teachers are not stopped by an internal choice.
+    // Old saved browser seats may pre-date report timing. Derive school_section from the class pathway.
     useEffect(() => {
         if (!sessionConfig.class_id || sessionConfig.school_section) return;
-        setSessionConfig((current) => ({ ...current, school_section: 'school' }));
-    }, [sessionConfig.class_id, sessionConfig.school_section]);
+        const cls = teacherClasses.find(c => c.id === sessionConfig.class_id);
+        const enr = canonicalizeEnrollmentType((cls as any)?.academic_offerings?.enrollment_type);
+        setSessionConfig((current) => ({ ...current, school_section: enr && !isTermlySchoolCalendar(enr) ? 'bootcamp' : 'school' }));
+    }, [sessionConfig.class_id, sessionConfig.school_section, teacherClasses]);
 
     // Keep sessionConfig.term_id in sync with the chosen report_term + academic year so
     // coverage filters and "Start Grading" don't stay pinned to an old class term_id.
@@ -2214,7 +2217,7 @@ function ReportBuilderInner() {
                     : { data: [] },
                 // Graded Written Exams (synergy with /dashboard/exams)
                 db.from('exam_attempts')
-                    .select('percentage, score, total_points, status, exams(id, title, course_id, class_id)')
+                    .select('percentage, score, total_points, status, created_at, exams(id, title, course_id, class_id)')
                     .eq('portal_user_id', s.id)
                     .eq('status', 'graded'),
             ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
@@ -2283,6 +2286,15 @@ function ReportBuilderInner() {
                     const ex = Array.isArray(w.exams) ? w.exams[0] : w.exams;
                     if (evidenceCourseId && ex?.course_id && ex.course_id !== evidenceCourseId) return false;
                     if (targetClassId && ex?.class_id && ex.class_id !== targetClassId) return false;
+                    // Guard against prior-academic-year written exam attempts bleeding into this term
+                    if (w.created_at) {
+                        const attemptMs = Date.parse(w.created_at);
+                        const minIso = termBounds?.start_date || sessionBoundary.sessionStartIso;
+                        if (Number.isFinite(attemptMs) && minIso) {
+                            const minMs = Date.parse(minIso);
+                            if (Number.isFinite(minMs) && attemptMs < minMs) return false;
+                        }
+                    }
                     return true;
                 })
                 .map((w: any) => {
@@ -2662,6 +2674,7 @@ function ReportBuilderInner() {
                 report_date: sessionConfig.report_date,
                 report_term: sessionConfig.report_term,
                 report_period: sessionConfig.report_period || null,
+                term_id: sessionConfig.term_id || null,
                 instructor_name: sessionConfig.instructor_name,
                 current_module: form.student_current_module || sessionConfig.current_module || null,
                 next_module: form.student_next_module || sessionConfig.next_module || null,
@@ -6001,7 +6014,7 @@ function ReportBuilderInner() {
             )}
 
             {selectedStudent ? <div id="pdf-print-target" aria-hidden="true" style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
-                <div ref={pdfRef}>
+                <div ref={pdfRef} data-theme="light" style={{ background: '#ffffff', color: '#111827', colorScheme: 'light' }}>
                     {reportStyle === 'modern' ? (
                         <ModernReportCard report={previewData} orgSettings={branding as any} />
                     ) : reportStyle === 'printable' ? (

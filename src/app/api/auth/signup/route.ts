@@ -231,6 +231,17 @@ export async function POST(request: Request) {
       }, { status: 409 });
     }
 
+    let studentEnrollmentType: string | undefined;
+    if (role === 'student' && (placed.classId || body.enrollment_type || placed.schoolId)) {
+      const { resolveClassCanonicalEnrollmentType } = await import('@/lib/academic/enrollment-type');
+      studentEnrollmentType = await resolveClassCanonicalEnrollmentType(admin as any, placed.classId, {
+        schoolId: placed.schoolId,
+        schoolName: placed.schoolName || schoolName,
+        className: section_class || placed.className,
+        fallbackEnrollmentType: body.enrollment_type ?? null,
+      });
+    }
+
     const { error: profileError } = await admin
       .from('portal_users')
       .upsert({
@@ -242,6 +253,7 @@ export async function POST(request: Request) {
         school_name: placed.schoolName || schoolName,
         class_id: placed.classId,
         section_class: section_class || placed.className,
+        ...(studentEnrollmentType ? { enrollment_type: studentEnrollmentType } : {}),
         is_active: role === 'admin' ? true : placed.isActive,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });

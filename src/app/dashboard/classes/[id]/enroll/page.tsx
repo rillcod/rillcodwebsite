@@ -1673,7 +1673,7 @@ export default function ClassEnrollWorkspacePage() {
               <div>
                 <h2 className="text-base font-black text-foreground">Quick-Add or Paste Student Names</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Automatically matches &amp; transfers existing school students (zero duplicates) or creates clean <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code> accounts.
+                  Automatically matches &amp; transfers existing school students (zero duplicates) or creates clean <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">Rillcod@XXXX</code> accounts.
                 </p>
               </div>
               <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-black text-primary">

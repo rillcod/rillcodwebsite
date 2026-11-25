@@ -9,8 +9,9 @@ import {
   shouldReplaceRosterRow,
 } from '@/lib/academic/session-scope';
 import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
-import { generateTempPassword } from '@/lib/utils/password';
+import { generateTempPassword, normalizeRillcodTempPassword } from '@/lib/utils/password';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
+import { inferCanonicalEnrollmentTypeForClass } from '@/lib/academic/enrollment-type';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +54,7 @@ export async function GET(
     // ── Fetch class ──────────────────────────────────────────────────────────
     const { data: cls, error: clsErr } = await admin
       .from('classes')
-      .select('name, max_students, current_students, program_id, school_id, term_id')
+      .select('name, max_students, current_students, program_id, school_id, term_id, academic_offerings(enrollment_type)')
       .eq('id', classId)
       .single();
 
@@ -89,7 +90,7 @@ export async function GET(
     const [directResult, rosterResult] = await Promise.all([
       admin
         .from('portal_users')
-        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, created_at, metadata')
+        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id, enrollment_type, created_at, metadata')
         .eq('class_id', classId)
         .eq('role', 'student')
         .neq('is_active', false)
@@ -219,6 +220,11 @@ export async function GET(
     const sessionBoundary = getSessionBoundary(academicPeriod.periodLabel);
     const currentSessionLabel = sessionBoundary.periodLabel;
     const requestedSessionScope = new URL(_request.url).searchParams.get('session_scope');
+    const classEnrollmentType = inferCanonicalEnrollmentTypeForClass({
+      academicOfferings: (cls as any).academic_offerings,
+      className: cls.name,
+      schoolId: cls.school_id,
+    });
 
     // Always stamp session_status on every student (even in ?light=1 mode) so header pills,
     // transfer lists, and quick-pick summaries always distinguish confirmed vs 3rd-term.
@@ -238,6 +244,7 @@ export async function GET(
         {
           canonicalTermId,
           boundary: sessionBoundary,
+          classEnrollmentType,
         },
       );
       return {
@@ -500,9 +507,10 @@ export async function POST(
         newEmail = chosen || `${firstNamePart}${1000 + Math.floor(Math.random() * 9000)}@rillcod.com`;
       }
 
-      // When syncing existing logins, reuse their archived password so printed sheets immediately work!
-      const newPassword = (syncAllAuthPasswords && !hasLegacyEmail && existingArchivedPw.length >= 6)
-        ? existingArchivedPw
+      // When syncing existing logins, reuse their archived password (upgrading legacy `rillcod@XXXX` to `Rillcod@XXXX`) so printed sheets immediately work!
+      const normalizedExistingPw = normalizeRillcodTempPassword(existingArchivedPw);
+      const newPassword = (syncAllAuthPasswords && !hasLegacyEmail && normalizedExistingPw.length >= 6)
+        ? normalizedExistingPw
         : generateTempPassword();
       let authErrMsg: string | null = null;
       const { error: authUpdateErr } = await admin.auth.admin.updateUserById(stu.id, {

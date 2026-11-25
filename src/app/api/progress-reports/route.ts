@@ -175,9 +175,6 @@ export async function POST(request: NextRequest) {
       .eq('id', String(updatePayload.student_id))
       .maybeSingle();
     const studentSchoolId = student?.school_id ?? null;
-    if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
-      return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
-    }
     studentClassId = ((student as any)?.class_id as string | null) ?? null;
     if (caller.role === 'teacher') {
       const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
@@ -187,6 +184,11 @@ export async function POST(request: NextRequest) {
       if (!ownsCurrentClass && !ownsReportClass && !authored) {
         return NextResponse.json({ error: 'You can only create or update reports for students in classes you own.' }, { status: 403 });
       }
+      if (!ownsCurrentClass && !ownsReportClass && !authored && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
+        return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
+      }
+    } else if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
+      return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
     }
     if (studentSchoolId) {
       updatePayload.school_id = studentSchoolId;
@@ -200,21 +202,38 @@ export async function POST(request: NextRequest) {
 
   const termLabelRaw = String(updatePayload.report_term ?? insertPayload.report_term ?? '').trim();
   const periodLabelRaw = String(updatePayload.report_period ?? insertPayload.report_period ?? '').trim();
+  const schoolSectionRaw = String(updatePayload.school_section ?? insertPayload.school_section ?? '').trim().toLowerCase();
+  const isCohortDurationReport = Boolean(
+    schoolSectionRaw
+    && !['basic', 'secondary', 'unified', 'school'].includes(schoolSectionRaw)
+    && !periodLabelRaw,
+  );
   // Central session resolve: stale prior sessions roll to LIVE unless this save
-  // is an explicit backfill of an opened historical report.
-  const { session } = resolveSessionForWrite(termLabelRaw, periodLabelRaw, { allowBackfill });
-  const termLabel = session.termLabel;
-  const periodLabel = session.periodLabel;
-  updatePayload.report_term = termLabel;
-  updatePayload.report_period = periodLabel;
-  insertPayload.report_term = termLabel;
-  insertPayload.report_period = periodLabel;
-  if (termLabel && periodLabel) {
-    const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
-      .eq('term_label', termLabel).eq('academic_year', periodLabel).maybeSingle();
-    if (!canonicalTerm?.id) return NextResponse.json({ error: `No canonical academic term exists for ${periodLabel} ${termLabel}` }, { status: 400 });
-    updatePayload.term_id = canonicalTerm.id;
-    insertPayload.term_id = canonicalTerm.id;
+  // is an explicit backfill of an opened historical report or a duration-based cohort report.
+  let termLabel = termLabelRaw;
+  let periodLabel = periodLabelRaw;
+  if (!isCohortDurationReport) {
+    const { session } = resolveSessionForWrite(termLabelRaw, periodLabelRaw, { allowBackfill });
+    termLabel = session.termLabel;
+    periodLabel = session.periodLabel;
+    updatePayload.report_term = termLabel;
+    updatePayload.report_period = periodLabel;
+    insertPayload.report_term = termLabel;
+    insertPayload.report_period = periodLabel;
+    if (termLabel && periodLabel) {
+      const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+        .eq('term_label', termLabel).eq('academic_year', periodLabel).maybeSingle();
+      if (!canonicalTerm?.id) return NextResponse.json({ error: `No canonical academic term exists for ${periodLabel} ${termLabel}` }, { status: 400 });
+      updatePayload.term_id = canonicalTerm.id;
+      insertPayload.term_id = canonicalTerm.id;
+    }
+  } else {
+    const cohortLabel = termLabelRaw || String(updatePayload.course_duration ?? insertPayload.course_duration ?? '').trim() || 'Cohort Session';
+    termLabel = cohortLabel;
+    updatePayload.report_term = cohortLabel;
+    insertPayload.report_term = cohortLabel;
+    updatePayload.report_period = null;
+    insertPayload.report_period = null;
   }
 
   const keepHistoricalPlacement = Boolean(
@@ -427,7 +446,15 @@ export async function POST(request: NextRequest) {
         .eq('id', scopeStudentId)
         .maybeSingle();
       const studentSchoolId = scopeStudent?.school_id ?? null;
-      if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
+      if (caller.role === 'teacher') {
+        const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
+        const ownsScopeClass = !!(scopeStudent as any)?.class_id && classScope.classIds.includes(String((scopeStudent as any).class_id));
+        const ownsReportClass = !!existingRow?.class_id && classScope.classIds.includes(existingRow.class_id);
+        const authored = (existingReport as any).teacher_id === caller.id;
+        if (!ownsScopeClass && !ownsReportClass && !authored && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
+          return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
+        }
+      } else if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
         return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
       }
       if (studentSchoolId) {

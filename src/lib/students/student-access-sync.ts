@@ -1,10 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSessionBoundary } from '@/lib/academic/session-scope';
+import { inferCanonicalEnrollmentTypeForClass } from '@/lib/academic/enrollment-type';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
+import { generateTempPassword, normalizeRillcodTempPassword } from '@/lib/utils/password';
 
 const SPECIALIZED_RE = /\b(summer\s*school|bootcamp|coding\s*club|holiday|speciali[sz]ed|rillcod\s*academy)\b/i;
-const SPECIALIZED_TYPES = new Set(['bootcamp', 'summer_school', 'in_person', 'online', 'independent']);
+const SPECIALIZED_TYPES = new Set(['bootcamp', 'summer_school', 'in_person', 'online', 'independent', 'special']);
 
 /** Postgres CHECK constraint on students.status — only these values are accepted. */
 const STUDENT_STATUS = {
@@ -21,11 +23,6 @@ function isSpecializedContext(enrollmentType?: string | null, label?: string | n
   if (et && SPECIALIZED_TYPES.has(et)) return true;
   const text = String(label ?? '').trim();
   return Boolean(text && SPECIALIZED_RE.test(text));
-}
-
-function generateDefaultStudentPassword(): string {
-  const digits = Math.floor(1000 + Math.random() * 9000);
-  return `Rillcod#${digits}`;
 }
 
 export interface StudentAuthTarget {
@@ -91,10 +88,11 @@ export async function syncStudentAuthReadiness(
     try {
       const { data: userRes, error: getErr } = await authAdmin.getUserById(stu.id);
       const authUser = userRes?.user ?? null;
-      const archivedPw = archivedPasswordByEmail.get(cleanEmail) ?? null;
+      const rawArchivedPw = archivedPasswordByEmail.get(cleanEmail) ?? null;
+      const archivedPw = rawArchivedPw ? normalizeRillcodTempPassword(rawArchivedPw) : null;
 
       if (!authUser && getErr) {
-        const freshPassword = archivedPw && archivedPw.length >= 6 ? archivedPw : generateDefaultStudentPassword();
+        const freshPassword = archivedPw && archivedPw.length >= 6 ? archivedPw : generateTempPassword();
         const { error: createErr } = await authAdmin.createUser({
           id: stu.id,
           email: cleanEmail,
@@ -140,8 +138,11 @@ export async function syncStudentAuthReadiness(
       if (neverSignedIn) {
         if (archivedPw && archivedPw.length >= 6) {
           passwordToSync = archivedPw;
+          if (rawArchivedPw && rawArchivedPw !== archivedPw) {
+            shouldArchiveFresh = true;
+          }
         } else if (!archivedPw) {
-          passwordToSync = generateDefaultStudentPassword();
+          passwordToSync = generateTempPassword();
           shouldArchiveFresh = true;
         }
       }
@@ -260,8 +261,13 @@ export async function syncStudentAccessAndAllocation(
       : {};
     const targetSchoolId = cls.school_id ?? stu.school_id ?? null;
     const targetSchoolName = destSchoolName ?? stu.school_name ?? null;
-    const targetEnrollmentType = offeringEnrollmentType
-      || (!isSpecializedDest && targetSchoolId ? 'school' : stu.enrollment_type || 'school');
+    const targetEnrollmentType = inferCanonicalEnrollmentTypeForClass({
+      offeringEnrollmentType,
+      className: cls.name,
+      schoolId: targetSchoolId,
+      schoolName: targetSchoolName,
+      fallbackEnrollmentType: stu.enrollment_type,
+    });
 
     await admin
       .from('portal_users')

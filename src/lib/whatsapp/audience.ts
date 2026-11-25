@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalisePhone } from './send';
+import { classifyStudentSessionStatus } from '@/lib/academic/session-scope';
 
 export type ConsentCandidate = { userId: string; phone: string | null; optedIn: boolean; name?: string | null; source: 'parent' | 'student' | 'legacy_parent' };
 export type WhatsAppAudienceRecipient = { studentId: string; recipientUserId: string; phone: string; recipientName: string | null; source: ConsentCandidate['source'] };
@@ -17,15 +18,64 @@ export function chooseConsentedRecipient(candidates: ConsentCandidate[], convers
 }
 
 export async function resolveClassWhatsAppAudience(admin: SupabaseClient<any>, classId: string) {
-  const { data: students, error } = await admin.from('portal_users').select(`
-    id, full_name, phone, whatsapp_opt_in,
-    students!portal_users_student_id_fkey(id, parent_phone, parent_name, phone)
-  `).eq('class_id', classId).eq('role', 'student').or('is_active.eq.true,is_active.is.null');
+  const [{ data: cls }, { data: students, error }, { data: rosterRows }] = await Promise.all([
+    admin
+      .from('classes')
+      .select('id, academic_offerings:academic_offering_id(enrollment_type)')
+      .eq('id', classId)
+      .maybeSingle(),
+    admin.from('portal_users').select(`
+      id, full_name, phone, whatsapp_opt_in, is_active, created_at, metadata, enrollment_type,
+      students!portal_users_student_id_fkey(id, parent_phone, parent_name, phone)
+    `).eq('class_id', classId).eq('role', 'student').neq('is_deleted', true).or('is_active.eq.true,is_active.is.null'),
+    (admin as any)
+      .from('class_term_rosters')
+      .select('student_id, status, term_id, started_at, reinstated_at, updated_at')
+      .eq('class_id', classId),
+  ]);
   if (error) throw error;
 
-  const normalizedStudents = (students ?? []).map((student: any) => ({
+  const classEnrollmentType = (cls as any)?.academic_offerings?.enrollment_type ?? null;
+  const latestRosterByStudent = new Map<string, any>();
+  for (const r of (rosterRows ?? []) as any[]) {
+    if (!r?.student_id) continue;
+    const prev = latestRosterByStudent.get(r.student_id);
+    const rMs = Date.parse(r.reinstated_at || r.updated_at || r.started_at || '') || 0;
+    const pMs = Date.parse(prev?.reinstated_at || prev?.updated_at || prev?.started_at || '') || 0;
+    if (!prev || rMs >= pMs) latestRosterByStudent.set(r.student_id, r);
+  }
+
+  const confirmedRaw = (students ?? []).filter((s: any) => {
+    const ar = latestRosterByStudent.get(s.id) ?? null;
+    if (ar && ['withdrawn', 'ended', 'removed', 'completed'].includes(String(ar.status ?? '').toLowerCase())) {
+      return false;
+    }
+    const sessionStatus = classifyStudentSessionStatus(
+      { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null, enrollment_type: s.enrollment_type ?? null },
+      ar ? { status: ar.status ?? null, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null } : null,
+      { classEnrollmentType },
+    );
+    return sessionStatus === 'confirmed_current';
+  });
+
+  // Also resolve shadow `students` rows by `user_id` for intake-created students whose `portal_users.student_id` FK is null
+  const missingStudentRowUserIds = confirmedRaw
+    .filter((s: any) => !(Array.isArray(s.students) ? s.students[0] : s.students))
+    .map((s: any) => s.id);
+  const shadowByUserId = new Map<string, any>();
+  if (missingStudentRowUserIds.length > 0) {
+    const { data: shadowRows } = await admin
+      .from('students')
+      .select('id, user_id, parent_phone, parent_name, phone')
+      .in('user_id', missingStudentRowUserIds);
+    for (const row of shadowRows ?? []) {
+      if ((row as any).user_id) shadowByUserId.set((row as any).user_id, row);
+    }
+  }
+
+  const normalizedStudents = confirmedRaw.map((student: any) => ({
     ...student,
-    studentRow: Array.isArray(student.students) ? student.students[0] : student.students,
+    studentRow: (Array.isArray(student.students) ? student.students[0] : student.students) ?? shadowByUserId.get(student.id) ?? null,
   }));
   const studentRowIds = normalizedStudents.map((row: any) => row.studentRow?.id).filter(Boolean);
   const { data: links } = studentRowIds.length

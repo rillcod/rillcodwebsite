@@ -14,6 +14,7 @@ import { fetchWithTimeoutOrThrow } from '@/lib/async-timeout';
 import { ParentPortalSessionBanner, ParentChildEnrollmentBanner } from '@/components/reports/ReportSessionContextBanner';
 import { parseScoreAuthority, progressReportComplement, scoreAuthorityFromStanding } from '@/lib/reports/complement';
 import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
+import ModernReportCard from '@/components/reports/ModernReportCard';
 
 interface Child {
   id: string;
@@ -89,6 +90,8 @@ function fmtWaPhone(phone: string | null | undefined): string {
 function buildReportShareText(child: { full_name: string }, report: Report, copy = progressReportComplement('rillcod')): string {
   const board = hostSchoolScoreboard(report.engagement_metrics);
   const learning = hostLearningEvidence(report);
+  const classworkScore = report.engagement_metrics?.classwork_score != null ? Number(report.engagement_metrics.classwork_score) : null;
+  const assessmentScore = report.engagement_metrics?.assessment_score != null ? Number(report.engagement_metrics.assessment_score) : null;
   const schoolLines = board
     ? [
         ...board.papers.map((row) => `${row.label}: ${formatHostMark(row.mark)}`),
@@ -96,13 +99,17 @@ function buildReportShareText(child: { full_name: string }, report: Report, copy
         copy.learningCaption,
         learning.assignments != null ? `${copy.assignments}: ${learning.assignments}%` : null,
         learning.practical != null ? `${copy.practical}: ${learning.practical}%` : null,
+        learning.classwork != null ? `${copy.classwork}: ${learning.classwork}%` : null,
+        learning.attendance != null ? `${copy.attendance}: ${learning.attendance}%` : null,
       ]
     : [
         report.theory_score != null     ? `${copy.theory}: ${report.theory_score}%`      : null,
-        report.practical_score != null  ? `${copy.practical}: ${report.practical_score}%`   : null,
+        classworkScore != null          ? `${copy.classwork}: ${classworkScore}%`         : null,
+        report.practical_score != null  ? `${copy.practical}: ${report.practical_score}%` : null,
         report.attendance_score != null ? `${copy.assignments}: ${report.attendance_score}%` : null,
         report.participation_score != null ? `${copy.attendance}: ${report.participation_score}%` : null,
-        report.overall_score != null    ? `${copy.overallCaption}: ${report.overall_score}%`     : null,
+        assessmentScore != null         ? `${copy.assessment}: ${assessmentScore}%`       : null,
+        report.overall_score != null    ? `${copy.overallCaption}: ${report.overall_score}%` : null,
       ];
   const lines = [
     `📊 *${copy.documentTitle} — ${child.full_name}*`,
@@ -223,9 +230,11 @@ function ParentResultsContent() {
   const avgScore = scoredReports.length > 0
     ? Math.round(scoredReports.reduce((sum, report) => sum + Number(report.overall_score), 0) / scoredReports.length)
     : null;
+  const printableReport = reports.find(r => r.id === expandedId) ?? reports[0] ?? null;
 
   return (
-    <div className="space-y-6 mobile-page-root">
+    <>
+    <div className="space-y-6 mobile-page-root print:hidden">
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">{pageCopy.parentPageTitle}</h1>
         <p className="text-sm text-muted-foreground mt-1">{pageCopy.parentPageSubtitle}</p>
@@ -373,9 +382,11 @@ function ParentResultsContent() {
                                 }))
                               : [
                                   { label: 'T', value: report.theory_score, title: copy.theory, display: report.theory_score != null ? String(report.theory_score) : '—' },
+                                  { label: 'Cw', value: report.engagement_metrics?.classwork_score != null ? Number(report.engagement_metrics.classwork_score) : null, title: copy.classwork, display: report.engagement_metrics?.classwork_score != null ? String(report.engagement_metrics.classwork_score) : '—' },
                                   { label: 'P', value: report.practical_score, title: copy.practical, display: report.practical_score != null ? String(report.practical_score) : '—' },
                                   { label: 'As', value: report.attendance_score, title: copy.assignments, display: report.attendance_score != null ? String(report.attendance_score) : '—' },
                                   { label: 'At', value: report.participation_score, title: copy.attendance, display: report.participation_score != null ? String(report.participation_score) : '—' },
+                                  { label: 'Ex', value: report.engagement_metrics?.assessment_score != null ? Number(report.engagement_metrics.assessment_score) : null, title: copy.assessment, display: report.engagement_metrics?.assessment_score != null ? String(report.engagement_metrics.assessment_score) : '—' },
                                 ];
                             return rings.map(({ label, value, title, display }) => board ? (
                               <div key={label} title={title} className="min-w-20 rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-center">
@@ -456,10 +467,16 @@ function ParentResultsContent() {
                               return (
                                 <>
                             <ScoreBar label={copy.theory} value={report.theory_score} />
+                            {report.engagement_metrics?.classwork_score != null && (
+                              <ScoreBar label={copy.classwork} value={Number(report.engagement_metrics.classwork_score)} />
+                            )}
                             <ScoreBar label={copy.practical} value={report.practical_score} />
                             <ScoreBar label={copy.assignments} value={report.attendance_score} />
                             {report.participation_score != null && (
                               <ScoreBar label={copy.attendance} value={report.participation_score} />
+                            )}
+                            {report.engagement_metrics?.assessment_score != null && (
+                              <ScoreBar label={copy.assessment} value={Number(report.engagement_metrics.assessment_score)} />
                             )}
                                 </>
                               );
@@ -536,6 +553,19 @@ function ParentResultsContent() {
         </div>
       )}
     </div>
+    {selectedChild && printableReport && (
+      <div className="hidden print:block print:w-[794px] print:mx-auto" data-theme="light" style={{ background: '#ffffff', color: '#111827', colorScheme: 'light' }}>
+        <ModernReportCard
+          report={{
+            ...(printableReport as any),
+            student_name: (printableReport as any).student_name || selectedChild.full_name,
+            school_name: (printableReport as any).school_name || selectedChild.school_name,
+          }}
+          orgSettings={null}
+        />
+      </div>
+    )}
+    </>
   );
 }
 

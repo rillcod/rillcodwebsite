@@ -11,6 +11,7 @@ import {
 
 import { StudentReport, OrgSettings, parseEngagementMetrics } from '@/types/reports';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
+import { reportHasDisplayableScores } from '@/lib/reports/score';
 import { brandContact } from '@/config/brand';
 import { parseScoreAuthority, progressReportComplement } from '@/lib/reports/complement';
 import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
@@ -77,8 +78,23 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
         theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
         attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
-    const overall = board ? (board.total?.percent ?? 0) : (Number(report.overall_score) || computed);
+    const overall = board
+        ? (board.total?.percent ?? 0)
+        : (report.overall_score != null && Number.isFinite(Number(report.overall_score))
+            ? Math.round(Number(report.overall_score))
+            : computed);
     const grade = getWAECGrade(overall);
+    const showScores = reportHasDisplayableScores(report) || !!board;
+    const identityFields = [
+        { label: 'Programme', value: report.course_name || '—' },
+        ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '')
+            ? { label: 'Term', value: `${report.report_term || '—'}${report.report_period ? ` · ${report.report_period}` : ''}` }
+            : { label: 'Duration', value: (report.course_duration || report.report_term || '—') },
+        { label: 'Class', value: report.student_grade || '—' },
+        ...(report.section_class ? [{ label: 'Section', value: report.section_class }] : []),
+        ...(report.gender ? [{ label: 'Gender', value: report.gender.charAt(0).toUpperCase() + report.gender.slice(1) }] : []),
+        { label: 'School', value: report.school_name || '—' },
+    ];
 
     const metrics = [
         { label: `${copy.theory} (${weight('theory')}%)`, value: theory, bar: C.black },
@@ -209,17 +225,8 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     {report.student_name || 'Valued Learner'}
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${report.gender ? 5 : 4}, 1fr)`, gap: '16px', paddingTop: '8px' }}>
-                    {[
-                        { label: 'Programme', value: report.course_name   || 'STEM Synthesis' },
-                        ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '')
-                            ? { label: 'Term', value: `${report.report_term || '—'}${report.report_period ? ` · ${report.report_period}` : ''}` }
-                            : { label: 'Duration', value: (report.course_duration || report.report_term || 'S1-2024') },
-                        { label: 'Class',     value: report.student_grade || 'N/A'            },
-                        ...(report.section_class ? [{ label: 'Section', value: report.section_class }] : []),
-                        ...(report.gender ? [{ label: 'Gender', value: report.gender.charAt(0).toUpperCase() + report.gender.slice(1) }] : []),
-                        { label: 'School',    value: report.school_name   || 'Rillcod'        },
-                    ].map(f => (
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${identityFields.length > 4 ? 3 : identityFields.length}, 1fr)`, columnGap: '16px', rowGap: '8px', paddingTop: '8px' }}>
+                    {identityFields.map(f => (
                         <div key={f.label}>
                             <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '3px' }}>{f.label}</p>
                             <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1.2 }}>{f.value}</p>
@@ -229,6 +236,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             </div>
 
             {/* Performance Hub */}
+            {showScores ? (
             <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '16px', marginBottom: '10px' }}>
                 {/* Metric Bars */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -323,11 +331,11 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '7px', borderTop: `2px solid ${C.slate100}` }}>
                         <div style={{ padding: '8px 10px', background: C.slate50, borderLeft: `5px solid ${C.black}` }}>
                             <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Project Work</p>
-                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.projects_grade || 'OPTIMAL'}</p>
+                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.projects_grade || '—'}</p>
                         </div>
                         <div style={{ padding: '8px 10px', background: C.slate50, borderLeft: `5px solid ${C.accent}` }}>
                             <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Homework</p>
-                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.homework_grade || 'SUBMITTED'}</p>
+                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.homework_grade || '—'}</p>
                         </div>
                     </div>
                 </div>
@@ -347,6 +355,14 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     <p style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginTop: '8px', fontVariantNumeric: 'tabular-nums' }}>SCORE: {board ? formatHostMark(board.total) : `${overall}%`}</p>
                 </div>
             </div>
+            ) : (
+            <div style={{ position: 'relative', zIndex: 10, padding: '18px 20px', marginBottom: '10px', background: C.slate50, border: `2px solid ${C.black}`, textAlign: 'center' }}>
+                <p style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: C.accent, marginBottom: '6px' }}>Scores Pending</p>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: C.slate600, lineHeight: 1.5 }}>
+                    Assessment scores have not been finalized for this period yet.
+                </p>
+            </div>
+            )}
 
             {/* Qualitative Insights */}
             <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '6px' }}>
@@ -375,7 +391,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             </div>
 
             {/* Certification Decree */}
-            {(overall >= 45 || report.has_certificate) && (
+            {showScores && (overall >= 45 || report.has_certificate) && (
                 <div style={{ position: 'relative', zIndex: 10, marginBottom: '6px', padding: '8px 14px', background: C.white, borderTop: `3px solid ${C.black}`, borderBottom: `3px solid ${C.black}`, display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <TrophyIcon style={{ width: '30px', height: '30px', color: C.accent, flexShrink: 0 }} />
                     <div>
@@ -397,14 +413,19 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                     <div style={{ width: '160px', height: '2.5px', background: C.black, margin: '0 auto 6px' }} />
                     <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic' }}>{brandContact.signatory}</p>
                     <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{brandContact.signatoryRole}</p>
+                    {report.instructor_name && (
+                        <p style={{ fontSize: '8px', fontWeight: 900, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, fontStyle: 'italic' }}>
+                            {report.instructor_name}
+                        </p>
+                    )}
                 </div>
 
                 {/* Centre — bank account details (conditional) */}
                 {report.show_payment_notice && (
                     <div style={{ flex: 1, background: C.white, border: `2px solid ${C.black}`, padding: '10px 16px', textAlign: 'center', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                         <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.18em' }}>School Fees Payment Account</p>
-                        <p style={{ fontSize: '15px', fontWeight: 900, color: C.black, letterSpacing: '0.05em' }}>{brandContact.bankAccount.bankName} &nbsp;&middot;&nbsp; <span style={{ fontFamily: 'monospace' }}>{brandContact.bankAccount.accountNumber}</span></p>
-                        <p style={{ fontSize: '13px', fontWeight: 900, color: C.black }}>{brandContact.bankAccount.accountName.toUpperCase()}</p>
+                        <p style={{ fontSize: '14px', fontWeight: 900, color: C.black, letterSpacing: '0.03em' }}>₦{report.fee_amount || '30,000'} &nbsp;&middot;&nbsp; {brandContact.bankAccount.bankName} &nbsp;&middot;&nbsp; <span style={{ fontFamily: 'monospace' }}>{brandContact.bankAccount.accountNumber}</span></p>
+                        <p style={{ fontSize: '12px', fontWeight: 900, color: C.black }}>{brandContact.bankAccount.accountName.toUpperCase()}</p>
                         <p style={{ fontSize: '8px', fontWeight: 700, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Use student name as reference &nbsp;·&nbsp; Send proof to admin</p>
                     </div>
                 )}

@@ -203,12 +203,33 @@ function LoginContent() {
       if (!cleanEmail || !cleanPassword) {
         throw new Error('Please enter both your email/username and password.');
       }
-      const { data: authData, error: authError } =
+      let { data: authData, error: authError } =
         await withTimeoutOrThrow(
           supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword }),
           'Sign in is taking longer than expected. Check your connection and try again.',
           15_000,
         );
+
+      // Seamless transition between legacy `rillcod@XXXX` and canonical `Rillcod@XXXX`
+      // (also protects learners when mobile keyboards auto-capitalize or lower-case the first letter)
+      if (
+        authError
+        && /invalid login credentials/i.test(authError.message || '')
+        && /^[Rr]illcod@\d{4}$/.test(cleanPassword)
+      ) {
+        const altPassword = cleanPassword[0] === 'R'
+          ? `r${cleanPassword.slice(1)}`
+          : `R${cleanPassword.slice(1)}`;
+        const retryAuth = await withTimeoutOrThrow(
+          supabase.auth.signInWithPassword({ email: cleanEmail, password: altPassword }),
+          'Sign in is taking longer than expected. Check your connection and try again.',
+          15_000,
+        );
+        if (!retryAuth.error && retryAuth.data?.user) {
+          authData = retryAuth.data;
+          authError = null;
+        }
+      }
 
       if (authError) throw authError;
       if (!authData?.user) throw new Error("Sign in failed. Please try again.");

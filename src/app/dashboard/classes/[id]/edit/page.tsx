@@ -147,12 +147,12 @@ export default function EditClassPage() {
         loadData();
     }, [id, profile?.id, authLoading]);
 
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const canEditClass = profile?.role === 'admin' || profile?.role === 'teacher';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.name.trim() || !form.program_id || !form.school_id) {
-            setError('Class name, programme, and school are required.');
+        if (!form.name.trim() || !form.program_id) {
+            setError('Class name and programme are required.');
             return;
         }
         setSaving(true);
@@ -164,16 +164,18 @@ export default function EditClassPage() {
                 description: form.description.trim() || null,
                 program_id: form.program_id,
                 current_course_id: form.current_course_id || null,
-                teacher_id: form.teacher_id || null,
-                school_id: form.school_id || null,
                 max_students: parseInt(form.max_students) || 20,
                 status: form.status,
                 schedule: form.schedule.trim() || null,
+                term_id: form.term_id || null,
                 updated_at: new Date().toISOString(),
             };
+            if (profile?.role === 'admin') {
+                if (form.teacher_id) payload.teacher_id = form.teacher_id;
+                if (form.school_id) payload.school_id = form.school_id;
+            }
             if (form.start_date) payload.start_date = form.start_date;
             if (form.end_date) payload.end_date = form.end_date;
-            if (form.term_id) payload.term_id = form.term_id;
 
             const patchRes = await fetch(`/api/classes/${id}`, {
                 method: 'PATCH',
@@ -209,9 +211,9 @@ export default function EditClassPage() {
         </div>
     );
 
-    if (!isStaff) return (
+    if (!canEditClass) return (
         <div className="min-h-screen bg-background flex items-center justify-center mobile-page-root">
-            <p className="text-muted-foreground">Staff access required.</p>
+            <p className="text-muted-foreground">Only administrators and teachers can edit class settings.</p>
         </div>
     );
 
@@ -427,7 +429,7 @@ export default function EditClassPage() {
                     </div>
 
                     <button type="submit" disabled={saving}
-                        className="w-full py-4 bg-primary hover:bg-primary disabled:bg-muted disabled:text-muted-foreground text-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                        className="w-full py-4 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                         {saving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckIcon className="w-5 h-5" />}
                         {saving ? 'Saving changes…' : 'Save Class Settings'}
                     </button>

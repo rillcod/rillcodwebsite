@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { generateTempPassword } from './password';
+import { generateTempPassword, normalizeRillcodTempPassword } from './password';
 
 describe('temporary account passwords', () => {
-  it('uses the canonical rillcod@XXXX 4-digit format', () => {
-    expect(generateTempPassword()).toMatch(/^rillcod@\d{4}$/);
+  it('uses the canonical Rillcod@XXXX 4-digit format', () => {
+    expect(generateTempPassword()).toMatch(/^Rillcod@\d{4}$/);
+    expect(normalizeRillcodTempPassword('rillcod@4821')).toBe('Rillcod@4821');
   });
 
   it('produces varied passwords across a registration batch', () => {
@@ -11,4 +12,3 @@ describe('temporary account passwords', () => {
     expect(new Set(passwords).size).toBeGreaterThan(25);
   });
 });
-

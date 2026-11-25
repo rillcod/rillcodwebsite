@@ -572,7 +572,7 @@ export default function ClassesPage() {
                       </Link>
                     ) : (
                       <Link
-                        href={`/dashboard/results?class_id=${encodeURIComponent(cls.name)}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
+                        href={`/dashboard/results?class_id=${cls.id}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
                         className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-bold text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors"
                       >
                         <EyeIcon className="h-4 w-4 shrink-0 text-primary" />
@@ -589,34 +589,20 @@ export default function ClassesPage() {
                     >
                       Teach
                     </Link>
-                    {profile?.role !== 'school' && (
-                      <>
-                        <Link
-                          href={`/dashboard/cbt/new?class_id=${cls.id}${cls.current_course_id ? `&course_id=${cls.current_course_id}` : ''}${cls.program_id ? `&program_id=${cls.program_id}` : ''}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
-                          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 transition-colors"
-                        >
-                          + New CBT
-                        </Link>
-                        <Link
-                          href={`/dashboard/grades?class_id=${cls.id}`}
-                          className="rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        >
-                          Mark Work
-                        </Link>
-                      </>
-                    )}
                     <Link
                       href={`/dashboard/attendance?class_id=${cls.id}`}
                       className="rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       Attendance
                     </Link>
-                    <Link
-                      href={`/dashboard/results?class_id=${encodeURIComponent(cls.name)}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
-                      className="rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                      Reports
-                    </Link>
+                    {profile?.role !== 'school' && (
+                      <Link
+                        href={`/dashboard/results?class_id=${cls.id}${cls.school_id ? `&school_id=${cls.school_id}` : ''}`}
+                        className="rounded-lg border border-border/70 bg-muted/30 px-2.5 py-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        Reports
+                      </Link>
+                    )}
                   </div>
                 </div>
 

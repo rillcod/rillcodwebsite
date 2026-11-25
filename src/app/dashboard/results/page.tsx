@@ -38,6 +38,7 @@ import { AutoFillStatusBanner, NoScoresYetNotice, ResultStatusBadges } from '@/c
 import { ReportSessionContextBanner, SessionCalendarRollNotice } from '@/components/reports/ReportSessionContextBanner';
 import { sessionFromReport, sessionLabel } from '@/lib/reports/session-scope';
 import { getSessionBoundary, isStudentInCurrentSession } from '@/lib/academic/session-scope';
+import { isTermlySchoolCalendar, canonicalizeEnrollmentType } from '@/lib/academic/enrollment-type';
 import {
   rollRosterSessionIfStale,
   rosterSessionQueryFilters,
@@ -166,6 +167,8 @@ function ResultsPageInner() {
     const prefReportId = searchParams.get('report') || searchParams.get('report_id');
     const prefCourseId = searchParams.get('course_id');
     const prefSchoolName = searchParams.get('school') || '';
+    const prefSchoolId = searchParams.get('school_id') || '';
+    const prefClassParam = searchParams.get('class_id') || searchParams.get('class') || '';
     const { profile, loading: authLoading } = useAuth();
     const urlStudentSyncRef = useRef<string | null>(prefStudentId);
 
@@ -196,8 +199,9 @@ function ResultsPageInner() {
     // ── Filters ────────────────────────────────────────────────────────────────
     const [search, setSearch] = useState('');
     const [filterSchool, setFilterSchool] = useState(prefSchoolName);
-    useEffect(() => { setFilterSchool(prefSchoolName); }, [prefSchoolName]);
-    const [filterClass, setFilterClass] = useState('');
+    useEffect(() => { if (prefSchoolName) setFilterSchool(prefSchoolName); }, [prefSchoolName]);
+    const [filterClass, setFilterClass] = useState(prefClassParam);
+    useEffect(() => { if (prefClassParam) setFilterClass(prefClassParam); }, [prefClassParam]);
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'has' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
@@ -400,9 +404,10 @@ function ResultsPageInner() {
                     if (profile?.school_id) assignedSchoolIds = [profile.school_id];
                     if (profile?.school_name) assignedSchoolNames = [profile.school_name];
                 } else {
-                    // Teacher: fetch assigned schools via API + class-based lookup
-                    const [schRes, classRes] = await Promise.all([
+                    // Teacher: fetch assigned schools + accessible classes via API & direct teacher_id lookup
+                    const [schRes, apiClassesRes, classRes] = await Promise.all([
                         fetchJsonWithTimeout('/api/schools', { data: [] }, 'results assigned schools'),
+                        fetchJsonWithTimeout('/api/classes', { data: [] }, 'results accessible classes'),
                         withTimeout(
                             db.from('classes').select('id, school_id').eq('teacher_id', profile!.id),
                             { data: [], error: null },
@@ -414,11 +419,11 @@ function ResultsPageInner() {
                     assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
                     assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
 
-                    // Get class IDs teacher directly teaches — catches students via class_id
-                    teacherClassIds = (classRes.data ?? []).map((c: any) => c.id).filter(Boolean);
+                    const mergedClasses = [...(apiClassesRes.data ?? []), ...(classRes.data ?? [])];
+                    teacherClassIds = [...new Set(mergedClasses.map((c: any) => c.id).filter(Boolean))];
 
-                    // Pull school_ids from teacher's own classes (supplements API)
-                    (classRes.data ?? []).forEach((c: any) => {
+                    // Pull school_ids from accessible classes (supplements API)
+                    mergedClasses.forEach((c: any) => {
                         if (c.school_id && !assignedSchoolIds.includes(c.school_id))
                             assignedSchoolIds.push(c.school_id);
                     });
@@ -434,7 +439,7 @@ function ResultsPageInner() {
             // 2. Build student query — join classes + schools for proper display names
             // Page past PostgREST’s default 1000-row cap (and the old admin 10k / staff 400 caps).
             let finalQuery = db.from('portal_users')
-                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, grade, is_active, created_at, metadata, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, grade, enrollment_type, is_active, created_at, metadata, classes:class_id(id, name, teacher_id, academic_offerings:academic_offering_id(enrollment_type), teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
                 .eq('role', 'student')
                 .neq('is_deleted', true);
 
@@ -587,14 +592,20 @@ function ResultsPageInner() {
                 }));
             }
             const { classifyStudentSessionStatus } = await import('@/lib/academic/session-scope');
+            const cohortStudentIds = new Set<string>();
             const studsWithGrade = studs.map((s: any) => {
                 const ar = bestRosterByUserId[s.id] ?? null;
+                const classEnrollmentType = s.classes?.academic_offerings?.enrollment_type ?? null;
+                const effType = canonicalizeEnrollmentType(s.enrollment_type) ?? canonicalizeEnrollmentType(classEnrollmentType);
+                if (effType && !isTermlySchoolCalendar(effType)) {
+                    cohortStudentIds.add(s.id);
+                }
                 const session_status = classifyStudentSessionStatus(
-                    { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
+                    { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null, enrollment_type: s.enrollment_type ?? null },
                     ar
                         ? { status: ar.status, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null }
                         : null,
-                    { boundary: currentSessionBoundary },
+                    { boundary: currentSessionBoundary, classEnrollmentType },
                 );
                 return {
                     ...s,
@@ -618,22 +629,16 @@ function ResultsPageInner() {
 
                 const allReports: any[] = [];
                 const failedGradeIds = new Set<string>();
+                const rosterFilters = rosterSessionQueryFilters(
+                    confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
+                );
                 await Promise.all(chunks.map(async (chunk) => {
                     let reportsQuery = db.from('student_progress_reports')
-                        .select('student_id, course_id, overall_grade, is_published, updated_at, report_date, report_term, report_period')
+                        .select('id, student_id, course_id, overall_grade, is_published, updated_at, report_date, report_term, report_period, school_section')
                         .in('student_id', chunk);
 
                     if (prefCourseId) {
                         reportsQuery = reportsQuery.eq('course_id', prefCourseId) as typeof reportsQuery;
-                    }
-
-                    const rosterFilters = rosterSessionQueryFilters(
-                        confirmedPeriod ? { term: confirmedPeriod.term, period: confirmedPeriod.year } : null,
-                    );
-                    if (rosterFilters) {
-                        reportsQuery = reportsQuery
-                            .eq('report_term', rosterFilters.report_term)
-                            .eq('report_period', rosterFilters.report_period) as typeof reportsQuery;
                     }
 
                     // Do not filter by teacher_id — class-scoped students already limit the
@@ -645,7 +650,20 @@ function ResultsPageInner() {
                         'results report map chunk',
                     );
                     if (!error && data) {
-                        allReports.push(...data);
+                        const scoped = rosterFilters
+                            ? data.filter((r: any) => {
+                                if (r.report_term === rosterFilters.report_term && r.report_period === rosterFilters.report_period) {
+                                    return true;
+                                }
+                                // Non-termly cohort learners (special / in_person) use duration-based reports
+                                if (r.student_id && cohortStudentIds.has(r.student_id)) {
+                                    const sec = String(r.school_section ?? '').toLowerCase();
+                                    return !r.report_period || (sec !== '' && !['basic', 'secondary', 'unified', 'school'].includes(sec));
+                                }
+                                return false;
+                            })
+                            : data;
+                        allReports.push(...scoped);
                     } else {
                         chunk.forEach(id => failedGradeIds.add(id));
                     }
@@ -825,6 +843,36 @@ function ResultsPageInner() {
     const studentClassName = (s: any): string => s.classes?.name ?? s.section_class ?? '';
     const studentSchoolName = (s: any): string => s.schools?.name ?? s.school_name ?? '';
 
+    // Resolve incoming ?school_id=<uuid> or ?class_id=<uuid> query params into display names once roster loads
+    useEffect(() => {
+        if (students.length === 0) return;
+        if (prefSchoolId && !prefSchoolName) {
+            const matchedSchool = students.find(s => s.school_id === prefSchoolId);
+            const resolvedSchool = matchedSchool ? studentSchoolName(matchedSchool) : '';
+            if (resolvedSchool && filterSchool !== resolvedSchool) {
+                setFilterSchool(resolvedSchool);
+            }
+        }
+        if (filterClass) {
+            const byUuid = students.find(s => s.class_id === filterClass);
+            const resolvedClass = byUuid ? studentClassName(byUuid) : '';
+            if (resolvedClass && resolvedClass !== filterClass) {
+                setFilterClass(resolvedClass);
+            }
+        }
+    }, [students, prefSchoolId, prefSchoolName, filterClass]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const activeFilterClassId = (() => {
+        if (!filterClass) return prefClassParam || null;
+        const match = students.find(s => studentClassName(s) === filterClass || s.class_id === filterClass);
+        return match?.class_id ?? (prefClassParam || filterClass);
+    })();
+    const activeFilterSchoolId = (() => {
+        if (!filterSchool) return prefSchoolId || null;
+        const match = students.find(s => studentSchoolName(s) === filterSchool || s.school_id === filterSchool);
+        return match?.school_id ?? (prefSchoolId || filterSchool);
+    })();
+
     const distinctSchools = [...new Set(
         students.map(s => studentSchoolName(s)).filter(Boolean)
     )].sort() as string[];
@@ -855,13 +903,14 @@ function ResultsPageInner() {
     const filtered = students.filter(s => {
         const r = reportsMap[s.id];
         if (isViewingLiveSession && !showAllSessionsRoster) {
-            if (!r && !isStudentInCurrentSession(s as any, currentSessionBoundary)) return false;
+            const classEnrollmentType = (s as any).classes?.academic_offerings?.enrollment_type ?? null;
+            if (!r && !isStudentInCurrentSession(s as any, currentSessionBoundary, { classEnrollmentType })) return false;
         }
         const matchSearch = !search
             || (s.full_name ?? '').toLowerCase().includes(search.toLowerCase())
             || (s.email ?? '').toLowerCase().includes(search.toLowerCase());
-        const matchSchool = !filterSchool || studentSchoolName(s) === filterSchool;
-        const matchClass = !filterClass || studentClassName(s) === filterClass;
+        const matchSchool = !filterSchool || studentSchoolName(s) === filterSchool || s.school_id === filterSchool;
+        const matchClass = !filterClass || studentClassName(s) === filterClass || s.class_id === filterClass;
         const matchGrade = !filterGrade || ((s as any).grade_level ?? '') === filterGrade;
         const matchStatus =
             filterStatus === 'all' ? true :
@@ -956,13 +1005,35 @@ function ResultsPageInner() {
             alert('Choose and confirm an academic term before publishing reports.');
             return;
         }
-        if (!confirm('Validate and publish all ready drafts now? Incomplete drafts will stay unpublished and be reported back to you.')) return;
+        const targetStudents = selectedIds.size > 0
+            ? filtered.filter(s => selectedIds.has(s.id))
+            : filtered;
+        const draftReportIds = targetStudents
+            .map(s => reportsMap[s.id])
+            .filter(r => r && r.is_published === false && r.id)
+            .map(r => String(r.id));
+        if (draftReportIds.length === 0) {
+            alert('No unpublished draft reports in the current view to publish.');
+            return;
+        }
+        const scopeDesc = selectedIds.size > 0
+            ? 'selected'
+            : filterClass
+                ? `in ${filterClass}`
+                : filterSchool
+                    ? `in ${filterSchool}`
+                    : 'in the current view';
+        if (!confirm(`Validate and publish ${draftReportIds.length} draft report${draftReportIds.length !== 1 ? 's' : ''} (${scopeDesc}) now? Incomplete drafts will stay unpublished and be reported back to you.`)) return;
         setBulkPublishing(true);
         try {
             const res = await fetch('/api/progress-reports/bulk-publish', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ term: confirmedPeriod.term, report_period: confirmedPeriod.year }),
+                body: JSON.stringify({
+                    reportIds: draftReportIds,
+                    term: confirmedPeriod.term,
+                    report_period: confirmedPeriod.year,
+                }),
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to publish');
@@ -1520,8 +1591,8 @@ function ResultsPageInner() {
                         current="publish"
                         compact={staffPeriodReady}
                         studentId={selectedStudent?.id}
-                        classId={selectedReport?.class_id}
-                        schoolId={selectedReport?.school_id}
+                        classId={selectedReport?.class_id || activeFilterClassId}
+                        schoolId={selectedReport?.school_id || activeFilterSchoolId}
                         courseId={selectedReport?.course_id}
                         reportId={selectedReport?.id}
                         term={selectedReport?.report_term || confirmedPeriod?.term}
@@ -1626,13 +1697,13 @@ function ResultsPageInner() {
                                     ? learnerReportHref('write', {
                                         term: confirmedPeriod.term,
                                         period: confirmedPeriod.year,
-                                        classId: filterClass,
-                                        schoolId: filterSchool,
+                                        classId: activeFilterClassId,
+                                        schoolId: activeFilterSchoolId,
                                         from: 'results',
                                       })
                                     : learnerReportHref('write', {
-                                        classId: filterClass,
-                                        schoolId: filterSchool,
+                                        classId: activeFilterClassId,
+                                        schoolId: activeFilterSchoolId,
                                         from: 'results',
                                       })
                                 }
@@ -2789,7 +2860,7 @@ function ResultsPageInner() {
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={isSavingEdit || !editCourseName.trim()}
-                                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-foreground font-bold transition-all shadow-lg shadow-primary/30"
+                                className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-primary-foreground font-bold transition-all shadow-lg shadow-primary/30"
                             >
                                 {isSavingEdit ? 'Saving…' : 'Save Changes'}
                             </button>

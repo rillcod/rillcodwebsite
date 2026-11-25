@@ -27,6 +27,7 @@ import { findOrCreateStudentPortal } from '@/lib/students/provision';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { generateTempPassword } from '@/lib/utils/password';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
+import { inferCanonicalEnrollmentTypeForClass } from '@/lib/academic/enrollment-type';
 
 function previousFeederGrade(gradeKey?: string | null): string | null {
   const canon = canonicalGrade(gradeKey);
@@ -479,9 +480,28 @@ export async function GET(
   }
   const schoolClasses = Array.from(classBuckets.values()).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Include current class roster from the same single DB pull so the enroll workspace loads in 1 call (zero extra round-trips)
+  // Include current class roster from the same single DB pull, excluding soft-withdrawn class_term_rosters
+  const { data: classRosterRows } = await (admin as any)
+    .from('class_term_rosters')
+    .select('student_id, status, updated_at, reinstated_at, started_at')
+    .eq('class_id', classId);
+  const withdrawnRosterIds = new Set<string>();
+  const latestRosterByStudent = new Map<string, any>();
+  for (const rr of (classRosterRows ?? []) as any[]) {
+    if (!rr?.student_id) continue;
+    const prev = latestRosterByStudent.get(rr.student_id);
+    const rMs = Date.parse(rr.reinstated_at || rr.updated_at || rr.started_at || '') || 0;
+    const pMs = Date.parse(prev?.reinstated_at || prev?.updated_at || prev?.started_at || '') || 0;
+    if (!prev || rMs >= pMs) latestRosterByStudent.set(rr.student_id, rr);
+  }
+  for (const [sid, rr] of latestRosterByStudent.entries()) {
+    if (['withdrawn', 'ended', 'removed', 'completed'].includes(String(rr.status ?? '').toLowerCase())) {
+      withdrawnRosterIds.add(sid);
+    }
+  }
+
   const roster = (allData ?? [])
-    .filter((u: any) => u.class_id === classId && u.is_active !== false)
+    .filter((u: any) => u.class_id === classId && u.is_active !== false && !withdrawnRosterIds.has(u.id))
     .map((u: any) => ({
       id: u.id,
       full_name: u.full_name,
@@ -560,10 +580,12 @@ export async function POST(
   }
 
   // ── School boundary + ownership handled inside reinstateStudentToClass ──
+  const gradeAction = body?.gradeAction ?? body?.grade_action;
+  const requestedTargetGrade = body?.targetGrade ?? body?.target_grade;
   const directClaim =
     caller.role === 'admin'
     || body?.promoteToClassGrade === true
-    || Boolean(body?.gradeAction)
+    || Boolean(gradeAction)
     || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
   if (caller.role === 'teacher' && cls.teacher_id && cls.teacher_id !== caller.id && !directClaim) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
@@ -571,10 +593,10 @@ export async function POST(
 
   const { data: currentStu } = await admin.from('portal_users').select('grade').eq('id', studentId).maybeSingle();
   const targetGrade = resolveGradeForAction(
-    body?.gradeAction,
+    gradeAction,
     (currentStu as any)?.grade,
     cls as any,
-    body?.targetGrade,
+    requestedTargetGrade,
   );
 
   const reinstate = await reinstateStudentToClass(admin as any, {
@@ -665,10 +687,12 @@ export async function PUT(
   }
 
   // When promoting/demoting into a new grade/session or paste-claim is enabled, staff may claim directly.
+  const putGradeAction = body?.gradeAction ?? body?.grade_action;
+  const putTargetGrade = body?.targetGrade ?? body?.target_grade;
   const directClaim =
     caller.role === 'admin'
     || body?.promoteToClassGrade === true
-    || Boolean(body?.gradeAction)
+    || Boolean(putGradeAction)
     || Boolean(body?.studentActions)
     || (body?.forceClaim === true && await isPasteClaimEnabled(admin));
 
@@ -784,12 +808,12 @@ export async function PUT(
   const enrolledIds: string[] = [];
   let reportsTransferred = 0;
   for (const sid of allowedIds) {
-    const rowAction = perStudentActions[sid] || body?.gradeAction || (body?.promoteToClassGrade === false ? 'retain' : 'promote');
+    const rowAction = perStudentActions[sid] || putGradeAction || (body?.promoteToClassGrade === false ? 'retain' : 'promote');
     const resolvedGrade = resolveGradeForAction(
       rowAction,
       currentGradeById.get(sid),
       cls as any,
-      body?.targetGrade,
+      putTargetGrade,
     );
     const result = await reinstateStudentToClass(admin as any, {
       studentId: sid,
@@ -890,6 +914,9 @@ export async function DELETE(
   //  • Hard remove (body.hard === true): fully WIPE the student account (all FK children +
   //    students + portal_users + auth) — a complete admin-style delete, not just a detach.
   if (body.hard === true) {
+    if (caller.role !== 'admin') {
+      return NextResponse.json({ error: 'Only an administrator can permanently delete student accounts.' }, { status: 403 });
+    }
     // Only students actually in THIS class can be wiped from here (safety).
     const { data: inClass } = await admin
       .from('portal_users').select('id').in('id', ids).eq('class_id', classId).eq('role', 'student');
@@ -979,7 +1006,7 @@ export async function PATCH(
 
   const { data: cls } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key, qa_grade_band, schools(name)')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id, qa_grade_key, qa_grade_band, schools(name), academic_offerings(enrollment_type)')
     .eq('id', classId)
     .single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -995,7 +1022,9 @@ export async function PATCH(
   const body = await request.json().catch(() => ({}));
   const updates: Array<{ studentId: string; grade: string }> = Array.isArray(body?.updates)
     ? body.updates
-    : [];
+    : Array.isArray(body?.confirmUpdates)
+      ? body.confirmUpdates
+      : [];
   const withdrawIds: string[] = Array.isArray(body?.withdrawStudentIds)
     ? body.withdrawStudentIds.filter(Boolean)
     : [];
@@ -1026,6 +1055,12 @@ export async function PATCH(
       : [];
 
   const schoolName = (cls as any).schools?.name ?? null;
+  const classEnrollmentType = inferCanonicalEnrollmentTypeForClass({
+    academicOfferings: (cls as any).academic_offerings,
+    className: cls.name,
+    schoolId: cls.school_id,
+    schoolName,
+  });
   const nowIso = new Date().toISOString();
 
   // 1. Apply in-place grade confirmations / promotions on current roster members
@@ -1042,6 +1077,7 @@ export async function PATCH(
         grade: cleanedG,
         class_id: classId,
         section_class: cls.name,
+        enrollment_type: classEnrollmentType,
         is_active: true,
         updated_at: nowIso,
       })
@@ -1322,7 +1358,7 @@ export async function PATCH(
         classId,
         sectionClass: cls.name,
         grade: targetG,
-        enrollmentType: 'school',
+        enrollmentType: classEnrollmentType,
         batchLabel: inlineBatchLabel,
         classNameForArchive: cls.name,
       });

@@ -1,4 +1,5 @@
 import { liveAcademicSession } from '@/lib/reports/academic-period';
+import { isTermlySchoolCalendar } from '@/lib/academic/enrollment-type';
 
 export type StudentSessionStatus =
   | 'confirmed_current'
@@ -123,6 +124,7 @@ export function classifyStudentSessionStatus(
   student: {
     is_active?: boolean | null;
     created_at?: string | null;
+    enrollment_type?: string | null;
     metadata?: Record<string, any> | null;
   },
   rosterRow: {
@@ -134,6 +136,7 @@ export function classifyStudentSessionStatus(
   opts: {
     canonicalTermId?: string | null;
     boundary?: SessionBoundary;
+    classEnrollmentType?: string | null;
   } = {},
 ): StudentSessionStatus {
   const boundary = opts.boundary ?? getSessionBoundary();
@@ -141,6 +144,13 @@ export function classifyStudentSessionStatus(
 
   if (student.is_active === false || WITHDRAWN_ROSTER_STATUSES.has(rosterStatus)) {
     return 'withdrawn';
+  }
+
+  // Non-termly cohort pathways (`special` / `in_person` — e.g. Bootcamps, Summer School,
+  // Onsite Hub tracks) run on fixed cohort dates rather than 3-term school-year rollovers.
+  const effectiveEnrollmentType = opts.classEnrollmentType ?? student.enrollment_type ?? null;
+  if (effectiveEnrollmentType && !isTermlySchoolCalendar(effectiveEnrollmentType)) {
+    return 'confirmed_current';
   }
 
   const meta =
@@ -186,15 +196,21 @@ export function classifyStudentSessionStatus(
 export function isStudentInCurrentSession(
   student: {
     created_at?: string | null;
+    enrollment_type?: string | null;
     metadata?: Record<string, any> | null;
     session_status?: string | null;
   } | null | undefined,
   boundary: SessionBoundary = getSessionBoundary(),
+  opts: { classEnrollmentType?: string | null } = {},
 ): boolean {
   if (!student) return false;
   if (student.session_status === 'confirmed_current') return true;
   if (student.session_status === 'carryover_unconfirmed' || student.session_status === 'withdrawn') {
     return false;
+  }
+  const effectiveEnrollmentType = opts.classEnrollmentType ?? student.enrollment_type ?? null;
+  if (effectiveEnrollmentType && !isTermlySchoolCalendar(effectiveEnrollmentType)) {
+    return true;
   }
   const meta =
     student.metadata && typeof student.metadata === 'object'

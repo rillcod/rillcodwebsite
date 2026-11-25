@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { syncStudentAccessAndAllocation } from '@/lib/students/student-access-sync';
+import { classifyStudentSessionStatus } from '@/lib/academic/session-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export async function POST(
     const { id: classId } = await context.params;
     const { data: cls } = await admin
       .from('classes')
-      .select('id, name, school_id, teacher_id')
+      .select('id, name, school_id, teacher_id, academic_offerings:academic_offering_id(enrollment_type)')
       .eq('id', classId)
       .maybeSingle();
 
@@ -67,32 +68,43 @@ export async function POST(
       const [{ data: directRows }, { data: rosterRows }] = await Promise.all([
         admin
           .from('portal_users')
-          .select('id')
+          .select('id, is_active, created_at, metadata, enrollment_type')
           .eq('class_id', classId)
           .eq('role', 'student')
+          .neq('is_active', false)
           .or('is_deleted.is.null,is_deleted.eq.false'),
         (admin as any)
           .from('class_term_rosters')
-          .select('student_id, status')
+          .select('student_id, status, term_id, started_at, reinstated_at, updated_at')
           .eq('class_id', classId),
       ]);
 
-      const withdrawnInClass = new Set(
-        ((rosterRows ?? []) as Array<{ student_id?: string; status?: string }>)
-          .filter((r) => String(r.status ?? '').toLowerCase() === 'withdrawn')
-          .map((r) => r.student_id)
-          .filter(Boolean) as string[],
-      );
-      const activeInRoster = ((rosterRows ?? []) as Array<{ student_id?: string; status?: string }>)
-        .filter((r) => String(r.status ?? '').toLowerCase() === 'active')
-        .map((r) => r.student_id)
-        .filter(Boolean) as string[];
-
-      const combined = new Set<string>(activeInRoster);
-      for (const row of (directRows ?? []) as Array<{ id: string }>) {
-        if (!withdrawnInClass.has(row.id)) combined.add(row.id);
+      const classEnrollmentType = (cls as any)?.academic_offerings?.enrollment_type ?? null;
+      const latestRosterByStudent = new Map<string, any>();
+      for (const r of (rosterRows ?? []) as any[]) {
+        if (!r?.student_id) continue;
+        const prev = latestRosterByStudent.get(r.student_id);
+        const rMs = Date.parse(r.reinstated_at || r.updated_at || r.started_at || '') || 0;
+        const pMs = Date.parse(prev?.reinstated_at || prev?.updated_at || prev?.started_at || '') || 0;
+        if (!prev || rMs >= pMs) latestRosterByStudent.set(r.student_id, r);
       }
-      targetStudentIds = Array.from(combined);
+
+      // Only sync students currently placed in THIS class who are active and confirmed for the current session
+      // (never pull moved/historical students or silently confirm 3rd-term carryovers).
+      targetStudentIds = ((directRows ?? []) as any[])
+        .filter((row) => {
+          const ar = latestRosterByStudent.get(row.id) ?? null;
+          if (ar && ['withdrawn', 'ended', 'removed', 'completed'].includes(String(ar.status ?? '').toLowerCase())) {
+            return false;
+          }
+          const sessionStatus = classifyStudentSessionStatus(
+            { is_active: row.is_active, created_at: row.created_at ?? null, metadata: row.metadata ?? null, enrollment_type: row.enrollment_type ?? null },
+            ar ? { status: ar.status ?? null, term_id: ar.term_id ?? null, started_at: ar.reinstated_at ?? ar.started_at ?? null } : null,
+            { classEnrollmentType },
+          );
+          return sessionStatus === 'confirmed_current';
+        })
+        .map((row) => row.id);
     }
 
     const result = await syncStudentAccessAndAllocation(admin as any, {

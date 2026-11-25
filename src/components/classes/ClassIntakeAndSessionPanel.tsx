@@ -352,6 +352,7 @@ export function ClassIntakeAndSessionPanel({
   };
 
   const enterPassAroundMode = () => {
+    setInstantAccountMode(true);
     setPassAroundMode(true);
     setLastAddedName(null);
     // Automatically request true browser fullscreen on user gesture for distraction-free classroom pass-around
@@ -406,9 +407,70 @@ export function ClassIntakeAndSessionPanel({
     }
   };
 
-  const queueCandidateDirect = (cand: DirectoryCandidate, phoneOverride?: string, gradeOverride?: string) => {
+  const queueCandidateDirect = async (cand: DirectoryCandidate, phoneOverride?: string, gradeOverride?: string) => {
     const finalPhone = (phoneOverride !== undefined ? phoneOverride.trim() : cand.parent_phone || '') || '';
     const finalGrade = (gradeOverride?.trim()) || (lockGrade ? selectedGrade : (cand.grade || selectedGrade));
+
+    // In Pass-Around Kiosk with Instant Logins ON, commit immediately so the student sees their
+    // complete Student Details & Login Card (Username, Rillcod@XXXX Password & RC Code)!
+    if (passAroundMode && instantAccountMode) {
+      setSubmitting(true);
+      try {
+        const res = await fetch(`/api/classes/${classId}/intake`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'intake_add',
+            full_name: cand.full_name,
+            grade: finalGrade,
+            parent_phone: finalPhone || undefined,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not confirm student record.');
+        const st = json.student;
+        const cred: IssuedStudentLogin | null = st?.email
+          ? {
+              student_id: st.id,
+              full_name: st.full_name || cand.full_name,
+              grade: st.grade || finalGrade,
+              email: st.email,
+              password: st.password ?? null,
+              rc_code: st.rc_code || formatAccessCardCodeDisplay(accessCardCodeForStudent(st.id)),
+            }
+          : null;
+        if (cred) {
+          setIssuedLogins((prev) => [cred, ...prev.filter((p) => p.student_id !== cred.student_id)]);
+        }
+        setAcknowledgeCandidate(null);
+        setEditingAckPhone(false);
+        setAckPhoneOverride('');
+        setAckGradeOverride('');
+        setFullName('');
+        setParentPhone('');
+        setSelectedCandidate(null);
+        setShowSuggestions(false);
+        setPassAroundAddedCount((c) => c + 1);
+        setLastAddedName(st?.full_name || cand.full_name);
+        if (cred) {
+          setKioskNewLogin(cred);
+        } else {
+          setKioskCelebration(cand.full_name);
+          setTimeout(() => {
+            setKioskCelebration(null);
+            kioskInputRef.current?.focus();
+          }, 1150);
+        }
+        await onRefresh();
+        return;
+      } catch (err: any) {
+        toast.error(err?.message || 'Could not confirm student record.');
+        return;
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
     const alreadyQueued = pendingQueue.some(
       (item) =>
         item.matched_student_id === cand.id ||
@@ -876,9 +938,9 @@ export function ClassIntakeAndSessionPanel({
       if (exact) matched = exact;
     }
 
-    // If brand-new student (not in system) and instantAccountMode is enabled → create account immediately
-    // so their Username & Password are super visible to copy right away!
-    if (!matched && instantAccountMode) {
+    // In Pass-Around Kiosk (with instantAccountMode) OR brand-new student in Quick Add →
+    // commit immediately and display the student's full Username, Rillcod@XXXX Password & RC Code!
+    if ((passAroundMode && instantAccountMode) || (!matched && instantAccountMode)) {
       setSubmitting(true);
       try {
         const res = await fetch(`/api/classes/${classId}/intake`, {
@@ -886,7 +948,7 @@ export function ClassIntakeAndSessionPanel({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'intake_add',
-            full_name: trimmed,
+            full_name: matched?.full_name || trimmed,
             grade: selectedGrade,
             parent_phone: effectivePhone || undefined,
           }),
@@ -897,7 +959,7 @@ export function ClassIntakeAndSessionPanel({
         const cred: IssuedStudentLogin | null = st?.email
           ? {
               student_id: st.id,
-              full_name: st.full_name || trimmed,
+              full_name: st.full_name || matched?.full_name || trimmed,
               grade: st.grade || selectedGrade,
               email: st.email,
               password: st.password ?? null,
@@ -914,7 +976,7 @@ export function ClassIntakeAndSessionPanel({
         setLastAddedName(st?.full_name || trimmed);
         if (passAroundMode) {
           setPassAroundAddedCount((c) => c + 1);
-          if (cred && json.created) {
+          if (cred) {
             setKioskNewLogin(cred);
           } else {
             setKioskCelebration(st?.full_name || trimmed);
@@ -924,7 +986,7 @@ export function ClassIntakeAndSessionPanel({
             }, 1150);
           }
         } else {
-          toast.success(`${st?.full_name || trimmed} account created — login credentials shown below!`);
+          toast.success(`${st?.full_name || trimmed} saved — login credentials shown below!`);
           setTimeout(() => nameInputRef.current?.focus(), 20);
         }
         await onRefresh();
@@ -1462,13 +1524,16 @@ export function ClassIntakeAndSessionPanel({
                       <CheckCircleIcon className="w-7 h-7 sm:w-8 sm:h-8" />
                     </div>
                     <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-                      Account Created — Save Your Login Details
+                      Checked In · Student Login &amp; Class Details
                     </p>
                     <h2 className="text-xl sm:text-3xl font-black text-foreground">
                       {kioskNewLogin.full_name}
                     </h2>
+                    <p className="text-xs font-bold text-primary">
+                      {className}{kioskNewLogin.grade ? ` · ${kioskNewLogin.grade}` : ''} · {currentSession}
+                    </p>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      Copy or write down your username and password below before passing the device!
+                      Write down or copy your portal login details below before passing the device!
                     </p>
                   </div>
 
@@ -2415,7 +2480,77 @@ export function ClassIntakeAndSessionPanel({
                 </button>
               </div>
             </div>
-          </form>
+            </form>
+
+          {!passAroundMode && issuedLogins.length > 0 && (
+            <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.05] p-4 space-y-2.5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-emerald-800 dark:text-emerald-300">
+                    Newly Added Student Login Details ({issuedLogins.length})
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ready to sign in immediately at <code className="font-mono">/login</code> — no password reset required.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void copyTextQuick(
+                        issuedLogins
+                          .map(
+                            (c, i) =>
+                              `${i + 1}. ${c.full_name}${c.grade ? ` (${c.grade})` : ''} | Username: ${c.email} | Password: ${c.password || 'Saved'} | RC: ${c.rc_code}`,
+                          )
+                          .join('\n'),
+                        'All New Student Logins',
+                      )
+                    }
+                    className="min-h-9 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-black text-white"
+                  >
+                    Copy All ({issuedLogins.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIssuedLogins([])}
+                    className="min-h-9 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                {issuedLogins.map((c) => (
+                  <div key={`issued-${c.student_id}`} className="rounded-xl border border-border bg-card p-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-foreground truncate">
+                        {c.full_name}{c.grade ? ` · ${c.grade}` : ''}
+                      </p>
+                      <p className="text-[11px] font-mono text-foreground truncate">
+                        User: <strong>{c.email}</strong>
+                      </p>
+                      <p className="text-[11px] font-mono text-emerald-800 dark:text-emerald-300 truncate">
+                        Pass: <strong>{c.password || 'Existing'}</strong> · RC: <strong>{c.rc_code}</strong>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyTextQuick(
+                          `${c.full_name}\nUsername: ${c.email}\nPassword: ${c.password || ''}\nRC Code: ${c.rc_code}`,
+                          c.full_name,
+                        )
+                      }
+                      className="shrink-0 min-h-9 px-3 py-1.5 rounded-lg border border-border bg-muted hover:bg-muted/80 text-xs font-black text-foreground"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Teacher / Admin Post-Entry Smart Verification Queue (zero-lag collection → 1-click verify & save) */}
           {!passAroundMode && pendingQueue.length > 0 && (

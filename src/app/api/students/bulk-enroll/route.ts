@@ -96,7 +96,14 @@ export async function POST(request: Request) {
     // Optionally update school, class, and/or section_class on the student profiles
     if (school_id || class_id || section_class) {
       const profileUpdate: Record<string, string | null> = {};
-      if (class_id)      profileUpdate.class_id      = class_id;
+      if (class_id) {
+        profileUpdate.class_id = class_id;
+        const { resolveClassCanonicalEnrollmentType } = await import('@/lib/academic/enrollment-type');
+        profileUpdate.enrollment_type = await resolveClassCanonicalEnrollmentType(supabaseAdmin as any, class_id, {
+          schoolId: school_id ?? null,
+          className: section_class ?? null,
+        });
+      }
       if (section_class) profileUpdate.section_class = section_class;
 
       if (school_id) {

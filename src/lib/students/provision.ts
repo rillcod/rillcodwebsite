@@ -4,6 +4,10 @@ import { preparePortalStructure } from '@/lib/portal/ensure-structure';
 import { archivePortalCredential } from '@/lib/credentials/archive-registration-result';
 import { findAuthUserIdByEmail } from '@/lib/auth/list-all-users';
 import { cleanStudentName } from '@/lib/students/clean-name';
+import {
+  canonicalizeEnrollmentType,
+  resolveClassCanonicalEnrollmentType,
+} from '@/lib/academic/enrollment-type';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -116,6 +120,17 @@ export async function findOrCreateStudentPortal(
     placedAuthMeta = placed.authMetadata ?? placedAuthMeta;
   }
 
+  // Always resolve a valid canonical `enrollment_type` whenever `classId` (or `schoolId`)
+  // is present so `guard_portal_student_class_pathway` never rejects class assignment.
+  const resolvedEnrollmentType = classId
+    ? await resolveClassCanonicalEnrollmentType(admin, classId, {
+        schoolId,
+        schoolName,
+        className: sectionClass,
+        fallbackEnrollmentType: input.enrollmentType,
+      })
+    : (canonicalizeEnrollmentType(input.enrollmentType) ?? (schoolId ? 'school' : null));
+
   const buildPortalRow = (id: string, extras?: Record<string, unknown>) => ({
     id,
     email,
@@ -126,7 +141,7 @@ export async function findOrCreateStudentPortal(
     class_id: classId,
     section_class: sectionClass,
     grade: input.grade ?? null,
-    enrollment_type: input.enrollmentType ?? null,
+    enrollment_type: resolvedEnrollmentType,
     gender: input.gender ?? null,
     date_of_birth: input.dateOfBirth ?? null,
     phone: input.phone ?? null,
@@ -163,7 +178,7 @@ export async function findOrCreateStudentPortal(
     if (classId) patch.class_id = classId;
     if (sectionClass) patch.section_class = sectionClass;
     if (input.grade !== undefined) patch.grade = input.grade;
-    if (input.enrollmentType) patch.enrollment_type = input.enrollmentType;
+    if (resolvedEnrollmentType) patch.enrollment_type = resolvedEnrollmentType;
     if (!preserve) {
       patch.full_name = fullName;
       if (input.phone !== undefined) patch.phone = input.phone;

@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
       fetchAllSupabaseRows<any>((from, to) =>
         admin
           .from('portal_users')
-          .select('id, class_id, is_active, created_at, metadata')
+          .select('id, class_id, is_active, created_at, metadata, enrollment_type')
           .eq('role', 'student')
           .eq('is_active', true)
           .eq('is_deleted', false)
@@ -187,6 +187,9 @@ export async function GET(request: NextRequest) {
     const directStudents = directStudentsRes.data ?? [];
     const allRosters = allRostersRes.data ?? [];
     const canonicalTermId = (canonicalTerm as { id?: string } | null)?.id ?? null;
+    const classEnrById = new Map<string, string | null>(
+      classData.map((c: any) => [c.id, c.academic_offerings?.enrollment_type ?? null]),
+    );
     const rosterByKey = new Map<string, any>();
     for (const r of allRosters) {
       const k = `${r.class_id}::${r.student_id}`;
@@ -200,7 +203,7 @@ export async function GET(request: NextRequest) {
       if (!s.class_id) return;
       const ar = rosterByKey.get(`${s.class_id}::${s.id}`) ?? null;
       const status = classifyStudentSessionStatus(
-        { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null },
+        { is_active: s.is_active, created_at: s.created_at ?? null, metadata: s.metadata ?? null, enrollment_type: s.enrollment_type ?? null },
         ar
           ? {
               status: ar.status,
@@ -209,7 +212,7 @@ export async function GET(request: NextRequest) {
               reinstated_at: ar.reinstated_at ?? null,
             }
           : null,
-        { canonicalTermId, boundary },
+        { canonicalTermId, boundary, classEnrollmentType: classEnrById.get(s.class_id) ?? null },
       );
       if (status === 'confirmed_current') {
         confirmedMap[s.class_id] = (confirmedMap[s.class_id] ?? 0) + 1;

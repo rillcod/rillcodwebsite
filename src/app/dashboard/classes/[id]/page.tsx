@@ -782,7 +782,7 @@ export default function ClassDetailPage() {
       if (!res.ok) throw new Error(json?.error || 'Could not update credentials');
       setCredSheetNotice(
         json.fixed_count > 0
-          ? `Updated ${json.fixed_count} student account${json.fixed_count === 1 ? '' : 's'} with clean firstname123@rillcod.com & rillcod@XXXX credentials.`
+          ? `Updated ${json.fixed_count} student account${json.fixed_count === 1 ? '' : 's'} with clean firstname123@rillcod.com & Rillcod@XXXX credentials.`
           : 'All students in this class already have clean emails & passwords ready to print.',
       );
       await loadCredSheet();
@@ -879,10 +879,13 @@ export default function ClassDetailPage() {
   };
 
   const promoteAllConfirmGrades = () => {
+    const hasUnconfirmed = currentTermStudents.some((s: any) => s.session_status !== 'confirmed_current');
     setConfirmGrades((prev) => {
       const next = { ...prev };
       for (const s of currentTermStudents) {
         if (!confirmKeepIds.has(s.id)) continue;
+        // Avoid double-promoting students who are already confirmed in the current session
+        if (hasUnconfirmed && (s as any).session_status === 'confirmed_current') continue;
         const cur = next[s.id] || canonicalGrade(s.grade) || s.grade || '';
         const stepped = nextStepGradeLabel(cur);
         if (stepped) next[s.id] = stepped;
@@ -2393,7 +2396,7 @@ export default function ClassDetailPage() {
                               type="button"
                               onClick={() => {
                                 printBlankClassMarkSheet({
-                                  students: currentTermStudents,
+                                  students: confirmedCurrentStudents.length > 0 ? confirmedCurrentStudents : currentTermStudents,
                                   className: cls?.name,
                                   courseName: cls?.programs?.name,
                                   schoolName: cls?.schools?.name,
@@ -2525,7 +2528,7 @@ export default function ClassDetailPage() {
                                     onClick={() => {
                                       setShowRosterActions(false);
                                       printBlankClassMarkSheet({
-                                        students: currentTermStudents,
+                                        students: confirmedCurrentStudents.length > 0 ? confirmedCurrentStudents : currentTermStudents,
                                         className: cls?.name,
                                         courseName: cls?.programs?.name,
                                         schoolName: cls?.schools?.name,
@@ -4814,7 +4817,7 @@ export default function ClassDetailPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                          {enrollments.map(enr => (
+                          {(confirmedCurrentStudents.length > 0 ? confirmedCurrentStudents : enrollments).map(enr => (
                             <tr key={enr.id} className="hover:bg-muted/30 transition-colors group border-b border-border">
                               <td className="px-5 py-3 sticky left-0 bg-card z-10 border-r border-border group-hover:bg-muted/30 transition-colors">
                                 <div className="flex items-center gap-3">

@@ -315,7 +315,7 @@ export default function ClassCardsPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || 'Could not update credentials');
       if (json.fixed_count > 0) {
-        toast.success(`Updated ${json.fixed_count} student account${json.fixed_count === 1 ? '' : 's'} to name123@rillcod.com + rillcod@XXXX`);
+        toast.success(`Updated ${json.fixed_count} student account${json.fixed_count === 1 ? '' : 's'} to name123@rillcod.com + Rillcod@XXXX`);
       } else {
         toast.message('All selected accounts already use the clean pattern.');
       }
@@ -492,7 +492,7 @@ export default function ClassCardsPage() {
                 : `${missingPasswordRows.length} student${missingPasswordRows.length === 1 ? '' : 's'} have no archived password yet`}
             </p>
             <p className="text-muted-foreground">
-              Standardize to <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">rillcod@XXXX</code> so every student&apos;s username, password, and RC print cleanly on one sheet.
+              Standardize to <code className="font-mono">firstname123@rillcod.com</code> + <code className="font-mono">Rillcod@XXXX</code> so every student&apos;s username, password, and RC print cleanly on one sheet.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

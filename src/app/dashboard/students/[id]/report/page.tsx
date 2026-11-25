@@ -13,13 +13,15 @@ import {
 } from '@/lib/icons';
 import Link from 'next/link';
 import { brandContact } from '@/config/brand';
+import { getWAECGrade } from '@/lib/grading';
 
 function letterGrade(pct: number) {
-  if (pct >= 90) return { letter: 'A', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
-  if (pct >= 80) return { letter: 'B', color: 'text-primary', bg: 'bg-primary/20    border-primary/30' };
-  if (pct >= 70) return { letter: 'C', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/20   border-amber-500/30' };
-  if (pct >= 60) return { letter: 'D', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' };
-  return { letter: 'F', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/20    border-rose-500/30' };
+  const w = getWAECGrade(pct);
+  if (pct >= 75) return { letter: w.code, label: w.label, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
+  if (pct >= 65) return { letter: w.code, label: w.label, color: 'text-primary', bg: 'bg-primary/20 border-primary/30' };
+  if (pct >= 50) return { letter: w.code, label: w.label, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-500/20 border-sky-500/30' };
+  if (pct >= 45) return { letter: w.code, label: w.label, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/20 border-amber-500/30' };
+  return { letter: w.code, label: w.label, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/20 border-rose-500/30' };
 }
 
 function RingProgress({ pct, size = 88, stroke = 9, color = '#8b5cf6' }: {
@@ -47,6 +49,7 @@ export default function StudentProgressReportPage() {
   const [student, setStudent] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [progressReports, setProgressReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,7 +79,7 @@ export default function StudentProgressReportPage() {
         const portalUserId = studentData?.user_id;
         const { resolveAssignmentTermId, filterByAssignmentSession } = await import('@/lib/assignments/session');
         const liveTermId = await resolveAssignmentTermId(supabase as any, {});
-        const [subRes, enrRes] = await Promise.allSettled([
+        const [subRes, enrRes, repRes] = await Promise.allSettled([
           portalUserId
             ? supabase.from('assignment_submissions')
                 .select(`id, grade, status, submitted_at, graded_at, feedback,
@@ -93,8 +96,15 @@ export default function StudentProgressReportPage() {
             : supabase.from('student_enrollments')
                 .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
                 .eq('student_id', studentId),
+          portalUserId
+            ? supabase.from('student_progress_reports')
+                .select('id, course_name, report_term, report_period, overall_score, overall_grade, is_published, updated_at')
+                .eq('student_id', portalUserId)
+                .order('updated_at', { ascending: false })
+            : Promise.resolve({ data: [] as any[], error: null }),
         ]);
         if (!cancelled) {
+          setProgressReports(repRes.status === 'fulfilled' ? (repRes.value.data ?? []) : []);
           setSubmissions(
             subRes.status === 'fulfilled'
               ? filterByAssignmentSession((subRes.value.data ?? []) as any[], liveTermId)
@@ -177,10 +187,30 @@ export default function StudentProgressReportPage() {
             </div>
             <h1 className="text-3xl font-extrabold mt-0.5">{student.full_name}</h1>
           </div>
-          <button onClick={() => window.print()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-foreground text-sm font-bold rounded-xl transition-all">
-            <PrinterIcon className="w-4 h-4" /> Print / Save PDF
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {student.user_id && (
+              <>
+                <Link
+                  href={`/dashboard/results?student=${student.user_id}`}
+                  className="px-4 py-2.5 bg-card border border-border hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all"
+                >
+                  Official Report Cards ({progressReports.length})
+                </Link>
+                {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                  <Link
+                    href={`/dashboard/reports/builder?student=${student.user_id}`}
+                    className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    Write / Edit Report Card
+                  </Link>
+                )}
+              </>
+            )}
+            <button onClick={() => window.print()}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold rounded-xl transition-all">
+              <PrinterIcon className="w-4 h-4" /> Print / Save PDF
+            </button>
+          </div>
         </div>
 
         {/* ── Rillcod branded letterhead (print-only) ── */}
@@ -278,7 +308,7 @@ export default function StudentProgressReportPage() {
         {/* ── Student info card ── */}
         <div className="bg-card shadow-sm border border-border rounded-xl p-6 print:border-border print:bg-card">
           <div className="flex items-start gap-5 flex-wrap">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-2xl font-black text-foreground flex-shrink-0 print:hidden">
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-2xl font-black text-primary-foreground flex-shrink-0 print:hidden">
               {(student.full_name ?? 'S')[0]}
             </div>
             <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm">
@@ -331,6 +361,50 @@ export default function StudentProgressReportPage() {
             </div>
           ))}
         </div>
+
+        {/* ── Official Report Cards ── */}
+        {progressReports.length > 0 && (
+          <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden print:border-border">
+            <div className="p-5 border-b border-border print:border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrophyIcon className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-foreground print:text-black">Official Term Report Cards</h3>
+              </div>
+              <span className="text-xs text-muted-foreground">{progressReports.length} record{progressReports.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="divide-y divide-border">
+              {progressReports.map((r: any) => (
+                <div key={r.id} className="p-4 flex items-center justify-between gap-4 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground print:text-black truncate">{r.course_name || 'Progress Report'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {[r.report_term, r.report_period].filter(Boolean).join(' · ')}
+                      {' · '}
+                      <span className={r.is_published ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-amber-600 dark:text-amber-400 font-bold'}>
+                        {r.is_published ? 'Published' : 'Draft'}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {r.overall_grade && (
+                      <span className="font-black text-base text-foreground print:text-black">
+                        {r.overall_grade}{r.overall_score != null ? ` (${r.overall_score}%)` : ''}
+                      </span>
+                    )}
+                    {student.user_id && (
+                      <Link
+                        href={`/dashboard/results?student=${student.user_id}&report=${r.id}`}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-bold text-primary print:hidden"
+                      >
+                        Open
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Enrollments ── */}
         {enrollments.length > 0 && (
@@ -466,24 +540,26 @@ export default function StudentProgressReportPage() {
           </div>
         </div>
 
-        {/* ── Certificate footer (for print) ── */}
-        <div className="hidden print:block border-2 border-primary rounded-xl p-8 text-center mt-8">
-          <h4 className="text-xl font-bold text-primary">CERTIFICATE OF PROGRESS</h4>
-          <p className="text-foreground/80 mt-2 leading-relaxed">
-            This certifies that <strong>{student.full_name}</strong> has completed the progress review
-            for the current term at Rillcod Technologies.
-          </p>
-          <div className="flex justify-center gap-16 mt-8">
-            <div className="text-center">
-              <div className="w-32 border-b border-border/80 mb-1" />
-              <p className="text-xs text-muted-foreground">Instructor's Signature</p>
-            </div>
-            <div className="text-center">
-              <div className="w-32 border-b border-border/80 mb-1" />
-              <p className="text-xs text-muted-foreground">Date</p>
+        {/* ── Certificate footer (for print, only when passing WAEC D7 >= 45%) ── */}
+        {graded.length > 0 && avgPct >= 45 && (
+          <div className="hidden print:block border-2 border-primary rounded-xl p-8 text-center mt-8">
+            <h4 className="text-xl font-bold text-primary">CERTIFICATE OF PROGRESS</h4>
+            <p className="text-foreground/80 mt-2 leading-relaxed">
+              This certifies that <strong>{student.full_name}</strong> has completed the progress review
+              for the current term at Rillcod Technologies.
+            </p>
+            <div className="flex justify-center gap-16 mt-8">
+              <div className="text-center">
+                <div className="w-32 border-b border-border/80 mb-1" />
+                <p className="text-xs text-muted-foreground">Instructor's Signature</p>
+              </div>
+              <div className="text-center">
+                <div className="w-32 border-b border-border/80 mb-1" />
+                <p className="text-xs text-muted-foreground">Date</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>

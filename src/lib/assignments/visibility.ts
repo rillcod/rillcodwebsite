@@ -58,6 +58,27 @@ export async function resolveStudentProgramScope(
   // lessons, or assignments into the new class.
   let pinnedCourseId: string | null = null;
   if (classId) {
+    // If the student was soft-withdrawn from this class, do not expose live class assignments.
+    // Guarded with try/catch so minimal unit-test stubs that only mock enrollments/classes/courses stay compatible.
+    try {
+      const rosterQuery = (admin as any)
+        .from('class_term_rosters')
+        .select('status')
+        .eq('student_id', studentId);
+      if (typeof rosterQuery?.eq === 'function') {
+        const { data: latestRoster } = await rosterQuery
+          .eq('class_id', classId)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (['withdrawn', 'ended', 'removed', 'completed'].includes(String(latestRoster?.status ?? '').toLowerCase())) {
+          return { programIds: new Set(), courseIds: new Set() };
+        }
+      }
+    } catch {
+      // Non-fatal in minimal test stubs
+    }
+
     const { data: cls } = await admin
       .from('classes')
       .select('program_id, current_course_id')

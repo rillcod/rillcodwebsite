@@ -48,11 +48,16 @@ async function teacherCanOwnSchool(teacherId: string, schoolId: string): Promise
  * - teacher: assigned to the class's school via teacher_schools OR primary school_id
  * - school:  class belongs to their school
  */
-async function callerCanManageClass(caller: Caller, classSchoolId: string | null): Promise<boolean> {
+async function callerCanManageClass(
+  caller: Caller,
+  classSchoolId: string | null,
+  classTeacherId?: string | null,
+): Promise<boolean> {
   if (caller.role === 'admin') return true;
+  if (caller.role === 'teacher' && classTeacherId && caller.id === classTeacherId) return true;
   if (!classSchoolId) {
-    // Class has no school — only admin can manage it
-    return caller.role === 'admin';
+    // Class has no school — only admin or the assigned class teacher can manage it
+    return false;
   }
   if (caller.role === 'school') {
     return caller.school_id === classSchoolId;
@@ -98,7 +103,7 @@ export async function GET(
   // ── Access guard ──────────────────────────────────────────────────────────
   if (caller.role !== 'admin') {
     const classSchoolId = (data as any).school_id ?? null;
-    const canAccess = await callerCanManageClass(caller, classSchoolId);
+    const canAccess = await callerCanManageClass(caller, classSchoolId, (data as any).teacher_id ?? null);
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied: class is outside your school scope' }, { status: 403 });
     }
@@ -107,10 +112,11 @@ export async function GET(
   // Enrich with confirmed_students and unconfirmed_students so the class header
   // and Students tab card show accurate counts immediately even before the full
   // roster tab is opened.
+  const boundary = getSessionBoundary();
   const [stuRes, rosterRes, termRes] = await Promise.all([
     admin
       .from('portal_users')
-      .select('id, is_active, created_at, metadata')
+      .select('id, is_active, created_at, metadata, enrollment_type')
       .eq('class_id', id)
       .eq('role', 'student')
       .neq('is_active', false)
@@ -119,11 +125,16 @@ export async function GET(
       .from('class_term_rosters')
       .select('student_id, class_id, status, term_id, started_at, ended_at, reinstated_at')
       .eq('class_id', id),
-    admin.from('academic_terms').select('id').eq('is_current', true).limit(1).maybeSingle(),
+    admin
+      .from('academic_terms')
+      .select('id')
+      .eq('term_label', boundary.termLabel)
+      .eq('academic_year', boundary.periodLabel)
+      .maybeSingle(),
   ]);
 
   const canonicalTermId = (termRes.data as { id?: string } | null)?.id ?? null;
-  const boundary = getSessionBoundary();
+  const classEnrollmentType = (data as any)?.academic_offerings?.enrollment_type ?? null;
   const rosterByStudent = new Map<string, any>();
   for (const r of (rosterRes.data ?? []) as any[]) {
     if (!r?.student_id) continue;
@@ -146,7 +157,7 @@ export async function GET(
             started_at: ar.reinstated_at ?? ar.started_at ?? null,
           }
         : null,
-      { canonicalTermId, boundary },
+      { canonicalTermId, boundary, classEnrollmentType },
     );
     if (status === 'confirmed_current') confirmedStudents += 1;
     else if (status === 'carryover_unconfirmed') unconfirmedStudents += 1;
@@ -155,6 +166,7 @@ export async function GET(
   return NextResponse.json({
     data: {
       ...data,
+      current_students: confirmedStudents,
       confirmed_students: confirmedStudents,
       unconfirmed_students: unconfirmedStudents,
     },
@@ -189,7 +201,7 @@ export async function PATCH(
 
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-  const canManage = await callerCanManageClass(caller, cls.school_id ?? null);
+  const canManage = await callerCanManageClass(caller, cls.school_id ?? null, cls.teacher_id ?? null);
   if (!canManage) {
     return NextResponse.json(
       { error: 'Access denied: you are not assigned to the school this class belongs to' },
@@ -198,18 +210,18 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  if (('teacher_id' in body && typeof body.teacher_id !== 'string') || ('school_id' in body && typeof body.school_id !== 'string')) {
+  if (('teacher_id' in body && body.teacher_id !== cls.teacher_id && typeof body.teacher_id !== 'string') || ('school_id' in body && body.school_id !== cls.school_id && typeof body.school_id !== 'string')) {
     return NextResponse.json({ error: 'Class school and primary owner cannot be cleared' }, { status: 400 });
   }
-  if ('teacher_id' in body && caller.role !== 'admin') {
+  if ('teacher_id' in body && body.teacher_id && body.teacher_id !== cls.teacher_id && caller.role !== 'admin') {
     return NextResponse.json({ error: 'Only an admin can transfer primary class ownership' }, { status: 403 });
   }
-  const effectiveSchoolId = typeof body.school_id === 'string' ? body.school_id : cls.school_id;
-  const effectiveTeacherId = typeof body.teacher_id === 'string' ? body.teacher_id : cls.teacher_id;
-  if (!effectiveSchoolId || !effectiveTeacherId) {
-    return NextResponse.json({ error: 'Every class requires a school and a primary teacher owner' }, { status: 400 });
+  const effectiveSchoolId = typeof body.school_id === 'string' && body.school_id ? body.school_id : cls.school_id;
+  const effectiveTeacherId = typeof body.teacher_id === 'string' && body.teacher_id ? body.teacher_id : cls.teacher_id;
+  if (!effectiveTeacherId) {
+    return NextResponse.json({ error: 'Every class requires a primary teacher owner' }, { status: 400 });
   }
-  if (('teacher_id' in body || 'school_id' in body) && !(await teacherCanOwnSchool(effectiveTeacherId, effectiveSchoolId))) {
+  if (effectiveSchoolId && (('teacher_id' in body && body.teacher_id !== cls.teacher_id) || ('school_id' in body && body.school_id !== cls.school_id)) && !(await teacherCanOwnSchool(effectiveTeacherId, effectiveSchoolId))) {
     return NextResponse.json({ error: 'Class owner must be an active teacher assigned to the selected school' }, { status: 400 });
   }
 
@@ -294,6 +306,18 @@ export async function PATCH(
       .eq('role', 'student');
   }
 
+  // Keep academic_offering_id / academic_offering_period_id aligned when spine fields change
+  if ('program_id' in allowed || 'term_id' in allowed || 'school_id' in allowed || 'enrollment_type' in body) {
+    try {
+      await (admin as any).rpc('ensure_class_academic_pathway', {
+        p_class_id: id,
+        p_enrollment_type: typeof body.enrollment_type === 'string' ? body.enrollment_type : null,
+      });
+    } catch {
+      // Non-fatal: class settings already saved
+    }
+  }
+
   return NextResponse.json({ success: true });
 }
 
@@ -324,7 +348,7 @@ export async function DELETE(
 
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-  const canManage = await callerCanManageClass(caller, cls.school_id ?? null);
+  const canManage = await callerCanManageClass(caller, cls.school_id ?? null, cls.teacher_id ?? null);
   if (!canManage) {
     return NextResponse.json(
       { error: 'Access denied: you are not assigned to the school this class belongs to' },

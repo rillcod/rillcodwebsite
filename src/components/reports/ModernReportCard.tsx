@@ -135,10 +135,22 @@ export default function ModernReportCard({ report, orgSettings }: {
         theory * weights.theory + classwork * weights.classwork + practical * weights.practical +
         assignments * weights.assignments + attendance * weights.attendance + assessment * weights.assessment
     );
-    const overall = board ? (board.total?.percent ?? 0) : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
+    const overall = board
+        ? (board.total?.percent ?? 0)
+        : (report.overall_score != null && Number.isFinite(Number(report.overall_score))
+            ? Math.round(Number(report.overall_score))
+            : computed);
     const grade = waecGrade(overall);
-    const showCertificate = overall >= 45 || report.has_certificate === true;
     const showScores = reportHasDisplayableScores(report) || !!board;
+    const showCertificate = showScores && (overall >= 45 || report.has_certificate === true);
+    const reportStatusLabel = report.is_published === false
+        ? 'DRAFT'
+        : !showScores
+            ? 'PENDING'
+            : overall >= 45
+                ? 'CERTIFIED'
+                : 'REVIEWED';
+    const reportStatusGreen = report.is_published !== false && showScores && overall >= 45;
 
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
@@ -301,8 +313,13 @@ export default function ModernReportCard({ report, orgSettings }: {
                                 { l: 'Section', v: report.section_class },
                                 { l: 'Gender', v: report.gender ? (report.gender.charAt(0).toUpperCase() + report.gender.slice(1)) : null },
                                 { l: 'School', v: report.school_name },
-                                { l: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? 'Term' : 'Duration', v: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? report.report_term : (report.course_duration || report.report_term) },
-                                { l: 'Status', v: 'CERTIFIED', green: true },
+                                {
+                                    l: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? 'Term' : 'Duration',
+                                    v: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '')
+                                        ? [report.report_term, report.report_period].filter(Boolean).join(' · ')
+                                        : (report.course_duration || report.report_term),
+                                },
+                                { l: 'Status', v: reportStatusLabel, green: reportStatusGreen },
                             ].filter(f => f.v).map(f => (
                                 <div key={f.l}>
                                     <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>{f.l}</p>
@@ -337,132 +354,132 @@ export default function ModernReportCard({ report, orgSettings }: {
 
                 {/* ── ASSESSMENT MATRIX ──────────────────────────────────────── */}
                 {showScores ? (
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
-                        <p style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic', color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#9ca3af', flexShrink: 0 }}>Assessment Matrix</p>
-                        <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: 12 }}>
-                        {/* Metric bars + qualifier grades */}
-                        <div style={{ background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18, padding: '12px 14px' }}>
-                            {board ? (
-                                <>
-                                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginBottom: 8 }}>{copy.schoolTestsCaption}</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {board.papers.map((row) => (
-                                            <div key={row.kind} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{row.label}</span>
-                                                <span style={{ fontSize: 16, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : accent }}>{formatHostMark(row.mark)}</span>
-                                            </div>
-                                        ))}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 6, borderTop: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb' }}>
-                                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827' }}>School paper total</span>
-                                            <span style={{ fontSize: 18, fontWeight: 900, fontStyle: 'italic', color: '#111827' }}>{formatHostMark(board.total)}</span>
-                                        </div>
-                                    </div>
-                                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginTop: 12, marginBottom: 6 }}>{copy.learningCaption}</p>
-                                    {copy.learningNote ? (
-                                        <p style={{ fontSize: 8, lineHeight: 1.4, color: '#6b7280', marginBottom: 8 }}>{copy.learningNote}</p>
-                                    ) : null}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                                        {[
-                                            { label: copy.assignments, value: learning.assignments },
-                                            { label: copy.practical, value: learning.practical },
-                                            { label: copy.classwork, value: learning.classwork },
-                                            { label: copy.attendance, value: learning.attendance },
-                                        ].map((row) => (
-                                            <div key={row.label}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                            <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
+                            <p style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic', color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#9ca3af', flexShrink: 0 }}>Assessment Matrix</p>
+                            <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: 12 }}>
+                            {/* Metric bars + qualifier grades */}
+                            <div style={{ background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18, padding: '12px 14px' }}>
+                                {board ? (
+                                    <>
+                                        <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginBottom: 8 }}>{copy.schoolTestsCaption}</p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {board.papers.map((row) => (
+                                                <div key={row.kind} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                                     <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{row.label}</span>
-                                                    <span style={{ fontSize: 12, fontWeight: 900, color: '#374151' }}>{row.value != null ? `${row.value}%` : '—'}</span>
+                                                    <span style={{ fontSize: 16, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : accent }}>{formatHostMark(row.mark)}</span>
                                                 </div>
-                                                <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
-                                                    <div style={{ height: '100%', width: `${row.value ?? 0}%`, background: accent, borderRadius: isIndustrial ? 0 : 999 }} />
-                                                </div>
+                                            ))}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 6, borderTop: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb' }}>
+                                                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#111827' }}>School paper total</span>
+                                                <span style={{ fontSize: 18, fontWeight: 900, fontStyle: 'italic', color: '#111827' }}>{formatHostMark(board.total)}</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                            {/* Scoring key */}
-                            <div style={{ borderBottom: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb', paddingBottom: 6, marginBottom: 9, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
-                                {metrics.map((m, i) => (
-                                    <span key={m.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                        {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 7 }}>·</span>}
-                                        <span style={{ width: 6, height: 6, borderRadius: isIndustrial ? 0 : '50%', backgroundColor: m.color, display: 'inline-block', marginRight: 3, flexShrink: 0 }} />
-                                        <span style={{ fontSize: 7, fontWeight: 800, color: m.color }}>{m.label}</span>
-                                        <span style={{ fontSize: 7, fontWeight: 600, color: '#9ca3af', marginLeft: 1 }}>/{m.weight}</span>
-                                    </span>
-                                ))}
-                                <span style={{ fontSize: 7, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                                {metrics.map(m => (
-                                    <div key={m.label}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{m.label} ({m.weight})</span>
-                                            <span style={{ fontSize: 13, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : m.color }}>{m.value}%</span>
                                         </div>
-                                        <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : isExecutive ? '#FFF8EC' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
-                                            <div style={{ height: '100%', width: `${m.value}%`, background: m.color, borderRadius: isIndustrial ? 0 : 999 }} />
+                                        <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginTop: 12, marginBottom: 6 }}>{copy.learningCaption}</p>
+                                        {copy.learningNote ? (
+                                            <p style={{ fontSize: 8, lineHeight: 1.4, color: '#6b7280', marginBottom: 8 }}>{copy.learningNote}</p>
+                                        ) : null}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                            {[
+                                                { label: copy.assignments, value: learning.assignments },
+                                                { label: copy.practical, value: learning.practical },
+                                                { label: copy.classwork, value: learning.classwork },
+                                                { label: copy.attendance, value: learning.attendance },
+                                            ].map((row) => (
+                                                <div key={row.label}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{row.label}</span>
+                                                        <span style={{ fontSize: 12, fontWeight: 900, color: '#374151' }}>{row.value != null ? `${row.value}%` : '—'}</span>
+                                                    </div>
+                                                    <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${row.value ?? 0}%`, background: accent, borderRadius: isIndustrial ? 0 : 999 }} />
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Scoring key */}
+                                        <div style={{ borderBottom: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb', paddingBottom: 6, marginBottom: 9, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                                            <span style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
+                                            {metrics.map((m, i) => (
+                                                <span key={m.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                    {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 7 }}>·</span>}
+                                                    <span style={{ width: 6, height: 6, borderRadius: isIndustrial ? 0 : '50%', backgroundColor: m.color, display: 'inline-block', marginRight: 3, flexShrink: 0 }} />
+                                                    <span style={{ fontSize: 7, fontWeight: 800, color: m.color }}>{m.label}</span>
+                                                    <span style={{ fontSize: 7, fontWeight: 600, color: '#9ca3af', marginLeft: 1 }}>/{m.weight}</span>
+                                                </span>
+                                            ))}
+                                            <span style={{ fontSize: 7, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                                            {metrics.map(m => (
+                                                <div key={m.label}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{m.label} ({m.weight})</span>
+                                                        <span style={{ fontSize: 13, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : m.color }}>{m.value}%</span>
+                                                    </div>
+                                                    <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : isExecutive ? '#FFF8EC' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${m.value}%`, background: m.color, borderRadius: isIndustrial ? 0 : 999 }} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
+                                    {[
+                                        { l: 'Practical / Projects', v: report.projects_grade },
+                                        { l: 'Assignments', v: report.homework_grade },
+                                        { l: 'Classwork', v: report.participation_grade },
+                                    ].map(g => (
+                                        <div key={g.l} style={{ background: accentLight, border: panelBorder, borderRadius: radiusSm, padding: '6px 10px' }}>
+                                            <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>{g.l}</p>
+                                            <p style={{ fontSize: 11, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111827', lineHeight: 1.25 }}>{g.v || '—'}</p>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                                </>
-                            )}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
-                                {[
-                                    { l: 'Practical / Projects', v: report.projects_grade },
-                                    { l: 'Assignments', v: report.homework_grade },
-                                    { l: 'Classwork', v: report.participation_grade },
-                                ].map(g => (
-                                    <div key={g.l} style={{ background: accentLight, border: panelBorder, borderRadius: radiusSm, padding: '6px 10px' }}>
-                                        <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>{g.l}</p>
-                                        <p style={{ fontSize: 11, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111827', lineHeight: 1.25 }}>{g.v || '—'}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
 
-                        {/* Grade display */}
-                        <div style={{
-                            background: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#4f46e5',
-                            borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18,
-                            padding: 14, display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-                            position: 'relative', overflow: 'hidden',
-                        }}>
-                            {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
-                            <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 2 }}><TrophyIcon className="w-5 h-5" /></span>
-                            <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>{board && !board.complete ? 'Result status' : copy.overallCaption}</p>
-                            <h3 style={{ fontSize: 64, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 4 }}>{board && !board.complete ? '—' : grade.code}</h3>
-                            <div style={{ padding: '3px 10px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 4 }}>
-                                <span style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{board && !board.complete ? 'Awaiting all papers' : grade.label}</span>
+                            {/* Grade display */}
+                            <div style={{
+                                background: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#4f46e5',
+                                borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18,
+                                padding: 14, display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+                                position: 'relative', overflow: 'hidden',
+                            }}>
+                                {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
+                                <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 2 }}><TrophyIcon className="w-5 h-5" /></span>
+                                <p style={{ fontSize: 6, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 2 }}>{board && !board.complete ? 'Result status' : copy.overallCaption}</p>
+                                <h3 style={{ fontSize: 64, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 4 }}>{board && !board.complete ? '—' : grade.code}</h3>
+                                <div style={{ padding: '3px 10px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 4 }}>
+                                    <span style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{board && !board.complete ? 'Awaiting all papers' : grade.label}</span>
+                                </div>
+                                <p style={{ fontSize: 14, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{board ? formatHostMark(board.total) : `${overall}%`}</p>
+                                <p style={{ fontSize: 6, fontWeight: 700, color: isExecutive ? 'rgba(197,160,89,0.5)' : 'rgba(255,255,255,0.35)', marginTop: 2, textAlign: 'center', letterSpacing: '0.05em' }}>{grade.remark}</p>
                             </div>
-                            <p style={{ fontSize: 14, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{board ? formatHostMark(board.total) : `${overall}%`}</p>
-                            <p style={{ fontSize: 6, fontWeight: 700, color: isExecutive ? 'rgba(197,160,89,0.5)' : 'rgba(255,255,255,0.35)', marginTop: 2, textAlign: 'center', letterSpacing: '0.05em' }}>{grade.remark}</p>
                         </div>
                     </div>
-                </div>
                 ) : (
-                <div style={{
-                    background: accentLight,
-                    border: panelBorder,
-                    borderRadius: radius,
-                    padding: '16px 18px',
-                    textAlign: 'center',
-                }}>
-                    <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#b45309', marginBottom: 6 }}>
-                        Scores pending
-                    </p>
-                    <p style={{ fontSize: 11, lineHeight: 1.55, color: '#78350f', fontWeight: 600 }}>
-                        No class evidence was recorded for this term. Fill from class work or type scores in Write before publishing.
-                    </p>
-                </div>
+                    <div style={{
+                        background: accentLight,
+                        border: panelBorder,
+                        borderRadius: radius,
+                        padding: '16px 18px',
+                        textAlign: 'center',
+                    }}>
+                        <p style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: '#b45309', marginBottom: 6 }}>
+                            Scores pending
+                        </p>
+                        <p style={{ fontSize: 11, lineHeight: 1.55, color: '#78350f', fontWeight: 600 }}>
+                            No class evidence was recorded for this term. Fill from class work or type scores in Write before publishing.
+                        </p>
+                    </div>
                 )}
 
                 {/* ── QUALITATIVE ASSESSMENT — grows to fill remaining space ── */}
@@ -499,11 +516,17 @@ export default function ModernReportCard({ report, orgSettings }: {
                         <div>
                             <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', opacity: 0.6, color: isExecutive ? '#C5A059' : accent, marginBottom: 3 }}>Official Certification Decree</p>
                             <p style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.45, fontStyle: 'italic', color: '#374151' }}>
-                                This document officially recognizes that{' '}
-                                <strong style={{ fontStyle: 'normal', color: '#111' }}>{report.student_name}</strong>{' '}
-                                has successfully satisfied the rigorous technical requirements of the{' '}
-                                <strong style={{ fontStyle: 'normal', color: isExecutive ? '#C5A059' : accent }}>{report.course_name}</strong>{' '}
-                                curriculum.
+                                {report.certificate_text ? (
+                                    report.certificate_text
+                                ) : (
+                                    <>
+                                        This document officially recognizes that{' '}
+                                        <strong style={{ fontStyle: 'normal', color: '#111' }}>{report.student_name}</strong>{' '}
+                                        has successfully satisfied the rigorous technical requirements of the{' '}
+                                        <strong style={{ fontStyle: 'normal', color: isExecutive ? '#C5A059' : accent }}>{report.course_name}</strong>{' '}
+                                        curriculum.
+                                    </>
+                                )}
                             </p>
                         </div>
                     </div>

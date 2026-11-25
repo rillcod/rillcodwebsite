@@ -73,7 +73,25 @@ export async function loadAssessmentStudentProfile(
   if (!data) return null;
 
   const profile = data as AssessmentStudentScope;
-  if (!profile.class_id) {
+  if (profile.class_id) {
+    // Guard against soft-withdrawn students still seeing live CBT/assessments for their old class.
+    const { data: latestRoster } = await (admin as any)
+      .from('class_term_rosters')
+      .select('status')
+      .eq('student_id', userId)
+      .eq('class_id', profile.class_id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const rosterStatus = String(latestRoster?.status ?? '').toLowerCase();
+    if (['withdrawn', 'ended', 'removed', 'completed'].includes(rosterStatus)) {
+      return {
+        ...profile,
+        class_id: null,
+        section_class: null,
+      };
+    }
+  } else {
     const { data: activeRoster } = await (admin as any)
       .from('class_term_rosters')
       .select('class_id, school_id, classes:class_id(name)')

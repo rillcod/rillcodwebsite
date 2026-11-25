@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
 import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import { inferCanonicalEnrollmentTypeForClass } from '@/lib/academic/enrollment-type';
 import { syncStudentAuthReadiness } from '@/lib/students/student-access-sync';
 
 const SPECIALIZED_ENROLLMENT_TYPES = new Set([
@@ -251,7 +252,7 @@ export async function reinstateStudentToClass(
             started_at: (prevRoster as any).reinstated_at ?? (prevRoster as any).started_at ?? null,
           }
         : null,
-      { canonicalTermId: cls.term_id ?? null },
+      { canonicalTermId: cls.term_id ?? null, classEnrollmentType: destEnrollmentType ?? null },
     );
     const isConfirmedInOtherTeacherCurrentSession = prevSessionStatus === 'confirmed_current';
 
@@ -329,8 +330,13 @@ export async function reinstateStudentToClass(
   const existingMeta = (student as any).metadata && typeof (student as any).metadata === 'object' && !Array.isArray((student as any).metadata)
     ? ((student as any).metadata as Record<string, unknown>)
     : {};
-  const targetEnrollmentType = destEnrollmentType
-    || (!isSpecializedDest && (cls.school_id ?? student.school_id) ? 'school' : (student as any).enrollment_type || 'school');
+  const targetEnrollmentType = inferCanonicalEnrollmentTypeForClass({
+    offeringEnrollmentType: destEnrollmentType,
+    className: cls.name,
+    schoolId: cls.school_id ?? student.school_id,
+    schoolName: student.school_name,
+    fallbackEnrollmentType: (student as any).enrollment_type,
+  });
 
   const portalUpdate: Record<string, unknown> = {
     class_id: classId,
@@ -370,7 +376,7 @@ export async function reinstateStudentToClass(
     current_class: cls.name,
     updated_at: new Date().toISOString(),
     is_active: true,
-    status: 'active',
+    status: 'approved',
   };
   if (resolvedGrade) {
     registryUpdate.grade = resolvedGrade;

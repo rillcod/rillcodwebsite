@@ -374,7 +374,17 @@ export async function PATCH(request: NextRequest) {
 
       // ── School boundary guard for class assignment ─────────────────────
       if (classId) {
-        const { data: cls } = await admin.from('classes').select('school_id, name').eq('id', classId).single();
+        const { data: cls } = await admin
+          .from('classes')
+          .select('school_id, name, academic_offerings(enrollment_type)')
+          .eq('id', classId)
+          .single();
+        const { inferCanonicalEnrollmentTypeForClass } = await import('@/lib/academic/enrollment-type');
+        allowed.enrollment_type = inferCanonicalEnrollmentTypeForClass({
+          academicOfferings: (cls as any)?.academic_offerings,
+          className: cls?.name,
+          schoolId: cls?.school_id,
+        });
         if (cls?.school_id) {
           if (caller.role !== 'admin') {
             const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
@@ -593,6 +603,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    let resolvedEnrollmentType: string | undefined;
+    if (role === 'student' && (placed.classId || body.enrollment_type || placed.schoolId)) {
+      const { resolveClassCanonicalEnrollmentType } = await import('@/lib/academic/enrollment-type');
+      resolvedEnrollmentType = await resolveClassCanonicalEnrollmentType(admin as any, placed.classId, {
+        schoolId: placed.schoolId,
+        schoolName: placed.schoolName,
+        className: section_class ?? placed.className,
+        fallbackEnrollmentType: body.enrollment_type ?? null,
+      });
+    }
+
     const { data, error } = await admin
       .from('portal_users')
       .upsert({
@@ -604,6 +625,7 @@ export async function POST(request: NextRequest) {
         school_name: placed.schoolName,
         class_id: placed.classId,
         section_class: section_class ?? placed.className,
+        ...(resolvedEnrollmentType ? { enrollment_type: resolvedEnrollmentType } : {}),
         is_active: placed.isActive,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' })

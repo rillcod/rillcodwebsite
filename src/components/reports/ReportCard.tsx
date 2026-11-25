@@ -4,6 +4,7 @@ import React from 'react';
 import { HdQrCode } from '@/components/qr/HdQrCode';
 import { brandContact } from '@/config/brand';
 import { scoreWeightPercent, scoreWeightsFromReportMetrics } from '@/lib/grading-scheme';
+import { reportHasDisplayableScores } from '@/lib/reports/score';
 import { parseScoreAuthority, progressReportComplement } from '@/lib/reports/complement';
 import { formatHostMark, hostLearningEvidence, hostSchoolScoreboard } from '@/lib/academic/host-marks';
 
@@ -168,9 +169,14 @@ export default function ReportCard({ report, orgSettings }: {
         theory * weights.theory + practical * weights.practical + assignments * weights.assignments +
         attendance * weights.attendance + classwork * weights.classwork + assessment * weights.assessment
     );
-    const overall = board ? (board.total?.percent ?? 0) : (Number(report.overall_score) > 0 ? Number(report.overall_score) : computed);
+    const overall = board
+        ? (board.total?.percent ?? 0)
+        : (report.overall_score != null && Number.isFinite(Number(report.overall_score))
+            ? Math.round(Number(report.overall_score))
+            : computed);
     const grade = letterGrade(overall);
-    const showCertificate = overall >= 45 || report.has_certificate === true;
+    const showScores = reportHasDisplayableScores(report) || !!board;
+    const showCertificate = showScores && (overall >= 45 || report.has_certificate === true);
 
     const org: OrgSettings = {
         org_name: orgSettings?.org_name || 'Rillcod Technologies',
@@ -350,6 +356,7 @@ export default function ReportCard({ report, orgSettings }: {
                     {/* Academic Metrics */}
                     <div className="col-span-8 flex flex-col gap-3">
                         <SectionHeaderPremium title="Final Performance Assessment" />
+                        {showScores ? (
                         <div className="flex-1 grid grid-cols-2 gap-5">
 
                             {/* Left — scores */}
@@ -419,6 +426,14 @@ export default function ReportCard({ report, orgSettings }: {
                             </div>
 
                         </div>
+                        ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-amber-50/70 border border-amber-200 rounded-2xl px-6 py-8 text-center">
+                            <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-800 mb-2">Scores Pending</p>
+                            <p className="text-xs font-semibold text-amber-900/80 max-w-sm leading-relaxed">
+                                Assessment scores have not been finalized for this period yet. Complete score entry in Result Builder before publishing.
+                            </p>
+                        </div>
+                        )}
                     </div>
                 </div>
 
@@ -492,13 +507,18 @@ export default function ReportCard({ report, orgSettings }: {
                             <div style={{ width: 180, height: 1, backgroundColor: '#111827', marginBottom: 2 }} />
                             <p style={{ fontSize: 12, fontWeight: 900, color: '#111827' }}>{brandContact.signatory}</p>
                             <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>{brandContact.signatoryRole}</p>
+                            {report.instructor_name && (
+                                <p style={{ fontSize: 9, fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 2 }}>
+                                    Instructor: {report.instructor_name}
+                                </p>
+                            )}
                         </div>
 
                         {/* Centre — payment notice, 3 lines, centred */}
                         {report.show_payment_notice && (
                             <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '10px 14px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 4 }}>
                                 <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦30,000 &nbsp;&middot;&nbsp; {brandContact.bankAccount.accountName.toUpperCase()}</p>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦{report.fee_amount || '30,000'} &nbsp;&middot;&nbsp; {brandContact.bankAccount.accountName.toUpperCase()}</p>
                                 <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>{brandContact.bankAccount.bankName} &middot; <span style={{ color: '#92400e' }}>{brandContact.bankAccount.accountNumber}</span></p>
                                 <p style={{ fontSize: 9, fontWeight: 700, color: '#b45309' }}>Use student name as reference &middot; Send proof to admin</p>
                             </div>

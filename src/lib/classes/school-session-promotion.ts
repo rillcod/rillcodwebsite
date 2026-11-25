@@ -75,7 +75,7 @@ async function loadSchoolClasses(admin: SupabaseClient, schoolId: string): Promi
       'id, name, school_id, program_id, term_id, teacher_id, qa_grade_key, qa_grade_band, current_students, status, programs:program_id(name)',
     )
     .eq('school_id', schoolId)
-    .neq('status', 'archived');
+    .not('status', 'in', '("archived","completed","cancelled")');
 
   return (rows ?? []).map((row) => {
     const prog = (row as { programs?: { name?: string | null } | null }).programs;
@@ -124,6 +124,7 @@ export async function scanSchoolPromotionDue(
     let class_count = 0;
 
     for (const candidate of candidates) {
+      if ((candidate.current_students ?? 0) <= 0) continue;
       const ctx = await loadPromotionContext(admin, candidate.id, undefined, settings);
       if ('error' in ctx) continue;
       const anchor = inferClassGradeAnchor(ctx.sourceClass);
@@ -151,12 +152,19 @@ export async function scanPromotionDueForSchools(
   admin: SupabaseClient,
   schoolIds: string[],
 ): Promise<PromotionDueSnapshot> {
-  const rows: SchoolPromotionDueRow[] = [];
-  const settings = await loadPromotionRules(admin);
-  for (const schoolId of schoolIds) {
-    const { data: school } = await admin.from('schools').select('id, name').eq('id', schoolId).maybeSingle();
-    rows.push(await scanSchoolPromotionDue(admin, schoolId, school?.name ?? null, settings));
-  }
+  if (schoolIds.length === 0) return mergeTrackDue([]);
+  const [settings, { data: schoolRows }] = await Promise.all([
+    loadPromotionRules(admin),
+    admin.from('schools').select('id, name').in('id', schoolIds),
+  ]);
+  const schoolNameById = new Map<string, string | null>(
+    (schoolRows ?? []).map((s: any) => [s.id, s.name ?? null]),
+  );
+  const rows = await Promise.all(
+    schoolIds.map((schoolId) =>
+      scanSchoolPromotionDue(admin, schoolId, schoolNameById.get(schoolId) ?? null, settings),
+    ),
+  );
   return mergeTrackDue(rows);
 }
 
