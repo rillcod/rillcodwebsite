@@ -258,7 +258,7 @@ export default function SchoolOverviewPage() {
 
       let repQ = supabase
         .from('student_progress_reports')
-        .select('student_id, overall_score, participation_score, is_published, report_term, academic_year, term_id')
+        .select('student_id, overall_score, participation_score, is_published, report_term, term_id')
         .in('student_id', chunk)
         .eq('is_published', true)
         .limit(2000);
