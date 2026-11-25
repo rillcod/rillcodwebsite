@@ -685,7 +685,7 @@ function ReportBuilderInner() {
     const [schools, setSchools] = useState<{ id: string; name: string; programme_standing?: string }[]>([]);
     const [gradingSchemes, setGradingSchemes] = useState<PublishedGradingScheme[]>([]);
     const [sessionProgramId, setSessionProgramId] = useState('');
-    const [teacherClasses, setTeacherClasses] = useState<Array<{ id: string; name: string; school_id: string | null; term_id: string | null; program_id: string | null; current_course_id: string | null; qa_grade_key?: string | null; academic_terms?: { id: string; academic_year: string; term_label: string } | null }>>([]);
+    const [teacherClasses, setTeacherClasses] = useState<Array<{ id: string; name: string; school_id: string | null; term_id: string | null; program_id: string | null; current_course_id: string | null; qa_grade_key?: string | null; academic_terms?: { id: string; academic_year: string; term_label: string } | null; programs?: { id: string; name: string } | null }>>([]);
     const [search, setSearch] = useState('');
     const [editSearch, setEditSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
@@ -1697,7 +1697,9 @@ function ReportBuilderInner() {
 
         const linkedCourse = resolveLinkedCourseForClass(matchingClass, courses);
         const programId = matchingClass.program_id || linkedCourse?.program_id || '';
-        if (programId && !sessionProgramId) setSessionProgramId(programId);
+        // Always sync programme when it resolves — covers the case where courses load
+        // after the class was already selected, or the class changes.
+        if (programId && programId !== sessionProgramId) setSessionProgramId(programId);
         if (sessionConfig.course_id || !linkedCourse) return;
 
         const courseName = linkedCourse.title || '';
