@@ -1553,7 +1553,7 @@ function ResultsPageInner() {
 
                 {/* Mobile immersive: compact Progress Reports chrome while viewing a report */}
                 {mobileReportFocus && (
-                    <div className="sticky top-0 z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur lg:hidden">
+                    <div className="sticky top-[var(--app-header-height,0px)] z-30 -mx-3 border-b border-border bg-background/95 px-3 py-2 backdrop-blur lg:hidden">
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
@@ -1636,25 +1636,96 @@ function ResultsPageInner() {
                                         from: 'results',
                                       })
                                 }
-                                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground shadow-sm hover:opacity-90"
+                                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground shadow-sm hover:opacity-90"
                             >
                                 <PencilSquareIcon className="h-4 w-4" />
                                 <span>{filterClass ? `Result Builder · ${filterClass}` : stats.draft > 0 ? `Result Builder (${stats.draft} drafts)` : 'Result Builder'}</span>
                             </Link>
-                            <Link
-                                href="/dashboard/classes"
-                                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-black text-foreground hover:bg-muted"
-                            >
-                                <UserGroupIcon className="h-4 w-4 text-primary" />
-                                <span>Classes</span>
-                            </Link>
+                            {(!isStaff || staffPeriodReady) && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                                <button
+                                    onClick={handleBulkPublish}
+                                    disabled={bulkPublishing}
+                                    title="Publish every draft report at once"
+                                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-600/15 px-3.5 py-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-600/25 disabled:opacity-50 dark:text-emerald-300"
+                                >
+                                    <CheckIcon className="h-4 w-4" />
+                                    <span className="whitespace-nowrap">{bulkPublishing ? 'Publishing…' : 'Publish drafts'}</span>
+                                </button>
+                            )}
+                            {isStaff && selectedIds.size > 0 && (
+                                <>
+                                    <button
+                                        onClick={startBatchDownload}
+                                        disabled={isBatchDownloading || isBulkPrinting || isBulkEmailing}
+                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2.5 text-xs font-bold text-white transition-all hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {isBatchDownloading
+                                            ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                            : <ArrowDownTrayIcon className="h-4 w-4" />}
+                                        <span className="whitespace-nowrap">
+                                            {isBatchDownloading && batchProgress
+                                                ? `${batchProgress.current}/${batchProgress.total}`
+                                                : `Export ${selectedIds.size}`}
+                                        </span>
+                                    </button>
+                                    <button
+                                        onClick={sendBulkReportEmails}
+                                        disabled={isBulkEmailing || isBatchDownloading || isBulkPrinting}
+                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-sky-700 px-3.5 py-2.5 text-xs font-bold text-white transition-all hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {isBulkEmailing
+                                            ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                            : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                        <span className="whitespace-nowrap">
+                                            {isBulkEmailing && batchProgress
+                                                ? `${batchProgress.current}/${batchProgress.total}`
+                                                : `Email ${selectedIds.size}`}
+                                        </span>
+                                    </button>
+                                </>
+                            )}
+                            {isStaff && staffPeriodReady && students.length > 0 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => startBulkPrint(filtered.map(s => s.id))}
+                                        disabled={isBulkPrinting || isBatchDownloading}
+                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
+                                    >
+                                        <PrinterIcon className="h-4 w-4 text-primary shrink-0" />
+                                        <span className="whitespace-nowrap">{isBulkPrinting ? 'Preparing…' : `Print all (${filtered.length})`}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handlePrintPerformanceSheet}
+                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                                    >
+                                        <DocumentTextIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                        <span className="whitespace-nowrap">Broadsheet</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handlePrintSummary}
+                                        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                                    >
+                                        <DocumentTextIcon className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                                        <span className="whitespace-nowrap">Summary</span>
+                                    </button>
+                                </>
+                            )}
                             <Link
                                 href={`/dashboard/card-studio?view=roster${filterClass ? `&class_id=${encodeURIComponent(filterClass)}` : ''}${filterSchool ? `&school=${encodeURIComponent(filterSchool)}` : ''}`}
-                                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2.5 text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20"
-                                title="Open RC Roster & Result Access Cards"
+                                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
                             >
-                                <DocumentTextIcon className="h-4 w-4" />
-                                <span>RC Roster &amp; Cards</span>
+                                <DocumentTextIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span className="whitespace-nowrap">RC Cards</span>
+                            </Link>
+                            <Link
+                                href="/dashboard/school-reports"
+                                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                            >
+                                <AcademicCapIcon className="h-4 w-4 text-primary shrink-0" />
+                                <span className="whitespace-nowrap">School Reports</span>
                             </Link>
                         </div>
                     )}
@@ -1699,89 +1770,6 @@ function ResultsPageInner() {
                                 </select>
                             </div>
                         </div>
-                    )}
-
-                    {(!isStaff || staffPeriodReady) && (
-                    <div className="flex w-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:w-auto sm:flex-wrap sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {/* "Create / Edit" stood here as one chip among many in a
-                            scrolling row. It is the header's primary action now, so
-                            repeating it only adds another thing to read past. */}
-                        {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-                            <button
-                                onClick={handleBulkPublish}
-                                disabled={bulkPublishing}
-                                title="Publish every draft report at once — skips previewing each"
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600/15 px-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-600/25 disabled:opacity-50 dark:text-emerald-400"
-                            >
-                                <CheckIcon className="h-3.5 w-3.5" />
-                                <span className="whitespace-nowrap">{bulkPublishing ? 'Publishing…' : 'Publish drafts'}</span>
-                            </button>
-                        )}
-                        {isStaff && students.length > 0 && (
-                            <button
-                                onClick={handlePrintSummary}
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-600/15 px-2.5 text-xs font-bold text-sky-700 transition-all hover:bg-sky-600/25 dark:text-sky-400"
-                            >
-                                <PrinterIcon className="h-3.5 w-3.5" />
-                                <span className="whitespace-nowrap">Perf. report</span>
-                            </button>
-                        )}
-                        {isStaff && students.length > 0 && (
-                            <button
-                                onClick={() => startBulkPrint(filtered.map(s => s.id))}
-                                disabled={isBulkPrinting || isBatchDownloading}
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/15 px-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isBulkPrinting
-                                    ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                    : <PrinterIcon className="h-3.5 w-3.5" />}
-                                <span className="whitespace-nowrap">
-                                    {isBulkPrinting ? 'Preparing…' : `Print all (${filtered.length})`}
-                                </span>
-                            </button>
-                        )}
-                        {isStaff && students.length > 0 && (
-                            <button
-                                onClick={handlePrintPerformanceSheet}
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-600/15 px-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-600/25 dark:text-emerald-400"
-                            >
-                                <PrinterIcon className="h-3.5 w-3.5" />
-                                <span className="whitespace-nowrap">Sheet</span>
-                            </button>
-                        )}
-                        {isStaff && selectedIds.size > 0 && (
-                            <button
-                                onClick={startBatchDownload}
-                                disabled={isBatchDownloading || isBulkPrinting || isBulkEmailing}
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isBatchDownloading
-                                    ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                                    : <ArrowDownTrayIcon className="h-3.5 w-3.5" />}
-                                <span className="whitespace-nowrap">
-                                    {isBatchDownloading && batchProgress
-                                        ? `${batchProgress.current}/${batchProgress.total}`
-                                        : `Export ${selectedIds.size}`}
-                                </span>
-                            </button>
-                        )}
-                        {isStaff && selectedIds.size > 0 && (
-                            <button
-                                onClick={sendBulkReportEmails}
-                                disabled={isBulkEmailing || isBatchDownloading || isBulkPrinting}
-                                className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg bg-sky-600 px-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isBulkEmailing
-                                    ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                                    : <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                <span className="whitespace-nowrap">
-                                    {isBulkEmailing && batchProgress
-                                        ? `${batchProgress.current}/${batchProgress.total}`
-                                        : `Email ${selectedIds.size}`}
-                                </span>
-                            </button>
-                        )}
-                    </div>
                     )}
                 </div>
 
@@ -2159,120 +2147,52 @@ function ResultsPageInner() {
                                             <ReportAppearanceControls template={template} style={modernTemplateId} onTemplateChange={setTemplate} onStyleChange={setModernTemplateId} />
 
                                             {isEditor && (selectedStudent || selectedReport) && (
-                                                <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-md border border-border bg-card p-1">
+                                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                                    {selectedReport && (
+                                                        <button
+                                                            onClick={handlePublishToggle}
+                                                            disabled={isTogglingPublish}
+                                                            title={selectedReport.is_published ? 'Unpublish report before making corrections' : 'Publish report — makes it visible to student'}
+                                                            className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black uppercase tracking-wide transition-all disabled:opacity-50 ${selectedReport.is_published ? 'border border-amber-500/30 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-300' : 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'}`}
+                                                        >
+                                                            {isTogglingPublish
+                                                                ? <div className={`h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent ${selectedReport.is_published ? 'border-amber-400' : 'border-white'}`} />
+                                                                : selectedReport.is_published ? 'Unpublish' : 'Publish'}
+                                                        </button>
+                                                    )}
                                                     {selectedStudent && (
                                                         selectedReport?.is_published ? (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => void handleUnpublishAndEdit()}
                                                                 disabled={isTogglingPublish}
-                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-amber-800 transition-all hover:bg-amber-500/10 disabled:opacity-50 dark:text-amber-400"
+                                                                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted disabled:opacity-50"
                                                             >
-                                                                <PencilSquareIcon className="h-3 w-3" /> Unpublish to edit
+                                                                <PencilSquareIcon className="h-3.5 w-3.5 text-primary" /> Unpublish to edit
                                                             </button>
                                                         ) : (
                                                             <Link
                                                                 href={reportBuilderEditHref(selectedStudent.id, selectedReport, confirmedPeriod, filterClass, filterSchool)}
-                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/10"
+                                                                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold text-primary transition-all hover:bg-primary/20"
                                                             >
-                                                                <PencilSquareIcon className="h-3 w-3" /> Edit draft
+                                                                <PencilSquareIcon className="h-3.5 w-3.5" /> Edit draft
                                                             </Link>
                                                         )
-                                                    )}
-                                                    {selectedReport && (
-                                                        <>
-                                                            {selectedStudent && <div className="mx-0.5 h-3.5 w-px bg-border" />}
-                                                            {!selectedReport.is_published ? (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                                        className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-amber-800 transition-all hover:bg-amber-500/10 dark:text-amber-400"
-                                                                    >
-                                                                        <PencilSquareIcon className="h-3 w-3" /> Rename
-                                                                    </button>
-                                                                    <div className="mx-0.5 h-3.5 w-px bg-border" />
-                                                                </>
-                                                            ) : null}
-                                                            <button
-                                                                onClick={handleInvoiceToggle}
-                                                                disabled={isTogglingInvoice}
-                                                                title="Toggle Invoice Visibility"
-                                                                className="inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide text-indigo-700 transition-all hover:bg-indigo-500/10 disabled:opacity-50 dark:text-indigo-400"
-                                                            >
-                                                                {isTogglingInvoice
-                                                                    ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-                                                                    : ((selectedReport as any).show_payment_notice ? 'Hide payment notice' : 'Show payment notice')}
-                                                            </button>
-                                                            <div className="mx-0.5 h-3.5 w-px bg-border" />
-                                                            <button
-                                                                onClick={handlePublishToggle}
-                                                                disabled={isTogglingPublish}
-                                                                title={selectedReport.is_published ? 'Unpublish report before making corrections' : 'Publish report — makes it visible to student'}
-                                                                className={`inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-black uppercase tracking-wide transition-all disabled:opacity-50 ${selectedReport.is_published ? 'text-amber-800 hover:bg-amber-500/10 dark:text-amber-400' : 'text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400'}`}
-                                                            >
-                                                                {isTogglingPublish
-                                                                    ? <div className={`h-3 w-3 animate-spin rounded-full border-2 border-t-transparent ${selectedReport.is_published ? 'border-amber-400' : 'border-emerald-400'}`} />
-                                                                    : selectedReport.is_published ? 'Unpublish' : 'Publish'}
-                                                            </button>
-                                                            <div className="mx-0.5 h-3.5 w-px bg-border" />
-                                                            <button
-                                                                onClick={handleDeleteReport}
-                                                                disabled={isDeletingReport}
-                                                                title="Delete this report"
-                                                                className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[10px] font-black uppercase tracking-wide text-rose-600 transition-all hover:bg-rose-500/10 disabled:opacity-50 dark:text-rose-400"
-                                                            >
-                                                                {isDeletingReport
-                                                                    ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-rose-400 border-t-transparent" />
-                                                                    : <TrashIcon className="h-3 w-3" />}
-                                                            </button>
-                                                        </>
                                                     )}
                                                 </div>
                                             )}
 
                                             {selectedReport && (
-                                                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                                    {selectedStudent?.id && (
-                                                        <>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const rcCode = formatAccessCardCodeDisplay(accessCardCodeForStudent(selectedStudent.id));
-                                                                    void navigator.clipboard?.writeText(rcCode);
-                                                                    alert(`Copied student RC Result Code: ${rcCode}`);
-                                                                }}
-                                                                title="Click to copy student RC Result Check code"
-                                                                className="inline-flex h-7 items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 font-mono text-[10px] font-black uppercase tracking-wide text-primary transition-all hover:bg-primary/20"
-                                                            >
-                                                                {formatAccessCardCodeDisplay(accessCardCodeForStudent(selectedStudent.id))}
-                                                            </button>
-                                                            {isStaff && (
-                                                                <Link
-                                                                    href={`/dashboard/card-studio?student_id=${selectedStudent.id}`}
-                                                                    title="Open this student's RC ID & Result Card in Card Studio"
-                                                                    className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-[10px] font-black uppercase tracking-wide text-foreground transition-all hover:bg-muted"
-                                                                >
-                                                                    RC Card
-                                                                </Link>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    <button
-                                                        onClick={() => window.print()}
-                                                        title="Print"
-                                                        className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-[10px] font-black uppercase tracking-wide text-foreground transition-all hover:bg-muted"
-                                                    >
-                                                        <PrinterIcon className="h-3 w-3 flex-shrink-0" /> Print
-                                                    </button>
+                                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                                                     <button
                                                         onClick={downloadSinglePDF}
                                                         disabled={isDownloadingPdf}
                                                         title="Download PDF"
-                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+                                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50"
                                                     >
                                                         {isDownloadingPdf
-                                                            ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                                                            : <ArrowDownTrayIcon className="h-3 w-3 flex-shrink-0" />}
+                                                            ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                                                            : <ArrowDownTrayIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                                                         Download PDF
                                                     </button>
                                                     <button
@@ -2302,14 +2222,22 @@ function ResultsPageInner() {
                                                                 setIsSharingPdf(false);
                                                             }
                                                         }}
-                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-emerald-500 disabled:opacity-50"
+                                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-black text-white transition-all hover:bg-emerald-800 disabled:opacity-50"
                                                     >
                                                         {isSharingPdf
-                                                            ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                                                            ? <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                                             : <WhatsAppIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                                                         Share
                                                     </button>
                                                     <button
+                                                        onClick={() => window.print()}
+                                                        title="Print"
+                                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted"
+                                                    >
+                                                        <PrinterIcon className="h-3.5 w-3.5 flex-shrink-0" /> Print
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         disabled={!selectedReport.is_published}
                                                         title={selectedReport.is_published ? 'Send published report via email' : 'Publish this report before emailing it'}
                                                         onClick={() => {
@@ -2317,11 +2245,57 @@ function ResultsPageInner() {
                                                             setEmailShareError(null);
                                                             setEmailShareOpen(true);
                                                         }}
-                                                        className="inline-flex h-7 items-center gap-1 rounded-md bg-sky-600 px-2 text-[10px] font-black uppercase tracking-wide text-primary-foreground transition-all hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                                        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted disabled:opacity-40"
                                                     >
-                                                        <svg className="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                        Email
+                                                        <svg className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                        <span>Email</span>
                                                     </button>
+                                                    {selectedStudent?.id && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const rcCode = formatAccessCardCodeDisplay(accessCardCodeForStudent(selectedStudent.id));
+                                                                void navigator.clipboard?.writeText(rcCode);
+                                                                alert(`Copied student RC Result Code: ${rcCode}`);
+                                                            }}
+                                                            title="Copy student RC Result Code"
+                                                            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-all hover:bg-muted"
+                                                        >
+                                                            <span className="font-mono text-[11px] font-black text-primary">{formatAccessCardCodeDisplay(accessCardCodeForStudent(selectedStudent.id))}</span>
+                                                        </button>
+                                                    )}
+                                                    {isEditor && (
+                                                        <>
+                                                            {!selectedReport.is_published && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
+                                                                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
+                                                                >
+                                                                    <PencilSquareIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                                    <span>Rename</span>
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleInvoiceToggle}
+                                                                disabled={isTogglingInvoice}
+                                                                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
+                                                            >
+                                                                <span>{(selectedReport as any).show_payment_notice ? 'Hide Fee Notice' : 'Fee Notice'}</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleDeleteReport}
+                                                                disabled={isDeletingReport}
+                                                                title="Delete report"
+                                                                className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 disabled:opacity-50"
+                                                            >
+                                                                <TrashIcon className="h-3.5 w-3.5 shrink-0" />
+                                                                <span>Delete</span>
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -2391,10 +2365,10 @@ function ResultsPageInner() {
                                     {/* Email share modal */}
                                     {emailShareOpen && reportToDisplay && (
                                         <div className="mobile-native-dialog fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-                                            <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
+                                            <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl p-5 space-y-4">
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-sm font-black text-foreground">Email Report PDF</p>
-                                                    <button onClick={() => setEmailShareOpen(false)} className="text-muted-foreground hover:text-white">
+                                                    <button onClick={() => setEmailShareOpen(false)} className="text-muted-foreground hover:text-foreground">
                                                         <XMarkIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -2411,7 +2385,7 @@ function ResultsPageInner() {
                                                         value={emailShareTo}
                                                         onChange={e => setEmailShareTo(e.target.value)}
                                                         placeholder="parent@example.com"
-                                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-foreground placeholder-white/30 focus:outline-none focus:border-blue-500/50 rounded-lg font-mono"
+                                                        className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary rounded-lg font-mono"
                                                         autoFocus
                                                     />
                                                 </div>
@@ -2420,14 +2394,14 @@ function ResultsPageInner() {
                                                 )}
                                                 <div className="flex gap-2">
                                                     <button onClick={() => setEmailShareOpen(false)}
-                                                        className="flex-1 py-2.5 border border-white/10 text-muted-foreground hover:text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors">
+                                                        className="flex-1 min-h-10 py-2.5 border border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors">
                                                         Cancel
                                                     </button>
                                                     <button onClick={sendReportByEmail}
                                                         disabled={!emailShareTo.trim() || emailShareSending}
-                                                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
+                                                        className="flex-1 min-h-10 py-2.5 bg-primary hover:opacity-90 disabled:opacity-40 text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
                                                         {emailShareSending
-                                                            ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
+                                                            ? <><div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> Sending…</>
                                                             : <>Send PDF</>}
                                                     </button>
                                                 </div>
@@ -2438,10 +2412,10 @@ function ResultsPageInner() {
                                     {/* Bulk email summary modal */}
                                     {showBulkEmailSummary && bulkEmailResults.length > 0 && (
                                         <div className="mobile-native-dialog fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-                                            <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4 max-h-[80vh] flex flex-col">
+                                            <div role="dialog" aria-modal="true" className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl p-5 space-y-4 max-h-[80vh] flex flex-col">
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-sm font-black text-foreground">Bulk Email Results</p>
-                                                    <button onClick={() => setShowBulkEmailSummary(false)} className="text-muted-foreground hover:text-white">
+                                                    <button onClick={() => setShowBulkEmailSummary(false)} className="text-muted-foreground hover:text-foreground">
                                                         <XMarkIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -2469,7 +2443,7 @@ function ResultsPageInner() {
                                                 </div>
                                                 <button
                                                     onClick={() => setShowBulkEmailSummary(false)}
-                                                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-muted-foreground text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors"
+                                                    className="w-full min-h-10 py-2.5 bg-muted/40 hover:bg-muted text-foreground text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors"
                                                 >
                                                     Close
                                                 </button>

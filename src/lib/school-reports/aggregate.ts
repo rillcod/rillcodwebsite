@@ -172,7 +172,7 @@ export async function buildSchoolReportSnapshot(
     curriculumCoverage: previousSnapshot.summary.curriculumCoverage,
   } : null;
 
-  const rosterLoad = await loadSchoolReportRoster(admin, schoolId, checkedAt);
+  const rosterLoad = await loadSchoolReportRoster(admin, schoolId, checkedAt, range);
   dataSources.push(...rosterLoad.dataSources);
   const { studentRows, classRows, classNameById, classTeacherIdById, classOwnerIds } = rosterLoad.data;
   const studentIds = rosterLoad.studentIds;

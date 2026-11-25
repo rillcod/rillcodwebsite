@@ -9,7 +9,7 @@ import {
   PaperAirplaneIcon, PhoneIcon, ShieldCheckIcon, UserGroupIcon, UserIcon,
 } from '@/lib/icons';
 import {
-  CHART_COLORS, DonutChart, StackedBarChart, VerticalBarChart,
+  CHART_COLORS, DonutChart, StackedBarChart,
 } from '@/components/charts';
 import { RoleBadge } from '@/components/accountability/RoleBadge';
 import ParentReachOutModal, { ReachOutPersonTarget } from '@/components/accountability/ParentReachOutModal';
@@ -30,12 +30,10 @@ const LABEL = 'text-[10px] font-black uppercase tracking-[0.15em] text-muted-for
 
 const TABS: { id: AccountabilityTab; label: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', hint: 'Health & action queue' },
-  { id: 'schools', label: 'Schools', hint: 'Every school scorecard' },
-  { id: 'people', label: 'Directory', hint: 'All accounts & flags' },
-  { id: 'teachers', label: 'Teachers', hint: 'Activity & reports' },
-  { id: 'reports', label: 'Classes & Reports', hint: 'Coverage by class' },
-  { id: 'comms', label: 'Parent Reach', hint: 'Contacts & emails' },
-  { id: 'report', label: 'Export', hint: 'PDF & CSV reports' },
+  { id: 'schools', label: 'Schools', hint: 'Scorecards & rollover' },
+  { id: 'teachers', label: 'Teachers & Classes', hint: 'Delivery & report backlog' },
+  { id: 'people', label: 'Directory', hint: 'Accounts, flags & placement' },
+  { id: 'comms', label: 'Reach & Exports', hint: 'Parent comms, PDF & CSV' },
 ];
 
 function Tile({
@@ -131,6 +129,7 @@ export default function AccountabilityDashboard({
   generatedBy,
 }: Props) {
   const [tab, setTab] = useState<AccountabilityTab>('overview');
+  const [teachingFocus, setTeachingFocus] = useState<'all' | 'teachers' | 'classes' | 'backlog'>('all');
   const [sessionScope, setSessionScope] = useState<'current' | 'archive' | 'all'>('current');
   const [schoolSearch, setSchoolSearch] = useState('');
   const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
@@ -766,50 +765,6 @@ export default function AccountabilityDashboard({
           {/* ── OVERVIEW (Streamlined Executive View) ─────────────────── */}
           {tab === 'overview' && (
             <>
-              {/* Newcomer-Friendly Start Here Guide */}
-              <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-black uppercase tracking-wider text-primary">
-                    Start Here · Quick Daily Check
-                  </p>
-                  <span className="text-[11px] font-semibold text-muted-foreground">
-                    Tap any step below to jump straight to the fix
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => focusFlag(analytics.unplaced > 0 ? 'no_class' : null)}
-                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/40 transition-colors"
-                  >
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">1. Class Placement</p>
-                    <p className="text-xs font-black text-foreground mt-0.5">
-                      {analytics.unplaced > 0 ? `${analytics.unplaced} student${analytics.unplaced === 1 ? '' : 's'} need a class →` : 'All students placed ✓'}
-                    </p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTab('reports')}
-                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/40 transition-colors"
-                  >
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">2. Term Reports</p>
-                    <p className="text-xs font-black text-foreground mt-0.5">
-                      {analytics.draftReports > 0 ? `${analytics.draftReports} draft${analytics.draftReports === 1 ? '' : 's'} ready to publish →` : `${analytics.publishedPct}% reports published ✓`}
-                    </p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTab('schools')}
-                    className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-left hover:border-primary/40 transition-colors"
-                  >
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">3. Schools &amp; Rollover</p>
-                    <p className="text-xs font-black text-foreground mt-0.5">
-                      Inspect {schoolsSummary.length} school{schoolsSummary.length === 1 ? '' : 's'} &amp; rollover →
-                    </p>
-                  </button>
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className={`${CARD} p-5 sm:p-6 lg:col-span-4 flex flex-col justify-between`}>
                   <div>
@@ -856,7 +811,7 @@ export default function AccountabilityDashboard({
                     label="Reports Published"
                     tone={analytics.publishedPct >= 85 ? 'good' : analytics.publishedPct >= 50 ? 'warn' : 'bad'}
                     sub={`${analytics.publishedReports} sent · ${analytics.draftReports} draft${analytics.draftReports === 1 ? '' : 's'}`}
-                    onClick={() => setTab('reports')}
+                    onClick={() => { setTeachingFocus('classes'); setTab('teachers'); }}
                   />
                   <Tile
                     value={`${analytics.parentEmailReachPct}%`}
@@ -973,59 +928,58 @@ export default function AccountabilityDashboard({
                 <div className={`${CARD} p-5 space-y-4`}>
                   <div className="flex items-center justify-between">
                     <h3 className={`${LABEL} flex items-center gap-1.5`}>
-                      <ChartBarIcon className="w-3.5 h-3.5" /> Term Coverage Breakdown
+                      <BuildingOfficeIcon className="w-3.5 h-3.5 text-primary" /> Schools Watchlist
                     </h3>
                     <button
                       type="button"
-                      onClick={() => setTab('reports')}
+                      onClick={() => setTab('schools')}
                       className="text-xs font-bold text-primary hover:underline"
                     >
-                      Class Details →
+                      All {schoolsSummary.length} Schools →
                     </button>
                   </div>
-                  <div className="space-y-4 pt-1">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-bold text-foreground">Students Placed in Classes</span>
-                        <span className="font-black text-emerald-600 dark:text-emerald-400">{analytics.placedPct}%</span>
-                      </div>
-                      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
-                        <div style={{ width: `${analytics.placedPct}%` }} className="bg-emerald-500 h-full" />
-                        <div style={{ width: `${Math.max(0, 100 - analytics.placedPct)}%` }} className="bg-rose-500/70 h-full" />
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        {analytics.placedOnRoster} placed · {analytics.unplaced} unplaced · {analytics.withdrawnCount} withdrawn
-                      </p>
+                  {schoolsSummary.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-6 text-center">No partner schools loaded.</p>
+                  ) : (
+                    <div className="divide-y divide-border/70">
+                      {[...schoolsSummary]
+                        .filter((s) => s.students_total > 0 || s.classes_count > 0)
+                        .sort((a, b) => a.health_score - b.health_score || b.students_total - a.students_total)
+                        .slice(0, 5)
+                        .map((s) => (
+                          <div key={`watch-${s.id}`} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-foreground truncate">{s.name}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {s.students_placed}/{s.students_total} placed · {s.reports_published} pub
+                                {s.reports_draft > 0 ? ` · ${s.reports_draft} draft` : ''}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black tabular-nums ${
+                                s.health_score >= 80
+                                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                  : s.health_score >= 50
+                                    ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                              }`}>
+                                {s.health_score}%
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSchoolSearch(s.name);
+                                  setTab('schools');
+                                }}
+                                className="text-[11px] font-bold text-primary hover:underline"
+                              >
+                                Inspect
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                     </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-bold text-foreground">Progress Reports Published (vs Placed)</span>
-                        <span className="font-black text-primary">{analytics.publishedPct}%</span>
-                      </div>
-                      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
-                        <div style={{ width: `${analytics.publishedPct}%` }} className="bg-emerald-500 h-full" />
-                        <div style={{ width: `${analytics.draftPct}%` }} className="bg-amber-500 h-full" />
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        {analytics.publishedReports} published · {analytics.draftReports} draft · {analytics.classesWithMissing} of {analytics.classCount} classes missing reports
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-bold text-foreground">Parent Email Reachability</span>
-                        <span className="font-black text-primary">{analytics.parentEmailReachPct}%</span>
-                      </div>
-                      <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
-                        <div style={{ width: `${analytics.parentEmailReachPct}%` }} className="bg-primary h-full" />
-                        <div style={{ width: `${Math.max(0, 100 - analytics.parentEmailReachPct)}%` }} className="bg-amber-500/70 h-full" />
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        {analytics.parentEmailMatched} email linked · {analytics.parentPhoneMatched} phone linked
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </>
@@ -1085,17 +1039,21 @@ export default function AccountabilityDashboard({
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 pt-1">
-                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2.5 py-2 text-center">
-                            <div className="text-base font-black tabular-nums text-foreground">{s.students_total}</div>
+                        <div className="grid grid-cols-4 gap-1.5 pt-1">
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2 py-2 text-center">
+                            <div className="text-sm font-black tabular-nums text-foreground">{s.students_total}</div>
                             <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Students</div>
                           </div>
-                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2.5 py-2 text-center">
-                            <div className="text-base font-black tabular-nums text-foreground">{s.classes_count}</div>
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2 py-2 text-center">
+                            <div className="text-sm font-black tabular-nums text-foreground">{s.classes_count}</div>
                             <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Classes</div>
                           </div>
-                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2.5 py-2 text-center">
-                            <div className="text-base font-black tabular-nums text-foreground">{s.parent_email_pct}%</div>
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2 py-2 text-center">
+                            <div className="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400">{s.reports_published}</div>
+                            <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Published</div>
+                          </div>
+                          <div className="rounded-xl bg-muted/40 border border-border/60 px-2 py-2 text-center">
+                            <div className="text-sm font-black tabular-nums text-foreground">{s.parent_email_pct}%</div>
                             <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Parents</div>
                           </div>
                         </div>
@@ -1466,145 +1424,192 @@ export default function AccountabilityDashboard({
             </Section>
           )}
 
-          {/* ── TEACHERS ─────────────────────────────────────────── */}
-          {tab === 'teachers' && <TeacherAccountabilityPanel />}
-
-          {/* ── CLASSES & REPORTS ─────────────────────────────────── */}
-          {tab === 'reports' && (
+          {/* ── UNIFIED TEACHERS & CLASSES MONITORING ─────────────────── */}
+          {(tab === 'teachers' || tab === 'reports') && (
             <>
-              <Section title="Reports (active term)" icon={<ClipboardDocumentListIcon className="w-3.5 h-3.5" />}>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <Tile value={c?.totals.reports ?? 0} label="Reports written" />
-                  <Tile value={c?.totals.published ?? 0} label="Published" tone="good" />
-                  <Tile value={c?.totals.draft ?? 0} label="Unpublished draft" tone="warn" onClick={() => focusFlag('draft_pending')} />
-                  <Tile value={c?.gaps.reports_missing_course ?? 0} label="Missing course link" tone="warn" />
-                  <Tile value={c?.totals.students_with_report ?? 0} label="Students with report" />
-                  <Tile value={c?.totals.students_on_roster ?? 0} label="Students in classes" />
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
+                <div className="flex flex-wrap items-center gap-1">
+                  {([
+                    { id: 'all', label: 'All Monitoring' },
+                    { id: 'teachers', label: `Teachers (${teachers.length})` },
+                    { id: 'classes', label: `Classes (${c?.by_class?.length ?? 0})` },
+                    { id: 'backlog', label: `Draft Backlog (${c?.totals.draft ?? 0})` },
+                  ] as const).map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => setTeachingFocus(sub.id)}
+                      className={`min-h-9 rounded-xl px-3 py-1.5 text-xs font-black transition-colors ${
+                        teachingFocus === sub.id
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
                 </div>
-              </Section>
-
-              {classChartData.length > 0 && (
-                <div className={`${CARD} p-4 sm:p-5`}>
-                  <h3 className={`${LABEL} mb-2`}>Class coverage — published / draft / missing</h3>
-                  <StackedBarChart
-                    data={classChartData}
-                    xKey="class"
-                    height={280}
-                    bars={[
-                      { key: 'published', label: 'Published', color: CHART_COLORS.emerald },
-                      { key: 'draft', label: 'Draft', color: CHART_COLORS.amber },
-                      { key: 'missing', label: 'Missing', color: CHART_COLORS.rose },
-                    ]}
-                  />
+                <div className="flex items-center gap-2 pr-1">
+                  <Link
+                    href="/dashboard/results"
+                    className="inline-flex min-h-9 items-center rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                  >
+                    Publish Results →
+                  </Link>
+                  <Link
+                    href="/dashboard/reports/builder"
+                    className="inline-flex min-h-9 items-center rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground hover:opacity-95"
+                  >
+                    Result Builder →
+                  </Link>
                 </div>
-              )}
+              </div>
 
-              {c && c.classes_without_reports.length > 0 && (
-                <Section title="Classes with students but zero reports" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
-                  <div className={`${CARD} divide-y divide-border`}>
-                    {c.classes_without_reports.map((x) => (
-                      <div key={x.class} className="flex items-center justify-between px-4 py-3 gap-3">
-                        <span className="text-sm font-bold text-foreground">{x.class}</span>
-                        <span className="text-sm font-black text-rose-600 dark:text-rose-400">{x.students} students · 0 reports</span>
-                      </div>
-                    ))}
+              {(teachingFocus === 'all' || teachingFocus === 'classes' || teachingFocus === 'backlog') && (
+                <Section title="Term Report Delivery Summary" icon={<ClipboardDocumentListIcon className="w-3.5 h-3.5" />}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Tile value={c?.totals.published ?? 0} label="Published Reports" tone="good" />
+                    <Tile value={c?.totals.draft ?? 0} label="Unpublished Drafts" tone={(c?.totals.draft ?? 0) > 0 ? 'warn' : 'good'} onClick={() => focusFlag('draft_pending')} />
+                    <Tile value={c?.classes_without_reports?.length ?? 0} label="Zero-Report Classes" tone={(c?.classes_without_reports?.length ?? 0) > 0 ? 'bad' : 'good'} />
+                    <Tile value={c?.gaps.reports_missing_course ?? 0} label="Missing Course Link" tone={(c?.gaps.reports_missing_course ?? 0) > 0 ? 'warn' : 'default'} />
                   </div>
                 </Section>
               )}
 
-              {c && c.by_class.length > 0 && (
-                <Section title="Coverage by class" icon={<AcademicCapIcon className="w-3.5 h-3.5" />}>
-                  <div className={`${CARD} overflow-x-auto`}>
-                    <table className="w-full text-sm min-w-[680px]">
-                      <thead>
-                        <tr className="border-b border-border text-left bg-muted/25">
-                          {['Class', 'Students', 'Reports', 'Published', 'Drafts', 'Missing', 'Progress'].map((h) => (
-                            <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {c.by_class.map((row: ClassRow, idx) => {
-                          const pct = row.students > 0 ? Math.min(100, Math.round((row.published / row.students) * 100)) : 0;
-                          const missing = row.missing ?? Math.max(0, row.students - (row.published + row.draft));
-                          return (
-                            <tr key={`${row.class}-${idx}`} className="hover:bg-muted/30">
-                              <td className="px-3 py-2.5 font-bold">{row.class}</td>
-                              <td className="px-3 py-2.5 text-muted-foreground">{row.students}</td>
-                              <td className="px-3 py-2.5 text-muted-foreground">{row.reports}</td>
-                              <td className="px-3 py-2.5">{row.published}</td>
-                              <td className="px-3 py-2.5">{row.draft > 0 ? <span className="text-amber-600 dark:text-amber-400 font-bold">{row.draft}</span> : '—'}</td>
-                              <td className="px-3 py-2.5">
-                                {missing > 0
-                                  ? <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">{missing} missing</span>
-                                  : <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Complete</span>}
-                              </td>
-                              <td className="px-3 py-2.5">
-                                <div className="flex items-center gap-2 justify-end">
-                                  <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                                    <div style={{ width: `${pct}%` }} className={`h-full ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-primary' : 'bg-amber-500'}`} />
-                                  </div>
-                                  <span className="text-xs font-bold w-9 text-right">{pct}%</span>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </Section>
-              )}
+              {(teachingFocus === 'all' || teachingFocus === 'teachers') && <TeacherAccountabilityPanel />}
 
-              {backlog && backlog.hidden_by_term_filter.drafts > 0 && (
-                <Section title="Cross-term unpublished backlog" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
-                  <div className={`${CARD} p-4 text-sm text-muted-foreground`}>
-                    Across all terms there are <strong className="text-foreground">{backlog.all_terms.drafts}</strong> unpublished reports —{' '}
-                    <strong className="text-rose-600 dark:text-rose-400">{backlog.hidden_by_term_filter.drafts}</strong> sit outside the active term.
-                  </div>
-                  {backlog.overdue_by_teacher.length > 0 && (
-                    <div className={`${CARD} overflow-x-auto`}>
-                      <table className="w-full text-sm min-w-[640px]">
-                        <thead>
-                          <tr className="border-b border-border text-left bg-muted/25">
-                            {['Teacher', 'Course', 'Term', 'Unpublished', 'Oldest', 'Action'].map((h) => (
-                              <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {backlog.overdue_by_teacher.map((o, i) => (
-                            <tr key={i} className="hover:bg-muted/30">
-                              <td className="px-3 py-2.5 font-bold">{o.teacher}</td>
-                              <td className="px-3 py-2.5 text-muted-foreground">{o.course || '—'}</td>
-                              <td className="px-3 py-2.5 text-muted-foreground">{o.term}</td>
-                              <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400">{o.drafts}</td>
-                              <td className="px-3 py-2.5">{o.oldest_days == null ? '—' : <span className={o.oldest_days >= 60 ? 'font-black text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}>{o.oldest_days} days</span>}</td>
-                              <td className="px-3 py-2.5">
-                                <Link
-                                  href="/dashboard/reports/builder"
-                                  className="inline-flex items-center gap-1 rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-black text-primary hover:bg-primary/20 whitespace-nowrap"
-                                >
-                                  Open Reports →
-                                </Link>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              {(teachingFocus === 'all' || teachingFocus === 'classes') && (
+                <>
+                  {classChartData.length > 0 && (
+                    <div className={`${CARD} p-4 sm:p-5`}>
+                      <h3 className={`${LABEL} mb-2`}>Class coverage — published / draft / missing</h3>
+                      <StackedBarChart
+                        data={classChartData}
+                        xKey="class"
+                        height={260}
+                        bars={[
+                          { key: 'published', label: 'Published', color: CHART_COLORS.emerald },
+                          { key: 'draft', label: 'Draft', color: CHART_COLORS.amber },
+                          { key: 'missing', label: 'Missing', color: CHART_COLORS.rose },
+                        ]}
+                      />
                     </div>
                   )}
-                </Section>
+
+                  {c && c.classes_without_reports.length > 0 && (
+                    <Section title="Classes with students but zero reports" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
+                      <div className={`${CARD} divide-y divide-border`}>
+                        {c.classes_without_reports.map((x) => (
+                          <div key={x.class} className="flex items-center justify-between px-4 py-3 gap-3">
+                            <span className="text-sm font-bold text-foreground">{x.class}</span>
+                            <span className="text-sm font-black text-rose-600 dark:text-rose-400">{x.students} students · 0 reports</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+
+                  {c && c.by_class.length > 0 && (
+                    <Section title="Coverage by class" icon={<AcademicCapIcon className="w-3.5 h-3.5" />}>
+                      <div className={`${CARD} overflow-x-auto`}>
+                        <table className="w-full text-sm min-w-[680px]">
+                          <thead>
+                            <tr className="border-b border-border text-left bg-muted/25">
+                              {['Class', 'Students', 'Reports', 'Published', 'Drafts', 'Missing', 'Progress'].map((h) => (
+                                <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {c.by_class.map((row: ClassRow, idx) => {
+                              const pct = row.students > 0 ? Math.min(100, Math.round((row.published / row.students) * 100)) : 0;
+                              const missing = row.missing ?? Math.max(0, row.students - (row.published + row.draft));
+                              return (
+                                <tr key={`${row.class}-${idx}`} className="hover:bg-muted/30">
+                                  <td className="px-3 py-2.5 font-bold">{row.class}</td>
+                                  <td className="px-3 py-2.5 text-muted-foreground">{row.students}</td>
+                                  <td className="px-3 py-2.5 text-muted-foreground">{row.reports}</td>
+                                  <td className="px-3 py-2.5">{row.published}</td>
+                                  <td className="px-3 py-2.5">{row.draft > 0 ? <span className="text-amber-600 dark:text-amber-400 font-bold">{row.draft}</span> : '—'}</td>
+                                  <td className="px-3 py-2.5">
+                                    {missing > 0
+                                      ? <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">{missing} missing</span>
+                                      : <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Complete</span>}
+                                  </td>
+                                  <td className="px-3 py-2.5">
+                                    <div className="flex items-center gap-2 justify-end">
+                                      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                        <div style={{ width: `${pct}%` }} className={`h-full ${pct === 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-primary' : 'bg-amber-500'}`} />
+                                      </div>
+                                      <span className="text-xs font-bold w-9 text-right">{pct}%</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Section>
+                  )}
+                </>
               )}
 
-              <Section title="Students at risk" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5" />}>
-                <AtRiskList schoolId={undefined} />
-              </Section>
+              {(teachingFocus === 'all' || teachingFocus === 'backlog') && (
+                <>
+                  {backlog && (backlog.hidden_by_term_filter.drafts > 0 || backlog.overdue_by_teacher.length > 0) && (
+                    <Section title="Unpublished draft backlog by teacher" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />}>
+                      {backlog.hidden_by_term_filter.drafts > 0 && (
+                        <div className={`${CARD} p-4 text-sm text-muted-foreground`}>
+                          Across all terms there are <strong className="text-foreground">{backlog.all_terms.drafts}</strong> unpublished reports —{' '}
+                          <strong className="text-rose-600 dark:text-rose-400">{backlog.hidden_by_term_filter.drafts}</strong> sit outside the active term.
+                        </div>
+                      )}
+                      {backlog.overdue_by_teacher.length > 0 && (
+                        <div className={`${CARD} overflow-x-auto`}>
+                          <table className="w-full text-sm min-w-[640px]">
+                            <thead>
+                              <tr className="border-b border-border text-left bg-muted/25">
+                                {['Teacher', 'Course', 'Term', 'Unpublished', 'Oldest', 'Action'].map((h) => (
+                                  <th key={h} className={`${LABEL} px-3 py-3`}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {backlog.overdue_by_teacher.map((o, i) => (
+                                <tr key={i} className="hover:bg-muted/30">
+                                  <td className="px-3 py-2.5 font-bold">{o.teacher}</td>
+                                  <td className="px-3 py-2.5 text-muted-foreground">{o.course || '—'}</td>
+                                  <td className="px-3 py-2.5 text-muted-foreground">{o.term}</td>
+                                  <td className="px-3 py-2.5 font-black text-rose-600 dark:text-rose-400">{o.drafts}</td>
+                                  <td className="px-3 py-2.5">{o.oldest_days == null ? '—' : <span className={o.oldest_days >= 60 ? 'font-black text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}>{o.oldest_days} days</span>}</td>
+                                  <td className="px-3 py-2.5">
+                                    <Link
+                                      href="/dashboard/reports/builder"
+                                      className="inline-flex items-center gap-1 rounded-lg border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-black text-primary hover:bg-primary/20 whitespace-nowrap"
+                                    >
+                                      Open Reports →
+                                    </Link>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </Section>
+                  )}
+
+                  <Section title="Students at risk" icon={<ExclamationTriangleIcon className="w-3.5 h-3.5" />}>
+                    <AtRiskList schoolId={undefined} />
+                  </Section>
+                </>
+              )}
             </>
           )}
 
-          {/* ── PARENT REACH (COMMS) ──────────────────────────────── */}
-          {tab === 'comms' && (
+          {/* ── PARENT REACH & OFFICIAL EXPORTS ─────────────────────── */}
+          {(tab === 'comms' || tab === 'report') && (
             <>
               <Section title="Parent-student contact reachability" icon={<EnvelopeIcon className="w-3.5 h-3.5 text-primary" />}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1628,6 +1633,65 @@ export default function AccountabilityDashboard({
                     <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{analytics.parentUnmatched}</div>
                     <p className="text-[11px] text-muted-foreground">Zero parent contact details</p>
                   </div>
+                </div>
+              </Section>
+
+              <Section title="Official Accountability Exports (PDF & CSV)" icon={<ArrowDownTrayIcon className="w-3.5 h-3.5 text-primary" />}>
+                <div className={`${CARD} p-5 space-y-4`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">Executive Audit Pack &amp; Clean Spreadsheets</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Download the branded multi-section audit PDF or filter-ready CSV sheets for current session monitoring.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGeneratePdf}
+                      disabled={reportBusy || people.length === 0}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-black uppercase tracking-wider hover:opacity-95 disabled:opacity-50"
+                    >
+                      <ArrowDownTrayIcon className={`w-4 h-4 ${reportBusy ? 'animate-pulse' : ''}`} />
+                      {reportBusy ? 'Building PDF…' : 'Official PDF Report'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadPeopleCsv(gapPeople, 'rillcod-accountability-gaps.csv')}
+                      disabled={gapPeople.length === 0}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300 px-3.5 py-2 text-xs font-black uppercase tracking-wider disabled:opacity-50"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" /> Gaps CSV ({gapPeople.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadPeopleCsv(teachers, 'rillcod-accountability-teachers.csv')}
+                      disabled={teachers.length === 0}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3.5 py-2 text-xs font-bold hover:bg-accent disabled:opacity-50"
+                    >
+                      Teachers CSV ({teachers.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadPeopleCsv(students, 'rillcod-accountability-students.csv')}
+                      disabled={students.length === 0}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3.5 py-2 text-xs font-bold hover:bg-accent disabled:opacity-50"
+                    >
+                      Students CSV ({students.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadPeopleCsv(people, 'rillcod-accountability-all.csv')}
+                      disabled={people.length === 0}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3.5 py-2 text-xs font-bold hover:bg-accent disabled:opacity-50"
+                    >
+                      All Accounts CSV ({people.length})
+                    </button>
+                  </div>
+                  {reportMsg && (
+                    <p className={`text-xs font-bold ${reportMsg.startsWith('Error') ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{reportMsg}</p>
+                  )}
                 </div>
               </Section>
 
@@ -1694,91 +1758,6 @@ export default function AccountabilityDashboard({
             </>
           )}
 
-          {/* ── EXPORT / OFFICIAL REPORTS ─────────────────────────── */}
-          {tab === 'report' && (
-            <Section title="Official Rillcod Technologies Exports" icon={<ArrowDownTrayIcon className="w-3.5 h-3.5 text-primary" />}>
-              <div className={`${CARD} p-5 sm:p-6 space-y-5`}>
-                <div>
-                  <h3 className="text-lg font-black text-foreground">Executive Accountability PDF &amp; CSV</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                    Generates an official Rillcod Technologies branded multi-section audit PDF with logo letterhead, accurate term KPIs,
-                    teacher performance, class coverage, and actionable gap tables — or clean Excel-safe CSV spreadsheets.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <Tile value={people.length} label="Total Accounts" />
-                  <Tile value={teachers.length} label="Teachers" />
-                  <Tile value={gapPeople.length} label="Accounts with Gaps" tone={gapPeople.length > 0 ? 'warn' : 'good'} />
-                  <Tile value={`${analytics.healthScore}%`} label="Health Score" tone={analytics.healthScore >= 85 ? 'good' : analytics.healthScore >= 70 ? 'warn' : 'bad'} />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleGeneratePdf}
-                    disabled={reportBusy || people.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:opacity-95 disabled:opacity-50"
-                  >
-                    <ArrowDownTrayIcon className={`w-4 h-4 ${reportBusy ? 'animate-pulse' : ''}`} />
-                    {reportBusy ? 'Building PDF…' : 'Download Official PDF Report'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadPeopleCsv(gapPeople, 'rillcod-accountability-gaps.csv')}
-                    disabled={gapPeople.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300 px-4 py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50"
-                  >
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Export Gaps Only ({gapPeople.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadPeopleCsv(people, 'rillcod-accountability-all.csv')}
-                    disabled={people.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
-                  >
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Export All (CSV)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadPeopleCsv(teachers, 'rillcod-accountability-teachers.csv')}
-                    disabled={teachers.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
-                  >
-                    Teachers CSV
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadPeopleCsv(students, 'rillcod-accountability-students.csv')}
-                    disabled={students.length === 0}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs font-black uppercase tracking-wider hover:bg-accent disabled:opacity-50"
-                  >
-                    Students CSV
-                  </button>
-                </div>
-
-                {reportMsg && (
-                  <p className={`text-sm font-bold ${reportMsg.startsWith('Error') ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{reportMsg}</p>
-                )}
-              </div>
-
-              {classChartData.length > 0 && (
-                <div className={`${CARD} p-5 sm:p-6 space-y-3`}>
-                  <p className={LABEL}>Class Publication Snapshot</p>
-                  <VerticalBarChart
-                    data={classChartData}
-                    xKey="class"
-                    height={240}
-                    bars={[
-                      { key: 'published', label: 'Published', color: CHART_COLORS.emerald },
-                      { key: 'draft', label: 'Draft', color: CHART_COLORS.amber },
-                    ]}
-                  />
-                </div>
-              )}
-            </Section>
-          )}
-
           {c && (
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <p className="text-xs text-muted-foreground">Snapshot taken {fmtDate(c.generated_at)}</p>
@@ -1795,7 +1774,7 @@ export default function AccountabilityDashboard({
           role="dialog"
           aria-modal="true"
           aria-label={`Session Rollover Planner for ${rolloverModal.schoolName}`}
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+          className="fixed inset-0 z-[10050] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
         >
           <div className="w-full max-w-3xl max-h-[92dvh] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden">
             <div className="px-5 py-4 border-b border-border bg-primary/5 flex items-center justify-between gap-3">

@@ -448,7 +448,7 @@ export async function POST(request: NextRequest) {
 
     const { data: examRow } = await admin
       .from('cbt_exams')
-      .select('id, duration_minutes, start_date, end_date, is_active, program_id, course_id, school_id, metadata, passing_score')
+      .select('id, class_id, term_id, created_at, duration_minutes, start_date, end_date, is_active, program_id, course_id, school_id, metadata, passing_score')
       .eq('id', exam_id)
       .single();
 

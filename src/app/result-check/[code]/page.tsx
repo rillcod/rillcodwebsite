@@ -13,10 +13,11 @@ import {
   ExclamationTriangleIcon,
   PrinterIcon,
   ShieldCheckIcon,
+  ShareIcon,
 } from '@/lib/icons';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import type { OrgSettings, ReportCardData } from '@/components/reports/ModernReportCard';
-import { generateReportPDF, printElement, ScaledReportCard } from '@/lib/pdf-utils';
+import { generateReportPDF, printElement, shareReportCard, ScaledReportCard } from '@/lib/pdf-utils';
 import ResultGate from '@/components/verify/ResultGate';
 import ResultCheckShell from '@/components/result-check/ResultCheckShell';
 import type { ParentClaimLinkedResult } from '@/lib/parent-claim/linked-result';
@@ -84,7 +85,7 @@ type QuickCheckResponse = {
 
 function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rc-fade-up rc-panel rounded-[1.75rem] p-5 sm:p-7 ${className}`}>
+    <section className={`rc-fade-up rc-panel rounded-[1.75rem] p-4 sm:p-7 ${className}`}>
       {children}
     </section>
   );
@@ -111,6 +112,7 @@ export default function ResultQuickCheckPage() {
   const [claimPortalAccess, setClaimPortalAccess] = useState<QuickCheckResponse['portalAccess']>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const reportRef = useRef<HTMLDivElement | null>(null);
   const lastReportActionAt = useRef(0);
@@ -136,7 +138,6 @@ export default function ResultQuickCheckPage() {
         throw new Error(json?.error || 'Result check failed.');
       }
 
-      // After OTP/link, DB write is synchronous but retry briefly if capture hasn't propagated yet.
       if (opts?.afterLink && !json?.parentCaptured) {
         const attempt = opts.attempt ?? 0;
         if (attempt < 4) {
@@ -195,7 +196,6 @@ export default function ResultQuickCheckPage() {
     void loadResultCheck();
   }, [loadResultCheck]);
 
-  // After a successful code check, open the parent-details form into view immediately.
   useEffect(() => {
     if (loading || !data?.needsParentSetup || data.parentCaptured) return;
     const t = window.setTimeout(() => {
@@ -219,7 +219,7 @@ export default function ResultQuickCheckPage() {
 
   function allowReportAction() {
     const now = Date.now();
-    if (now - lastReportActionAt.current < 2500) {
+    if (now - lastReportActionAt.current < 2000) {
       setDownloadError('Please wait a moment before trying again.');
       return false;
     }
@@ -260,6 +260,29 @@ export default function ResultQuickCheckPage() {
     }
   }
 
+  async function shareReport() {
+    if (!reportRef.current || !selectedReport) return;
+    if (!allowReportAction()) return;
+    setShareBusy(true);
+    recordReportAction('download');
+    try {
+      const name = (selectedReport.student_name || data?.student?.full_name || 'Student').replace(/\s+/g, '_');
+      const term = (selectedReport.report_term || selectedReport.label || 'Report').replace(/\s+/g, '_');
+      await shareReportCard(
+        reportRef.current,
+        `${name}_${term}.pdf`,
+        `Progress report for ${selectedReport.student_name || data?.student?.full_name || 'Student'} (${selectedReport.report_term || 'Term'}) — Rillcod Technologies`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
+        setDownloadError('Could not share this PDF directly — tap Download PDF instead.');
+      }
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
   return (
     <ResultCheckShell compact>
       {loading && (
@@ -282,7 +305,7 @@ export default function ResultQuickCheckPage() {
           </div>
           <Link
             href="/result-check"
-            className="rc-cta inline-flex items-center justify-center rounded-2xl px-6 py-3.5 text-sm font-bold tracking-wide"
+            className="rc-cta inline-flex min-h-11 items-center justify-center rounded-2xl px-6 py-3 text-sm font-bold tracking-wide"
           >
             Try another code
           </Link>
@@ -293,8 +316,8 @@ export default function ResultQuickCheckPage() {
         <Panel className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheckIcon className="h-7 w-7 text-primary" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheckIcon className="h-6 w-6 text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -307,17 +330,17 @@ export default function ResultQuickCheckPage() {
                 </h1>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
                   {[data.card.school_name, data.card.section_class].filter(Boolean).join(' · ')
-                    || (data.card.holder_name ? 'Rillcod Technologies' : 'Identity confirmed — open result check with this code to view reports')}
+                    || (data.card.holder_name ? 'Rillcod Technologies' : 'Identity confirmed')}
                 </p>
               </div>
             </div>
-            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground ring-1 ring-border">
+            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-muted-foreground ring-1 ring-border">
               {displayCode}
             </div>
           </div>
 
           <div
-            className={`flex items-start gap-3 rounded-[1.25rem] border p-4 sm:p-5 ${
+            className={`flex items-start gap-3 rounded-[1.25rem] border p-4 ${
               data.cardResult === 'ok'
                 ? 'border-emerald-500/25 bg-emerald-500/10'
                 : 'border-rose-500/25 bg-rose-500/10'
@@ -374,35 +397,32 @@ export default function ResultQuickCheckPage() {
       )}
 
       {!loading && data?.reportPending && (
-        <Panel className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 ring-1 ring-sky-500/20">
-                <AcademicCapIcon className="h-7 w-7 text-sky-600 dark:text-sky-400" />
+        <Panel className="space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 ring-1 ring-sky-500/20">
+                <AcademicCapIcon className="h-6 w-6 text-sky-600 dark:text-sky-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Report coming soon</p>
-                <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Report in preparation</p>
+                <h1 className="rc-display text-xl font-bold tracking-tight sm:text-2xl">
                   {data.student?.full_name || data.student?.first_name || 'Student number accepted'}
                 </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
                   {[data.student?.school_name, data.student?.class_name].filter(Boolean).join(' · ')}
                 </p>
               </div>
             </div>
-            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground ring-1 ring-border">
+            <div className="w-fit rounded-full bg-card/80 px-3 py-1 font-mono text-xs font-bold tracking-wider text-muted-foreground ring-1 ring-border">
               {displayCode}
             </div>
           </div>
 
-          <div className="flex items-start gap-3 rounded-[1.25rem] border border-sky-500/25 bg-sky-500/10 p-4 sm:p-5">
-            <ShieldCheckIcon className="h-6 w-6 shrink-0 text-sky-600 dark:text-sky-400" />
-            <div>
-              <p className="text-sm font-bold">Great work — report on the way!</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {data.pendingMessage || 'Your coding report is being prepared. Check back here soon — it will appear automatically once published.'}
-              </p>
-            </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-sky-500/25 bg-sky-500/10 p-4">
+            <ShieldCheckIcon className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-400 mt-0.5" />
+            <p className="text-xs sm:text-sm leading-relaxed text-foreground">
+              {data.pendingMessage || 'This term’s coding report is being finalised. Check back soon with this code — it will open automatically once published.'}
+            </p>
           </div>
 
           {!data.parentCaptured && data.needsParentSetup && (
@@ -412,90 +432,75 @@ export default function ResultQuickCheckPage() {
               recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
               onClaimLinked={handleClaimLinked}
             >
-              <div className="rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 text-center text-xs text-muted-foreground">
-                Parent account saved — we will notify you when the report is ready.
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-center text-xs text-muted-foreground">
+                Parent account saved — we will notify you as soon as the report is published.
               </div>
             </ResultGate>
           )}
 
           {data.parentCaptured && (
-            <div className="rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
+            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
               <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Parent account linked</p>
-              <p className="mt-1 text-xs text-muted-foreground">When the report is published, return here with the same student number — it will open instantly.</p>
-              <Link
-                href={`/parent-claim?code=${encodeURIComponent(code)}`}
-                className="mt-2 inline-flex text-xs font-bold text-emerald-600 dark:text-emerald-400 underline underline-offset-2"
-              >
-                Update Parent Details Form ↗
-              </Link>
+              <p className="mt-1 text-xs text-muted-foreground">Return here with {displayCode} once published to view and download the PDF.</p>
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <Link href="/result-check" className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
-              ← Check another student number
+          <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-3">
+            <Link href="/result-check" className="min-h-10 inline-flex items-center text-xs font-bold text-muted-foreground hover:text-foreground">
+              ← Check another student
             </Link>
-            <Link
-              href={`/parent-claim?code=${encodeURIComponent(code)}`}
-              className="text-xs font-bold text-primary hover:underline"
-            >
-              Fill Parent Details Form (Parent Claim) ↗
-            </Link>
+            {data.parentCaptured && (
+              <Link
+                href={`/parent-claim?code=${encodeURIComponent(code)}`}
+                className="min-h-10 inline-flex items-center text-xs font-bold text-primary hover:underline"
+              >
+                Update parent details
+              </Link>
+            )}
           </div>
         </Panel>
       )}
 
       {!loading && data?.student && !data.reportPending && (
-        <Panel className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
-                <AcademicCapIcon className="h-7 w-7 text-primary" />
+        <Panel className="space-y-5">
+          {/* Unified Student Identity & Verification Strip */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5 min-w-0">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                <AcademicCapIcon className="h-6 w-6 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  {data.parentCaptured ? 'Student' : 'Result check'}
-                </p>
-                <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
-                  {data.student.full_name || 'Published result found'}
-                </h1>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {data.parentCaptured
-                    ? ([data.student.school_name, data.student.class_name].filter(Boolean).join(' · ') || 'Rillcod learner')
-                    : 'One-time parent setup below unlocks the report'}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="rc-display text-xl font-bold tracking-tight sm:text-2xl truncate">
+                    {data.student.full_name || 'Published Result'}
+                  </h1>
+                  {parentVerified && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                      <CheckCircleIcon className="h-3.5 w-3.5" />
+                      Verified
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 truncate text-xs sm:text-sm text-muted-foreground">
+                  {parentVerified
+                    ? ([data.student.school_name, data.student.class_name].filter(Boolean).join(' · ') || 'Rillcod Technologies')
+                    : 'Complete one-time parent verification below to unlock'}
                 </p>
               </div>
             </div>
-            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground ring-1 ring-border">
+            <div className="w-fit rounded-full bg-card/80 px-3 py-1 font-mono text-xs font-bold tracking-wider text-muted-foreground ring-1 ring-border">
               {displayCode}
             </div>
           </div>
 
-          {(parentVerified) && (
-            <div className="flex items-start gap-3 rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 sm:p-5">
-              <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <div>
-                <p className="text-sm font-bold">Verified by Rillcod Technologies</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {justLinked
-                    ? 'Parent account linked — your report is below.'
-                    : data.sessionAutoLinked
-                      ? 'Welcome back — your account is linked.'
-                      : 'Parent account confirmed — report unlocked.'}
-                </p>
-              </div>
-            </div>
-          )}
-
-
           {data.consentPending && data.formUrl && (
-            <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card/60 p-3.5 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground">
-                Your school has an optional form you can complete — not required to view results.
+                Optional school form available — not required to view this result.
               </p>
               <a
                 href={data.formUrl}
-                className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.16em] text-primary hover:underline"
+                className="whitespace-nowrap text-xs font-bold text-primary hover:underline"
               >
                 Open {data.form?.title || 'school form'} →
               </a>
@@ -503,15 +508,15 @@ export default function ResultQuickCheckPage() {
           )}
 
           {data.consentStatusAvailable === false && (
-            <div role="status" className="flex items-start gap-3 rounded-[1.25rem] border border-amber-500/25 bg-amber-500/10 p-4">
+            <div role="status" className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3.5">
               <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
               <p className="text-xs text-muted-foreground">
-                Optional school forms could not be refreshed. Your verified report access is unaffected; try again later from the parent portal.
+                Optional school forms could not be refreshed. Your verified report access is unaffected.
               </p>
             </div>
           )}
 
-          <div className="space-y-5">
+          <div className="space-y-4">
             <ResultGate
               code={code}
               captured={parentVerified}
@@ -524,16 +529,16 @@ export default function ResultQuickCheckPage() {
               onClaimLinked={handleClaimLinked}
             >
               {(justLinked || refreshing) && reports.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 rounded-[1.25rem] border border-border bg-card/70 p-8 text-center">
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card/70 p-8 text-center">
                   {reportRefreshFailed ? (
                     <>
                       <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
                       <p className="text-sm font-bold text-foreground">Could not load the report yet</p>
-                      <p className="text-xs text-muted-foreground">Your account is linked — tap below. No need to re-enter the student number.</p>
+                      <p className="text-xs text-muted-foreground">Your account is linked — tap below to retry.</p>
                       <button
                         type="button"
                         onClick={() => void loadResultCheck({ soft: true })}
-                        className="rc-cta rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-[0.14em]"
+                        className="rc-cta min-h-11 rounded-xl px-5 py-2.5 text-xs font-bold uppercase tracking-[0.14em]"
                       >
                         Show my report
                       </button>
@@ -542,53 +547,77 @@ export default function ResultQuickCheckPage() {
                     <>
                       <ArrowPathIcon className="h-8 w-8 animate-spin text-primary" />
                       <p className="text-sm font-bold text-foreground">Opening your report…</p>
-                      <p className="text-xs text-muted-foreground">One moment — no need to re-enter the student number.</p>
                     </>
                   )}
                 </div>
               ) : reports.length > 0 ? (
                 <>
-                  <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/70 p-4 lg:flex-row lg:items-center lg:justify-between">
+                  {/* Term Selector Pills (when multiple term reports exist) */}
+                  {reports.length > 1 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Published term reports">
+                      {reports.map((report) => {
+                        const active = selectedReport?.id === report.id;
+                        const label =
+                          report.label ||
+                          [report.report_term, report.report_period].filter(Boolean).join(' · ') ||
+                          report.course_name ||
+                          'Report';
+                        return (
+                          <button
+                            key={report.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            onClick={() => setSelectedReportId(report.id)}
+                            className={`min-h-10 shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
+                              active
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'border border-border bg-card text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Clean Thumb-Friendly Report Action Bar */}
+                  <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-3.5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Official report card</p>
-                      <p className="mt-1 truncate text-sm font-semibold">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        {[selectedReport?.report_term, selectedReport?.report_period].filter(Boolean).join(' · ') || 'Official Report Card'}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm font-bold text-foreground">
                         {selectedReport?.course_name || selectedReport?.label || 'Published Progress Report'}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {reports.length > 1 && (
-                        <select
-                          value={selectedReport?.id || ''}
-                          onChange={(event) => setSelectedReportId(event.target.value)}
-                          className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-semibold outline-none focus:border-primary"
-                          aria-label="Select report term"
-                        >
-                          {reports.map((report) => (
-                            <option key={report.id} value={report.id}>
-                              {report.label ||
-                                [report.report_period, report.report_term].filter(Boolean).join(' · ') ||
-                                report.course_name ||
-                                'Published Report'}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                    <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={printReport}
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold uppercase tracking-[0.14em] transition hover:bg-muted"
+                        onClick={() => void downloadReport()}
+                        disabled={pdfBusy}
+                        className="rc-cta inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold disabled:opacity-50"
                       >
-                        <PrinterIcon className="h-4 w-4" />
-                        Print
+                        {pdfBusy ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ArrowDownTrayIcon className="h-4 w-4 shrink-0" />}
+                        <span>Download</span>
                       </button>
                       <button
                         type="button"
-                        onClick={downloadReport}
-                        disabled={pdfBusy}
-                        className="rc-cta inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-[0.14em] disabled:opacity-50"
+                        onClick={() => void shareReport()}
+                        disabled={shareBusy}
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2.5 text-xs font-bold text-white transition-colors disabled:opacity-50"
                       >
-                        {pdfBusy ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ArrowDownTrayIcon className="h-4 w-4" />}
-                        Download
+                        {shareBusy ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ShareIcon className="h-4 w-4 shrink-0" />}
+                        <span>Share</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={printReport}
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs font-bold text-foreground transition hover:bg-muted"
+                      >
+                        <PrinterIcon className="h-4 w-4 shrink-0" />
+                        <span>Print</span>
                       </button>
                     </div>
                   </div>
@@ -600,10 +629,7 @@ export default function ResultQuickCheckPage() {
                   )}
 
                   {selectedReport && (
-                    <div className="relative overflow-hidden rounded-[1.25rem] border border-border bg-card p-2 sm:p-5">
-                      <div className="pointer-events-none absolute right-3 top-3 z-20 rounded-full border border-emerald-500/30 bg-card/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400 shadow-sm print:hidden sm:right-7 sm:top-7 sm:px-4 sm:py-2 sm:text-[9px]">
-                        Verified by Rillcod Technologies
-                      </div>
+                    <div className="overflow-hidden rounded-2xl border border-border bg-card p-2 sm:p-4">
                       <div ref={reportRef} className="mx-auto w-full bg-white" style={{ maxWidth: '210mm' }}>
                         <ScaledReportCard report={selectedReport} responsive>
                           <ModernReportCard report={selectedReport} orgSettings={data?.orgSettings ?? null} />
@@ -616,13 +642,21 @@ export default function ResultQuickCheckPage() {
             </ResultGate>
           </div>
 
-          <div className="border-t border-border pt-4">
+          <div className="border-t border-border/60 pt-3 flex items-center justify-between gap-3">
             <Link
               href="/result-check"
-              className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground transition hover:text-foreground"
+              className="min-h-10 inline-flex items-center text-xs font-bold text-muted-foreground transition hover:text-foreground"
             >
-              Check another result code
+              ← Check another student
             </Link>
+            {activePortalAccess?.parentLoginUrl && (
+              <Link
+                href={activePortalAccess.parentLoginUrl}
+                className="min-h-10 inline-flex items-center text-xs font-bold text-primary hover:underline"
+              >
+                Open Parent Portal →
+              </Link>
+            )}
           </div>
         </Panel>
       )}

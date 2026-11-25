@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import {
   SchoolReportBuilderCanvas,
   type EditorState,
@@ -76,8 +75,9 @@ export function SchoolReportWorkspace({
     const schoolTitle = r.school_name || r.schools?.name || report.title || 'Partner School';
     const term = [r.term_label || r.report_term, r.academic_year || r.report_period].filter(Boolean).join(' · ');
     const snap = (r.snapshot && typeof r.snapshot === 'object' ? r.snapshot : {}) as Record<string, any>;
-    const enrolled = snap.total_students ?? snap.enrolled_students ?? snap.active_students ?? null;
-    const avgScore = snap.average_score ?? snap.avg_score ?? null;
+    const summary = snap.summary && typeof snap.summary === 'object' ? snap.summary : {};
+    const enrolled = summary.activeStudents ?? snap.total_students ?? snap.enrolled_students ?? snap.active_students ?? null;
+    const avgScore = summary.averageScore ?? snap.average_score ?? snap.avg_score ?? null;
     const lines = [
       `*Rillcod Technologies — Term Performance Report*`,
       `School: *${schoolTitle}*${term ? ` (${term})` : ''}`,
@@ -97,63 +97,7 @@ export function SchoolReportWorkspace({
 
   return (
     <div className="space-y-4">
-      {/* Unified, compact top command bar (eliminates redundant links & 3 giant safeguard cards) */}
-      <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={backHref}
-            className="inline-flex min-h-9 items-center rounded-xl border border-border bg-muted/50 hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-all"
-          >
-            ← Back to reports
-          </Link>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border ${
-            report.status === 'published'
-              ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-              : 'border-amber-500/35 bg-amber-500/10 text-amber-800 dark:text-amber-300'
-          }`}>
-            {report.status}
-          </span>
-          <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-            {saveStatus.autosaving
-              ? 'Saving…'
-              : saveStatus.isDirty
-              ? 'Unsaved edits'
-              : saveStatus.lastSavedAt
-              ? `Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-              : 'Manual records protected · Curriculum connected'}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void handleCopyPrincipalSummary()}
-            className="inline-flex min-h-9 items-center rounded-xl border border-emerald-600/35 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 text-xs font-black transition-all"
-          >
-            {copiedSummary ? 'Copied WhatsApp Summary ✓' : 'Copy Principal WhatsApp'}
-          </button>
-          <Link
-            href={`/dashboard/school-reports/${report.id}/analytics`}
-            className="inline-flex min-h-9 items-center rounded-xl border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-bold transition-all"
-          >
-            Insights
-          </Link>
-          <Link
-            href={`/dashboard/school-reports/${report.id}/history`}
-            className="inline-flex min-h-9 items-center rounded-xl border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-bold transition-all"
-          >
-            Activity &amp; revisions
-          </Link>
-          <Link
-            href={`/dashboard/school-reports/${report.id}/preview`}
-            className="inline-flex min-h-9 items-center rounded-xl bg-primary px-3.5 py-1.5 text-xs font-black text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
-          >
-            Client PDF &amp; print
-          </Link>
-        </div>
-      </div>
-
-      <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+      <div className="w-full min-w-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border bg-card shadow-sm">
         <SchoolReportBuilderCanvas
           report={report}
           canManage={canManage}
@@ -172,6 +116,9 @@ export function SchoolReportWorkspace({
           onDeliveryApplied={onDeliveryApplied}
           onLockVersionChange={onLockVersionChange}
           onRetrySave={onRetrySave}
+          backHref={backHref}
+          onCopyPrincipalSummary={handleCopyPrincipalSummary}
+          copiedPrincipalSummary={copiedSummary}
         />
       </div>
 
@@ -182,6 +129,7 @@ export function SchoolReportWorkspace({
           reportStatus={report.status}
         />
       ) : null}
+
       {saveStatus.saveFailed && (onReload || onRestoreLocalDraft) ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15 p-4 text-sm">
           <p className="font-black text-amber-800 dark:text-amber-200">Conflict or save failure detected</p>
@@ -194,7 +142,7 @@ export function SchoolReportWorkspace({
               <button
                 type="button"
                 onClick={() => void onReload()}
-                className="rounded-lg border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-colors"
+                className="min-h-10 rounded-lg border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-colors"
               >
                 Reload latest
               </button>
@@ -203,7 +151,7 @@ export function SchoolReportWorkspace({
               <button
                 type="button"
                 onClick={onRestoreLocalDraft}
-                className="rounded-lg border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-colors"
+                className="min-h-10 rounded-lg border border-border bg-background hover:bg-muted text-foreground px-3 py-1.5 text-xs font-black transition-colors"
               >
                 Copy local draft to editor
               </button>

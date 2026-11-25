@@ -131,6 +131,9 @@ type Props = {
   onNarrativeGenerated?: (narrative: SchoolReportNarrative) => void;
   onDeliveryApplied?: () => Promise<void>;
   onLockVersionChange?: (next: number) => void;
+  backHref?: string;
+  onCopyPrincipalSummary?: () => Promise<void> | void;
+  copiedPrincipalSummary?: boolean;
 };
 
 export function SchoolReportBuilderCanvas({
@@ -153,6 +156,9 @@ export function SchoolReportBuilderCanvas({
   onNarrativeGenerated,
   onDeliveryApplied,
   onLockVersionChange,
+  backHref = '/dashboard/school-reports',
+  onCopyPrincipalSummary,
+  copiedPrincipalSummary = false,
 }: Props) {
   const published = report.status === 'published';
   const isAdmin = role === 'admin';
@@ -200,6 +206,15 @@ export function SchoolReportBuilderCanvas({
   useEffect(() => {
     if (previewOpen) setHasPreviewed(true);
   }, [previewOpen]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
 
   async function openPdfPreview() {
     if (canManage && !published && saveStatus?.isDirty) {
@@ -363,25 +378,74 @@ export function SchoolReportBuilderCanvas({
     : null;
 
   const shell = (
-    <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[70vh]'}`}>
-      {/* Sticky toolbar */}
-      <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex flex-col gap-3 px-4 py-3 xl:flex-row xl:items-start xl:justify-between md:px-5">
-          <div className="min-w-0 flex-1">
+    <div
+      className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-[10050] bg-background' : 'min-h-[70vh]'}`}
+      style={fullscreen ? { paddingTop: 'max(0px, env(safe-area-inset-top, 0px))' } : undefined}
+    >
+      {/* Unified Sticky Workspace Header */}
+      <div className={`sticky ${fullscreen ? 'top-0' : 'top-[var(--app-header-height,0px)] md:top-0'} z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80`}>
+        <div className="flex flex-col gap-3 px-4 py-3 xl:flex-row xl:items-center xl:justify-between md:px-5">
+          <div className="min-w-0 flex-1 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">School report builder</p>
+              {onBack ? (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="inline-flex min-h-8 items-center rounded-lg border border-border bg-muted/40 hover:bg-muted px-2.5 py-1 text-xs font-bold text-foreground transition-colors"
+                >
+                  ← Reports
+                </button>
+              ) : (
+                <Link
+                  href={backHref}
+                  className="inline-flex min-h-8 items-center rounded-lg border border-border bg-muted/40 hover:bg-muted px-2.5 py-1 text-xs font-bold text-foreground transition-colors"
+                >
+                  ← Reports
+                </Link>
+              )}
               <span
                 className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
                   published
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-700 text-white'
                     : 'bg-amber-500/15 text-amber-800 dark:text-amber-200'
                 }`}
               >
                 {published ? 'Published · locked' : 'Draft · editable'}
               </span>
+              {completeness ? (
+                <span className="rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                  Readiness {completeness.score}%
+                </span>
+              ) : null}
+              {canManage && !published && saveStatus ? (
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  {saveStatus.offline
+                    ? '· Offline (local draft)'
+                    : saveStatus.saveFailed
+                      ? '· Save failed'
+                      : saveStatus.autosaving || working === 'save'
+                        ? '· Saving…'
+                        : saveStatus.isDirty
+                          ? '· Unsaved edits'
+                          : saveStatus.lastSavedAt
+                            ? `· Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                            : '· Saved'}
+                </span>
+              ) : null}
+              {saveStatus?.saveFailed && onRetrySave ? (
+                <button
+                  type="button"
+                  onClick={() => void onRetrySave()}
+                  className="rounded-md border border-border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide hover:bg-muted"
+                >
+                  Retry save
+                </button>
+              ) : null}
             </div>
+
             {canManage && !published && onTitleChange ? (
               <input
+                aria-label="Report title"
                 value={titleDraft}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={() => {
@@ -391,218 +455,212 @@ export function SchoolReportBuilderCanvas({
                     setTitleDraft(report.title);
                   }
                 }}
-                className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-lg font-black text-foreground outline-none focus:border-border focus:bg-background focus:px-2 md:text-xl"
+                className="w-full rounded-lg border border-transparent bg-transparent px-0 text-base sm:text-lg font-black text-foreground outline-none focus:border-border focus:bg-background focus:px-2 md:text-xl"
               />
             ) : (
-              <h2 className="mt-1 text-lg font-black text-foreground md:text-xl leading-snug">{report.title}</h2>
+              <h1 className="text-base sm:text-lg font-black text-foreground md:text-xl leading-snug truncate">{report.title}</h1>
             )}
+
             <p className="truncate text-xs text-muted-foreground">
               {formatSchoolDisplayName(snapshot.school.name)} · {snapshot.period.termLabel} · {snapshot.period.academicYear}
               {report.published_revision_number
-                ? ` · Published revision ${report.published_revision_number}`
+                ? ` · Rev ${report.published_revision_number}`
                 : report.working_revision_number
-                  ? ` · Working revision ${report.working_revision_number}`
+                  ? ` · Draft rev ${report.working_revision_number}`
                   : ''}
-              {completeness ? ` · Completeness ${completeness.score}%` : ''}
             </p>
-            {canManage && !published && saveStatus ? (
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <p className="text-[11px] font-bold text-muted-foreground">
-                  {saveStatus.offline
-                    ? 'Offline — local draft preserved'
-                    : saveStatus.saveFailed
-                      ? 'Save failed'
-                      : saveStatus.autosaving || working === 'save'
-                        ? 'Saving…'
-                        : saveStatus.isDirty
-                          ? '● Unsaved · autosaves after 8 seconds'
-                          : saveStatus.lastSavedAt
-                            ? `Saved ${saveStatus.lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                            : 'All changes saved'}
-                  {saveStatus.hasLocalDraft ? ' · local recovery draft' : ''}
-                </p>
-                {saveStatus.saveFailed && onRetrySave ? (
-                  <button
-                    type="button"
-                    onClick={() => void onRetrySave()}
-                    className="rounded-md border border-border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
-                  >
-                    Retry save
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => setDataQualityOpen(true)}
-                  className="rounded-md border border-border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide"
-                >
-                  Data sources
-                </button>
-              </div>
-            ) : null}
           </div>
+
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {onBack ? (
-              <button
-                type="button"
-                onClick={onBack}
-                className="rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 min-h-11 inline-flex items-center justify-center"
-              >
-                Back
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => void openPdfPreview()}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
-            >
-              <DocumentArrowDownIcon className="h-4 w-4" />
-              PDF
-            </button>
-            {canManage ? (
-              <button
-                type="button"
-                onClick={() => setEmailOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
-              >
-                <EnvelopeIcon className="h-4 w-4" />
-                Email
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                setPreviewOpen((v) => !v);
-              }}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 lg:hidden"
-            >
-              <EyeIcon className="h-4 w-4" />
-              {previewOpen ? 'Hide preview' : 'Show preview'}
-            </button>
             <button
               type="button"
               onClick={() => setPreviewOpen((v) => !v)}
-              className="hidden items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40 lg:inline-flex"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
             >
-              <EyeIcon className="h-4 w-4" />
-              {previewOpen ? 'Hide preview' : 'Show preview'}
+              <EyeIcon className="h-4 w-4 shrink-0" />
+              <span>{previewOpen ? 'Hide preview' : 'Preview'}</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => void openPdfPreview()}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4 shrink-0" />
+              <span>PDF</span>
+            </button>
+
+            {canManage && !published ? (
+              <button
+                type="button"
+                disabled={busy || !canPublish || !hasPreviewed}
+                title={
+                  !hasPreviewed
+                    ? 'Open live preview before publishing'
+                    : canPublish
+                      ? 'Publish for the school'
+                      : 'Complete required checklist items first'
+                }
+                onClick={() => void publishReport()}
+                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white shadow-sm disabled:opacity-50 transition-colors"
+              >
+                {working === 'published'
+                  ? 'Publishing…'
+                  : saveStatus?.isDirty
+                    ? 'Save & publish'
+                    : 'Publish'}
+              </button>
+            ) : null}
+
+            {canManage && published ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void unlockReport()}
+                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground disabled:opacity-50 shadow-sm hover:opacity-95 transition-opacity"
+              >
+                {working === 'draft' ? 'Unlocking…' : 'Unlock to edit'}
+              </button>
+            ) : null}
+
+            {canManage && !published ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onSave()}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                <PencilIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>{working === 'save' ? 'Saving…' : 'Save'}</span>
+              </button>
+            ) : null}
+
+            {canManage ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEmailOpen(true)}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+                >
+                  <EnvelopeIcon className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                  <span>Email</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDataQualityOpen(true)}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+                >
+                  <SparklesIcon className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <span>Data Health</span>
+                </button>
+              </>
+            ) : null}
+
             <button
               type="button"
               onClick={() => setFullscreen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-black hover:border-primary/40"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+              title={fullscreen ? 'Exit full screen' : 'Focus mode'}
             >
               {fullscreen ? <XMarkIcon className="h-4 w-4" /> : <ArrowsPointingOutIcon className="h-4 w-4" />}
-              {fullscreen ? 'Exit' : 'Focus'}
+              <span className="hidden sm:inline">{fullscreen ? 'Exit' : 'Focus'}</span>
             </button>
-            {canManage && !published ? (
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void generateAi()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-black text-white disabled:opacity-50"
-                >
-                  {aiWorking === 'ai-all' ? (
-                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <SparklesIcon className="h-4 w-4" />
-                  )}
-                  {aiWorking === 'ai-all' ? 'Generating…' : 'Generate all AI'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void onSave()}
-                  className="rounded-xl border border-primary px-3 py-2 text-xs font-black text-primary disabled:opacity-50"
-                >
-                  {working === 'save' ? 'Saving…' : 'Save wording'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || !canPublish || !hasPreviewed}
-                  title={
-                    !hasPreviewed
-                      ? 'Open live preview before publishing'
-                      : canPublish
-                        ? 'Publish for the school'
-                        : 'Complete required checklist items first'
-                  }
-                  onClick={() => void publishReport()}
-                  className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
-                >
-                  {working === 'published'
-                    ? 'Publishing…'
-                    : saveStatus?.isDirty
-                      ? 'Save & publish'
-                      : 'Publish'}
-                </button>
-                      {canManage && missingRequired.length && role === 'admin' ? (
+
+            {canManage ? (
+              <details className="relative group">
+                <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted">
+                  <span>Links</span>
+                  <span className="text-[10px] text-muted-foreground transition-transform group-open:rotate-180">▼</span>
+                </summary>
+                <div className="absolute right-0 z-40 mt-1.5 w-64 rounded-2xl border border-border bg-card p-1.5 shadow-xl space-y-1">
+                  {onCopyPrincipalSummary ? (
+                    <button
+                      type="button"
+                      onClick={() => void onCopyPrincipalSummary()}
+                      className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted"
+                    >
+                      <SparklesIcon className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>{copiedPrincipalSummary ? 'Copied WhatsApp Summary ✓' : 'Copy Principal WhatsApp'}</span>
+                    </button>
+                  ) : null}
+                  <Link
+                    href={`/dashboard/school-reports/${report.id}/preview`}
+                    className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                  >
+                    <span>Full-page client preview</span>
+                  </Link>
+                  <Link
+                    href={`/dashboard/school-reports/${report.id}/analytics`}
+                    className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                  >
+                    <span>Insights &amp; analytics</span>
+                  </Link>
+                  <Link
+                    href={`/dashboard/school-reports/${report.id}/history`}
+                    className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                  >
+                    <span>Activity &amp; revisions</span>
+                  </Link>
+                  {!published && missingRequired.length > 0 && isAdmin ? (
+                    <>
+                      <div className="my-1 h-px bg-border" />
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          const reason = window.prompt(
+                            'Reason to force publish without all checklist items passing (saved in revision log):',
+                            'Approved by school lead',
+                          );
+                          if (reason == null) return;
+                          if (!reason.trim()) {
+                            window.alert('A reason is required to force-publish.');
+                            return;
+                          }
+                          if (
+                            window.confirm(
+                              'Publish without all required items? The override reason will be stored in revision history.',
+                            )
+                          ) {
+                            void adminForcePublish(reason.trim());
+                          }
+                        }}
+                        className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 disabled:opacity-50"
+                      >
+                        <span>Admin publish anyway</span>
+                      </button>
+                    </>
+                  ) : null}
+                  <div className="my-1 h-px bg-border" />
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => {
-                      const reason = window.prompt(
-                        'Reason to force publish without all checklist items passing (saved in revision log):',
-                        'Approved by school lead',
-                      );
-                      if (reason == null) return;
-                      if (!reason.trim()) {
-                        window.alert('A reason is required to force-publish.');
-                        return;
-                      }
-                      if (
-                        window.confirm(
-                          'Publish without all required items? The override reason will be stored in revision history.',
-                        )
-                      ) {
-                        void adminForcePublish(reason.trim());
-                      }
-                    }}
-                    className="rounded-xl border border-amber-600/40 px-3 py-2 text-xs font-black text-amber-700 dark:text-amber-300 dark:bg-amber-500/10 disabled:opacity-50"
+                    onClick={() => void archiveReport()}
+                    className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
                   >
-                    Admin publish anyway
+                    <span>
+                      {published
+                        ? working === 'archived'
+                          ? 'Withdrawing…'
+                          : isAdmin
+                            ? 'Withdraw publication'
+                            : 'Withdraw (admin)'
+                        : 'Archive draft'}
+                    </span>
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void archiveReport()}
-                  className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
-                >
-                  Archive
-                </button>
-                {onDelete ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void onDelete()}
-                    className="inline-flex items-center gap-1 rounded-xl border border-rose-500/40 px-3 py-2 text-xs font-black text-rose-600 dark:text-rose-300 dark:bg-rose-500/10 disabled:opacity-50"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-            {canManage && published ? (
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void unlockReport()}
-                  className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground disabled:opacity-50 shadow-sm hover:bg-primary/90 transition-all"
-                >
-                  {working === 'draft' ? 'Unlocking…' : 'Unlock to edit'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void archiveReport()}
-                  className="rounded-xl border border-border px-3 py-2 text-xs font-black disabled:opacity-50"
-                >
-                  {working === 'archived' ? 'Withdrawing…' : role === 'admin' ? 'Withdraw publication' : 'Withdraw (admin)'}
-                </button>
-              </>
+                  {!published && onDelete ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void onDelete()}
+                      className="flex w-full min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                    >
+                      <TrashIcon className="h-4 w-4 shrink-0" />
+                      <span>{working === 'delete' ? 'Deleting…' : 'Delete draft permanently'}</span>
+                    </button>
+                  ) : null}
+                </div>
+              </details>
             ) : null}
           </div>
         </div>
@@ -616,127 +674,67 @@ export function SchoolReportBuilderCanvas({
           />
         ) : null}
         {canManage && !published && isDraftSnapshotStale(snapshot.generatedAt) ? (
-          <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-3 md:px-5">
-            <p className="break-words text-sm font-black text-amber-950 dark:text-amber-100">
-              Snapshot is {snapshotAgeLabel(snapshot.generatedAt) || 'out of date'} — attendance and scores may not match the live term.
-            </p>
-            <p className="mt-1 break-words text-xs font-semibold text-amber-950/90 dark:text-amber-100/90">
-              Click Refresh data so class rolls and Report Builder attendance pull through before you publish.
+          <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-2.5 md:px-5">
+            <p className="break-words text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-100">
+              Snapshot is {snapshotAgeLabel(snapshot.generatedAt) || 'out of date'} — click Refresh data so class rolls and Result Builder scores pull through before publishing.
             </p>
           </div>
         ) : null}
         {canManage && !published && missingRequired.length ? (
-          <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-3 md:px-5">
-            <p className="break-words text-sm font-black text-amber-950 dark:text-amber-100">
-              Before you can publish: {missingRequired.map((item) => item.label).join(' · ')}
-            </p>
-            <p className="mt-1 break-words text-xs font-semibold text-amber-950/90 dark:text-amber-100/90">
-              Confirm curriculum delivery and fix required items in the Source data tab, then click Refresh data. Open PDF for the full book layout.
+          <div className="border-t border-amber-500/50 bg-amber-500/15 px-4 py-2.5 md:px-5">
+            <p className="break-words text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-100">
+              Required before publishing: {missingRequired.map((item) => item.label).join(' · ')}
             </p>
           </div>
         ) : null}
-        {canManage && !published && onDelete ? (
-          <div className="flex flex-col gap-3 border-t border-border/70 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-5">
-            <div className="min-w-0">
-              <p className="text-xs font-black text-foreground">Draft book actions</p>
-              <p className="text-[11px] text-muted-foreground">
-                Archive hides this book from the active term slot. Delete removes it permanently.
-              </p>
-            </div>
-            <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-border/40 px-4 py-2 md:px-5">
+          <div className="-mx-1 flex gap-1 overflow-x-auto overscroll-x-contain px-1 snap-x snap-mandatory">
+            {(
+              [
+                ['write', 'Narrative', PencilIcon],
+                ['briefing', 'Leadership brief', SparklesIcon],
+                ['design', 'Layout & PDF', PaintBrushIcon],
+                ['data', 'Source data', EyeIcon],
+              ] as const
+            ).map(([id, label, Icon]) => (
               <button
+                key={id}
                 type="button"
-                disabled={busy}
-                onClick={() => void archiveReport()}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 py-2 text-xs font-black disabled:opacity-50"
+                onClick={() => setTab(id)}
+                className={`inline-flex min-h-10 shrink-0 snap-start items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  tab === id
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
               >
-                Archive draft
+                <Icon className="h-3.5 w-3.5" />
+                {label}
               </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void onDelete()}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-rose-500 bg-rose-500/10 px-4 py-2 text-xs font-black text-rose-700 dark:text-rose-300 disabled:opacity-50"
-              >
-                <TrashIcon className="h-4 w-4" />
-                {working === 'delete' ? 'Deleting…' : 'Delete draft permanently'}
-              </button>
-            </div>
-          </div>
-        ) : null}
-        <div className="space-y-2 border-t border-border/40 px-4 pb-3 md:px-5">
-          <div className="-mx-1 flex gap-1 overflow-x-auto overscroll-x-contain px-1 pb-1 snap-x snap-mandatory">
-          {(
-            [
-              ['write', 'Narrative', PencilIcon],
-              ['briefing', 'Leadership brief', SparklesIcon],
-              ['design', 'Layout & PDF', PaintBrushIcon],
-              ['data', 'Source data', EyeIcon],
-            ] as const
-          ).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`inline-flex min-h-10 shrink-0 snap-start items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === id
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-sm'
-                  : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
+            ))}
           </div>
           {canManage && !published ? (
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void onRegenerate(false)}
-                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted/40 transition-all disabled:opacity-50 sm:flex-none shadow-2xs"
+                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted/50 transition-all disabled:opacity-50"
               >
                 <ArrowPathIcon className={`h-3.5 w-3.5 ${working === 'regenerate' ? 'animate-spin' : ''}`} />
-                {saveStatus?.isDirty ? 'Save & refresh data' : 'Refresh data'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDataQualityOpen(true)}
-                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-4 py-2 text-xs font-bold text-teal-800 dark:text-teal-200 hover:bg-teal-500/20 transition-all sm:flex-none shadow-2xs"
-                title="View attendance rolls, score sources, and data readiness"
-              >
-                <EyeIcon className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                Attendance & Data Health
+                <span>{saveStatus?.isDirty ? 'Save & refresh' : 'Refresh data'}</span>
               </button>
               {onRefreshAndReady ? (
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void onRefreshAndReady()}
-                  className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-4 py-2 text-xs font-black text-white hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 sm:flex-none shadow-sm"
+                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-black text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
                   title="Save pending wording, refresh the snapshot, auto-apply verified delivery tracking, and prepare the narrative"
                 >
                   <SparklesIcon className={`h-3.5 w-3.5 ${working === 'refresh-ready' ? 'animate-spin' : ''}`} />
-                  {working === 'refresh-ready'
-                    ? 'Preparing…'
-                    : saveStatus?.isDirty
-                      ? 'Save, refresh & ready'
-                      : 'Refresh & ready'}
+                  <span>{working === 'refresh-ready' ? 'Preparing…' : 'Refresh & ready'}</span>
                 </button>
               ) : null}
-            </div>
-          ) : canManage && published ? (
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <p className="text-[11px] font-bold text-muted-foreground">Unlock to refresh data or edit</p>
-              <button
-                type="button"
-                onClick={() => setDataQualityOpen(true)}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-800 dark:text-teal-200 hover:bg-teal-500/20 transition-all shadow-2xs"
-              >
-                <EyeIcon className="h-3.5 w-3.5" />
-                Attendance & Data Health
-              </button>
             </div>
           ) : null}
         </div>

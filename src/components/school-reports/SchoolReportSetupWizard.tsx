@@ -188,25 +188,25 @@ export function SchoolReportSetupWizard({
         </div>
       </div>
 
-      <div className="relative mt-5 -mx-1">
-        <ol className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory sm:grid sm:grid-cols-5 sm:gap-2 sm:overflow-visible sm:pb-0">
+      <div className="relative mt-4">
+        <ol className="grid grid-cols-5 gap-1.5 sm:gap-2">
           {SETUP_WORKFLOW_STEPS.map((item) => (
-            <li key={item.id} className="min-w-[72%] shrink-0 snap-start sm:min-w-0">
+            <li key={item.id} className="min-w-0">
               <button
                 type="button"
                 onClick={() => goToStep(item.id as SetupWorkflowStep)}
                 disabled={!canEnterStep(item.id as SetupWorkflowStep)}
                 aria-current={step === item.id ? 'step' : undefined}
-                className={`flex min-h-14 w-full flex-col justify-center rounded-xl border px-3 py-2.5 text-left transition ${
+                className={`flex min-h-12 sm:min-h-14 w-full flex-col justify-center rounded-xl border px-2 sm:px-3 py-2 text-left transition ${
                   step === item.id
-                    ? 'border-primary bg-primary/5'
+                    ? 'border-primary bg-primary/10 text-foreground'
                     : !canEnterStep(item.id as SetupWorkflowStep)
                       ? 'border-border/60 bg-muted/20 opacity-60'
                       : 'border-border hover:border-primary/30'
                 }`}
               >
-                <p className="text-[10px] font-black uppercase text-muted-foreground">Step {item.id}</p>
-                <p className="text-xs font-black leading-snug break-words">{item.label}</p>
+                <p className="text-[10px] font-black uppercase text-primary">Step {item.id}</p>
+                <p className="text-[11px] sm:text-xs font-bold leading-tight truncate sm:whitespace-normal">{item.label}</p>
               </button>
             </li>
           ))}

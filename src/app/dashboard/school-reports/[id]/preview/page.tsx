@@ -9,6 +9,7 @@ import { SchoolReportLivePreview } from '@/components/school-reports/SchoolRepor
 import { designFromRow } from '@/lib/school-reports/design-state';
 import { DEFAULT_SCHOOL_REPORT_DESIGN } from '@/lib/school-reports/design';
 import type { SchoolPerformanceReportRow } from '@/lib/school-reports/types';
+import { ArrowLeftIcon, DocumentArrowDownIcon } from '@/lib/icons';
 
 export default function SchoolReportPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -19,6 +20,7 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   const [view, setView] = useState<'book' | 'pdf'>('book');
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,15 +51,15 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl p-8 mobile-page-root">
-        <p className="rounded-2xl border border-border p-8 text-center text-muted-foreground">Loading preview…</p>
+      <div className="mx-auto max-w-5xl p-6 sm:p-8 mobile-page-root">
+        <p className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">Loading preview…</p>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-8 mobile-page-root">
+      <div className="mx-auto max-w-3xl space-y-4 p-6 sm:p-8 mobile-page-root">
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {error || 'Report not found.'}
         </p>
@@ -72,51 +74,101 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
   const snapshot = report.snapshot;
   const failedSources = (snapshot.dataSources ?? []).filter((row) => row.status === 'failed');
 
+  async function copyShareSummary() {
+    if (!report) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com';
+    const text = `${report.title} (${report.term_label} · ${report.academic_year})\n${origin}/dashboard/school-reports/${id}/preview`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8 mobile-page-root">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report output</p>
-          <h1 className="mt-2 text-2xl font-black">{report.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Review the book layout, checklist, and data quality before publishing.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!isSchool ? (
+    <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6 md:p-8 mobile-page-root">
+      <header className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
             <Link
-              href={`/dashboard/school-reports/${id}`}
-              className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+              href={isSchool ? '/dashboard/school-reports' : `/dashboard/school-reports/${id}`}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-border bg-background hover:bg-muted text-foreground shrink-0"
+              title={isSchool ? 'Back to reports' : 'Back to editor'}
             >
-              Back to report
+              <ArrowLeftIcon className="h-4 w-4" />
             </Link>
-          ) : null}
-          {canManage ? (
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-wider text-primary">
+                {isSchool ? 'Official Term Report' : 'Report Preview & PDF'}
+              </p>
+              <h1 className="text-lg sm:text-xl font-black text-foreground truncate">{report.title}</h1>
+              <p className="text-xs text-muted-foreground truncate">
+                {report.term_label} · {report.academic_year}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="inline-flex rounded-xl border border-border bg-background p-0.5">
+              <button
+                type="button"
+                onClick={() => setView('book')}
+                className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  view === 'book' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Live Book
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('pdf')}
+                className={`min-h-9 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                  view === 'pdf' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                PDF Layout
+              </button>
+            </div>
+
+            <a
+              href={`/api/school-performance-reports/${id}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs sm:text-sm font-black text-primary-foreground shadow-sm hover:opacity-95"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4 shrink-0" />
+              <span>Download PDF</span>
+            </a>
+
             <button
               type="button"
-              onClick={() => setDataQualityOpen(true)}
-              className="rounded-xl border border-border px-4 py-2 text-sm font-black"
+              onClick={() => void copyShareSummary()}
+              className="inline-flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
             >
-              Data sources
+              {copiedLink ? 'Copied ✓' : 'Copy Link'}
             </button>
-          ) : null}
-          {canManage ? (
-            <button
-              type="button"
-              onClick={() => setEmailOpen(true)}
-              className="rounded-xl border border-border px-4 py-2 text-sm font-black"
-            >
-              Email PDF
-            </button>
-          ) : null}
-          <a
-            href={`/api/school-performance-reports/${id}/pdf`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-black text-primary-foreground"
-          >
-            Download PDF
-          </a>
+
+            {canManage ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEmailOpen(true)}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  Email PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDataQualityOpen(true)}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  Data Health
+                </button>
+              </>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -125,26 +177,9 @@ export default function SchoolReportPreviewPage({ params }: { params: Promise<{ 
       {canManage && failedSources.length ? (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-100">
           {failedSources.length} data source{failedSources.length === 1 ? '' : 's'} failed when this snapshot was built.
-          Open Data sources before publishing.
+          Open Data Health before publishing.
         </p>
       ) : null}
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setView('book')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'book' ? 'bg-primary text-primary-foreground' : 'border border-border'}`}
-        >
-          Live book
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('pdf')}
-          className={`rounded-xl px-4 py-2 text-sm font-black ${view === 'pdf' ? 'bg-primary text-primary-foreground' : 'border border-border'}`}
-        >
-          PDF layout
-        </button>
-      </div>
 
       {view === 'book' ? (
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">

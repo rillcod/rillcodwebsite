@@ -800,15 +800,24 @@ export default function ClassDetailPage() {
     setCredSheetBusy(true);
     setCredSheetNotice(null);
     try {
-      const res = await fetch(`/api/classes/${id}/students`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync_class_logins' }),
-      });
+      const [res, allocRes] = await Promise.all([
+        fetch(`/api/classes/${id}/students`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'sync_class_logins' }),
+        }),
+        fetch(`/api/classes/${id}/sync-access`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        }),
+      ]);
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || 'Could not sync student logins');
+      const allocJson = await allocRes.json().catch(() => ({}));
+      if (!res.ok && !allocRes.ok) throw new Error(json?.error || allocJson?.error || 'Could not sync student logins');
+      const syncedTotal = Math.max(Number(json.fixed_count ?? 0), Number(allocJson.syncedCount ?? 0));
       setCredSheetNotice(
-        `Synced ${json.fixed_count ?? 0} student login${json.fixed_count === 1 ? '' : 's'} — every old account in this class now opens immediately with the exact password shown below.`,
+        `Synced ${syncedTotal} student account${syncedTotal === 1 ? '' : 's'} — current session placement, CBT exam allocations, and instant login readiness are all active.`,
       );
       await loadCredSheet();
       await fetchData();
@@ -2316,10 +2325,10 @@ export default function ClassDetailPage() {
                                 setShowIntakePanel((v) => !v);
                                 setRosterOpen(true);
                               }}
-                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-black text-white transition-colors shadow-sm"
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-xs font-black text-white transition-colors shadow-sm"
                             >
-                              <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 shrink-0" />
-                              <span>{showIntakePanel ? 'Hide Enrollment Hub' : '+ Enrol / Intake Students'}</span>
+                              <UserPlusIcon className="h-3.5 w-3.5 shrink-0" />
+                              <span>{showIntakePanel ? 'Hide Intake Hub' : '+ Add / Paste & Adopt'}</span>
                               {unconfirmedCnt > 0 && (
                                 <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">
                                   {unconfirmedCnt}
@@ -2329,31 +2338,85 @@ export default function ClassDetailPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                setEnrolMode('current');
+                                setShowStudentModal(true);
+                                void loadAvailableStudents();
+                              }}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-black text-primary-foreground hover:opacity-95 transition-opacity shadow-sm"
+                            >
+                              <UserGroupIcon className="h-3.5 w-3.5 shrink-0" />
+                              <span>Smart Adopt Pool</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
                                 if (showSessionConfirm) setShowSessionConfirm(false);
                                 else openSessionConfirm();
                               }}
                               className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black transition-colors ${
-                                showSessionConfirm || offBandCount > 0
-                                  ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                                showSessionConfirm || offBandCount > 0 || unconfirmedCnt > 0
+                                  ? 'border-amber-500/40 bg-amber-500/15 text-amber-900 dark:text-amber-200 hover:bg-amber-500/25'
                                   : 'border-border bg-card text-foreground hover:border-primary/50'
                               }`}
                             >
                               <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
-                              Confirm Grades
-                              {offBandCount > 0 && (
-                                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-black text-primary-foreground">
-                                  {offBandCount}
+                              <span>Confirm Session</span>
+                              {(offBandCount > 0 || unconfirmedCnt > 0) && (
+                                <span className="rounded-full bg-amber-800 px-1.5 py-0.5 text-[10px] font-black text-white">
+                                  {unconfirmedCnt || offBandCount}
                                 </span>
                               )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRosterOpen(true);
+                                if (showCredSheet) setShowCredSheet(false);
+                                else openCredSheet();
+                              }}
+                              className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black transition-colors ${
+                                showCredSheet
+                                  ? 'border-primary/40 bg-primary/10 text-primary'
+                                  : 'border-border bg-card text-foreground hover:border-primary/50'
+                              }`}
+                            >
+                              <PrinterIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                              <span>Logins &amp; Exam Sync</span>
+                            </button>
+                            <Link
+                              href={`/dashboard/classes/${id}/cards`}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted"
+                            >
+                              <span>RC Cards</span>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                printBlankClassMarkSheet({
+                                  students: currentTermStudents,
+                                  className: cls?.name,
+                                  courseName: cls?.programs?.name,
+                                  schoolName: cls?.schools?.name,
+                                  schoolLogoUrl: cls?.schools?.logo_url,
+                                  term: cls?.academic_terms?.term_label,
+                                  academicYear: cls?.academic_terms?.academic_year,
+                                  instructorName: cls?.portal_users?.full_name,
+                                  scoringMode: assessmentPolicy?.usesHostEvaluation ? 'host_papers' : 'rillcod_weighted',
+                                });
+                              }}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted"
+                            >
+                              <ClipboardDocumentListIcon className="h-3.5 w-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                              <span>Mark Sheet</span>
                             </button>
                             <div className="relative">
                               <button
                                 type="button"
                                 onClick={() => setShowRosterActions(v => !v)}
                                 aria-expanded={showRosterActions}
-                                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-black text-foreground transition-colors hover:border-primary/50"
+                                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors hover:border-primary/50"
                               >
-                                Print &amp; Tools
+                                Admin &amp; Move
                                 <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showRosterActions ? 'rotate-180' : ''}`} />
                               </button>
                             {showRosterActions && (
@@ -2548,15 +2611,24 @@ export default function ClassDetailPage() {
                         {(() => {
                           const legacyCount = credSheetRows.filter((s) => String(s.email || '').toLowerCase().endsWith('@student.rillcod.com')).length;
                           const missingPwCount = credSheetRows.filter((s) => !s.temp_password).length;
-                          if (!legacyCount && !missingPwCount) return null;
+                          if (!credSheetRows.length) return null;
                           return (
                             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs">
+                              <button
+                                type="button"
+                                disabled={credSheetBusy}
+                                onClick={() => void syncAllClassLogins()}
+                                title="Sync current session placement, retire stale exam allocations, and push shown passwords directly into Auth so students log in without resets"
+                                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50"
+                              >
+                                {credSheetBusy ? 'Syncing Class Access…' : 'Sync All Logins & Current Exam Access'}
+                              </button>
                               {legacyCount > 0 && (
                                 <button
                                   type="button"
                                   disabled={credSheetBusy}
                                   onClick={() => void fixOrGenerateClassCreds(false)}
-                                  className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-primary px-3 py-1 text-[11px] font-black text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                                  className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-black text-primary-foreground hover:opacity-90 disabled:opacity-50"
                                 >
                                   {credSheetBusy ? 'Updating…' : `Fix ${legacyCount} @student.rillcod.com email${legacyCount === 1 ? '' : 's'}`}
                                 </button>
@@ -2566,20 +2638,9 @@ export default function ClassDetailPage() {
                                   type="button"
                                   disabled={credSheetBusy}
                                   onClick={() => void fixOrGenerateClassCreds(true)}
-                                  className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
+                                  className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-black text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50"
                                 >
-                                  {credSheetBusy ? 'Generating…' : `Generate rillcod@XXXX password for ${missingPwCount} missing`}
-                                </button>
-                              )}
-                              {credSheetRows.length > 0 && (
-                                <button
-                                  type="button"
-                                  disabled={credSheetBusy}
-                                  onClick={() => void syncAllClassLogins()}
-                                  title="Push every student's shown password & email confirmation directly into Auth so old accounts log in immediately"
-                                  className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[11px] font-black text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 disabled:opacity-50"
-                                >
-                                  {credSheetBusy ? 'Syncing…' : 'Sync Old Logins to Auth'}
+                                  {credSheetBusy ? 'Generating…' : `Generate password for ${missingPwCount} missing`}
                                 </button>
                               )}
                             </div>
@@ -4587,12 +4648,23 @@ export default function ClassDetailPage() {
                                     </div>
                                   </Link>
                                   <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
+                                    {(() => {
+                                      const firstPending = exSessions.find((s: any) => s.status === 'pending_grading' || s.needs_grading);
+                                      if (exPending > 0 && firstPending?.id) {
+                                        return (
+                                          <Link
+                                            href={`/dashboard/cbt/${ex.id}/sessions/${firstPending.id}/grade`}
+                                            className="flex-1 text-center rounded-lg px-2.5 py-1.5 text-[11px] bg-amber-700 hover:bg-amber-800 text-white font-black transition-colors"
+                                          >
+                                            Grade Theory ({exPending}) →
+                                          </Link>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                     <Link href={`/dashboard/cbt/${ex.id}`}
-                                      className={`flex-1 text-center rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors ${exPending > 0
-                                        ? 'bg-amber-500 text-black hover:bg-amber-400 font-black'
-                                        : 'bg-primary/10 hover:bg-primary/20 text-primary'
-                                        }`}>
-                                      {exPending > 0 ? `Mark (${exPending})` : 'Results'}
+                                      className={`${exPending > 0 ? '' : 'flex-1'} text-center rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition-colors bg-primary/10 hover:bg-primary/20 text-primary`}>
+                                      {exPending > 0 ? 'Monitor' : 'Monitor & Results'}
                                     </Link>
                                     <Link href={`/dashboard/cbt/${ex.id}/edit`}
                                       className="rounded-lg border border-border bg-background hover:bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground transition-colors">
@@ -4908,7 +4980,7 @@ export default function ClassDetailPage() {
           filteredDirectlyEnrollable.length > 0 &&
           filteredDirectlyEnrollable.every((s: any) => selectedStudentIds.has(s.id));
         return (
-          <div className="mobile-native-dialog fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6">
+          <div className="mobile-native-dialog fixed inset-0 z-[10050] flex items-end sm:items-center justify-center p-0 sm:p-6">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
             <div className={`bg-card border-0 sm:border border-border rounded-none sm:rounded-2xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col h-[100dvh] sm:h-[88dvh] sm:max-h-[860px] pb-[env(safe-area-inset-bottom)] ${enrolMode === 'paste' ? 'sm:max-w-4xl' : 'sm:max-w-3xl lg:max-w-4xl'}`}>
 

@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { use } from 'react';
+import { useEffect, use } from 'react';
 import { SchoolReportWorkspace } from '@/components/school-reports/SchoolReportWorkspace';
 import { SchoolReportTermNotice } from '@/components/school-reports/SchoolReportTermNotice';
 import { useSchoolReportEditorPage } from '@/hooks/useSchoolReportEditorPage';
@@ -21,15 +20,15 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
 
   if (editor.loading) {
     return (
-      <div className="mx-auto max-w-[1600px] p-8 mobile-page-root">
-        <p className="rounded-2xl border border-border p-8 text-center text-muted-foreground">Opening report…</p>
+      <div className="mx-auto max-w-[1600px] p-6 sm:p-8 mobile-page-root">
+        <p className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">Opening report…</p>
       </div>
     );
   }
 
   if (!editor.report) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-8 mobile-page-root">
+      <div className="mx-auto max-w-3xl space-y-4 p-6 sm:p-8 mobile-page-root">
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
           {editor.error || 'Report not found.'}
         </p>
@@ -44,15 +43,15 @@ export default function SchoolReportEditorPage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] min-w-0 w-full space-y-7 p-4 md:p-8 mobile-page-root">
-      <header>
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-primary">Report editor</p>
-        <h1 className="mt-2 text-2xl font-black text-foreground">{editor.report.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Review the school report, then publish it when ready.
-        </p>
-      </header>
-      {editor.canManage && <SchoolReportTermNotice schoolId={editor.report.school_id} schoolName={editor.report.school_name || editor.report.snapshot?.school?.name || 'School'} term={editor.report.term_label} year={editor.report.academic_year} />}
+    <div className="mx-auto max-w-[1600px] min-w-0 w-full space-y-4 p-3 sm:p-5 md:p-6 mobile-page-root">
+      {editor.canManage && (
+        <SchoolReportTermNotice
+          schoolId={editor.report.school_id}
+          schoolName={editor.report.school_name || editor.report.snapshot?.school?.name || 'School'}
+          term={editor.report.term_label}
+          year={editor.report.academic_year}
+        />
+      )}
 
       {editor.refreshing ? (
         <p className="rounded-xl border border-border bg-muted/30 px-4 py-2 text-xs font-bold text-muted-foreground">

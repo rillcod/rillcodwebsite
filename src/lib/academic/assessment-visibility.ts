@@ -21,6 +21,10 @@ export function assessmentVisibleToStudent(
   const metadata = assessment.metadata && typeof assessment.metadata === 'object'
     ? assessment.metadata
     : {};
+
+  // Teacher-only offline hall paper mark sheets are never online CBT sittings.
+  if (metadata.paper_only === true) return false;
+
   const programId = typeof assessment.program_id === 'string' ? assessment.program_id : null;
   const courseId = typeof assessment.course_id === 'string' ? assessment.course_id : null;
   const targetClassId = typeof assessment.class_id === 'string' && assessment.class_id
@@ -30,7 +34,10 @@ export function assessmentVisibleToStudent(
       : typeof metadata.class_id === 'string' && metadata.class_id
         ? metadata.class_id
         : null;
-  const classScoped = metadata.visibility === 'class' || !!targetClassId;
+  const targetClassName = typeof metadata.target_class_name === 'string' && metadata.target_class_name.trim()
+    ? metadata.target_class_name.trim().toLowerCase()
+    : null;
+  const classScoped = metadata.visibility === 'class' || !!targetClassId || !!targetClassName;
 
   if (student.school_id) {
     if (assessment.school_id !== student.school_id) return false;
@@ -39,7 +46,13 @@ export function assessmentVisibleToStudent(
   }
 
   if (classScoped) {
-    return !!targetClassId && !!student.class_id && student.class_id === targetClassId;
+    if (targetClassId) {
+      return !!student.class_id && student.class_id === targetClassId;
+    }
+    if (targetClassName) {
+      return !!student.section_class && student.section_class.trim().toLowerCase() === targetClassName;
+    }
+    return false;
   }
 
   if (programId) return scope.programIds.has(programId);
@@ -57,5 +70,29 @@ export async function loadAssessmentStudentProfile(
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(`Could not load learner assessment scope: ${error.message}`);
-  return (data as AssessmentStudentScope) ?? null;
+  if (!data) return null;
+
+  const profile = data as AssessmentStudentScope;
+  if (!profile.class_id) {
+    const { data: activeRoster } = await (admin as any)
+      .from('class_term_rosters')
+      .select('class_id, school_id, classes:class_id(name)')
+      .eq('student_id', userId)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (activeRoster?.class_id) {
+      const clsName = Array.isArray(activeRoster.classes)
+        ? activeRoster.classes[0]?.name
+        : activeRoster.classes?.name;
+      return {
+        ...profile,
+        class_id: activeRoster.class_id,
+        school_id: profile.school_id ?? activeRoster.school_id ?? null,
+        section_class: profile.section_class ?? clsName ?? null,
+      };
+    }
+  }
+  return profile;
 }

@@ -195,7 +195,10 @@ function LoginContent() {
     setError(null);
 
     try {
-      const cleanEmail = email.replace(/[\s\u00A0]+/g, '').toLowerCase();
+      const rawIdentifier = email.replace(/[\s\u00A0]+/g, '').toLowerCase();
+      const cleanEmail = rawIdentifier && !rawIdentifier.includes('@')
+        ? `${rawIdentifier}@rillcod.com`
+        : rawIdentifier;
       const cleanPassword = password.trim();
       if (!cleanEmail || !cleanPassword) {
         throw new Error('Please enter both your email/username and password.');
@@ -210,7 +213,7 @@ function LoginContent() {
       if (authError) throw authError;
       if (!authData?.user) throw new Error("Sign in failed. Please try again.");
 
-      const { data: profileData, error: profileError } = await withTimeoutOrThrow(
+      let { data: profileData, error: profileError } = await withTimeoutOrThrow(
         supabase
           .from('portal_users')
           .select('role, is_active, is_deleted, full_name, metadata, school_id, class_id')
@@ -224,6 +227,24 @@ function LoginContent() {
       if (!profileData) {
         await supabase.auth.signOut();
         throw new Error("No account found. Please contact your school administrator.");
+      }
+
+      if (
+        profileData.role === 'student'
+        && !profileData.is_deleted
+        && (!profileData.is_active || !profileData.school_id || !profileData.class_id)
+      ) {
+        try {
+          const syncRes = await fetch('/api/auth/sync-student-session', { method: 'POST' });
+          if (syncRes.ok) {
+            const syncPayload = await syncRes.json();
+            if (syncPayload?.profile) {
+              profileData = syncPayload.profile;
+            }
+          }
+        } catch {
+          // Fall back to existing profile state if repair call fails
+        }
       }
       if (!profileData.is_active || profileData.is_deleted) {
         await supabase.auth.signOut();

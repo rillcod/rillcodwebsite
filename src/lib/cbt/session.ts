@@ -155,3 +155,40 @@ export function filterCbtExamsByAcademicTerm<
   const includeUntagged = opts.includeUntagged !== false;
   return rows.filter((row) => matchesCbtExam(row, termId, bounds, includeUntagged));
 }
+
+/**
+ * Returns true if an exam is an untagged leftover created before the current
+ * academic session (`sessionStartMs`) with no current-session end_date or term_id.
+ * Prevents prior-year open-ended exams from bleeding into newly promoted students' portals.
+ */
+export function isPriorSessionUntaggedCbtExam(
+  exam: {
+    term_id?: string | null;
+    metadata?: Record<string, unknown> | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    created_at?: string | null;
+  },
+  sessionStartMs: number,
+): boolean {
+  if (!Number.isFinite(sessionStartMs)) return false;
+  const examTerm = String(exam.term_id ?? '').trim();
+  if (examTerm) return false;
+  const meta = exam.metadata && typeof exam.metadata === 'object' ? exam.metadata : null;
+  const metaTerm = meta ? String((meta as any).term_id ?? (meta as any).academic_term_id ?? '').trim() : '';
+  if (metaTerm) return false;
+
+  const endMs = exam.end_date ? Date.parse(exam.end_date) : NaN;
+  if (Number.isFinite(endMs)) {
+    return endMs < sessionStartMs;
+  }
+  const startMs = exam.start_date ? Date.parse(exam.start_date) : NaN;
+  if (Number.isFinite(startMs)) {
+    return startMs < sessionStartMs;
+  }
+  const createdMs = exam.created_at ? Date.parse(exam.created_at) : NaN;
+  if (Number.isFinite(createdMs)) {
+    return createdMs < sessionStartMs;
+  }
+  return false;
+}

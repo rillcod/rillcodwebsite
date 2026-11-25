@@ -1065,8 +1065,15 @@ export async function PATCH(
         .eq('user_id', sid);
     }
   }
-  if (confirmedIds.length > 0) {
+    if (confirmedIds.length > 0) {
     await upsertClassTermRoster(admin, cls as any, confirmedIds, 'active', caller.id);
+    const { syncStudentAccessAndAllocation } = await import('@/lib/students/student-access-sync');
+    await syncStudentAccessAndAllocation(admin as any, {
+      studentIds: confirmedIds,
+      classId,
+      actorId: caller.id,
+      syncAuth: true,
+    });
   }
 
   // 2. Withdraw unconfirmed / departed students while keeping their historical records intact

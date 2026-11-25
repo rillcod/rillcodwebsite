@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -13,13 +14,13 @@ import {
 } from '@/lib/icons';
 
 /**
- * Renders a full-screen, non-dismissible modal whenever the logged-in user's
- * auth metadata contains  must_change_password: true.
- * This flag is set by the bulk-register API for every newly created student.
- * The modal clears the flag after a successful password update.
+ * Renders a password-setup prompt when auth metadata contains must_change_password: true.
+ * Students are NEVER hard-blocked from entering their portal or sitting CBT exams —
+ * they can keep their printed class login slip password with one tap.
  */
 export default function PasswordChangeGuard() {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const pathname = usePathname();
 
   const [show,      setShow]      = useState(false);
   const [newPw,     setNewPw]     = useState('');
@@ -29,16 +30,36 @@ export default function PasswordChangeGuard() {
   const [error,     setError]     = useState<string | null>(null);
   const [success,   setSuccess]   = useState(false);
 
+  const isStudent = profile?.role === 'student' || user?.user_metadata?.role === 'student';
+  const inExamHall = Boolean(pathname?.startsWith('/dashboard/cbt'));
+
   useEffect(() => {
-    if (user?.user_metadata?.must_change_password === true) {
+    if (user?.user_metadata?.must_change_password === true && !inExamHall) {
       setShow(true);
     }
-  }, [user?.id, user?.user_metadata?.must_change_password]);
+  }, [user?.id, user?.user_metadata?.must_change_password, inExamHall]);
 
-  if (!show || success) return null;
+  if (!show || success || inExamHall) return null;
 
   const mismatch  = confirmPw.length > 0 && confirmPw !== newPw;
   const canSubmit = newPw.length >= 8 && newPw === confirmPw;
+
+  const handleKeepCurrentPassword = async () => {
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.updateUser({
+        data: { must_change_password: false },
+      });
+      await refreshProfile();
+    } catch {
+      // Allow immediate continuation even on slow hall connections
+    } finally {
+      setSaving(false);
+      setSuccess(true);
+      setShow(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,16 +178,32 @@ export default function PasswordChangeGuard() {
             <button
               type="submit"
               disabled={saving || !canSubmit}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full min-h-11 py-3 bg-amber-700 hover:bg-amber-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <ShieldCheckIcon className="w-4 h-4" />
               {saving ? 'Saving…' : 'Set My Password & Continue'}
             </button>
           </form>
 
-          <p className="text-center text-muted-foreground text-[11px]">
-            This dialog cannot be skipped. Contact your teacher if you need help.
-          </p>
+          {isStudent ? (
+            <div className="pt-1 space-y-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleKeepCurrentPassword}
+                className="w-full min-h-11 py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold transition-colors"
+              >
+                Keep Current Slip Password & Continue →
+              </button>
+              <p className="text-center text-muted-foreground text-[11px]">
+                In an exam hall? Keep your slip password so you can start immediately.
+              </p>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground text-[11px]">
+              This dialog cannot be skipped for staff accounts. Contact an administrator if you need help.
+            </p>
+          )}
         </div>
       </div>
     </div>

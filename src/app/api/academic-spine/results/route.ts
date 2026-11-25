@@ -261,10 +261,18 @@ export async function POST(req: NextRequest) {
   const offeringEnrollmentType = offering?.enrollment_type
     ? normalizeEnrollmentType(offering.enrollment_type)
     : null;
-  if (!studentEnrollmentType || !offeringEnrollmentType || studentEnrollmentType !== offeringEnrollmentType) {
+  if (!offeringEnrollmentType) {
     return NextResponse.json({
-      error: 'This learner is not placed on this class programme. Fix placement before auto-fill.',
+      error: 'This class programme is missing an enrollment type. Update the class offering first.',
     }, { status: 409 });
+  }
+  if (!studentEnrollmentType || studentEnrollmentType !== offeringEnrollmentType) {
+    // Student is already verified as placed in klass.id — align legacy/adopted enrollment_type seamlessly
+    await db
+      .from('portal_users')
+      .update({ enrollment_type: offeringEnrollmentType, updated_at: new Date().toISOString() })
+      .eq('id', student.id)
+      .eq('role', 'student');
   }
 
   let planQuery = db.from('lesson_plans').select('id,curriculum_release_id,status,updated_at')

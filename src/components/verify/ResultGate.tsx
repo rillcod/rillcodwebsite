@@ -159,15 +159,6 @@ export default function ResultGate({
           </div>
         )}
 
-        {/* ── Returning linked parent banner ───────────────────────────────── */}
-        {sessionAutoLinked && (
-          <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-5 py-3 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-              Welcome back — your account is linked. Result unlocked.
-            </p>
-          </div>
-        )}
-
         {/* ── Portal access bar (for newly linked parent) ──────────────────── */}
         {access && (captured || claimUnlocked) && (
           <PortalAccessBar

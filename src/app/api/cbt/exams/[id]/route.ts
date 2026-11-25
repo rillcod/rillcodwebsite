@@ -108,7 +108,7 @@ export async function GET(
   // Fetch exam metadata first for access checks
   const { data: examMeta, error: metaErr } = await admin
     .from('cbt_exams')
-    .select('id, is_active, start_date, end_date, class_id, term_id, program_id, course_id, school_id, created_by, metadata')
+    .select('id, is_active, start_date, end_date, created_at, class_id, term_id, program_id, course_id, school_id, created_by, metadata')
     .eq('id', id)
     .maybeSingle();
 
@@ -134,7 +134,12 @@ export async function GET(
       return NextResponse.json({ error: 'Student profile not found' }, { status: 403 });
     }
     const scope = await resolveStudentCbtScope(admin, caller.id, student.class_id);
-    if (!cbtExamVisibleToStudent(examMeta, student, scope)) {
+    const { isPriorSessionUntaggedCbtExam } = await import('@/lib/cbt/session');
+    const { getSessionBoundary } = await import('@/lib/academic/session-scope');
+    if (
+      isPriorSessionUntaggedCbtExam(examMeta, getSessionBoundary().sessionStartMs)
+      || !cbtExamVisibleToStudent(examMeta, student, scope)
+    ) {
       return NextResponse.json({ error: 'You do not have access to this exam' }, { status: 403 });
     }
 

@@ -52,31 +52,52 @@ export async function resolveStudentProgramScope(
     (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean) as string[],
   );
 
-  // When a student is placed in a class that has an authoritative program_id
-  // (e.g. JSS 1 → Teen Developers), scope strictly to that class's programme so
-  // stale prior-session programme enrollments (e.g. Young Innovators from Basic 6)
-  // never bleed exams, lessons, or assignments into the new class.
+  // When a student is placed in a class, scope strictly to that class's current
+  // programme / course so stale prior-session programme enrollments (e.g. Basic 6
+  // Young Innovators after moving into JSS 1 Teen Developers) NEVER bleed old exams,
+  // lessons, or assignments into the new class.
+  let pinnedCourseId: string | null = null;
   if (classId) {
     const { data: cls } = await admin
       .from('classes')
-      .select('program_id')
+      .select('program_id, current_course_id')
       .eq('id', classId)
       .maybeSingle();
+    pinnedCourseId = (cls as any)?.current_course_id ?? null;
     if (cls?.program_id) {
       programIds = new Set([cls.program_id]);
+    } else if (pinnedCourseId) {
+      const { data: courseRow } = await admin
+        .from('courses')
+        .select('id, program_id')
+        .eq('id', pinnedCourseId)
+        .maybeSingle();
+      if (courseRow?.program_id) {
+        programIds = new Set([courseRow.program_id]);
+      } else {
+        return { programIds: new Set(), courseIds: new Set([pinnedCourseId]) };
+      }
     }
   }
 
-  if (programIds.size === 0) return { programIds, courseIds: new Set() };
+  if (programIds.size === 0) {
+    return {
+      programIds,
+      courseIds: pinnedCourseId ? new Set([pinnedCourseId]) : new Set(),
+    };
+  }
 
   const { data: courses } = await admin
     .from('courses')
     .select('id')
     .in('program_id', Array.from(programIds));
 
+  const courseIds = new Set((courses ?? []).map((c: any) => c.id).filter(Boolean) as string[]);
+  if (pinnedCourseId) courseIds.add(pinnedCourseId);
+
   return {
     programIds,
-    courseIds: new Set((courses ?? []).map((c: any) => c.id).filter(Boolean) as string[]),
+    courseIds,
   };
 }
 

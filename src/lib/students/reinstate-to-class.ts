@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { areSisterSchools, isSisterSchoolTransitionGrade } from '@/lib/schools/sister-school';
-import { classifyStudentSessionStatus } from '@/lib/academic/session-scope';
+import { classifyStudentSessionStatus, getSessionBoundary } from '@/lib/academic/session-scope';
+import { syncStudentAuthReadiness } from '@/lib/students/student-access-sync';
 
 const SPECIALIZED_ENROLLMENT_TYPES = new Set([
   'bootcamp',
@@ -133,7 +134,7 @@ export async function reinstateStudentToClass(
       .maybeSingle(),
     admin
       .from('classes')
-      .select('id, name, school_id, program_id, term_id, teacher_id, max_students, qa_grade_key, qa_grade_band, academic_offerings(enrollment_type)')
+      .select('id, name, school_id, program_id, current_course_id, term_id, teacher_id, max_students, qa_grade_key, qa_grade_band, academic_offerings(enrollment_type)')
       .eq('id', classId)
       .maybeSingle(),
   ]);
@@ -324,11 +325,24 @@ export async function reinstateStudentToClass(
       ? String((cls as any).qa_grade_key).trim()
       : null);
 
+  const nowIso = new Date().toISOString();
+  const existingMeta = (student as any).metadata && typeof (student as any).metadata === 'object' && !Array.isArray((student as any).metadata)
+    ? ((student as any).metadata as Record<string, unknown>)
+    : {};
+  const targetEnrollmentType = destEnrollmentType
+    || (!isSpecializedDest && (cls.school_id ?? student.school_id) ? 'school' : (student as any).enrollment_type || 'school');
+
   const portalUpdate: Record<string, unknown> = {
     class_id: classId,
     section_class: cls.name,
     school_id: cls.school_id ?? student.school_id,
-    updated_at: new Date().toISOString(),
+    enrollment_type: targetEnrollmentType,
+    metadata: {
+      ...existingMeta,
+      confirmed_session: getSessionBoundary().periodLabel,
+      confirmed_at: nowIso,
+    },
+    updated_at: nowIso,
     is_active: true,
   };
   // Always stamp ownership on force claim / when we know the destination owner.
@@ -429,30 +443,40 @@ export async function reinstateStudentToClass(
     }
   }
 
-  await upsertRoster(admin, cls as any, studentId, 'active', actor.id);
+  let effectiveProgramId: string | null = cls.program_id ?? null;
+  if (!effectiveProgramId && (cls as any).current_course_id) {
+    const { data: courseRow } = await admin
+      .from('courses')
+      .select('program_id')
+      .eq('id', (cls as any).current_course_id)
+      .maybeSingle();
+    effectiveProgramId = courseRow?.program_id ?? null;
+  }
+
+  await upsertRoster(admin, { ...(cls as any), program_id: effectiveProgramId }, studentId, 'active', actor.id);
 
   // Programme enrollment — ensure destination programme is active, and when moving within
   // regular school classes, complete any stale other-programme enrollments so prior programmes
   // (e.g. Young Innovators after moving into JSS 1 Teen Developers) never bleed into rosters/exams.
-  if (cls.program_id) {
+  if (effectiveProgramId) {
     if (!isSpecializedStudent && !isSpecializedDest) {
       await admin
         .from('enrollments')
         .update({ status: 'completed', updated_at: new Date().toISOString() })
         .eq('user_id', studentId)
-        .neq('program_id', cls.program_id)
+        .neq('program_id', effectiveProgramId)
         .in('status', ['active', 'enrolled', 'approved']);
     }
     const { data: existing } = await admin
       .from('enrollments')
       .select('id, status')
       .eq('user_id', studentId)
-      .eq('program_id', cls.program_id)
+      .eq('program_id', effectiveProgramId)
       .maybeSingle();
     if (!existing) {
       await admin.from('enrollments').insert({
         user_id: studentId,
-        program_id: cls.program_id,
+        program_id: effectiveProgramId,
         role: 'student',
         status: 'active',
       });
@@ -463,6 +487,18 @@ export async function reinstateStudentToClass(
         .eq('id', existing.id);
     }
   }
+
+  // Ensure Supabase Auth login readiness so adopted/old accounts never block on exam day.
+  await syncStudentAuthReadiness(admin, [
+    {
+      id: studentId,
+      full_name: student.full_name,
+      email: student.email ?? null,
+      school_id: (portalUpdate.school_id as string) ?? cls.school_id ?? null,
+      school_name: (portalUpdate.school_name as string) ?? student.school_name ?? null,
+      section_class: cls.name,
+    },
+  ]).catch(() => {});
   // Class moves never rewrite historical or manually entered report authorship.
   const reportsTransferred = 0;
 

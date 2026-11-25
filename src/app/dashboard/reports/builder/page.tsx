@@ -792,6 +792,9 @@ function ReportBuilderInner() {
         assignmentPct: 0,
         projects: 0,
         pendingCbt: 0,
+        pendingCbtSessionId: null as string | null,
+        pendingCbtExamId: null as string | null,
+        pendingCbtTitle: null as string | null,
         firstTest: null as number | null,
         secondTest: null as number | null,
         examination: null as number | null,
@@ -2187,7 +2190,7 @@ function ReportBuilderInner() {
                       })()
                     : { data: [] },
                 // All CBT sessions with exam metadata for type splitting
-                db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(id, title, class_id, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
+                db.from('cbt_sessions').select('id, score, status, needs_grading, end_time, cbt_exams(id, title, class_id, course_id, program_id, metadata, term_id)').eq('user_id', s.id).order('score', { ascending: false }),
                 // Lab projects (feeds Project Engagement)
                 db.from('lab_projects').select('id').eq('user_id', s.id),
                 // Portfolio projects (feeds Project Engagement)
@@ -2288,7 +2291,9 @@ function ReportBuilderInner() {
                 .filter((v): v is number => v !== null);
             const writtenExamBest = writtenExamPcts.length > 0 ? Math.max(...writtenExamPcts) : 0;
             const cbtScore = Math.max(hostApplied.theory, writtenExamBest);
-            const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
+            const pendingCbtRows = scopedCbt.filter((row: any) => !isScoreReadyCbt(row));
+            const pendingCbt = pendingCbtRows.length;
+            const firstPendingRow = pendingCbtRows.find((row: any) => row?.id && row?.cbt_exams?.id) ?? null;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
                 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length)
@@ -2311,6 +2316,9 @@ function ReportBuilderInner() {
                 assignmentPct,
                 projects: projectCount,
                 pendingCbt,
+                pendingCbtSessionId: firstPendingRow?.id ? String(firstPendingRow.id) : null,
+                pendingCbtExamId: firstPendingRow?.cbt_exams?.id ? String(firstPendingRow.cbt_exams.id) : null,
+                pendingCbtTitle: firstPendingRow?.cbt_exams?.title ? String(firstPendingRow.cbt_exams.title) : null,
                 firstTest: hostPapers.first_test?.percent ?? null,
                 secondTest: hostPapers.second_test?.percent ?? null,
                 examination: hostPapers.examination?.percent ?? null,
@@ -3829,11 +3837,6 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {sessionDone && !selectedStudent && (
                     <div className="space-y-4 pb-[calc(var(--app-sticky-actions-height)+0.75rem)] md:pb-0">
-                        <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-2">
-                            <p className="text-xs font-bold text-primary">Choose a student</p>
-                            <p className="mt-0.5 text-[11px] text-primary/70">Published · Draft · New — tap to grade</p>
-                        </div>
-
                         <div ref={classProgressRef} className="scroll-mt-24 rounded-xl border border-border bg-card p-3 sm:p-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="min-w-0">
@@ -3943,112 +3946,121 @@ function ReportBuilderInner() {
                                 </div>
                             )}
                             {classRoster.length > 0 && (
-                                <div className="mt-3 pt-3 border-t border-border flex flex-wrap items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            const db2 = createClient();
-                                            const ids = classRoster.map((s: any) => s.id).filter(Boolean);
-                                            const reportById: Record<string, any> = {};
-                                            if (ids.length > 0) {
-                                                let q = db2
-                                                    .from('student_progress_reports')
-                                                    .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, participation_score, overall_score, overall_grade, engagement_metrics, is_published, instructor_name, updated_at')
-                                                    .in('student_id', ids)
-                                                    .order('is_published', { ascending: false })
-                                                    .order('updated_at', { ascending: false });
-                                                if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term);
-                                                if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period);
-                                                const { data: rows } = await q;
-                                                (rows ?? []).forEach((r: any) => { if (!reportById[r.student_id]) reportById[r.student_id] = r; });
-                                            }
-                                            printClassMasterBroadsheet({
+                                <details className="mt-3 pt-3 border-t border-border group">
+                                    <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold text-muted-foreground hover:text-foreground py-1">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <PrinterIcon className="h-3.5 w-3.5 text-primary" />
+                                            Sheets &amp; Score Import (Broadsheet, Blank Sheet, Upload)
+                                        </span>
+                                        <span className="text-[10px] transition-transform group-open:rotate-180">▼</span>
+                                    </summary>
+                                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                const db2 = createClient();
+                                                const ids = classRoster.map((s: any) => s.id).filter(Boolean);
+                                                const reportById: Record<string, any> = {};
+                                                if (ids.length > 0) {
+                                                    let q = db2
+                                                        .from('student_progress_reports')
+                                                        .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, participation_score, overall_score, overall_grade, engagement_metrics, is_published, instructor_name, updated_at')
+                                                        .in('student_id', ids)
+                                                        .order('is_published', { ascending: false })
+                                                        .order('updated_at', { ascending: false });
+                                                    if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term);
+                                                    if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period);
+                                                    const { data: rows } = await q;
+                                                    (rows ?? []).forEach((r: any) => { if (!reportById[r.student_id]) reportById[r.student_id] = r; });
+                                                }
+                                                printClassMasterBroadsheet({
+                                                    students: classRoster.map((s: any) => ({
+                                                        id: s.id,
+                                                        full_name: s.full_name || 'Student',
+                                                        class_label: s.section_class || sessionConfig.section_class || null,
+                                                        school_name: sessionConfig.school_name || null,
+                                                        report: reportById[s.id] ?? null,
+                                                    })),
+                                                    term: sessionConfig.report_term,
+                                                    academicYear: sessionConfig.report_period,
+                                                    className: sessionConfig.section_class,
+                                                    courseName: sessionConfig.course_name,
+                                                    schoolName: sessionConfig.school_name,
+                                                    instructorName: sessionConfig.instructor_name,
+                                                    scoringMode: reportScoreAuthority === 'host_school' ? 'host_papers' : 'rillcod_weighted',
+                                                });
+                                            }}
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-black text-primary hover:bg-primary/20 transition-colors"
+                                        >
+                                            <PrinterIcon className="h-4 w-4" /> Class Broadsheet (PDF)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => printBlankClassMarkSheet({
                                                 students: classRoster.map((s: any) => ({
                                                     id: s.id,
                                                     full_name: s.full_name || 'Student',
-                                                    class_label: s.section_class || sessionConfig.section_class || null,
-                                                    school_name: sessionConfig.school_name || null,
-                                                    report: reportById[s.id] ?? null,
+                                                    grade: (s as any).grade,
+                                                    section_class: s.section_class,
                                                 })),
-                                                term: sessionConfig.report_term,
-                                                academicYear: sessionConfig.report_period,
                                                 className: sessionConfig.section_class,
                                                 courseName: sessionConfig.course_name,
                                                 schoolName: sessionConfig.school_name,
+                                                term: sessionConfig.report_term,
+                                                academicYear: sessionConfig.report_period,
                                                 instructorName: sessionConfig.instructor_name,
                                                 scoringMode: reportScoreAuthority === 'host_school' ? 'host_papers' : 'rillcod_weighted',
-                                            });
-                                        }}
-                                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-black text-primary hover:bg-primary/20 transition-colors"
-                                    >
-                                        <PrinterIcon className="h-4 w-4" /> Class Broadsheet (PDF)
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => printBlankClassMarkSheet({
-                                            students: classRoster.map((s: any) => ({
-                                                id: s.id,
-                                                full_name: s.full_name || 'Student',
-                                                grade: (s as any).grade,
-                                                section_class: s.section_class,
-                                            })),
-                                            className: sessionConfig.section_class,
-                                            courseName: sessionConfig.course_name,
-                                            schoolName: sessionConfig.school_name,
-                                            term: sessionConfig.report_term,
-                                            academicYear: sessionConfig.report_period,
-                                            instructorName: sessionConfig.instructor_name,
-                                            scoringMode: reportScoreAuthority === 'host_school' ? 'host_papers' : 'rillcod_weighted',
-                                        })}
-                                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
-                                    >
-                                        <DocumentTextIcon className="h-4 w-4 text-indigo-500" /> Blank Mark Sheet (PDF)
-                                    </button>
-                                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors">
-                                        <ArrowUpTrayIcon className="h-4 w-4" /> Import Scores (.PDF / .TXT)
-                                        <input
-                                            type="file"
-                                            accept=".pdf,.txt,application/pdf,text/plain"
-                                            className="sr-only"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                e.target.value = '';
-                                                if (!file) return;
-                                                try {
-                                                    const rawText = file.name.toLowerCase().endsWith('.pdf')
-                                                        ? await extractPdfText(file)
-                                                        : await file.text();
-                                                    const matched = parseMarkSheetTextForRoster(
-                                                        rawText,
-                                                        classRoster.map((s: any) => ({ id: s.id, full_name: s.full_name || '' })),
-                                                    );
-                                                    if (matched.length === 0) {
-                                                        setError('No student names and 0–100 scores matched this class roster in the uploaded file.');
-                                                        return;
+                                            })}
+                                            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors"
+                                        >
+                                            <DocumentTextIcon className="h-4 w-4 text-indigo-500" /> Blank Mark Sheet (PDF)
+                                        </button>
+                                        <label className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors">
+                                            <ArrowUpTrayIcon className="h-4 w-4" /> Import Scores (.PDF / .TXT)
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.txt,application/pdf,text/plain"
+                                                className="sr-only"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    e.target.value = '';
+                                                    if (!file) return;
+                                                    try {
+                                                        const rawText = file.name.toLowerCase().endsWith('.pdf')
+                                                            ? await extractPdfText(file)
+                                                            : await file.text();
+                                                        const matched = parseMarkSheetTextForRoster(
+                                                            rawText,
+                                                            classRoster.map((s: any) => ({ id: s.id, full_name: s.full_name || '' })),
+                                                        );
+                                                        if (matched.length === 0) {
+                                                            setError('No student names and 0–100 scores matched this class roster in the uploaded file.');
+                                                            return;
+                                                        }
+                                                        const firstMatch = matched[0];
+                                                        const targetStudent = classRoster.find((s: any) => s.id === firstMatch.studentId);
+                                                        if (targetStudent) {
+                                                            await selectStudent(targetStudent as PortalUser, 0);
+                                                            setForm(f => ({
+                                                                ...f,
+                                                                ...(firstMatch.theory_score != null ? { theory_score: String(firstMatch.theory_score) } : {}),
+                                                                ...(firstMatch.classwork_score != null ? { classwork_score: String(firstMatch.classwork_score) } : {}),
+                                                                ...(firstMatch.practical_score != null ? { practical_score: String(firstMatch.practical_score) } : {}),
+                                                                ...(firstMatch.participation_score != null ? { participation_score: String(firstMatch.participation_score) } : {}),
+                                                                ...(firstMatch.attendance_score != null ? { attendance_score: String(firstMatch.attendance_score) } : {}),
+                                                                ...(firstMatch.assessment_score != null ? { assessment_score: String(firstMatch.assessment_score) } : {}),
+                                                                ...(firstMatch.key_strengths ? { key_strengths: firstMatch.key_strengths } : {}),
+                                                            }));
+                                                            setSuccessMsg(`Imported scores for ${firstMatch.studentName} (${matched.length} student row${matched.length !== 1 ? 's' : ''} detected in file). Review and click Save!`);
+                                                        }
+                                                    } catch (err: any) {
+                                                        setError(err?.message || 'Could not read the uploaded score file.');
                                                     }
-                                                    const firstMatch = matched[0];
-                                                    const targetStudent = classRoster.find((s: any) => s.id === firstMatch.studentId);
-                                                    if (targetStudent) {
-                                                        await selectStudent(targetStudent as PortalUser, 0);
-                                                        setForm(f => ({
-                                                            ...f,
-                                                            ...(firstMatch.theory_score != null ? { theory_score: String(firstMatch.theory_score) } : {}),
-                                                            ...(firstMatch.classwork_score != null ? { classwork_score: String(firstMatch.classwork_score) } : {}),
-                                                            ...(firstMatch.practical_score != null ? { practical_score: String(firstMatch.practical_score) } : {}),
-                                                            ...(firstMatch.participation_score != null ? { participation_score: String(firstMatch.participation_score) } : {}),
-                                                            ...(firstMatch.attendance_score != null ? { attendance_score: String(firstMatch.attendance_score) } : {}),
-                                                            ...(firstMatch.assessment_score != null ? { assessment_score: String(firstMatch.assessment_score) } : {}),
-                                                            ...(firstMatch.key_strengths ? { key_strengths: firstMatch.key_strengths } : {}),
-                                                        }));
-                                                        setSuccessMsg(`Imported scores for ${firstMatch.studentName} (${matched.length} student row${matched.length !== 1 ? 's' : ''} detected in file). Review and click Save!`);
-                                                    }
-                                                } catch (err: any) {
-                                                    setError(err?.message || 'Could not read the uploaded score file.');
-                                                }
-                                            }}
-                                        />
-                                    </label>
-                                </div>
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                </details>
                             )}
                         </div>
 
@@ -4363,10 +4375,10 @@ function ReportBuilderInner() {
                             </div>
                         )}
 
-                        {/* ── Learner Command Ribbon ── */}
-                        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 shadow-sm space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-                                <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                        {/* ── Compact Learner Utility Strip (identity & save status live in BuilderContextStrip above) ── */}
+                        <div className="rounded-xl border border-border bg-card p-2.5 sm:p-3 shadow-sm space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                     <button
                                         type="button"
                                         disabled={saving || publishing}
@@ -4375,21 +4387,12 @@ function ReportBuilderInner() {
                                             setSelectedStudent(null);
                                             setStep('pick');
                                         }}
-                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-10 sm:min-h-9 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-xs font-black text-primary transition-colors shadow-sm disabled:opacity-50 flex-shrink-0"
+                                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 min-h-10 sm:min-h-9 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-foreground transition-colors disabled:opacity-50"
                                         title="View all members of this class in Result Builder"
                                     >
-                                        <UserGroupIcon className="h-3.5 w-3.5" />
+                                        <UserGroupIcon className="h-3.5 w-3.5 text-primary" />
                                         <span>Class Members ({classRoster.length || activeNavList.length})</span>
                                     </button>
-                                    {sessionConfig.class_id && (
-                                        <Link
-                                            href={`/dashboard/classes/${sessionConfig.class_id}?operation=roster`}
-                                            className="inline-flex items-center justify-center gap-1 px-2.5 py-2 min-h-10 sm:min-h-9 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-foreground transition-colors flex-shrink-0"
-                                            title="Open Class Workspace"
-                                        >
-                                            <span>Class</span>
-                                        </Link>
-                                    )}
                                     <Link
                                         href={learnerReportHref('publish', {
                                             studentId: selectedStudent?.id,
@@ -4398,90 +4401,20 @@ function ReportBuilderInner() {
                                             term: sessionConfig.report_term,
                                             period: sessionConfig.report_period,
                                         })}
-                                        className="inline-flex items-center justify-center gap-1 px-2.5 py-2 min-h-10 sm:min-h-9 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors flex-shrink-0"
+                                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 min-h-10 sm:min-h-9 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-black text-emerald-800 dark:text-emerald-300 transition-colors"
                                         title="Open Published Report View"
                                     >
                                         <span>Report View</span>
                                     </Link>
-                                    <div className="h-4 w-px bg-border hidden sm:block" />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                            <h2 className="text-sm sm:text-base font-extrabold text-foreground truncate">
-                                                {form.student_name || selectedStudent?.full_name || 'Student'}
-                                            </h2>
-                                            {selectedStudent && (
-                                                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-bold">
-                                                    {(selectedStudent as any)?.grade_level || (selectedStudent as any)?.grade || profileGrade || 'Learner'}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-[11px] text-muted-foreground truncate">
-                                            {sessionConfig.section_class || 'Class'} · {sessionConfig.course_name || 'Course'} · {sessionConfig.report_term || 'Term'}
-                                        </p>
-                                    </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-border/40">
-                                    {/* Auto-save / Dirty status */}
-                                    <div className="text-[11px] font-semibold flex items-center gap-1.5 px-2.5 py-1.5 min-h-9 rounded-lg bg-muted/40 border border-border">
-                                        {isDirty ? (
-                                            <>
-                                                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                                                <span className="text-amber-600 dark:text-amber-400">Unsaved edits</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <CheckIcon className="h-3.5 w-3.5 text-emerald-500" />
-                                                <span className="text-emerald-600 dark:text-emerald-400">Draft saved</span>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Score Completeness Status */}
-                                    <div
-                                        className={`text-[11px] font-semibold flex items-center gap-1.5 px-2.5 py-1.5 min-h-9 rounded-lg border ${
-                                            existingReport?.is_published
-                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
-                                                : isAllScoresFilled
-                                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30'
-                                                : isPartiallyFilled
-                                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
-                                                : 'bg-muted/40 text-muted-foreground border-border'
-                                        }`}
-                                        title={
-                                            existingReport?.is_published
-                                                ? 'Report is published'
-                                                : isAllScoresFilled
-                                                ? 'All scores completed — ready to publish'
-                                                : isPartiallyFilled
-                                                ? `Incomplete draft: ${filledScoresCount} of ${totalScoresCount} scores entered. Missing scores are held as draft.`
-                                                : 'No scores entered yet'
-                                        }
-                                    >
-                                        {existingReport?.is_published ? (
-                                            <span>Published</span>
-                                        ) : isAllScoresFilled ? (
-                                            <>
-                                                <CheckCircleIcon className="h-3.5 w-3.5 text-blue-500" />
-                                                <span>Draft · Ready</span>
-                                            </>
-                                        ) : isPartiallyFilled ? (
-                                            <>
-                                                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                                <span>Draft ({filledScoresCount}/{totalScoresCount})</span>
-                                            </>
-                                        ) : (
-                                            <span>Draft · Unrated</span>
-                                        )}
-                                    </div>
-
-                                    {/* Historical Records Toggle */}
+                                <div className="flex items-center gap-1.5">
                                     <button
                                         type="button"
                                         onClick={() => setShowHistoryPanel(prev => !prev)}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-9 rounded-xl border text-xs font-bold transition-colors ${
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-10 sm:min-h-9 rounded-xl border text-xs font-bold transition-colors ${
                                             showHistoryPanel
-                                                ? "bg-primary text-white border-primary shadow-sm"
+                                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
                                                 : studentHistoryReports.length > 0
                                                     ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
                                                     : "bg-muted/30 border-border text-muted-foreground hover:bg-muted"
@@ -4496,12 +4429,10 @@ function ReportBuilderInner() {
                                             {studentHistoryReports.length}
                                         </span>
                                     </button>
-
-                                    {/* Report Branding Button */}
                                     <button
                                         type="button"
                                         onClick={() => setShowSettings(true)}
-                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-9 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-10 sm:min-h-9 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
                                         title="Configure report branding & logo"
                                     >
                                         <Cog6ToothIcon className="h-3.5 w-3.5" />
@@ -4509,7 +4440,7 @@ function ReportBuilderInner() {
                                     </button>
                                 </div>
                             </div>
-                            <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-[11px]" aria-live="polite">
+                            <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-1.5 text-[11px]" aria-live="polite">
                                 <span className="font-black text-foreground">Next: </span>
                                 <span className="text-muted-foreground">
                                     {reportIsPublished
@@ -5001,6 +4932,30 @@ function ReportBuilderInner() {
                                                 </button>
                                             </div>
                                         )}
+                                        {studentStats.pendingCbt > 0 && (
+                                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                                                <div className="min-w-0">
+                                                    <p className="font-black text-amber-900 dark:text-amber-200">
+                                                        {studentStats.pendingCbt} CBT script{studentStats.pendingCbt === 1 ? '' : 's'} awaiting Theory / Written grading
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground truncate">
+                                                        {studentStats.pendingCbtTitle
+                                                            ? `Score "${studentStats.pendingCbtTitle}" first so the full Theory mark pulls into this report.`
+                                                            : 'Grade pending written answers so the full Theory mark pulls into this report.'}
+                                                    </p>
+                                                </div>
+                                                <Link
+                                                    href={
+                                                        studentStats.pendingCbtExamId && studentStats.pendingCbtSessionId
+                                                            ? `/dashboard/cbt/${studentStats.pendingCbtExamId}/sessions/${studentStats.pendingCbtSessionId}/grade`
+                                                            : '/dashboard/cbt'
+                                                    }
+                                                    className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-lg bg-amber-700 hover:bg-amber-800 px-3 py-1.5 text-[11px] font-black text-white transition-colors"
+                                                >
+                                                    Grade Theory Now →
+                                                </Link>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                                         {(
                                             (
@@ -5040,14 +4995,14 @@ function ReportBuilderInner() {
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                            {isUnset && autoValue && (
+                                                            {autoValue && (isUnset || String(form[key]) !== String(autoValue)) && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => guardAutomaticScoreEdit(() => setForm(f => ({ ...f, [key]: autoValue })), key)}
-                                                                    className="text-[9px] font-bold text-primary hover:underline"
-                                                                    title={`Fill from LMS evidence: ${autoValue}%`}
+                                                                    className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-black text-primary hover:bg-primary/20 transition-colors"
+                                                                    title={`Apply central LMS score: ${autoValue}%`}
                                                                 >
-                                                                    Use auto ({autoValue}%)
+                                                                    {isUnset ? `Use auto (${autoValue}%)` : `Sync ${autoValue}%`}
                                                                 </button>
                                                             )}
                                                             <span className="truncate text-[9px] text-muted-foreground max-w-[7rem] sm:max-w-[9rem]" title={hint}>{hint}</span>
@@ -5862,9 +5817,9 @@ function ReportBuilderInner() {
             {/* ── Live Preview Modal ── */}
             {showPreview && (
                 <>
-                <div id="builder-preview-root" className="fixed inset-0 z-50 flex flex-col bg-background">
+                <div id="builder-preview-root" className="fixed inset-0 z-[10050] flex flex-col bg-background" style={{ paddingTop: 'max(0px, env(safe-area-inset-top, 0px))' }}>
                     <div className="no-print flex flex-wrap items-center gap-2 px-3 sm:px-6 py-3 border-b border-border bg-card overflow-x-auto">
-                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0">
+                        <button onClick={() => setShowPreview(false)} className="min-h-10 min-w-10 inline-flex items-center justify-center p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0" aria-label="Close preview">
                             <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
                         </button>
                         <div className="min-w-0 mr-2">
@@ -5952,7 +5907,7 @@ function ReportBuilderInner() {
                                         }
                                     } finally { setIsSharingPdf(false); }
                                 }}
-                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-black text-xs font-black rounded-xl shadow-lg shadow-green-900/30 transition-all"
+                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 min-h-10 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-sm transition-all"
                             >
                                 {isSharingPdf
                                     ? <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -5982,7 +5937,7 @@ function ReportBuilderInner() {
 
             {/* ── Viewing Past Historical Report Modal ── */}
             {viewingHistoryReport && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-background">
+                <div className="fixed inset-0 z-[10050] flex flex-col bg-background" style={{ paddingTop: 'max(0px, env(safe-area-inset-top, 0px))' }}>
                     <div className="no-print flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-border bg-card shadow-sm">
                         <div className="flex items-center gap-2 min-w-0">
                             <button

@@ -139,6 +139,16 @@ export async function POST(request: Request) {
       }
     }
 
+    if (class_id && safeIds.length > 0) {
+      const { syncStudentAccessAndAllocation } = await import('@/lib/students/student-access-sync');
+      await syncStudentAccessAndAllocation(supabaseAdmin as any, {
+        studentIds: safeIds,
+        classId: class_id,
+        actorId: user.id,
+        syncAuth: true,
+      });
+    }
+
     return NextResponse.json({
       enrolled: safeIds.length,
       skipped:  userIds.length - safeIds.length,

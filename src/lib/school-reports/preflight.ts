@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveSchoolProgrammePolicy } from '@/lib/academic/school-programme-standing';
+import {
+  classifyStudentSessionStatus,
+  getSessionBoundary,
+  shouldReplaceRosterRow,
+} from '@/lib/academic/session-scope';
 import { coverageSessionOrFilter } from '@/lib/reports/academic-period';
+import { fetchAllReportRows } from './paginated-query';
 import {
   academicPeriodWeekCount,
   loadReportCurriculumRangeSuggestion,
@@ -63,29 +69,78 @@ export async function runReportPreflight(
   const sources: DataSourceStatus[] = [];
   const checks: ReportPreflightCheck[] = [];
 
-  const [{ data: school, error: schoolError }, { data: students, error: studentError }, { data: classes, error: classError }] =
+  const [{ data: school, error: schoolError }, { data: rawStudents, error: studentError }, { data: classes, error: classError }] =
     await Promise.all([
       admin
         .from('schools')
         .select('id,name,programme_standing,sessions_per_week,exam_capture,test_capture')
         .eq('id', input.schoolId)
         .maybeSingle(),
-      admin
-        .from('portal_users')
-        .select('id')
-        .eq('role', 'student')
-        .eq('school_id', input.schoolId)
-        .eq('is_active', true)
-        .or('is_deleted.is.null,is_deleted.eq.false')
-        .limit(5000),
+      fetchAllReportRows<{
+        id: string;
+        class_id?: string | null;
+        is_active?: boolean | null;
+        created_at?: string | null;
+        metadata?: Record<string, any> | null;
+      }>((from, to) =>
+        admin
+          .from('portal_users')
+          .select('id,class_id,is_active,created_at,metadata')
+          .eq('role', 'student')
+          .eq('school_id', input.schoolId)
+          .eq('is_active', true)
+          .or('is_deleted.is.null,is_deleted.eq.false')
+          .range(from, to),
+      ),
       admin.from('classes').select('id,name,teacher_id').eq('school_id', input.schoolId).limit(1000),
     ]);
 
+  const rawStudentList = rawStudents ?? [];
+  const latestRosterByStudent = new Map<string, any>();
+  if (rawStudentList.length > 0) {
+    const liveClassByStudent = new Map(rawStudentList.map((s) => [s.id, s.class_id ?? null]));
+    const rawIds = rawStudentList.map((s) => s.id);
+    try {
+      for (let i = 0; i < rawIds.length; i += 200) {
+        const chunk = rawIds.slice(i, i + 200);
+        const { data: rosterData } = await fetchAllReportRows<any>((from, to) =>
+          admin
+            .from('class_term_rosters')
+            .select('student_id,class_id,term_id,status,started_at,reinstated_at,ended_at')
+            .in('student_id', chunk)
+            .range(from, to),
+        );
+        for (const row of rosterData ?? []) {
+          if (!row?.student_id) continue;
+          const existing = latestRosterByStudent.get(row.student_id);
+          if (shouldReplaceRosterRow(existing, row, liveClassByStudent.get(row.student_id))) {
+            latestRosterByStudent.set(row.student_id, row);
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback when class_term_rosters is unavailable in lightweight mocks.
+    }
+  }
+
+  const liveBoundary = getSessionBoundary();
+  const isCurrentSession =
+    !input.academicYear || input.academicYear.trim() === liveBoundary.periodLabel;
+  const students = rawStudentList.filter((student) => {
+    const status = classifyStudentSessionStatus(student, latestRosterByStudent.get(student.id), {
+      canonicalTermId: input.academicTermId,
+      boundary: liveBoundary,
+    });
+    if (status === 'withdrawn') return false;
+    if (isCurrentSession && status === 'carryover_unconfirmed') return false;
+    return true;
+  });
+
   sources.push(recordSource('school', { error: schoolError, rows: school ? [school] : [], required: true, checkedAt }));
-  sources.push(recordSource('students', { error: studentError, rows: students ?? [], cap: 5000, required: true, checkedAt }));
+  sources.push(recordSource('students', { error: studentError, rows: students, required: true, checkedAt }));
   sources.push(recordSource('classes', { error: classError, rows: classes ?? [], cap: 1000, checkedAt }));
 
-  const studentIds = (students ?? []).map((row: { id: string }) => row.id);
+  const studentIds = students.map((row) => row.id);
   const classIds = (classes ?? []).map((row: { id: string }) => row.id);
   const programmePolicy = resolveSchoolProgrammePolicy(school ?? {});
 
@@ -110,11 +165,6 @@ export async function runReportPreflight(
   if (studentIds.length) {
     const idList = studentIds.join(',');
 
-    // Attendance rows key `student_id` to the legacy public.students row, NOT to
-    // portal_users. Preflight searched portal ids on both columns and therefore
-    // matched nothing, so "Attendance coverage" always read 0 here while the
-    // draft — which resolves legacy ids first — showed the real figure. Same
-    // resolution as loaders/evidence.ts, so the two agree.
     const { data: legacyStudents } = await admin
       .from('students')
       .select('id, user_id')
@@ -265,10 +315,10 @@ export async function runReportPreflight(
   pushCheck({
     key: 'learners',
     label: 'Learners',
-    status: studentError ? 'fail' : (students?.length ?? 0) > 0 ? 'pass' : 'warn',
+    status: studentError ? 'fail' : students.length > 0 ? 'pass' : 'warn',
     detail: studentError
       ? studentError.message
-      : `${students?.length ?? 0} active learner${(students?.length ?? 0) === 1 ? '' : 's'} found`,
+      : `${students.length} active learner${students.length === 1 ? '' : 's'} found`,
   });
 
   pushCheck({

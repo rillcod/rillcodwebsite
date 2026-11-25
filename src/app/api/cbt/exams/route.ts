@@ -103,7 +103,7 @@ export async function GET(_request: NextRequest) {
     const now = new Date().toISOString();
     let examQuery = admin
       .from('cbt_exams')
-      .select('id, title, description, duration_minutes, passing_score, total_questions, is_active, start_date, end_date, class_id, term_id, program_id, course_id, school_id, metadata, programs(name), courses(title)')
+      .select('id, title, description, duration_minutes, passing_score, total_questions, is_active, start_date, end_date, created_at, class_id, term_id, program_id, course_id, school_id, metadata, programs(name), courses(title)')
       .eq('is_active', true)
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`)
@@ -120,13 +120,19 @@ export async function GET(_request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const { resolveAssignmentTermId } = await import('@/lib/assignments/session');
-    const { loadAcademicTermBounds, filterCbtExamsByAcademicTerm } = await import('@/lib/cbt/session');
+    const { loadAcademicTermBounds, filterCbtExamsByAcademicTerm, isPriorSessionUntaggedCbtExam } = await import('@/lib/cbt/session');
+    const { getSessionBoundary } = await import('@/lib/academic/session-scope');
     const liveTermId = await resolveAssignmentTermId(admin as any, {
       classId: student.class_id ?? null,
     });
     const bounds = await loadAcademicTermBounds(admin as any, liveTermId);
+    const sessionStartMs = getSessionBoundary().sessionStartMs;
     const data = filterCbtExamsByAcademicTerm(
-      ((rawExams ?? []) as any[]).filter((exam) => cbtExamVisibleToStudent(exam, student, scope)),
+      ((rawExams ?? []) as any[]).filter(
+        (exam) =>
+          !isPriorSessionUntaggedCbtExam(exam, sessionStartMs)
+          && cbtExamVisibleToStudent(exam, student, scope),
+      ),
       liveTermId,
       bounds,
       { includeUntagged: true },

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -36,6 +37,7 @@ export default function GradeSessionPage() {
     const [showObjectives, setShowObjectives] = useState(false);
     const [nextPendingId, setNextPendingId] = useState<string | null>(null);
     const [pendingCount, setPendingCount] = useState<number>(0);
+    const [queueSessions, setQueueSessions] = useState<Array<{ id: string; studentName: string; status: string; score: number | null; needsGrading: boolean }>>([]);
     const [aiDraft, setAiDraft] = useState<{ scores: Record<string, number>; feedback: string }>({
         scores: {},
         feedback: '',
@@ -65,14 +67,30 @@ export default function GradeSessionPage() {
                     fetch(`/api/cbt/sessions?exam_id=${params.id}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
                 ]);
 
-                const otherPending = (Array.isArray(allSessionsJson?.data) ? allSessionsJson.data : [])
-                    .filter((s: any) => s.id !== params.sessionId && (s.status === 'pending_grading' || s.needs_grading));
-                setNextPendingId(otherPending[0]?.id ?? null);
-                setPendingCount(otherPending.length);
-
                 // Enrich session with student info from API (bypasses RLS on portal_users)
                 const umap: Record<string, any> = {};
                 (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
+                const allExamSessions = (Array.isArray(allSessionsJson?.data) ? allSessionsJson.data : [])
+                    .filter((s: any) => s.status !== 'in_progress');
+                const otherPending = allExamSessions
+                    .filter((s: any) => s.id !== params.sessionId && (s.status === 'pending_grading' || s.needs_grading));
+                setNextPendingId(otherPending[0]?.id ?? null);
+                setPendingCount(otherPending.length);
+                setQueueSessions(
+                    allExamSessions
+                        .map((s: any) => ({
+                            id: String(s.id),
+                            studentName: umap[s.user_id]?.full_name || 'Learner',
+                            status: String(s.status || ''),
+                            score: typeof s.score === 'number' ? s.score : null,
+                            needsGrading: Boolean(s.status === 'pending_grading' || s.needs_grading),
+                        }))
+                        .sort((a: any, b: any) => {
+                            if (a.needsGrading !== b.needsGrading) return a.needsGrading ? -1 : 1;
+                            return a.studentName.localeCompare(b.studentName);
+                        }),
+                );
+
                 const sess = { ...(sessionJson.data as any), portal_users: umap[(sessionJson.data as any)?.user_id] ?? null };
                 const examData = examJson.data;
                 setSession(sess);
@@ -239,9 +257,53 @@ export default function GradeSessionPage() {
     return (
         <div className="min-h-screen bg-background text-foreground mobile-page-root">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-                <button onClick={() => router.back()} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all group">
-                    <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Exam Details
-                </button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Link href={`/dashboard/cbt/${params.id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all group">
+                        <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Exam Monitor
+                    </Link>
+
+                    {queueSessions.length > 1 && (() => {
+                        const curIdx = queueSessions.findIndex((q) => q.id === params.sessionId);
+                        const prevS = curIdx > 0 ? queueSessions[curIdx - 1] : null;
+                        const nextS = curIdx >= 0 && curIdx < queueSessions.length - 1 ? queueSessions[curIdx + 1] : null;
+                        return (
+                            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-1.5 shadow-sm">
+                                <button
+                                    type="button"
+                                    disabled={!prevS || saving}
+                                    onClick={() => prevS && router.push(`/dashboard/cbt/${params.id}/sessions/${prevS.id}/grade`)}
+                                    className="min-h-9 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-40"
+                                >
+                                    ← Prev
+                                </button>
+                                <select
+                                    aria-label="Jump to student script"
+                                    value={params.sessionId}
+                                    onChange={(e) => {
+                                        if (e.target.value && e.target.value !== params.sessionId) {
+                                            router.push(`/dashboard/cbt/${params.id}/sessions/${e.target.value}/grade`);
+                                        }
+                                    }}
+                                    className="min-h-9 max-w-[220px] sm:max-w-xs rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-bold text-foreground"
+                                >
+                                    {queueSessions.map((qs, idx) => (
+                                        <option key={qs.id} value={qs.id}>
+                                            {idx + 1}. {qs.studentName} {qs.needsGrading ? '· Needs Theory' : `· ${qs.score ?? 0}%`}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    disabled={!nextS || saving}
+                                    onClick={() => nextS && router.push(`/dashboard/cbt/${params.id}/sessions/${nextS.id}/grade`)}
+                                    className="min-h-9 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-40"
+                                >
+                                    Next →
+                                </button>
+                            </div>
+                        );
+                    })()}
+                </div>
 
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-2">
@@ -393,10 +455,75 @@ export default function GradeSessionPage() {
                   );
                 })()}
 
+                {subjectiveQuestions.length > 0 && (() => {
+                    const blankUnscoredIds = subjectiveQuestions
+                        .filter((q) => {
+                            if (manualScores[q.id] !== undefined && manualScores[q.id] !== null) return false;
+                            const parsed = parseEssayAnswer(session.answers?.[q.id]);
+                            return !parsed.text.trim() && parsed.attachments.length === 0;
+                        })
+                        .map((q) => q.id);
+                    const unscoredCount = subjectiveQuestions.filter((q) => manualScores[q.id] === undefined || manualScores[q.id] === null).length;
+                    return (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+                            <div className="text-xs">
+                                <span className="font-black text-foreground">Theory / Written Evaluation ({subjectiveQuestions.length} question{subjectiveQuestions.length === 1 ? '' : 's'})</span>
+                                <span className="ml-2 text-muted-foreground">
+                                    {unscoredCount === 0 ? 'All Theory responses scored ✓' : `${unscoredCount} remaining to score`}
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {blankUnscoredIds.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setManualScores((prev) => {
+                                                const next = { ...prev };
+                                                for (const qid of blankUnscoredIds) next[qid] = 0;
+                                                return next;
+                                            });
+                                        }}
+                                        className="min-h-9 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-black text-amber-900 dark:text-amber-200 transition-colors"
+                                    >
+                                        Score {blankUnscoredIds.length} Blank Answer{blankUnscoredIds.length === 1 ? '' : 's'} as 0
+                                    </button>
+                                )}
+                                {unscoredCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setManualScores((prev) => {
+                                                const next = { ...prev };
+                                                for (const q of subjectiveQuestions) {
+                                                    if (next[q.id] === undefined || next[q.id] === null) {
+                                                        next[q.id] = Number(q.points ?? 0);
+                                                    }
+                                                }
+                                                return next;
+                                            });
+                                        }}
+                                        className="min-h-9 rounded-xl border border-border bg-background hover:bg-muted px-3 py-1.5 text-xs font-bold text-foreground transition-colors"
+                                    >
+                                        Award Full to Unscored
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 <div className="grid grid-cols-1 gap-6">
                     {subjectiveQuestions.map((q, i) => {
-                        const scoreWeight = (manualScores[q.id] || 0) / (q.points || 1);
-                        const halfPts = Math.round((q.points || 1) / 2);
+                        const maxPts = Number(q.points || 1);
+                        const currentVal = manualScores[q.id];
+                        const scoreWeight = (currentVal || 0) / maxPts;
+                        const presetOptions = [
+                            { label: '0', pts: 0 },
+                            { label: '25%', pts: Math.round(maxPts * 0.25 * 10) / 10 },
+                            { label: '50%', pts: Math.round(maxPts * 0.5 * 10) / 10 },
+                            { label: '75%', pts: Math.round(maxPts * 0.75 * 10) / 10 },
+                            { label: `Full (${maxPts})`, pts: maxPts },
+                        ];
                         
                         return (
                             <div key={q.id} className="rounded-2xl bg-card border border-border overflow-hidden shadow-sm hover:border-emerald-500/35 transition-all">
@@ -454,10 +581,24 @@ export default function GradeSessionPage() {
                                                 <CheckCircleIcon className="w-5 h-5" />
                                             </button>
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-[10px]">
-                                            <button type="button" onClick={() => setManualScores({ ...manualScores, [q.id]: 0 })} className="px-2 py-0.5 rounded-md border border-border bg-card hover:bg-muted font-black text-muted-foreground hover:text-foreground">0</button>
-                                            <button type="button" onClick={() => setManualScores({ ...manualScores, [q.id]: halfPts })} className="px-2 py-0.5 rounded-md border border-border bg-card hover:bg-muted font-black text-muted-foreground hover:text-foreground">Half ({halfPts})</button>
-                                            <button type="button" onClick={() => setManualScores({ ...manualScores, [q.id]: q.points })} className="px-2 py-0.5 rounded-md border border-emerald-500/35 bg-emerald-500/12 hover:bg-emerald-500/20 font-black text-emerald-800 dark:text-emerald-300">Full ({q.points})</button>
+                                        <div className="flex flex-wrap items-center justify-center gap-1 text-[10px]">
+                                            {presetOptions.map((preset) => {
+                                                const active = currentVal !== undefined && currentVal !== null && Number(currentVal) === preset.pts;
+                                                return (
+                                                    <button
+                                                        key={preset.label}
+                                                        type="button"
+                                                        onClick={() => setManualScores({ ...manualScores, [q.id]: preset.pts })}
+                                                        className={`min-h-8 px-2.5 py-1 rounded-lg border font-black transition-colors ${
+                                                            active
+                                                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                                                : 'border-border bg-card hover:bg-muted text-foreground'
+                                                        }`}
+                                                    >
+                                                        {preset.label}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                         <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                                             <div 
@@ -649,7 +790,7 @@ export default function GradeSessionPage() {
                     (q) => manualScores[q.id] !== undefined && manualScores[q.id] !== null,
                 ).length;
                 return (
-                    <div className="sticky bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-md shadow-lg">
+                    <div className="sticky bottom-[calc(var(--app-bottom-nav-height,0px)+env(safe-area-inset-bottom,0px))] md:bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-md shadow-lg">
                         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
                                 <span className={`text-xl font-black tabular-nums ${
@@ -671,7 +812,15 @@ export default function GradeSessionPage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {exam?.class_id && (
+                                    <Link
+                                        href={`/dashboard/reports/builder?class_id=${encodeURIComponent(exam.class_id)}${session?.user_id ? `&student_id=${encodeURIComponent(session.user_id)}` : ''}`}
+                                        className="min-h-10 inline-flex items-center px-3.5 py-2 rounded-xl border border-border bg-background hover:bg-muted text-foreground text-xs font-bold"
+                                    >
+                                        Result Builder
+                                    </Link>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => void handleSaveGrade(false)}

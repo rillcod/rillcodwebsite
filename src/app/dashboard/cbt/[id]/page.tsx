@@ -1471,6 +1471,37 @@ export default function ExamDetailPage() {
 
                 {resultsOpen && (
                   <div className="space-y-3">
+                    {canManageExam && pendingGradingCount > 0 && (() => {
+                      const firstPending = submittedSessions.find((s: any) => s.status === 'pending_grading' || s.needs_grading);
+                      if (!firstPending?.id) return null;
+                      return (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3.5">
+                          <div className="min-w-0">
+                            <p className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                              Theory / Written Grading Queue · {pendingGradingCount} Pending
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Grade written responses one after another — finalized scores sync straight into Result Builder.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}/sessions/${firstPending.id}/grade`}
+                              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-amber-700 hover:bg-amber-800 px-4 py-2 text-xs font-black text-white shadow-sm transition-colors"
+                            >
+                              <PencilIcon className="h-3.5 w-3.5" />
+                              Start Theory Grading ({pendingGradingCount}) →
+                            </Link>
+                            <Link
+                              href={exam?.class_id ? `/dashboard/reports/builder?class_id=${encodeURIComponent(exam.class_id)}` : '/dashboard/reports/builder'}
+                              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted px-3 py-2 text-xs font-bold text-foreground transition-colors"
+                            >
+                              Result Builder
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {/* 4-Card Live Proctor Command Strip */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
                       <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-2.5">

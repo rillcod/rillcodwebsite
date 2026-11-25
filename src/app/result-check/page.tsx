@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   ArrowRightIcon,
   ExclamationTriangleIcon,
+  XMarkIcon,
 } from '@/lib/icons';
 import { resolveResultCheckTarget, formatAccessCardCodeInput } from '@/lib/access-card-code';
 import ResultCheckShell from '@/components/result-check/ResultCheckShell';
@@ -20,42 +21,59 @@ export default function ResultCheckEntryPage() {
     event.preventDefault();
     const target = resolveResultCheckTarget(code);
     if (!target) {
-      setError('Enter your RC number (e.g. RC-1234-5678), legacy RC code, or scan the QR on the card.');
+      setError('Enter the 8-character RC code printed on your child’s access card (e.g. RC-1234-5678).');
       return;
     }
     setBusy(true);
     router.push(`/result-check/${encodeURIComponent(target)}?via=typed`);
   }
 
+  async function handlePasteFromClipboard() {
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (!clip) return;
+      const formatted = formatAccessCardCodeInput(clip);
+      if (formatted) {
+        setCode(formatted);
+        setError('');
+      }
+    } catch {
+      /* clipboard permission denied — user can long-press paste normally */
+    }
+  }
+
   return (
     <ResultCheckShell>
-      <section className="mx-auto max-w-xl">
-        <div className="rc-fade-up space-y-5 text-center sm:space-y-6">
-          <p className="rc-display text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+      <section className="mx-auto max-w-lg">
+        <div className="rc-fade-up space-y-3 text-center">
+          <p className="rc-display text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">
             RILLCOD
           </p>
-          <div className="space-y-2">
-            <h1 className="rc-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Check your child&apos;s result
-            </h1>
-            <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Enter the <span className="font-semibold text-foreground">8 characters</span> on your child&apos;s access card —{' '}
-              <span className="font-semibold text-foreground">digits</span> on new cards,{' '}
-              <span className="font-semibold text-foreground">letters</span> on older cards.
-              Type or paste the full code (e.g. <span className="font-mono font-semibold text-foreground">RC-1234-5678</span>) — the{' '}
-              <span className="font-mono font-semibold text-foreground">RC-</span> prefix is optional.
-              You can also scan the QR on the card.
-            </p>
-          </div>
+          <h1 className="rc-display text-xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Check your child&apos;s result
+          </h1>
+          <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
+            Enter or paste the <span className="font-semibold text-foreground">8-character RC code</span> from your child&apos;s access card (or scan the QR code on the card).
+          </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rc-fade-up-delay rc-panel mt-8 space-y-4 rounded-[1.75rem] p-5 sm:mt-10 sm:p-7"
+          className="rc-fade-up-delay rc-panel mt-6 space-y-4 rounded-[1.75rem] p-5 sm:mt-8 sm:p-7"
         >
-          <label htmlFor="result-code" className="block text-left text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            RC student number
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="result-code" className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              RC student code
+            </label>
+            <button
+              type="button"
+              onClick={() => void handlePasteFromClipboard()}
+              className="rounded-lg border border-border bg-card/80 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-muted transition-colors"
+            >
+              Paste code
+            </button>
+          </div>
+
           <div className="relative flex items-center overflow-hidden rounded-2xl border border-border bg-background focus-within:border-primary">
             <span className="pointer-events-none shrink-0 pl-4 text-lg font-black tracking-wider text-primary sm:text-xl">
               RC-
@@ -69,13 +87,28 @@ export default function ResultCheckEntryPage() {
                 setCode(formatAccessCardCodeInput(event.target.value));
                 setError('');
               }}
-              placeholder="1234-5678 or RC-1234-5678"
+              placeholder="1234-5678"
               inputMode="text"
               autoComplete="off"
+              autoCapitalize="characters"
               spellCheck={false}
-              maxLength={9}
-              className="rc-input w-full border-0 bg-transparent px-3 py-4 text-center text-xl font-bold tracking-[0.25em] outline-none transition placeholder:tracking-normal sm:text-2xl"
+              autoFocus
+              maxLength={16}
+              className="rc-input w-full border-0 bg-transparent px-2 py-4 text-center text-xl font-bold tracking-[0.22em] outline-none transition placeholder:tracking-normal sm:text-2xl"
             />
+            {code ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCode('');
+                  setError('');
+                }}
+                aria-label="Clear code"
+                className="mr-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            ) : null}
           </div>
 
           {error && (
@@ -92,33 +125,25 @@ export default function ResultCheckEntryPage() {
           <button
             type="submit"
             disabled={busy}
-            className="rc-cta rc-cta-pulse flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-bold tracking-wide disabled:opacity-70 sm:text-base"
+            className="rc-cta rc-cta-pulse flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold tracking-wide disabled:opacity-70 sm:text-base"
           >
-            {busy ? 'Opening…' : 'Open result'}
+            {busy ? 'Opening…' : 'Open Result'}
             {!busy && <ArrowRightIcon className="h-5 w-5" />}
           </button>
 
           <p id="result-code-help" className="text-center text-xs leading-relaxed text-muted-foreground">
-            New cards: 8 digits (e.g. <span className="font-mono font-semibold text-foreground">RC-1234-5678</span>).
-            Older cards: 8 letters and numbers (e.g. <span className="font-mono font-semibold text-foreground">RC-AB12-CD34</span>).
-            QR scans and very old cards open automatically — no typing needed.
+            Works with both numeric codes (<span className="font-mono font-semibold text-foreground">RC-1234-5678</span>) and older alphanumeric cards (<span className="font-mono font-semibold text-foreground">RC-AB12-CD34</span>). First-time parents will link their details on the next screen.
           </p>
 
-          {/* ── Parent Setup / Record Link direct button ── */}
-          <div className="mt-4 pt-4 border-t border-border/60 text-center space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Need to link your parent account?</p>
+          <div className="pt-3 border-t border-border/60 text-center">
             <Link
-              href="/parent-claim"
-              className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all"
+              href="/login?type=parent"
+              className="inline-flex min-h-10 items-center justify-center text-xs font-bold text-primary hover:underline"
             >
-              Fill Parent Details Form (Parent Claim) ↗
+              Already have a Parent or Student login? Sign in →
             </Link>
           </div>
         </form>
-
-        <p className="rc-fade-up-late mt-8 text-center text-[11px] text-muted-foreground">
-          Secured by Rillcod Technologies · Parent verified access
-        </p>
       </section>
     </ResultCheckShell>
   );
