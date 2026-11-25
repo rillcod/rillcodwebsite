@@ -1797,7 +1797,9 @@ function ReportBuilderInner() {
         setStudentStats({
             attendance: 0, totalSessions: 0, assignments: 0, totalAssignments: 0,
             cbtScore: 0, assignmentAvg: 0, evalScore: 0, assignmentPct: 0,
-            projects: 0, pendingCbt: 0, firstTest: null, secondTest: null,
+            projects: 0, pendingCbt: 0,
+            pendingCbtSessionId: null, pendingCbtExamId: null, pendingCbtTitle: null,
+            firstTest: null, secondTest: null,
             examination: null, hostTotal: null, hostPapers: emptyHostPaperMarks(),
             hostTotalMark: null, hostPaperExamIds: emptyHostPaperExamIds(),
         });

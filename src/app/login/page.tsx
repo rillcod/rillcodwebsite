@@ -248,6 +248,10 @@ function LoginContent() {
           // Fall back to existing profile state if repair call fails
         }
       }
+      if (!profileData) {
+        await supabase.auth.signOut();
+        throw new Error("No account found. Please contact your school administrator.");
+      }
       if (!profileData.is_active || profileData.is_deleted) {
         await supabase.auth.signOut();
         const role = profileData.role ?? '';

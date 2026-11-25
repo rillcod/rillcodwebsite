@@ -317,9 +317,7 @@ export async function syncStudentAccessAndAllocation(
   }
 
   const billingPayload = await defaultRosterBillingPayload(admin as any, {
-    id: cls.id,
     school_id: cls.school_id ?? null,
-    program_id: effectiveProgramId,
   });
 
   for (const sid of validIds) {
